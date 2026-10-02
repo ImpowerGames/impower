@@ -20,38 +20,32 @@ sparkdown [0..352]
  │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [13..17]
  │   │   │           └─ LuauWithKeyword [13..17]: "with"
  │   │   ├─ Newline [17..18]: "\n"
- │   │   ├─ LuauStructBodyLine [18..36]
- │   │   │   ├─ LuauStructBodyLine_c1 [18..20]
- │   │   │   │   └─ LuauStructBodyLine_c1 [18..20]
- │   │   │   │       └─ OptionalWhitespace [18..20]: "  "
- │   │   │   ├─ LuauStructBodyLine_c2 [20..36]
- │   │   │   │   └─ LuauStructBodyContent [20..36]
- │   │   │   │       └─ LuauStructBodyContent_c1 [20..36]
- │   │   │   │           └─ LuauStructScalarProperty [20..36]
- │   │   │   │               ├─ LuauStructScalarProperty_c1 20
- │   │   │   │               │   └─ OptionalWhitespace 20
- │   │   │   │               ├─ LuauStructScalarProperty_c2 [20..26]
- │   │   │   │               │   └─ StylingDeclarationScalarPropertyName [20..26]
- │   │   │   │               │       └─ StylingDeclarationScalarPropertyName_c1 [20..26]
- │   │   │   │               │           └─ DeclarationScalarPropertyKey [20..26]: "cursor"
- │   │   │   │               ├─ LuauStructScalarProperty_c3 [26..29]
- │   │   │   │               │   └─ AssignEqualOperator [26..29]
- │   │   │   │               │       ├─ AssignEqualOperator_c1 [26..27]
- │   │   │   │               │       │   └─ AssignEqualOperator_c1 [26..27]
- │   │   │   │               │       │       └─ OptionalSeparator [26..27]: " "
- │   │   │   │               │       ├─ AssignEqualOperator_c2 [27..28]
- │   │   │   │               │       │   └─ EqualOperator [27..28]: "="
- │   │   │   │               │       └─ AssignEqualOperator_c3 [28..29]
- │   │   │   │               │           └─ AssignEqualOperator_c3 [28..29]
- │   │   │   │               │               └─ OptionalSeparator [28..29]: " "
- │   │   │   │               └─ LuauStructScalarProperty_c4 [29..36]
- │   │   │   │                   └─ StylingValue [29..36]
- │   │   │   │                       ├─ StylingValue_c1 [29..36]
- │   │   │   │                       │   └─ StylingStringIdentifier [29..36]: "pointer"
- │   │   │   │                       └─ StylingValue_c2 36
- │   │   │   └─ LuauStructBodyLine_c3 36
- │   │   │       └─ LuauStructBodyLine_c3 36
- │   │   │           └─ OptionalWhitespace 36
+ │   │   ├─ LuauStructBlockLine [18..36]
+ │   │   │   ├─ LuauStructBlockLine_begin 18
+ │   │   │   ├─ LuauStructBlockLine_content [18..36]
+ │   │   │   │   ├─ Whitespace [18..20]: "  "
+ │   │   │   │   └─ LuauStructBlockProperty [20..36]
+ │   │   │   │       ├─ LuauStructBlockProperty_c1 [20..26]
+ │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [20..26]
+ │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [20..26]
+ │   │   │   │       │           └─ DeclarationScalarPropertyKey [20..26]: "cursor"
+ │   │   │   │       ├─ LuauStructBlockProperty_c2 [26..29]
+ │   │   │   │       │   └─ AssignEqualOperator [26..29]
+ │   │   │   │       │       ├─ AssignEqualOperator_c1 [26..27]
+ │   │   │   │       │       │   └─ AssignEqualOperator_c1 [26..27]
+ │   │   │   │       │       │       └─ OptionalSeparator [26..27]: " "
+ │   │   │   │       │       ├─ AssignEqualOperator_c2 [27..28]
+ │   │   │   │       │       │   └─ EqualOperator [27..28]: "="
+ │   │   │   │       │       └─ AssignEqualOperator_c3 [28..29]
+ │   │   │   │       │           └─ AssignEqualOperator_c3 [28..29]
+ │   │   │   │       │               └─ OptionalSeparator [28..29]: " "
+ │   │   │   │       ├─ LuauStructBlockProperty_c3 [29..36]
+ │   │   │   │       │   └─ StylingValue [29..36]
+ │   │   │   │       │       ├─ StylingValue_c1 [29..36]
+ │   │   │   │       │       │   └─ StylingStringIdentifier [29..36]: "pointer"
+ │   │   │   │       │       └─ StylingValue_c2 36
+ │   │   │   │       └─ LuauStructBlockProperty_c4 36
+ │   │   │   └─ LuauStructBlockLine_end 36
  │   │   ├─ Newline [36..37]: "\n"
  │   │   ├─ LuauStructBlockLine [37..82]
  │   │   │   ├─ LuauStructBlockLine_begin 37

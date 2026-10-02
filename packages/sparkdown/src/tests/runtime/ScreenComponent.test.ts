@@ -190,26 +190,6 @@ end
   });
 });
 
-describe("screen · inline props", () => {
-  test("`#prop` is dropped from the static struct; container header keeps its `:`", () => {
-    const r = compileUI(`store team_color = "red"
-layout panel with
-  column #gap=16:
-    image #src="icon.png"
-    text "hi" #color={team_color}
-end
-`);
-    expect(r.errors).toEqual([]);
-    // `column #gap=16:` stays a container (the `:` survives attribute excision);
-    // its inline props are absent from the static struct. `image #src=…` → bare
-    // marker {}, `text "hi" #color=…` → { text: "hi" }.
-    expect(r.layout["panel"]["column"]).toEqual({
-      image: {},
-      text: "hi",
-    });
-  });
-});
-
 describe("screen · classes", () => {
   test("classes stay in the static struct key; content is the value", () => {
     const r = compileUI(`layout main with
@@ -224,53 +204,6 @@ end
       "mask shadow_1": {},
       "text title": "Inventory",
     });
-  });
-
-  // This used to warn. An element line was read as a bag of names, so a builtin
-  // sitting anywhere on it was a candidate TAG, and two of them were ambiguous.
-  //
-  // Position decides now: the FIRST name is the tag and every name after it is a
-  // class, whether or not it happens to also be a builtin. `button text "Oops"`
-  // is a button carrying the `text` class -- unambiguous, so there is nothing to
-  // warn about. Requiring class names to avoid colliding with the ~60 builtins
-  // would be a rule authors could not keep in their heads.
-  test("a builtin name after the tag is a class, not a second tag", () => {
-    const compiler = new SparkdownCompiler();
-    compiler.configure({
-      files: [
-        {
-          uri: "inmemory:///m.sd",
-          type: "script",
-          name: "m",
-          ext: "sd",
-          text: `layout main with
-  stage:
-    button text "Oops"
-end
-`,
-          version: 1,
-          languageId: "sparkdown",
-        },
-      ],
-    });
-    const result = compiler.compile({
-      textDocument: { uri: "inmemory:///m.sd" },
-    });
-    const messages: string[] = [];
-    for (const docDiags of Object.values(result.program.diagnostics ?? {})) {
-      for (const d of docDiags as any[]) {
-        messages.push(
-          typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
-        );
-      }
-    }
-    expect(messages.some((m) => m.includes("only have one tag"))).toBe(false);
-    // Not merely unwarned -- actually lowered, as `<button class="button text">`.
-    // Asserting only the absence of the diagnostic would pass just as happily if
-    // the trailing name were dropped on the floor.
-    expect(JSON.stringify(result.program.context?.["layout"])).toContain(
-      "button text",
-    );
   });
 });
 

@@ -1,6 +1,8 @@
 style dialogue with
-  @screen-size(sm):
+  @screen-size(sm) {
     width = 100%
-  > #image^=raffles_:
+  }
+  > #image^=raffles_ {
     background_color = #E5323E
+  }
 end

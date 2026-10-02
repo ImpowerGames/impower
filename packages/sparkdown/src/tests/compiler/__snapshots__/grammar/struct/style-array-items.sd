@@ -1,5 +1,6 @@
 style list with
-  items:
-    - first
-    - second
+  items {
+    first
+    second
+  }
 end

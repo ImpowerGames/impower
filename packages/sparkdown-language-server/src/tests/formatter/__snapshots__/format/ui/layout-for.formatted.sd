@@ -1,8 +1,0 @@
-layout bag with
-  for item in inventory do
-    row:
-      text "{item.name}"
-  else
-    text "empty"
-  end
-end

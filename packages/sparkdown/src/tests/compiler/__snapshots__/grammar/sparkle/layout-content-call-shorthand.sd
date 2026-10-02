@@ -1,6 +1,7 @@
 layout hud with
-  stage:
+  stage {
     text = "Cry: {{shout}} now"
     label = "Sum: {{ fmt(hp, max_hp) }}"
     note = "escaped \{brace\} stays"
+  }
 end

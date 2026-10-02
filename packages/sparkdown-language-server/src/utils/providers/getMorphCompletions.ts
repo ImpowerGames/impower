@@ -46,84 +46,14 @@ const EASING_FUNCTIONS = [
   { label: "linear()", insert: "linear(${1:0}, ${2:1})" },
 ];
 
-interface Line {
-  indent: number;
-  text: string;
-}
-
-/** A line's key: `key:` / `key = …` / `- key:`; `-` for a bare list item. */
-function lineKeys(text: string): string[] {
-  const trimmed = text.trim();
-  const item = /^-\s*(.*)$/.exec(trimmed);
-  if (item) {
-    const rest = item[1]!;
-    const inner = /^([^\s:=]+)\s*(?::|=)/.exec(rest);
-    return inner ? ["-", inner[1]!] : ["-"];
-  }
-  const key = /^([^\s:=]+)\s*(?::|=)/.exec(trimmed);
-  return key ? [key[1]!] : [];
-}
-
-/**
- * The container keys enclosing `lineIndex`, outermost first, read from
- * indentation the way the struct body is parsed: each shallower line above is
- * a parent. A `-` item is its own level; a collapsed `- eyes:` item is the item
- * then its first key.
- */
-function pathAt(lines: Line[], lineIndex: number, indent: number): string[] {
-  const path: string[] = [];
-  let limit = indent;
-  for (let i = lineIndex - 1; i >= 0; i -= 1) {
-    const line = lines[i]!;
-    if (!line.text.trim() || /^\s*(?:--|\/\/)/.test(line.text)) continue;
-    if (line.indent >= limit) continue;
-    const keys = lineKeys(line.text);
-    if (keys[0] === "-" && keys.length > 1) {
-      // A collapsed item carries its first entry on the dash line. A line at
-      // that entry's column is the entry's sibling inside the item; a deeper
-      // line is the entry's child.
-      const entryColumn = line.indent + line.text.trim().indexOf(keys[1]!);
-      path.unshift(...(limit > entryColumn ? keys : ["-"]));
-    } else {
-      path.unshift(...keys);
-    }
-    limit = line.indent;
-  }
-  return path;
-}
-
-/**
- * The indented keys `line` sits under in a struct body whose lines run from
- * `firstLine` up to it, read as the indented form nests them (`-` for a list
- * item). A line of brace blocks starts its path with these.
- */
-export function indentedPathAbove(
-  getLineText: (line: number) => string,
-  firstLine: number,
-  line: number,
-): string[] {
-  const lines: Line[] = [];
-  for (let i = firstLine; i <= line; i += 1) {
-    const text = getLineText(i);
-    lines.push({ indent: /^[ \t]*/.exec(text)![0].length, text });
-  }
-  return pathAt(lines, lines.length - 1, lines[lines.length - 1]!.indent);
-}
-
 /** What the caller read from the brace blocks of a morph's body (#1222). */
 export interface MorphBraceContext {
   /** The keys of the blocks that hold the cursor, outermost first (`-` for a
    *  list entry's braces), or null when no block holds it. */
   path: string[] | null;
-  /** The line the outermost of those blocks starts on, which sits under the
-   *  body's indented keys. */
-  blockLine: number | null;
   /** The brace entry being written up to the cursor (`braceEntryAt`), or
    *  null when the cursor is inside a quoted string. */
   entry: string | null;
-  /** Whether the body has a line written with blocks, so a container
-   *  completed at its root opens a block too. */
-  usesBlocks: boolean;
   /** The innermost key around each `state` property written in a block. */
   stateContainers: string[];
 }
@@ -135,8 +65,7 @@ export interface MorphBraceContext {
  *
  * In a brace block the cursor's path comes from the blocks around it, and a
  * container (a field, a layer label, a keyframe position or container)
- * inserts a balanced `name { }` block with the cursor inside; elsewhere the
- * path comes from indentation and a container inserts `name:`.
+ * inserts a balanced `name { }` block with the cursor inside.
  */
 export function getMorphCompletions(
   getLineText: (line: number) => string,
@@ -148,47 +77,17 @@ export function getMorphCompletions(
   if (position.line <= block.startLine || position.line >= block.endLine) {
     return null;
   }
-  const lines: Line[] = [];
-  for (let i = block.startLine + 1; i < block.endLine; i += 1) {
-    const text = getLineText(i);
-    lines.push({ indent: /^[ \t]*/.exec(text)![0].length, text });
-  }
-  const index = position.line - block.startLine - 1;
   const lineBefore = getLineText(position.line).slice(0, position.character);
-  const inBlock = braces?.path != null;
-  // In a block the entry starts after the separator before it
-  // (`braceEntryAt`). Inside a quoted value, in either form, nothing is
-  // offered: a key or value edit there would replace the opening quote.
-  const before = inBlock ? (braces!.entry ?? '"') : lineBefore;
+  const before = braces?.path != null ? (braces.entry ?? '"') : lineBefore;
   if (entryInsideQuote(before)) return [];
-  const indent = /^[ \t]*/.exec(before)![0].length;
-  // A line of blocks sits under the indented keys above it.
-  const blockIndex =
-    inBlock && braces!.blockLine != null
-      ? braces!.blockLine - block.startLine - 1
-      : -1;
-  const path = inBlock
-    ? [
-        ...(blockIndex >= 0
-          ? pathAt(lines, blockIndex, lines[blockIndex]!.indent)
-          : []),
-        ...braces!.path!,
-      ]
-    : pathAt(lines, index, indent);
-  const braced = inBlock || (path.length === 0 && !!braces?.usesBlocks);
-  const containerSuffix = braced ? " { $0 }" : ":";
+  const path = braces?.path ?? [];
+  const containerSuffix = " { $0 }";
 
   const context = program?.context ?? {};
   const images = morphImages(context);
   // Groups this morph drives: every container with a `state` line, plus the
   // container the cursor is in. Candidates are images with any of them.
   const driven = new Set<string>();
-  lines.forEach((line, i) => {
-    if (/^\s*state\s*=/.test(line.text)) {
-      const container = pathAt(lines, i, line.indent).at(-1);
-      if (container && container !== "-") driven.add(container);
-    }
-  });
   for (const container of braces?.stateContainers ?? []) {
     if (container !== "-") driven.add(container);
   }
@@ -230,7 +129,7 @@ export function getMorphCompletions(
 
   // `key = value` being written: complete the value, separated from a `=`
   // typed without a following space.
-  const scalar = /^\s*(?:-\s*)?([\w-]+)\s*=\s*(\S*)$/.exec(before);
+  const scalar = /^\s*([\w-]+)\s*=\s*(\S*)$/.exec(before);
   if (scalar && before.endsWith("=")) {
     const spaced = getMorphCompletions(
       (line) => (line === position.line ? `${before} ` : getLineText(line)),
@@ -316,10 +215,9 @@ export function getMorphCompletions(
   }
 
   // A key or list item being written.
-  const keyMatch = /^\s*(-\s*)?([\w.%-]*)$/.exec(before);
+  const keyMatch = /^\s*([\w.%-]*)$/.exec(before);
   if (!keyMatch) return [];
-  const dashed = Boolean(keyMatch[1]);
-  const typed = keyMatch[2]!;
+  const typed = keyMatch[1]!;
   const labels = new Set(labelImages.flatMap((image) => [...morphImageLabels(image.vocabulary)]));
   // A block's `{ $0 }` is a snippet in both editors: the cursor lands
   // between the braces.
@@ -359,7 +257,7 @@ export function getMorphCompletions(
     for (const label of labels) addLabel(label, containerSuffix, "layer label");
   } else if (first === "layers" && path.length === 2) {
     MORPH_POLICY_FIELDS.forEach(addField);
-  } else if (first === "keyframes" && path.length === 1 && !dashed) {
+  } else if (first === "keyframes" && path.length === 1) {
     for (const position of KEYFRAME_POSITIONS) {
       add({
         label: position,
@@ -374,9 +272,9 @@ export function getMorphCompletions(
     }
   } else if (
     first === "keyframes" &&
-    ((path.length === 1 && dashed) || path.length === 2)
+    path.length === 2
   ) {
-    if (second === "-" || dashed) addField("offset");
+    if (second === "-") addField("offset");
     const groups = new Set(
       (candidates.length > 0 ? candidates : images).flatMap((image) =>
         Object.keys(image.vocabulary.groups),

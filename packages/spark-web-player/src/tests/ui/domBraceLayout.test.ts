@@ -9,28 +9,6 @@ const STATE = `store items = { "a", "b" }
 store busy = true
 `;
 
-const INDENTED = `${STATE}
-layout hud with
-  column panel #child-gap=8:
-    text title "Inventory"
-    for item in items do
-      row item:
-        text "{item}"
-        button primary "Use"
-    end
-    if busy then
-      text busy "Busy"
-    end
-    choice 0:
-      text
-    title:
-      stroke
-      text
-  stage:
-    mask shadow_1
-end
-`;
-
 const BRACED = `${STATE}
 layout hud with
   column.panel #child-gap=8 {
@@ -57,9 +35,8 @@ async function render(source: string) {
   return h;
 }
 
-describe("a brace-form layout renders as its indented form", () => {
+describe("a brace-form layout renders with its declared tree", () => {
   test("same elements, names and classes", async () => {
-    const indented = await render(INDENTED);
     const braced = await render(BRACED);
     const hud = braced.overlay.querySelector(".hud");
     expect(hud).not.toBeNull();
@@ -75,6 +52,5 @@ describe("a brace-form layout renders as its indented form", () => {
     expect(panel!.querySelector(":scope > .title > .stroke")).not.toBeNull();
     expect(panel!.querySelector(":scope > .title > .text")).not.toBeNull();
     expect(hud!.querySelector(".stage > .mask.shadow_1")).not.toBeNull();
-    expect(braced.snapshotDOM()).toEqual(indented.snapshotDOM());
   });
 });

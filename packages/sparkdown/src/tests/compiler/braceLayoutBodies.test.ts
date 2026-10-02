@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
@@ -11,7 +8,6 @@ import { compileSource } from "./compileSnapshot";
 // form lowers to, ignoring source positions and the binding names derived
 // from them.
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 type UiType = "layout" | "component";
 
@@ -100,115 +96,24 @@ function diagnosticsOf(text: string): Found[] {
 const errorsOf = (text: string) =>
   diagnosticsOf(text).filter((d) => d.severity === 1);
 
-/**
- * Rewrites the indented layout and component bodies of a source in the brace
- * form: a `name:` header opens a `{ … }` block that closes where the
- * indentation drops back, and each bare word after an element's name becomes
- * a `.class`. Comments and blank lines are kept where they stand.
- */
-function toBraces(source: string): string {
-  const out: string[] = [];
-  let inBody = false;
-  let open: number[] = [];
-  const close = (indent: number) => {
-    while (open.length > 0 && open[open.length - 1]! >= indent) {
-      out.push(`${" ".repeat(open.pop()!)}}`);
-    }
-  };
-  for (const line of source.split("\n")) {
-    if (/^(layout|component)\b.*\bwith\s*$/.test(line)) {
-      inBody = true;
-      open = [];
-      out.push(line);
-      continue;
-    }
-    if (inBody && /^end\b/.test(line)) {
-      close(0);
-      inBody = false;
-      out.push(line);
-      continue;
-    }
-    const content = line.trim();
-    if (!inBody || !content || content.startsWith("--") || content.startsWith("//")) {
-      out.push(line);
-      continue;
-    }
-    const indent = line.length - line.trimStart().length;
-    close(indent);
-    const header = /:\s*$/.test(content);
-    let text = header ? content.replace(/\s*:\s*$/, "") : content;
-    // `name word word …` → `name.word.word …`, up to the first part that is
-    // not a bare word. A `name = value` line is left alone.
-    const words = /^([A-Za-z_][\w-]*)((?:\s+[\w-]+(?=\s|$))*)(.*)$/.exec(text);
-    if (words && !/^\s*=/.test(words[3]!)) {
-      const classes = words[2]!.trim().split(/\s+/).filter(Boolean);
-      text = words[1]! + classes.map((c) => `.${c}`).join("") + words[3]!;
-    }
-    out.push(`${" ".repeat(indent)}${text}${header ? " {" : ""}`);
-    if (header) open.push(indent);
-  }
-  return out.join("\n");
-}
-
-/** The declaration whose header line is `header`. */
-function declaration(source: string, header: string): string {
-  const start = source.indexOf(`\n${header}\n`) + 1;
-  expect(start).toBeGreaterThan(0);
-  const end = source.indexOf("\nend", start);
-  return source.slice(start, end + "\nend\n".length);
-}
-
-describe("a brace rewrite lowers as its indented form", () => {
-  const builtins = readFileSync(
-    join(__dirname, "../../compiler/builtins/builtins.sd"),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
-  const pico = readFileSync(
-    join(__dirname, "../../../../../docs/sparkle/pico-showcase.sd"),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
-
-  const cases: [string, string][] = [
-    ["the `main` layout of builtins.sd", declaration(builtins, "layout main with")],
-    ["the `loading` layout of builtins.sd", declaration(builtins, "layout loading with")],
-    ["docs/sparkle/pico-showcase.sd", pico],
-  ];
-
-  test.each(cases)("%s", (_, source) => {
-    const braced = toBraces(source);
-    // The rewrite holds no indented header and does use the new forms.
-    expect(braced).not.toMatch(/^\s+[^-\s][^\n]*:\s*$/m);
-    expect(braced).toMatch(/ \{$/m);
-    expect(braced).toMatch(/^\s+}$/m);
-    const before = everything(source);
-    expect(before.length).toBeGreaterThan(0);
-    expect(everything(braced)).toEqual(before);
-    expect(errorsOf(braced)).toEqual(errorsOf(source));
-  });
-
-  test("the rewrite of `main` keys `choice.0` as `choice 0`", () => {
-    const braced = toBraces(declaration(builtins, "layout main with"));
-    expect(braced).toContain("choice.0 {");
-    expect(lowered(braced, "layout", "main").struct.choices["choice 0"]).toEqual({
-      text: {},
-    });
-  });
-});
-
-describe("a brace body lowers as its indented form", () => {
+describe("a brace body lowers as its multiline blocks", () => {
   test("nested blocks, classes, content and props", () => {
     const indented = lowered(
       `layout hud with
-  column panel #child-gap=8:
-    text title "Inventory"
-    row item:
+  column.panel #child-gap=8 {
+    text.title "Inventory"
+    row.item {
       image #src={icon}
       button "Use" @click=use_item
-    choice 0:
+    }
+    choice.0 {
       text
-    title:
+    }
+    title {
       stroke
       text
+    }
+  }
 end
 `,
       "layout",
@@ -237,33 +142,37 @@ end
 
   test("`if`, `for` with `else` and `match` inside a block, with blocks in their branches", () => {
     const indented = `layout inventory with
-  column panel:
+  column.panel {
     if busy then
       text "busy"
     elseif done then
-      row done:
+      row.done {
         text "done"
+      }
     else
       text "idle"
     end
     for item in bag do
-      row item:
+      row.item {
         image #src={item.icon}
         text "{item.name}"
         button "Use" @click=use_item(item)
+      }
     else
-      text empty "Your bag is empty."
+      text.empty "Your bag is empty."
     end
     match mode do
       case 1
-        row one:
+        row.one {
           text "one"
+        }
       case 2
         text "two"
       else
         text "other"
     end
     text "after"
+  }
 end
 `;
     const braced = `layout inventory with
@@ -327,31 +236,34 @@ end
 
   test("a component call with a block fills the default slot, and `fill footer { … }` the named one", () => {
     const indented = `component card(title) with
-  column:
-    text "{title}"
-    slot
-    slot footer
-end
-
-layout main with
-  card("Inventory"):
-    text "body"
-    fill footer:
-      button "Ok"
-end
-`;
-    const braced = `component card(title) with
   column {
     text "{title}"
     slot
-    slot footer
+    slot.footer
   }
 end
 
 layout main with
   card("Inventory") {
     text "body"
-    fill footer { button "Ok" }
+    fill.footer {
+      button "Ok"
+    }
+  }
+end
+`;
+    const braced = `component card(title) with
+  column {
+    text "{title}"
+    slot
+    slot.footer
+  }
+end
+
+layout main with
+  card("Inventory") {
+    text "body"
+    fill.footer { button "Ok" }
   }
 end
 `;
@@ -402,8 +314,8 @@ describe("dotted classes", () => {
   });
 
   test("a class written after a space is keyed as a glued one", () => {
-    const glued = `layout hud with\n  choice.0 { text }\n  mask.shadow_1\n  row.a.b:\n    text\nend\n`;
-    const spaced = `layout hud with\n  choice .0 { text }\n  mask .shadow_1\n  row .a .b:\n    text\nend\n`;
+    const glued = `layout hud with\n  choice.0 { text }\n  mask.shadow_1\n  row.a.b {\n    text\n  }\nend\n`;
+    const spaced = `layout hud with\n  choice .0 { text }\n  mask .shadow_1\n  row .a .b {\n    text\n  }\nend\n`;
     expect(everything(spaced)).toEqual(everything(glued));
     expect(Object.keys(lowered(spaced, "layout", "hud").struct)).toEqual(
       expect.arrayContaining(["choice 0", "mask shadow_1", "row a b"]),
@@ -415,24 +327,9 @@ describe("dotted classes", () => {
     expect(lowered(after, "layout", "hud").struct.column).toEqual({ "image b": {}, "text h1": "Hi" });
   });
 
-  test("an indented `mask.shadow_1` lowers as `mask shadow_1`", () => {
-    const dotted = lowered(
-      `layout hud with\n  stage:\n    mask.shadow_1\n    choice.0:\n      text\nend\n`,
-      "layout",
-      "hud",
-    );
-    const spaced = lowered(
-      `layout hud with\n  stage:\n    mask shadow_1\n    choice 0:\n      text\nend\n`,
-      "layout",
-      "hud",
-    );
-    expect(dotted).toEqual(spaced);
-    expect(dotted.struct.stage["mask shadow_1"]).toEqual({});
-  });
-
   test("a dotted class is no longer warned about", () => {
     for (const source of [
-      `layout main with\n  row.hud #gap=12:\n    text "x"\nend\n`,
+      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
       `layout main with\n  text.title "Hi"\nend\n`,
       `layout main with\n  row.hud #gap=12 { text.title "x" }\nend\n`,
     ]) {
@@ -442,7 +339,7 @@ describe("dotted classes", () => {
 
   test("a style selector keeps its dots", () => {
     const style = compileSource(
-      `style card with\n  &.secondary:\n    color = blue\n  > text.label { color = red }\nend\n`,
+      `style card with\n  &.secondary {\n    color = blue\n  }\n  > text.label { color = red }\nend\n`,
     ).find((e) => e.block?.context?.["style"])?.block?.context?.["style"]?.[
       "card"
     ];
@@ -648,11 +545,13 @@ end
 `;
       const indented = `${declarations}
 layout hud with
-  card(f(f(f(f(f(1)))))):
+  card(f(f(f(f(f(1)))))) {
     text "body"
-  row:
+  }
+  row {
     button @click={ local t = {a={b={c={d={e={f={}}}}}}} } "Go"
     text "after"
+  }
 end
 `;
       expect(everything(braced)).toEqual(everything(indented));
@@ -717,67 +616,6 @@ end
       }
     });
 
-    test("outside a block, a line with a value nested deeper than that is the indented form's line", () => {
-      // The scan cannot count past the limits, so it never decides such a
-      // line holds a block: it reads as it does on origin/main, children
-      // included.
-      const deep = "{ {a={a={a={a={a={a={a={a=1}}}}}}}} }";
-      const text = `component card(t) with
-  slot
-end
-
-function f(x)
-  return x
-end
-
-layout hud with
-  row #x=${deep}:
-    text "child"
-  button @click=${deep}:
-    text "child"
-  card(f(f(f(f(f(f(1))))))):
-    text "child"
-  card(f(f(f(f(f(f(1)))))), {x = 1}):
-    text "child"
-  text "after"
-end
-`;
-      const { tree, struct } = lowered(text, "layout", "hud");
-      expect(tree.children.map((c: any) => c.children.map((d: any) => d.content?.[0]?.text))).toEqual([
-        ["child"],
-        ["child"],
-        ["child"],
-        ["child"],
-        [],
-      ]);
-      expect(struct.row).toEqual({ text: "child" });
-      expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
-    });
-
-    test("a value nested deeper than that, with no block after it, reads as before", () => {
-      const text = `component card(t) with
-  slot
-end
-
-function f(x)
-  return x
-end
-
-layout hud with
-  card(f(f(f(f(f(f(1)))))))
-  card(f(f(f(f(f(f("{")))))))
-  row #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} }
-end
-`;
-      const calls = lowered(text, "layout", "hud").tree.children;
-      expect(calls.map((c: any) => [c.params?.length, c.children.length])).toEqual([
-        [1, 0],
-        [1, 0],
-        [undefined, 0],
-      ]);
-      expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
-    });
-
     test("an inline long comment ends at its `]]`", () => {
       const text = `layout hud with\n  row { text "a" --[[ comment ]] ; text "b" }\nend\n`;
       const row = lowered(text, "layout", "hud").tree.children[0];
@@ -818,10 +656,11 @@ end
 end
 `;
     const indented = `layout hud with
-  row:
+  row {
     text "a" "b"
     text "c" #x=1 "d"
     label "e" @click=go
+  }
 end
 `;
     expect(everything(braced)).toEqual(everything(indented));
@@ -995,271 +834,9 @@ end
         .sort((a, b) => (a[1] as number) - (b[1] as number)),
     ).toEqual([
       ["Invalid syntax", 2, "-"],
-      ["Invalid syntax", 3, "row:"],
+      ["Invalid syntax", 3, ":"],
       ["Invalid syntax", 4, "{"],
       ["Invalid syntax", 6, "}"],
     ]);
-  });
-});
-
-describe("a line the indented form reads whole is not a brace line", () => {
-  // Each of these lines holds a `{` the indented form reads as part of a
-  // value, a string or a comment. They read as they did before brace
-  // blocks, with no error, and a block after them is still a block.
-  const declarations = `component card(t) with
-  slot
-end
-
-function f(x)
-  return x
-end
-`;
-
-  test("a comment glued to a handler takes the rest of the line", () => {
-    const text = `${declarations}
-layout hud with
-  button @click=f--{text}
-  button @click=f--{comment
-  text "sibling"
-  button @click=f--note { text }
-  button @click=f--[[ { ]] { text "child" }
-end
-`;
-    const [glued, open, sibling, note, long] = lowered(text, "layout", "hud").tree.children;
-    for (const button of [glued, open, note, long]) {
-      expect(button.events[0].handler).toEqual({ kind: "ref", name: "f" });
-    }
-    expect([glued, open, note].map((b: any) => b.children)).toEqual([[], [], []]);
-    expect(sibling.content).toEqual([{ kind: "literal", text: "sibling" }]);
-    // A long comment ends at its closer, so the block after it is a block.
-    expect(long.children.map((c: any) => c.content[0].text)).toEqual(["child"]);
-    expect(errorsOf(text)).toEqual([]);
-  });
-
-  test("a prop's value is text, so its `--` is text", () => {
-    const text = `layout hud with
-  text #--label=var(--accent) { stroke }
-  row { text #--label=card--large; text "next" }
-end
-`;
-    const [label, row] = lowered(text, "layout", "hud").tree.children;
-    expect(label.props["--label"]).toEqual({ kind: "literal", value: "var(--accent)" });
-    expect(label.children).toHaveLength(1);
-    expect(row.children[0].props["--label"]).toEqual({
-      kind: "literal",
-      value: "card--large",
-    });
-    expect(row.children[1].content).toEqual([{ kind: "literal", text: "next" }]);
-    expect(errorsOf(text)).toEqual([]);
-  });
-
-  test("a long string or an unfinished single quote in a prop's value", () => {
-    const text = `layout hud with
-  text #--label=[[a{b}]]
-  text #--label=[=======[a{b}]=======]
-  text #--label='a{b}
-  text #--label=[[a{b}]] { stroke }
-end
-`;
-    const labels = lowered(text, "layout", "hud").tree.children;
-    expect(labels.map((l: any) => l.props["--label"].value)).toEqual([
-      "[[a{b}]]",
-      "[=======[a{b}]=======]",
-      "'a{b}",
-      "[[a{b}]]",
-    ]);
-    expect(labels.map((l: any) => l.children.length)).toEqual([0, 0, 0, 1]);
-    expect(errorsOf(text)).toEqual([]);
-  });
-
-  test("an unfinished single quote in a handler or a call takes the rest of its line", () => {
-    const text = `${declarations}
-layout hud with
-  button @click={ print('a}b) } "Go"
-  card('a)b{c) { text "body" }
-  text "after"
-end
-`;
-    const [button, call, after] = lowered(text, "layout", "hud").tree.children;
-    expect(button.events[0].handler.binding.source).toBe(`{ print('a}b) } "Go"`);
-    expect(button.classes).toEqual([]);
-    expect(button.children).toEqual([]);
-    expect(call.children).toEqual([]);
-    expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
-    // Luau reports the unfinished strings, as it does on any other line.
-    expect(errorsOf(text).map((e) => [e.message.split(";")[0], e.line])).toEqual(
-      expect.arrayContaining([
-        ["Malformed string", 9],
-        ["Malformed string", 10],
-      ]),
-    );
-    expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
-  });
-
-  test("a scalar value and a list item keep their text", () => {
-    const text = `layout hud with
-  text = Hello {who}
-  text = [[a{b}]]
-  items:
-    - Hello {who}
-    - {a}
-end
-`;
-    const { tree, struct } = lowered(text, "layout", "hud");
-    expect(tree.children.slice(0, 2).map((c: any) => c.content)).toEqual([
-      [{ kind: "literal", text: "Hello {who}" }],
-      [{ kind: "literal", text: "[[a{b}]]" }],
-    ]);
-    expect(struct.items).toEqual(["Hello {who}", "{a}"]);
-    expect(errorsOf(text)).toEqual([]);
-  });
-
-  test("a long string ends only at its own level's closer, at any level", () => {
-    const text = `${declarations}
-layout hud with
-  button @click={ print([==[a]]}b]==]) }
-  button @click={ print([==[a]=]}b]==]) }
-  card([==[a]=]) { text "comment" } ]==])
-  row { button @click={ print([=======[a}b]=======]) } "Go"; text "after" }
-end
-`;
-    const [closing, otherLevel, call, row] = lowered(text, "layout", "hud").tree.children;
-    expect(closing.events[0].handler.binding.source).toBe("{ print([==[a]]}b]==]) }");
-    expect(otherLevel.events[0].handler.binding.source).toBe("{ print([==[a]=]}b]==]) }");
-    expect([closing, otherLevel, call].map((e: any) => e.children)).toEqual([[], [], []]);
-    expect(call.params).toHaveLength(1);
-    expect(row.children[0].events[0].handler.binding.source).toBe(
-      "{ print([=======[a}b]=======]) }",
-    );
-    expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
-    expect(errorsOf(text)).toEqual([]);
-  });
-
-  test("a long string with eight or more `=` is never read as structure", () => {
-    const text = `${declarations}
-layout hud with
-  card([========[a]=========]) { text "string" } b]========])
-  button @click={ print([========[a]=========]}b]========]) }
-  text "after"
-end
-`;
-    const [call, button, after] = lowered(text, "layout", "hud").tree.children;
-    expect(call.params).toHaveLength(1);
-    expect(call.children).toEqual([]);
-    expect(button.events[0].handler.binding.source).toBe(
-      "{ print([========[a]=========]}b]========]) }",
-    );
-    expect(button.children).toEqual([]);
-    expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
-    expect(errorsOf(text)).toEqual([]);
-    // Such a string runs to the end of its line, so in a one-line block the
-    // rest of the line is reported rather than read as more entries.
-    const inBlock = `layout hud with
-  row { button @click={ print([========[a}b]========]) } "Go"; text "after" }
-end
-`;
-    expect(errorsOf(inBlock).some((e) => e.line === 1)).toBe(true);
-    expect(lowered(inBlock, "layout", "hud").tree.children[0].children).toHaveLength(1);
-  });
-
-  test("a backtick string's braces and parens are text", () => {
-    const tick = "`";
-    const text = `${declarations}
-layout hud with
-  button @click={ print(${tick}a\\}b${tick}) }
-  card(${tick}a) \\{ text \\} b${tick})
-  row { button @click={ print(${tick}x}${tick}) } "Go"; text "after" }
-  button @click={ print(${tick}a {f(${tick}}${tick})} b${tick}) }
-end
-`;
-    const [button, call, row, nested] = lowered(text, "layout", "hud").tree.children;
-    // A backtick string inside an interpolation keeps its `}`.
-    expect(nested.events[0].handler.binding.source).toBe(
-      `{ print(${tick}a {f(${tick}}${tick})} b${tick}) }`,
-    );
-    expect(nested.children).toEqual([]);
-    expect(button.events[0].handler.binding.source).toBe(`{ print(${tick}a\\}b${tick}) }`);
-    expect(button.children).toEqual([]);
-    expect(call.params).toHaveLength(1);
-    expect(call.children).toEqual([]);
-    expect(row.children[0].events[0].handler.binding.source).toBe(
-      `{ print(${tick}x}${tick}) }`,
-    );
-    expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
-    expect(errorsOf(text)).toEqual([]);
-  });
-
-  test("a string or a long comment inside a backtick string's interpolation keeps its backtick", () => {
-    const tick = "`";
-    const handlers = [
-      `{ print(${tick}{"${tick}"}${tick}) }`,
-      `{ print(${tick}{ --[[ ${tick} ]] 1 }${tick}) }`,
-      `{ print(${tick}{'${tick}'}${tick}) }`,
-      // Inside a table in an interpolation.
-      `{ print(${tick}{f({x = "}${tick}"})}${tick}) }`,
-      `{ print(${tick}{f({x = [[}${tick}]]})}${tick}) }`,
-      `{ print(${tick}{f({x = ${tick}}${tick}})}${tick}) }`,
-      `{ print(${tick}{f({x = 1 --[[ }${tick} ]]})}${tick}) }`,
-    ];
-    const braced = `${declarations}
-layout hud with
-${handlers.map((h) => `  row { button @click=${h}; text "after" }`).join("\n")}
-end
-`;
-    const indented = `${declarations}
-layout hud with
-${handlers.map((h) => `  row:\n    button @click=${h}\n    text "after"`).join("\n")}
-end
-`;
-    expect(everything(braced)).toEqual(everything(indented));
-    const rows = lowered(braced, "layout", "hud").tree.children;
-    expect(rows.map((r: any) => r.children.length)).toEqual(handlers.map(() => 2));
-    expect(rows.map((r: any) => r.children[0].events[0].handler.binding.source)).toEqual(handlers);
-    expect(errorsOf(braced)).toEqual([]);
-  });
-
-  test("the line scan stays linear on long nested lines", () => {
-    // A paren or brace nested past the limits runs to the end of its line in
-    // one anchored step, rather than through a lookahead over the rest of the
-    // line at every opener, which took seconds on these lines. The bound is
-    // generous so slow CI stays deterministic.
-    const grammar = JSON.parse(
-      readFileSync(join(__dirname, "../../../language/sparkdown.language-grammar.json"), "utf8"),
-    );
-    const scan = new RegExp(grammar.repository.LuauSparkleBlockLine.begin, "muy");
-    const warm = "  row { text }";
-    scan.lastIndex = 0;
-    scan.exec(warm);
-    scan.lastIndex = 0;
-    scan.exec(warm);
-    const n = 50000;
-    const lines = [
-      "  text #x=f(" + "(".repeat(n) + "x" + ")".repeat(n) + ") { text }",
-      "  card(" + "(".repeat(n) + "x" + ")".repeat(n) + ") { text }",
-      "  row #x={" + "{".repeat(n) + "x" + "}".repeat(n) + "} { text }",
-      "  card(" + "(".repeat(n) + "x",
-    ];
-    for (const line of lines) {
-      scan.lastIndex = 0;
-      const t0 = performance.now();
-      scan.exec(line);
-      const ms = performance.now() - t0;
-      expect(ms, `the scan took ${ms.toFixed(1)}ms on ${line.slice(0, 16)}…`).toBeLessThan(250);
-    }
-  });
-
-  test("a Luau comment in a call's or a handler's list takes the rest of the line", () => {
-    const text = `${declarations}
-layout hud with
-  button @click=f(-- ) { text "comment" }
-  card(-- ) { text "comment" }
-  text "after"
-end
-`;
-    const [button, call, after] = lowered(text, "layout", "hud").tree.children;
-    expect(button.children).toEqual([]);
-    expect(call.children).toEqual([]);
-    expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
-    expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
   });
 });

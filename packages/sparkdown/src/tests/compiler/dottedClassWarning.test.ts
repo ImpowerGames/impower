@@ -57,13 +57,6 @@ describe("dotted-class warning", () => {
     );
     expect(diags).toEqual([]);
   });
-
-  test("space-separated classes produce no dotted-class warning", () => {
-    const diags = diagnosticsFor(
-      `layout main with\n  row hud #gap=12:\n    text "x"\nend\n`,
-    );
-    expect(warnsDotted(diags)).toBe(false);
-  });
 });
 
 describe("a CSS-nesting selector is not a dotted class", () => {

@@ -4,7 +4,8 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
-import { collectStructBodyLines, parseStructBody } from "./lowerStructBody";
+import { parseStructBody } from "./lowerStructBody";
+import { readStructBodyEntries } from "../utils/structBodyEntries";
 import { buildSparkleBody } from "./lowerSparkleBody";
 import { validateSparkleBlocks } from "../utils/validateSparkleBlocks";
 import {
@@ -81,7 +82,7 @@ export function lowerLuauUI(
     nodeRef.node,
     `Luau${uiType === "layout" ? "Layout" : "Component"}_content`,
   );
-  const body = parseStructBody(collectStructBodyLines(contentNode, ctx), ctx, {
+  const body = parseStructBody(readStructBodyEntries(contentNode, ctx), ctx, {
     elementKeys: true,
   });
 
@@ -94,9 +95,7 @@ export function lowerLuauUI(
     ...body,
   };
 
-  // Reactive Sparkle UI AST (additive, not yet consumed by the engine — the
-  // static `context` struct above still drives rendering). Built by reading
-  // the grammar's already-separated element tokens, never re-parsing raw text.
+  // Reactive UI tree consumed by the engine, read from the grammar tokens.
   const savedLoopVars = ctx.sparkleLoopVars;
   const savedOwner = ctx.sparkleOwner;
   if (params.length > 0) {

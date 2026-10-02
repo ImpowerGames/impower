@@ -22,7 +22,7 @@ describe("formatting the spacing of a brace body", () => {
   column {
     text   .title   .big "a"   .after #w=1   .y
     card("x")   .c
-    fill footer   .f { text }
+    fill.footer   .f { text }
     button @click={ go() }   .wide
   }
 end
@@ -31,7 +31,7 @@ end
   column {
     text.title.big "a" .after #w=1 .y
     card("x") .c
-    fill footer .f { text }
+    fill.footer.f { text }
     button @click={ go() } .wide
   }
 end
@@ -128,9 +128,7 @@ end
     );
   });
 
-  test("a one-line closure on an indented-form line keeps the spacing it has today", () => {
-    // Only a closure on a brace line is spaced inside its braces; the
-    // indented forms format as before until the last slice of #1222.
+  test("a one-line closure has the same spacing at the root and inside a block", () => {
     expectFormat(
       `layout a with
   button @click={ a=1 }
@@ -140,7 +138,7 @@ end
 end
 `,
       `layout a with
-  button @click={a = 1}
+  button @click={ a = 1 }
   column {
     button @click={ a = 1 }
   }

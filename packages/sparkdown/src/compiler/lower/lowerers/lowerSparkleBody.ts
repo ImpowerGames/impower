@@ -1,7 +1,6 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
-import { statementSource } from "../utils/statementSource";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
@@ -19,12 +18,10 @@ import {
   type ContentPart,
   type ElementNode,
   type EventBinding,
-  type FillNode,
   type ForNode,
   type IfNode,
   type MatchNode,
   type PropValue,
-  type SlotNode,
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
 import { stampDebugMetadata } from "../utils/debugMetadata";
@@ -47,163 +44,33 @@ import {
 } from "../utils/sparkleBlockEntries";
 import { joinSparkleContinuations } from "../utils/sparkleContinuations";
 
-// Builds the reactive Sparkle UI AST (docs/sparkle/reactive-sparkle-spec.md §6)
-// for a screen/component body. Unlike the static `lowerStructBody` (which
-// re-tokenizes the raw line text to build the engine's nested struct), this
-// reads the structured child nodes the highlighting grammar ALREADY emits
-// inside each `LuauStructBodyContent` line — the tag/class/key/value tokens are
-// already separated, so we never re-parse text here. (See
-// feedback_ast_lowerer_reads_grammar_tokens.)
-//
-//   LuauStructObjectHeader  → `stage:` / `choice 0:` → container element
-//                             (first name = tag; the rest are classes)
-//   LuauStructBareMarker    → `image` / `mask shadow_1` → leaf element
-//                             (first name = tag; the rest are classes)
-//   LuauStructScalarProperty→ `image = "black"` (builtin key) → element whose
-//                             content is the value; a non-builtin key
-//                             (`color = white`) → a style prop on the parent.
-//
-// Nesting is reconstructed from the indentation column (the grammar emits flat
-// body-line siblings), as `readStructBodyEntries` nests the static struct.
-//
-// A body may also be written with brace blocks (`column.panel { … }`). A line
-// that holds one is a `LuauSparkleBlockLine`: it sits in the indentation of
-// the lines around it at the column its first entry starts in, and its
-// entries nest by their braces, whatever their indentation
-// (`buildBracedEntries`). It never takes the deeper-indented lines after it as
-// its children.
-//
-// An element's parts may go on over later lines (#1225): a line that starts
-// with `.`, `#`, `@` or a quote, and a block on a line of its own, join the
-// element before them (`joinSparkleContinuations`). They take no place in the
-// indentation, and their parts are read as if written on the element's line.
-
-interface NodeLine {
-  indent: number;
-  /** A `LuauStructBodyContent` element line, a `LuauSparkleIfBlock` control
-   *  block (when `control` is set), or a `LuauSparkleBlockLine` (when
-   *  `braced` is set). */
-  node: SyntaxNode;
-  control?: boolean;
-  braced?: boolean;
-}
-
+// Build the reactive UI tree from element parts and explicit block nesting.
 const CONTROL_BLOCK_NAMES = nodeNameSet([
-  "LuauSparkleIfBlock",
-  "LuauSparkleForLoop",
-  "LuauSparkleMatchBlock",
+  "LuauSparkleIfBlock", "LuauSparkleForLoop", "LuauSparkleMatchBlock",
 ]);
-// Clause sub-blocks of a control block — collected explicitly by the control
-// builder, so the generic item walk must NOT descend into or emit them.
 const CONTROL_CLAUSE_NAMES = nodeNameSet([
-  "LuauSparkleElseifBlock",
-  "LuauSparkleElseBlock",
-  "LuauSparkleCaseClause",
+  "LuauSparkleElseifBlock", "LuauSparkleElseBlock", "LuauSparkleCaseClause",
 ]);
 
-/** Collect a body's items (element lines + control blocks) with their indent
- *  column, in source order. Element nesting is later reconstructed from indent
- *  (`buildBlock`); control blocks carry their own grammar structure, so they're
- *  emitted opaque (not descended into) and built recursively by `buildControl`. */
-function collectNodeLines(
-  contentNode: SyntaxNode | null,
-  ctx: LowerContext,
-): NodeLine[] {
-  const lines: NodeLine[] = [];
-  if (!contentNode) return lines;
-  const walk = (node: SyntaxNode | null) => {
-    let child = node?.firstChild ?? null;
-    while (child) {
-      if (child.name === "LuauStructBodyContent") {
-        // A line the grammar classified into no SHAPE is a comment (or blank),
-        // and a comment occupies no indent slot. Asking the grammar rather than
-        // re-reading the text is what makes this uniform: the old string test
-        // knew about `--` and not `//`, so a `//` comment aligned with the
-        // block HEADER — or indented deeper than the block's children — was
-        // taken as a body line and silently deleted the block's children (one
-        // child, or none at all). `--` in the same positions was fine.
-        //
-        // `//` is a first-class marker here: the grammar emits
-        // `SparkdownLineComment` for it, and `pico-showcase.sd` has 90 of them.
-        // They all happen to align with the line below, which is the only
-        // reason nothing shipped broken.
-        if (lineKindNode(child)) {
-          lines.push({ indent: ctx.characterNumber(child.from), node: child });
-        }
-      } else if (child.name === "LuauSparkleBlockLine") {
-        // A line of brace entries sits at the column its first entry starts
-        // in. A line that holds none (a stray `}`) holds nothing to place,
-        // and nor does one whose entries all continue the element before
-        // it, or continue nothing.
-        const first = sparkleBlockEntries(child).find(
-          (entry) => !isContinuation(entry, ctx),
-        );
-        if (first) {
-          lines.push({
-            indent: ctx.characterNumber(first.from),
-            node: child,
-            braced: true,
-          });
-        }
-      } else if (CONTROL_BLOCK_NAMES.has(child.name)) {
-        // The block's `.from` is the line start (its `begin` captures the
-        // leading indent), so derive the indent from the first non-whitespace
-        // column (the `if`/`for`/… keyword) for correct tree placement.
-        const text = ctx.read(child.from, child.to);
-        const lead = text.length - text.replace(/^[ \t]*/, "").length;
-        lines.push({
-          indent: ctx.characterNumber(child.from + lead),
-          node: child,
-          control: true,
-        });
-      } else if (CONTROL_CLAUSE_NAMES.has(child.name)) {
-        // Belongs to the enclosing control block — handled by buildControl.
-      } else {
-        walk(child);
-      }
-      child = child.nextSibling;
+/** Top-level lines and control blocks; nested entries are read by their owner. */
+function buildBodyEntries(content: SyntaxNode | null, ctx: LowerContext): BodyNode[] {
+  if (!content) return [];
+  const children: BodyNode[] = [];
+  const walk = (node: SyntaxNode) => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (child.name === "LuauSparkleBlockLine") children.push(...buildBracedEntries(child, ctx).children);
+      else if (CONTROL_BLOCK_NAMES.has(child.name)) children.push(buildControl(child, ctx));
+      else if (!CONTROL_CLAUSE_NAMES.has(child.name)) walk(child);
     }
   };
-  walk(contentNode);
-  return lines;
+  walk(content);
+  return children;
 }
-
-/** The line-type node inside a `LuauStructBodyContent` (scalar/header/marker).
- *  The grammar wraps it under `_c*` capture nodes; the first NAMED line-kind
- *  descendant is what we want. */
-function lineKindNode(content: SyntaxNode): SyntaxNode | null {
-  return firstDescendant(content, LINE_KIND_NAMES);
-}
-
-const LINE_KIND_NAMES = nodeNameSet([
-  "LuauStructScalarProperty",
-  "LuauStructComponentCall",
-  "LuauStructAdjacencyContent",
-  "LuauStructObjectHeader",
-  "LuauStructBareMarker",
-  "LuauStructArrayItem",
-  "LuauStructBodyFallback",
-]);
-
-const NAME_TOKEN_NAMES = nodeNameSet([
-  "BuiltinComponentName",
-  "CustomComponentName",
-  "NumberLiteral",
-  // A `.name` class (`mask.shadow_1`, `choice.0:`).
-  "LuauSparkleClassName",
-  // In a brace block: a name that is not a builtin, and a bare word after it.
-  "LuauSparkleElementName",
-  "LuauSparkleElementWord",
-]);
 
 const KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "DeclarationScalarPropertyKey",
 ]);
-
-/** Content on a block-opening element line, which the grammar parses as an
- *  object header rather than adjacency content. */
-const ELEMENT_HEADER_CONTENT_NAMES = nodeNameSet(["StringContent"]);
 
 const FIELD_VALUE_NAMES = nodeNameSet([
   "StringFieldValueInterpolated",
@@ -357,50 +224,6 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   return out;
 }
 
-/** Tag + classes from an object-header/bare-marker node. The FIRST name on the
- *  line is the tag; every other bare word (and bare number) is a class.
- *
- *  Position, not builtin-ness, decides — which is what the engine does
- *  ("the tag lookup reads the FIRST token only") and what the bare-marker
- *  grammar already enforced by tokenizing only the leading name as a
- *  `BuiltinComponentName`. A colon HEADER does not split that way: every word
- *  is re-tokenized, so a trailing builtin also came out as a
- *  `BuiltinComponentName` and a builtin-first rule picked IT. Adding children
- *  to an element therefore changed the element:
- *
- *      card footer      ->  <div class="card footer">
- *      card footer:     ->  <footer class="footer card">
- *
- *  and `list item:` warned about multiple tags where `list item` did not. The
- *  two spellings now agree, in both directions. */
-function tagAndClasses(
-  node: SyntaxNode,
-  ctx: LowerContext,
-): { tag: string | null; classes: string[] } {
-  const tokens = descendants(node, NAME_TOKEN_NAMES);
-  if (tokens.length === 0) return { tag: null, classes: [] };
-  const tagNode = tokens[0]!;
-  const tag = ctx.read(tagNode.from, tagNode.to).trim();
-  const classes = tokens
-    .slice(1)
-    .map((t) => ctx.read(t.from, t.to).trim())
-    .filter(Boolean);
-  return { tag, classes };
-}
-
-/** Warn (editor-side) when a line's indentation matches no open block, so it is
- *  about to be dropped. No-op for snapshot callers without a diagnostics
- *  buffer, so snapshot tests are unaffected. */
-function warnOrphanLine(node: SyntaxNode, ctx: LowerContext): void {
-  if (!ctx.diagnostics) return;
-  ctx.diagnostics.push({
-    message:
-      "This line's indentation doesn't match any element above it, so it isn't part of the layout. Line it up with the block you meant to nest it under.",
-    severity: ErrorType.Warning,
-    source: statementSource(node, ctx),
-  });
-}
-
 // Display CONTENT resolves the FULL escape set — see {@link unescapeString}.
 // It used to resolve `\{`/`\}` alone, which was the tell: escapes already
 // half-existed here, and the grammar paints `\"` as `constant.character.escape`,
@@ -480,7 +303,6 @@ function lowerBinding(
 }
 
 const COMPONENT_CALL_CONTENT = nodeNameSet([
-  "LuauStructComponentCall_content",
   "LuauSparkleCallArguments_content",
 ]);
 /** Nodes inside a call's arg list that carry no expression value (separators,
@@ -670,9 +492,7 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
   return events;
 }
 
-/** The node whose children are a handler's expression nodes. An indented
- *  line's handler is its attribute's `_content`; a brace block's
- *  `LuauSparkleEventHandler` holds them in its capture, its one child. */
+/** The node that holds a handler expression. */
 function handlerContent(node: SyntaxNode | null): SyntaxNode | null {
   if (node?.name === "LuauSparkleEventHandler") return node.firstChild ?? node;
   return node;
@@ -700,12 +520,6 @@ function lowerHandlerClosure(
   const source = ctx.read(closureNode.from, closureNode.to);
   const span = bindingSpan(closureNode.from, closureNode.to, ctx);
   const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])]; // see lowerBinding
-  // A closure left without its `}` ends where a line starts with `end`,
-  // `else`, `elseif` or `case`, or at a beat, with an empty end, or, inside
-  // an indented element line that the brace line scan does not take (one
-  // after a value nested past the scan's limits), at the end of that line
-  // with no end at all. Either way it is reported on its `{`, as an unclosed
-  // block is.
   const closeBrace = childrenByName(closureNode, EVENT_CLOSURE_END)[0];
   if ((!closeBrace || closeBrace.to === closeBrace.from) && ctx.diagnostics) {
     const open = closureNode.from;
@@ -919,219 +733,6 @@ function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValu
   };
 }
 
-/** Indent of line i's first child line, or null if i has no deeper-indented
- *  follower (leaf), as `readStructBodyEntries` decides it. */
-function nextChildIndent(
-  lines: NodeLine[],
-  i: number,
-  indent: number,
-): number | null {
-  const next = lines[i + 1];
-  if (next && next.indent > indent) return next.indent;
-  return null;
-}
-
-interface Block {
-  children: BodyNode[];
-  /** Style props from non-builtin `key = value` lines at this level. */
-  props: Record<string, PropValue>;
-  next: number;
-}
-
-function buildBlock(
-  lines: NodeLine[],
-  start: number,
-  indent: number,
-  ctx: LowerContext,
-): Block {
-  const children: BodyNode[] = [];
-  const props: Record<string, PropValue> = {};
-  let i = start;
-  while (i < lines.length && lines[i]!.indent >= indent) {
-    if (lines[i]!.indent > indent) {
-      // An orphan: indented past this block but matching no open child block.
-      // Dropping it is right — there is nowhere to put it — but dropping it
-      // SILENTLY is not: the line simply disappeared from the layout with no
-      // diagnostic, which reads as "my element does not work" rather than "my
-      // indentation is wrong".
-      warnOrphanLine(lines[i]!.node, ctx);
-      i += 1;
-      continue;
-    }
-    // Control block (`if … end`) — a self-contained grammar node; build it
-    // recursively and place it at this indent level (its branch children carry
-    // their own indentation). It consumes only its own line.
-    if (lines[i]!.control) {
-      children.push(buildControl(lines[i]!.node, ctx));
-      i += 1;
-      continue;
-    }
-    // A line of brace entries: its elements and control blocks are children
-    // at this level and its properties style the element around it. Its
-    // entries hold their own children, so it consumes only its own line.
-    if (lines[i]!.braced) {
-      const braced = buildBracedEntries(lines[i]!.node, ctx);
-      children.push(...braced.children);
-      Object.assign(props, braced.props);
-      i += 1;
-      continue;
-    }
-    const content = lines[i]!.node;
-    const kind = lineKindNode(content);
-    const childIndent = nextChildIndent(lines, i, indent);
-    if (!kind) {
-      i += 1;
-      continue;
-    }
-
-    if (kind.name === "LuauStructAdjacencyContent") {
-      // `image "black"` / `text "HP: {hp}"` — tag + adjacency display content
-      // (literal + `{expr}` reactive bindings). Spec §4.2/D2.
-      const tagNode = firstDescendant(kind, NAME_TOKEN_NAMES);
-      const tag = tagNode ? ctx.read(tagNode.from, tagNode.to).trim() : "";
-      const content = readContentParts(
-        firstContentDescendant(kind, FIELD_VALUE_NAMES),
-        ctx,
-      );
-      const element: ElementNode = {
-        kind: "element",
-        tag,
-        classes: [],
-        content,
-        props: readProps(kind, ctx),
-        events: readEvents(kind, ctx),
-        children: [],
-      };
-      i = attachJoined(element, lines, i, childIndent, ctx);
-      children.push(element);
-      continue;
-    }
-
-    if (kind.name === "LuauStructScalarProperty") {
-      const keyNode = firstDescendant(kind, KEY_TOKEN_NAMES);
-      const valueNode = firstContentDescendant(kind, FIELD_VALUE_NAMES);
-      if (keyNode?.name === "BuiltinComponentName") {
-        // `image = "black"` / `text = "HP: {hp}"` → an element whose display
-        // content is the value (literal + `{expr}` reactive bindings).
-        const tag = ctx.read(keyNode.from, keyNode.to).trim();
-        const content: ContentPart[] = readContentParts(valueNode, ctx);
-        const element: ElementNode = {
-          kind: "element",
-          tag,
-          classes: [],
-          content,
-          props: {},
-          events: [],
-          children: [],
-        };
-        i = attachJoined(element, lines, i, childIndent, ctx);
-        children.push(element);
-      } else {
-        // Non-builtin `key = value` → a style prop on the enclosing element.
-        // Props are Luau-position values (static in v1), so they read as a
-        // literal — interpolation applies to display content only.
-        const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
-        if (key) props[key] = readLiteralValue(valueNode, ctx);
-        i += 1;
-      }
-      continue;
-    }
-
-    if (kind.name === "LuauStructComponentCall") {
-      // `card("Inventory"):` / `stat_row(hero.name, hero.hp)` — invoke an authored
-      // component (spec §4.7). The tag is the CustomComponentName; the paren args
-      // are Luau expressions compiled to per-arg `Binding`s (evaluated in THIS —
-      // the caller's — scope, so they capture the caller's loop vars). Child lines
-      // are the default-slot content + `fill`s (attached like any container).
-      const tagNode = firstDescendant(kind, NAME_TOKEN_NAMES);
-      const tag = tagNode ? ctx.read(tagNode.from, tagNode.to).trim() : "";
-      const element: ElementNode = {
-        kind: "element",
-        tag,
-        classes: [],
-        props: {},
-        events: [],
-        params: readComponentArgs(kind, ctx),
-        children: [],
-      };
-      i = attachJoined(element, lines, i, childIndent, ctx);
-      children.push(element);
-      continue;
-    }
-
-    // Object header (`stage:` / `column #gap=16:`) or bare marker (`image` /
-    // `mask shadow_1` / `text title "Inventory"` / `row #background-color={c}`)
-    // → an element; the builtin/component token is the tag, other bare words are
-    // classes, plus optional adjacency content + inline props/events.
-    const { tag: parsedTag, classes } = tagAndClasses(kind, ctx);
-    const tag = parsedTag ?? ctx.read(content.from, content.to).trim();
-    // Component slots (spec §4.7): `slot [name]` is a leaf placeholder for
-    // caller children; `fill [name]:` (caller side) targets a named slot and
-    // carries children.
-    //
-    // Matched on the parsed tag, which is now the line's FIRST token — so a
-    // slot whose NAME happens to be a builtin (`slot footer`, `slot header`,
-    // `slot text`) stays a slot instead of lowering as that element with a
-    // stray "slot" class. This used to need its own `first` field to bypass a
-    // builtin-preferring tag rule; that rule is gone.
-    // The name may also stand on a continuation line (`slot` then `.footer`).
-    const key = lines[i]!.node.from;
-    const slotName =
-      classes[0] ?? partClasses(continuationPartNodes(key, ctx), ctx)[0];
-    if (parsedTag === "slot") {
-      const slot: SlotNode = {
-        kind: "slot",
-        ...(slotName ? { name: slotName } : {}),
-      };
-      children.push(slot);
-      i += 1;
-      continue;
-    }
-    if (parsedTag === "fill") {
-      const fill: FillNode = {
-        kind: "fill",
-        ...(slotName ? { name: slotName } : {}),
-        children: [],
-      };
-      // A later block holds the fill's children, and the indented lines
-      // after it are orphans, as for an element (`attachJoined`).
-      const joined = joinedBlock(key, ctx);
-      if (joined) {
-        fill.children = joined.children;
-        i += 1;
-      } else if (childIndent != null) {
-        const sub = buildBlock(lines, i + 1, childIndent, ctx);
-        fill.children = sub.children;
-        i = sub.next;
-      } else {
-        i += 1;
-      }
-      children.push(fill);
-      continue;
-    }
-    // A LEAF element line (`text "Body"`) carries its content as adjacency
-    // content; a BLOCK-OPENING one (`accordion "More":`) is an object header,
-    // where the grammar parses the same string as a plain `StringLiteral`.
-    // Both mean "this element's content", so accept either — otherwise a label
-    // on a block-opening line is silently dropped.
-    const contentNode =
-      firstContentDescendant(kind, FIELD_VALUE_NAMES) ??
-      firstContentDescendant(kind, ELEMENT_HEADER_CONTENT_NAMES);
-    const element: ElementNode = {
-      kind: "element",
-      tag,
-      classes,
-      ...(contentNode ? { content: readContentParts(contentNode, ctx) } : {}),
-      props: readProps(kind, ctx),
-      events: readEvents(kind, ctx),
-      children: [],
-    };
-    i = attachJoined(element, lines, i, childIndent, ctx);
-    children.push(element);
-  }
-  return { children, props, next: i };
-}
-
 /** An element's parts, as {@link readParts} reads them. */
 interface ElementParts {
   classes: string[];
@@ -1179,63 +780,10 @@ function continuationPartNodes(key: number, ctx: LowerContext): SyntaxNode[] {
   );
 }
 
-/** Add the parts of the continuation lines an element takes (keyed by its
- *  node's `from`) to it, as if written after its own parts on its line. */
-function joinContinuations(
-  element: ElementNode,
-  key: number,
-  ctx: LowerContext,
-): void {
-  const parts = readParts(continuationPartNodes(key, ctx), ctx);
-  element.classes.push(...parts.classes);
-  if (!element.content && parts.content) element.content = parts.content;
-  element.props = { ...element.props, ...parts.props };
-  element.events.push(...parts.events);
-}
-
-/** The entries of the block an element takes from a later line (keyed by its
- *  node's `from`): its children, and the style props its `key = value` lines
- *  set. */
-function joinedBlock(
-  key: number,
-  ctx: LowerContext,
-): { children: BodyNode[]; props: Record<string, PropValue> } | null {
-  const block = ctx.sparkleJoins?.blocks.get(key);
-  if (!block) return null;
-  // An empty block (`{}`) has no content, and still holds the children.
-  const content = sparkleBlockContent(block);
-  return content
-    ? buildBracedEntries(content, ctx)
-    : { children: [], props: {} };
-}
-
-/** {@link attachBlock}, with the continuation lines and the later block the
- *  element on line i takes. An element with a block holds only its block's
- *  entries, so one that takes a later block takes no indented lines: they
- *  are orphans, as after the same element with its block on its own line. */
-function attachJoined(
-  element: ElementNode,
-  lines: NodeLine[],
-  i: number,
-  childIndent: number | null,
-  ctx: LowerContext,
-): number {
-  const key = lines[i]!.node.from;
-  joinContinuations(element, key, ctx);
-  const sub = joinedBlock(key, ctx);
-  if (!sub) return attachBlock(element, lines, i, childIndent, ctx);
-  element.children = sub.children;
-  if (Object.keys(sub.props).length > 0) {
-    element.props = { ...element.props, ...sub.props };
-  }
-  return i + 1;
-}
-
 /** The classes in an element's head: each `.name`, and each bare word after
  *  its name, in source order. */
 const HEAD_CLASS_NAMES = nodeNameSet([
   "LuauSparkleClassName",
-  "LuauSparkleElementWord",
 ]);
 
 /** The entries of a brace block (`container` is a block line, or the content
@@ -1259,7 +807,7 @@ function buildBracedEntries(
       children.push(buildBracedElement(entry, ctx));
     } else if (entry.name === "LuauStructBlockProperty") {
       // `image = "black"` (a builtin key) is an element whose content is the
-      // value; any other key is a style prop, as on an indented line.
+      // value; any other key is a style prop.
       const keyNode = firstDescendant(entry, KEY_TOKEN_NAMES);
       const valueNode = firstContentDescendant(entry, FIELD_VALUE_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
@@ -1285,9 +833,7 @@ function buildBracedEntries(
   return { children, props };
 }
 
-/** A `LuauSparkleElement`: an element, a component call, a `slot` or a
- *  `fill`, built as the indented form builds the same line, with its block's
- *  entries as its children. */
+/** Build an element, component call, slot or fill from its explicit block. */
 function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
   const { name, args, block } = sparkleElementParts(node);
   const tag = name ? ctx.read(name.from, name.to).trim() : "";
@@ -1297,9 +843,6 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
     ...sparklePartNodes(node),
     ...continuationPartNodes(node.from, ctx),
   ];
-  // The block's entries are built after the element's own parts, in the order
-  // the indented form builds them. A block on a later line is the element's
-  // block when it has none of its own.
   const blockContent = block
     ? sparkleBlockContent(block)
     : (() => {
@@ -1310,8 +853,7 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
     blockContent
       ? buildBracedEntries(blockContent, ctx)
       : { children: [] as BodyNode[], props: {} as Record<string, PropValue> };
-  // `slot name` and `fill name { … }` keep a bare name, which reads as the
-  // first class. A slot is a placeholder and holds nothing.
+  // A named slot or fill uses its first dotted class as the name.
   if (tag === "slot" || tag === "fill") {
     const name = partClasses(parts, ctx)[0];
     return tag === "slot"
@@ -1337,8 +879,6 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
   };
   const sub = buildBlockEntries();
   element.children = sub.children;
-  // Block-level `key = value` style props win over the element's inline
-  // `#prop`s, as an indented element's child-level props do.
   if (Object.keys(sub.props).length > 0) {
     element.props = { ...element.props, ...sub.props };
   }
@@ -1356,10 +896,6 @@ function childrenByName(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   return out;
 }
 
-// The parts of a control block, written in the indented form
-// (`LuauSparkleIfBlock`, a body line rule) or inside a brace block
-// (`LuauSparkleBlockIf`, a block entry). Both have the same structure, so one
-// builder reads either.
 const IF_CONTENT = nodeNameSet([
   "LuauSparkleIfBlock_content",
   "LuauSparkleBlockIf_content",
@@ -1399,25 +935,15 @@ const BRACED_BRANCH_CONTENT = nodeNameSet([
   "LuauSparkleBlockCase_content",
 ]);
 
-/** Build the element-tree children of a control-flow branch body (a `_content`
- *  node): by indentation in the indented form, by braces inside a block. */
+/** Build the children owned by a control-flow branch. */
 function buildBranchChildren(
   content: SyntaxNode | null,
   ctx: LowerContext,
 ): BodyNode[] {
   if (!content) return [];
-  if (BRACED_BRANCH_CONTENT.has(content.name)) {
-    return buildBracedEntries(content, ctx).children;
-  }
-  const items = collectNodeLines(content, ctx);
-  if (items.length === 0) return [];
-  // Same base-indent rule as `buildSparkleBody` (see `rebaseLines`): with the
-  // first line's indent, a branch body whose opening line was indented deeper
-  // than the rest ended the block-walk at the very next line and silently
-  // discarded the remainder of the branch — without even the orphan warning,
-  // because the walk EXITS on a shallower line rather than skipping it.
-  const rebased = rebaseLines(items, ctx);
-  return buildBlock(rebased.lines, 0, rebased.base, ctx).children;
+  return BRACED_BRANCH_CONTENT.has(content.name)
+    ? buildBracedEntries(content, ctx).children
+    : buildBodyEntries(content, ctx);
 }
 
 const IF_CONDITION = nodeNameSet(["LuauIfBlockCondition"]);
@@ -1708,26 +1234,6 @@ function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
   return { kind: "if", branches };
 }
 
-/** If line i has an indented child block, recurse and assign the block's
- *  children + props onto `element`; return the next line index. */
-function attachBlock(
-  element: ElementNode,
-  lines: NodeLine[],
-  i: number,
-  childIndent: number | null,
-  ctx: LowerContext,
-): number {
-  if (childIndent == null) return i + 1;
-  const sub = buildBlock(lines, i + 1, childIndent, ctx);
-  element.children = sub.children;
-  // Merge child-level `key = value` style props onto any inline `#prop`s already
-  // on the element line (inline props first, child-level props win on conflict).
-  if (Object.keys(sub.props).length > 0) {
-    element.props = { ...element.props, ...sub.props };
-  }
-  return sub.next;
-}
-
 /** Build the reactive AST body (BodyNode[]) for a screen/component content
  *  node, reading the grammar's separated tokens. */
 export function buildSparkleBody(
@@ -1742,52 +1248,9 @@ export function buildSparkleBody(
   const prevStamp = ctx.stampExpressionSpans;
   ctx.stampExpressionSpans = true;
   try {
-    const lines = collectNodeLines(contentNode, ctx);
-    if (lines.length === 0) return [];
-    const rebased = rebaseLines(lines, ctx);
-    return buildBlock(rebased.lines, 0, rebased.base, ctx).children;
+    return buildBodyEntries(contentNode, ctx);
   } finally {
     ctx.stampExpressionSpans = prevStamp;
     ctx.sparkleJoins = prevJoins;
-  }
-}
-
-/** Choose a body's base indent, treating a lone anomalous line as the error
- *  rather than the truth.
- *
- *  The base is the SHALLOWEST line, not the first one: taking the first
- *  line's indent meant a body whose opening line was indented deeper than
- *  the rest ended the block-walk at the very next line and silently
- *  discarded everything after it.
- *
- *  But a bare minimum is symmetric-fragile the other way (#369): one
- *  accidentally DEDENTED line becomes the base and every properly-indented
- *  line reads as an orphan — the whole layout replaced by the stray. So a
- *  SINGLETON at the minimum that is not the opening line is treated as the
- *  anomaly: it is warned as an orphan, excluded, and the base re-derived
- *  from the rest. (When two or more lines share the minimum, they win — the
- *  deep-first case has its whole tail there, and with several lines at one
- *  level the author's intent is genuinely that level.) */
-function rebaseLines(
-  lines: NodeLine[],
-  ctx: LowerContext,
-): { base: number; lines: NodeLine[] } {
-  let working = lines;
-  for (;;) {
-    const base = working.reduce(
-      (m, l) => Math.min(m, l.indent),
-      working[0]!.indent,
-    );
-    const atBase = working.filter((l) => l.indent === base);
-    if (
-      working.length > 1 &&
-      atBase.length === 1 &&
-      working[0]!.indent !== base
-    ) {
-      warnOrphanLine(atBase[0]!.node, ctx);
-      working = working.filter((l) => l !== atBase[0]);
-      continue;
-    }
-    return { base, lines: working };
   }
 }

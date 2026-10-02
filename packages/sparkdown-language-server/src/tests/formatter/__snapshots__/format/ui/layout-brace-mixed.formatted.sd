@@ -1,13 +1,16 @@
 layout hud with
-  stage:
+  stage {
     backdrop {
       image = "black"
     }
-    portrait:
+    portrait {
       mask.shadow_1
+    }
+  }
   choices {
     choice.0 { text }
   }
-  textbox:
+  textbox {
     text
+  }
 end

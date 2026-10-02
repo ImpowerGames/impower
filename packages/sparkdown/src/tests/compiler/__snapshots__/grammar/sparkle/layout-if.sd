@@ -1,10 +1,11 @@
 layout hud with
-  stage:
+  stage {
     if player.dead then
       text "GAME OVER"
     elseif player.hp < 10 then
-      text warning "Low health!"
+      text.warning "Low health!"
     else
       text "HP: {player.hp}"
     end
+  }
 end

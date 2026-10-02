@@ -370,34 +370,6 @@ end
     expect(errorsOf(wrapped)).toEqual([]);
   });
 
-  test("a block on a line of its own ends the element, so a deeper indented line after it is no child", () => {
-    // Round 1 (comment 5940170624, finding 1).
-    const wrapped = `layout hud with
-  column
-  { text "a" }
-    text "b"
-  fill
-  { text "c" }
-    text "d"
-end
-`;
-    const oneLine = `layout hud with
-  column { text "a" }
-    text "b"
-  fill { text "c" }
-    text "d"
-end
-`;
-    expect(everything(wrapped)).toEqual(everything(oneLine));
-    const [column, fill] = lowered(wrapped, "layout", "hud").tree.children;
-    expect(column.children.map((c: any) => c.content[0].text)).toEqual(["a"]);
-    expect(fill.children.map((c: any) => c.content[0].text)).toEqual(["c"]);
-    // An empty block holds nothing, and still ends the element.
-    const empty = lowered(`layout hud with\n  row\n  {}\n    text "b"\nend\n`, "layout", "hud");
-    expect(empty.tree.children[0].children).toEqual([]);
-    expect(empty.struct.row).toEqual({});
-  });
-
   test("a slot's or a fill's name may stand on a continuation line", () => {
     // Round 1 (comment 5940170624, finding 3).
     const wrapped = `component card(title) with
@@ -448,37 +420,6 @@ end
     const [x, y] = lowered(wrapped, "layout", "hud").tree.children;
     expect(x.children[0].name).toBe("footer");
     expect(y.children[0].name).toBe("footer");
-  });
-
-  test("a line that continues an element takes no place in the indentation", () => {
-    // The `.b` line is deeper than `row`, but it is no child of `row`: the
-    // indented `text` below is, as it is below the one-line element.
-    const wrapped = `layout hud with
-  row
-      .b
-    text "child"
-  image
-end
-`;
-    const oneLine = `layout hud with
-  row.b
-    text "child"
-  image
-end
-`;
-    expect(everything(wrapped)).toEqual(everything(oneLine));
-    const [row] = lowered(wrapped, "layout", "hud").tree.children;
-    expect(row.classes).toEqual(["b"]);
-    expect(row.children.map((c: any) => c.tag)).toEqual(["text"]);
-  });
-
-  test("an indented `name:` header holds the lines below it, so a part line after it continues nothing", () => {
-    const text = `layout hud with
-  row:
-    .b
-end
-`;
-    expect(errorsOf(text).map((e) => e.text)).toEqual([".b"]);
   });
 });
 
@@ -630,41 +571,5 @@ end
     expect(lowered(text, "layout", "next").tree.children[0].content).toEqual([
       { kind: "literal", text: "compiles" },
     ]);
-  });
-});
-
-describe("one-line elements and the indented form read as before", () => {
-  test("a line that starts with no part is never a continuation", () => {
-    // Content, attributes and classes after a name on the element's own line,
-    // an indented header with children, a `-` item, a property and a control
-    // block all read as they do on one line.
-    const text = `store busy = true
-layout hud with
-  column #gap=4:
-    text.title "a" #x=1
-    items:
-      - one
-    color = white
-    if busy then
-      text "busy"
-    end
-  button "Use" @click={ busy = false }
-end
-`;
-    const { tree, struct } = lowered(text, "layout", "hud");
-    expect(errorsOf(text)).toEqual([]);
-    const [column, button] = tree.children;
-    expect(column.props).toEqual({
-      gap: { kind: "literal", value: 4 },
-      color: { kind: "literal", value: "white" },
-    });
-    expect(column.children.map((c: any) => c.kind === "element" ? c.tag : c.kind)).toEqual([
-      "text",
-      "items",
-      "if",
-    ]);
-    expect(button.events[0].handler.binding.source).toBe("{ busy = false }");
-    expect(struct.column["text title"]).toBe("a");
-    expect(struct.column.items).toEqual(["one"]);
   });
 });

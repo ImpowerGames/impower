@@ -3,14 +3,9 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
-import { collectStructBodyLines, parseStructBody } from "./lowerStructBody";
+import { parseStructBody } from "./lowerStructBody";
+import { readStructBodyEntries } from "../utils/structBodyEntries";
 
-// `style NAME [as PARENT] with <colon/indent body> end` — a structural UI
-// keyword. Lowers to a COMPILE-TIME `style` struct in
-// program.context.style.<name> (no runtime objects), via the chunk's
-// `context`. The body keeps the colon/indent struct form (props, nested
-// `key:` blocks, `> selector:` rules, `@breakpoint:` directives) — parsed
-// by the shared lowerStructBody. See project memory project_ui_syntax_design.
 export function lowerLuauStyle(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -26,7 +21,7 @@ export function lowerLuauStyle(
     : "";
 
   const contentNode = findChildByName(nodeRef.node, "LuauStyle_content");
-  const body = parseStructBody(collectStructBodyLines(contentNode, ctx), ctx);
+  const body = parseStructBody(readStructBodyEntries(contentNode, ctx), ctx);
 
   const struct: Record<string, unknown> = {
     $type: "style",

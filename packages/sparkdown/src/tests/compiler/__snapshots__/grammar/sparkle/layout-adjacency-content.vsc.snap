@@ -1,4 +1,4 @@
-text.source.sparkdown [0..143]
+text.source.sparkdown [0..169]
  ├─ meta.layout.luau [0..16]
  │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
@@ -6,74 +6,86 @@ text.source.sparkdown [0..143]
  │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
  │   └─ keyword.control.as.luau [12..16]: "with"
  ├─ Newline [16..17]: "\n"
- ├─ meta.layout.luau [17..25]
- │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
- │   └─ meta.struct.body.luau [19..25]
- │       ├─ entity.name.type.class.view.sd [19..24]: "stage"
- │       └─ meta.template.expression.operator.colon.sd [24..25]: ":"
- ├─ Newline [25..26]: "\n"
- ├─ meta.layout.luau [26..39]
- │   ├─ punctuation.whitespace.optional.sd [26..30]: "    "
- │   └─ meta.struct.body.luau [30..39]
- │       ├─ entity.name.type.class.view.sd [30..38]: "backdrop"
- │       └─ meta.template.expression.operator.colon.sd [38..39]: ":"
- ├─ Newline [39..40]: "\n"
- ├─ meta.layout.luau [40..59]
- │   ├─ punctuation.whitespace.optional.sd [40..46]: "      "
- │   └─ meta.struct.body.luau [46..59]
- │       ├─ keyword.other.component.builtin.name.sd [46..51]: "image"
- │       ├─ punctuation.whitespace.optional.sd [51..52]: " "
- │       └─ string.quoted.double.sd [52..59]
- │           ├─ punctuation.definition.string.begin.sd [52..53]: "\""
- │           ├─ markup.raw.whitespace.sd [53..54]: "b"
- │           ├─ markup.raw.whitespace.sd [54..55]: "l"
- │           ├─ markup.raw.whitespace.sd [55..56]: "a"
- │           ├─ markup.raw.whitespace.sd [56..57]: "c"
- │           ├─ markup.raw.whitespace.sd [57..58]: "k"
- │           └─ punctuation.definition.string.end.sd [58..59]: "\""
- ├─ Newline [59..60]: "\n"
- ├─ meta.layout.luau [60..73]
- │   ├─ punctuation.whitespace.optional.sd [60..64]: "    "
- │   └─ meta.struct.body.luau [64..73]
- │       ├─ entity.name.type.class.view.sd [64..72]: "portrait"
- │       └─ meta.template.expression.operator.colon.sd [72..73]: ":"
- ├─ Newline [73..74]: "\n"
- ├─ meta.layout.luau [74..93]
- │   ├─ punctuation.whitespace.optional.sd [74..80]: "      "
- │   └─ meta.struct.body.luau [80..93]
- │       ├─ keyword.other.component.builtin.name.sd [80..84]: "mask"
- │       ├─ punctuation.whitespace.optional.sd [84..85]: " "
- │       └─ entity.name.type.class.view.sd [85..93]: "shadow_1"
- ├─ Newline [93..94]: "\n"
- ├─ meta.layout.luau [94..105]
- │   ├─ punctuation.whitespace.optional.sd [94..100]: "      "
- │   └─ meta.struct.body.luau [100..105]
- │       └─ keyword.other.component.builtin.name.sd [100..105]: "image"
- ├─ Newline [105..106]: "\n"
- ├─ meta.layout.luau [106..116]
- │   ├─ punctuation.whitespace.optional.sd [106..110]: "    "
- │   └─ meta.struct.body.luau [110..116]
- │       ├─ keyword.other.component.builtin.name.sd [110..115]: "label"
- │       └─ meta.template.expression.operator.colon.sd [115..116]: ":"
- ├─ Newline [116..117]: "\n"
- ├─ meta.layout.luau [117..138]
- │   ├─ punctuation.whitespace.optional.sd [117..123]: "      "
- │   └─ meta.struct.body.luau [123..138]
- │       ├─ keyword.other.component.builtin.name.sd [123..127]: "text"
- │       ├─ punctuation.whitespace.optional.sd [127..128]: " "
- │       └─ string.quoted.double.sd [128..138]
- │           ├─ punctuation.definition.string.begin.sd [128..129]: "\""
- │           ├─ markup.raw.whitespace.sd [129..130]: "H"
- │           ├─ markup.raw.whitespace.sd [130..131]: "P"
- │           ├─ markup.raw.whitespace.sd [131..132]: ":"
- │           ├─ markup.raw.whitespace.sd [132..133]: " "
- │           ├─ meta.template.expression.luau [133..137]
- │           │   ├─ punctuation.definition.template-expression.begin.sd [133..134]: "{"
- │           │   ├─ meta.embedded.line.luau [134..136]
- │           │   │   └─ variable.other.readwrite.luau [134..136]: "hp"
- │           │   └─ punctuation.definition.template-expression.end.sd [136..137]: "}"
- │           └─ punctuation.definition.string.end.sd [137..138]: "\""
- ├─ Newline [138..139]: "\n"
- ├─ meta.layout.luau [139..142]
- │   └─ keyword.control.end.luau [139..142]: "end"
- └─ Newline [142..143]: "\n"
+ ├─ meta.layout.luau [17..26]
+ │   ├─ punctuation.whitespace.sd [17..19]: "  "
+ │   ├─ entity.name.type.class.view.sd [19..24]: "stage"
+ │   ├─ punctuation.whitespace.sd [24..25]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [25..26]: "{"
+ ├─ Newline [26..27]: "\n"
+ ├─ meta.layout.luau [27..41]
+ │   ├─ punctuation.whitespace.sd [27..31]: "    "
+ │   ├─ entity.name.type.class.view.sd [31..39]: "backdrop"
+ │   ├─ punctuation.whitespace.sd [39..40]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [40..41]: "{"
+ ├─ Newline [41..42]: "\n"
+ ├─ meta.layout.luau [42..61]
+ │   ├─ punctuation.whitespace.sd [42..48]: "      "
+ │   ├─ keyword.other.component.builtin.name.sd [48..53]: "image"
+ │   ├─ punctuation.whitespace.required.sd [53..54]: " "
+ │   └─ string.quoted.double.sd [54..61]
+ │       ├─ punctuation.definition.string.begin.sd [54..55]: "\""
+ │       ├─ markup.raw.whitespace.sd [55..56]: "b"
+ │       ├─ markup.raw.whitespace.sd [56..57]: "l"
+ │       ├─ markup.raw.whitespace.sd [57..58]: "a"
+ │       ├─ markup.raw.whitespace.sd [58..59]: "c"
+ │       ├─ markup.raw.whitespace.sd [59..60]: "k"
+ │       └─ punctuation.definition.string.end.sd [60..61]: "\""
+ ├─ Newline [61..62]: "\n"
+ ├─ meta.layout.luau [62..67]
+ │   ├─ punctuation.whitespace.sd [62..66]: "    "
+ │   └─ punctuation.definition.template-expression.end.sd [66..67]: "}"
+ ├─ Newline [67..68]: "\n"
+ ├─ meta.layout.luau [68..82]
+ │   ├─ punctuation.whitespace.sd [68..72]: "    "
+ │   ├─ entity.name.type.class.view.sd [72..80]: "portrait"
+ │   ├─ punctuation.whitespace.sd [80..81]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [81..82]: "{"
+ ├─ Newline [82..83]: "\n"
+ ├─ meta.layout.luau [83..102]
+ │   ├─ punctuation.whitespace.sd [83..89]: "      "
+ │   ├─ keyword.other.component.builtin.name.sd [89..93]: "mask"
+ │   ├─ punctuation.definition.class.sd [93..94]: "."
+ │   └─ entity.name.type.class.view.sd [94..102]: "shadow_1"
+ ├─ Newline [102..103]: "\n"
+ ├─ meta.layout.luau [103..114]
+ │   ├─ punctuation.whitespace.sd [103..109]: "      "
+ │   └─ keyword.other.component.builtin.name.sd [109..114]: "image"
+ ├─ Newline [114..115]: "\n"
+ ├─ meta.layout.luau [115..120]
+ │   ├─ punctuation.whitespace.sd [115..119]: "    "
+ │   └─ punctuation.definition.template-expression.end.sd [119..120]: "}"
+ ├─ Newline [120..121]: "\n"
+ ├─ meta.layout.luau [121..132]
+ │   ├─ punctuation.whitespace.sd [121..125]: "    "
+ │   ├─ keyword.other.component.builtin.name.sd [125..130]: "label"
+ │   ├─ punctuation.whitespace.sd [130..131]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [131..132]: "{"
+ ├─ Newline [132..133]: "\n"
+ ├─ meta.layout.luau [133..154]
+ │   ├─ punctuation.whitespace.sd [133..139]: "      "
+ │   ├─ keyword.other.component.builtin.name.sd [139..143]: "text"
+ │   ├─ punctuation.whitespace.required.sd [143..144]: " "
+ │   └─ string.quoted.double.sd [144..154]
+ │       ├─ punctuation.definition.string.begin.sd [144..145]: "\""
+ │       ├─ markup.raw.whitespace.sd [145..146]: "H"
+ │       ├─ markup.raw.whitespace.sd [146..147]: "P"
+ │       ├─ markup.raw.whitespace.sd [147..148]: ":"
+ │       ├─ markup.raw.whitespace.sd [148..149]: " "
+ │       ├─ meta.template.expression.luau [149..153]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [149..150]: "{"
+ │       │   ├─ meta.embedded.line.luau [150..152]
+ │       │   │   └─ variable.other.readwrite.luau [150..152]: "hp"
+ │       │   └─ punctuation.definition.template-expression.end.sd [152..153]: "}"
+ │       └─ punctuation.definition.string.end.sd [153..154]: "\""
+ ├─ Newline [154..155]: "\n"
+ ├─ meta.layout.luau [155..160]
+ │   ├─ punctuation.whitespace.sd [155..159]: "    "
+ │   └─ punctuation.definition.template-expression.end.sd [159..160]: "}"
+ ├─ Newline [160..161]: "\n"
+ ├─ meta.layout.luau [161..164]
+ │   ├─ punctuation.whitespace.sd [161..163]: "  "
+ │   └─ punctuation.definition.template-expression.end.sd [163..164]: "}"
+ ├─ Newline [164..165]: "\n"
+ ├─ meta.layout.luau [165..168]
+ │   └─ keyword.control.end.luau [165..168]: "end"
+ └─ Newline [168..169]: "\n"

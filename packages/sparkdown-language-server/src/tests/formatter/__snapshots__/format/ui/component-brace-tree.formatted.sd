@@ -2,7 +2,7 @@ component card(title) with
   column.card {
     text.title "{title}"
     row.body { slot }
-    fill footer {
+    fill.footer {
       text "footer"
     }
   }

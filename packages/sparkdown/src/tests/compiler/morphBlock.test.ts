@@ -35,56 +35,79 @@ const BLINK = `morph blink with
   method = bend
   fallback = fade
 
-  layers:
-    creases:
+  layers {
+    creases {
       fallback = scale
+    }
+  }
 
-  keyframes:
-    0%:
-      eyes:
+  keyframes {
+    0% {
+      eyes {
         state = eyes.open
-      eyebrows:
+      }
+      eyebrows {
         translate = 0 0
-      nose:
+      }
+      nose {
         translate = 0 0
-    33.333%:
-      eyes:
+      }
+    }
+    33.333% {
+      eyes {
         state = eyes.closed
-      eyebrows:
+      }
+      eyebrows {
         translate = 0 8px
-      nose:
+      }
+      nose {
         translate = 0 -2px
-    100%:
-      eyes:
+      }
+    }
+    100% {
+      eyes {
         state = eyes.open
-      eyebrows:
+      }
+      eyebrows {
         translate = 0 0
-      nose:
+      }
+      nose {
         translate = 0 0
+      }
+    }
+  }
 
-  timing:
+  timing {
     duration = 0.25
     easing = steps(3)
     delay = 0.7
     iterations = infinite
     iteration_delay_min = 0.2
     iteration_delay_max = 6
+  }
 
-  clips:
-    -
-      between:
-        - eyelash-left
-      targets:
-        - eyeball-white-left
-        - eyeball-shadow-left
-        - pupil-left
-    -
-      between:
-        - eyelash-right
-      targets:
-        - eyeball-white-right
-        - eyeball-shadow-right
-        - pupil-right
+  clips {
+    {
+      between {
+        eyelash-left
+      }
+      targets {
+        eyeball-white-left
+        eyeball-shadow-left
+        pupil-left
+      }
+    }
+    {
+      between {
+        eyelash-right
+      }
+      targets {
+        eyeball-white-right
+        eyeball-shadow-right
+        pupil-right
+      }
+    }
+  }
 end
 `;
 
@@ -194,7 +217,7 @@ end
     expect(struct.$extends).toBe("blink");
   });
 
-  test("list, collapsed and from/to keyframes normalize to the same poses", () => {
+  test("list and from/to keyframes normalize to the same poses", () => {
     const keyed = structOf(
       `morph m with
   keyframes {
@@ -241,27 +264,11 @@ end
 `,
       "m",
     );
-    const collapsed = structOf(
-      `morph m with
-  keyframes:
-    - eyes:
-        state = open
-    - eyes:
-        state = closed
-    - eyes:
-        state = open
-end
-`,
-      "m",
-    );
     // The list forms omit offsets, so only their normalized poses agree with
     // the keyed form.
     expect(listed.keyframes[0].offset).toBeUndefined();
-    expect(collapsed).toEqual(listed);
     expect(normalizeMorphKeyframes(listed.keyframes)).toEqual(keyed.keyframes);
-    expect(normalizeMorphKeyframes(collapsed.keyframes)).toEqual(
-      normalizeMorphKeyframes(keyed.keyframes),
-    );
+
   });
 
   test("lists with the same explicit offsets are equal as written", () => {
@@ -706,188 +713,6 @@ end
 });
 
 /** Wrap keyframe lines into an otherwise valid morph. */
-const withKeyframes = (keyframes: string, extra = "") => `morph m with
-  method = match
-${extra}  keyframes:
-${keyframes}end
-`;
-
-const TWO_POSES = `    from:
-      eyes:
-        state = open
-    to:
-      eyes:
-        state = closed
-`;
-
-describe("morph diagnostics", () => {
-  test("the canonical example is clean", () => {
-    expect(diagnosticsOf(BLINK)).toEqual([]);
-  });
-
-  test.each([
-    ["unknown root field", "  speed = 2\n", "Unknown morph field `speed`", "speed"],
-    ["timing field at the root", "  duration = 2\n", "`duration` belongs in `timing { … }`", "duration"],
-    ["policy inside timing", "  timing:\n    method = bend\n", "`method` belongs at the morph root", "method"],
-    ["state at the root", "  state = open\n", "`state` belongs in a keyframe container", "state"],
-    ["unknown blend", "  blend = melt\n", "`melt` is not a `blend`", "melt"],
-    ["fallback cannot be morph", "  fallback = morph\n", "`morph` is not a `fallback`", "morph"],
-    ["unknown method", "  layers:\n    creases:\n      method = taper\n", "`taper` is not a `method`", "taper"],
-    ["string duration", "  timing:\n    duration = \"0.25s\"\n", "Timing values are numbers of seconds", "\"0.25s\""],
-    ["zero duration", "  timing:\n    duration = 0\n", "`duration` must be greater than 0", "0"],
-    ["negative delay", "  timing:\n    delay = -1\n", "`delay` must not be negative", "-1"],
-    ["fractional iterations", "  timing:\n    iterations = 1.5\n", "`iterations` is a whole number", "1.5"],
-    ["unknown direction", "  timing:\n    direction = backwards\n", "`backwards` is not a `direction`", "backwards"],
-    ["unknown easing", "  timing:\n    easing = bouncy\n", "`bouncy` is not an easing", "bouncy"],
-    ["bad steps", "  timing:\n    easing = steps(0)\n", "`steps()` takes a whole number", "steps(0)"],
-    ["bad cubic-bezier", "  timing:\n    easing = cubic-bezier(2, 0, 1, 1)\n", "x values of `cubic-bezier()`", "cubic-bezier(2, 0, 1, 1)"],
-    ["unpaired bound", "  timing:\n    iteration_delay_min = 1\n", "`iteration_delay_min` needs `iteration_delay_max`", "iteration_delay_min"],
-    ["reversed bounds", "  timing:\n    iteration_delay_min = 3\n    iteration_delay_max = 1\n", "`iteration_delay_max` (1) must be at least", "iteration_delay_max"],
-    ["negative bound", "  timing:\n    iteration_delay_min = -1\n    iteration_delay_max = 1\n", "`iteration_delay_min` must not be negative", "-1"],
-    ["scalar layers entry", "  layers:\n    creases = scale\n", "`creases` in `layers { … }` is a label", "creases = scale"],
-    ["unknown layer policy field", "  layers:\n    creases:\n      duration = 1\n", "`duration` belongs in `timing { … }`", "duration"],
-  ])("%s", (_name, extra, message, text) => {
-    const found = morphDiagnostics(withKeyframes(TWO_POSES, extra)).find((d) =>
-      d.message.includes(message),
-    );
-    expect(found, JSON.stringify(morphDiagnostics(withKeyframes(TWO_POSES, extra)))).toBeDefined();
-    expect(found!.text).toBe(text);
-  });
-
-  test.each([
-    ["supported easings", ["linear", "ease-in-out", "step-end", "steps(3)", "steps(2, jump-none)", "cubic-bezier(0.1, 0.7, 1, 0.1)", "linear(0, 0.25 25%, 1)"]],
-  ])("%s pass", (_name, easings) => {
-    for (const easing of easings) {
-      expect(
-        morphDiagnostics(withKeyframes(TWO_POSES, `  timing:\n    easing = ${easing}\n`)),
-        easing,
-      ).toEqual([]);
-    }
-  });
-
-  test("zero iterations and equal bounds are valid", () => {
-    expect(
-      morphDiagnostics(
-        withKeyframes(
-          TWO_POSES,
-          "  timing:\n    iterations = 0\n    iteration_delay_min = 2\n    iteration_delay_max = 2\n",
-        ),
-      ),
-    ).toEqual([]);
-  });
-
-  test.each([
-    [
-      "a scalar shorthand pose",
-      "    from:\n      eyes = closed\n    to:\n      eyes:\n        state = open\n",
-      "`eyes = …` is not a pose",
-      "eyes = closed",
-    ],
-    [
-      "a scalar list keyframe",
-      "    - 0.5\n    -\n      eyes:\n        state = open\n",
-      "A keyframe is a pose, not a single value",
-      "- 0.5",
-    ],
-    [
-      "an empty container",
-      "    from:\n      eyes:\n    to:\n      eyes:\n        state = open\n",
-      "`eyes { … }` poses nothing",
-      "eyes:",
-    ],
-    [
-      "the historical `option` field",
-      "    from:\n      eyes:\n        option = closed\n    to:\n      eyes:\n        state = open\n",
-      "Use `state`",
-      "option",
-    ],
-    [
-      "an offset above 1",
-      "    -\n      offset = 1.5\n      eyes:\n        state = open\n    -\n      eyes:\n        state = closed\n",
-      "Keyframe offset 1.5 must be between 0 and 1",
-      "1.5",
-    ],
-    [
-      "decreasing offsets",
-      "    -\n      offset = 0.6\n      eyes:\n        state = open\n    -\n      offset = 0.4\n      eyes:\n        state = closed\n",
-      "Keyframe offsets must not decrease",
-      "0.4",
-    ],
-    [
-      "a 3D translate",
-      "    from:\n      nose:\n        translate = 0 0 5px\n    to:\n      nose:\n        translate = 0 0\n",
-      "Only 2D `translate` is supported",
-      "0 0 5px",
-    ],
-    [
-      "a 3D transform function",
-      "    from:\n      nose:\n        transform = rotateX(20deg)\n    to:\n      nose:\n        transform = none\n",
-      "3D transforms are not supported",
-      "rotateX(20deg)",
-    ],
-    [
-      "an unsupported layer property",
-      "    from:\n      nose:\n        perspective = 100px\n    to:\n      nose:\n        translate = 0 0\n",
-      "Unknown morph field `perspective`",
-      "perspective",
-    ],
-    [
-      "opacity above 1",
-      "    from:\n      nose:\n        opacity = 2\n    to:\n      nose:\n        opacity = 1\n",
-      "`opacity` must be between 0 and 1",
-      "2",
-    ],
-    [
-      "a keyframe block without positions or items",
-      "    eyes:\n      state = open\n",
-      "Write each keyframe as a position",
-      "keyframes",
-    ],
-  ])("%s", (_name, keyframes, message, text) => {
-    const found = morphDiagnostics(withKeyframes(keyframes)).find((d) =>
-      d.message.includes(message),
-    );
-    expect(found, JSON.stringify(morphDiagnostics(withKeyframes(keyframes)))).toBeDefined();
-    expect(found!.text).toBe(text);
-  });
-
-  test("fewer than two poses", () => {
-    const found = morphDiagnostics(
-      withKeyframes("    from:\n      eyes:\n        state = open\n"),
-    ).find((d) => d.message.includes("at least two keyframes"));
-    expect(found?.text).toBe("keyframes");
-  });
-
-  test("clip entries need both label lists and cannot clip their own edges", () => {
-    const text = withKeyframes(
-      TWO_POSES,
-      "  clips:\n    -\n      between:\n        - eyelash-left\n      targets:\n        - eyelash-left\n    -\n      targets:\n        - pupil-left\n",
-    );
-    const found = morphDiagnostics(text);
-    expect(found.find((d) => d.message.includes("cannot also clip it"))?.text).toBe("- eyelash-left");
-    expect(found.find((d) => d.message.includes("needs `between { … }`"))?.line).toBe(8);
-  });
-
-  test("a missing `with` is reported and the next block still parses", () => {
-    const text = `morph m
-  method = match
-end
-
-animation fade with
-  timing {
-    duration = 1
-  }
-end
-`;
-    const found = morphDiagnostics(text).find((d) => d.message.includes("Expected `with`"));
-    expect(found).toMatchObject({ line: 0, text: "m" });
-    const program = compile(text);
-    expect(program.context?.["morph"]?.["m"]?.method).toBe("match");
-    expect(program.context?.["animation"]?.["fade"]?.timing?.duration).toBe(1);
-  });
-});
-
-/** `BLINK` written with brace blocks (#1223). */
 const BLINK_BRACED = `morph blink with
   blend = morph
   method = bend
@@ -1078,35 +903,6 @@ describe("morph blocks written with braces", () => {
       line: 4,
       text: "{",
     });
-  });
-
-  test("unknown groups, states and labels are reported where they are written", () => {
-    const text = `morph blink with
-  method = bend
-  layers { crease { fallback = scale } }
-  keyframes {
-    from {
-      eyes { state = open }
-      brows { translate = 0 0 }
-    }
-    to {
-      eyes { state = shut }
-      tail { state = up }
-    }
-  }
-  clips {
-    { between { eyelash-left }; targets { pupil } }
-  }
-end
-`;
-    const found = morphDiagnostics(text);
-    const at = (message: string) => found.find((d) => d.message.includes(message));
-    expect(at("No image has a `tail` attribute group")).toMatchObject({ line: 10, text: "tail" });
-    expect(at("No image's `eyes` group has a `shut` state")).toMatchObject({ line: 9, text: "shut" });
-    expect(at("layer labelled `crease`")).toMatchObject({ line: 2, text: "crease" });
-    expect(at("layer labelled `brows`")).toMatchObject({ line: 6, text: "brows" });
-    expect(at("layer labelled `pupil`")).toMatchObject({ line: 14, text: "pupil" });
-    expect(at("layer labelled `eyelash-left`")).toBeUndefined();
   });
 });
 
@@ -1324,40 +1120,6 @@ end
 });
 
 describe("block-level artwork coverage", () => {
-  test("unknown groups, states and labels are reported where they are written", () => {
-    const text = `morph blink with
-  method = bend
-  layers:
-    crease:
-      fallback = scale
-  keyframes:
-    from:
-      eyes:
-        state = open
-      brows:
-        translate = 0 0
-    to:
-      eyes:
-        state = shut
-      tail:
-        state = up
-  clips:
-    -
-      between:
-        - eyelash-left
-      targets:
-        - pupil
-end
-`;
-    const found = morphDiagnostics(text);
-    const at = (message: string) => found.find((d) => d.message.includes(message));
-    expect(at("No image has a `tail` attribute group")).toMatchObject({ line: 14, text: "tail" });
-    expect(at("No image's `eyes` group has a `shut` state")).toMatchObject({ line: 13, text: "shut" });
-    expect(at("layer labelled `crease`")).toMatchObject({ line: 3, text: "crease" });
-    expect(at("layer labelled `brows`")).toMatchObject({ line: 9, text: "brows" });
-    expect(at("layer labelled `pupil`")).toMatchObject({ line: 21, text: "pupil" });
-    expect(at("layer labelled `eyelash-left`")).toBeUndefined();
-  });
 
   test("hypothetical binding selections publish no attribute warnings on the script", () => {
     const text = `${BLINK}

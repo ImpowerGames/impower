@@ -134,45 +134,6 @@ end
     ]);
   });
 
-  test("the brace and indented forms of a body record the same paths", () => {
-    const braced = `animation fade with
-  timing { duration = 1 }
-  keyframes {
-    { opacity = 0 }
-    { opacity = 1; offset = 0.5 }
-  }
-end
-style card with
-  > text { text-color = white }
-  @hovered { > text { text-color = red } }
-end
-`;
-    const indented = `animation fade with
-  timing:
-    duration = 1
-  keyframes:
-    -
-      opacity = 0
-    -
-      opacity = 1
-      offset = 0.5
-end
-style card with
-  > text:
-    text-color = white
-  @hovered:
-    > text:
-      text-color = red
-end
-`;
-    expect(structIds(braced, "animation")).toEqual(structIds(indented, "animation"));
-    expect(structIds(braced, "style")).toEqual(structIds(indented, "style"));
-    expect(structIds(braced, "animation")).toContain("animation.fade.keyframes.1.offset");
-    // A selector header is keyed by its first name, as the indented form
-    // keys `> text:`.
-    expect(structIds(braced, "style")).toContain("style.card.@hovered.text.text-color");
-  });
-
   // `text-color` stands at the same path in the first and last blocks, and
   // at another path under `@hovered`.
   const style = `style card with
@@ -207,7 +168,7 @@ end
   test("a nested layout element's path comes from its blocks, keyed as the static struct keys it", () => {
     const layout = `layout hud with
   column.panel {
-    row item.x { text "a" }
+    row.item.x { text "a" }
     card(1) { b }
   }
 end
@@ -261,29 +222,6 @@ end
       const edits = renameAt(source, "panel", occurrence, "card");
       expect(edits.map((e) => e.at).sort()).toEqual([...classes, styleName].sort());
       expect(edits.every((e) => e.newText === "card")).toBe(true);
-    }
-  });
-
-  test("rename keeps the indented form's class uses with their style", () => {
-    const mixed = `layout braced with
-  column.panel { text "a" }
-end
-layout indented with
-  column panel:
-    text panel "b"
-  row.panel:
-    text "c"
-end
-style panel with
-  background-color = black
-end
-`;
-    const uses = ["1:9", "4:9", "5:9", "6:6", "9:6"];
-    for (const occurrence of [1, 2, 3, 4, 5]) {
-      const edits = renameAt(mixed, "panel", occurrence, "card");
-      expect(edits.map((e) => e.at).sort(), `occurrence ${occurrence}`).toEqual(
-        uses,
-      );
     }
   });
 

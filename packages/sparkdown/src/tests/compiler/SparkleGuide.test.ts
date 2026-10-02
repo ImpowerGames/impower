@@ -103,7 +103,6 @@ function readDeclarations(code: string) {
   const textOf = (from: number, to: number) => code.slice(from, to);
   parseSource(code).iterate({
     enter: (node) => {
-      const parent = stack[stack.length - 1];
       stack.push({ name: node.name, from: node.from, to: node.to });
       if (DECLARATIONS.has(node.name)) {
         declarations.push({
@@ -115,32 +114,10 @@ function readDeclarations(code: string) {
       }
       if (!inside()) return;
       const where = `${lineOf(code, node.from)}`;
-      if (node.name === "LuauStructObjectColon") {
+      if (node.name === "LuauStructInvalidColon") {
         oldForms.push(`${where}: a \`:\` header`);
-      } else if (node.name === "LuauStructArrayItem") {
+      } else if (node.name === "LuauStructBlockItemMark") {
         oldForms.push(`${where}: a \`-\` item`);
-      } else if (
-        node.name === "LuauSparkleElementWord" ||
-        ((node.name === "CustomComponentName" ||
-          node.name === "BuiltinComponentName") &&
-          parent?.name === "LuauStructBareMarker_c4")
-      ) {
-        // `slot footer` and `fill footer { … }` name a slot with one bare
-        // word; any other word after an element's name is a bare class.
-        const element = [...stack]
-          .reverse()
-          .find(
-            (n) =>
-              n.name === "LuauSparkleElement" ||
-              n.name === "LuauStructBareMarker",
-          );
-        const head = element ? textOf(element.from, node.from) : "";
-        const isSlotName = /^(slot|fill)\s+$/.test(head);
-        if (!isSlotName) {
-          oldForms.push(
-            `${where}: the bare class \`${textOf(node.from, node.to)}\``,
-          );
-        }
       } else if (
         node.name === "LuauStructBlockKey" &&
         stack.some((n) => n.name === "LuauStyle")
@@ -251,12 +228,8 @@ describe("the guide's old-form check", () => {
     ["a `:` header", layout(`column:\n    text "a"`)],
     [
       "a `-` item",
-      `animation a with\n  keyframes:\n    -\n      opacity = 0\nend\n`,
+      `animation a with\n  keyframes {\n    -\n      opacity = 0\n  }\nend\n`,
     ],
-    ["a bare class on an indented line", layout(`text title "a"`)],
-    ["a bare class in a block", layout(`row { text title "a" }`)],
-    ["a non-ASCII bare class in a block", layout(`row { text заголовок "a" }`)],
-    ["a second word after a slot's name", layout(`box { slot footer extra }`)],
   ])("reports %s", (_, source) => {
     expect(readDeclarations(source).oldForms).not.toEqual([]);
   });
@@ -332,7 +305,7 @@ describe("the guide's old-form check", () => {
     ],
     [
       "a slot name and a fill",
-      layout(`box { slot footer }\n  card { fill footer { text } }`),
+      layout(`box { slot.footer }\n  card { fill.footer { text } }`),
     ],
     [
       "a theme key of two words",

@@ -143,15 +143,6 @@ end
       expect(labels, value).toContain("duration");
     }
   });
-
-  test("an indented body keeps inserting the indented forms", () => {
-    const source = `animation fade with
-  tim|
-end
-`;
-    expect(insertedText(itemAt(source, "timing"))).toBe("timing:\n    ");
-    expect(insertedText(itemAt(source, "keyframes"))).toBe("keyframes:\n    - ");
-  });
 });
 
 describe("provider · element completion in layout and component brace blocks", () => {
@@ -169,7 +160,7 @@ describe("provider · element completion in layout and component brace blocks", 
     completeAt(source, elementProgram).map((i) => String(i.label));
 
   test.each(["layout", "component"])(
-    "a %s block offers what the indented element line offers",
+    "a %s block offers elements at the root and inside blocks",
     (keyword) => {
       expect(labelsIn(`${keyword} hud with\n  te|\nend\n`)).toContain("text");
       expect(labelsIn(`${keyword} hud with\n  row {\n    te|\n  }\nend\n`)).toContain(
@@ -185,9 +176,9 @@ describe("provider · element completion in layout and component brace blocks", 
     for (const source of [
       `layout hud with\n  row { text "a; te|" }\nend\n`,
       `layout hud with\n  row { text 'a; te|' }\nend\n`,
-      // Content glued to the name or a word is still content.
+      // Content glued to the name or a class is still content.
       `layout hud with\n  row { text'a; te|' }\nend\n`,
-      `layout hud with\n  row { text 1'a; te|' }\nend\n`,
+      `layout hud with\n  row { text.title'a; te|' }\nend\n`,
       // A single-quoted attribute value too.
       `layout hud with\n  row { text #label='a; te|' }\nend\n`,
       `component hud with\n  row { text #label='a; te|' }\nend\n`,

@@ -165,7 +165,6 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
   const walk = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
       switch (child.name) {
-        case "LuauSparkleElementWord":
         case "LuauSparkleClassName":
           words.push(child);
           break;
@@ -374,21 +373,4 @@ export function braceBlockPathAt(
   return innermost && outermost
     ? { path, body: innermost, outerFrom: braceBodyOwner(outermost).from }
     : null;
-}
-
-/** Whether a declaration's body holds a line written with brace blocks. */
-export function bodyUsesBraceBlocks(declaration: SyntaxNode): boolean {
-  for (let child = declaration.firstChild; child; child = child.nextSibling) {
-    if (child.name.endsWith("_content")) {
-      for (let line = child.firstChild; line; line = line.nextSibling) {
-        if (
-          line.name === "LuauStructBlockLine" ||
-          line.name === "LuauSparkleBlockLine"
-        ) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
 }

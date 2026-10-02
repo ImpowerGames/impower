@@ -7,13 +7,12 @@ text.source.sparkdown [0..352]
  │   └─ keyword.control.as.luau [13..17]: "with"
  ├─ Newline [17..18]: "\n"
  ├─ meta.style.luau [18..36]
- │   ├─ punctuation.whitespace.optional.sd [18..20]: "  "
- │   └─ meta.struct.body.luau [20..36]
- │       ├─ variable.other.property.define.sd [20..26]: "cursor"
- │       ├─ markup.raw.whitespace.separator.optional.sd [26..27]: " "
- │       ├─ keyword.operator.assignment.sd [27..28]: "="
- │       ├─ markup.raw.whitespace.separator.optional.sd [28..29]: " "
- │       └─ string.unquoted.identifier.sd [29..36]: "pointer"
+ │   ├─ punctuation.whitespace.sd [18..20]: "  "
+ │   ├─ variable.other.property.define.sd [20..26]: "cursor"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [26..27]: " "
+ │   ├─ keyword.operator.assignment.sd [27..28]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [28..29]: " "
+ │   └─ string.unquoted.identifier.sd [29..36]: "pointer"
  ├─ Newline [36..37]: "\n"
  ├─ meta.style.luau [37..82]
  │   ├─ punctuation.whitespace.sd [37..39]: "  "

@@ -1,8 +1,9 @@
 layout bag with
   for item in inventory do
-    row:
+    row {
       text "{item.name}"
       button "Use" @click=use_item
+    }
   else
     text "Your bag is empty."
   end

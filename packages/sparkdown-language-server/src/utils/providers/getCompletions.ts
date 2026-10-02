@@ -7,7 +7,6 @@ import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/S
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
-  bodyUsesBraceBlocks,
   braceBlockPathAt,
   braceEntryAt,
   entryInsideValue,
@@ -39,7 +38,7 @@ import {
   type DeclarationScopes,
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
-import { getMorphCompletions, indentedPathAbove } from "./getMorphCompletions";
+import { getMorphCompletions } from "./getMorphCompletions";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -131,41 +130,6 @@ const getDefineContext = (
     return { type: parent || name, name: parent ? name : "$default" };
   }
   return null;
-};
-
-// The indent (leading space count) of a line, or null when the line holds
-// nothing but whitespace.
-const lineIndent = (text: string): number | null => {
-  const m = /^[ \t]*/.exec(text);
-  const indent = m ? m[0].length : 0;
-  return text.trim() ? indent : null;
-};
-
-/**
- * True when `line` sits directly inside a `keyframes:` container — i.e. the
- * nearest preceding line indented less than it is a `keyframes:` header. Used
- * to offer the keyframe positions (`from`, `to`) as key completions there; the
- * struct grammar is flat and indentation-based, so the enclosing container is
- * recovered from the text rather than from the syntax tree.
- */
-const isInsideKeyframesContainer = (
-  getLineText: (line: number) => string,
-  line: number,
-  column: number,
-): boolean => {
-  // A line the author has only indented so far holds no text to measure, so
-  // the cursor's own column is the indent they are typing at. Without this the
-  // scan would stop at the previous keyframe's deeper property line and refuse
-  // the completion on every keyframe after the first.
-  const own = lineIndent(getLineText(line)) ?? column;
-  for (let i = line - 1; i >= 0; i -= 1) {
-    const text = getLineText(i);
-    const indent = lineIndent(text);
-    if (indent == null) continue;
-    if (indent >= own) continue;
-    return /^keyframes\s*:\s*(?:(?:--|\/\/).*)?$/.test(text.trim());
-  }
-  return false;
 };
 
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
@@ -704,7 +668,6 @@ const addStructPropertyNameContextCompletions = (
   lineText: string,
   cursorPosition: Position,
   exclude?: string[],
-  braceForm = false,
 ) => {
   const textAfterCursor = lineText.slice(cursorPosition.character);
   if (typeStruct) {
@@ -712,8 +675,6 @@ const addStructPropertyNameContextCompletions = (
     const accessorPath = relativePath.endsWith(".")
       ? relativePath
       : `${relativePath}.`;
-    const indentLength = lineText.length - lineText.trimStart().length;
-    const indent = lineText.slice(0, indentLength) + "  ";
     const pathPrefix = program?.context?.[typeStruct.$type]?.["$default"]?.[
       "$recursive"
     ]
@@ -733,7 +694,6 @@ const addStructPropertyNameContextCompletions = (
               !("$type" in optionValue) &&
               !("$name" in optionValue);
             if (modifier !== "optional" || isArray || isMap) {
-              const arrayItemDash = "- ";
               const container =
                 isArray ||
                 isMap ||
@@ -743,19 +703,13 @@ const addStructPropertyNameContextCompletions = (
               // In a brace body an entry ends at its `;` or `}`, and a
               // container opens a balanced one-line block with the cursor
               // inside it; Enter there splits it over lines.
-              const restOfEntry = braceForm
-                ? /^[^;}]*/.exec(textAfterCursor)![0].trim()
-                : textAfterCursor;
-              const braced = braceForm && container && !restOfEntry;
+              const restOfEntry = /^[^;}]*/.exec(textAfterCursor)![0].trim();
+              const braced = container && !restOfEntry;
               const insertSuffix = restOfEntry
                 ? ""
                 : braced
                   ? " { $0 }"
-                  : isArray || modifier === "schema" || modifier === "random"
-                    ? `:\n${indent}${arrayItemDash}`
-                    : isMap || modifier === "description"
-                      ? `:\n${indent}`
-                      : valueAssignmentSeparator;
+                  : valueAssignmentSeparator;
               const completion: CompletionItem = {
                 label: propName,
                 insertText: propName + insertSuffix,
@@ -814,7 +768,6 @@ const addStructPropertyNameCompletions = (
   lineText: string,
   cursorPosition: Position,
   exclude: string[],
-  braceForm = false,
 ) => {
   if (type) {
     for (const typeStruct of [
@@ -836,7 +789,6 @@ const addStructPropertyNameCompletions = (
         lineText,
         cursorPosition,
         exclude,
-        braceForm,
       );
     }
   }
@@ -1337,16 +1289,12 @@ export const getCompletions = (
           braceBlock && braceBlock.body.from > morphNode.from
             ? braceBlock.path
             : null,
-        blockLine: braceBlock
-          ? document.positionAt(braceBlock.outerFrom).line
-          : null,
         entry: braceEntryAt(
           tree,
           documentCursorOffset,
           document.offsetAt({ line: position.line, character: 0 }),
           read,
         ),
-        usesBlocks: bodyUsesBraceBlocks(morphNode),
         stateContainers: blockStateContainers(morphNode, tree, read),
       },
     );
@@ -1852,13 +1800,6 @@ export const getCompletions = (
     }
   }
 
-  // Define / structural (style/layout/screen/component/animation/theme).
-  //
-  // The Luau port inverted the model (`define <name> as <TYPE>`) and flattened
-  // the struct body into indentation-nested LuauStructScalarProperty /
-  // ObjectHeader / ArrayItem lines, so the pre-port node names this section
-  // keyed on (DefineTypeName / DefineVariableName / *DeclarationScalarPropertyName
-  // / ViewStructField …) are all gone. Re-derive against the current grammar.
 
   // Type completion: in the inverted model the engine type is the PARENT, so
   // offer type names after `as`.
@@ -1877,34 +1818,17 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // A key being written inside a brace block (#1222). Where the cursor is
-  // comes from the blocks around it, after the indented keys the line of
-  // blocks sits under: directly inside `keyframes` a key is a position,
-  // elsewhere a property of the block's own path. A container inserts a
-  // balanced `name { }` block with the cursor inside.
   const braceDefine = getDefineContext(leftStack, read);
   const braceBlock = braceDefine
     ? braceBlockPathAt(tree, documentCursorOffset, read)
     : null;
-  const braceDefineNode = leftStack.find(
-    (n) => STRUCTURAL_DEFINE_TYPE[n.name] || n.name === "LuauDefine",
-  );
   // The block path for a struct lookup, a list entry read as the list's
   // first item.
   const braceStructPath =
     braceBlock && braceBlock.body.name !== "LuauSparkleElementBlock"
-      ? [
-          ...(braceDefineNode
-            ? indentedPathAbove(
-                (line) => document.getLineText(line),
-                document.positionAt(braceDefineNode.from).line + 1,
-                document.positionAt(braceBlock.outerFrom).line,
-              )
-            : []),
-          ...braceBlock.path,
-        ].map((key) => (key === "-" ? "0" : key))
+      ? braceBlock.path
       : null;
-  if (braceDefine && braceBlock) {
+  if (braceDefine && leftStack.some((node) => node.name.endsWith("_content") || node.name === "LuauStructBlockLine" || node.name === "LuauSparkleBlockLine")) {
     const lineText = document.getLineText(position.line);
     const entryBefore = braceEntryAt(
       tree,
@@ -1921,7 +1845,7 @@ export const getCompletions = (
       !insideElementValue(tree, documentCursorOffset);
     if (
       keying &&
-      !braceStructPath &&
+      (!braceStructPath || !braceBlock) &&
       /^\s*[A-Za-z_][\w-]*$/.test(entryBefore)
     ) {
       addStructPropertyNameCompletions(
@@ -1937,7 +1861,6 @@ export const getCompletions = (
         lineText,
         position,
         [],
-        true,
       );
       return buildCompletions();
     }
@@ -1973,44 +1896,11 @@ export const getCompletions = (
         lineText,
         position,
         [],
-        true,
       );
       return buildCompletions();
     }
   }
 
-  // Keyframe position completion: the cursor is editing a key directly inside
-  // a `keyframes:` container, where a key names a position on the timeline
-  // (`from:`, `40%:`, `to:`) rather than a property. Only the two word
-  // positions are offered — a percentage is a number the author types.
-  if (
-    getDefineContext(leftStack, read) &&
-    isInsideKeyframesContainer(
-      (line) => document.getLineText(line),
-      position.line,
-      position.character,
-    ) &&
-    /^[ \t]*[A-Za-z]*$/.test(
-      document.getLineText(position.line).slice(0, position.character),
-    )
-  ) {
-    addKeywordCompletions(
-      completions,
-      "keyframe position",
-      KEYFRAME_POSITION_KEYWORDS,
-      undefined,
-      "",
-      ":",
-    );
-    return buildCompletions();
-  }
-
-  // Struct property NAME completion: cursor editing a struct key. The engine
-  // type + instance name come from the enclosing define (getDefineContext).
-  // NOTE: the nested property PATH (deep keys) is not recovered under the
-  // flat indentation grammar; top-level property names are offered (path ""),
-  // which covers the common case. Deep-path completion is a follow-up tied to
-  // the reactive-sparkle struct grammar.
   const structKeyNode = leftStack.find(
     (n) =>
       n.type.name === "StylingDeclarationScalarPropertyName" ||
@@ -2031,9 +1921,6 @@ export const getCompletions = (
         const lineText = document.getLineText(position.line);
         // A body written with blocks takes a block for a container at its
         // root too, and so does any key inside a block.
-        const defineNode = leftStack.find(
-          (n) => STRUCTURAL_DEFINE_TYPE[n.name] || n.name === "LuauDefine",
-        );
         addStructPropertyNameCompletions(
           completions,
           program,
@@ -2047,7 +1934,6 @@ export const getCompletions = (
           lineText,
           position,
           [],
-          !!braceBlock || (!!defineNode && bodyUsesBraceBlocks(defineNode)),
         );
       }
     }
@@ -2060,7 +1946,6 @@ export const getCompletions = (
   // or, in a brace block, for the key at the block's path.
   const scalarPropertyNode = leftStack.find(
     (n) =>
-      n.type.name === "LuauStructScalarProperty" ||
       n.type.name === "LuauStructBlockProperty",
   );
   if (

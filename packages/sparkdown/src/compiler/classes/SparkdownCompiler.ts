@@ -3602,9 +3602,7 @@ export class SparkdownCompiler {
             from: rec.from,
           });
         }
-        // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
-        // not yet consumed — the static screens/components channels still
-        // drive rendering until Phase 3).
+        // Merge the reactive UI trees consumed by the engine onto program.sparkle.
         for (const kind of ["layouts", "screens", "components"] as const) {
           const trees = sparkle[kind];
           if (trees) {
