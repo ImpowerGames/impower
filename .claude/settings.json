@@ -1,4 +1,10 @@
 {
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Running node scripts/agent-handoff.mjs to launch the repository's independent Codex reviewer with its documented full-access sandbox arguments, and spawning or messaging writer subagents that do so, is authorized by the maintainer."
+    ]
+  },
   "permissions": {
     "allow": [
       "Write(../impower.review-jobs/**)",
