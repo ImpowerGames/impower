@@ -89,3 +89,23 @@ describe("a narrative if block", () => {
     expect(conditionLints(source)).toEqual(expected);
   });
 });
+
+// Sparkdown's own expressions compare as the expressions they stand for.
+describe("Sparkdown's own expressions in a repeated condition", () => {
+  test.each([
+    ["a double-quoted string that interpolates", "store x = 1\n& print(\"{x}\" or \"{x}\")\n", ["1:17 DuplicateCondition"]],
+    [
+      "a call holding one, in an if chain",
+      "store x = 1\nfunction f()\n  if tostring(\"{x}\") then\n  elseif tostring(\"{x}\") then\n  end\nend\n",
+      ["3:9 DuplicateCondition"],
+    ],
+    ["different interpolations", "store x = 1\n& print(\"{x}\" or \"{x} \")\n", []],
+  ])("%s", (_name, source, expected) => {
+    expect(conditionLints(source)).toEqual(expected);
+  });
+
+  // As in Luau's linter, a chain's operands are not read for chains of their own.
+  test("a chain inside another chain's operand", () => {
+    expect(conditionLints("store a = true\nstore b = true\n& print(a or tostring(b and b))\n")).toEqual([]);
+  });
+});

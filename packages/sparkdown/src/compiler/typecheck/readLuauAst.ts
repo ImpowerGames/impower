@@ -3776,18 +3776,7 @@ export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], do
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   for (const node of Array.isArray(nodes) ? nodes : [nodes as SyntaxNode]) tokenizer.read(node);
-  const first = tokenizer.tokens[0];
-  const start = first ? first.location : new Location();
-  const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
-  let expr: AstExpr;
-  try {
-    expr = parser.parseLoneExpression();
-  } catch (caught) {
-    const error = parser.fatalError(caught);
-    parser.errors.push(error);
-    expr = new AstExprError(error.location, [], parser.errors.length - 1);
-  }
-  return { expr, errors: parser.errors };
+  return parseLoneTokens(tokenizer, documentText, index);
 }
 
 /**
@@ -3831,10 +3820,11 @@ export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: s
   return parseLoneTokens(tokenizer, documentText, index);
 }
 
-/** The one expression a tokenizer's tokens hold. */
+/** The one expression a tokenizer's tokens hold (`readLuauExpression`, `readLuauMethod`, `readLuauStatements`). */
 function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: LineIndex): { expr: AstExpr; errors: LuauSyntaxError[] } {
-  const first = tokenizer.tokens[0]!;
-  const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(first.location.begin, first.location.begin));
+  const first = tokenizer.tokens[0];
+  const start = first ? first.location : new Location();
+  const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
   let expr: AstExpr;
   try {
     expr = parser.parseLoneExpression();

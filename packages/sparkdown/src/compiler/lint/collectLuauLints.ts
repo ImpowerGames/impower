@@ -43,6 +43,11 @@ import {
   AstExprIndexName,
   AstExprInterpString,
   AstExprLocal,
+  AstExprSparkdownCallShorthand,
+  AstExprSparkdownDivertTarget,
+  AstExprSparkdownInterpString,
+  AstExprSparkdownNew,
+  AstExprSparkdownRegex,
   AstExprTable,
   AstExprTypeAssertion,
   AstExprUnary,
@@ -483,6 +488,21 @@ function similar(a: AstExpr, b: AstExpr): boolean {
   if (a instanceof AstExprInterpString && b instanceof AstExprInterpString) {
     if (a.strings.length !== b.strings.length || a.expressions.length !== b.expressions.length) return false;
     return a.strings.every((s, i) => s === b.strings[i]) && a.expressions.every((e, i) => similar(e, b.expressions[i]!));
+  }
+  // Not part of Luau: Sparkdown's own expressions, compared as Luau compares
+  // the expressions they stand for (a double-quoted string that
+  // interpolates, a call shorthand, a divert target, a regular expression,
+  // a `new`). An alternator is never the same expression as another.
+  if (a instanceof AstExprSparkdownInterpString && b instanceof AstExprSparkdownInterpString) {
+    if (a.strings.length !== b.strings.length || a.expressions.length !== b.expressions.length) return false;
+    return a.strings.every((s, i) => s === b.strings[i]) && a.expressions.every((e, i) => similar(e, b.expressions[i]!));
+  }
+  if (a instanceof AstExprSparkdownCallShorthand && b instanceof AstExprSparkdownCallShorthand) return similar(a.expr, b.expr);
+  if (a instanceof AstExprSparkdownDivertTarget && b instanceof AstExprSparkdownDivertTarget) return a.path === b.path;
+  if (a instanceof AstExprSparkdownRegex && b instanceof AstExprSparkdownRegex) return a.pattern === b.pattern && a.flags === b.flags;
+  if (a instanceof AstExprSparkdownNew && b instanceof AstExprSparkdownNew) {
+    if (a.className !== b.className || a.hasArgs !== b.hasArgs || a.args.length !== b.args.length) return false;
+    return a.args.every((arg, i) => similar(arg, b.args[i]!));
   }
   return false;
 }
