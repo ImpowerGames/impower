@@ -1,7 +1,7 @@
 {
   "name": "@impower/eslint-plugin-sparkdown-grammar",
   "displayName": "ESLint Plugin Sparkdown Grammar",
-  "description": "ESLint rules that enforce sparkdown-grammar YAML conventions (tag/name symmetry, parseTag validity, capturing-var naming, scoped-rule bail-out, etc.). See packages/sparkdown/GRAMMAR.md.",
+  "description": "ESLint rules that enforce sparkdown-grammar YAML conventions (tag/name symmetry, parseTag validity, capturing-var naming, scoped-rule bail-out, etc.). See packages/sparkdown/docs/compiler/GRAMMAR.md.",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",

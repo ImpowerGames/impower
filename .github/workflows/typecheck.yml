@@ -98,6 +98,14 @@ jobs:
       - name: Check grammar node names
         run: npm run check:node-names
 
+      # The grammar conventions in packages/eslint-plugin-sparkdown-grammar
+      # (see its README). Without this step they fire only in an editor with
+      # the ESLint extension installed. `--max-warnings 0` makes the
+      # warn-level rules blocking too. The `changes` patterns above include
+      # `definitions/yaml/**`, so a grammar change always reaches this step.
+      - name: Lint the grammar
+        run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
+
       # Two at a time: each `tsc` holds a whole program in memory and the
       # largest projects here peak above 1 GB, which a standard runner cannot
       # sustain four-wide.

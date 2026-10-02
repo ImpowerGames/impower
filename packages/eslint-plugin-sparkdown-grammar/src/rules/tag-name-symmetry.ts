@@ -1,5 +1,5 @@
 // Rule: every rule that declares `tag` must also declare `name`. Per
-// GRAMMAR.md §7, the two attributes target different renderers
+// GRAMMAR.md §8, the two attributes target different renderers
 // (Lezer/CodeMirror vs VS Code's TextMate engine) and one can't be
 // inferred from the other. The asymmetry of *this* rule (we don't
 // require `tag` when `name` is present) is intentional: container /
@@ -25,7 +25,7 @@ const rule: Rule.RuleModule = {
     schema: [],
     messages: {
       missingName:
-        "Rule has `tag` but no `name`. VS Code highlighting needs the TextMate scope name too. See GRAMMAR.md §7.",
+        "Rule has `tag` but no `name`. VS Code highlighting needs the TextMate scope name too. See GRAMMAR.md §8.",
     },
   },
   create(context) {

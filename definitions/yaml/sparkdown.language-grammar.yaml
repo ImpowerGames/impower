@@ -45,6 +45,103 @@ variables:
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
   LUAU_MODULE_KEYWORDS: ["require", "export"]
+  LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
+  LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
+  LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]
+  # Statement-boundary keywords that end an `until` condition
+  # (`LuauUntilStatement`); `until` itself is left out.
+  LUAU_UNTIL_CONDITION_END_KEYWORDS:
+    - "if"
+    - "while"
+    - "for"
+    - "repeat"
+    - "do"
+    - "function"
+    - "end"
+    - "return"
+    - "local"
+    - "break"
+    - "continue"
+    - "elseif"
+    - "else"
+    - "then"
+  # Keywords that end a `return` statement's value list
+  # (`LuauReturnStatement`).
+  LUAU_RETURN_END_KEYWORDS:
+    - "end"
+    - "else"
+    - "elseif"
+    - "until"
+    - "local"
+    - "return"
+    - "break"
+    - "do"
+    - "while"
+    - "repeat"
+    - "for"
+  SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where"]
+  # The engine's builtin component names, longest first so a name that
+  # prefixes another never wins (`BuiltinComponentName`).
+  BUILTIN_COMPONENT_NAMES:
+    - "ordered_list"
+    - "preformatted"
+    - "table_footer"
+    - "table_header"
+    - "table_body"
+    - "paragraph"
+    - "table_row"
+    - "checkbox"
+    - "citation"
+    - "dropdown"
+    - "emphasis"
+    - "fieldset"
+    - "progress"
+    - "scroller"
+    - "textarea"
+    - "article"
+    - "caption"
+    - "divider"
+    - "foldout"
+    - "picture"
+    - "section"
+    - "button"
+    - "figure"
+    - "footer"
+    - "header"
+    - "legend"
+    - "option"
+    - "slider"
+    - "stroke"
+    - "strong"
+    - "switch"
+    - "block"
+    - "image"
+    - "input"
+    - "label"
+    - "modal"
+    - "quote"
+    - "radio"
+    - "small"
+    - "table"
+    - "cell"
+    - "code"
+    - "form"
+    - "head"
+    - "item"
+    - "link"
+    - "list"
+    - "mask"
+    - "span"
+    - "text"
+    - "kbd"
+    - "sub"
+    - "sup"
+    - "h1"
+    - "h2"
+    - "h3"
+    - "h4"
+    - "h5"
+    - "h6"
   # Luau's reserved words, and `continue`, which Luau reads as a keyword at
   # the start of a statement and which this grammar makes a loop statement.
   LUAU_RESERVED_WORDS:
@@ -4246,7 +4343,7 @@ repository:
   # the name/parent through the same LuauDefineName / LuauDefineParentName node
   # names as `define`.
   LuauAnimationThemeNameAndInheritance:
-    begin: (?<=(?:animation|theme|morph)\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4543,7 +4640,7 @@ repository:
   BuiltinComponentName:
     tag: definitionKeyword
     name: keyword.other.component.builtin.name.sd
-    match: \b(ordered_list|preformatted|table_footer|table_header|table_body|paragraph|table_row|checkbox|citation|dropdown|emphasis|fieldset|progress|scroller|textarea|article|caption|divider|foldout|picture|section|button|figure|footer|header|legend|option|slider|stroke|strong|switch|block|image|input|label|modal|quote|radio|small|table|cell|code|form|head|item|link|list|mask|span|text|kbd|sub|sup|h1|h2|h3|h4|h5|h6)(?!(?:[-_\p{L}][0-9_\p{L}-]*\b))
+    match: ({{BUILTIN_COMPONENT_NAMES}})(?!(?:[-_\p{L}][0-9_\p{L}-]*\b))
 
   CustomComponentName:
     tag: className
@@ -4888,7 +4985,7 @@ repository:
     match: ([>]|[+]|[~]|[*]|[&]|[\^])
 
   RecursiveSelectorFunction:
-    begin: ([@])(has|not|is|where)(?=[(])
+    begin: ([@])({{SELECTOR_FUNCTION_NAMES}})(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -6442,7 +6539,7 @@ repository:
     patterns:
       - { include: "#LuauElseifBlockCondition" }
       - { include: "#LuauSparkleBlockEntries" }
-    end: (?=(?:end|elseif|else){{SPARKLE_KEYWORD_END}})|(?=[}])|(?={{BEAT}})
+    end: (?={{LUAU_IF_BRANCH_END_KEYWORDS}}{{SPARKLE_KEYWORD_END}})|(?=[}])|(?={{BEAT}})
 
   LuauSparkleBlockElse:
     begin: (else){{SPARKLE_KEYWORD_END}}({{WS}}*)
@@ -6514,7 +6611,7 @@ repository:
     patterns:
       - { include: "#LuauSparkleCaseValue" }
       - { include: "#LuauSparkleBlockEntries" }
-    end: (?=(?:case|else|end){{SPARKLE_KEYWORD_END}})|(?=[}])|(?={{BEAT}})
+    end: (?={{LUAU_MATCH_CASE_END_KEYWORDS}}{{SPARKLE_KEYWORD_END}})|(?=[}])|(?={{BEAT}})
 
   # ----------------------------------------------------------------------------
   # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a
@@ -6733,7 +6830,7 @@ repository:
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:case|else|end)\b)
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_MATCH_CASE_END_KEYWORDS}})
 
   # The case value expression (on the `case` line, ends at end-of-line).
   LuauSparkleCaseValue:
@@ -7816,7 +7913,7 @@ repository:
     # the call-statement alternative). (`until` itself is excluded —
     # it's this rule's own keyword; nested repeats close their own
     # until first.)
-    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    end: (?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!{{LUAU_LOGICAL_KEYWORDS}}){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
 
   # ----------------------------------------------------------------------------
   # Do Block
@@ -8280,7 +8377,7 @@ repository:
   # the line after its `then` or `else`; where a statement is read, the
   # statement rules take a line-starting `if` before any expression rule.
   LuauTernaryExpression:
-    begin: (?:(?<=^{{WS}}*|(?:[-+*/%^<>=~(\[{,]|[.][.]|\b(?:return|and|or|not|then|else)\b){{WS}}*)|(?={{WS}}*if\b(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\})))({{WS}}*)(if)\b({{WS}}*)
+    begin: (?:(?<=^{{WS}}*|(?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_TERNARY_PRECEDING_KEYWORDS}}){{WS}}*)|(?={{WS}}*if\b(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\})))({{WS}}*)(if)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -8349,7 +8446,7 @@ repository:
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
     # Right after `elseif`, a `then` is that clause's own, with its condition
     # missing (`elseif then 2`).
-    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|(?<!\belseif){{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
+    end: (?={{BEAT}}|$|^(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}})|[)}\],;]|(?<!\belseif){{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -8377,7 +8474,7 @@ repository:
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)
@@ -8790,7 +8887,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
+    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
 
   # A line that continues the line before it (`LuauLineContinuation`, or a
   # `[` line) is not the returned value, so the break ends at its start and

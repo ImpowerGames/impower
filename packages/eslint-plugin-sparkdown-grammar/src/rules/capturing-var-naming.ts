@@ -1,9 +1,12 @@
-// Rule: any `variables:` entry whose resolved (or even raw) pattern
-// contains an unescaped *capturing* group must be named with the
-// underscore-wrapped convention `_NAME_`. Mirrors the build-time check
-// in `definitions/src/language.ts > updateGrammarVariables` so authors
-// see the violation while editing instead of at build time. See
-// GRAMMAR.md §4.4 for why the convention matters: the underscores
+// Rule: any `variables:` entry whose resolved pattern (after every
+// `{{NAME}}` reference is substituted) contains an unescaped *capturing*
+// group must be named with the underscore-wrapped convention `_NAME_`.
+// Mirrors the build-time check in
+// `definitions/src/language.ts > updateGrammarVariables`, which counts
+// captures in resolved values, so authors see the violation while editing
+// instead of at build time. A variable that only references a capturing
+// variable inherits its captures and must be underscore-wrapped too. See
+// GRAMMAR.md §7.4 for why the convention matters: the underscores
 // visually flag at every use site that the variable adds capture
 // indices to the host rule's regex.
 
@@ -13,6 +16,7 @@ import {
   isScalar,
   isSequence,
   scalarKey,
+  type YAMLMapping,
   type YAMLNode,
   type YAMLPair,
 } from "../utils/yaml-ast.ts";
@@ -50,8 +54,7 @@ function countCapturingGroups(pattern: string): number {
         after === ":" ||
         after === "=" ||
         after === "!" ||
-        (after === "<" &&
-          (pattern[i + 3] === "=" || pattern[i + 3] === "!"))
+        (after === "<" && (pattern[i + 3] === "=" || pattern[i + 3] === "!"))
       ) {
         // Non-capturing or lookbehind — skip.
         continue;
@@ -72,6 +75,46 @@ function countCapturingGroups(pattern: string): number {
   return count;
 }
 
+const TOKEN_REGEX = /\{\{([A-Za-z0-9_]+)\}\}/g;
+
+// Raw values of every entry in a `variables:` mapping. Sequences get the
+// build's `\b(?:a|b)\b` wrapping, which never adds a capture.
+function rawVariables(mapping: YAMLMapping): Map<string, string> {
+  const raw = new Map<string, string>();
+  for (const pair of mapping.pairs) {
+    const name = scalarKey(pair);
+    const value = pair.value as YAMLNode | null;
+    if (!name) continue;
+    if (isScalar(value) && typeof value.value === "string") {
+      raw.set(name, value.value);
+    } else if (isSequence(value)) {
+      raw.set(name, "");
+    }
+  }
+  return raw;
+}
+
+// Substitutes references recursively. Undefined names and cycles are left
+// as literal tokens (the build reports those), and tokens hold no `(`.
+function resolve(
+  name: string,
+  raw: Map<string, string>,
+  memo: Map<string, string>,
+  visiting: Set<string>,
+): string {
+  const cached = memo.get(name);
+  if (cached !== undefined) return cached;
+  const value = raw.get(name);
+  if (value === undefined || visiting.has(name)) return `{{${name}}}`;
+  visiting.add(name);
+  const resolved = value.replace(TOKEN_REGEX, (_, ref: string) =>
+    resolve(ref, raw, memo, visiting),
+  );
+  visiting.delete(name);
+  memo.set(name, resolved);
+  return resolved;
+}
+
 const rule: Rule.RuleModule = {
   meta: {
     type: "problem",
@@ -82,12 +125,16 @@ const rule: Rule.RuleModule = {
     schema: [],
     messages: {
       missingUnderscores:
-        "Variable `{{name}}` contains {{count}} capturing group(s) but isn't underscore-wrapped. Either change the capture(s) to non-capturing (`(?:...)`) or rename to `_{{name}}_`. See GRAMMAR.md §4.4.",
+        "Variable `{{name}}` contains {{count}} capturing group(s) but isn't underscore-wrapped. Either change the capture(s) to non-capturing (`(?:...)`) or rename to `_{{name}}_`. See GRAMMAR.md §7.4.",
       extraUnderscores:
-        "Variable `{{name}}` is underscore-wrapped (signals it contains capture groups) but its value has no capturing groups. Drop the underscores. See GRAMMAR.md §4.4.",
+        "Variable `{{name}}` is underscore-wrapped (signals it contains capture groups) but its resolved value has no capturing groups. Drop the underscores. See GRAMMAR.md §7.4.",
     },
   },
   create(context) {
+    const resolvedByMapping = new Map<
+      YAMLMapping,
+      { raw: Map<string, string>; memo: Map<string, string> }
+    >();
     return {
       YAMLPair(node: unknown) {
         const pair = node as YAMLPair;
@@ -103,19 +150,21 @@ const rule: Rule.RuleModule = {
         const name = scalarKey(pair);
         if (!name) return;
 
-        // The value can be a string scalar OR a sequence (auto-wrapped
-        // by the build to `\b(?:a|b|c)\b`). Sequences never introduce
-        // capture groups — they're always non-capturing — so we can
-        // short-circuit.
+        // A sequence is auto-wrapped by the build to `\b(?:a|b|c)\b`,
+        // which never captures; a string counts its resolved captures.
         const value = pair.value as YAMLNode | null;
-        let rawPattern = "";
-        if (isScalar(value) && typeof value.value === "string") {
-          rawPattern = value.value;
-        } else if (isSequence(value)) {
-          rawPattern = "";
-        } else {
+        if (
+          !isSequence(value) &&
+          !(isScalar(value) && typeof value.value === "string")
+        ) {
           return;
         }
+        let cache = resolvedByMapping.get(parent);
+        if (!cache) {
+          cache = { raw: rawVariables(parent), memo: new Map() };
+          resolvedByMapping.set(parent, cache);
+        }
+        const rawPattern = resolve(name, cache.raw, cache.memo, new Set());
 
         const captures = countCapturingGroups(rawPattern);
         const isUnderscoreWrapped =
