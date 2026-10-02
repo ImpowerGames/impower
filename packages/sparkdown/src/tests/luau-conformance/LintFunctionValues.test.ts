@@ -1,8 +1,9 @@
 // Sparkdown-specific: the rules that read a function's locals and
 // reachability (LocalUnused, PlaceholderRead, UnreachableCode) read every
 // Luau function a script holds, a function value as well as a function
-// definition, wherever it is written, and each once. The rules are
-// implemented in `compiler/lint/collectLuauLints.ts`.
+// definition, wherever it is written (in a `define` too), and each once;
+// and, as Luau's linter does, both arms of an `if` for unreachable code. The
+// rules are implemented in `compiler/lint/collectLuauLints.ts`.
 
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "./diagnosticTestHarness";
@@ -33,5 +34,20 @@ describe("the functions the rules read", () => {
     expect(
       functionLints("scene alpha\n  function helper()\n    local unused = 1\n  end\n  & local g = function()\n    local other = 2\n  end\n  Alpha waits.\nend\n"),
     ).toEqual(["2:10 LocalUnused", "5:10 LocalUnused"]);
+  });
+
+  test("a function value in a define's property", () => {
+    expect(functionLints("define hero as character with\n  callback = function()\n    local unused = 1\n    return _\n  end\nend\nHi.\n")).toEqual([
+      "2:10 LocalUnused",
+      "3:11 PlaceholderRead",
+    ]);
+  });
+});
+
+describe("the arms of an if", () => {
+  test("the else arm is read for its own unreachable statements when the then arm falls through", () => {
+    expect(functionLints('function f(flag)\n  if flag then\n    print("ok")\n  else\n    do return end\n    print("dead")\n  end\nend\n')).toEqual([
+      "5:4 UnreachableCode",
+    ]);
   });
 });

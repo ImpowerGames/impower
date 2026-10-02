@@ -11,15 +11,20 @@
 // annotators, because every rule reads beyond the node it reports on (an
 // unused local depends on every later line of its block).
 //
-// The rules about locals and reachability read the Luau functions a script
-// defines (`function f()`, wherever it is written, and function values): a
-// local outside a function can be read from interpolated text or later
-// narrative the rules cannot scope. A function with a block missing its
-// `end` is left alone, since its AST does not show what the author wrote. The rules about conditions and loop ranges
-// read every Luau `if`, `if` expression, `and`/`or` chain and numeric `for`,
-// but not Sparkdown's narrative `if` block around dialogue.
+// The rules read the Luau of the units the checker reads and the Luau
+// expressions outside them, in Sparkdown's own text and constructs: an
+// interpolation (`{a and b}`, in a line or a choice) and a property's value
+// in a `define`. The rules about locals and reachability read the Luau
+// functions a script defines (`function f()`, wherever it is written, and
+// function values): a local outside a function can be read from
+// interpolated text or later narrative the rules cannot scope. A function
+// with a block missing its `end` is left alone, since its AST does not show
+// what the author wrote. The rules about conditions and loop ranges read
+// every Luau `if`, `if` expression, `and`/`or` chain and numeric `for`; of
+// Sparkdown's narrative `if` block around dialogue, they read the conditions
+// and the Luau inside, but do not compare its arms' conditions.
 
-import { type Tree } from "@lezer/common";
+import { type SyntaxNode, type Tree } from "@lezer/common";
 import {
   AstExpr,
   AstExprBinary,
@@ -65,7 +70,8 @@ import {
 import { doesCallError } from "../typecheck/DataFlowGraph";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
-import type { LuauAstUnit } from "../typecheck/readLuauAst";
+import { NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
+import { readLuauExpression, type LuauAstUnit } from "../typecheck/readLuauAst";
 
 /** The rules, by the name each warning carries as its diagnostic code. */
 export const LUAU_LINT_CODES = [
@@ -133,25 +139,112 @@ function readToEnd(fn: AstExprFunction): boolean {
 }
 
 /**
- * The Luau functions a unit's statements define, outermost first: function
- * definitions (`function f()`, wherever written) and function values
- * (`local f = function() end`, an argument, a table field), each with every
- * block in it read to its `end`. A block missing its `end` makes the reading
- * take a later `end` as its own, so the function does not hold what the
- * author wrote in it. A function inside another is read with it.
+ * The outermost functions under a node with every block in them read to
+ * their `end`: function definitions (`function f()`) and function values
+ * (`local f = function() end`, an argument, a table field). A block missing
+ * its `end` makes the reading take a later `end` as its own, so a function
+ * holding one, and every function inside it, does not hold what the author
+ * wrote in it. A function inside a complete one is read with it.
  */
+function completeFunctions(root: AstNode, functions: AstExprFunction[]): void {
+  visitAst(root, {
+    visit(node) {
+      if (!(node instanceof AstExprFunction)) return true;
+      if (readToEnd(node)) functions.push(node);
+      return false;
+    },
+  });
+}
+
+/** The Luau functions a unit's statements define (`completeFunctions`). */
 function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
   const functions: AstExprFunction[] = [];
-  for (const source of unit.statements) {
-    visitAst(source.statement, {
-      visit(node) {
-        if (!(node instanceof AstExprFunction)) return true;
-        if (readToEnd(node)) functions.push(node);
-        return false;
-      },
-    });
-  }
+  for (const source of unit.statements) completeFunctions(source.statement, functions);
   return functions;
+}
+
+// The words of the constructs the rules read in an expression: a chain, an
+// `if` expression and a function value. An expression without one holds
+// nothing to lint and is not read.
+const LINTED_WORD = /\b(and|or|if|function)\b/;
+
+// The nodes that hold a Luau expression no unit may read.
+const EXPRESSION_HOLDERS = new Set(["LuauInterpolatedStringExpression", "LuauAssignmentOperation", "LuauFunctionDefinition"]);
+
+/**
+ * The Luau expressions no unit reads, in Sparkdown's own text and
+ * constructs, outside the units' statements or inside what their reading
+ * passes over: an interpolation's (`{a and b}`, in a line, a choice or a
+ * line inside a narrative `if`) and a property value's in a `define`
+ * (`v = a or b`), and a function value anywhere else. Each is read on its
+ * own (`readLuauExpression`), located in the document's lines.
+ */
+function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[]): AstExpr[] {
+  const key = (node: { name: string; from: number; to: number }) => `${node.from}:${node.to}:${node.name}`;
+  const statementNodes = new Set(units.flatMap((unit) => unit.statements.flatMap((source) => source.nodes.map(key))));
+  // Whether a unit reads the node: it is in a unit's statement, and nothing
+  // between them is a node the reading passes over (narrative text, one of
+  // Sparkdown's own constructs or expressions; see `readLuauAst.ts`).
+  const isCovered = (node: SyntaxNode) => {
+    for (let at: SyntaxNode | null = node; at; at = at.parent) {
+      if (statementNodes.has(key(at))) return true;
+      if (SPARKDOWN_ONLY.has(at.name) || SPARKDOWN_EXPRESSIONS.has(at.name)) return false;
+      if (!at.name.startsWith("Luau") && !NEUTRAL.test(at.name)) return false;
+    }
+    return false;
+  };
+  const expressions: AstExpr[] = [];
+  const read = (nodes: SyntaxNode[]) => {
+    if (nodes.length === 0 || !LINTED_WORD.test(text.slice(nodes[0]!.from, nodes[nodes.length - 1]!.to))) return;
+    expressions.push(readLuauExpression(nodes, text).expr);
+  };
+  tree.iterate({
+    enter(node) {
+      if (!EXPRESSION_HOLDERS.has(node.name)) return true;
+      // A unit reads it, but perhaps not a construct inside it the reading passes over.
+      if (isCovered(node.node)) return true;
+      if (node.name === "LuauInterpolatedStringExpression") {
+        // Between the braces.
+        read(childrenOf(node.node).slice(1, -1));
+        return false;
+      }
+      if (node.name === "LuauAssignmentOperation") {
+        // The value, after the `=`.
+        const content = childrenOf(node.node).find((child) => child.name === "LuauAssignmentOperation_content");
+        const parts = content ? childrenOf(content) : [];
+        read(parts.slice(parts.findIndex((child) => child.name === "LuauAssignmentOperator") + 1));
+        return false;
+      }
+      if (node.name === "LuauFunctionDefinition") {
+        read([node.node]);
+        return false;
+      }
+      return true;
+    },
+  });
+  return expressions;
+}
+
+/** A node's children, in order. */
+function childrenOf(node: SyntaxNode): SyntaxNode[] {
+  const children: SyntaxNode[] = [];
+  for (let child = node.firstChild; child; child = child.nextSibling) children.push(child);
+  return children;
+}
+
+/** The offsets of the `if` that begins each of Sparkdown's narrative `if` blocks. */
+function narrativeIfStarts(tree: Tree): Set<number> {
+  const starts = new Set<number>();
+  tree.iterate({
+    enter(node) {
+      if (node.name !== "LuauIfKeyword") return true;
+      let parent = node.node.parent;
+      while (parent?.name.startsWith("LuauSparkdownIfBlock_begin")) parent = parent.parent;
+      if (parent?.name === "LuauSparkdownIfBlock") starts.add(node.from);
+      return false;
+    },
+  });
+  return starts;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,8 +271,10 @@ const EXIT_REASON: Record<Exit, string> = {
 function lintUnreachable(fn: AstExprFunction, offsets: Offsets, out: LuauLint[]): void {
   const travel = (stat: AstStat): Exit => {
     if (stat instanceof AstStatIf) {
-      const step = travel(stat.thenbody);
-      return step !== Exit.None && stat.elsebody ? Math.min(step, travel(stat.elsebody)) : Exit.None;
+      // Both arms are read for their own unreachable statements.
+      const thenExit = travel(stat.thenbody);
+      const elseExit = stat.elsebody ? travel(stat.elsebody) : Exit.None;
+      return Math.min(thenExit, elseExit);
     }
     if (stat instanceof AstStatBlock) {
       for (let i = 0; i < stat.body.length; i++) {
@@ -338,8 +433,12 @@ function similar(a: AstExpr, b: AstExpr): boolean {
   return false;
 }
 
-/** Luau's `LintDuplicateCondition`, over a node and everything under it. */
-function lintDuplicateConditions(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
+/**
+ * Luau's `LintDuplicateCondition`, over a node and everything under it. The
+ * arms of an `if` for which `narrative` holds (Sparkdown's narrative `if`
+ * block) are not compared; their conditions and bodies are read.
+ */
+function lintDuplicateConditions(root: AstNode, offsets: Offsets, out: LuauLint[], narrative: (stat: AstStatIf) => boolean = () => false): void {
   // Luau limits the distance at which it compares conditions.
   const MAX_DISTANCE = 5;
   const detect = (conditions: AstExpr[]) => {
@@ -384,7 +483,7 @@ function lintDuplicateConditions(root: AstNode, offsets: Offsets, out: LuauLint[
           if (head.elsebody) visitAst(head.elsebody, visitor);
           head = undefined;
         }
-        detect(conditions);
+        if (!narrative(node)) detect(conditions);
         return false;
       }
       if (node instanceof AstExprIfElse) {
@@ -473,27 +572,35 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 
 // ---------------------------------------------------------------------------
 
-/** The Luau statements of a unit the condition and range rules read: all but Sparkdown's narrative `if` blocks. */
-function luauStatements(unit: LuauAstUnit): AstStat[] {
-  return unit.statements.filter((source) => source.nodes[0]?.name !== "LuauSparkdownIfBlock").map((source) => source.statement);
-}
-
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
   const starts = lineStarts(text);
   const units = readDocumentUnits(tree, text);
+  const narrativeIfs = narrativeIfStarts(tree);
   const out: LuauLint[] = [];
-  for (const unit of [units.prelude, ...units.flows]) {
-    const offsets = new Offsets(starts, unit.lines);
-    for (const fn of definedFunctions(unit)) {
+  const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
+    for (const fn of functions) {
       lintUnusedLocals(fn, tree, text, offsets, out);
       lintPlaceholderReads(fn, offsets, out);
       lintUnreachable(fn, offsets, out);
     }
-    for (const stat of luauStatements(unit)) {
-      lintDuplicateConditions(stat, offsets, out);
-      lintForRanges(stat, offsets, out);
+  };
+  for (const unit of [units.prelude, ...units.flows]) {
+    const offsets = new Offsets(starts, unit.lines);
+    const narrative = (stat: AstStatIf) => narrativeIfs.has(offsets.of(stat.location.begin));
+    lintFunctions(definedFunctions(unit), offsets);
+    for (const source of unit.statements) {
+      lintDuplicateConditions(source.statement, offsets, out, narrative);
+      lintForRanges(source.statement, offsets, out);
     }
+  }
+  const documentOffsets = new Offsets(starts, undefined);
+  for (const expr of expressionsOutsideUnits(tree, text, [units.prelude, ...units.flows])) {
+    const functions: AstExprFunction[] = [];
+    completeFunctions(expr, functions);
+    lintFunctions(functions, documentOffsets);
+    lintDuplicateConditions(expr, documentOffsets, out);
+    lintForRanges(expr, documentOffsets, out);
   }
   return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to) };
 }
