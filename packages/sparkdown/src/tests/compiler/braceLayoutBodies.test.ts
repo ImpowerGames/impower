@@ -97,6 +97,24 @@ const errorsOf = (text: string) =>
   diagnosticsOf(text).filter((d) => d.severity === 1);
 
 describe("a brace body lowers as its multiline blocks", () => {
+  test("bare words remain separate elements before quoted content", () => {
+    const source = 'layout main with\ncolumn row text "First"\nend\n';
+    const tree = lowered(source, "layout", "main").tree;
+    expect(tree.children.map((child: any) => child.tag)).toEqual(["column", "row", "text"]);
+    expect(tree.children[2].content).toEqual([{ kind: "literal", text: "First" }]);
+    expect(errorsOf(source)).toEqual([]);
+  });
+
+  test("trailing comments preserve both text children and block ownership", () => {
+    const source = 'layout main with\ncolumn { // ignored }\ntext "First" // ignored }\ntext "Last"\n}\nend\n';
+    const column = lowered(source, "layout", "main").tree.children[0];
+    expect(column.children.map((child: any) => child.content)).toEqual([
+      [{ kind: "literal", text: "First" }],
+      [{ kind: "literal", text: "Last" }],
+    ]);
+    expect(errorsOf(source)).toEqual([]);
+  });
+
   test("nested blocks, classes, content and props", () => {
     const indented = lowered(
       `layout hud with

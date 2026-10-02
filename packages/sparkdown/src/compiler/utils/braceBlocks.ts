@@ -119,7 +119,7 @@ export function structKeyToken(key: SyntaxNode): SyntaxNode {
   return walk(key) ?? key;
 }
 
-/** The name, bare words and `.name` classes of a brace element's head, in
+/** The name and dotted `.name` classes of a brace element's head, in
  *  source order: its name (and a call's arguments) in its begin, then the
  *  runs of parts (`LuauSparkleElementParts`) its content holds before its
  *  block, including those after an event closure's `}`. A component call
@@ -155,7 +155,7 @@ export function sparkleElementKeyParts(element: SyntaxNode): {
 }
 
 /**
- * The bare words and `.name` classes in the runs of parts directly inside an
+ * The dotted `.name` classes in the runs of parts directly inside an
  * element's or a continuation line's content (`LuauSparkleElement_content`,
  * `LuauSparkleElementContinuation_content`), in source order, never inside
  * its block, an attribute or content.

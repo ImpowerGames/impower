@@ -504,7 +504,7 @@ variables:
   STRUCT_BLOCK_COMMENT_IN_VALUE: (?:{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
   STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT}}|{{STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT}}|{{STRUCT_BLOCK_VALUE_PART}}+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|{{STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END}}))
   # A bare list value also ends at any comma.
-  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[:;{},]))
+  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},]))
   STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT}}|{{STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT}}|{{STRUCT_BLOCK_ITEM_PART}}+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|{{STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END}}))
   # The parts of `STRUCT_BLOCK_VALUE` and `STRUCT_BLOCK_ITEM`:
   # A literal followed by a `--` comment, taking the comment to the line end.
@@ -514,7 +514,7 @@ variables:
   # One unit of an unquoted property value: a quoted run, a bracket, or a character.
   STRUCT_BLOCK_VALUE_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{}"\n\[])
   # One unit of a bare list value, which a comma also ends.
-  STRUCT_BLOCK_ITEM_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^:;{},"\n\[])
+  STRUCT_BLOCK_ITEM_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{},"\n\[])
   # A comment inside a value, taken with the rest of the line into the value.
   STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END: (?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*
   # Brace blocks in layout and component bodies (`LuauSparkleBlockLine`).

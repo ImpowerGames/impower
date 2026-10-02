@@ -751,7 +751,7 @@ function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
 }
 
 /** The classes the part nodes hold (`sparklePartNodes`), in source order:
- *  each `.name`, and each bare word after an element's name. An event
+ *  each dotted `.name`. An event
  *  closure holds none. */
 function partClasses(parts: SyntaxNode[], ctx: LowerContext): string[] {
   return parts.flatMap((part) =>
@@ -771,8 +771,7 @@ function continuationPartNodes(key: number, ctx: LowerContext): SyntaxNode[] {
   );
 }
 
-/** The classes in an element's head: each `.name`, and each bare word after
- *  its name, in source order. */
+/** The dotted `.name` classes in an element's head, in source order. */
 const HEAD_CLASS_NAMES = nodeNameSet([
   "LuauSparkleClassName",
 ]);

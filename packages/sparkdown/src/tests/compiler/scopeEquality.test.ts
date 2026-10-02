@@ -33,6 +33,8 @@ const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
 // colon, blank-line-separated content, and comment-line-separated content.
 // Newlines are explicit `\n` so the fixtures are immune to CRLF checkout.
 const TARGETED: Record<string, string> = {
+  "struct-list-embedded-colons":
+    "theme t with\nlinks {\nhttps://example.com\n12:30\nasset:icon\n}\nend\n",
   // --- the reported bug + its whole class (trailing junk on a boundary rule)
   "scene-trailing-colon":
     "scene TEASER:\n\n    $: CLOSEUP - ACE OF SPADES\n\n    BUNNY:\n      Hello.\n",

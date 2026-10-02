@@ -407,12 +407,12 @@
     "STRUCT_BLOCK_VALUE_END": "(?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))",
     "STRUCT_BLOCK_COMMENT_IN_VALUE": "(?:{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})",
     "STRUCT_BLOCK_VALUE": "(?:{{STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT}}|{{STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT}}|{{STRUCT_BLOCK_VALUE_PART}}+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|{{STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END}}))",
-    "STRUCT_BLOCK_ITEM_END": "(?:{{WS}}*(?:$|[:;{},]))",
+    "STRUCT_BLOCK_ITEM_END": "(?:{{WS}}*(?:$|[;{},]))",
     "STRUCT_BLOCK_ITEM": "(?:{{STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT}}|{{STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT}}|{{STRUCT_BLOCK_ITEM_PART}}+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|{{STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END}}))",
     "STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT": "{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\\n]*",
     "STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT": "{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])",
     "STRUCT_BLOCK_VALUE_PART": "(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{}\"\\n\\[])",
-    "STRUCT_BLOCK_ITEM_PART": "(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^:;{},\"\\n\\[])",
+    "STRUCT_BLOCK_ITEM_PART": "(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{},\"\\n\\[])",
     "STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END": "(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\\n]*",
     "SPARKLE_SQUOTED": "(?:'(?:\\\\.|[^'\\\\\\n])*')",
     "SPARKLE_LONE_SQUOTE": "(?:'(?!(?:\\\\.|[^'\\\\\\n])*'))",
@@ -8015,7 +8015,7 @@
       }
     },
     "LuauStructListValue": {
-      "match": "((?:(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?=(?:[^\\S\\n\\r])*(?:[-][-]))[^\\n]*|(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?=(?:[^\\S\\n\\r])*[/][/])|(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:[\\[](?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:'(?:\\\\.|[^'\\\\\\n])*')|(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))|[^\\]\\s\"'{}])*[\\]])|(?:[\\[](?!(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:'(?:\\\\.|[^'\\\\\\n])*')|(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))|[^\\]\\s\"'{}])*[\\]]))|[^:;{},\"\\n\\[])+?(?:(?=(?:(?:[^\\S\\n\\r])*(?:$|[:;{},])))|(?=(?:(?:[^\\S\\n\\r])+(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))[^\\n]*)))((?:[^\\S\\n\\r])*[/][/][^\\n]*)?",
+      "match": "((?:(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?=(?:[^\\S\\n\\r])*(?:[-][-]))[^\\n]*|(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?=(?:[^\\S\\n\\r])*[/][/])|(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:[\\[](?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:'(?:\\\\.|[^'\\\\\\n])*')|(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))|[^\\]\\s\"'{}])*[\\]])|(?:[\\[](?!(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:'(?:\\\\.|[^'\\\\\\n])*')|(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))|[^\\]\\s\"'{}])*[\\]]))|[^;{},\"\\n\\[])+?(?:(?=(?:(?:[^\\S\\n\\r])*(?:$|[;{},])))|(?=(?:(?:[^\\S\\n\\r])+(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))[^\\n]*)))((?:[^\\S\\n\\r])*[/][/][^\\n]*)?",
       "captures": {
         "1": {
           "patterns": [

@@ -380,6 +380,21 @@ end
 });
 
 describe("block spellings", () => {
+  test.each(["theme", "style"] as const)("%s bare list values preserve embedded colons", (type) => {
+    const source = `${type} t with
+links {
+https://example.com
+12:30
+asset:icon
+}
+end
+`;
+    expect(errorsOf(source)).toEqual([]);
+    expect(structOf(source, type, "t").links).toEqual([
+      "https://example.com", "12:30", "asset:icon",
+    ]);
+  });
+
   test("`header = { … }` lowers like `header { … }`", () => {
     const withEquals = structOf(
       `animation a with
