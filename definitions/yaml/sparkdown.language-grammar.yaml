@@ -10609,10 +10609,9 @@ repository:
     # bare `type` in expression position (`type(type)`,
     # `local f = type`) is misparsed as the start of a type
     # declaration, leaving the actual stdlib reference unresolved.
-    # Negative lookahead `(?!{{WS}}*{{LUAU_FUNCTION_CALL_START}})`
-    # is now redundant — kept for safety in case of grammar
-    # interaction with surrounding rules.
-    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b(?={{WS}}+{{LUAU_IDENTIFIER}})(?!{{WS}}*{{LUAU_FUNCTION_CALL_START}})({{WS}}*)
+    # A call (`type(x)`, `type "x"`, `type { x }`) has no name after
+    # `type`, so it is never a declaration.
+    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b(?={{WS}}+{{LUAU_IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
