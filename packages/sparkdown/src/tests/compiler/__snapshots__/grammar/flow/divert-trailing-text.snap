@@ -126,8 +126,9 @@ sparkdown [0..323]
  │   │   │       └─ DialogueCharacter_c7 57
  │   │   ├─ InlineDialogue_begin_c3 [57..58]
  │   │   │   └─ ColonSeparator [57..58]: ":"
- │   │   └─ InlineDialogue_begin_c4 [58..59]
- │   │       └─ RequiredWhitespace [58..59]: " "
+ │   │   ├─ InlineDialogue_begin_c4 [58..59]
+ │   │   │   └─ RequiredWhitespace [58..59]: " "
+ │   │   └─ InlineDialogue_begin_c5 59
  │   ├─ InlineDialogue_content [59..78]
  │   │   └─ LineEnd [59..78]
  │   │       ├─ LineEnd_begin 59
@@ -401,8 +402,9 @@ sparkdown [0..323]
  │   │   │       └─ DialogueCharacter_c7 184
  │   │   ├─ InlineDialogue_begin_c3 [184..185]
  │   │   │   └─ ColonSeparator [184..185]: ":"
- │   │   └─ InlineDialogue_begin_c4 [185..186]
- │   │       └─ RequiredWhitespace [185..186]: " "
+ │   │   ├─ InlineDialogue_begin_c4 [185..186]
+ │   │   │   └─ RequiredWhitespace [185..186]: " "
+ │   │   └─ InlineDialogue_begin_c5 186
  │   ├─ InlineDialogue_content [186..205]
  │   │   └─ LineEnd [186..205]
  │   │       ├─ LineEnd_begin 186

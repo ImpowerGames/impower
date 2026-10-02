@@ -287,6 +287,23 @@ variables:
   # that one ends with `..`, which the engine checks as the story runs. A third
   # dot makes it an ellipsis (`...and then`).
   LEADING_GLUE: (?:[.][.](?![.]))
+  # The `..` that begins the text after an inline title's, heading's,
+  # transition's, write line's or cue's colon.
+  #
+  # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening
+  # `..` to `LuauSparkdownInlineGluedSequentialAlternatorBlock` and
+  # `LuauSparkdownInlineGluedConditionalAlternatorBlock`
+  # (`BUNNY: .. queue | Hi | Hello ..`). The mark is the begin's last capture
+  # because only the begin knows where the text starts: tried from the
+  # body instead (`LeadingGlue` after the alternators in each body), it
+  # was tried again after a `ParentheticalLine`, so `(aside) \ ..` then
+  # `..joined` lost its trailing glue, and an alternator outside `LineEnd`
+  # left the spaces after its closing `..` to `LineEnd`'s begin, which the
+  # formatter removes. The tree parser has no `\G` to anchor a body pattern
+  # to the text's start, and `LEADING_GLUE` cannot refuse the mark by
+  # itself, since `.. Wait.` is leading glue. The exclusion is kept here,
+  # once, for the five begins that use it.
+  INLINE_LEADING_GLUE: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})
   # The `..` that opens and closes an inline alternator mid-line
   # (`.. queue|a|b ..`).
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))
@@ -1276,18 +1293,6 @@ repository:
     tag: keyword
     name: keyword.other.glue.sd
     match: ({{ALTERNATOR_GLUE}})
-
-  # The start of the text after an inline title's, heading's, transition's,
-  # write line's or cue's colon. Each of those rules includes this right
-  # after its begin, before the rules that read the rest of the line, so it
-  # is tried only where the text starts. An inline-glued alternator
-  # (`BUNNY: .. queue | Hi | Hello ..`) is tried first, so its opening `..`
-  # is the alternator's; any other `..` there is the line's leading glue.
-  InlineTextStart:
-    patterns:
-      - { include: "#LuauSparkdownInlineGluedSequentialAlternatorBlock" }
-      - { include: "#LuauSparkdownInlineGluedConditionalAlternatorBlock" }
-      - { include: "#LeadingGlue" }
 
   ########## Inline Glued Alternators ##########
   #
@@ -2399,7 +2404,7 @@ repository:
   InlineTitle:
     tag: monospace
     name: string.display.title.inline.sd
-    begin: ({{WS}}*)(\^)([:])($|{{WS}}+)
+    begin: ({{WS}}*)(\^)([:])($|{{WS}}+)({{INLINE_LEADING_GLUE}})?
     beginCaptures:
       1:
         patterns:
@@ -2413,10 +2418,12 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2461,7 +2468,7 @@ repository:
   InlineHeading:
     tag: regexp
     name: string.display.heading.inline.sd
-    begin: ({{WS}}*)([$])([:])($|{{WS}}+)
+    begin: ({{WS}}*)([$])([:])($|{{WS}}+)({{INLINE_LEADING_GLUE}})?
     beginCaptures:
       1:
         patterns:
@@ -2475,10 +2482,12 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2523,7 +2532,7 @@ repository:
   InlineTransitional:
     tag: labelName
     name: string.display.transitional.inline.sd
-    begin: ({{WS}}*)([%])([:])($|{{WS}}+)
+    begin: ({{WS}}*)([%])([:])($|{{WS}}+)({{INLINE_LEADING_GLUE}})?
     beginCaptures:
       1:
         patterns:
@@ -2537,10 +2546,12 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2592,7 +2603,7 @@ repository:
   InlineWrite:
     tag: definition(string)
     name: string.display.write.inline.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)({{INLINE_LEADING_GLUE}})?
     beginCaptures:
       1:
         patterns:
@@ -2613,10 +2624,12 @@ repository:
       6:
         patterns:
           - { include: "#RequiredWhitespace" }
+      7:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2684,7 +2697,7 @@ repository:
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
-    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)({{INLINE_LEADING_GLUE}})?
     beginCaptures:
       1:
         patterns:
@@ -2699,10 +2712,12 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -5961,7 +5976,11 @@ repository:
   # come after the property so `image = "black"` stays a property, which
   # leaves `row = { … }` to this rule. The value may be empty while an
   # author types (`key =`), so the value variable cannot refuse the brace,
-  # and a property is a match, so no end can carry it.
+  # and a property is a match, so no end can carry it. Splitting out a
+  # narrower `name = {` rule to try first would copy `LuauStructBlock` in
+  # struct bodies and `LuauSparkleElement` in layout bodies, and its begin
+  # would still have to look for the brace, as `LuauStructBlock`'s
+  # `(?=[{])` does.
   LuauStructBlockProperty:
     match: ({{STRUCT_BLOCK_PROPERTY_KEY}})({{ASSIGN_EQUAL_OPERATOR}})(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)({{WS}}*[/][/][^\n]*)?
     captures:
@@ -7496,7 +7515,8 @@ repository:
   # name is on is state that only a scope can hold, and the targets and
   # values are siblings in the declaration, so no order of its patterns
   # tells them apart, and the lowerer reads the values as those siblings.
-  # Ordering `LuauBoolean` and `LuauNil` before this rule covers `nil`,
+  # The declaration's end cannot carry it either: the values are inside the
+  # declaration, so its end cannot stop before them. Ordering `LuauBoolean` and `LuauNil` before this rule covers `nil`,
   # `true` and `false`, but not `x and` at a line's end. A reserved word
   # before `=` stays a target, so a define body can name a property
   # `repeat`.
@@ -10729,8 +10749,12 @@ repository:
   # `LuauTypeGenerics`, `LuauTypeTableIndexer`) end only at their bracket,
   # so no end can stop before the keyword there: `type V = (end)` then
   # opens an empty type at `end`, and VS Code leaves every later line of
-  # the file unhighlighted. No rule reads the keyword as a type to order
-  # first, and a type-name variable would only move the lookahead.
+  # the file unhighlighted (the tree reads that line with `ERROR_INCOMPLETE`
+  # either way). No rule reads the keyword as a type, so none can be
+  # ordered first. Splitting the begin into a name opener and a punctuation
+  # opener leaves the name opener needing the same exclusion, and a
+  # type-name variable used only here would hold the lookahead without
+  # replacing it.
   LuauTypeLiteral:
     begin: (?=(?!{{LUAU_NON_TYPE_KEYWORDS}}){{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>]|[:])
     patterns:

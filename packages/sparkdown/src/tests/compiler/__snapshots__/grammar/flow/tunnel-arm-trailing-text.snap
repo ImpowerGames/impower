@@ -1405,8 +1405,9 @@ sparkdown [0..494]
  │   │   │       └─ DialogueCharacter_c7 437
  │   │   ├─ InlineDialogue_begin_c3 [437..438]
  │   │   │   └─ ColonSeparator [437..438]: ":"
- │   │   └─ InlineDialogue_begin_c4 [438..439]
- │   │       └─ RequiredWhitespace [438..439]: " "
+ │   │   ├─ InlineDialogue_begin_c4 [438..439]
+ │   │   │   └─ RequiredWhitespace [438..439]: " "
+ │   │   └─ InlineDialogue_begin_c5 439
  │   ├─ InlineDialogue_content [439..459]
  │   │   └─ LineEnd [439..459]
  │   │       ├─ LineEnd_begin 439

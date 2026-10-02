@@ -1,4 +1,4 @@
-text.source.sparkdown [0..398]
+text.source.sparkdown [0..490]
  ├─ string.display.dialogue.inline.sd [0..38]
  │   ├─ entity.name.type.dialogue.character.name.sd [0..5]
  │   │   └─ markup.raw.text.sd [0..5]: "BUNNY"
@@ -17,8 +17,8 @@ text.source.sparkdown [0..398]
  │   ├─ markup.raw.text.sd [23..28]: "Hello"
  │   ├─ punctuation.whitespace.extra.sd [28..29]: " "
  │   ├─ keyword.other.glue.sd [29..31]: ".."
- │   ├─ punctuation.whitespace.optional.sd [31..32]: " "
- │   └─ string.display.text.chunk.sd [32..38]
+ │   └─ string.display.text.chunk.sd [31..38]
+ │       ├─ markup.raw.space.sd [31..32]: " "
  │       ├─ markup.raw.text.sd [32..37]: "there"
  │       └─ markup.raw.punctuation.sd [37..38]: "."
  ├─ Newline [38..39]: "\n"
@@ -104,8 +104,8 @@ text.source.sparkdown [0..398]
  │   ├─ markup.raw.punctuation.sd [168..169]: "."
  │   ├─ punctuation.whitespace.extra.sd [169..170]: " "
  │   ├─ keyword.other.glue.sd [170..172]: ".."
- │   ├─ punctuation.whitespace.optional.sd [172..173]: " "
- │   └─ string.display.text.chunk.sd [173..178]
+ │   └─ string.display.text.chunk.sd [172..178]
+ │       ├─ markup.raw.space.sd [172..173]: " "
  │       └─ markup.raw.text.sd [173..178]: "HOUSE"
  ├─ Newline [178..179]: "\n"
  ├─ string.display.title.inline.sd [179..201]
@@ -240,12 +240,66 @@ text.source.sparkdown [0..398]
  │   ├─ meta.chain.sd [380..382]
  │   │   ├─ keyword.other.chain.sd [380..381]: "\\"
  │   │   └─ punctuation.whitespace.extra.sd [381..382]: " "
- │   ├─ meta.glue.leading.sd [382..384]
- │   │   └─ keyword.other.glue.sd [382..384]: ".."
- │   └─ string.display.text.chunk.sd [384..397]
+ │   └─ string.display.text.chunk.sd [382..397]
+ │       ├─ markup.raw.punctuation.sd [382..383]: "."
+ │       ├─ markup.raw.punctuation.sd [383..384]: "."
  │       ├─ markup.raw.text.sd [384..389]: "after"
  │       ├─ markup.raw.space.sd [389..390]: " "
  │       ├─ markup.raw.text.sd [390..391]: "a"
  │       ├─ markup.raw.space.sd [391..392]: " "
  │       └─ markup.raw.text.sd [392..397]: "chain"
- └─ Newline [397..398]: "\n"
+ ├─ Newline [397..398]: "\n"
+ ├─ string.display.dialogue.inline.sd [398..417]
+ │   ├─ entity.name.type.dialogue.character.name.sd [398..403]
+ │   │   └─ markup.raw.text.sd [398..403]: "BUNNY"
+ │   ├─ meta.template.expression.operator.colon.sd [403..404]: ":"
+ │   ├─ punctuation.whitespace.required.sd [404..405]: " "
+ │   ├─ constant.character.escape.sd [405..412]
+ │   │   ├─ meta.brace.round.open.sd [405..406]: "("
+ │   │   ├─ markup.raw.text.sd [406..411]: "aside"
+ │   │   └─ meta.brace.round.close.sd [411..412]: ")"
+ │   ├─ punctuation.whitespace.extra.sd [412..413]: " "
+ │   ├─ meta.chain.sd [413..415]
+ │   │   ├─ keyword.other.chain.sd [413..414]: "\\"
+ │   │   └─ punctuation.whitespace.extra.sd [414..415]: " "
+ │   └─ meta.glue.sd [415..417]
+ │       └─ keyword.other.glue.sd [415..417]: ".."
+ ├─ Newline [417..418]: "\n"
+ ├─ meta.glue.leading.sd [418..420]
+ │   └─ keyword.other.glue.sd [418..420]: ".."
+ ├─ string.display.text.chunk.sd [420..448]
+ │   ├─ markup.raw.text.sd [420..426]: "joined"
+ │   ├─ markup.raw.space.sd [426..427]: " "
+ │   ├─ markup.raw.text.sd [427..432]: "after"
+ │   ├─ markup.raw.space.sd [432..433]: " "
+ │   ├─ markup.raw.text.sd [433..434]: "a"
+ │   ├─ markup.raw.space.sd [434..435]: " "
+ │   ├─ markup.raw.text.sd [435..443]: "trailing"
+ │   ├─ markup.raw.space.sd [443..444]: " "
+ │   └─ markup.raw.text.sd [444..448]: "mark"
+ ├─ Newline [448..449]: "\n"
+ ├─ string.display.dialogue.inline.sd [449..489]
+ │   ├─ entity.name.type.dialogue.character.name.sd [449..454]
+ │   │   └─ markup.raw.text.sd [449..454]: "BUNNY"
+ │   ├─ meta.template.expression.operator.colon.sd [454..455]: ":"
+ │   ├─ punctuation.whitespace.required.sd [455..456]: " "
+ │   ├─ keyword.other.glue.sd [456..458]: ".."
+ │   ├─ punctuation.whitespace.extra.sd [458..459]: " "
+ │   ├─ keyword.control.luau [459..464]: "queue"
+ │   ├─ punctuation.whitespace.optional.sd [464..465]: " "
+ │   ├─ keyword.operator.alternator.luau [465..466]: "|"
+ │   ├─ punctuation.whitespace.optional.sd [466..467]: " "
+ │   ├─ markup.raw.text.sd [467..469]: "Hi"
+ │   ├─ markup.raw.space.sd [469..470]: " "
+ │   ├─ keyword.operator.alternator.luau [470..471]: "|"
+ │   ├─ punctuation.whitespace.optional.sd [471..472]: " "
+ │   ├─ markup.raw.text.sd [472..477]: "Hello"
+ │   ├─ punctuation.whitespace.extra.sd [477..478]: " "
+ │   ├─ keyword.other.glue.sd [478..480]: ".."
+ │   └─ string.display.text.chunk.sd [480..489]
+ │       ├─ markup.raw.space.sd [480..481]: " "
+ │       ├─ markup.raw.space.sd [481..482]: " "
+ │       ├─ markup.raw.space.sd [482..483]: " "
+ │       ├─ markup.raw.text.sd [483..488]: "there"
+ │       └─ markup.raw.punctuation.sd [488..489]: "."
+ └─ Newline [489..490]: "\n"

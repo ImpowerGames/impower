@@ -150,6 +150,15 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
       warnings: [],
     });
   });
+
+  // The `..` after a cue's parenthetical and a `\` is the line's trailing
+  // mark; only the `..` right after the colon begins its text.
+  test("after a cue's parenthetical and a chain", () => {
+    expect(runSource(`BUNNY: (aside) \\ ..\n..joined\n`)).toEqual({
+      texts: ["(aside)\njoined\n"],
+      warnings: [],
+    });
+  });
 });
 
 describe("a line that begins with `..` after a line that does not end with `..`", () => {

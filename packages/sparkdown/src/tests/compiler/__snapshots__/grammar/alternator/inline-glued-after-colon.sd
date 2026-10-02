@@ -12,3 +12,6 @@ $: ..joined
 %: ..joined
 BUNNY: .. queue.x is not an alternator
 BUNNY: (aside) \ ..after a chain
+BUNNY: (aside) \ ..
+..joined after a trailing mark
+BUNNY: .. queue | Hi | Hello ..   there.
