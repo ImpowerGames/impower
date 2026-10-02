@@ -9292,8 +9292,11 @@ repository:
         patterns:
           - { include: "#PunctuationParenClose" }
 
+  # A name in an access path. `end` and the other keywords that end a
+  # path are not names: `LuauAccessPath` does not begin at one, and its end
+  # stops before one, so the path never reaches this rule there.
   LuauVariable:
-    match: (?!end)\b({{LUAU_IDENTIFIER}})
+    match: ({{LUAU_IDENTIFIER}})
     captures:
       1:
         patterns:
