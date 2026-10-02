@@ -11,9 +11,10 @@ import { nodeNameSet } from "./nodeNameSet";
 // characters but are other nodes, so they stay tight.
 const SPACED_TABLE_NAMES = nodeNameSet(["LuauTable", "LuauTypeTableStruct"]);
 
-// The `}` of a table, or `null` when the table has no closing brace. The
-// `_end` capture begins with the `}` and carries the whitespace after it.
-function closingBrace(
+// The `}` that closes a braced node (a table, or a brace body's block or
+// closure, #1227), or `null` when it has none. The node's `_end` capture
+// begins with the `}` and carries the whitespace after it.
+export function closingBrace(
   node: SyntaxNode,
   read: (from: number, to: number) => string,
 ): number | null {

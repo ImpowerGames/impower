@@ -1,0 +1,25 @@
+store difficulty = "easy"
+
+function go_back() end
+
+function save() end
+
+layout settings with
+  column.menu #child-gap=16 {
+    text.title "Settings"
+    row { button "Back" @click=go_back; button "Apply" @click=save }
+    row.empty {}
+    title = { stroke; text }
+    dropdown #value={difficulty} @change={ difficulty = event.value } {
+      option "Easy"
+      option "Hard"
+    }
+    -- a comment in a block
+    stage {
+      backdrop { image = "black" }
+      portrait {
+        image
+      }
+    }
+  }
+end
