@@ -332,7 +332,7 @@ variables:
   # this list misses would be read as a value.
   LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\b{{WS}}+{{LUAU_IDENTIFIER}})
   # Where a reassignment ends on its own line (see `LuauReassignment`).
-  LUAU_REASSIGNMENT_END: (?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\]=*\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+  LUAU_REASSIGNMENT_END: (?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\]=*\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # The start of a reassignment statement: its targets (a name with `.field`,
   # `[index]` or `(call)` suffixes, or several names separated by commas) and
   # an assignment operator. `LuauReassignment` begins here, and the rules that
@@ -3839,10 +3839,11 @@ repository:
     # The call-statement lookahead (`IDENT (access-chain)* WS* (`)
     # handles `mt = { ... } setmetatable(a, mt)` — without it the
     # trailing call is swallowed into the value expression and
-    # silently dropped by the lowerer. `and`/`or`/`not` are excluded
-    # from the leading identifier because a parenthesized operand
-    # after a logical keyword (`a = b and (x)`) would otherwise match
-    # the call shape and truncate the value mid-expression. This is
+    # silently dropped by the lowerer. The call's leading name is
+    # `LUAU_UNRESERVED_IDENTIFIER`, which no keyword is, because a
+    # parenthesized operand after a logical keyword (`a = b and (x)`)
+    # would otherwise match the call shape and truncate the value
+    # mid-expression. This is
     # safe at value-START positions because every operator/separator
     # rule consumes its TRAILING whitespace, so a call that begins an
     # operand never has the `{{WS}}+` prefix this lookahead requires.
@@ -7795,11 +7796,11 @@ repository:
     # keyword, bare reassignment, or bare call statement so a one-line
     # `repeat BODY until cond return x` doesn't swallow `return x`
     # into the condition expression. Mirrors LuauReassignment's end
-    # lookaheads (see there for why `and`/`or`/`not` are excluded from
-    # the call-statement alternative). (`until` itself is excluded —
+    # lookaheads (see there for why the call-statement alternative's name
+    # is `LUAU_UNRESERVED_IDENTIFIER`). (`until` itself is excluded —
     # it's this rule's own keyword; nested repeats close their own
     # until first.)
-    end: (?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!{{LUAU_LOGICAL_KEYWORDS}}){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    end: (?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
 
   # ----------------------------------------------------------------------------
   # Do Block
