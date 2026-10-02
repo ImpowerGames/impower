@@ -48,6 +48,7 @@ import type { LowerContext } from "../context";
 import { stampStatement } from "../lower";
 import {
   documentText,
+  functionBegin,
   offsetAt,
   readBlockAst,
   type LuauSource,
@@ -127,7 +128,12 @@ export function statementNodeAt(
   names: ReadonlySet<string>,
   ctx: LowerContext,
 ): SyntaxNode | null {
-  const at = offsetAt(stat.location.begin, ctx);
+  // A function statement's attributes (`@native function f()`) are nodes
+  // of their own before the function's.
+  const at =
+    stat instanceof AstStatFunction || stat instanceof AstStatLocalFunction
+      ? functionBegin(stat.func, ctx)
+      : offsetAt(stat.location.begin, ctx);
   const text = documentText(ctx);
   const beginsHere = (node: SyntaxNode) =>
     node.from <= at && text.slice(node.from, at).trim() === "";

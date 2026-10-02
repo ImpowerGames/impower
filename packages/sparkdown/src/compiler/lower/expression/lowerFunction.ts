@@ -50,6 +50,7 @@ import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
   enclosingNode,
+  functionBegin,
   offsetAt,
   readBlockAst,
   type LuauSource,
@@ -83,7 +84,7 @@ export function functionNode(
   source: LuauSource,
   ctx: LowerContext,
 ): SyntaxNode | null {
-  return enclosingNode(source, offsetAt(func.location.begin, ctx), FUNCTION_NODES);
+  return enclosingNode(source, functionBegin(func, ctx), FUNCTION_NODES);
 }
 
 /** A function's named parameters, in order: those it is written with, not `self`. */

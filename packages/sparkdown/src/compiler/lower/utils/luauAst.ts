@@ -59,6 +59,23 @@ export function offsetAt(position: Position, ctx: LowerContext): number {
   return start === undefined ? text.length : start + position.column;
 }
 
+/**
+ * The document offset where a function's own syntax begins: its first
+ * token after any attributes (`@native function`). The converter includes
+ * the attributes in the function's location, but the syntax tree holds them
+ * in nodes of their own before the function's.
+ */
+export function functionBegin(
+  func: { location: Location; attributes: readonly { location: Location }[] },
+  ctx: LowerContext,
+): number {
+  const last = func.attributes[func.attributes.length - 1];
+  if (!last) return offsetAt(func.location.begin, ctx);
+  const end = offsetAt(last.location.end, ctx);
+  const rest = documentText(ctx).slice(end, offsetAt(func.location.end, ctx));
+  return end + rest.length - rest.trimStart().length;
+}
+
 /** The document range of a location in the converter's AST. */
 export function rangeOf(
   location: Location,
