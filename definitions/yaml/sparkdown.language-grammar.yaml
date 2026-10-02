@@ -10655,8 +10655,13 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
+  # The name `LuauFunctionTypeDeclaration` reads after its `function`, which
+  # its begin takes with the whitespace after it. The header's other rules
+  # begin at a bracket, a `:` or a `->`, and `LuauFunctionBody`, tried first,
+  # opens right after the header, so the declaration's own patterns meet a
+  # name only there (and after a comment there).
   LuauTypeFunctionName:
-    match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    match: ({{LUAU_IDENTIFIER}})\b({{WS}}*)
     captures:
       1:
         tag: typeName

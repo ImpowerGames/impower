@@ -1,0 +1,9 @@
+function f()
+  type function Pair(a, b)
+    return a
+  end
+  export type function --[[ c ]] Keys<T>(t): number
+    local x = t
+    return x
+  end
+end

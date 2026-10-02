@@ -15210,7 +15210,7 @@
       }
     },
     "LuauTypeFunctionName": {
-      "match": "(?<=\\bfunction\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))\\b((?:[^\\S\\n\\r])*)",
+      "match": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))\\b((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "tag": "typeName",
