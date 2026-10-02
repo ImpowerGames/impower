@@ -21,14 +21,8 @@ export default [
     plugins: {
       "sparkdown-grammar": sparkdownGrammar,
     },
-    rules: {
-      "sparkdown-grammar/tag-name-symmetry": "error",
-      "sparkdown-grammar/parse-tag-valid": "error",
-      "sparkdown-grammar/no-raw-whitespace-class": "error",
-      "sparkdown-grammar/no-handwritten-alternation": "warn",
-      "sparkdown-grammar/capturing-var-naming": "error",
-      "sparkdown-grammar/no-zero-width-in-patterns": "error",
-      "sparkdown-grammar/no-newline-in-lookaround": "error",
-    },
+    // Every rule the plugin recommends, so a rule added there is enforced
+    // here (and in CI) without a second edit.
+    rules: { ...sparkdownGrammar.configs.recommended.rules },
   },
 ];
