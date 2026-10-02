@@ -37,70 +37,60 @@ function lineOf(code: string, offset: number): number {
   return code.slice(0, offset).split("\n").length;
 }
 
-/** A selector with each quoted run reduced to `""` and each attribute
- *  selector to `[]`. A quoted run ends at its own unescaped quote, as the
- *  grammar's header strings and `getCSSSelector` read one (`"a\""` is one
- *  run), and a bracket inside a quoted run is text. Parentheses are kept:
- *  a selector function's argument (`:is(…)`, `:not(…)`, `:has(…)`) is a
- *  selector, read like the rest. */
-function maskSelector(selector: string): string {
-  const endOfQuote = (start: number) => {
-    const quote = selector[start];
-    let i = start + 1;
-    while (i < selector.length && selector[i] !== quote) {
-      i += selector[i] === "\\" ? 2 : 1;
-    }
-    return i + 1;
-  };
-  let out = "";
-  let i = 0;
-  while (i < selector.length) {
-    const c = selector[i]!;
-    if (c === '"' || c === "'") {
-      i = endOfQuote(i);
-      out += '""';
-    } else if (c === "[") {
-      let depth = 1;
-      i += 1;
-      while (i < selector.length && depth > 0) {
-        const d = selector[i]!;
-        if (d === '"' || d === "'") {
-          i = endOfQuote(i);
-          continue;
-        }
-        if (d === "[") depth += 1;
-        else if (d === "]") depth -= 1;
-        i += 1;
-      }
-      out += "[]";
-    } else {
-      out += c;
-      i += 1;
-    }
-  }
-  return out;
-}
+// The style selectors the guide may use, as an allowlist. A selector the
+// list does not describe fails the test, so a shape nobody thought about
+// can never pass unchecked; extend the list here when the guide teaches a
+// new shape, with a control below.
+//
+// The guide's examples use exactly these selectors (StyleProps.md §7,
+// "Nested selectors, breakpoints & states"): `> text`, `> text.headline`,
+// `>> image`, `@screen-size(sm)`, `@hovered` and `&.secondary`. They are
+// made of these parts, and a selector is one of:
+//
+//   [ `>` | `>>` ]  ( `&` | name ) ( `.` name )*    an element or `&`, with
+//                                                   dotted classes, after an
+//                                                   optional combinator
+//   `@` name [ `(` name `)` ]                       a state, or a breakpoint
+//                                                   with its one argument
+//
+// where a name is `[_\p{L}][_\p{L}\p{N}-]*`, the first character being the
+// one `getCSSSelector` treats as starting a name
+// (`packages/spark-dom/src/utils/getStyleContent.ts`). What follows an
+// allowed selector after whitespace is a bare-word class when it is only
+// names and dotted classes (`> text headline`, `& secondary`): the renderer
+// turns that whitespace into a class dot. Anything else is reported as an
+// unrecognised shape.
+const SELECTOR_NAME = String.raw`[_\p{L}][_\p{L}\p{N}-]*`;
+const ALLOWED_SELECTOR = new RegExp(
+  String.raw`^(?:(?:>>?\s+)?(?:&|${SELECTOR_NAME})(?:\.${SELECTOR_NAME})*|@${SELECTOR_NAME}(?:\(${SELECTOR_NAME}\))?)`,
+  "u",
+);
+const BARE_WORD = new RegExp(
+  String.raw`^${SELECTOR_NAME}(?:\.${SELECTOR_NAME})*$`,
+  "u",
+);
 
-/** The bare-word classes of a style rule's selector (`> text title`,
- *  `& secondary`, `[data-x] secondary`, `:is(.a b)`). `getCSSSelector`
- *  turns whitespace before a name (`[_\p{L}]`) into a class dot wherever it
- *  stands (`packages/spark-dom/src/utils/getStyleContent.ts`), so a selector
- *  is split at what may stand before a name without one: a combinator
- *  (`>`, `>>`, `+`, `~`), a `,`, and the parentheses of a selector function
- *  or a breakpoint's argument. Within each part, a state (`@hovered`) or a
- *  class (`.title`) may follow after whitespace, but a later word that
- *  starts with a name is a bare class. Attribute selectors and quoted text
- *  may hold spaces, so each is first reduced to a token (`maskSelector`). */
-function selectorBareClasses(selector: string): string[] {
-  const compounds = maskSelector(selector).split(/>>|>|\+|~|,|\(|\)/);
-  return compounds.flatMap((compound) =>
-    compound
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(1)
-      .filter((word) => /^[_\p{L}]/u.test(word)),
-  );
+/** Checks a style rule's selector against the allowlist above: the
+ *  bare-word classes it holds, or a description of a shape the allowlist
+ *  does not describe. */
+function checkSelector(selector: string): {
+  bareClasses: string[];
+  unrecognised?: string;
+} {
+  const allowed = ALLOWED_SELECTOR.exec(selector)?.[0];
+  if (allowed === selector) return { bareClasses: [] };
+  const rest = allowed === undefined ? "" : selector.slice(allowed.length);
+  const words = rest.trim().split(/\s+/);
+  if (/^\s/.test(rest) && words.every((w) => BARE_WORD.test(w))) {
+    return { bareClasses: words.map((w) => w.split(".")[0]!) };
+  }
+  return {
+    bareClasses: [],
+    unrecognised:
+      `the selector \`${selector}\` has a shape the guide's allowlist does ` +
+      `not describe; if the guide is meant to teach it, extend ` +
+      `ALLOWED_SELECTOR in SparkleGuide.test.ts and add a control`,
+  };
 }
 
 /** Each declaration of the five kinds in a source, and every old-form mark
@@ -155,9 +145,12 @@ function readDeclarations(code: string) {
         node.name === "LuauStructBlockKey" &&
         stack.some((n) => n.name === "LuauStyle")
       ) {
-        for (const word of selectorBareClasses(textOf(node.from, node.to))) {
+        const check = checkSelector(textOf(node.from, node.to));
+        for (const word of check.bareClasses) {
           oldForms.push(`${where}: the bare class \`${word}\` in a selector`);
         }
+        if (check.unrecognised)
+          oldForms.push(`${where}: ${check.unrecognised}`);
       }
     },
     leave: () => {
@@ -264,77 +257,83 @@ describe("the guide's old-form check", () => {
     ["a bare class in a block", layout(`row { text title "a" }`)],
     ["a non-ASCII bare class in a block", layout(`row { text заголовок "a" }`)],
     ["a second word after a slot's name", layout(`box { slot footer extra }`)],
-    ["a bare class after a selector's name", style("> text headline")],
-    ["a bare class after `&`", style("& secondary")],
-    ["a bare class after a non-ASCII name", style("> текст headline")],
-    ["a non-ASCII bare class", style("> text заголовок")],
-    [
-      "a bare class after a non-ASCII class",
-      style("> text.заголовок secondary"),
-    ],
-    [
-      "a bare class after a hyphen-ending class",
-      style("> text.headline- secondary"),
-    ],
-    ["a bare class after `&` and a class", style("&.secondary- extra")],
-    ["a bare class in a selector list", style("@hovered, > text headline")],
-    [
-      "a bare class after an attribute selector",
-      style(`[data-label="a b"] secondary`),
-    ],
-    [
-      "a bare class between attribute selectors with escaped quotes",
-      style(`&[data-label="a\\""] secondary [data-other="b\\""]`),
-    ],
-    [
-      "a bare class after a single-quoted escaped quote",
-      style(`&[data-label='a\\''] secondary`),
-    ],
-    [
-      "bare classes in an `:is` argument",
-      style("&:is(.button primary, .link secondary)"),
-    ],
-    ["a bare class in a `:not` argument", style("&:not(.primary secondary)")],
-    ["a bare class in a `:has` argument", style("&:has(> .button primary)")],
   ])("reports %s", (_, source) => {
     expect(readDeclarations(source).oldForms).not.toEqual([]);
   });
 
+  // A word after an allowed selector is reported by name.
   test.each([
+    ["after a selector's name", "> text headline", "headline"],
+    ["after `&`", "& secondary", "secondary"],
+    ["after a non-ASCII name", "> текст headline", "headline"],
+    ["that is non-ASCII", "> text заголовок", "заголовок"],
+    ["after a non-ASCII class", "> text.заголовок secondary", "secondary"],
+    ["after a hyphen-ending class", "> text.headline- secondary", "secondary"],
+    ["after `&` and a class", "&.secondary- extra", "extra"],
+    ["after a state", "@hovered secondary", "secondary"],
+  ])("reports a bare class %s", (_, selector, word) => {
+    expect(readDeclarations(style(selector)).oldForms).toEqual([
+      `2: the bare class \`${word}\` in a selector`,
+    ]);
+  });
+
+  // Every shape the allowlist does not describe is reported, whether or
+  // not it also holds a bare class, so none passes unchecked. These include
+  // the spellings earlier versions of this check let through.
+  test.each([
+    ["a selector list", "@hovered, > text headline"],
     [
-      "dotted classes",
+      "an attribute selector before a bare class",
+      `[data-label="a b"] secondary`,
+    ],
+    [
+      "attribute selectors with escaped quotes",
+      `&[data-label="a\\""] secondary [data-other="b\\""]`,
+    ],
+    ["a single-quoted escaped quote", `&[data-label='a\\''] secondary`],
+    ["an `:is` argument", "&:is(.button primary, .link secondary)"],
+    ["a `:not` argument", "&:not(.primary secondary)"],
+    ["a `:has` argument", "&:has(> .button primary)"],
+    [
+      "dotted classes in selector functions",
+      "&:is(.button.primary, .link.secondary)",
+    ],
+    ["combinators the guide does not use", "> text + image ~ mask, >> stroke"],
+    ["a list of states", "@hovered, @pressed"],
+    ["a breakpoint before a combinator", "@screen-size(sm) > text"],
+    ["an attribute selector", `&[data-label="a] b"]`],
+    ["an escaped quote in an attribute", `&[data-label="a\\" b"]`],
+    ["a state after a state", "@hovered @before"],
+    ["a state after a name", "> text @hovered"],
+    ["a spaced dotted class", "> text .headline"],
+  ])("reports %s as a shape outside the allowlist", (_, selector) => {
+    const found = readDeclarations(style(selector)).oldForms;
+    expect(found.some((m) => m.includes("allowlist does not describe"))).toBe(
+      true,
+    );
+  });
+
+  test.each([
+    // The guide's own selectors.
+    ["`> text`", style("> text")],
+    ["`> text.headline`", style("> text.headline")],
+    ["`>> image`", style(">> image")],
+    ["`@screen-size(sm)`", style("@screen-size(sm)")],
+    ["`@hovered`", style("@hovered")],
+    ["`&.secondary`", style("&.secondary")],
+    // Within the same shapes.
+    ["several dotted classes", style("> text.headline.large")],
+    ["a non-ASCII dotted class", style("> text.заголовок")],
+    ["a bare element name", style("text")],
+    // Not selectors at all.
+    [
+      "dotted classes in a layout",
       layout(`row.hud { text.title "a"; text.заголовок "b" }`),
     ],
     [
       "a slot name and a fill",
       layout(`box { slot footer }\n  card { fill footer { text } }`),
     ],
-    ["combinators", style("> text + image ~ mask, >> stroke")],
-    ["`&` with a class", style("&.secondary")],
-    ["states and breakpoints", style("@hovered, @pressed")],
-    ["a breakpoint before a combinator", style("@screen-size(sm) > text")],
-    ["an attribute selector with a space", style(`&[data-label="a b"]`)],
-    [
-      "an attribute selector with a `]` in its value",
-      style(`&[data-label="a] b"]`),
-    ],
-    [
-      "an attribute selector with an escaped quote and a space",
-      style(`&[data-label="a\\" b"]`),
-    ],
-    [
-      "a single-quoted attribute value with an escaped quote and a space",
-      style(`&[data-label='a\\' b']`),
-    ],
-    [
-      "dotted classes in selector functions",
-      style("&:is(.button.primary, .link.secondary), &:not(.primary)"),
-    ],
-    ["a combinator in a `:has` argument", style("&:has(> text.headline)")],
-    ["states after a state", style("@hovered @before, @focused @before")],
-    ["a state after a name", style("> text @hovered")],
-    ["a spaced dotted class", style("> text .headline")],
-    ["a non-ASCII dotted class", style("> text.заголовок")],
     [
       "a theme key of two words",
       `theme dusk with\n  font sizes { sm = 10px; lg = 20px }\nend\n`,
