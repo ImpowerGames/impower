@@ -17,7 +17,7 @@ import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 // mounted UI is actually visible after a preview.
 describe("preview of a UI-only layout reveals it in the player DOM", () => {
   test("preview() reveals the layouts layer (no manual reveal)", async () => {
-    // NOTE the CLASSED text (`text h1 "..."`). It matters: an element carrying
+    // NOTE the CLASSED text (`text.h1 "..."`). It matters: an element carrying
     // both style classes and content used to lower into the static
     // `context.layout` struct as a whole-line KEY with an empty `{}` value, which
     // UIModule.initLayout reads as an unwritten write target and registers its
@@ -25,10 +25,11 @@ describe("preview of a UI-only layout reveals it in the player DOM", () => {
     // authored container outright and wiped its text children.
     const src = `store hp = 5
 layout main with
-  column #child-gap=8 #padding=24:
-    text h1 "Sparkle x Pico"
+  column #child-gap=8 #padding=24 {
+    text.h1 "Sparkle x Pico"
     text "HP: {hp}"
     button "Go"
+  }
 end
 `;
     const h = createDOMHarness(src, 0, { autoOpenAll: true });

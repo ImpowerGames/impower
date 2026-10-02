@@ -23,9 +23,11 @@ import {
 // `hud` (only mounts on `[[open hud]]`). The scene emits the directives.
 const SOURCE = `store hp = 100
 layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 layout hud with
   text "HP: {hp}"
@@ -142,9 +144,11 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
   test("clauses (with/over/after/ease) reach the enter animation", async () => {
     const h = createHarness(
       `layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 layout hud with
   text "static"
@@ -181,9 +185,11 @@ end
   test("`wait` clause inflates the beat duration so advance blocks", async () => {
     const h = createHarness(
       `layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 layout hud with
   text "static"
@@ -236,9 +242,11 @@ end
 // are declared with `layout NAME in CONTAINER with … end`. Composes open/close.
 const NAV_SOURCE = `store hp = 100
 layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 screen overlay with
 end
@@ -331,9 +339,11 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
   test("incomplete `[[navigate <container>]]` (no `to`) is a runtime no-op", async () => {
     const h = createHarness(
       `layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 layout pause in menu with
   text "Paused"
@@ -485,7 +495,7 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     // game runs the route sim, and its checkpoint must still carry the screens.
     const h1 = createHarness(NAV_SOURCE, 0, { connect: false });
     const g1: any = h1.game;
-    g1.setStartFrom({ file: MAIN_URI, line: 25 }); // "Bye." — after navigate
+    g1.setStartFrom({ file: MAIN_URI, line: 27 }); // "Bye." — after navigate
     g1.simulate();
     expect(g1.module.ui._reactive).toBe(false); // never connected
     expect(g1.module.ui._state.layout).toEqual([

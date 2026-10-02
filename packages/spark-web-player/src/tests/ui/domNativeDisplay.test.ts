@@ -41,13 +41,18 @@ function ruleBlock(css: string, selector: string): string {
 describe("native display", () => {
   test("the table family lays out as a real table", async () => {
     const h = await render(`layout main with
-  table:
-    table_header:
-      table_row:
+  table {
+    table_header {
+      table_row {
         head "A"
-    table_body:
-      table_row:
+      }
+    }
+    table_body {
+      table_row {
         cell "1"
+      }
+    }
+  }
 end
 `);
     expect(display(h, "table")).toBe("table");
@@ -61,9 +66,10 @@ end
   test("list + foldout builtins declare their native display", async () => {
     const css = sheet(
       await render(`layout main with
-  list:
+  list {
     item "a"
-  foldout "More":
+  }
+  foldout "More" {}
 end
 `),
     );
@@ -83,9 +89,10 @@ end
   // flowing a real ELEMENT, such as a link, inside running text.
   test("`prose` is a non-flex box so children can flow inline", async () => {
     const h = await render(`layout main with
-  box prose:
+  box.prose {
     text "See "
     link "the docs" #href="#"
+  }
 end
 `);
     expect(display(h, ".prose")).toBe("block");

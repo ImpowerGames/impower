@@ -97,6 +97,10 @@ export const getSymbol = (
         n.name === "DeclarationScalarPropertyKey" ||
         n.name === "BuiltinComponentName" ||
         n.name === "CustomComponentName" ||
+        // Brace elements: the name, a bare word and a `.name` class.
+        n.name === "LuauSparkleElementName" ||
+        n.name === "LuauSparkleElementWord" ||
+        n.name === "LuauSparkleClassName" ||
         n.name === "ComponentName" ||
         n.name === "PropertyName" ||
         n.name === "SelectorPropertyNamePart" ||

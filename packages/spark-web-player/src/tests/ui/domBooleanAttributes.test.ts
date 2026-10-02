@@ -43,9 +43,10 @@ end
   test("dropdown #disabled={false} is enabled", async () => {
     const h = await render(`store locked = false
 layout main with
-  dropdown #disabled={locked}:
+  dropdown #disabled={locked} {
     option "One"
     option "Two"
+  }
 end
 `);
     const select = h.overlay.querySelector("select") as HTMLSelectElement;
@@ -56,8 +57,9 @@ end
   test("option #disabled={false} is selectable", async () => {
     const h = await render(`store locked = false
 layout main with
-  dropdown:
+  dropdown {
     option "One" #disabled={locked}
+  }
 end
 `);
     const opt = h.overlay.querySelector("option") as HTMLOptionElement;

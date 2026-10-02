@@ -30,15 +30,21 @@ define SHADOW as image with
 end
 
 layout main with
-  stage:
-    portrait:
+  stage {
+    portrait {
       image
-  textbox:
-    character_info:
-      character_name:
+    }
+  }
+  textbox {
+    character_info {
+      character_name {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       text
+    }
+  }
 end
 `;
 
@@ -148,7 +154,7 @@ describe("page messages", () => {
         src: "/file:/proj/fancy.ttf?v=1",
       } as File,
     ];
-    const source = `style hud with\n  font_family = "Fancy"\nend\n\nlayout hud with\n  stats:\n    text\nend\n\n${story("  Hi.")}`;
+    const source = `style hud with\n  font_family = "Fancy"\nend\n\nlayout hud with\n  stats {\n    text\n  }\nend\n\n${story("  Hi.")}`;
     const restoreHud = async (supersede: boolean) => {
       const harness = createHarness(source, 0, {
         assets: fonts,

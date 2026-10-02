@@ -13,22 +13,30 @@ import { createHarness } from "./harness/uiTestHarness";
 // the builtin `main`, plus the builtin `loading` screen (which the prelude now
 // also contributes to program.sparkle, so the AST path renders it too).
 const SCREEN = `layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-    portrait:
-      mask shadow_1
+    }
+    portrait {
+      mask.shadow_1
       image
-  textbox:
-    character_info:
-      character_name:
+    }
+  }
+  textbox {
+    character_info {
+      character_name {
         text
-      character_parenthetical:
+      }
+      character_parenthetical {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       stroke
       text
+    }
     continue_indicator
+  }
 end
 `;
 

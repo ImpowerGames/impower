@@ -12,8 +12,12 @@
 //
 // From the repository root:
 //
-//   node packages/sparkdown/scripts/convertStructBodies.mjs [--check] <file.sd> [<file.sd> ...]
+//   node packages/sparkdown/scripts/convertStructBodies.mjs [--check] <file.sd|file.ts> [...]
 //   node packages/sparkdown/scripts/convertStructBodies.mjs [--check] --project <dir>
+//
+// A TypeScript source (#1230) has the Sparkdown in its string literals
+// rewritten, each literal compiled before and after on its own; the shapes
+// it reads are in `structBodyLiterals.ts`.
 //
 // `--check` reports without writing. The exit code is 1 when programs differ
 // or a declaration was refused.
@@ -37,6 +41,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const scratch = mkdtempSync(path.join(os.tmpdir(), "convert-struct-bodies-"));
 try {
   const outfile = await bundleBench(path.join(HERE, "convertStructBodies.ts"), scratch);
+  // The bundled TypeScript compiler reads the CommonJS `__filename` and
+  // `__dirname` when it loads, which an ES module does not define.
+  globalThis.__filename ??= outfile;
+  globalThis.__dirname ??= scratch;
   const { main } = await import(pathToFileURL(outfile).href);
   process.exitCode = main(process.cwd(), process.argv.slice(2));
 } finally {

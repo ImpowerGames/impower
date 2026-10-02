@@ -23,14 +23,16 @@ describe("style emission", () => {
   test("`content` is emitted, and quoted", async () => {
     const out = await css(`style thumbed with
   position = relative
-  @before:
+  @before {
     content = ""
     position = absolute
-  @after:
+  }
+  @after {
     content = "New"
+  }
 end
 layout main with
-  box thumbed
+  box.thumbed
 end
 `);
     const block = out.slice(out.indexOf(".thumbed"));
@@ -44,13 +46,15 @@ end
 
   test("`content` keywords and functions stay unquoted", async () => {
     const out = await css(`style k with
-  @before:
+  @before {
     content = none
-  @after:
+  }
+  @after {
     content = attr(data-label)
+  }
 end
 layout main with
-  box k
+  box.k
 end
 `);
     expect(out).toContain("content: none;");
@@ -65,7 +69,7 @@ end
   caret-color = amber_60
 end
 layout main with
-  box tinted
+  box.tinted
 end
 `);
     expect(out).toContain("accent-color: var(--theme-color-sky_60);");
@@ -79,9 +83,11 @@ end
   test("dialog is hidden until `open`, then becomes a centred scrim", async () => {
     const out = await css(`store shown = false
 layout main with
-  modal #open={shown}:
-    article:
+  modal #open={shown} {
+    article {
       text "hi"
+    }
+  }
 end
 `);
     const block = out.slice(out.indexOf(".modal {"));
@@ -132,20 +138,25 @@ end
   test("keyframe `offset` sets the selector and is never a declaration", async () => {
     const out = await css(`animation slide with
   target = layer.self
-  keyframes:
-    -
+  keyframes {
+    {
       opacity = "0"
-    -
+    }
+    {
       offset = 0.75
       opacity = "1"
-    -
+    }
+    {
       opacity = "0"
-  timing:
+    }
+  }
+  timing {
     duration = 1
     easing = "linear"
     iterations = 1
     fill = "none"
     direction = "normal"
+  }
 end
 layout main with
   text "x"
@@ -166,19 +177,24 @@ end
   test("keyframes with no offsets are still spaced evenly", async () => {
     const out = await css(`animation evenly with
   target = layer.self
-  keyframes:
-    -
+  keyframes {
+    {
       opacity = "0"
-    -
+    }
+    {
       opacity = "0.5"
-    -
+    }
+    {
       opacity = "1"
-  timing:
+    }
+  }
+  timing {
     duration = 1
     easing = "linear"
     iterations = 1
     fill = "none"
     direction = "normal"
+  }
 end
 layout main with
   text "x"
@@ -228,12 +244,14 @@ end
   // something else entirely.
   test("a leading `>>` is a descendant, not a compound", async () => {
     const out = await css(`style probe with
-  >> text:
+  >> text {
     letter-spacing = 0.123rem
+  }
 end
 layout main with
-  box probe:
+  box.probe {
     text "x"
+  }
 end
 `);
     const rule = out.slice(out.indexOf(".probe {"), out.indexOf(".probe {") + 200);
@@ -266,18 +284,24 @@ end
   // for it stays one word, and `#list-mark` on top varies only the marker.
   test("`list` is bare, `ordered_list` is numbered, `#list-mark` overrides", async () => {
     const src = `layout main with
-  list:
+  list {
     item "a"
-  ordered_list:
+  }
+  ordered_list {
     item "b"
-  list #list-mark="disc":
+  }
+  list #list-mark="disc" {
     item "c"
-  ordered_list #list-mark="none":
+  }
+  ordered_list #list-mark="none" {
     item "d"
-  list bulleted:
+  }
+  list.bulleted {
     item "e"
-  list bulleted #list-mark="circle":
+  }
+  list.bulleted #list-mark="circle" {
     item "f"
+  }
 end
 `;
     const out = await css(src);
@@ -320,11 +344,13 @@ end
   test("controls carry no margin of their own, and take one when asked", async () => {
     const h = createDOMHarness(
       `layout main with
-  row:
+  row {
     input #placeholder="a"
-    dropdown:
+    dropdown {
       option "x"
+    }
     slider #min=0 #max=100
+  }
   input #placeholder="b" #margin-bottom=18
 end
 `,
@@ -360,13 +386,15 @@ end
   // `> selector` form has to survive into the sheet.
   test("`> child` selectors compose article sections and joined groups", async () => {
     const out = await css(`layout main with
-  article:
+  article {
     header "H"
     text "b"
     footer "F"
-  row group:
+  }
+  row.group {
     input
     button "Go"
+  }
 end
 `);
     const article = out.slice(out.indexOf(".article {"));
@@ -419,7 +447,7 @@ end
   background-color = slate_30
 end
 layout main with
-  box linky
+  box.linky
 end
 `);
     const block = out.slice(out.indexOf(".linky"));

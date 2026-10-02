@@ -12,17 +12,23 @@ const SCREEN = `define HERO as character with
 end
 
 layout main with
-  action:
+  action {
     text
-  dialogue:
-    character_info:
-      character_name:
+  }
+  dialogue {
+    character_info {
+      character_name {
         text
+      }
+    }
     text
-  choice 0:
+  }
+  choice.0 {
     text
-  choice 1:
+  }
+  choice.1 {
     text
+  }
 end
 `;
 

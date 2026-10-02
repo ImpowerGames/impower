@@ -12,20 +12,24 @@ describe("animation/theme structural lowering", () => {
     const struct = ctxOf(
       `animation ping with
   target = layer.self
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0.75
       transform = "scale(2)"
       opacity = "0"
-    -
+    }
+    {
       offset = 1
       opacity = "1"
-  timing:
+    }
+  }
+  timing {
     delay = 0
     duration = 0
     easing = "ease"
     iterations = 1
     fill = "both"
+  }
 end
 `,
       "animation",
@@ -52,8 +56,9 @@ end
   test("`as PARENT` overrides the implicit type extend", () => {
     const struct = ctxOf(
       `animation fast_show as show with
-  timing:
+  timing {
     duration = "200ms"
+  }
 end
 `,
       "animation",
@@ -95,9 +100,10 @@ describe("screen/component structural lowering (static context channel)", () => 
   test("static screen body excises inline `@event` / `#prop` attributes", () => {
     const struct = ctxOf(
       `layout hud with
-  column #gap=16:
+  column #gap=16 {
     button "Use" @click=use_item
     text "HP: {hp}" #color=red
+  }
 end
 `,
       "layout",

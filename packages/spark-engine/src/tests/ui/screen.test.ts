@@ -11,22 +11,30 @@ import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SCREEN = `layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-    portrait:
-      mask shadow_1
+    }
+    portrait {
+      mask.shadow_1
       image
-  textbox:
-    character_info:
-      character_name:
+    }
+  }
+  textbox {
+    character_info {
+      character_name {
         text
-      character_parenthetical:
+      }
+      character_parenthetical {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       stroke
       text
+    }
     continue_indicator
+  }
 end
 `;
 
