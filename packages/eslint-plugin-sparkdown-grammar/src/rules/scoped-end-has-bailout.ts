@@ -8,21 +8,26 @@
 // `(?=^(?!$|//|\1{{WS}}))`).
 //
 // The check resolves the variables (`{{BEAT}}` to its real definition),
-// splits the pattern into its alternatives (unwrapping a group that holds
-// the whole of one), and runs each alternative on its own as a sticky
-// regex at probe positions. An alternative is a bail-out when:
+// splits the pattern into its alternatives (unwrapping, as often as
+// needed, any capturing or non-capturing group that holds the whole of
+// one, so `({{_STOP_}})` splits like the variable's own alternatives), and
+// runs each alternative as a sticky regex at probe positions. The end has
+// a bail-out when either holds:
 //
-// - it matches at a line boundary (a line end as `\n`, `\r\n`, `\r` or the
-//   end of the input, or the start of an unindented line) whatever text
-//   surrounds it: every filler in FILLERS must pass, so a closer class such
-//   as `[^\w\s]` that happens to match one filler is not a bail-out; or
-// - it matches at the start of a `scene` / `branch` line but not at the
-//   same text in the middle of a line, so the match depends on the beat's
-//   line start rather than on a closer that spells the keyword.
+// - Line boundary: at one kind of boundary (a line end as `\n`, `\r\n`,
+//   `\r` or the end of the input, or the start of an unindented line),
+//   whatever text surrounds it, some alternative matches. Every filler in
+//   FILLERS must be matched, by one alternative or another, so a closer
+//   class such as `[^\w\s]` that happens to match one filler is not a
+//   bail-out, while `(?<=\w)$|(?<=\W)$` is.
+// - Beat: one alternative matches at the start of a `scene` / `branch`
+//   line but not at the same text in the middle of a line, so the match
+//   depends on the beat's line start rather than on a closer that spells
+//   the keyword. This is judged per alternative, which keeps an impossible
+//   BEAT branch, `(?={{BEAT}})(?!{{BEAT}})`, from borrowing a match from an
+//   unrelated closer such as `|(scene)`.
 //
-// Testing alternatives one at a time keeps an impossible BEAT branch,
-// `(?={{BEAT}})(?!{{BEAT}})`, from borrowing a match from an unrelated
-// closer such as `|(scene)`. A back-reference stands for a `begin:`
+// A back-reference stands for a `begin:`
 // capture this check cannot see, so it is replaced by a sentinel no probe
 // holds: `(\1)` needs its delimiter, while `(?!\1{{WS}})` still holds
 // where the line does not repeat it. A pattern that does not compile as a
@@ -65,8 +70,8 @@ const BEAT_PROBES: [beat: string, control: string][] = [
   ["░\nbranch ░\n", "░░branch ░\n"],
 ];
 
-// The alternatives of a regex source, splitting through any group that
-// spans a whole alternative.
+// The alternatives of a regex source, splitting through any group (and
+// any group directly inside it) that spans a whole alternative.
 function alternativesOf(source: string): string[] {
   const out: string[] = [];
   for (const { text } of splitTopLevelAlternation(source)) {
@@ -76,7 +81,7 @@ function alternativesOf(source: string): string[] {
         g.end === text.length - 1 &&
         (g.kind === "non-capturing" || g.kind === "capture"),
     );
-    if (whole && splitTopLevelAlternation(whole.body).length > 1) {
+    if (whole) {
       out.push(...alternativesOf(whole.body));
     } else {
       out.push(text);
@@ -85,19 +90,23 @@ function alternativesOf(source: string): string[] {
   return out;
 }
 
-function isBailOutAlternative(regex: RegExp): boolean {
-  const matchesAt = (text: string, at: number): boolean => {
-    regex.lastIndex = at;
-    return regex.test(text);
-  };
-  return (
-    LINE_PROBES.some((probe) =>
-      FILLERS.every((filler) => matchesAt(...probe(filler))),
-    ) ||
-    BEAT_PROBES.some(
-      ([beat, control]) => matchesAt(beat, 2) && !matchesAt(control, 2),
-    )
+function matchesAt(regex: RegExp, text: string, at: number): boolean {
+  regex.lastIndex = at;
+  return regex.test(text);
+}
+
+function bailsOut(alternatives: RegExp[]): boolean {
+  const atLineBoundary = LINE_PROBES.some((probe) =>
+    FILLERS.every((filler) =>
+      alternatives.some((alt) => matchesAt(alt, ...probe(filler))),
+    ),
   );
+  const atBeat = alternatives.some((alt) =>
+    BEAT_PROBES.some(
+      ([beat, control]) => matchesAt(alt, beat, 2) && !matchesAt(alt, control, 2),
+    ),
+  );
+  return atLineBoundary || atBeat;
 }
 
 // Substitutes variables (all of them, or all but `BEAT`, which then stays
@@ -136,7 +145,7 @@ export function hasBailOut(index: GrammarIndex, end: string): boolean {
   } catch {
     return hasTextualBailOut(index, end);
   }
-  return alternatives.some(isBailOutAlternative);
+  return bailsOut(alternatives);
 }
 
 // Whether the offset sits outside every negative lookaround of `source`.

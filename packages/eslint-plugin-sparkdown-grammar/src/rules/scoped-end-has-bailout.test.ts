@@ -178,6 +178,31 @@ AnyNonSpace:
   assert.deepEqual(lines(source), [5]);
 });
 
+test("nested and variable wrappers do not hide a BEAT alternative", () => {
+  const source = grammar({
+    variables: "BEAT: (?:^scene[ ])\n_STOP_: (?:(?={{BEAT}})|([a-z]+))",
+    repository: `DoubleWrapped:
+  begin: "[(]"
+  end: (?:(?:(?={{BEAT}})|([a-z]+)))
+Named:
+  begin: "[(]"
+  end: ({{_STOP_}})`,
+  });
+  assert.deepEqual(lines(source), []);
+});
+
+test("alternatives may share the line-end check between them", () => {
+  const source = grammar({
+    repository: String.raw`SplitLookbehind:
+  begin: "[(]"
+  end: (?<=\w)$|(?<=\W)$
+WordOnly:
+  begin: "[(]"
+  end: (?<=\w)[)]|(?<=\W)[)]`,
+  });
+  assert.deepEqual(lines(source), [8]);
+});
+
 test("each newline form counts as a line end", () => {
   const source = grammar({
     repository: String.raw`CrLf:
