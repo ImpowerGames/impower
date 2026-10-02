@@ -47,6 +47,7 @@ variables:
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
   LUAU_MODULE_KEYWORDS: ["require", "export"]
+  LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
   LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]
   # Statement-boundary keywords that end an `until` condition
@@ -750,13 +751,8 @@ variables:
   # dotted or colon name path and an optional generics `<T>` run (`function`,
   # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
   # opens its `(` only right after one, and `LuauFunctionBody` never opens
-  # there. A block comment may stand between the keyword and the name
-  # (`component --[[ c ]] card(title)`, `type function --[[ c ]] F(t)`).
-  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*{{LUAU_HEADER_BLOCK_COMMENT}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
-  # A block comment that closes on its line, as `LUAU_FUNCTION_HEADER` reads
-  # it inside a lookbehind: VS Code's Oniguruma refuses a lookaround there,
-  # so unlike `LUAU_BLOCK_COMMENT_ON_LINE` it takes no `]` inside the comment.
-  LUAU_HEADER_BLOCK_COMMENT: (?:{{LUAU_COMMENT_START}}\[=*\[[^\]\n]*\]=*\]{{WS}}*)
+  # there.
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
   # A token that a declaration's comma line break (`LuauCommaLineBreak`)
   # can reach but that begins a statement rather than a value: a statement
   # keyword or a type declaration. An `if` there is an if expression, as in
@@ -4008,12 +4004,13 @@ repository:
 
   # lookaround: `(?<=define\b{{WS}}*)` keeps the name to the header, out of
   # the define's body, where `LuauBlockBody` reads statements that begin with
-  # a name. The header-name rules of `style`, `layout` and the rest are tried
-  # after their parents' body rules instead, but those body rules begin only
-  # at the start of a line. `LuauBlockBody` also reads a name in the middle
-  # of a line, so it would take the define's name if it were tried first,
-  # and a name rule tried before it takes `x` and `if` from a body line that
-  # begins at column 0 (fixture luau-declaration/define-column-0-body).
+  # a name. `LuauDefine` tries its patterns again at every position of its
+  # body, and textmate-grammar-tree has no `\G` to match only where the
+  # begin ended. `LuauBlockBody` reads a name in the middle of a line, so it
+  # would take the define's name if it were tried first, and a name rule
+  # tried before it takes `x` and `if` from a body line that begins at
+  # column 0 (fixture luau-declaration/define-column-0-body). The cost: a
+  # block comment between `define` and the name hides the name.
   LuauDefineNameAndInheritance:
     begin: (?<=define\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
@@ -4126,6 +4123,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauStyleNameAndInheritance" }
       # The body is the colon/indent STRUCT body (props, nested `key:`
       # blocks, `> selector:` rules, `@breakpoint:` directives, bare
       # markers). Captured opaquely line-by-line — the lowerer reads the
@@ -4134,12 +4132,6 @@ repository:
       # read as a `LuauStructBlockLine` instead.
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
-      # The name comes after the body-line rules. They begin only at the
-      # start of a line, so the name is read after `style` (and after a
-      # comment there), a body line at column 0 stays a body line, and
-      # `LuauStructStrayLine` takes any other line that begins there.
-      - { include: "#LuauStructStrayLine" }
-      - { include: "#LuauStyleNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4177,11 +4169,9 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
-      - { include: "#LuauStructStrayLine" }
-      # After the body-line rules: see LuauStyle.
-      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4215,11 +4205,9 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
-      - { include: "#LuauStructStrayLine" }
-      # After the body-line rules: see LuauStyle.
-      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4255,11 +4243,9 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
-      - { include: "#LuauStructStrayLine" }
-      # After the body-line rules: see LuauStyle.
-      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4295,17 +4281,6 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
-
-  # A line in a `style`, `animation`, `theme`, `morph`, `screen`, `layout` or
-  # `component` body that begins at column 0 and that no body rule reads (body
-  # lines are indented, apart from brace lines and control blocks). Its parents
-  # try it after their body-line rules and before the header-name rule, so a
-  # stray word there is not read as a second name, which the annotators would
-  # declare (`layout.x`). Both engines read the whole line as this one token.
-  LuauStructStrayLine:
-    tag: invalid
-    name: invalid.illegal.struct-body-line.luau
-    match: ^([^\s][^\n]*)
 
   # Per-line body content. The grammar classifies each line into a named
   # SHAPE node (`LuauStructScalarProperty` / `LuauStructArrayItem` /
@@ -4347,13 +4322,22 @@ repository:
   # Name + optional `as PARENT`, ending at the `with` block opener.
   # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)
   # so the lowerer reads names through the same node names as `define`.
-  # It begins at the first name `LuauStyle` reads after its keyword; the
-  # parent tries its body-line rules first, so nothing needs to look back
-  # for `style`. It ends with its line, so a header without `with`
-  # (`style button` alone) closes there in VS Code too, instead of keeping
-  # the name open over the body.
+  #
+  # lookaround: `(?<=style\b{{WS}}*)` keeps the name to the header. `LuauStyle`
+  # takes the keyword and the whitespace after it in its begin, but it tries
+  # its patterns again at every position of its body, and
+  # textmate-grammar-tree has no `\G` to match only where the begin ended.
+  # Without the lookbehind, tried first, the name rule takes a brace line at
+  # column 0 that `LuauStructBlockLine` reads (`label { … }` in fixture
+  # struct/column-0-brace-lines). Tried after the body-line rules, which
+  # begin only at a line start, it still meets the body wherever
+  # `LuauComment` has read the start of a line: `--[[ note ]] accidental` at
+  # column 0 declares `accidental` as a second style (declarationAnnotator
+  # test "a word after a comment in a block body declares nothing"). Nothing
+  # but the text before it tells the header's name from that word. The cost:
+  # a block comment between `style` and the name hides the name.
   LuauStyleNameAndInheritance:
-    begin: ({{LUAU_IDENTIFIER}})
+    begin: (?<=style\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4361,7 +4345,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
@@ -4371,12 +4355,16 @@ repository:
         patterns:
           - { include: "#LuauWithKeyword" }
 
-  # Name + optional `as PARENT` for `animation`/`theme`/`morph` blocks.
-  # Mirrors LuauStyleNameAndInheritance (how it begins and ends) so the
-  # lowerer reads the name/parent through the same LuauDefineName /
-  # LuauDefineParentName node names as `define`.
+  # Name + optional `as PARENT` for `animation`/`theme`/`morph` blocks
+  # (variable-length lookbehind over the keywords). Mirrors
+  # LuauStyleNameAndInheritance / LuauUINameAndInheritance so the lowerer reads
+  # the name/parent through the same LuauDefineName / LuauDefineParentName node
+  # names as `define`.
+  #
+  # lookaround: as in `LuauStyleNameAndInheritance` (fixture
+  # struct/column-0-brace-lines has an `animation` brace line at column 0).
   LuauAnimationThemeNameAndInheritance:
-    begin: ({{LUAU_IDENTIFIER}})
+    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4384,7 +4372,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
@@ -6869,14 +6857,10 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauLayoutNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#LuauStructBodyLine" }
-      - { include: "#LuauStructStrayLine" }
-      # After the body-line rules (see LuauStyle). `LuauSparkleControlBlock`
-      # begins at its keyword, so a name rule tried first would take an `if`
-      # at column 0 as a name.
-      - { include: "#LuauLayoutNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -6918,13 +6902,11 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauScreenNameHeader" }
       # A screen body carries no content yet; a brace block there is read as
       # a struct block, and nothing reads it.
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
-      - { include: "#LuauStructStrayLine" }
-      # After the body-line rules: see LuauStyle.
-      - { include: "#LuauScreenNameHeader" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -6938,17 +6920,22 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   # `screen NAME`, ending at `with`. Reuses LuauDefineName so the lowerer reads
-  # the name through the same node as define / style / layout. Begins and ends
-  # as LuauStyleNameAndInheritance does.
+  # the name through the same node as define / style / layout.
+  #
+  # lookaround: as in `LuauStyleNameAndInheritance`. A screen body holds no
+  # line a name could begin (its brace line, `LuauStructBlockLine`, begins
+  # with `{`), so here the evidence is the word after a comment, tried first
+  # or last: the declarationAnnotator test's `screen menu` declares `extra`
+  # without the lookbehind.
   LuauScreenNameHeader:
-    begin: ({{LUAU_IDENTIFIER}})
+    begin: (?<=screen\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
           - { include: "#LuauDefineName" }
     patterns:
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
@@ -6975,12 +6962,10 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauComponentNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#LuauStructBodyLine" }
-      - { include: "#LuauStructStrayLine" }
-      # After the body-line and control rules: see LuauLayout.
-      - { include: "#LuauComponentNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -7001,9 +6986,12 @@ repository:
   # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName so the
   # lowerer reads name/parent through the same node names as `define` / `style`;
   # adds LuauLayoutScreenOperation → LuauLayoutScreenName for `in`.
-  # Begins and ends as LuauStyleNameAndInheritance does.
+  #
+  # lookaround: as in `LuauStyleNameAndInheritance`. Here the rivals at
+  # column 0 are `LuauSparkleControlBlock` (`if`, `for`, `match`) and
+  # `LuauSparkleBlockLine` (fixture sparkle/column-0-body-lines).
   LuauLayoutNameAndInheritance:
-    begin: ({{LUAU_IDENTIFIER}})
+    begin: (?<=layout\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7012,7 +7000,7 @@ repository:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#LuauLayoutScreenOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
@@ -7028,9 +7016,11 @@ repository:
   # screen header; the optional `(params)` reuses LuauFunctionParameters (spec
   # §4.7 — `component card(title) with …`), so param names tokenize as
   # LuauFunctionParameter and the lowerer reads them into ComponentNode.params.
-  # Begins and ends as LuauStyleNameAndInheritance does.
+  #
+  # lookaround: as in `LuauLayoutNameAndInheritance` (fixture
+  # sparkle/column-0-body-lines has a component body at column 0).
   LuauComponentNameAndInheritance:
-    begin: ({{LUAU_IDENTIFIER}})
+    begin: (?<=component\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7039,7 +7029,7 @@ repository:
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
@@ -9264,23 +9254,29 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
-  # The name `LuauFunctionDefinition` and `LuauExternalDeclaration` read after
-  # their `function` or `external`, which each begin takes with the
-  # whitespace after it. As in `LuauTypeFunctionName`, their other header
-  # rules begin at a bracket, a `:` or a `->`, and the definition's
-  # `LuauFunctionBody`, tried first, opens right after the header, so their
-  # own patterns meet a name only in the header (and after a comment there).
-  # `LuauAccessPart` no longer includes it: no tree in the corpus or in an
-  # anonymous function with a name (`function f() end` as a value) came from
-  # there, and an access path would have needed a lookbehind on `function`
-  # to keep it out of every other path.
+  # The lookbehind matches either `function ` (regular definition) or
+  # `external ` (host-binding declaration) — same identifier-capture shape,
+  # different surrounding keyword. Adding `external` here means the
+  # `LuauExternalDeclaration` rule can reuse this declaration-name pattern
+  # without a parallel `LuauExternalDeclarationName` rule.
   #
-  # lookaround: `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method
-  # name (`function a.b()`, `function a:m()`) to `LuauBlockBody`'s access
-  # path, where `LuauPropertyAccessor` and `LuauFunctionAccessor` read its
-  # parts and `lowerLuauFunctionDefinition` reads the name.
+  # lookaround: the lookbehind keeps the name to the header of
+  # `LuauFunctionDefinition` and `LuauExternalDeclaration`, which take the
+  # keyword in their begins but try their patterns again after the header,
+  # and textmate-grammar-tree has no `\G` to match only where the begin
+  # ended. `LuauFunctionBody`, tried first, opens right after a definition's
+  # header, so its own patterns meet a name only in the header or where the
+  # header leaves a comment and then a word on its line: without the
+  # lookbehind, `external e(x) --[[ c ]] w` declares a second function `w`.
+  # (`LuauAccessPart` used to include this rule too, which no tree in the
+  # corpus needed; it no longer does, so the lookbehind is only that anchor.)
+  # `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name
+  # (`function a.b()`, `function a:m()`) to `LuauBlockBody`'s access path,
+  # where `LuauPropertyAccessor` and `LuauFunctionAccessor` read its parts.
+  # The cost: a block comment between the keyword and the name hides the
+  # name.
   LuauFunctionDeclarationName:
-    match: ({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: (?<=(?:function|external)\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:
@@ -10810,13 +10806,17 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # The name `LuauFunctionTypeDeclaration` reads after its `function`, which
-  # its begin takes with the whitespace after it. The header's other rules
-  # begin at a bracket, a `:` or a `->`, and `LuauFunctionBody`, tried first,
-  # opens right after the header, so the declaration's own patterns meet a
-  # name only there (and after a comment there).
+  # lookaround: as in `LuauFunctionDeclarationName`, the lookbehind keeps the
+  # name to `LuauFunctionTypeDeclaration`'s header. `LuauFunctionBody` cannot
+  # open right after a header that has no parameter list yet, so without
+  # the lookbehind a comment and a word after the name on its line
+  # (`type function T --[[ c ]] q`, while the author is still typing) make
+  # `q` a second name. No fixture changes without it, since that input is
+  # unfinished and no complete header leaves such a word; that input shows
+  # it. The cost: a block comment between `function` and the
+  # name hides the name.
   LuauTypeFunctionName:
-    match: ({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)
     captures:
       1:
         tag: typeName

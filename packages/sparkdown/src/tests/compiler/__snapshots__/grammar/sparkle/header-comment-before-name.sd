@@ -1,6 +1,0 @@
-layout --[[ l ]] main as base in hud with
-  text "hi"
-end
-component --[[ c ]] card(title) as base with
-  text "{title}"
-end

@@ -121,28 +121,32 @@ end
     expect(decls.filter((d) => d.text === "first").length).toBe(1);
   });
 
-  // #1279: the header names of these blocks are read by rule order after
-  // their keyword, so a block comment there no longer hides the name, and a
-  // stray word at column 0 in the body is not read as another name.
-  test("a block's name is declared after a comment, and only its name", () => {
-    const decls = collectDeclarations(`style --[[ s ]] banner with
-  color = red
-color = blue
+  // #1279: the header-name rules keep their lookbehind on the block's keyword.
+  // Their parents try them again at every position of the body, so without it
+  // a word that follows a comment in the body, where no body rule begins, is
+  // read as another name and declared.
+  test("a word after a comment in a block body declares nothing", () => {
+    const decls = collectDeclarations(`style banner with
+--[[ note ]] accidental
 end
-layout --[[ l ]] hud with
+layout hud with
   text "hi"
-x
+--[[ note ]] stray
 end
-component --[[ c ]] card(title) with
-  text "{title}"
+component card(title) with
+  --[[ note ]] other
 end
-function --[[ f ]] greet(who)
+screen menu with
+--[[ note ]] extra
 end
+animation fade with
+--[[ note ]] spare
+end
+external message(text) --[[ note ]] more
 `);
     const defines = decls.filter((d) => d.type === "define").map((d) => d.text);
-    expect(defines).toEqual(["banner", "hud", "card"]);
-    expect(has(decls, "param", "title")).toBe(true);
-    expect(has(decls, "function", "greet")).toBe(true);
-    expect(has(decls, "param", "who")).toBe(true);
+    expect(defines).toEqual(["banner", "hud", "card", "menu", "fade"]);
+    const functions = decls.filter((d) => d.type === "function").map((d) => d.text);
+    expect(functions).toEqual(["message"]);
   });
 });

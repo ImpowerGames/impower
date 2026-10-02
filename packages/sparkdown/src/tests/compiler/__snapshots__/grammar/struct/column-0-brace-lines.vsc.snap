@@ -1,4 +1,4 @@
-text.source.sparkdown [0..149]
+text.source.sparkdown [0..173]
  ├─ meta.style.luau [0..17]
  │   ├─ keyword.control.style.luau [0..5]: "style"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -21,51 +21,64 @@ text.source.sparkdown [0..149]
  │   ├─ punctuation.whitespace.sd [59..60]: " "
  │   └─ punctuation.definition.template-expression.end.sd [60..61]: "}"
  ├─ Newline [61..62]: "\n"
- ├─ meta.style.luau [62..65]
- │   └─ keyword.control.end.luau [62..65]: "end"
- ├─ Newline [65..66]: "\n"
- ├─ meta.animation.luau [66..85]
- │   ├─ keyword.control.animation.luau [66..75]: "animation"
- │   ├─ punctuation.whitespace.optional.sd [75..76]: " "
- │   ├─ entity.name.type.define.luau [76..80]: "fade"
- │   ├─ punctuation.whitespace.optional.sd [80..81]: " "
- │   └─ keyword.control.as.luau [81..85]: "with"
+ ├─ meta.style.luau [62..85]
+ │   ├─ keyword.other.component.builtin.name.sd [62..67]: "label"
+ │   ├─ punctuation.whitespace.sd [67..68]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [68..69]: "{"
+ │   ├─ punctuation.whitespace.sd [69..70]: " "
+ │   ├─ variable.other.property.define.sd [70..75]: "color"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [75..76]: " "
+ │   ├─ keyword.operator.assignment.sd [76..77]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [77..78]: " "
+ │   ├─ string.unquoted.identifier.sd [78..83]: "white"
+ │   ├─ punctuation.whitespace.sd [83..84]: " "
+ │   └─ punctuation.definition.template-expression.end.sd [84..85]: "}"
  ├─ Newline [85..86]: "\n"
- ├─ meta.animation.luau [86..120]
- │   ├─ entity.name.type.class.view.sd [86..95]: "keyframes"
- │   ├─ punctuation.whitespace.sd [95..96]: " "
- │   ├─ punctuation.definition.template-expression.begin.sd [96..97]: "{"
- │   ├─ punctuation.whitespace.sd [97..98]: " "
- │   ├─ constant.other.keyframe-selector.sd [98..102]: "from"
- │   ├─ punctuation.whitespace.sd [102..103]: " "
- │   ├─ punctuation.definition.template-expression.begin.sd [103..104]: "{"
- │   ├─ punctuation.whitespace.sd [104..105]: " "
- │   ├─ variable.other.property.define.sd [105..112]: "opacity"
- │   ├─ markup.raw.whitespace.separator.optional.sd [112..113]: " "
- │   ├─ keyword.operator.assignment.sd [113..114]: "="
- │   ├─ markup.raw.whitespace.separator.optional.sd [114..115]: " "
- │   ├─ constant.numeric.sd [115..116]
- │   │   └─ constant.numeric.sd [115..116]: "0"
- │   ├─ punctuation.whitespace.sd [116..117]: " "
- │   ├─ punctuation.definition.template-expression.end.sd [117..118]: "}"
- │   ├─ punctuation.whitespace.sd [118..119]: " "
- │   └─ punctuation.definition.template-expression.end.sd [119..120]: "}"
- ├─ Newline [120..121]: "\n"
- ├─ meta.animation.luau [121..124]
- │   └─ keyword.control.end.luau [121..124]: "end"
- ├─ Newline [124..125]: "\n"
- ├─ meta.screen.luau [125..140]
- │   ├─ keyword.control.screen.luau [125..131]: "screen"
- │   ├─ punctuation.whitespace.optional.sd [131..132]: " "
- │   ├─ entity.name.type.define.luau [132..135]: "hud"
- │   ├─ punctuation.whitespace.optional.sd [135..136]: " "
- │   └─ keyword.control.as.luau [136..140]: "with"
- ├─ Newline [140..141]: "\n"
- ├─ meta.screen.luau [141..144]
- │   ├─ punctuation.definition.template-expression.begin.sd [141..142]: "{"
+ ├─ meta.style.luau [86..89]
+ │   └─ keyword.control.end.luau [86..89]: "end"
+ ├─ Newline [89..90]: "\n"
+ ├─ meta.animation.luau [90..109]
+ │   ├─ keyword.control.animation.luau [90..99]: "animation"
+ │   ├─ punctuation.whitespace.optional.sd [99..100]: " "
+ │   ├─ entity.name.type.define.luau [100..104]: "fade"
+ │   ├─ punctuation.whitespace.optional.sd [104..105]: " "
+ │   └─ keyword.control.as.luau [105..109]: "with"
+ ├─ Newline [109..110]: "\n"
+ ├─ meta.animation.luau [110..144]
+ │   ├─ entity.name.type.class.view.sd [110..119]: "keyframes"
+ │   ├─ punctuation.whitespace.sd [119..120]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [120..121]: "{"
+ │   ├─ punctuation.whitespace.sd [121..122]: " "
+ │   ├─ constant.other.keyframe-selector.sd [122..126]: "from"
+ │   ├─ punctuation.whitespace.sd [126..127]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [127..128]: "{"
+ │   ├─ punctuation.whitespace.sd [128..129]: " "
+ │   ├─ variable.other.property.define.sd [129..136]: "opacity"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [136..137]: " "
+ │   ├─ keyword.operator.assignment.sd [137..138]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [138..139]: " "
+ │   ├─ constant.numeric.sd [139..140]
+ │   │   └─ constant.numeric.sd [139..140]: "0"
+ │   ├─ punctuation.whitespace.sd [140..141]: " "
+ │   ├─ punctuation.definition.template-expression.end.sd [141..142]: "}"
  │   ├─ punctuation.whitespace.sd [142..143]: " "
  │   └─ punctuation.definition.template-expression.end.sd [143..144]: "}"
  ├─ Newline [144..145]: "\n"
- ├─ meta.screen.luau [145..148]
+ ├─ meta.animation.luau [145..148]
  │   └─ keyword.control.end.luau [145..148]: "end"
- └─ Newline [148..149]: "\n"
+ ├─ Newline [148..149]: "\n"
+ ├─ meta.screen.luau [149..164]
+ │   ├─ keyword.control.screen.luau [149..155]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [155..156]: " "
+ │   ├─ entity.name.type.define.luau [156..159]: "hud"
+ │   ├─ punctuation.whitespace.optional.sd [159..160]: " "
+ │   └─ keyword.control.as.luau [160..164]: "with"
+ ├─ Newline [164..165]: "\n"
+ ├─ meta.screen.luau [165..168]
+ │   ├─ punctuation.definition.template-expression.begin.sd [165..166]: "{"
+ │   ├─ punctuation.whitespace.sd [166..167]: " "
+ │   └─ punctuation.definition.template-expression.end.sd [167..168]: "}"
+ ├─ Newline [168..169]: "\n"
+ ├─ meta.screen.luau [169..172]
+ │   └─ keyword.control.end.luau [169..172]: "end"
+ └─ Newline [172..173]: "\n"

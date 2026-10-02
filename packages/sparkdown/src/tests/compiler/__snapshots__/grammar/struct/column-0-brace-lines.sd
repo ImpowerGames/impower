@@ -1,5 +1,6 @@
 style button with
 &.secondary { background-color = slate_50 }
+label { color = white }
 end
 animation fade with
 keyframes { from { opacity = 0 } }
