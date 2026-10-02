@@ -984,9 +984,14 @@ function extractInlineBodyRange(nodeRef: SparkdownSyntaxNodeRef): {
 
 // The `..` an inline line's text begins with, if it begins with one: an action
 // line's first mark, or the one after a dialogue cue's or write line's colon.
+// An action line's mark is in its begin; the mark after a colon is the first
+// part of the line's content (`InlineTextStart` in the grammar).
 function leadingGlue(node: SyntaxNode): SyntaxNode | null {
   const begin = findChildByNameDirect(node, `${node.name}_begin`);
-  return (begin && getDescendent("LeadingGlue", begin)) ?? null;
+  const marked = begin && getDescendent("LeadingGlue", begin);
+  if (marked) return marked;
+  const first = findChildByNameDirect(node, `${node.name}_content`)?.firstChild;
+  return first?.name === "LeadingGlue" ? first : null;
 }
 
 // Whether a display statement's text begins with `..`: the mark of an inline

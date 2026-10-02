@@ -17,8 +17,8 @@ text.source.sparkdown [0..398]
  │   ├─ markup.raw.text.sd [23..28]: "Hello"
  │   ├─ punctuation.whitespace.extra.sd [28..29]: " "
  │   ├─ keyword.other.glue.sd [29..31]: ".."
- │   └─ string.display.text.chunk.sd [31..38]
- │       ├─ markup.raw.space.sd [31..32]: " "
+ │   ├─ punctuation.whitespace.optional.sd [31..32]: " "
+ │   └─ string.display.text.chunk.sd [32..38]
  │       ├─ markup.raw.text.sd [32..37]: "there"
  │       └─ markup.raw.punctuation.sd [37..38]: "."
  ├─ Newline [38..39]: "\n"
@@ -104,8 +104,8 @@ text.source.sparkdown [0..398]
  │   ├─ markup.raw.punctuation.sd [168..169]: "."
  │   ├─ punctuation.whitespace.extra.sd [169..170]: " "
  │   ├─ keyword.other.glue.sd [170..172]: ".."
- │   └─ string.display.text.chunk.sd [172..178]
- │       ├─ markup.raw.space.sd [172..173]: " "
+ │   ├─ punctuation.whitespace.optional.sd [172..173]: " "
+ │   └─ string.display.text.chunk.sd [173..178]
  │       └─ markup.raw.text.sd [173..178]: "HOUSE"
  ├─ Newline [178..179]: "\n"
  ├─ string.display.title.inline.sd [179..201]
@@ -240,9 +240,9 @@ text.source.sparkdown [0..398]
  │   ├─ meta.chain.sd [380..382]
  │   │   ├─ keyword.other.chain.sd [380..381]: "\\"
  │   │   └─ punctuation.whitespace.extra.sd [381..382]: " "
- │   └─ string.display.text.chunk.sd [382..397]
- │       ├─ markup.raw.punctuation.sd [382..383]: "."
- │       ├─ markup.raw.punctuation.sd [383..384]: "."
+ │   ├─ meta.glue.leading.sd [382..384]
+ │   │   └─ keyword.other.glue.sd [382..384]: ".."
+ │   └─ string.display.text.chunk.sd [384..397]
  │       ├─ markup.raw.text.sd [384..389]: "after"
  │       ├─ markup.raw.space.sd [389..390]: " "
  │       ├─ markup.raw.text.sd [390..391]: "a"

@@ -987,6 +987,19 @@
       "name": "keyword.other.glue.sd",
       "match": "((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))"
     },
+    "InlineTextStart": {
+      "patterns": [
+        {
+          "include": "#LuauSparkdownInlineGluedSequentialAlternatorBlock"
+        },
+        {
+          "include": "#LuauSparkdownInlineGluedConditionalAlternatorBlock"
+        },
+        {
+          "include": "#LeadingGlue"
+        }
+      ]
+    },
     "LuauSparkdownInlineGluedSequentialAlternatorBlock": {
       "begin": "((?:[^\\S\\n\\r])*)((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))((?:[^\\S\\n\\r])+)(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])+))?(\\b(?:queue|cycle|chain)\\b)((?:[^\\S\\n\\r])*)(?!(?:[^\\S\\n\\r])*[.])",
       "beginCaptures": {
@@ -2600,7 +2613,7 @@
     "InlineTitle": {
       "tag": "monospace",
       "name": "string.display.title.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)(\\^)([:])($|(?:[^\\S\\n\\r])+)(?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))((?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)(\\^)([:])($|(?:[^\\S\\n\\r])+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2629,13 +2642,6 @@
               "include": "#RequiredWhitespace"
             }
           ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#LeadingGlue"
-            }
-          ]
         }
       },
       "patterns": [
@@ -2644,6 +2650,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#InlineTextStart"
         },
         {
           "include": "#LineChain"
@@ -2734,7 +2743,7 @@
     "InlineHeading": {
       "tag": "regexp",
       "name": "string.display.heading.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)([$])([:])($|(?:[^\\S\\n\\r])+)(?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))((?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)([$])([:])($|(?:[^\\S\\n\\r])+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2763,13 +2772,6 @@
               "include": "#RequiredWhitespace"
             }
           ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#LeadingGlue"
-            }
-          ]
         }
       },
       "patterns": [
@@ -2778,6 +2780,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#InlineTextStart"
         },
         {
           "include": "#LineChain"
@@ -2868,7 +2873,7 @@
     "InlineTransitional": {
       "tag": "labelName",
       "name": "string.display.transitional.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)([%])([:])($|(?:[^\\S\\n\\r])+)(?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))((?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)([%])([:])($|(?:[^\\S\\n\\r])+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2897,13 +2902,6 @@
               "include": "#RequiredWhitespace"
             }
           ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#LeadingGlue"
-            }
-          ]
         }
       },
       "patterns": [
@@ -2912,6 +2910,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#InlineTextStart"
         },
         {
           "include": "#LineChain"
@@ -3017,7 +3018,7 @@
     "InlineWrite": {
       "tag": "definition(string)",
       "name": "string.display.write.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)([@])((?:[^\\S\\n\\r])*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)(?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))((?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)([@])((?:[^\\S\\n\\r])*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3061,13 +3062,6 @@
               "include": "#RequiredWhitespace"
             }
           ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#LeadingGlue"
-            }
-          ]
         }
       },
       "patterns": [
@@ -3076,6 +3070,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#InlineTextStart"
         },
         {
           "include": "#LineChain"
@@ -3171,7 +3168,7 @@
     "InlineDialogue": {
       "tag": "definition(string)",
       "name": "string.display.dialogue.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)(?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))((?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3203,13 +3200,6 @@
               "include": "#RequiredWhitespace"
             }
           ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#LeadingGlue"
-            }
-          ]
         }
       },
       "patterns": [
@@ -3218,6 +3208,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#InlineTextStart"
         },
         {
           "include": "#LineChain"

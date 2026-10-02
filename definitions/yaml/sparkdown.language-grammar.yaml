@@ -1276,6 +1276,18 @@ repository:
     name: keyword.other.glue.sd
     match: ({{ALTERNATOR_GLUE}})
 
+  # The start of the text after an inline title's, heading's, transition's,
+  # write line's or cue's colon. Each of those rules includes this right
+  # after its begin, before the rules that read the rest of the line, so it
+  # is tried only where the text starts. An inline-glued alternator
+  # (`BUNNY: .. queue | Hi | Hello ..`) is tried first, so its opening `..`
+  # is the alternator's; any other `..` there is the line's leading glue.
+  InlineTextStart:
+    patterns:
+      - { include: "#LuauSparkdownInlineGluedSequentialAlternatorBlock" }
+      - { include: "#LuauSparkdownInlineGluedConditionalAlternatorBlock" }
+      - { include: "#LeadingGlue" }
+
   ########## Inline Glued Alternators ##########
   #
   # Inline display-text alternators are bracketed by `..` glue markers
@@ -2386,7 +2398,7 @@ repository:
   InlineTitle:
     tag: monospace
     name: string.display.title.inline.sd
-    begin: ({{WS}}*)(\^)([:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
+    begin: ({{WS}}*)(\^)([:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -2400,12 +2412,10 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
-      5:
-        patterns:
-          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2450,7 +2460,7 @@ repository:
   InlineHeading:
     tag: regexp
     name: string.display.heading.inline.sd
-    begin: ({{WS}}*)([$])([:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
+    begin: ({{WS}}*)([$])([:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -2464,12 +2474,10 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
-      5:
-        patterns:
-          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2514,7 +2522,7 @@ repository:
   InlineTransitional:
     tag: labelName
     name: string.display.transitional.inline.sd
-    begin: ({{WS}}*)([%])([:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
+    begin: ({{WS}}*)([%])([:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -2528,12 +2536,10 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
-      5:
-        patterns:
-          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2585,7 +2591,7 @@ repository:
   InlineWrite:
     tag: definition(string)
     name: string.display.write.inline.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -2606,12 +2612,10 @@ repository:
       6:
         patterns:
           - { include: "#RequiredWhitespace" }
-      7:
-        patterns:
-          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2679,7 +2683,7 @@ repository:
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
-    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
+    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -2694,12 +2698,10 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
-      5:
-        patterns:
-          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#InlineTextStart" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }

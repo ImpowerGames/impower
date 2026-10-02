@@ -1022,9 +1022,8 @@ sparkdown [0..949]
  │   │   │       └─ DialogueCharacter_c7 329
  │   │   ├─ InlineDialogue_begin_c3 [329..330]
  │   │   │   └─ ColonSeparator [329..330]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [330..331]
- │   │   │   └─ RequiredWhitespace [330..331]: " "
- │   │   └─ InlineDialogue_begin_c5 331
+ │   │   └─ InlineDialogue_begin_c4 [330..331]
+ │   │       └─ RequiredWhitespace [330..331]: " "
  │   ├─ InlineDialogue_content [331..371]
  │   │   ├─ LineEnd [331..362]
  │   │   │   ├─ LineEnd_begin 331
@@ -1174,9 +1173,8 @@ sparkdown [0..949]
  │   │   │       └─ DialogueCharacter_c7 376
  │   │   ├─ InlineDialogue_begin_c3 [376..377]
  │   │   │   └─ ColonSeparator [376..377]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [377..378]
- │   │   │   └─ RequiredWhitespace [377..378]: " "
- │   │   └─ InlineDialogue_begin_c5 378
+ │   │   └─ InlineDialogue_begin_c4 [377..378]
+ │   │       └─ RequiredWhitespace [377..378]: " "
  │   ├─ InlineDialogue_content [378..410]
  │   │   ├─ LineEnd [378..403]
  │   │   │   ├─ LineEnd_begin 378
@@ -1322,9 +1320,8 @@ sparkdown [0..949]
  │   │   │       └─ DialogueCharacter_c7 415
  │   │   ├─ InlineDialogue_begin_c3 [415..416]
  │   │   │   └─ ColonSeparator [415..416]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [416..417]
- │   │   │   └─ RequiredWhitespace [416..417]: " "
- │   │   └─ InlineDialogue_begin_c5 417
+ │   │   └─ InlineDialogue_begin_c4 [416..417]
+ │   │       └─ RequiredWhitespace [416..417]: " "
  │   ├─ InlineDialogue_content [417..431]
  │   │   └─ LineEnd [417..431]
  │   │       ├─ LineEnd_begin 417
@@ -1359,9 +1356,8 @@ sparkdown [0..949]
  │   │   │   └─ TitleMark [432..433]: "^"
  │   │   ├─ InlineTitle_begin_c3 [433..434]
  │   │   │   └─ ColonOperator [433..434]: ":"
- │   │   ├─ InlineTitle_begin_c4 [434..435]
- │   │   │   └─ RequiredWhitespace [434..435]: " "
- │   │   └─ InlineTitle_begin_c5 435
+ │   │   └─ InlineTitle_begin_c4 [434..435]
+ │   │       └─ RequiredWhitespace [434..435]: " "
  │   ├─ InlineTitle_content [435..438]
  │   │   └─ LineEnd [435..438]
  │   │       ├─ LineEnd_begin 435
@@ -1391,9 +1387,8 @@ sparkdown [0..949]
  │   │   │   └─ HeadingMark [439..440]: "$"
  │   │   ├─ InlineHeading_begin_c3 [440..441]
  │   │   │   └─ ColonOperator [440..441]: ":"
- │   │   ├─ InlineHeading_begin_c4 [441..442]
- │   │   │   └─ RequiredWhitespace [441..442]: " "
- │   │   └─ InlineHeading_begin_c5 442
+ │   │   └─ InlineHeading_begin_c4 [441..442]
+ │   │       └─ RequiredWhitespace [441..442]: " "
  │   ├─ InlineHeading_content [442..445]
  │   │   └─ LineEnd [442..445]
  │   │       ├─ LineEnd_begin 442
@@ -1423,9 +1418,8 @@ sparkdown [0..949]
  │   │   │   └─ TransitionalMark [446..447]: "%"
  │   │   ├─ InlineTransitional_begin_c3 [447..448]
  │   │   │   └─ ColonOperator [447..448]: ":"
- │   │   ├─ InlineTransitional_begin_c4 [448..449]
- │   │   │   └─ RequiredWhitespace [448..449]: " "
- │   │   └─ InlineTransitional_begin_c5 449
+ │   │   └─ InlineTransitional_begin_c4 [448..449]
+ │   │       └─ RequiredWhitespace [448..449]: " "
  │   ├─ InlineTransitional_content [449..452]
  │   │   └─ LineEnd [449..452]
  │   │       ├─ LineEnd_begin 449
@@ -1460,9 +1454,8 @@ sparkdown [0..949]
  │   │   │   └─ WriteTarget [455..463]: "portrait"
  │   │   ├─ InlineWrite_begin_c5 [463..464]
  │   │   │   └─ ColonSeparator [463..464]: ":"
- │   │   ├─ InlineWrite_begin_c6 [464..465]
- │   │   │   └─ RequiredWhitespace [464..465]: " "
- │   │   └─ InlineWrite_begin_c7 465
+ │   │   └─ InlineWrite_begin_c6 [464..465]
+ │   │       └─ RequiredWhitespace [464..465]: " "
  │   ├─ InlineWrite_content [465..468]
  │   │   └─ LineEnd [465..468]
  │   │       ├─ LineEnd_begin 465
@@ -1587,9 +1580,8 @@ sparkdown [0..949]
  │   │   │       └─ DialogueCharacter_c7 502
  │   │   ├─ InlineDialogue_begin_c3 [502..503]
  │   │   │   └─ ColonSeparator [502..503]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [503..504]
- │   │   │   └─ RequiredWhitespace [503..504]: " "
- │   │   └─ InlineDialogue_begin_c5 504
+ │   │   └─ InlineDialogue_begin_c4 [503..504]
+ │   │       └─ RequiredWhitespace [503..504]: " "
  │   ├─ InlineDialogue_content [504..512]
  │   │   └─ LineEnd [504..512]
  │   │       ├─ LineEnd_begin 504

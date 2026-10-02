@@ -167,9 +167,8 @@ sparkdown [0..245]
  │   │   │       └─ DialogueCharacter_c7 59
  │   │   ├─ InlineDialogue_begin_c3 [59..60]
  │   │   │   └─ ColonSeparator [59..60]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [60..61]
- │   │   │   └─ RequiredWhitespace [60..61]: " "
- │   │   └─ InlineDialogue_begin_c5 61
+ │   │   └─ InlineDialogue_begin_c4 [60..61]
+ │   │       └─ RequiredWhitespace [60..61]: " "
  │   ├─ InlineDialogue_content [61..77]
  │   │   └─ LineEnd [61..77]
  │   │       ├─ LineEnd_begin 61
@@ -233,9 +232,8 @@ sparkdown [0..245]
  │   │   │       └─ DialogueCharacter_c7 82
  │   │   ├─ InlineDialogue_begin_c3 [82..83]
  │   │   │   └─ ColonSeparator [82..83]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [83..84]
- │   │   │   └─ RequiredWhitespace [83..84]: " "
- │   │   └─ InlineDialogue_begin_c5 84
+ │   │   └─ InlineDialogue_begin_c4 [83..84]
+ │   │       └─ RequiredWhitespace [83..84]: " "
  │   ├─ InlineDialogue_content [84..101]
  │   │   └─ LineEnd [84..101]
  │   │       ├─ LineEnd_begin 84
@@ -300,9 +298,8 @@ sparkdown [0..245]
  │   │   │       └─ DialogueCharacter_c7 106
  │   │   ├─ InlineDialogue_begin_c3 [106..107]
  │   │   │   └─ ColonSeparator [106..107]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [107..108]
- │   │   │   └─ RequiredWhitespace [107..108]: " "
- │   │   └─ InlineDialogue_begin_c5 108
+ │   │   └─ InlineDialogue_begin_c4 [107..108]
+ │   │       └─ RequiredWhitespace [107..108]: " "
  │   ├─ InlineDialogue_content [108..127]
  │   │   └─ LineEnd [108..127]
  │   │       ├─ LineEnd_begin 108
@@ -368,9 +365,8 @@ sparkdown [0..245]
  │   │   │       └─ DialogueCharacter_c7 132
  │   │   ├─ InlineDialogue_begin_c3 [132..133]
  │   │   │   └─ ColonSeparator [132..133]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [133..134]
- │   │   │   └─ RequiredWhitespace [133..134]: " "
- │   │   └─ InlineDialogue_begin_c5 134
+ │   │   └─ InlineDialogue_begin_c4 [133..134]
+ │   │       └─ RequiredWhitespace [133..134]: " "
  │   ├─ InlineDialogue_content [134..154]
  │   │   └─ LineEnd [134..154]
  │   │       ├─ LineEnd_begin 134
