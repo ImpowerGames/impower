@@ -41,9 +41,16 @@ sparkdown [0..64]
  │   │   │   │       │               └─ OptionalSeparator [29..30]: " "
  │   │   │   │       ├─ LuauStructBlockProperty_c3 [30..38]
  │   │   │   │       │   └─ StylingValue [30..38]
- │   │   │   │       │       ├─ StylingValue_c1 [30..38]
- │   │   │   │       │       │   └─ StylingStringIdentifier [30..38]: "absolute"
- │   │   │   │       │       └─ StylingValue_c2 38
+ │   │   │   │       │       ├─ StylingValue_c1 30
+ │   │   │   │       │       ├─ StylingValue_c2 30
+ │   │   │   │       │       ├─ StylingValue_c3 30
+ │   │   │   │       │       ├─ StylingValue_c4 [30..38]
+ │   │   │   │       │       │   └─ StylingValueContent [30..38]
+ │   │   │   │       │       │       └─ StylingValueContent_c1 [30..38]
+ │   │   │   │       │       │           └─ StylingStringIdentifier [30..38]: "absolute"
+ │   │   │   │       │       ├─ StylingValue_c5 38
+ │   │   │   │       │       ├─ StylingValue_c6 38
+ │   │   │   │       │       └─ StylingValue_c7 38
  │   │   │   │       └─ LuauStructBlockProperty_c4 38
  │   │   │   └─ LuauStructBlockLine_end 38
  │   │   ├─ Newline [38..39]: "\n"
@@ -68,11 +75,18 @@ sparkdown [0..64]
  │   │   │   │       │               └─ OptionalSeparator [52..53]: " "
  │   │   │   │       ├─ LuauStructBlockProperty_c3 [53..59]
  │   │   │   │       │   └─ StylingValue [53..59]
- │   │   │   │       │       ├─ StylingValue_c1 [53..59]
- │   │   │   │       │       │   └─ UnitValue [53..59]
- │   │   │   │       │       │       ├─ UnitValue_c1 [53..56]: "3.4"
- │   │   │   │       │       │       └─ UnitValue_c2 [56..59]: "cqh"
- │   │   │   │       │       └─ StylingValue_c2 59
+ │   │   │   │       │       ├─ StylingValue_c1 53
+ │   │   │   │       │       ├─ StylingValue_c2 53
+ │   │   │   │       │       ├─ StylingValue_c3 53
+ │   │   │   │       │       ├─ StylingValue_c4 [53..59]
+ │   │   │   │       │       │   └─ StylingValueContent [53..59]
+ │   │   │   │       │       │       └─ StylingValueContent_c1 [53..59]
+ │   │   │   │       │       │           └─ UnitValue [53..59]
+ │   │   │   │       │       │               ├─ UnitValue_c1 [53..56]: "3.4"
+ │   │   │   │       │       │               └─ UnitValue_c2 [56..59]: "cqh"
+ │   │   │   │       │       ├─ StylingValue_c5 59
+ │   │   │   │       │       ├─ StylingValue_c6 59
+ │   │   │   │       │       └─ StylingValue_c7 59
  │   │   │   │       └─ LuauStructBlockProperty_c4 59
  │   │   │   └─ LuauStructBlockLine_end 59
  │   │   └─ Newline [59..60]: "\n"

@@ -1307,9 +1307,16 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │               └─ OptionalSeparator [895..896]: " "
  │   │       │       │       │   │   ├─ LuauStructBlockProperty_c3 [896..901]
  │   │       │       │       │   │   │   └─ StylingValue [896..901]
- │   │       │       │       │   │   │       ├─ StylingValue_c1 [896..901]
- │   │       │       │       │   │   │       │   └─ StylingStringIdentifier [896..901]: "white"
- │   │       │       │       │   │   │       └─ StylingValue_c2 901
+ │   │       │       │       │   │   │       ├─ StylingValue_c1 896
+ │   │       │       │       │   │   │       ├─ StylingValue_c2 896
+ │   │       │       │       │   │   │       ├─ StylingValue_c3 896
+ │   │       │       │       │   │   │       ├─ StylingValue_c4 [896..901]
+ │   │       │       │       │   │   │       │   └─ StylingValueContent [896..901]
+ │   │       │       │       │   │   │       │       └─ StylingValueContent_c1 [896..901]
+ │   │       │       │       │   │   │       │           └─ StylingStringIdentifier [896..901]: "white"
+ │   │       │       │       │   │   │       ├─ StylingValue_c5 901
+ │   │       │       │       │   │   │       ├─ StylingValue_c6 901
+ │   │       │       │       │   │   │       └─ StylingValue_c7 901
  │   │       │       │       │   │   └─ LuauStructBlockProperty_c4 901
  │   │       │       │       │   ├─ Newline [901..902]: "\n"
  │   │       │       │       │   ├─ Whitespace [902..906]: "    "
@@ -4983,9 +4990,16 @@ sparkdown [0..2780]
  │   │   │   │   │   │               └─ OptionalSeparator [2714..2715]: " "
  │   │   │   │   │   ├─ LuauStructBlockProperty_c3 [2715..2720]
  │   │   │   │   │   │   └─ StylingValue [2715..2720]
- │   │   │   │   │   │       ├─ StylingValue_c1 [2715..2720]
- │   │   │   │   │   │       │   └─ StylingStringIdentifier [2715..2720]: "Hello"
- │   │   │   │   │   │       └─ StylingValue_c2 2720
+ │   │   │   │   │   │       ├─ StylingValue_c1 2715
+ │   │   │   │   │   │       ├─ StylingValue_c2 2715
+ │   │   │   │   │   │       ├─ StylingValue_c3 2715
+ │   │   │   │   │   │       ├─ StylingValue_c4 [2715..2720]
+ │   │   │   │   │   │       │   └─ StylingValueContent [2715..2720]
+ │   │   │   │   │   │       │       └─ StylingValueContent_c1 [2715..2720]
+ │   │   │   │   │   │       │           └─ StylingStringIdentifier [2715..2720]: "Hello"
+ │   │   │   │   │   │       ├─ StylingValue_c5 2720
+ │   │   │   │   │   │       ├─ StylingValue_c6 2720
+ │   │   │   │   │   │       └─ StylingValue_c7 2720
  │   │   │   │   │   └─ LuauStructBlockProperty_c4 2720
  │   │   │   │   ├─ Whitespace [2720..2721]: " "
  │   │   │   │   └─ LuauSparkleElementBlock [2721..2726]
@@ -5023,11 +5037,18 @@ sparkdown [0..2780]
  │   │   │   │   │   │               └─ OptionalSeparator [2735..2736]: " "
  │   │   │   │   │   ├─ LuauStructBlockProperty_c3 [2736..2739]
  │   │   │   │   │   │   └─ StylingValue [2736..2739]
- │   │   │   │   │   │       ├─ StylingValue_c1 [2736..2739]
- │   │   │   │   │   │       │   ├─ UnquotedChar [2736..2737]: "["
- │   │   │   │   │   │       │   ├─ UnquotedChar [2737..2738]: "["
- │   │   │   │   │   │       │   └─ StylingStringIdentifier [2738..2739]: "a"
- │   │   │   │   │   │       └─ StylingValue_c2 2739
+ │   │   │   │   │   │       ├─ StylingValue_c1 2736
+ │   │   │   │   │   │       ├─ StylingValue_c2 2736
+ │   │   │   │   │   │       ├─ StylingValue_c3 2736
+ │   │   │   │   │   │       ├─ StylingValue_c4 [2736..2739]
+ │   │   │   │   │   │       │   └─ StylingValueContent [2736..2739]
+ │   │   │   │   │   │       │       └─ StylingValueContent_c1 [2736..2739]
+ │   │   │   │   │   │       │           ├─ UnquotedChar [2736..2737]: "["
+ │   │   │   │   │   │       │           ├─ UnquotedChar [2737..2738]: "["
+ │   │   │   │   │   │       │           └─ StylingStringIdentifier [2738..2739]: "a"
+ │   │   │   │   │   │       ├─ StylingValue_c5 2739
+ │   │   │   │   │   │       ├─ StylingValue_c6 2739
+ │   │   │   │   │   │       └─ StylingValue_c7 2739
  │   │   │   │   │   └─ LuauStructBlockProperty_c4 2739
  │   │   │   │   ├─ LuauSparkleElementBlock [2739..2742]
  │   │   │   │   │   ├─ LuauSparkleElementBlock_begin [2739..2740]

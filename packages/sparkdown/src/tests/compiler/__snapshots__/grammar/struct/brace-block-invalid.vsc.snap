@@ -385,7 +385,8 @@ text.source.sparkdown [0..673]
  │   ├─ punctuation.whitespace.sd [651..655]: "    "
  │   ├─ invalid.illegal.struct-block-item.sd [655..656]: "-"
  │   ├─ punctuation.whitespace.sd [656..657]: " "
- │   ├─ constant.numeric.sd [657..658]: "2"
+ │   ├─ constant.numeric.sd [657..658]
+ │   │   └─ constant.numeric.sd [657..658]: "2"
  │   └─ comment.line.double-dash.luau [658..668]
  │       ├─ punctuation.whitespace.sd [658..659]: " "
  │       ├─ comment.luau [659..661]: "--"

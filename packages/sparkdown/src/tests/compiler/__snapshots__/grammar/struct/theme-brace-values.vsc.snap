@@ -113,7 +113,8 @@ text.source.sparkdown [0..386]
  │   ├─ markup.raw.whitespace.separator.optional.sd [211..212]: " "
  │   ├─ keyword.operator.assignment.sd [212..213]: "="
  │   ├─ markup.raw.whitespace.separator.optional.sd [213..214]: " "
- │   ├─ constant.numeric.sd [214..215]: "1"
+ │   ├─ constant.numeric.sd [214..215]
+ │   │   └─ constant.numeric.sd [214..215]: "1"
  │   └─ comment.line.double-dash.luau [215..231]
  │       ├─ comment.luau [215..217]: "--"
  │       └─ punctuation.definition.comment.content.sd [217..231]: " } ; a comment"
@@ -124,7 +125,8 @@ text.source.sparkdown [0..386]
  │   ├─ markup.raw.whitespace.separator.optional.sd [237..238]: " "
  │   ├─ keyword.operator.assignment.sd [238..239]: "="
  │   ├─ markup.raw.whitespace.separator.optional.sd [239..240]: " "
- │   ├─ string.unquoted.identifier.sd [240..244]: "true"
+ │   ├─ constant.language.boolean.true.sd [240..244]
+ │   │   └─ constant.language.boolean.true.sd [240..244]: "true"
  │   └─ comment.line.double-dash.luau [244..248]
  │       ├─ comment.luau [244..246]: "--"
  │       └─ punctuation.definition.comment.content.sd [246..248]: " }"
@@ -164,16 +166,18 @@ text.source.sparkdown [0..386]
  ├─ Newline [296..297]: "\n"
  ├─ meta.theme.luau [297..311]
  │   ├─ punctuation.whitespace.sd [297..301]: "    "
- │   ├─ constant.numeric.sd [301..302]: "2"
+ │   ├─ constant.numeric.sd [301..302]
+ │   │   └─ constant.numeric.sd [301..302]: "2"
  │   └─ comment.line.double-dash.luau [302..311]
  │       ├─ comment.luau [302..304]: "--"
  │       └─ punctuation.definition.comment.content.sd [304..311]: " } note"
  ├─ Newline [311..312]: "\n"
  ├─ meta.theme.luau [312..328]
  │   ├─ punctuation.whitespace.sd [312..316]: "    "
- │   ├─ string.unquoted.char.sd [316..317]: "\""
- │   ├─ string.unquoted.identifier.sd [317..318]: "q"
- │   ├─ string.unquoted.char.sd [318..319]: "\""
+ │   ├─ string.quoted.double.sd [316..319]
+ │   │   ├─ punctuation.definition.string.begin.sd [316..317]: "\""
+ │   │   ├─ markup.raw.whitespace.sd [317..318]: "q"
+ │   │   └─ punctuation.definition.string.end.sd [318..319]: "\""
  │   └─ comment.line.double-dash.luau [319..328]
  │       ├─ comment.luau [319..321]: "--"
  │       └─ punctuation.definition.comment.content.sd [321..328]: " { note"
@@ -194,7 +198,8 @@ text.source.sparkdown [0..386]
  │   ├─ markup.raw.whitespace.separator.optional.sd [348..349]: " "
  │   ├─ keyword.operator.assignment.sd [349..350]: "="
  │   ├─ markup.raw.whitespace.separator.optional.sd [350..351]: " "
- │   ├─ constant.numeric.sd [351..352]: "4"
+ │   ├─ constant.numeric.sd [351..352]
+ │   │   └─ constant.numeric.sd [351..352]: "4"
  │   └─ comment.line.double-dash.luau [352..361]
  │       ├─ comment.luau [352..354]: "--"
  │       └─ punctuation.definition.comment.content.sd [354..361]: " } note"

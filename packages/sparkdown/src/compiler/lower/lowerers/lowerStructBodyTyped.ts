@@ -2,10 +2,7 @@ import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
 import { statementSource } from "../utils/statementSource";
-import {
-  UNQUOTED_VALUE_NODES,
-  stripTrailingLineComment,
-} from "../utils/stripTrailingLineComment";
+import { structValueNode } from "../utils/structValueNode";
 import {
   readStructBodyEntries,
   type StructEntry,
@@ -98,36 +95,18 @@ function firstDescendant(
   return null;
 }
 
-
-// A trailing comment makes the grammar match a number, boolean or quoted string
-// as a `StylingValue` instead of its own value node. These recognize the
-// spellings of the grammar's `NumericFieldValue`, `BooleanFieldValue` and
-// `StringFieldValue` rules followed by a comment, so the literal is read as
-// that node would read it.
-//
-// After a complete literal a `--` can only start a Luau comment, so it needs no
-// whitespace before it (`1-- note`). A general unquoted value keeps the
-// whitespace rule in `stripTrailingLineComment`, because there `--` can belong
-// to the value (`var(--x)`). `//` needs whitespace on both sides everywhere.
-const TRAILING_COMMENT = String.raw`(?:\s*--|\s+\/\/(?=\s|$)).*`;
-const NUMERIC_WITH_COMMENT_RE = new RegExp(
-  String.raw`^(-?(?:\d*\.)?\d+|Infinity|NaN)${TRAILING_COMMENT}$`,
-);
-const BOOLEAN_WITH_COMMENT_RE = new RegExp(
-  String.raw`^(true|false)${TRAILING_COMMENT}$`,
-);
-const QUOTED_WITH_COMMENT_RE = new RegExp(
-  String.raw`^"((?:\\.|[^"\\])*)"${TRAILING_COMMENT}$`,
-);
-
 function readNumber(text: string): unknown {
   const n = Number(text);
   return Number.isNaN(n) ? text : n;
 }
 
 /** Read a value node as a typed scalar (number / boolean / string / ref). */
-function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
-  if (!value) return "";
+function readTypedValue(
+  field: SyntaxNode | null,
+  ctx: LowerContext,
+): unknown {
+  if (!field) return "";
+  const value = structValueNode(field);
   if (value.name === "NumericFieldValue") {
     return readNumber(ctx.read(value.from, value.to).trim());
   }
@@ -139,19 +118,8 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
     if (inner) return unescapeString(ctx.read(inner.from, inner.to));
     return ctx.read(value.from, value.to).trim().replace(/^"|"$/g, "");
   }
-  // StylingValue / UnquotedStringFieldValue → raw CSS text, or a struct ref.
-  // These greedily include any trailing `--`/`//` comment; drop it first.
-  let raw = ctx.read(value.from, value.to).trim();
-  if (UNQUOTED_VALUE_NODES.has(value.name)) {
-    // Matched before stripping, since quoted text may itself contain `--`.
-    const numeric = NUMERIC_WITH_COMMENT_RE.exec(raw);
-    if (numeric) return readNumber(numeric[1]!);
-    const boolean = BOOLEAN_WITH_COMMENT_RE.exec(raw);
-    if (boolean) return boolean[1] === "true";
-    const quoted = QUOTED_WITH_COMMENT_RE.exec(raw);
-    if (quoted) return unescapeString(quoted[1]!);
-    raw = stripTrailingLineComment(raw);
-  }
+  // Any other value → raw CSS text, or a struct ref.
+  const raw = ctx.read(value.from, value.to).trim();
   const ref = STRUCT_REFERENCE_RE.exec(raw);
   if (ref) return { $type: ref[1], $name: ref[2] };
   return raw;
@@ -163,26 +131,17 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
  * converted to a number, boolean or reference.
  */
 function readLiteralValue(
-  value: SyntaxNode | null,
+  field: SyntaxNode | null,
   ctx: LowerContext,
 ): string {
-  if (!value) return "";
+  if (!field) return "";
+  const value = structValueNode(field);
   if (value.name === "StringFieldValue") {
     const inner = firstDescendant(value, PLAIN_STRING_CONTENT);
     if (inner) return unescapeString(ctx.read(inner.from, inner.to));
     return ctx.read(value.from, value.to).trim().replace(/^"|"$/g, "");
   }
-  const raw = ctx.read(value.from, value.to).trim();
-  if (UNQUOTED_VALUE_NODES.has(value.name)) {
-    const numeric = NUMERIC_WITH_COMMENT_RE.exec(raw);
-    if (numeric) return numeric[1]!;
-    const boolean = BOOLEAN_WITH_COMMENT_RE.exec(raw);
-    if (boolean) return boolean[1]!;
-    const quoted = QUOTED_WITH_COMMENT_RE.exec(raw);
-    if (quoted) return unescapeString(quoted[1]!);
-    return stripTrailingLineComment(raw);
-  }
-  return raw;
+  return ctx.read(value.from, value.to).trim();
 }
 
 const PLAIN_STRING_CONTENT = nodeNameSet(["PlainStringContent"]);

@@ -43,18 +43,32 @@ sparkdown [0..55]
  │   │   │   │       │       │   ├─ LuauStructListValue [30..35]
  │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [30..35]
  │   │   │   │       │       │   │   │   └─ StylingValue [30..35]
- │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [30..35]
- │   │   │   │       │       │   │   │       │   └─ StylingStringIdentifier [30..35]: "first"
- │   │   │   │       │       │   │   │       └─ StylingValue_c2 35
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 30
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 30
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 30
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [30..35]
+ │   │   │   │       │       │   │   │       │   └─ StylingValueContent [30..35]
+ │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [30..35]
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [30..35]: "first"
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 35
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 35
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 35
  │   │   │   │       │       │   │   └─ LuauStructListValue_c2 35
  │   │   │   │       │       │   ├─ Newline [35..36]: "\n"
  │   │   │   │       │       │   ├─ Whitespace [36..40]: "    "
  │   │   │   │       │       │   ├─ LuauStructListValue [40..46]
  │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [40..46]
  │   │   │   │       │       │   │   │   └─ StylingValue [40..46]
- │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [40..46]
- │   │   │   │       │       │   │   │       │   └─ StylingStringIdentifier [40..46]: "second"
- │   │   │   │       │       │   │   │       └─ StylingValue_c2 46
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 40
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 40
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 40
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [40..46]
+ │   │   │   │       │       │   │   │       │   └─ StylingValueContent [40..46]
+ │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [40..46]
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [40..46]: "second"
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 46
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 46
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 46
  │   │   │   │       │       │   │   └─ LuauStructListValue_c2 46
  │   │   │   │       │       │   ├─ Newline [46..47]: "\n"
  │   │   │   │       │       │   └─ Whitespace [47..49]: "  "
