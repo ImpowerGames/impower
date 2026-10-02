@@ -64,6 +64,7 @@ export function headerLineRange(
 ): { from: number; to: number } {
   const text = ctx.read(from, to);
   const start = text.length - text.trimStart().length;
+  // value-level: the source text of one statement range, finding its first line end
   const newline = text.indexOf("\n", start);
   const line = newline < 0 ? text : text.slice(0, newline);
   return { from: from + start, to: from + line.trimEnd().length };
