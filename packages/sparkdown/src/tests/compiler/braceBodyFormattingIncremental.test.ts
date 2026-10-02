@@ -54,6 +54,7 @@ function fixture() {
   column.panel #gap=4 {
     row { text "a"; text "b" }
     text "c" .note
+    card .tag
     button @click={ pad_1 = 2 } "Go"
     style_me = { width = 1 }
   }
@@ -121,6 +122,16 @@ describe("brace body formatting marks after an incremental edit", () => {
 
   it("match a cold parse after an edit before a class", () => {
     expectEditMatchesCold((text) => text.indexOf(`"c"`) + 2, 0, "d");
+  });
+
+  // Whether the space before a class stays depends on the element's name
+  // and call (round 1 of PR #1319), which lie before the whitespace.
+  it("match a cold parse after an element's name is renamed before its class", () => {
+    expectEditMatchesCold((text) => text.indexOf("card .tag"), 4, "café");
+  });
+
+  it("match a cold parse after a call is added between a name and its class", () => {
+    expectEditMatchesCold((text) => text.indexOf("card .tag") + 4, 0, "(1)");
   });
 
   it("match a cold parse after an edit inside a struct block", () => {
