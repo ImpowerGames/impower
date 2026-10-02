@@ -771,6 +771,15 @@ class Tokenizer {
   }
 }
 
+/**
+ * Appends every item of a list to another. A spread argument
+ * (`push(...items)`) passes each item on the call stack, which a document
+ * with tens of thousands of tokens overflows.
+ */
+function appendAll<T>(target: T[], items: readonly T[]): void {
+  for (const item of items) target.push(item);
+}
+
 /** Where a comment that begins at `at` ends, no further than `to`. */
 function skipComment(text: string, at: number, to: number): number {
   const long = /^--\[(=*)\[/.exec(text.slice(at, at + 64));
@@ -1463,7 +1472,7 @@ class Parser {
       this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`);
       this.next();
       const rest = this.parseBlock();
-      result.body.push(...rest.body);
+      appendAll(result.body, rest.body);
     }
     return result;
   }
@@ -3305,7 +3314,8 @@ function readUnit(
     index = unitIndex;
   }
   const ctx: ReadContext = { text: tokenizer.text, index };
-  const parser = new Parser(tokenizer.tokens, ctx, new Location(start, start), eofAt === undefined ? undefined : index.position(eofAt));
+  const eof = eofAt === undefined ? undefined : index.position(eofAt);
+  const parser = new Parser(tokenizer.tokens, ctx, new Location(start, start), eof);
   parser.recordDepth = recordDepth;
   let root: AstStatBlock;
   try {
@@ -3328,7 +3338,7 @@ function readUnit(
   const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements };
   if (lines) {
     unit.lines = lines;
-    unit.key = unitKey(tokenizer);
+    unit.key = unitKey(tokenizer, start, eof);
   }
   return unit;
 }
@@ -3352,13 +3362,14 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
 }
 
 /**
- * A unit's key (see `LuauAstUnit.key`): each token's kind, unit location and
- * text, with the shape of the tree under a token read from a node (a
- * string's interpolations, a Sparkdown construct's parts), and each `--!`
- * comment.
+ * A unit's key (see `LuauAstUnit.key`): where its reading starts and, for a
+ * `run` file, where its Luau ends (an error at the end is placed there),
+ * each token's kind, unit location and text, with the shape of the tree
+ * under a token read from a node (a string's interpolations, a Sparkdown
+ * construct's parts), and each `--!` comment.
  */
-function unitKey(tokenizer: Tokenizer): string {
-  const parts: string[] = [];
+function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined): string {
+  const parts: string[] = [`start ${start}`, `eof ${eof ?? "-"}`];
   for (const token of tokenizer.tokens) {
     // A break ends a statement wherever it stands and whatever it says.
     if (token.kind === "break") {
@@ -3536,7 +3547,7 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
     previous = token;
   }
   tokenizer.tokens.length = 0;
-  tokenizer.tokens.push(...tokens);
+  appendAll(tokenizer.tokens, tokens);
 }
 
 /** Where the first text the tree reads as story begins between two offsets, if any does. */
@@ -3749,7 +3760,7 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
   if (fileEnd !== undefined) {
     const inFile = tokenizer.tokens.filter((token) => token.from < fileEnd);
     tokenizer.tokens.length = 0;
-    tokenizer.tokens.push(...inFile);
+    appendAll(tokenizer.tokens, inFile);
   }
   return readUnit("file", tokenizer, nodes, 1, new Position(index.lineAt(body.from) + 1, 0), options, fileEnd);
 }

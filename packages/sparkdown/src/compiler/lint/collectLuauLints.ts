@@ -12,10 +12,10 @@
 // unused local depends on every later line of its block).
 //
 // The rules about locals and reachability read the Luau functions a script
-// defines (`function f()`, wherever it is written): a top-level local can be
-// read from interpolated text or later narrative the rules cannot scope. A
-// function with a block missing its `end` is left alone, since its AST does
-// not show what the author wrote. The rules about conditions and loop ranges
+// defines (`function f()`, wherever it is written, and function values): a
+// local outside a function can be read from interpolated text or later
+// narrative the rules cannot scope. A function with a block missing its
+// `end` is left alone, since its AST does not show what the author wrote. The rules about conditions and loop ranges
 // read every Luau `if`, `if` expression, `and`/`or` chain and numeric `for`,
 // but not Sparkdown's narrative `if` block around dialogue.
 
@@ -51,7 +51,6 @@ import {
   AstStatFunction,
   AstStatIf,
   AstStatLocal,
-  AstStatLocalFunction,
   AstStatRepeat,
   AstStatReturn,
   AstStatWhile,
@@ -121,12 +120,6 @@ class Offsets {
 // ---------------------------------------------------------------------------
 // The functions a script defines
 
-/** The function a statement read from a function definition defines. */
-function definedFunction(stat: AstStat): AstExprFunction | undefined {
-  if (stat instanceof AstStatFunction || stat instanceof AstStatLocalFunction) return stat.func;
-  return undefined;
-}
-
 /** Whether every block in a function, its own body included, was read to its end. */
 function readToEnd(fn: AstExprFunction): boolean {
   let complete = true;
@@ -140,17 +133,23 @@ function readToEnd(fn: AstExprFunction): boolean {
 }
 
 /**
- * The Luau functions a script defines: the prelude's statements read from a
- * function definition, each with every block in it read to its `end`. A
- * block missing its `end` makes the reading take a later `end` as its own,
- * so the function does not hold what the author wrote in it.
+ * The Luau functions a unit's statements define, outermost first: function
+ * definitions (`function f()`, wherever written) and function values
+ * (`local f = function() end`, an argument, a table field), each with every
+ * block in it read to its `end`. A block missing its `end` makes the reading
+ * take a later `end` as its own, so the function does not hold what the
+ * author wrote in it. A function inside another is read with it.
  */
-function definedFunctions(prelude: LuauAstUnit): AstExprFunction[] {
+function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
   const functions: AstExprFunction[] = [];
-  for (const source of prelude.statements) {
-    if (source.nodes[0]?.name !== "LuauFunctionDefinition") continue;
-    const fn = definedFunction(source.statement);
-    if (fn && readToEnd(fn)) functions.push(fn);
+  for (const source of unit.statements) {
+    visitAst(source.statement, {
+      visit(node) {
+        if (!(node instanceof AstExprFunction)) return true;
+        if (readToEnd(node)) functions.push(node);
+        return false;
+      },
+    });
   }
   return functions;
 }
@@ -484,14 +483,13 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   const starts = lineStarts(text);
   const units = readDocumentUnits(tree, text);
   const out: LuauLint[] = [];
-  const preludeOffsets = new Offsets(starts, units.prelude.lines);
-  for (const fn of definedFunctions(units.prelude)) {
-    lintUnusedLocals(fn, tree, text, preludeOffsets, out);
-    lintPlaceholderReads(fn, preludeOffsets, out);
-    lintUnreachable(fn, preludeOffsets, out);
-  }
   for (const unit of [units.prelude, ...units.flows]) {
     const offsets = new Offsets(starts, unit.lines);
+    for (const fn of definedFunctions(unit)) {
+      lintUnusedLocals(fn, tree, text, offsets, out);
+      lintPlaceholderReads(fn, offsets, out);
+      lintUnreachable(fn, offsets, out);
+    }
     for (const stat of luauStatements(unit)) {
       lintDuplicateConditions(stat, offsets, out);
       lintForRanges(stat, offsets, out);

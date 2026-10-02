@@ -121,7 +121,7 @@ describe("incremental type checking", () => {
   test("an edit inside narrative between two Luau statements reuses the scene, whose warnings move with its lines", () => {
     // A unit is read in its own lines (#1286), so the scene's AST is the same
     // however many story lines stand between its statements, and whatever
-    // they say.
+    // they say, as the text-keyed cache before it guaranteed too.
     const session = new Session(
       BASE.replace("  & count = count + 1\n", "  & count = count + 1\n  Alpha stretches.\n").replace(
         'local label: string = greet("Alpha")',
@@ -137,6 +137,39 @@ describe("incremental type checking", () => {
     expect(back.warm).toEqual(back.cold);
     expect(back.warm.warnings).toEqual(["13:24-13:38 TypeMismatch: Expected this to be 'number', but got 'string'"]);
     expect(back.stats).toEqual({ checked: 0, reused: 3 });
+  });
+
+  test("an edit to a comment in a scene's Luau reuses the scene", () => {
+    // A unit's key is read from its tokens (#1286), and a comment other than
+    // a `--!` directive is no token, so it changes nothing the check reads.
+    const session = new Session(BASE.replace("  & count = count + 1\n", "  & count = count + 1 -- one more visit\n"));
+    const { warm, cold, stats } = session.edit("-- one more visit", "-- one more visit to the alpha room");
+    expect(warm).toEqual(cold);
+    expect(stats).toEqual({ checked: 0, reused: 3 });
+  });
+
+  test("lines added after a .luau file's last token move its end-of-input error, as a cold check places it", () => {
+    // The end of a `run` file's Luau is where an error at the end is placed,
+    // so it is part of the unit's key (#1286).
+    const uri = "inmemory:///snippet.luau";
+    const errors = (compiler: SparkdownCompiler) =>
+      (compiler.compile({ textDocument: { uri } }).program.diagnostics?.[uri] ?? [])
+        .filter((d) => d.code === "SyntaxError")
+        .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${typeof d.message === "string" ? d.message : d.message.value}`);
+    const configure = (text: string) => {
+      const compiler = new SparkdownCompiler();
+      compiler.configure({ files: [{ uri, type: "script", name: "snippet", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
+      return compiler;
+    };
+    const warm = configure("local x = t.");
+    expect(errors(warm)).toEqual(["0:12-0:12 Expected identifier, got <eof>"]);
+    warm.updateDocument({
+      textDocument: { uri, version: 2 },
+      contentChanges: [{ range: { start: { line: 0, character: 12 }, end: { line: 0, character: 12 } }, text: "\n\n" }],
+    });
+    const after = errors(warm);
+    expect(after).toEqual(errors(configure("local x = t.\n\n")));
+    expect(after).not.toEqual(["0:12-0:12 Expected identifier, got <eof>"]);
   });
 
   test("an edit outside the Luau reuses every scope", () => {
