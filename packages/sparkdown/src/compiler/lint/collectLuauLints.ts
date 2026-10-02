@@ -275,7 +275,7 @@ function keywordUse(tree: Tree, text: string, from: number, to: number, name: st
 // A read of `_`, whether it names a local or a global. A plain write is the
 // placeholder's purpose; a compound write (`_ += 1`) also reads it.
 function lintPlaceholderReads(fn: AstExprFunction, offsets: Offsets, out: LuauLint[]): void {
-  const isPlaceholder = (expr: AstExpr) => (expr instanceof AstExprLocal && expr.local.name === "_") || (expr instanceof AstExprGlobal && expr.name === "_");
+  const isPlaceholder = (expr: AstExpr) => (expr instanceof AstExprLocal && expr.local.name === "_") || (expr instanceof AstExprGlobal && expr.name === "_"); // not a node name
   visitAst(fn, {
     visit(node) {
       if (node instanceof AstStatAssign) {
