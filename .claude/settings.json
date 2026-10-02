@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Write(../impower.review-jobs/**)",
-      "PowerShell(Start-Process node *agent-handoff.mjs*)"
+      "PowerShell(Start-Process node *agent-handoff.mjs*)",
+      "Edit(../impower.review-jobs/**)",
+      "Bash(node scripts/agent-handoff.mjs *)",
+      "Bash(node scripts/reviewer-defaults.mjs *)",
+      "Bash(node scripts/build-review-prompt.mjs *)"
+
     ]
   },
   "hooks": {
