@@ -6,8 +6,9 @@
       "Edit(../impower.review-jobs/**)",
       "Bash(node scripts/agent-handoff.mjs *)",
       "Bash(node scripts/reviewer-defaults.mjs *)",
-      "Bash(node scripts/build-review-prompt.mjs *)"
-
+      "Bash(node scripts/build-review-prompt.mjs *)",
+      "Agent",
+      "SendMessage"
     ]
   },
   "hooks": {
