@@ -19,11 +19,19 @@
 > `sparkle-screen-renderer` package, the `screen` structural-overlay builtin style, CSS
 > `@screen-size`/`@container`.)
 
+> **Brace bodies ([#1222](https://github.com/ImpowerGames/impower/issues/1222)).** Bodies
+> no longer nest by indentation. An element's children, a style's nested rules and an
+> animation's keyframes go in `{ … }` blocks whose entries are separated by a newline or
+> `;`, and a class is written with a dot (`button.primary`). Section 4.1's indentation
+> rule, decision D1 (the trailing `:`) and section 4.2's class rule are marked
+> **SUPERSEDED** where they stand, and the examples are written in the brace form. The
+> author-facing guide is `packages/sparkdown/docs/guide/`.
+
 ---
 
 ## 1. Goal & principles
 
-Authors describe UI as a readable, indented outline; the engine keeps it in sync with
+Authors describe UI as a readable outline of nested blocks; the engine keeps it in sync with
 game state automatically. From the existing Sparkle docs, the promises we are committing to:
 
 - **Interpolation auto-updates:** `text "You have {player.hp} HP"` re-renders whenever
@@ -108,44 +116,61 @@ theme     NAME with … end
   builtin root (`as button`, `as layout`).
 - `layout … in SCREEN` puts the layout in an explicit navigation group (the `screen`); see
   the terminology note above. The navigation behaviour is out of scope for this reactive spec.
-- Body indentation is significant and preserved by the formatter.
+- ~~Body indentation is significant and preserved by the formatter.~~
+  **SUPERSEDED ([#1222](https://github.com/ImpowerGames/impower/issues/1222)):** bodies
+  nest by `{ … }` blocks, and indentation is only layout. The formatter indents each line
+  by its block depth.
 
-### 4.2 Element lines
+### 4.2 Elements
 
-The atom of a `layout`/`component` body is an **element line**:
+The atom of a `layout`/`component` body is an **element**:
 
 ```
-<tag>[ class[ class…]] [ "content {interp}" ] [ #prop=value … ] [ @event=handler … ] [:]
+<tag>[.class[.class…]] [ "content {interp}" ] [ #prop=value … ] [ @event=handler … ] [ { children } ]
 ```
 
 - **`tag`** — a builtin (`text`, `button`, `row`, `image`, …; §7) or an authored
   `component`. A bare authored component name renders that component (`my_card` ≡ `my_card()`).
-- **`class`** — space-separated CSS classes that `style` blocks target (`button primary large`).
-  Classes are bare words after the tag (not dot-prefixed): `button primary`, `text title`.
+  Any other name makes a plain container named after it (`stage { … }`).
+- **`class`** — CSS classes that `style` blocks target (`button.primary.large`).
+  ~~Classes are bare words after the tag (not dot-prefixed): `button primary`, `text title`.~~
+  **SUPERSEDED ([#1222](https://github.com/ImpowerGames/impower/issues/1222)):** each class
+  is written with a dot after the tag: `button.primary`, `row.hud`.
   Tag-as-class: the tag name is itself a class, so `style button with …` styles every button.
 - **`"content"`** — quoted text content (for text-like elements) or `src`/value for
-  `image`/`mask`. May contain `{interp}` (§4.4). Exactly one content string per line.
+  `image`/`mask`. May contain `{interp}` (§4.4). Exactly one content string per element.
 - **`#prop=value`** — an inline style/attribute (the inline equivalent of a `style` rule).
   `value` is a literal, a `"quoted string"`, or `{expr}` for a dynamic value.
 - **`@event=handler`** — an event binding (§4.5).
-- **trailing `:`** — opens a child block; children are the more-indented lines below.
-  Leaf elements omit the `:`.
+- ~~**trailing `:`** — opens a child block; children are the more-indented lines below.
+  Leaf elements omit the `:`.~~ **SUPERSEDED
+  ([#1222](https://github.com/ImpowerGames/impower/issues/1222)):** **`{ children }`** — a
+  block after the element holds its children, separated by a newline or `;`
+  (`title { stroke; text }`). An optional `=` may precede the `{`. Leaf elements have no
+  block. An element's parts may continue on later lines that start with `.`, `#`, `@` or a
+  quote, its `{` may stand on a line of its own, and an inline closure may span lines.
 
 > **[DECISION D1] Container delimiter.** Two consistent options for "this element has
 > children": **(a)** trailing `:` (matches the current `.sd` fixtures and the old docs,
 > explicit, already formatter-friendly), or **(b)** pure indentation, no colon (a recorded
 > earlier preference: "nest by indentation only"). **Recommend (a)** — the `:` is cheap,
 > disambiguates leaf vs container locally, and is already what real fixtures use.
+>
+> **SUPERSEDED ([#1222](https://github.com/ImpowerGames/impower/issues/1222)):** neither
+> option. Children go in a `{ … }` block after the element, so a line's meaning never
+> depends on its indentation.
 
 Example:
 
 ```
 layout inventory with
-  column panel #gap=16:
-    text title "Inventory"
-    row:
-      button "Use"  @click=use_item
+  column.panel #gap=16 {
+    text.headline "Inventory"
+    row {
+      button "Use" @click=use_item
       button "Drop" @click=drop_item
+    }
+  }
 end
 ```
 
@@ -156,16 +181,17 @@ dialogue/stage pattern the production `ui.sd` uses):
 
 ```
 layout main with
-  stage:
-    backdrop:
-      image "black"
-    portrait:
-      mask shadow_1
+  stage {
+    backdrop { image "black" }
+    portrait {
+      mask.shadow_1
       image
+    }
+  }
 end
 ```
 
-`stage` / `backdrop` / `portrait` are builtin structural styles (§7). `mask shadow_1` is a
+`stage` / `backdrop` / `portrait` are builtin structural styles (§7). `mask.shadow_1` is a
 `mask` element carrying class `shadow_1`. `image "black"` is an `image` whose source is
 `black`.
 
@@ -183,8 +209,8 @@ end
 
 ```
 text "Level {player.level} — {player.hp}/{player.max_hp} HP"
-image  src={player.portrait}
-row    #background-color={team_color}
+image #src={player.portrait}
+row #background-color={team_color}
 ```
 
 - The braces' contents are compiled as a Luau expression and re-evaluated when any state it
@@ -207,10 +233,10 @@ row    #background-color={team_color}
 ### 4.5 Events
 
 ```
-button "Save"   @click=save                      # named function
-button "Hit"    @click=take_damage(10)           # call with arguments
-button "Reset"  @click={ score = 0; combo = 0 }  # inline closure (statements)
-field           @input={ name = event.value }    # closure reading the event
+button "Save" @click=save -- named function
+button "Hit" @click=take_damage(10) -- call with arguments
+button "Reset" @click={ score = 0; combo = 0 } -- inline closure (statements)
+field @input={ name = event.value } -- closure reading the event
 ```
 
 - **Handler forms** (per L7): a bare function name, a call `fn(args)`, or an inline
@@ -233,26 +259,27 @@ model spans function bodies and UI:
 if player.dead then
   text "GAME OVER"
 elseif player.hp < 10 then
-  text warning "Low health!"
+  text.warning "Low health!"
 else
   text "HP: {player.hp}"
 end
 
 for item in player.inventory do
-  row:
+  row {
     text "{item.name}"
     button "Use" @click={ use_item(item) }
+  }
 else
   text "Your bag is empty."
 end
 
 match player.class do
-case "knight"
-  text "⚔ Knight"
-case "mage"
-  text "✦ Mage"
-else
-  text "Adventurer"
+  case "knight"
+    text "⚔ Knight"
+  case "mage"
+    text "✦ Mage"
+  else
+    text "Adventurer"
 end
 ```
 
@@ -275,30 +302,34 @@ end
 
 ```
 component stat_row(label, value) with
-  row stat:
-    text label "{label}"
-    text value "{value}"
+  row.stat {
+    text.label "{label}"
+    text.value "{value}"
+  }
 end
 
 component card(title) with
-  box card:
-    text card_title "{title}"
-    slot            # default slot: where children passed to <card> land
-    slot footer     # named slot
+  box.card {
+    text.card_title "{title}"
+    slot -- default slot: where children passed to <card> land
+    slot footer -- named slot
+  }
 end
 
 layout sheet with
-  card "Inventory":
-    text "10 / 20 slots"      # fills the default slot
-    fill footer:
+  card("Inventory") {
+    text "10 / 20 slots" -- fills the default slot
+    fill footer {
       button "Sort" @click=sort_bag
+    }
+  }
 end
 ```
 
 - **Parameters** `component name(p1, p2)` are in scope inside the body as reactive values.
-- **`slot [name]`** marks where caller-provided children render. **`fill [name]`** (caller
-  side) targets a named slot; unnamed children fill the default slot. Unmatched fills emit a
-  diagnostic (the prototype silently dropped them).
+- **`slot [name]`** marks where caller-provided children render. **`fill [name] { … }`**
+  (caller side) targets a named slot; unnamed children in the caller's block fill the default
+  slot. Unmatched fills emit a diagnostic (the prototype silently dropped them).
 
 ### 4.8 `style`, `animation`, `theme`
 
@@ -307,15 +338,20 @@ end
 ```
 style dialogue with
   height = 100%
-  @screen-size(sm):
-    width = 100%
-  > text:
+  @screen-size(sm) { width = 100% }
+  > text {
     color = black
     font-size = 3cqh
+  }
+  > text.headline { font-size = 4cqh }
 end
 ```
 
-- `key = value` properties; `> selector:` nested rules; `@pseudo`/`@breakpoint:` directives.
+- `key = value` properties; `> selector { … }` nested rules, with a selector's classes
+  written with a dot (`> text.headline`, `&.secondary`); `@pseudo { … }` /
+  `@breakpoint { … }` directives. (Before
+  [#1222](https://github.com/ImpowerGames/impower/issues/1222) these were `selector:` headers
+  over indented lines.)
 - Selectors, pseudo-aliases (`@hovered`→`:hover`), breakpoints, and `prop→CSS` come from
   `spark-dom`/`sparkle-style-transformer` (§7).
 - Style values are evaluated **once** at compile/first-render (they rarely change per frame).
@@ -686,7 +722,10 @@ The lowerer (rewritten from scratch, L5) must:
 1. Parse element lines, control flow, slots via **new grammar rules** (replace the
    unreachable `LuauUIAttribute`/`LuauUIContent` rules; `LuauUIElement` was removed in #1277;
    add `if/for/match/slot/fill`).
-   Preserve `LuauStructBodyLine`'s leading-indent capture the formatter relies on.
+   Preserve `LuauStructBodyLine`'s leading-indent capture the formatter relies on. (Since
+   [#1222](https://github.com/ImpowerGames/impower/issues/1222), brace bodies are read by
+   `LuauSparkleBlockLine` and `LuauStructBlockLine`, and the formatter indents them by
+   block depth.)
 2. Produce the typed AST (§6).
 3. Compile every `{expr}`, condition, iterable, `case` value, and `@event` handler into a
    Luau expression/closure (reuse the working display-text path
@@ -703,41 +742,46 @@ The lowerer (rewritten from scratch, L5) must:
 **HUD (interpolation):**
 ```
 layout hud with
-  row hud #gap=12:
+  row.hud #gap=12 {
     text "❤ {player.hp}/{player.max_hp}"
     text "⛀ {player.gold}"
+  }
 end
 ```
 
 **Settings (events + form controls, one-way):**
 ```
 layout settings with
-  column menu #gap=16:
-    text title "Settings"
-    slider   "Master Volume" #min=0 #max=100 value={volume} @input={ volume = event.value }
-    checkbox "Mute Music" checked={music_muted} @change={ music_muted = event.checked }
-    row #gap=16 #child-justify=space-between:
-      button "Back"  @click=go_back
+  column.menu #gap=16 {
+    text.headline "Settings"
+    slider "Master Volume" #min=0 #max=100 #value={volume} @input={ volume = event.value }
+    checkbox "Mute Music" #checked={music_muted} @change={ music_muted = event.checked }
+    row #gap=16 #child-justify=space-between {
+      button "Back" @click=go_back
       button "Apply" @click=save_settings
+    }
+  }
 end
 ```
 
 **Inventory (control flow + keyed list):**
 ```
 layout inventory with
-  column panel #gap=8:
-    text title "Inventory"
+  column.panel #gap=8 {
+    text.headline "Inventory"
     for item in player.bag do
-      row item:
-        image src={item.icon} #width=32 #height=32
+      row.item {
+        image #src={item.icon} #width=32 #height=32
         text "{item.name}"
         if item.equipped then
-          text tag "(equipped)"
+          text.tag "(equipped)"
         end
         button "Use" @click={ use_item(item) }
+      }
     else
-      text empty "Your bag is empty."
+      text.empty "Your bag is empty."
     end
+  }
 end
 ```
 
@@ -747,7 +791,7 @@ end
 
 | ID | Decision | Recommendation |
 |----|----------|----------------|
-| D1 | Container child delimiter | trailing `:` |
+| D1 | Container child delimiter | ~~trailing `:`~~ SUPERSEDED by [#1222](https://github.com/ImpowerGames/impower/issues/1222): a `{ … }` block (§4.2) |
 | D2 | Content delimiter `tag "x"` vs `tag = "x"` | adjacency `tag "x"` (re-migrates ui.sd) |
 | D3 | `{…}` reactive, `{{`/`}}` literal | `{…}` reactive stands; literal half SUPERSEDED by the `{{fn}}` call shorthand (issue #223) — escape is `\{`/`\}` (§4.4) |
 | D4 | First-class event set | click/input/change/submit/focus/blur/keydown |
@@ -773,8 +817,10 @@ end
 - **[DIVERGES]** Content via adjacency (D2) re-migrates `ui.sd` element content from
   `image = "x"` to `image "x"`. Scriptable via the existing migration pipeline.
 - **[DIVERGES]** Element bodies stop being opaque `LuauStructBodyLine` text and gain real
-  grammar nodes. The formatter must keep treating these blocks as indentation-significant;
-  UI format snapshots (`layout-tree`/`component-tree`/`style-block`) will change.
+  grammar nodes. ~~The formatter must keep treating these blocks as indentation-significant;~~
+  **SUPERSEDED ([#1222](https://github.com/ImpowerGames/impower/issues/1222)):** bodies nest
+  by `{ … }` blocks and the formatter indents them by block depth. UI format snapshots
+  (`layout-tree`/`component-tree`/`style-block`) will change.
 - **Delete, don't fork:** remove the prototype's `css.ts` (a byte-for-byte fork of
   `getCSSSelector`); import from `spark-dom`. Kill the dead `populateUI`/`program.ui`/
   `VIEW_DEFINE_TYPES` bridge (never populated) or repurpose it for the new AST.
