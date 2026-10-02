@@ -5947,6 +5947,21 @@ repository:
   # `;` or the block's `}` (`STRUCT_BLOCK_VALUE`). A value that would start
   # with `{` is the block form `name = { … }`, so the rule leaves it to
   # `LuauStructBlock`.
+  #
+  # lookaround: `(?!{{WS}}*[{])` steps aside for `LuauStructBlock`
+  # (`timing = { … }`) and, in a layout body (`LuauSparkleBlockEntries`),
+  # `LuauSparkleElement` (`row = { … }`). Without it the property reads
+  # `name =` with an empty value and the braces become a list block
+  # (fixtures struct/animation-brace-keyframes and
+  # sparkle/layout-brace-blocks). Reordering does not replace it: in a
+  # struct body `LuauStructBlock` could go after
+  # `LuauStructBlockIndentedHeader` and before the property only if
+  # `STRUCT_BLOCK_HEADER` also stopped at `=` (else it reads
+  # `a = 1, b { … }` as one header), and in a layout body the element must
+  # come after the property so `image = "black"` stays a property, which
+  # leaves `row = { … }` to this rule. The value may be empty while an
+  # author types (`key =`), so the value variable cannot refuse the brace,
+  # and a property is a match, so no end can carry it.
   LuauStructBlockProperty:
     match: ({{STRUCT_BLOCK_PROPERTY_KEY}})({{ASSIGN_EQUAL_OPERATOR}})(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)({{WS}}*[/][/][^\n]*)?
     captures:
