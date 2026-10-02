@@ -58,3 +58,21 @@ describe("the arms of an if", () => {
     ]);
   });
 });
+
+// A type name, or a structural word the grammar reads as a keyword
+// (`style`), uses the local it names only where that local is in scope,
+// and names the innermost one, as Luau binds a name.
+describe("the local a type name or a structural word names", () => {
+  test.each([
+    ["a type name after the local's block has closed", "function f()\n  do\n    local number = 1\n  end\n  local x: number = 2\n  return x\nend\n", ["2:10 LocalUnused"]],
+    [
+      "a type name that an inner local of the same name shadows",
+      "function f()\n  local number = 1\n  do\n    local number = 2\n    local x: number = 3\n    return x\n  end\nend\n",
+      ["1:8 LocalUnused"],
+    ],
+    ["a structural word after the local's block has closed", "function f()\n  do\n    local style = {}\n  end\n  setStyle(style)\nend\n", ["2:10 LocalUnused"]],
+    ["a type name in the local's scope", "function f()\n  local number = 1\n  local x: number = 2\n  return x\nend\n", []],
+  ])("%s", (_name, source, expected) => {
+    expect(functionLints(source).filter((lint) => lint.endsWith("LocalUnused"))).toEqual(expected);
+  });
+});

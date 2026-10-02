@@ -100,6 +100,8 @@ describe("Sparkdown's own expressions in a repeated condition", () => {
       ["3:9 DuplicateCondition"],
     ],
     ["different interpolations", "store x = 1\n& print(\"{x}\" or \"{x} \")\n", []],
+    ["a regular expression in an interpolation", "Hi {@/x/g or @/x/g}.\n", ["0:13 DuplicateCondition"]],
+    ["a divert target in an interpolation", "Hi {-> elsewhere or -> elsewhere}.\nscene elsewhere\n  fin\nend\n", ["0:20 DuplicateCondition"]],
   ])("%s", (_name, source, expected) => {
     expect(conditionLints(source)).toEqual(expected);
   });

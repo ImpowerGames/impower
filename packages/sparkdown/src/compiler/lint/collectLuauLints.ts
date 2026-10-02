@@ -63,6 +63,7 @@ import {
   AstStatFunction,
   AstStatIf,
   AstStatLocal,
+  AstStatLocalFunction,
   AstStatRepeat,
   AstStatReturn,
   AstStatWhile,
@@ -191,6 +192,9 @@ function isOpaque(node: SyntaxNode): boolean {
 
 /** Whether a node ends a run of an expression's parts: a keyword, an operator of assignment, a separator, a bracket. */
 function endsExpression(node: SyntaxNode, text: string): boolean {
+  // One of Sparkdown's own expressions (a divert target, a regular
+  // expression, an alternator) is one operand, which the reading takes whole.
+  if (SPARKDOWN_EXPRESSIONS.has(node.name)) return false;
   if (isOpaque(node) || BEGIN_OR_END.test(node.name)) return true;
   if (/Keyword$|Separator$/.test(node.name) || node.name === "LuauAssignmentOperator") return true;
   return node.name.startsWith("Punctuation") && /[,;]/.test(text.slice(node.from, node.to));
@@ -383,43 +387,91 @@ function lintUnreachable(fn: AstExprFunction, offsets: Offsets, out: LuauLint[])
 // reads some names as Sparkdown's structural words (`style`, `layout`,
 // `match`) even where the author meant a name (`setStyle(style)`), where the
 // reading has no name, so such a word counts as a use of the local it names
-// (`keywordUse`, #984), and a use is never missed.
+// (`keywordWords`, #984), and a use is never missed. A type name or such a
+// word names the local of that name whose scope it stands in, the one
+// declared last, as Luau binds a name.
 function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[]): void {
   const declared: AstLocal[] = [];
   const used = new Set<AstLocal>();
-  const typeNames: { name: string; at: Position }[] = [];
+  const typeNames: { name: string; at: number }[] = [];
+  // Every name the function and the functions in it declare, where it can be named (document offsets).
+  const bindings: { local: AstLocal; from: number; to: number }[] = [];
+  const blocks: { from: number; to: number }[] = [];
+  const declaredStatements: { stat: AstStat; locals: AstLocal[]; from: number }[] = [];
+  const bindBody = (locals: AstLocal[], body: AstStatBlock) => {
+    for (const local of locals) bindings.push({ local, from: offsets.of(body.location.begin), to: offsets.of(body.location.end) });
+  };
   visitAst(fn, {
     visit(node) {
+      if (node instanceof AstStatBlock) blocks.push({ from: offsets.of(node.location.begin), to: offsets.of(node.location.end) });
+      if (node instanceof AstExprFunction) bindBody([...(node.self ? [node.self] : []), ...node.args], node.body);
+      else if (node instanceof AstStatFor) bindBody([node.variable], node.body);
+      else if (node instanceof AstStatForIn) bindBody(node.vars, node.body);
+      else if (node instanceof AstStatLocalFunction) declaredStatements.push({ stat: node, locals: [node.name], from: offsets.of(node.location.begin) });
       // A `const` declares a global constant in Sparkdown, not a local.
-      if (node instanceof AstStatLocal && !node.isConst) declared.push(...node.vars);
-      else if (node instanceof AstStatAssign) {
+      if (node instanceof AstStatLocal && !node.isConst) {
+        declared.push(...node.vars);
+        declaredStatements.push({ stat: node, locals: node.vars, from: offsets.of(node.location.end) });
+      } else if (node instanceof AstStatAssign) {
         // The targets themselves are written, not read; what they index is read.
         for (const target of node.vars) if (!(target instanceof AstExprLocal)) visitAst(target, this);
         for (const value of node.values) visitAst(value, this);
         return false;
       } else if (node instanceof AstExprLocal) used.add(node.local);
       else if (node instanceof AstTypeReference) {
-        typeNames.push({ name: node.prefix ?? node.name, at: node.location.begin });
+        typeNames.push({ name: node.prefix ?? node.name, at: offsets.of(node.location.begin) });
       }
       return true;
     },
   });
+  // A local statement's names can be named to the end of the innermost block that holds it.
+  for (const { stat, locals, from } of declaredStatements) {
+    const at = offsets.of(stat.location.begin);
+    let to = offsets.of(fn.location.end);
+    let innermost = -1;
+    for (const block of blocks) {
+      if (block.from <= at && offsets.of(stat.location.end) <= block.to && block.from >= innermost) {
+        innermost = block.from;
+        to = block.to;
+      }
+    }
+    for (const local of locals) bindings.push({ local, from, to });
+  }
+  /** The local a name at an offset names: the one of that name, in scope there, declared last. */
+  const resolve = (name: string, at: number): AstLocal | undefined => {
+    let found: { local: AstLocal; from: number } | undefined;
+    for (const binding of bindings) {
+      if (binding.local.name !== name || binding.from > at || at > binding.to) continue;
+      if (!found || binding.from >= found.from) found = binding;
+    }
+    return found?.local;
+  };
+  const names = new Set(declared.map((local) => local.name));
+  for (const { name, at } of typeNames) {
+    const local = names.has(name) ? resolve(name, at) : undefined;
+    if (local) used.add(local);
+  }
+  for (const { name, at } of keywordWords(tree, text, offsets.of(fn.location.begin), offsets.of(fn.location.end), names)) {
+    const local = resolve(name, at);
+    if (local) used.add(local);
+  }
   for (const local of declared) {
     if (local.name.startsWith("_") || used.has(local)) continue;
-    if (typeNames.some((t) => t.name === local.name && local.location.begin.lt(t.at))) continue;
-    if (keywordUse(tree, text, offsets.of(local.location.end), offsets.of(fn.location.end), local.name)) continue;
     out.push({ code: "LocalUnused", ...offsets.range(local.location), message: `Variable '${local.name}' is never used; prefix with '_' to silence` });
   }
 }
 
-/** Whether the tree marks a word that spells `name`, between two offsets, as one of Sparkdown's keywords. */
-function keywordUse(tree: Tree, text: string, from: number, to: number, name: string): boolean {
+/** The words between two offsets that spell one of `names` and that the tree marks as one of Sparkdown's keywords. */
+function keywordWords(tree: Tree, text: string, from: number, to: number, names: Set<string>): { name: string; at: number }[] {
+  const found: { name: string; at: number }[] = [];
+  if (names.size === 0) return found;
   const word = /[A-Za-z_][A-Za-z0-9_]*/g;
   for (const match of text.slice(from, to).matchAll(word)) {
-    if (match[0] !== name) continue;
-    if (tree.resolveInner(from + match.index, 1).name.endsWith("Keyword")) return true;
+    if (!names.has(match[0])) continue;
+    const at = from + match.index;
+    if (tree.resolveInner(at, 1).name.endsWith("Keyword")) found.push({ name: match[0], at });
   }
-  return false;
+  return found;
 }
 
 // ---------------------------------------------------------------------------
