@@ -1,7 +1,8 @@
 // Sparkdown-specific: the rules that read a function's locals and
 // reachability (LocalUnused, PlaceholderRead, UnreachableCode) read every
 // Luau function a script holds, a function value as well as a function
-// definition, wherever it is written (in a `define` too), and each once;
+// definition, wherever it is written (in a `define` too, a method
+// included), and each once;
 // and, as Luau's linter does, both arms of an `if` for unreachable code. The
 // rules are implemented in `compiler/lint/collectLuauLints.ts`.
 
@@ -41,6 +42,12 @@ describe("the functions the rules read", () => {
       "2:10 LocalUnused",
       "3:11 PlaceholderRead",
     ]);
+  });
+
+  // A method is a function whose `function` Sparkdown leaves implicit; the
+  // tree lints did not read it as one.
+  test("a method in a define", () => {
+    expect(functionLints("define hero as character with\n  greet(): number\n    local u = 1\n    return 1\n  end\nend\nHi.\n")).toEqual(["2:10 LocalUnused"]);
   });
 });
 

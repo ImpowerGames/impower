@@ -12,9 +12,11 @@
 // unused local depends on every later line of its block).
 //
 // The rules read the Luau of the units the checker reads and the Luau
-// expressions outside them, in Sparkdown's own text and constructs: an
-// interpolation (`{a and b}`, in a line or a choice) and a property's value
-// in a `define`. The rules about locals and reachability read the Luau
+// expressions outside them, in Sparkdown's own text and constructs (an
+// interpolation or call shorthand, a divert's arguments, an alternator's
+// selector, a Sparkle handler, a `define`'s values and methods), wherever
+// the tree marks a chain, an `if` expression or a function, as the tree
+// lints found them. The rules about locals and reachability read the Luau
 // functions a script defines (`function f()`, wherever it is written, and
 // function values): a local outside a function can be read from
 // interpolated text or later narrative the rules cannot scope. A function
@@ -71,7 +73,7 @@ import { doesCallError } from "../typecheck/DataFlowGraph";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
-import { readLuauExpression, type LuauAstUnit } from "../typecheck/readLuauAst";
+import { readLuauExpression, readLuauMethod, type LuauAstUnit } from "../typecheck/readLuauAst";
 
 /** The rules, by the name each warning carries as its diagnostic code. */
 export const LUAU_LINT_CODES = [
@@ -163,73 +165,114 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
   return functions;
 }
 
-// The words of the constructs the rules read in an expression: a chain, an
-// `if` expression and a function value. An expression without one holds
-// nothing to lint and is not read.
-const LINTED_WORD = /\b(and|or|if|function)\b/;
+// The nodes that mark Luau the rules read inside an expression: an
+// `and`/`or` chain, an `if` expression, a function value and a method in a
+// `define`, whose `function` Sparkdown leaves implicit.
+const LINTED_NODES = new Set(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition"]);
 
-// The nodes that hold a Luau expression no unit may read.
-const EXPRESSION_HOLDERS = new Set(["LuauInterpolatedStringExpression", "LuauAssignmentOperation", "LuauFunctionDefinition"]);
+// The wrappers around a binary operation's operator and operand, which the
+// tree nests inside the list of its operands.
+const OPERATION = /^Luau\w*Operation(_content)?$/;
+
+// The grammar's nodes for a rule's begin and end and their captures.
+const BEGIN_OR_END = /_(begin|end)(_c\d+)*$/;
+
+/** Whether the reading of the tree passes over a node: narrative text, or one of Sparkdown's own constructs or expressions (see `readLuauAst.ts`). */
+function isOpaque(node: SyntaxNode): boolean {
+  if (SPARKDOWN_ONLY.has(node.name) || SPARKDOWN_EXPRESSIONS.has(node.name)) return true;
+  return !node.name.startsWith("Luau") && !NEUTRAL.test(node.name);
+}
+
+/** Whether a node ends a run of an expression's parts: a keyword, an operator of assignment, a separator, a bracket. */
+function endsExpression(node: SyntaxNode, text: string): boolean {
+  if (isOpaque(node) || BEGIN_OR_END.test(node.name)) return true;
+  if (/Keyword$|Separator$/.test(node.name) || node.name === "LuauAssignmentOperator") return true;
+  return node.name.startsWith("Punctuation") && /[,;]/.test(text.slice(node.from, node.to));
+}
 
 /**
- * The Luau expressions no unit reads, in Sparkdown's own text and
- * constructs, outside the units' statements or inside what their reading
- * passes over: an interpolation's (`{a and b}`, in a line, a choice or a
- * line inside a narrative `if`) and a property value's in a `define`
- * (`v = a or b`), and a function value anywhere else. Each is read on its
- * own (`readLuauExpression`), located in the document's lines.
+ * The parts of the expression a node is one of, among the children of the
+ * node that lists them (`a`, `and a` in `{a and a}`; an argument in a call's
+ * parameters; the value after a `define` property's `=`).
+ */
+function expressionAround(node: SyntaxNode, text: string): SyntaxNode[] {
+  let part = node;
+  let list = node.parent;
+  while (list && OPERATION.test(list.name) && !list.name.startsWith("LuauAssignmentOperation")) {
+    part = list;
+    list = list.parent;
+  }
+  if (!list) return [part];
+  const children: SyntaxNode[] = [];
+  for (let child = list.firstChild; child; child = child.nextSibling) children.push(child);
+  const at = children.findIndex((child) => child.from === part.from && child.to === part.to && child.name === part.name);
+  let first = at;
+  let last = at;
+  while (first > 0 && !endsExpression(children[first - 1]!, text)) first--;
+  while (last < children.length - 1 && !endsExpression(children[last + 1]!, text)) last++;
+  while (first < at && NEUTRAL.test(children[first]!.name)) first++;
+  while (last > at && NEUTRAL.test(children[last]!.name)) last--;
+  return children.slice(first, last + 1);
+}
+
+/**
+ * The Luau no unit reads, in Sparkdown's own text and constructs, outside
+ * the units' statements or inside what their reading passes over: an
+ * interpolation (`{a and b}`, `{{f(a or b)}}`, in a line, a choice or a
+ * line inside a narrative `if`), a property's value or a method in a
+ * `define`, a divert's arguments, the condition of a choice or an
+ * alternator, a Sparkle handler. Each expression that holds a chain, an
+ * `if` expression or a function value is read on its own
+ * (`readLuauExpression`, `readLuauMethod`), located in the document's
+ * lines; one inside another that reads it is not read again.
  */
 function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[]): AstExpr[] {
   const key = (node: { name: string; from: number; to: number }) => `${node.from}:${node.to}:${node.name}`;
   const statementNodes = new Set(units.flatMap((unit) => unit.statements.flatMap((source) => source.nodes.map(key))));
-  // Whether a unit reads the node: it is in a unit's statement, and nothing
-  // between them is a node the reading passes over (narrative text, one of
-  // Sparkdown's own constructs or expressions; see `readLuauAst.ts`).
-  const isCovered = (node: SyntaxNode) => {
-    for (let at: SyntaxNode | null = node; at; at = at.parent) {
-      if (statementNodes.has(key(at))) return true;
-      if (SPARKDOWN_ONLY.has(at.name) || SPARKDOWN_EXPRESSIONS.has(at.name)) return false;
-      if (!at.name.startsWith("Luau") && !NEUTRAL.test(at.name)) return false;
+  /** The nearest node above `node` that a unit's reading passes over, or null when a unit's statement reads it. */
+  const opaqueAbove = (node: SyntaxNode): SyntaxNode | null | undefined => {
+    for (let at = node.parent; at; at = at.parent) {
+      if (statementNodes.has(key(at))) return null;
+      if (isOpaque(at)) return at;
     }
-    return false;
+    return undefined;
   };
-  const expressions: AstExpr[] = [];
-  const read = (nodes: SyntaxNode[]) => {
-    if (nodes.length === 0 || !LINTED_WORD.test(text.slice(nodes[0]!.from, nodes[nodes.length - 1]!.to))) return;
-    expressions.push(readLuauExpression(nodes, text).expr);
-  };
+  interface Reading {
+    from: number;
+    to: number;
+    /** Where the nearest node above it that the reading passes over begins; -1 at the top of the document. */
+    context: number;
+    read: () => AstExpr;
+  }
+  const readings: Reading[] = [];
   tree.iterate({
-    enter(node) {
-      if (!EXPRESSION_HOLDERS.has(node.name)) return true;
-      // A unit reads it, but perhaps not a construct inside it the reading passes over.
-      if (isCovered(node.node)) return true;
-      if (node.name === "LuauInterpolatedStringExpression") {
-        // Between the braces.
-        read(childrenOf(node.node).slice(1, -1));
-        return false;
-      }
-      if (node.name === "LuauAssignmentOperation") {
-        // The value, after the `=`.
-        const content = childrenOf(node.node).find((child) => child.name === "LuauAssignmentOperation_content");
-        const parts = content ? childrenOf(content) : [];
-        read(parts.slice(parts.findIndex((child) => child.name === "LuauAssignmentOperator") + 1));
-        return false;
-      }
-      if (node.name === "LuauFunctionDefinition") {
-        read([node.node]);
-        return false;
+    enter(ref) {
+      if (!LINTED_NODES.has(ref.name)) return true;
+      const node = ref.node;
+      if (statementNodes.has(key(node))) return true;
+      const above = opaqueAbove(node);
+      if (above === null) return true;
+      const context = above ? above.from : -1;
+      if (ref.name === "LuauMethodDefinition") {
+        readings.push({ from: node.from, to: node.to, context, read: () => readLuauMethod(node, text).expr });
+      } else {
+        const parts = ref.name === "LuauLogicalOperator" ? expressionAround(node, text) : [node];
+        const first = parts[0]!;
+        const last = parts[parts.length - 1]!;
+        readings.push({ from: first.from, to: last.to, context, read: () => readLuauExpression(parts, text).expr });
       }
       return true;
     },
   });
-  return expressions;
-}
-
-/** A node's children, in order. */
-function childrenOf(node: SyntaxNode): SyntaxNode[] {
-  const children: SyntaxNode[] = [];
-  for (let child = node.firstChild; child; child = child.nextSibling) children.push(child);
-  return children;
+  // Outermost first; a reading inside another is part of it, unless a node
+  // the outer reading passes over stands between them.
+  readings.sort((a, b) => a.from - b.from || b.to - a.to);
+  const kept: Reading[] = [];
+  for (const reading of readings) {
+    const inside = kept.some((outer) => outer.from <= reading.from && reading.to <= outer.to && reading.context <= outer.from);
+    if (!inside) kept.push(reading);
+  }
+  return kept.map((reading) => reading.read());
 }
 
 /** The offsets of the `if` that begins each of Sparkdown's narrative `if` blocks. */

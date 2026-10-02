@@ -1,8 +1,10 @@
 // Sparkdown-specific: the rules about conditions and loop ranges
 // (DuplicateCondition, ForRange) read the Luau a script holds outside the
 // units the type checker reads, in Sparkdown's own text and constructs: an
-// interpolation in a line, a choice or a line inside a narrative `if`, and a
-// property's value in a `define`. They also read the condition of a
+// interpolation or a call shorthand in a line, a choice or a line inside a
+// narrative `if`, a divert's arguments, an alternator's selector, a Sparkle
+// handler, and a property's value or a method in a `define`, as the tree
+// lints read them. They also read the condition of a
 // narrative `if` block and the Luau inside it, without comparing its arms'
 // conditions (`LintDuplicateCondition.test.ts`). The rules are implemented
 // in `compiler/lint/collectLuauLints.ts`.
@@ -31,6 +33,19 @@ describe("Luau in Sparkdown's text", () => {
       ["3:16 DuplicateCondition"],
     ],
     ["an interpolation in a line inside a narrative if", "store a = true\nif a then\n  Hi {a and a}.\nend\n", ["2:12 DuplicateCondition"]],
+    ["a call shorthand in a line", "store a = true\nHi {{print(a and a)}}.\n", ["1:17 DuplicateCondition"]],
+    ["an if expression in a call shorthand", "store a = true\nHi {{print(if a then 1 elseif a then 2 else 3)}}.\n", ["1:30 DuplicateCondition"]],
+    [
+      "a call shorthand in a choice",
+      "store a = true\nscene s\n  choose\n    + [Go {{print(a or a)}}] -> next\n  end\nend\nscene next\n  fin\nend\n",
+      ["3:23 DuplicateCondition"],
+    ],
+    ["a divert's arguments", "store a = true\nscene s(x)\n  fin\nend\n-> s(a and a)\n", ["4:11 DuplicateCondition"]],
+    ["a match block's selector", "store a = true\nmatch (a and a)\n  | true = \"x\"\n  | other = \"y\"\nend\n", ["1:13 DuplicateCondition"]],
+    ["a match block's selector in a scene", "store a = true\nscene s\n  match (a or a)\n    | true = \"x\"\n    | other = \"y\"\n  end\nend\n", ["2:14 DuplicateCondition"]],
+    ["an inline alternator's selector", "store a = true\nYou have {plural(a and a)|one=apple|other=apples}.\n", ["1:23 DuplicateCondition"]],
+    ["a glued alternator's selector", "store a = true\nx .. plural(a and a)|one=apple|other=apples ..\n", ["1:18 DuplicateCondition"]],
+    ["a Sparkle handler", "store a = true\nscreen main\n  button @click=print(a and a)\nend\n", ["2:28 DuplicateCondition"]],
   ])("%s", (_name, source, expected) => {
     expect(conditionLints(source)).toEqual(expected);
   });
@@ -45,6 +60,11 @@ describe("Luau in a define", () => {
       "a function value",
       "define hero as character with\n  cb = function()\n    for i = 10, 1 do print(i) end\n    if x then elseif x then end\n  end\nend\nHi.\n",
       ["2:12 ForRange", "3:21 DuplicateCondition"],
+    ],
+    [
+      "a method",
+      "store a = true\ndefine hero as character with\n  greet()\n    for i = 10, 1 do print(i) end\n    if x then elseif x then end\n    local u = a and a\n  end\nend\nHi.\n",
+      ["3:12 ForRange", "4:21 DuplicateCondition", "5:20 DuplicateCondition"],
     ],
   ])("%s", (_name, source, expected) => {
     expect(conditionLints(source)).toEqual(expected);

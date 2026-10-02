@@ -3789,3 +3789,36 @@ export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], do
   }
   return { expr, errors: parser.errors };
 }
+
+/**
+ * Not part of Luau: reads a method in a `define` (`greet() ... end`, a
+ * `LuauMethodDefinition`) as the function value it stands for, the
+ * `function` Sparkdown leaves implicit written before its parameters and
+ * its name left out. The lints read it (`collectLuauLints.ts`).
+ */
+export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  const name = findDescendant(node, "LuauFunctionName");
+  const parameters = findDescendant(node, "LuauFunctionParameters");
+  tokenizer.synthetic("keyword", "function", parameters?.from ?? name?.to ?? node.from);
+  // Every node but the name, which a function value does not have.
+  const readWithoutName = (around: SyntaxNode): void =>
+    tokenizer.readChildren(around, (child) => {
+      if (!name || child.to <= name.from || child.from >= name.to) return false;
+      if (child.from !== name.from || child.to !== name.to) readWithoutName(child);
+      return true;
+    });
+  readWithoutName(node);
+  const first = tokenizer.tokens[0]!;
+  const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(first.location.begin, first.location.begin));
+  let expr: AstExpr;
+  try {
+    expr = parser.parseLoneExpression();
+  } catch (caught) {
+    const error = parser.fatalError(caught);
+    parser.errors.push(error);
+    expr = new AstExprError(error.location, [], parser.errors.length - 1);
+  }
+  return { expr, errors: parser.errors };
+}
