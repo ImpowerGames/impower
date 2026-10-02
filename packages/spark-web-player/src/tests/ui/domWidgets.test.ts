@@ -11,10 +11,11 @@ describe("dom widgets", () => {
     const h = createDOMHarness(
       `store difficulty = "hard"
 layout form with
-  dropdown #value={difficulty}:
+  dropdown #value={difficulty} {
     option "Easy" #value="easy"
     option "Normal" #value="normal"
     option "Hard" #value="hard"
+  }
 end
 `,
       0,

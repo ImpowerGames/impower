@@ -16,15 +16,20 @@ function nodeNamesFor(source: string, key: string): string[] {
 
 describe("keyframe position keys are highlighted as positions", () => {
   const ANIMATION = `animation fade with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    40%:
+    }
+    40% {
       opacity = "0.5"
-    to:
+    }
+    to {
       opacity = "1"
-  timing:
+    }
+  }
+  timing {
     duration = 0.4
+  }
 end
 `;
 
@@ -42,9 +47,11 @@ end
 
   test("a leading-dot percentage is a keyframe selector", () => {
     const source = `animation dotted with
-  keyframes:
-    .5%:
+  keyframes {
+    .5% {
       opacity = "0"
+    }
+  }
 end
 `;
     expect(nodeNamesFor(source, ".5%")).toContain("LuauKeyframeSelector");
@@ -58,8 +65,9 @@ end
   // the colour to real keyframe blocks should change it deliberately.
   test("a bare position word in another block is coloured as a position too", () => {
     const source = `screen home with
-  to:
+  to {
     button "Next"
+  }
 end
 `;
     expect(nodeNamesFor(source, "to")).toContain("LuauKeyframeSelector");
@@ -67,8 +75,9 @@ end
 
   test("a key that merely starts with a position word is not a selector", () => {
     const source = `screen menu with
-  from_left:
+  from_left {
     text "hi"
+  }
 end
 `;
     expect(nodeNamesFor(source, "from_left")).not.toContain(

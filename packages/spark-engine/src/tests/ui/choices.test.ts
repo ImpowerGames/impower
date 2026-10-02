@@ -11,14 +11,18 @@ import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SCREEN = `layout main with
-  dialogue:
+  dialogue {
     text
-  choice 0:
+  }
+  choice.0 {
     text
-  choice 1:
+  }
+  choice.1 {
     text
-  choice 2:
+  }
+  choice.2 {
     text
+  }
 end
 `;
 

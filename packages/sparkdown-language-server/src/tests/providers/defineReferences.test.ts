@@ -95,8 +95,9 @@ raffles: Hello.
 
 describe("provider · screen/style layer interdependency (D2)", () => {
   const source = `layout s with
-  backdrop:
+  backdrop {
     image = "bg"
+  }
 end
 style backdrop with
   background-color = black
@@ -119,8 +120,8 @@ end
       },
     );
     const lines = (references ?? []).map((r) => r.range.start.line);
-    // The screen layer is on line 1; the `style backdrop` block name on line 4.
+    // The screen layer is on line 1; the `style backdrop` block name on line 5.
     expect(lines).toContain(1);
-    expect(lines).toContain(4);
+    expect(lines).toContain(5);
   });
 });

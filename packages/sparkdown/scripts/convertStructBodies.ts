@@ -4,6 +4,7 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { SparkdownCompiler } from "../src/compiler/classes/SparkdownCompiler";
+import { rewriteTypeScriptLiterals, type Verify } from "./structBodyLiterals";
 import { rewriteStructBodies, type Refusal } from "./structBodyRewrite";
 
 export interface Source {
@@ -244,6 +245,44 @@ export function convertSources(sources: Source[]): Conversion[] {
   });
 }
 
+/**
+ * Compares the Sparkdown of one literal before and after its rewrite, each
+ * compiled on its own on top of the bundled prelude.
+ */
+export const verifyLiteral: Verify = (before, after) =>
+  comparePrograms(
+    [{ label: "main.sd", text: before }],
+    [{ label: "main.sd", text: after }],
+    "main.sd",
+    true,
+  ).differences;
+
+/**
+ * Converts the Sparkdown in the literals of one TypeScript source (#1230),
+ * prints its report, and returns false when a literal was refused.
+ */
+function convertTypeScript(path: string, label: string, check: boolean): boolean {
+  const before = readFileSync(path, "utf8");
+  const result = rewriteTypeScriptLiterals(before, label, verifyLiteral);
+  const declarations = result.literals.reduce((n, l) => n + l.declarations, 0);
+  const converted = result.literals.reduce((n, l) => n + l.converted, 0);
+  const shapes = (["template", "string", "lines"] as const)
+    .map((shape) => [shape, result.literals.filter((l) => l.shape === shape && l.converted > 0).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([shape, n]) => `${n} ${shape}`)
+    .join(", ");
+  console.log(
+    `${label}: ${
+      result.text === before
+        ? "unchanged"
+        : `${converted} of ${declarations} struct-body declarations converted in ${result.literals.filter((l) => l.converted > 0).length} literals (${shapes})`
+    }`,
+  );
+  for (const r of result.refusals) console.log(`${label}:${r.line}: ${r.reason}`);
+  if (!check && result.text !== before) writeFileSync(path, result.text);
+  return result.refusals.length === 0;
+}
+
 function walk(dir: string, out: string[] = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
@@ -257,7 +296,7 @@ function walk(dir: string, out: string[] = []) {
 const slash = (path: string) => path.split(sep).join("/");
 
 const USAGE = `Usage:
-  node packages/sparkdown/scripts/convertStructBodies.mjs [--check] <file.sd> [<file.sd> ...]
+  node packages/sparkdown/scripts/convertStructBodies.mjs [--check] <file.sd|file.ts> [...]
   node packages/sparkdown/scripts/convertStructBodies.mjs [--check] --project <dir>`;
 
 /**
@@ -347,6 +386,10 @@ export function main(cwd: string, args: string[]): number {
   for (const file of files) {
     const path = resolve(cwd, file);
     const label = slash(file);
+    if (/\.(?:[cm]?ts|tsx)$/.test(file)) {
+      if (!convertTypeScript(path, label, check)) failed = true;
+      continue;
+    }
     const [c] = convertSources([{ label, text: readFileSync(path, "utf8") }]);
     if (c!.after === c!.before) {
       console.log(`${label}: unchanged`);

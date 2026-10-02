@@ -48,10 +48,12 @@ end
   test("boolean attributes are presence-based", async () => {
     const h = await render(`store shown = true
 layout main with
-  foldout "More" #open={shown}:
+  foldout "More" #open={shown} {
     text "Body"
-  modal #open=false:
+  }
+  modal #open=false {
     text "Modal"
+  }
 end
 `);
     const details = h.overlay.querySelector("details") as HTMLDetailsElement;
@@ -62,10 +64,13 @@ end
 
   test("colspan/scope on table cells become attributes", async () => {
     const h = await render(`layout main with
-  table:
-    table_body:
-      table_row:
+  table {
+    table_body {
+      table_row {
         cell "Wide" #colspan=2
+      }
+    }
+  }
 end
 `);
     const td = h.overlay.querySelector("td") as HTMLTableCellElement;
@@ -147,8 +152,9 @@ describe("an inline custom property reaches the element", () => {
   // is actually written, which is what the warning promised the author.
   test("`#--my-var` becomes a real custom property", async () => {
     const h = await render(`layout main with
-  box #--my-var=4 #gap=12 #background-color=red:
+  box #--my-var=4 #gap=12 #background-color=red {
     text "x"
+  }
 end
 `);
     const box = h.overlay.querySelector(".box") as HTMLElement;

@@ -8,23 +8,33 @@ import { createHarness } from "../ui/harness/uiTestHarness";
 
 const SRC = `morph blink with
   method = bend
-  layers:
-    creases:
+  layers {
+    creases {
       fallback = scale
-  keyframes:
-    from:
-      eyes:
+    }
+  }
+  keyframes {
+    from {
+      eyes {
         state = eyes.open
-    50%:
-      eyes:
+      }
+    }
+    50% {
+      eyes {
         state = 01
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = open
-  timing:
+      }
+    }
+  }
+  timing {
     iterations = infinite
     iteration_delay_min = 0.2
     iteration_delay_max = 6
+  }
 end
 
 -> start

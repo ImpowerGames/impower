@@ -198,10 +198,11 @@ end
       `store choice = "b"
 store opts = { "a", "b", "c" }
 layout s with
-  dropdown #value={choice}:
+  dropdown #value={choice} {
     for o in opts do
       option "{o}"
     end
+  }
 end
 `,
       0,

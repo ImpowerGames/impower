@@ -218,7 +218,7 @@ describe("AssetModule, after review", () => {
         `style score_text with\n  font_family = "Fancy"\nend`,
         `style card_title with\n  font_family = "Fancy"\nend`,
         `component card with\n  card_title "Hi"\nend`,
-        `layout hud with\n  score_text:\n    text "Score"\nend`,
+        `layout hud with\n  score_text {\n    text "Score"\n  }\nend`,
         `layout deck with\n  card()\nend`,
         `layout badge with\n  text "Badge" #font_family="Fancy"\nend`,
         `scene A\n  Hi.\nend`,

@@ -10,16 +10,20 @@ import { MessageRouter } from "../../app/MessageRouter";
 import { createDOMHarness, flushMicrotasks, serializeDOM } from "./domTestHarness";
 
 const EARLIER = `layout main with
-  stage:
-    earlier_panel:
+  stage {
+    earlier_panel {
       text
+    }
+  }
 end
 `;
 
 const LATER = `layout main with
-  stage:
-    later_panel:
+  stage {
+    later_panel {
       text
+    }
+  }
 end
 `;
 

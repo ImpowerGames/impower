@@ -22,7 +22,7 @@ describe("an unknown Sparkle event name", () => {
 describe("an unknown Sparkle prop name", () => {
   test("#colr", () => {
     const found = diagnoseDetailed(
-      'layout main with\n  row #colr=red:\n    text "x"\nend\n',
+      'layout main with\n  row #colr=red {\n    text "x"\n  }\nend\n',
     );
     expect(found.map((d) => [d.severity, d.message])).toEqual([
       [
