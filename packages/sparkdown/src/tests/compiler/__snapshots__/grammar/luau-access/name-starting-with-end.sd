@@ -1,0 +1,7 @@
+function f()
+  local endpoint = 1
+  local ending = endpoint + 1
+  print(endpoint, ending)
+  return endpoint, ends[1], endless:go()
+end
+& print(endpoint)

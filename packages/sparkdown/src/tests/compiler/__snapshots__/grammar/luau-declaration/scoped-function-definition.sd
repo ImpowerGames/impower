@@ -1,0 +1,17 @@
+local function f() return 1 end
+const function g() end
+const function h() end
+& local function i() end
+local functionName = 1
+local functions, function_ = 2, 3
+scene main
+  local function j() end
+  if true then
+    const function k() end
+  end
+end
+function outer()
+  local function inner() end
+  local a = 1 local function after() end
+  return inner
+end
