@@ -6757,6 +6757,12 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   # The matched expression, between `match` and `do` (may span lines).
+  #
+  # lookaround: the lookbehind opens the expression once (see
+  # `LuauIfBlockCondition`). Its parents try it first at every position, so
+  # without it the expression takes the block's `case` arms and, in a brace
+  # block, its entries (`LuauSparkleCaseClause`, `LuauSparkleBlockEntries`;
+  # fixture sparkle/layout-match).
   LuauSparkleMatchCondition:
     begin: (?<=match\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
@@ -6790,6 +6796,12 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_MATCH_CASE_END_KEYWORDS}})
 
   # The case value expression (on the `case` line, ends at end-of-line).
+  #
+  # lookaround: the lookbehind opens the value once (see
+  # `LuauIfBlockCondition`). Without it the empty begin opens again on the
+  # arm's element lines and, in a brace block, its entries
+  # (`LuauSparkleBlockLine`, `LuauSparkleBlockEntries`; fixture
+  # sparkle/layout-match).
   LuauSparkleCaseValue:
     begin: (?<=case\b{{WS}}*)(?!{{BEAT}}|$)
     patterns:
@@ -7726,6 +7738,17 @@ repository:
     # `Newline`/`RequiredWhitespace` so the condition can span
     # newlines until the `do` keyword closes it, or a `}` it did not open
     # closes the block around it.
+    #
+    # lookaround: the lookbehind opens the condition once (see
+    # `LuauIfBlockCondition`). Without it, the empty begin opens again at the
+    # whitespace before `do` (fixture luau-function/with-for-in-loop), and in
+    # a layout it takes the loop's entries and body lines
+    # (`LuauSparkleBlockEntries`, `LuauStructBodyLine`; fixture
+    # sparkle/layout-brace-control). A begin that also refuses the tokens the
+    # condition ends before (`{{WS}}*do`, `end`, `}`) keeps the fixtures, but
+    # still opens an empty condition at any character the condition cannot
+    # read, again and again (`while x) do` in `LuauWhileCondition` reaches
+    # the parser's limit on empty matches).
     begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
@@ -7789,6 +7812,13 @@ repository:
 
   LuauWhileCondition:
     # See `LuauIfBlockCondition` for the multi-line trick.
+    #
+    # lookaround: as in `LuauForCondition`. Without the lookbehind the empty
+    # begin opens again at the whitespace before `do`, ahead of the
+    # `LuauDoBlock` in `LuauBlockBody` (fixture
+    # flow/for-comment-before-condition), and a begin that refuses `do` and
+    # `end` instead reopens at every character the condition cannot read
+    # (`while x) do`).
     begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
@@ -7996,6 +8026,20 @@ repository:
     # the block (#1175). A `}` the condition did not open closes the block
     # around it (a closure, or a layout's brace block), so a condition left
     # without `then` ends before it.
+    #
+    # lookaround: `(?<=\bif\b{{WS}}*)` opens the condition once, right after
+    # the `if` its parent's begin took. The parent tries this rule first
+    # again at every position of its body, so without the lookbehind the
+    # condition takes the statements of the branch (`LuauBlockBody`,
+    # `LuauSparkdownBlockBody`, `LuauSparkleBlockEntries`; fixture
+    # flow/if-with-bare-assignment). Beginning at the next token instead
+    # does not help: a condition can begin with any token a statement can,
+    # so no begin tells the two apart, and textmate-grammar-tree has no `\G`
+    # to match only where the parent's begin ended. Tried after the body
+    # rules, it would never be reached. `LuauElseifBlockCondition`,
+    # `LuauForCondition`, `LuauWhileCondition`, `LuauSparkleMatchCondition`,
+    # `LuauSparkleCaseValue`, `LuauTernaryExpressionCondition` and
+    # `LuauConditionalAlternatorCondition` keep theirs for the same reason.
     begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}})
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
@@ -8035,6 +8079,12 @@ repository:
   # its own line rather than reading the lines below into the expression.
   # A `then` right after `if` leaves the condition empty (`if then 1 else 2`),
   # which Luau rejects; the expression reads the `then` arm (#1175).
+  #
+  # lookaround: the lookbehind opens the condition only after the `if` or
+  # `elseif` (see `LuauIfBlockCondition`). `LuauTernaryExpression` tries this
+  # rule before `LuauExpression`, which reads its arms, so without it the
+  # condition would take each arm's value (fixture
+  # luau-function/if-expression-condition).
   LuauTernaryExpressionCondition:
     begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}}|then\b)
     beginCaptures:
@@ -8102,6 +8152,10 @@ repository:
   LuauElseifBlockCondition:
     # See `LuauIfBlockCondition` for the multi-line trick and the line that
     # ends a condition written without `then`, and for an empty one.
+    #
+    # lookaround: as in `LuauIfBlockCondition`, the lookbehind keeps the
+    # condition out of the branch's statements (`LuauBlockBody`,
+    # `LuauSparkleBlockEntries`; fixture sparkle/layout-if).
     begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}})
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
@@ -8126,6 +8180,12 @@ repository:
   # condition's first token on a later line. Taking them here means the
   # condition's line-start end is first tested on the line after the one the
   # condition begins on, not on that line itself.
+  #
+  # lookaround: the lookbehind keeps this rule to the line the `if` or
+  # `elseif` ends. Both conditions try it first at every position, so
+  # without it every line break inside a condition would be taken here,
+  # past the condition's line-start end (fixtures flow/if-condition-next-line
+  # and luau-access/leading-dot-continuation). See `LuauIfBlockCondition`.
   LuauConditionLeadingBreak:
     begin: (?<=\b(?:else)?if\b{{WS}}*)(?={{WS}}*(?:$|{{LUAU_COMMENT_START}}))
     patterns:
@@ -8401,6 +8461,14 @@ repository:
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
   # expression's own level stands just after a `then` in no other case.
+  #
+  # lookaround: `(?<=\bthen)` finds that `then`, which a sibling's end took,
+  # not a parent's begin. Without it the empty alternative opens the arm at
+  # every position of `LuauTernaryExpression`, ahead of `LuauElseExpression`
+  # and `LuauExpression` (fixture luau-function/if-expression-glued-then).
+  # The condition cannot leave the glued `then` to this rule's first
+  # alternative instead: `LuauTernaryExpression`'s end stops before a glued
+  # `then` or `do`, and an end is tried before the patterns.
   LuauThenExpression:
     begin: (?=(?:then)\b)|(?<=\bthen)({{WS}}*)
     beginCaptures:
@@ -8601,6 +8669,11 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
+  # lookaround: the lookbehind opens the condition once, after the `match` or
+  # `plural` its parent's begin took (see `LuauIfBlockCondition`). The
+  # parents try it before the arms (`LuauSparkdownBlockBody`,
+  # `LuauBlockBody`), so without it the condition takes each arm's first
+  # token (fixture alternator/match-paren-less).
   LuauConditionalAlternatorCondition:
     begin: (?<=(?:{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}){{WS}}*)(?!{{BEAT}}|$|{{WS}})
     patterns:
