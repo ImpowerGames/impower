@@ -256,14 +256,19 @@ function evaluateElement(
   const keyOf = (value: SyntaxNode | null) =>
     oneSpace(
       joinSegments(
-        segments.filter((s) => s.node.name !== CLOSURE_ATTRIBUTE),
+        segments
+          .filter((s) => s.node.name !== CLOSURE_ATTRIBUTE)
+          // Content in later continuation/closure segments is not part of
+          // the key, even when the first value came from an earlier run.
+          .map((s) => value && s.value ? {
+            ...s,
+            edits: [...s.edits, ...nodesOutsideAttributes(s.node, FIELD_VALUE_NAMES)],
+          } : s),
         (node, edits, to) =>
           textExcluding(
             node,
             ctx,
-            value && value.from >= node.from && value.to <= to
-              ? [...edits, ...nodesOutsideAttributes(node, FIELD_VALUE_NAMES), { from: value.from, to: value.to }]
-              : edits,
+            edits,
             to,
           ),
       ),
