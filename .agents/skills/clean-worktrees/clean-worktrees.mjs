@@ -1267,14 +1267,19 @@ export function recordedProcessAlive(pid, starts, deps) {
   return now !== null && starts.has(now);
 }
 
-// The state of pull request (or, failing that, issue) N on GitHub: "open",
-// "closed", or null with the reason it could not be read.
+// The state of pull request (or issue) N on GitHub: "open", "closed", or
+// null with the reason it could not be read. It goes through the REST issues
+// endpoint, which answers for a pull request too (with a `pull_request`
+// field) and whose {owner}/{repo} gh fills in from the checkout's origin.
+// `gh pr view` and `gh issue view` read through GraphQL, which a cloud
+// container's network policy can block while REST goes through, and a lookup
+// that fails keeps the directory. A merged pull request reports closed, the
+// state that lets its directory go.
 export function numberState(number, deps, cwd) {
-  const pr = deps.exec("gh", ["pr", "view", String(number), "--json", "state", "--jq", ".state"], cwd, 60_000);
-  if (pr.status === 0 && pr.out) return { state: pr.out === "OPEN" ? "open" : "closed", kind: "PR" };
-  const issue = deps.exec("gh", ["issue", "view", String(number), "--json", "state", "--jq", ".state"], cwd, 60_000);
-  if (issue.status === 0 && issue.out) return { state: issue.out === "OPEN" ? "open" : "closed", kind: "issue" };
-  return { state: null, err: pr.err || issue.err || "no output" };
+  const r = deps.exec("gh", ["api", `repos/{owner}/{repo}/issues/${number}`, "--jq", '.state + " " + (if .pull_request then "PR" else "issue" end)'], cwd, 60_000);
+  const m = r.status === 0 ? /^(open|closed) (PR|issue)$/.exec(r.out) : null;
+  if (m) return { state: m[1], kind: m[2] };
+  return { state: null, err: r.err || (r.status === 0 ? `unexpected output ${JSON.stringify(r.out)}` : "no output") };
 }
 
 // The decision for one entry under the job root. It is removable only when

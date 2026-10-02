@@ -11,6 +11,7 @@ export function statementSource(
   ctx: LowerContext,
 ): SourceMetadata {
   const text = ctx.read(node.from, node.to);
+  // value-level: the statement text, measuring its indentation
   const indentation = text.length - text.replace(/^[ \t]+/, "").length;
   const from = node.from + indentation;
   return {
