@@ -14,6 +14,8 @@ test("an auto-generated node name is found on its line", () => {
   assert.deepEqual(lines(scanSource(src).generated), ["2:LuauFunctionDefinition_begin_c4"]);
   assert.deepEqual(lines(scanSource(`x("Rule_end_c12")`).generated), ["1:Rule_end_c12"]);
   assert.deepEqual(scanSource(`x("Rule_end"); y("Rule_content"); // Rule_begin_c1`).generated, []);
+  const built = "const name = `LuauRule_begin_c${capture}`;\ngetDescendent(name, node);";
+  assert.deepEqual(lines(scanSource(built).generated), ["1:LuauRule_begin_c${capture}"]);
 });
 
 test("every scan shape is counted", () => {
@@ -37,6 +39,12 @@ test("every scan shape is counted", () => {
     "4:.split(",
     "5:/\\s+$/",
   ]);
+});
+
+test("includes is a scan; a regex-like string is not", () => {
+  assert.deepEqual(lines(scanSource(`const a = text.includes("=");`).scans), ["1:.includes("]);
+  assert.deepEqual(scanSource(`const hint = "syntax: /word/";`).scans, []);
+  assert.deepEqual(lines(scanSource(`const s = "a/b"; const r = /x/;`).scans), ["1:/x/"]);
 });
 
 test("division and comments are not scans", () => {

@@ -5,7 +5,7 @@
 //   - Error: any reference to an auto-generated `_begin_cN` / `_end_cN` node
 //     name. Those names change whenever the grammar is regenerated.
 //   - Ratchet: every regex literal, `new RegExp`, `.match(` / `.matchAll(` /
-//     `.exec(` / `.test(`, and `.startsWith(` / `.endsWith(` / `.indexOf(` /
+//     `.exec(` / `.test(`, and `.startsWith(` / `.endsWith(` / `.indexOf(` / `.includes(` /
 //     `.split(` call is a scan finding unless the `//` comment block directly
 //     above its line carries a `// value-level:` marker saying which
 //     already-isolated value it interprets. Unmarked findings are counted per
@@ -26,16 +26,17 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { stripComments } from "./node-names.mjs";
+import { stripComments, stripCommentsAndStrings } from "./node-names.mjs";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const LOWER_DIR = "packages/sparkdown/src/compiler/lower";
 export const BASELINE = "scripts/lowerer-conventions-baseline.json";
 export const MARKER = "// value-level:";
 
-const GENERATED_NAME = /\b\w*_(?:begin|end)_c\d+\b/g;
+// A literal capture number, or one interpolated into a template literal.
+const GENERATED_NAME = /\b\w*_(?:begin|end)_c(?:\d+\b|\$\{[^}]*\})/g;
 const SCAN_CALL =
-  /\.(?:match|matchAll|exec|test|startsWith|endsWith|indexOf|split)\s*\(|\bnew\s+RegExp\s*\(/g;
+  /\.(?:match|matchAll|exec|test|startsWith|endsWith|indexOf|includes|split)\s*\(|\bnew\s+RegExp\s*\(/g;
 // A regex literal: a `/` after a token that cannot end an expression.
 const REGEX_LITERAL =
   /(?:^|[(,=:[!&|?{};>]|\breturn|\bcase|\btypeof)\s*(\/(?![/*])(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[dgimsuyv]*)/gm;
@@ -76,7 +77,15 @@ export function scanSource(source) {
       line: lineAt(src, m.index + m[0].indexOf(m[group])),
       text: m[group].trim(),
     }));
-  const scans = [...collect(SCAN_CALL), ...collect(REGEX_LITERAL, 1)]
+  // Regex literals are found in a copy whose string bodies are blanked (same
+  // length), so a `/word/` inside a string is not taken for one; the text
+  // reported comes from the unblanked source.
+  const blanked = stripCommentsAndStrings(source);
+  const literals = [...blanked.matchAll(REGEX_LITERAL)].map((m) => {
+    const at = m.index + m[0].indexOf(m[1]);
+    return { line: lineAt(src, at), text: src.slice(at, at + m[1].length) };
+  });
+  const scans = [...collect(SCAN_CALL), ...literals]
     .filter((f) => !marked.has(f.line))
     .sort((a, b) => a.line - b.line);
   return {
