@@ -14,9 +14,9 @@
 // The rules read the Luau of the units the checker reads and the Luau
 // expressions outside them, in Sparkdown's own text and constructs (an
 // interpolation or call shorthand, a divert's arguments, an alternator's
-// selector, a Sparkle handler, a `define`'s values and methods), wherever
-// the tree marks a chain, an `if` expression or a function, as the tree
-// lints found them. The rules about locals and reachability read the Luau
+// selector, a Sparkle handler and its `{ ... }` statements, a `define`'s
+// values and methods), wherever the tree marks a chain, an `if`, a numeric
+// or generic `for` or a function, as the tree lints found them. The rules about locals and reachability read the Luau
 // functions a script defines (`function f()`, wherever it is written, and
 // function values): a local outside a function can be read from
 // interpolated text or later narrative the rules cannot scope. A function
@@ -73,7 +73,7 @@ import { doesCallError } from "../typecheck/DataFlowGraph";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
-import { readLuauExpression, readLuauMethod, type LuauAstUnit } from "../typecheck/readLuauAst";
+import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 
 /** The rules, by the name each warning carries as its diagnostic code. */
 export const LUAU_LINT_CODES = [
@@ -165,10 +165,11 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
   return functions;
 }
 
-// The nodes that mark Luau the rules read inside an expression: an
-// `and`/`or` chain, an `if` expression, a function value and a method in a
-// `define`, whose `function` Sparkdown leaves implicit.
-const LINTED_NODES = new Set(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition"]);
+// The nodes that mark Luau the rules read: an `and`/`or` chain, an `if`
+// expression, a function value, a method in a `define`, whose `function`
+// Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
+// Sparkle handler's `{ ... }` or a layout).
+const LINTED_NODES = new Set(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop"]);
 
 // The wrappers around a binary operation's operator and operand, which the
 // tree nests inside the list of its operands.
@@ -215,6 +216,13 @@ function expressionAround(node: SyntaxNode, text: string): SyntaxNode[] {
   return children.slice(first, last + 1);
 }
 
+/** One reading of Luau no unit reads: an expression, or statements read as a function's body. */
+interface OutsideReading {
+  expr: AstExpr;
+  /** Whether `expr` is the function written around statements, not one the author wrote. */
+  statements: boolean;
+}
+
 /**
  * The Luau no unit reads, in Sparkdown's own text and constructs, outside
  * the units' statements or inside what their reading passes over: an
@@ -223,10 +231,11 @@ function expressionAround(node: SyntaxNode, text: string): SyntaxNode[] {
  * `define`, a divert's arguments, the condition of a choice or an
  * alternator, a Sparkle handler. Each expression that holds a chain, an
  * `if` expression or a function value is read on its own
- * (`readLuauExpression`, `readLuauMethod`), located in the document's
- * lines; one inside another that reads it is not read again.
+ * (`readLuauExpression`, `readLuauMethod`), and each `if` or `for`
+ * statement as the body of a function (`readLuauStatements`), located in
+ * the document's lines; one inside another that reads it is not read again.
  */
-function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[]): AstExpr[] {
+function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[]): OutsideReading[] {
   const key = (node: { name: string; from: number; to: number }) => `${node.from}:${node.to}:${node.name}`;
   const statementNodes = new Set(units.flatMap((unit) => unit.statements.flatMap((source) => source.nodes.map(key))));
   /** The nearest node above `node` that a unit's reading passes over, or null when a unit's statement reads it. */
@@ -242,7 +251,7 @@ function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[])
     to: number;
     /** Where the nearest node above it that the reading passes over begins; -1 at the top of the document. */
     context: number;
-    read: () => AstExpr;
+    read: () => OutsideReading;
   }
   const readings: Reading[] = [];
   tree.iterate({
@@ -254,12 +263,14 @@ function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[])
       if (above === null) return true;
       const context = above ? above.from : -1;
       if (ref.name === "LuauMethodDefinition") {
-        readings.push({ from: node.from, to: node.to, context, read: () => readLuauMethod(node, text).expr });
+        readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauMethod(node, text).expr, statements: false }) });
+      } else if (ref.name === "LuauIfBlock" || ref.name === "LuauForLoop") {
+        readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauStatements([node], text).expr, statements: true }) });
       } else {
         const parts = ref.name === "LuauLogicalOperator" ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
-        readings.push({ from: first.from, to: last.to, context, read: () => readLuauExpression(parts, text).expr });
+        readings.push({ from: first.from, to: last.to, context, read: () => ({ expr: readLuauExpression(parts, text).expr, statements: false }) });
       }
       return true;
     },
@@ -638,9 +649,10 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
-  for (const expr of expressionsOutsideUnits(tree, text, [units.prelude, ...units.flows])) {
+  for (const { expr, statements } of expressionsOutsideUnits(tree, text, [units.prelude, ...units.flows])) {
     const functions: AstExprFunction[] = [];
-    completeFunctions(expr, functions);
+    // The function written around statements is not the author's; those inside it are.
+    completeFunctions(statements && expr instanceof AstExprFunction ? expr.body : expr, functions);
     lintFunctions(functions, documentOffsets);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);

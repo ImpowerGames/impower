@@ -3810,6 +3810,29 @@ export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: 
       return true;
     });
   readWithoutName(node);
+  return parseLoneTokens(tokenizer, documentText, index);
+}
+
+/**
+ * Not part of Luau: reads Luau statements that no unit holds (in a Sparkle
+ * handler's `{ ... }`, in a layout) as the body of a function value written
+ * around them, `function()` before and `end` after. The lints read them
+ * (`collectLuauLints.ts`).
+ */
+export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  const from = nodes[0]?.from ?? 0;
+  tokenizer.synthetic("keyword", "function", from);
+  tokenizer.synthetic("symbol", "(", from);
+  tokenizer.synthetic("symbol", ")", from);
+  for (const node of nodes) tokenizer.read(node);
+  tokenizer.synthetic("keyword", "end", nodes[nodes.length - 1]?.to ?? from);
+  return parseLoneTokens(tokenizer, documentText, index);
+}
+
+/** The one expression a tokenizer's tokens hold. */
+function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: LineIndex): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const first = tokenizer.tokens[0]!;
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(first.location.begin, first.location.begin));
   let expr: AstExpr;

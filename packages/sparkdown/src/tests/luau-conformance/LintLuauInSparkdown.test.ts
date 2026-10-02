@@ -3,7 +3,8 @@
 // units the type checker reads, in Sparkdown's own text and constructs: an
 // interpolation or a call shorthand in a line, a choice or a line inside a
 // narrative `if`, a divert's arguments, an alternator's selector, a Sparkle
-// handler, and a property's value or a method in a `define`, as the tree
+// handler and the statements of its `{ ... }`, and a property's value or a
+// method in a `define`, as the tree
 // lints read them. They also read the condition of a
 // narrative `if` block and the Luau inside it, without comparing its arms'
 // conditions (`LintDuplicateCondition.test.ts`). The rules are implemented
@@ -46,6 +47,12 @@ describe("Luau in Sparkdown's text", () => {
     ["an inline alternator's selector", "store a = true\nYou have {plural(a and a)|one=apple|other=apples}.\n", ["1:23 DuplicateCondition"]],
     ["a glued alternator's selector", "store a = true\nx .. plural(a and a)|one=apple|other=apples ..\n", ["1:18 DuplicateCondition"]],
     ["a Sparkle handler", "store a = true\nscreen main\n  button @click=print(a and a)\nend\n", ["2:28 DuplicateCondition"]],
+    [
+      "the statements of a Sparkle handler's closure",
+      "store a = true\nlayout main with\n  button \"Check\" @click={ for i = 3, 1 do print(i) end; if a then print(1) elseif a then print(2) end }\nend\nReady.\n",
+      ["2:34 ForRange", "2:82 DuplicateCondition"],
+    ],
+    ["a chain in a Sparkle handler's closure", "store a = true\nlayout main with\n  button \"Check\" @click={ print(a and a) }\nend\nReady.\n", ["2:38 DuplicateCondition"]],
   ])("%s", (_name, source, expected) => {
     expect(conditionLints(source)).toEqual(expected);
   });
