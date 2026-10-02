@@ -1,4 +1,3 @@
-import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -7,13 +6,14 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
 import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { AstStatIf } from "../../typecheck/Ast";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromContainer } from "../expression/lowerExpression";
+import { lowerExpression } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { headerLineRange, stampDebugMetadata } from "../utils/debugMetadata";
+import { rangeOf } from "../utils/luauAst";
 import {
   bodyOfBlock,
   openBody,
@@ -21,40 +21,28 @@ import {
 } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
-// Shared core for both `LuauSparkdownIfBlock` (allows display statements in
-// arms) and `LuauIfBlock` (pure-luau, function-body context). The two variants
-// differ only in node names; the structural shape and lowering pattern are
-// identical.
+// An `if` statement: `LuauSparkdownIfBlock` in a scene or at the top level,
+// whose arms also hold display lines, and `LuauIfBlock` in Luau code. The
+// two differ only in node names. The conditions are the AST's (`AstStatIf`,
+// whose `elseif` arms nest as its `elsebody`); each arm's body is lowered
+// from its own syntax node, which holds the Sparkdown lines among its Luau.
 
-export interface IfBlockVariant {
-  /** Top-level if-block node name, e.g. "LuauSparkdownIfBlock" or "LuauIfBlock". */
-  prefix: SparkdownNodeName;
-}
-
-export function lowerSparkdownIfBlock(
-  nodeRef: SparkdownSyntaxNodeRef,
-  ctx: LowerContext,
-): CompiledBlock {
-  return lowerIfBlock(nodeRef, ctx, { prefix: "LuauSparkdownIfBlock" });
-}
+const IF_NODES = nodeNameSet(["LuauSparkdownIfBlock", "LuauIfBlock"]);
 
 export function lowerLuauIfBlock(
-  nodeRef: SparkdownSyntaxNodeRef,
+  stat: AstStatIf,
+  site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  return lowerIfBlock(nodeRef, ctx, { prefix: "LuauIfBlock" });
-}
+  const node = statementNodeAt(stat, site, IF_NODES, ctx);
+  if (!node) return {};
+  const prefix = node.name;
+  const elseifNodeName = prefix.replace("IfBlock", "ElseifBlock");
+  const elseNodeName = prefix.replace("IfBlock", "ElseBlock");
 
-function lowerIfBlock(
-  nodeRef: SparkdownSyntaxNodeRef,
-  ctx: LowerContext,
-  variant: IfBlockVariant,
-): CompiledBlock {
-  const elseifNodeName = variant.prefix.replace("IfBlock", "ElseifBlock");
-  const elseNodeName = variant.prefix.replace("IfBlock", "ElseBlock");
-
-  const content = findChildByName(nodeRef.node, `${variant.prefix}_content`);
+  const content = findChildByName(node, `${prefix}_content`);
   // Two of the members are computed from the variant, so this set cannot be
   // declared with the union; the check script covers the literal.
   const ifBodySkip = new Set<string>([
@@ -63,18 +51,24 @@ function lowerIfBlock(
     elseNodeName,
   ]);
 
+  // The `elseif` arms, which the AST nests in the `else` of the arm before.
+  const elseifArms: AstStatIf[] = [];
+  let next = stat.elsebody;
+  while (next instanceof AstStatIf) {
+    elseifArms.push(next);
+    next = next.elsebody;
+  }
+
   const branches: ConditionalSingleBranch[] = [];
 
   // The parts of the statement in order, which head its bodies: the `if`
   // condition, each `elseif`, the `else`, and then `end`, where the content
   // node ends. A body runs from the part that heads it to the next part.
   const elseifNodes = findDirectChildren(content, elseifNodeName);
-  const elseNode = content
-    ? findChildByName(content, elseNodeName)
-    : null;
-  const endStart = content?.to ?? nodeRef.node.to;
+  const elseNode = content ? findChildByName(content, elseNodeName) : null;
+  const endStart = content?.to ?? node.to;
   const partStarts = [
-    ...elseifNodes.map((node) => node.from),
+    ...elseifNodes.map((n) => n.from),
     ...(elseNode ? [elseNode.from] : []),
     endStart,
   ];
@@ -83,7 +77,7 @@ function lowerIfBlock(
   const condNode = content
     ? findChildByName(content, "LuauIfBlockCondition")
     : null;
-  const condExpr = condNode ? lowerExpressionFromContainer(condNode, ctx) : null;
+  const condExpr = lowerExpression(stat.condition, site.source, ctx);
   // Each branch body gets its own scope frame so `local x` follows
   // Luau's block-scoping rules — an `if`-arm's `local` doesn't leak to
   // the `else`-arm and vice versa, and neither leaks to the enclosing
@@ -94,7 +88,7 @@ function lowerIfBlock(
   // for this frame before diverting out of the enclosing loop.
   const mainShape = openBody(
     ctx,
-    condNode?.to ?? content?.from ?? nodeRef.node.from,
+    condNode?.to ?? content?.from ?? node.from,
     partStarts[0]!,
   );
   ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
@@ -113,12 +107,14 @@ function lowerIfBlock(
     const ec = elseifContent
       ? findChildByName(elseifContent, "LuauElseifBlockCondition")
       : null;
-    const ecExpr = ec ? lowerExpressionFromContainer(ec, ctx) : null;
+    const arm = elseifArms[i];
+    const ecExpr = arm ? lowerExpression(arm.condition, site.source, ctx) : null;
     // `lower()` gives the whole statement the `if` header's position, so the
     // condition carries its own `elseif` line: a diagnostic about it, such as
     // an unknown name, is then reported where it is written.
-    if (ecExpr) {
-      const header = headerLineRange(elseifNode.from, elseifNode.to, ctx);
+    if (ecExpr && arm) {
+      const range = rangeOf(arm.location, ctx);
+      const header = headerLineRange(range.from, range.to, ctx);
       stampDebugMetadata([ecExpr], header.from, header.to, ctx);
     }
     const shape = openBody(
@@ -137,11 +133,7 @@ function lowerIfBlock(
   // ----- Optional `else` branch -----
   if (elseNode) {
     const elseContent = findChildByName(elseNode, `${elseNodeName}_content`);
-    const shape = openBody(
-      ctx,
-      elseContent?.from ?? elseNode.to,
-      endStart,
-    );
+    const shape = openBody(ctx, elseContent?.from ?? elseNode.to, endStart);
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(lowerStatements(elseContent, ctx, undefined, shape));
     ctx.scopeDepth--;

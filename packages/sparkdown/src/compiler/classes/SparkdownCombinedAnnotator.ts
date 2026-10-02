@@ -615,7 +615,7 @@ export class SparkdownCombinedAnnotator {
     if (to == null) {
       return { from: windowFrom, to };
     }
-    const next = nextSignificantToken(text.lineAt(to).to, read);
+    const next = nextSignificantToken(tree.topNode, text.lineAt(to).to, read);
     if (!next) {
       return { from: windowFrom, to: text.length };
     }
@@ -657,7 +657,7 @@ export class SparkdownCombinedAnnotator {
     if (!comment) {
       return false;
     }
-    const next = nextSignificantToken(comment.to, read);
+    const next = nextSignificantToken(tree.topNode, comment.to, read);
     return next == null || next.from > line.to;
   }
 

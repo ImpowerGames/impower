@@ -4,7 +4,6 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Wrap } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { loopExitOf, recordLoopDepth } from "../utils/statementShape";
@@ -47,10 +46,7 @@ function scopeUnwind(ctx: LowerContext, targetDepth: number): ParsedObject[] {
   return out;
 }
 
-export function lowerLuauBreakStatement(
-  _nodeRef: SparkdownSyntaxNodeRef,
-  ctx: LowerContext,
-): CompiledBlock {
+export function lowerLuauBreakStatement(ctx: LowerContext): CompiledBlock {
   const top = ctx.loopStack?.[ctx.loopStack.length - 1];
   if (!top) return {};
   const divert = new Divert([new Identifier(top.breakLabel)]);
@@ -58,10 +54,7 @@ export function lowerLuauBreakStatement(
   return wrapInWeave([...scopeUnwind(ctx, top.scopeDepth ?? 0), divert]);
 }
 
-export function lowerLuauContinueStatement(
-  _nodeRef: SparkdownSyntaxNodeRef,
-  ctx: LowerContext,
-): CompiledBlock {
+export function lowerLuauContinueStatement(ctx: LowerContext): CompiledBlock {
   const top = ctx.loopStack?.[ctx.loopStack.length - 1];
   if (!top) return {};
   const divert = new Divert([new Identifier(top.continueLabel)]);

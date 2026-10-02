@@ -1,62 +1,25 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
-import { LUAU_BLOCK_NAMES } from "./utils/statementNodeNames";
-import { luauStatementError } from "../utils/luauStatementError";
-import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { CallValueExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
-import { Expression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
-import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
-import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { IndexExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
-import { MultiVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { StorePropertyAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
-import { StringExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
-import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import { VariableReference } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
+import { AstStat, AstStatIf } from "../typecheck/Ast";
+import type {
+  LuauStatementSource,
+  LuauSyntaxError,
+} from "../typecheck/readLuauAst";
 import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "./context";
-import { findChildByName } from "./utils/alternatorArms";
-import { syntheticId } from "./utils/documentTag";
 import {
-  chainedLinkParts,
-  chainedPartKey,
-  lowerExpressionFromContainer,
-  lowerExpressionFromContainerAndContinuation,
-  lowerExpressionFromNodes,
-} from "./expression/lowerExpression";
-import { findOwnDeclarationName } from "./utils/findOwnDeclarationName";
-import { wrapInWeave } from "./utils/wrapInWeave";
-import {
-  collectLineContinuation,
   continuationParts,
-  endsInTypeName,
-  reportExtraTypeQualifiers,
+  continuesInVain,
   isLineContinuation,
-  isLineContinuationUsed,
-  isTypeQualifierContinuation,
-  hasTypeUnionLineOwner,
   leadingReturnTypeQualifier,
+  reportExtraTypeQualifiers,
+  reportUntakenContinuation,
+  hasTypeUnionLineOwner,
   reportUnownedTypeUnionLine,
-  markLineContinuationUsed,
-  reportUntakenLineContinuation,
-  splitOnCommas,
-  takeLineContinuation,
 } from "./utils/lineContinuation";
-import { commaLineBreakValue, isListCommaName } from "../utils/listCommaNames";
-import {
-  followsDanglingDot,
-  followsMissingValue,
-  TRIVIA_BEFORE_STATEMENT,
-} from "./utils/statementBefore";
-import {
-  validateAssignmentValue,
-  validateReassignmentList,
-} from "./utils/validateAssignmentValue";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -85,11 +48,8 @@ import {
   lowerDoneStatement,
   lowerFinStatement,
 } from "./lowerers/lowerDoneOrFin";
-import { lowerExplicitStatement } from "./lowerers/lowerExplicitStatement";
 import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
-import { lowerReassignment } from "./lowerers/lowerReassignment";
-import { propertyStore } from "./utils/lowerPropertyTargetAssignment";
 import { lowerInclude } from "./lowerers/lowerInclude";
 import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
@@ -97,35 +57,25 @@ import { lowerLuauStyle } from "./lowerers/lowerLuauStyle";
 import { lowerLuauStructDefine } from "./lowerers/lowerLuauStructDefine";
 import { lowerLuauUI, lowerLuauScreen } from "./lowerers/lowerLuauUI";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
-import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
 import {
-  lowerLuauBreakStatement,
-  lowerLuauContinueStatement,
-} from "./lowerers/lowerLuauBreakContinue";
-import { lowerLuauDoBlock } from "./lowerers/lowerLuauDoBlock";
-import { lowerLuauForLoop } from "./lowerers/lowerLuauForLoop";
-import {
-  lowerLuauRepeatLoop,
-  lowerLuauUntilStatement,
-} from "./lowerers/lowerLuauRepeatLoop";
-import { lowerLuauWhileLoop } from "./lowerers/lowerLuauWhileLoop";
-import { lowerLuauReturnStatement } from "./lowerers/lowerLuauReturnStatement";
+  LUAU_STATEMENT_NODES,
+  lowerLuauStatementNode,
+  readStatements,
+  lowerLuauStatementsAt,
+  statementRange,
+  takesLines,
+} from "./lowerers/lowerLuauStatement";
 import { lowerScene } from "./lowerers/lowerScene";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerers/lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownChooseBlock } from "./lowerers/lowerSparkdownChooseBlock";
-import {
-  lowerLuauIfBlock,
-  lowerSparkdownIfBlock,
-} from "./lowerers/lowerSparkdownIfBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerers/lowerSparkdownSequentialAlternatorBlock";
 import { lowerTags } from "./lowerers/lowerTags";
 import { lowerThread } from "./lowerers/lowerThread";
-import { lowerVariableDefinition } from "./lowerers/lowerVariableDefinition";
 import {
   headerLineRange,
-  identifierAt,
   stampDebugMetadata,
 } from "./utils/debugMetadata";
+import { offsetAt, readBlockAst } from "./utils/luauAst";
 import { forwardBlockDiagnostics } from "./utils/unwrapBlock";
 import {
   closeStatement,
@@ -156,48 +106,75 @@ export function lower(
   // sub-objects (e.g. on an Identifier within the assignment) — the helper
   // skips objects that already have metadata attached.
   if (block?.content) {
-    // Clamp trailing whitespace/newlines off the node's range before stamping
-    // so a beat's `endLineNumber` is its last VISIBLE content line, not a
-    // blank or the start of the following construct. Several grammar nodes
-    // (notably `BlockDialogue`) consume a trailing blank line and end at the
-    // start of the next line, which over-extends the stamped range one line
-    // PAST the content. That made a dialogue beat's pathLocation claim the
-    // action line right after it (e.g. `RAFFLES:` beat ending on the `Danby
-    // picks…` action line), so clicking that action previewed the dialogue.
-    // Leading spaces and tabs are clamped off too: a statement's node starts
-    // with its line's indentation, and its range starts at its first
-    // character.
-    // value-level: the statement text, trimming its trailing whitespace
-    const text = ctx.read(nodeRef.from, nodeRef.to).replace(/\s+$/, "");
-    // value-level: the statement text read above, measuring its indentation
-    const indentation = text.length - text.replace(/^[ \t]+/, "").length;
-    const from = nodeRef.from + indentation;
-    const to = nodeRef.from + text.length;
-    // A block statement's weave is unwrapped wherever it is placed, as an
-    // explicit statement's is (see `lowerExplicitStatement`), so the weave's
-    // range would not reach the statement it holds. Give the statement the
-    // range of its header line, so a diagnostic raised in its condition, such
-    // as an unknown name, is reported on that line rather than on the
-    // enclosing scene or branch. Only the header: the lines of its arms own
-    // their own paths, and a range covering them would make
-    // `program.pathLocations` resolve those lines to the statement instead.
-    if (BLOCK_STATEMENTS.has(nodeRef.name)) {
-      const header = headerLineRange(from, to, ctx);
-      for (const obj of block.content) {
-        if (obj instanceof Weave) {
-          stampDebugMetadata(obj.content, header.from, header.to, ctx);
-        }
-      }
-    }
-    stampDebugMetadata(block.content, from, to, ctx);
+    stampStatement(
+      block.content,
+      BLOCK_STATEMENTS.has(nodeRef.name),
+      nodeRef.from,
+      nodeRef.to,
+      ctx,
+    );
   }
   return block;
+}
+
+/**
+ * Stamps a statement's objects with the range `[from, to)` it was lowered
+ * from, which `program.pathLocations` and the runtime's error positions
+ * read.
+ *
+ * Trailing whitespace and newlines are clamped off the range, so a beat's
+ * `endLineNumber` is its last VISIBLE content line, not a blank or the start
+ * of the following construct. Several grammar nodes (notably
+ * `BlockDialogue`) consume a trailing blank line and end at the start of the
+ * next line, which over-extends the stamped range one line PAST the content.
+ * That made a dialogue beat's pathLocation claim the action line right after
+ * it (e.g. `RAFFLES:` beat ending on the `Danby picks…` action line), so
+ * clicking that action previewed the dialogue. Leading spaces and tabs are
+ * clamped off too: a statement's node starts with its line's indentation,
+ * and its range starts at its first character.
+ *
+ * A block statement's weave (`isBlockStatement`) is unwrapped wherever it is
+ * placed, as an explicit statement's is (see `lowerExplicitStatement`), so
+ * the weave's range would not reach the statement it holds. Give the
+ * statement the range of its header line, so a diagnostic raised in its
+ * condition, such as an unknown name, is reported on that line rather than
+ * on the enclosing scene or branch. Only the header: the lines of its arms
+ * own their own paths, and a range covering them would make
+ * `program.pathLocations` resolve those lines to the statement instead.
+ */
+export function stampStatement(
+  content: ParsedObject[],
+  isBlockStatement: boolean,
+  rangeFrom: number,
+  rangeTo: number,
+  ctx: LowerContext,
+): void {
+  // value-level: the statement's isolated source range, trimming its trailing whitespace
+  const text = ctx.read(rangeFrom, rangeTo).replace(/\s+$/, "");
+  // value-level: the isolated statement text, measuring its indentation
+  const indentation = text.length - text.replace(/^[ \t]+/, "").length;
+  const from = rangeFrom + indentation;
+  const to = rangeFrom + text.length;
+  if (isBlockStatement) {
+    const header = headerLineRange(from, to, ctx);
+    for (const obj of content) {
+      if (obj instanceof Weave) {
+        stampDebugMetadata(obj.content, header.from, header.to, ctx);
+      }
+    }
+  }
+  stampDebugMetadata(content, from, to, ctx);
 }
 
 function lowerInner(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock | undefined {
+  // Luau's statements are read by the converter, which decides where each
+  // ends and what it holds.
+  if (LUAU_STATEMENT_NODES.has(nodeRef.name)) {
+    return lowerLuauStatementNode(nodeRef.node, ctx);
+  }
   switch (nodeRef.name) {
     case "Include":
       return lowerInclude(nodeRef, ctx);
@@ -235,10 +212,7 @@ function lowerInner(
       // these directly (not wrapped in ImplicitAction the way
       // `text {expr} text` lines are). Sparkdown handles them via
       // `lowerExpressionFromContainer` (which applies the `{{...}}`
-      // call-shorthand coercion when the node is the shorthand); this case
-      // is required so they're handled here directly (there is no parser
-      // fallback — the grammar+lowerers are the only path — and nothing
-      // else would know Luau-specific operators `^`, `//`, `..`).
+      // call-shorthand coercion when the node is the shorthand).
       return lowerLuauInterpolatedStringExpression(nodeRef, ctx);
     case "InlineAction":
       return lowerInlineAction(nodeRef, ctx);
@@ -268,88 +242,10 @@ function lowerInner(
       return lowerAudioLine(nodeRef, ctx);
     case "ImageAndAudioLine":
       return lowerImageAndAudioLine(nodeRef, ctx);
-    case "LuauVariableDefinition":
-    case "LuauSparkdownVariableDefinition":
-      return lowerVariableDefinition(nodeRef, ctx);
-    case "LuauExplicitStatement":
-      return lowerExplicitStatement(nodeRef, ctx);
     case "Glue":
       return lowerGlue(nodeRef, ctx);
-    case "LuauReassignment":
-    case "LuauSparkdownReassignment": {
-      // The grammar wraps `x = 5` (bare) inside this node:
-      // `LuauReassignment` in Luau code, `LuauSparkdownReassignment` in a
-      // narrative body. Two shapes:
-      //
-      // Single-target (`x = 5` / `obj.field = v`):
-      //   LuauAccessPath
-      //   LuauAssignmentOperation
-      //
-      // Multi-target (`a, b = 10, 20` / `a, b = f()`):
-      //   LuauAccessPath, LuauCommaSeparator, LuauAccessPath, …,
-      //   LuauAssignmentOperation, [LuauCommaSeparator, <expr>, …]
-      //
-      // In Luau code a comma after the `=` that ends its line is a
-      // `LuauCommaLineBreak`, and the list continues on the next line.
-      //
-      // Try multi-target first; fall back to the single-target helper
-      // for everything else.
-      const content =
-        findChildByName(nodeRef.node, `${nodeRef.node.name}_content`) ??
-        nodeRef.node;
-      // The statement's continuation lines are still `ctx.lineContinuation`
-      // here; its lowerer takes them below.
-      validateReassignmentList(content, ctx.lineContinuation ?? [], ctx);
-      let firstAccessPath: SyntaxNode | null = null;
-      let scan = content.firstChild;
-      while (scan) {
-        if (scan.name === "LuauAccessPath") {
-          firstAccessPath = scan;
-          break;
-        }
-        scan = scan.nextSibling;
-      }
-      if (firstAccessPath) {
-        // A single target with extra values (`g = 1, bump()`, or `g = 1,`
-        // then `bump()`) goes the multi-target way too, which evaluates
-        // every value and assigns the first, as Luau does. A compound
-        // operator (`g += 1, 2`) takes no list and stays single-target.
-        const multi = scanMultiTargetReassignment(firstAccessPath, true);
-        if (
-          multi &&
-          (multi.targets.length > 1 || isPlainAssignment(multi.op, ctx))
-        ) {
-          return lowerMultiTargetReassignment(multi, ctx);
-        }
-      }
-
-      // Single-target fallback. The lowerer helper takes the
-      // LuauAccessPath + LuauAssignmentOperation as separate args, so
-      // dig them out of the wrapper.
-      let pathChild: SyntaxNode | null = firstAccessPath;
-      let opChild: SyntaxNode | null = null;
-      let inner = content.firstChild;
-      while (inner) {
-        if (inner.name === "LuauAccessPath" && !pathChild) pathChild = inner;
-        else if (inner.name === "LuauAssignmentOperation" && !opChild)
-          opChild = inner;
-        inner = inner.nextSibling;
-      }
-      if (!pathChild || !opChild) return {};
-      // A store through what a call written after the path returns
-      // (`o.get().a.x = v`): the grammar wraps the call's arguments and its
-      // links with the assignment, and the path alone is not the target.
-      const links = chainedLinksAfter(pathChild);
-      const storeOp = chainedStoreOperation(links);
-      if (storeOp && storeOp.from === opChild.from) {
-        return lowerChainedTargetStore([pathChild], links, storeOp, ctx) ?? {};
-      }
-      return lowerReassignment(pathChild, opChild, ctx);
-    }
     case "LuauSparkdownChooseBlock":
       return lowerSparkdownChooseBlock(nodeRef, ctx);
-    case "LuauSparkdownIfBlock":
-      return lowerSparkdownIfBlock(nodeRef, ctx);
     case "LuauSparkdownConditionalAlternatorBlock":
     case "LuauSparkdownSingleLineConditionalAlternatorBlock":
       return lowerSparkdownConditionalAlternatorBlock(nodeRef, ctx);
@@ -372,71 +268,15 @@ function lowerInner(
       return lowerLuauStructDefine(nodeRef, ctx, "theme");
     case "LuauMorph":
       return lowerLuauStructDefine(nodeRef, ctx, "morph");
-    case "LuauFunctionDefinition":
-      return lowerLuauFunctionDefinition(nodeRef, ctx);
-    case "LuauIfBlock":
-      return lowerLuauIfBlock(nodeRef, ctx);
-    case "LuauReturnStatement":
-    case "LuauSparkdownReturnStatement":
-      return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
-    case "LuauDataTypeDeclaration":
-    case "LuauFunctionTypeDeclaration": {
-      // A type declaration does not reach the runtime. The `.Name` parts of
-      // the lines that continue a type name it ends with qualify that name
-      // (`type Alias = types` then `.Button`).
-      const continuation = takeLineContinuation(ctx);
-      if (
-        endsInTypeName(nodeRef.node) &&
-        isTypeQualifierContinuation(continuation)
-      ) {
-        markLineContinuationUsed(continuation, ctx);
-        reportExtraTypeQualifiers(
-          nodeRef.node,
-          continuationParts(continuation),
-          ctx,
-        );
-      }
-      if (nodeRef.name === "LuauFunctionTypeDeclaration") {
-        reportUnreadBodyLines(nodeRef.node, ctx);
-      }
-      return {};
-    }
-    // A loop or `do` block in a function body parses as the `Luau…` rule; one
-    // in a scene or at the top level parses as the `LuauSparkdown…` rule,
-    // whose body also accepts display lines. Both lower the same way.
-    case "LuauWhileLoop":
-    case "LuauSparkdownWhileLoop":
-      return lowerLuauWhileLoop(nodeRef, ctx);
-    case "LuauDoBlock":
-    case "LuauSparkdownDoBlock":
-      return lowerLuauDoBlock(nodeRef, ctx);
-    case "LuauForLoop":
-    case "LuauSparkdownForLoop":
-      return lowerLuauForLoop(nodeRef, ctx);
-    case "LuauRepeatLoop":
-    case "LuauSparkdownRepeatLoop":
-      return lowerLuauRepeatLoop(nodeRef, ctx);
     case "LuauUntilStatement":
-      // No-op — the until-statement is consumed by the sibling
-      // `LuauRepeatLoop` lowerer above (it peeks forward to grab the
-      // condition). This case handles it here directly (there is no
-      // parser fallback — the grammar+lowerers are the only path — that
-      // would otherwise treat `until X` as narrative text). The lines that
-      // continue the condition were lowered with it there, which reports any
-      // that no value takes, so they are used here.
-      markLineContinuationUsed(takeLineContinuation(ctx), ctx);
-      return lowerLuauUntilStatement(nodeRef, ctx);
-    case "LuauBreakStatement":
-      return lowerLuauBreakStatement(nodeRef, ctx);
-    case "LuauContinueStatement":
-      return lowerLuauContinueStatement(nodeRef, ctx);
+      // A `repeat` loop reads the `until` line after it as its own
+      // (`lowerLuauStatementNode`), so the line lowers to nothing here.
+      return {};
     case "LuauEndKeyword":
       // Stand-alone `end` keyword (the scene/branch/function terminator).
-      // It's purely a structural marker — no runtime content. Swallow it
-      // so it isn't emitted as content (there is no parser fallback — the
-      // grammar+lowerers are the only path).
+      // It's purely a structural marker — no runtime content.
       return {};
     case "Tags":
       // Top-level `# tag` (or `# a # b`) line. The grammar produces a
@@ -450,29 +290,29 @@ function lowerInner(
   }
 }
 
-// Walks the direct children of `parent`, lowering each as a top-level
-// statement and merging the resulting ParsedObjects into a flat list. Any
-// inner Weave from a child is unwrapped — the caller is responsible for
-// wrapping the combined output in a Weave (or ContentList, etc.).
-//
-// `skipNames` lets the caller exclude specific child node types (e.g. the
-// condition node of an if-block, or nested else/elseif blocks the caller
-// will handle separately).
-// Names whose nodes only affect layout / annotation and shouldn't break up
-// the sibling-pair detection for implicit assignments. When we see
-// `LuauAccessPath` followed by these and then `LuauAssignmentOperation`, the
-// access path + operation still form one assignment statement. A block
-// comment is trivia to Luau, so a callee and the arguments after one
-// (`g --[[c]] (2)`) still form one call.
-const ASSIGNMENT_PAIR_BRIDGE: ReadonlySet<string> = nodeNameSet([
-  "Newline",
-  "ExtraWhitespace",
-  "LuauComment",
-  "LuauBlockComment",
-  "LuauUncallableValueTrailingBlockComment",
-  "LuauCallableValueTrailingBlockComment",
-]);
+// The statement nodes the converter reads (for the type checker) that
+// lower from their node: Sparkdown's own blocks.
+const TREE_LOWERED_STATEMENTS = nodeNameSet(["LuauSparkdownChooseBlock"]);
 
+/**
+ * Lowers the statements of a block: the children of `parent`, except those
+ * named in `skipNames` (a block's own header parts, such as an `if`'s
+ * condition), merged into one flat list. A statement's weave is unwrapped:
+ * the caller wraps the list in a Weave (or a ContentList, etc.).
+ *
+ * The block's Luau is read by the converter, which records each statement
+ * with the children it was read from: the child it begins in, and the
+ * children after it that it continues into (a line that begins with `.` or
+ * an operator, the values after a line-ending comma, a `repeat`'s `until`).
+ * Each child that statements begin in is lowered as those statements, the
+ * children they continue into are skipped, and every other child is a
+ * Sparkdown statement (a display line, a choice, a divert), lowered as its
+ * node. A line that continues the value before it but that no statement
+ * takes is reported, as is a union member line that continues no type.
+ *
+ * Each statement of a block's body is recorded with the objects it lowered
+ * to (see `StatementShape`), when the context keeps shapes.
+ */
 export function lowerStatements(
   parent: SyntaxNode | null,
   ctx: LowerContext,
@@ -485,14 +325,8 @@ export function lowerStatements(
   // frame is added for it, since a block nests this function once per level.
   ctx.blockEndStack?.push([]);
   const result: ParsedObject[] = [];
-  // Each statement of a block's body is recorded with the objects it
-  // lowered to (see `StatementShape`), when the context keeps shapes.
   const recording = body && ctx.statementStack ? body : undefined;
-  // The enclosing statement's own continuation is kept aside while the
-  // statements of its body take theirs (see `lowerContinued`).
-  const enclosingContinuation = ctx.lineContinuation;
-  const enclosingUsed = ctx.usedLineContinuations;
-  let child = parent.firstChild;
+  let first = parent.firstChild;
   // A function body's first lines may qualify the name its return type ends
   // with (`function f(): types` then `.Button`); they are part of the type.
   const qualifier = leadingReturnTypeQualifier(parent);
@@ -502,893 +336,161 @@ export function lowerStatements(
       continuationParts(qualifier.lines),
       ctx,
     );
-    const last = qualifier.lines[qualifier.lines.length - 1];
-    child = last?.nextSibling ?? null;
+    first = qualifier.lines[qualifier.lines.length - 1]?.nextSibling ?? null;
   }
-  while (child) {
-    if (isLineContinuation(child)) {
-      // A continuation line that no statement before it took.
-      reportUntakenLineContinuation([child], ctx);
-      child = child.nextSibling;
-      continue;
+  const nodes: SyntaxNode[] = [];
+  for (let child = first; child; child = child.nextSibling) {
+    if (!skipNames.has(child.name)) nodes.push(child);
+  }
+  // The block's statements, read from its children from `from` on, and the
+  // statements that begin in each child, by the child's index.
+  const indexOf = new Map<string, number>();
+  nodes.forEach((node, i) => indexOf.set(`${node.name}@${node.from}`, i));
+  const nodeIndex = (ref: { name: string; from: number }) =>
+    indexOf.get(`${ref.name}@${ref.from}`);
+  const beginning: LuauStatementSource[][] = nodes.map(() => []);
+  const readFrom = (from: number) => {
+    const read = readBlockAst(nodes.slice(from), ctx);
+    for (let i = from; i < nodes.length; i++) beginning[i] = [];
+    for (const source of read?.unit.statements ?? []) {
+      const at = source.nodes[0] && nodeIndex(source.nodes[0]);
+      if (at !== undefined) beginning[at]!.push(source);
     }
+    return read;
+  };
+  let reading = readFrom(0);
+  // A child where a statement before it stopped short (`cutAt`), which is
+  // read again from there.
+  let rereadAt: number | undefined;
+  // The first child after `i` that the statement continues into only by
+  // Luau's error recovery: the converter's reading fails at the child's
+  // first token (`x = if true then 1` before `x = 6` at column 0, whose `x`
+  // Luau reads as the missing `else`), and the child is a statement of its
+  // own to the grammar. The statement stops short of it, and the child is
+  // read again as the start of the block's remaining statements. A line
+  // that continues the value before it is left to the continuation reports.
+  const cutAt = (
+    statement: LuauStatementSource,
+    i: number,
+    errors: readonly LuauSyntaxError[],
+  ): number | undefined => {
+    let cut: number | undefined;
+    for (const ref of statement.nodes) {
+      const at = nodeIndex(ref);
+      if (at === undefined || at <= i) continue;
+      const node = nodes[at]!;
+      if (isLineContinuation(node) || node.name === "LuauTypeUnionLineContinuation") {
+        continue;
+      }
+      const text = ctx.read(node.from, node.to);
+      const first = node.from + text.length - text.trimStart().length;
+      if (errors.some((e) => offsetAt(e.location.begin, ctx) === first)) {
+        if (cut === undefined || at < cut) cut = at;
+      }
+    }
+    return cut;
+  };
+  // The children a statement before them continues into (`takesLines`).
+  const taken = new Set<number>();
+  // The last statement lowered, which a line that continues no value
+  // continues in vain.
+  let previous: AstStat | undefined;
+  for (let i = 0; i < nodes.length; i++) {
+    const child = nodes[i]!;
+    if (rereadAt === i) {
+      rereadAt = undefined;
+      reading = readFrom(i);
+    }
+    // A `choose` block is Sparkdown's own, lowered from its node.
+    const statements =
+      reading && !TREE_LOWERED_STATEMENTS.has(child.name)
+        ? readStatements(child, beginning[i]!, reading.source, ctx).map(
+            (statement) => {
+              const cut = cutAt(statement, i, reading!.source.errors);
+              if (cut === undefined) return statement;
+              if (rereadAt === undefined || cut < rereadAt) rereadAt = cut;
+              return {
+                ...statement,
+                nodes: statement.nodes.filter((n) => (nodeIndex(n) ?? i) < cut),
+              };
+            },
+          )
+        : [];
+    if (taken.has(i) && statements.length === 0) continue;
     if (child.name === "LuauTypeUnionLineContinuation") {
       // A union member line after a comment line: types do not reach the
-      // runtime, and the declaration before it took its `= value`. One that
-      // continues no type is Luau's error.
-      if (!hasTypeUnionLineOwner(child)) reportUnownedTypeUnionLine(child, ctx);
-      child = child.nextSibling;
+      // runtime, and the declaration before it took it. One that continues
+      // no type is Luau's error.
+      if (!taken.has(i) && !hasTypeUnionLineOwner(child)) {
+        reportUnownedTypeUnionLine(child, ctx);
+      }
       continue;
     }
-    if (skipNames.has(child.name)) {
-      child = child.nextSibling;
+    if (isLineContinuation(child)) {
+      // A continuation line that no statement before it took.
+      if (!taken.has(i)) reportUntakenContinuation(child, previous, ctx);
       continue;
     }
     const start = result.length;
     const shape = recording ? openStatement(ctx, child) : undefined;
     let last: SyntaxNode = child;
     try {
-      last = lowerStatementAt(child, ctx, result);
+      if (statements.length > 0 && reading) {
+        const lastIndex = Math.max(
+          i,
+          ...statements.flatMap((s) => s.nodes.map((n) => nodeIndex(n) ?? i)),
+        );
+        last = nodes[lastIndex]!;
+        const block = lowerLuauStatementsAt(
+          child,
+          statements,
+          { node: child, source: reading.source },
+          ctx,
+        );
+        if (block.content && statements.length === 1) {
+          const statement = statements[0]!;
+          const range = statementRange(
+            statement.statement,
+            statement.nodes.map((n) => nodes[nodeIndex(n) ?? i]!),
+            ctx,
+          );
+          stampStatement(
+            block.content,
+            statement.statement instanceof AstStatIf,
+            range.from,
+            range.to,
+            ctx,
+          );
+        }
+        appendBlockContent(result, block, ctx);
+        for (const statement of statements) {
+          if (!takesLines(statement.statement)) continue;
+          previous = statement.statement;
+          for (const ref of statement.nodes) {
+            const at = nodeIndex(ref);
+            if (at === undefined || at === i) continue;
+            const node = nodes[at]!;
+            if (
+              isLineContinuation(node) &&
+              continuesInVain(node, reading.source.errors, ctx)
+            ) {
+              continue;
+            }
+            taken.add(at);
+          }
+        }
+      } else {
+        const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+        if (block) appendBlockContent(result, block, ctx);
+      }
     } finally {
       if (shape) {
         closeStatement(ctx, shape, recording!, last, result, start);
       }
     }
-    child = last.nextSibling;
   }
-  ctx.lineContinuation = enclosingContinuation;
-  ctx.usedLineContinuations = enclosingUsed;
   ctx.blockEndStack?.pop()?.forEach((end) => end());
   return result;
-}
-
-// Lowers the statement that ends at `end`, offering its lowerer the lines
-// that continue it (`ctx.lineContinuation`), and reports each of those lines
-// its lowering did not use. Returns what it lowered to and the last node the
-// statement consumed, past those lines.
-function lowerContinued<T>(
-  end: SyntaxNode,
-  ctx: LowerContext,
-  lowerStatement: () => T,
-): { lowered: T; last: SyntaxNode } {
-  const continuation = collectLineContinuation(end);
-  ctx.lineContinuation = continuation;
-  ctx.usedLineContinuations = new Set();
-  const lowered = lowerStatement();
-  reportUntakenLineContinuation(
-    continuation.filter((node) => !isLineContinuationUsed(node, ctx)),
-    ctx,
-  );
-  ctx.lineContinuation = null;
-  ctx.usedLineContinuations = null;
-  return { lowered, last: continuation[continuation.length - 1] ?? end };
-}
-
-// Reports the statement at `start`, which Luau cannot read as a statement
-// (`Hello`, `Hi, Bob`), with Luau's first error for it, and returns the last
-// node of its line, which the statement takes. `lastNode` is the last node
-// the statement's own lowering read. A line with a dangling `.` is left to
-// the validator, which reports the `.` (`LuauDanglingAccessor`), and so is a
-// line after one: its first name is the member Luau would read for that `.`.
-function reportExpressionStatement(
-  start: SyntaxNode,
-  lastNode: SyntaxNode,
-  ctx: LowerContext,
-): SyntaxNode {
-  let last = lastNode;
-  let dangling = false;
-  for (let n: SyntaxNode | null = start; n && n.name !== "Newline"; n = n.nextSibling) {
-    if (n.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", n)) {
-      dangling = true;
-    }
-    if (n.from >= lastNode.from) last = n;
-  }
-  const read = (from: number, to: number) => ctx.read(from, to);
-  if (
-    dangling ||
-    followsDanglingDot(start, read) ||
-    followsMissingValue(start, read) ||
-    continuesInvalidLine(start)
-  ) {
-    return last;
-  }
-  const error = luauStatementError(start.from, read, last.to);
-  if (error) {
-    ctx.diagnostics?.push({
-      message: error.message,
-      severity: ErrorType.Error,
-      source: {
-        fileName: null,
-        filePath: ctx.filePath ?? null,
-        startLineNumber: ctx.lineNumber(error.from) + 1,
-        endLineNumber: ctx.lineNumber(error.to) + 1,
-        startCharacterNumber: ctx.characterNumber(error.from) + 1,
-        endCharacterNumber: ctx.characterNumber(error.to) + 1,
-      },
-    });
-  }
-  return last;
-}
-
-// Whether `start` is on the line of a `LuauInvalidStatement` that ended
-// before it (before a long string or block comment that runs past the line,
-// `Hello there [[`): that line has its one report already.
-const STATEMENT_WHITESPACE = nodeNameSet([
-  "Whitespace", "OptionalWhitespace", "RequiredWhitespace", "ExtraWhitespace",
-]);
-
-function continuesInvalidLine(start: SyntaxNode): boolean {
-  let prev = start.prevSibling;
-  while (prev && STATEMENT_WHITESPACE.has(prev.name)) prev = prev.prevSibling;
-  return prev?.name === "LuauInvalidStatement";
-}
-
-// Reports the lines Luau cannot read as statements in the Luau bodies of
-// `node`, which reaches no runtime code (a type function), as a lowered
-// body reports them. The lines a statement's continuation takes are its
-// own (`f` then `"a"`).
-function reportUnreadBodyLines(node: SyntaxNode, ctx: LowerContext): void {
-  const cursor = node.cursor();
-  do {
-    const owner = cursor.node.parent?.name ?? "";
-    if (cursor.name !== owner + "_content") continue;
-    if (owner !== "LuauFunctionBody" && !LUAU_BLOCK_NAMES.has(owner)) continue;
-    for (let child = cursor.node.firstChild; child; child = child.nextSibling) {
-      if (TRIVIA_BEFORE_STATEMENT.has(child.name)) continue;
-      const last = reportUnreadExpressionStatement(child, ctx) ?? child;
-      const continuation = collectLineContinuation(last);
-      child = continuation[continuation.length - 1] ?? last;
-    }
-  } while (cursor.next() && cursor.from < node.to);
-}
-
-// Reports the statement at `child` in a body whose lowerer reads only the
-// statements it knows (a define body reads properties and methods) when it
-// is an expression Luau cannot read as a statement (`Hello`, `Hi, Bob`,
-// `1 + 2`), as `lowerStatementAt` does. Returns the last node of its line,
-// or null when `child` begins no such expression.
-export function reportUnreadExpressionStatement(
-  child: SyntaxNode,
-  ctx: LowerContext,
-): SyntaxNode | null {
-  if (
-    child.name === "LuauAccessPath" ||
-    EXPRESSION_STATEMENT_STARTS.has(child.name) ||
-    (child.name === "LuauFunctionDefinition" && isAnonymousFunction(child))
-  ) {
-    return reportExpressionStatement(child, child, ctx);
-  }
-  return null;
-}
-
-// Whether a function definition has no name: not `function f()`, nor a
-// property target such as `function t.f()`, which is written as an access
-// path.
-function isAnonymousFunction(node: SyntaxNode): boolean {
-  if (findOwnDeclarationName(node) != null) return false;
-  const content = findChildByName(node, "LuauFunctionDefinition_content");
-  for (let part = (content ?? node).firstChild; part; part = part.nextSibling) {
-    if (part.name === "LuauAccessPath") return false;
-  }
-  return true;
-}
-
-// The nodes a statement can start with that begin a value which is never a
-// call or an assignment target.
-const EXPRESSION_STATEMENT_STARTS: ReadonlySet<string> = new Set([
-  "LuauNumericDecimal",
-  "LuauNumericHex",
-  "LuauNumericBinary",
-  "LuauDoubleQuotedString",
-  "LuauSingleQuotedString",
-  "LuauMultilineString",
-  "LuauInterpolatedString",
-  "LuauBoolean",
-  "LuauNil",
-  "LuauTable",
-  "LuauLengthOperation",
-  "LuauLogicalOperation",
-  "LuauParenthetical",
-  "LuauUnitKeywords",
-]);
-
-// Lowers the statement that starts at `child` into `result`, and returns the
-// last sibling node the statement consumed, the lines that continue it
-// included.
-function lowerStatementAt(
-  child: SyntaxNode,
-  ctx: LowerContext,
-  result: ParsedObject[],
-): SyntaxNode {
-  // Implicit assignment statement: an `LuauAccessPath` immediately
-  // followed by a `LuauAssignmentOperation` sibling forms a bare
-  // reassignment (`total = total + 1`, `obj.field = value`, etc.).
-  // Lua's parser does the same thing — parse a suffixed expression, then
-  // disambiguate based on what follows. We do it at the lowerer level
-  // because TextMate can't easily encode arbitrary access-path shapes
-  // in a regex lookahead.
-  if (child.name === "LuauAccessPath") {
-    // Implicit multi-target reassignment (`a, b = f()` /
-    // `a, b = 10, 20`). Scan the siblings for the multi-target
-    // shape — multiple access paths separated by commas before
-    // an assignment op, then any trailing RHS expressions after.
-    // Falls through to the single-target path below when only
-    // one target precedes the op.
-    const multi = scanMultiTargetReassignment(child);
-    if (multi) {
-      const { lowered, last } = lowerContinued(multi.lastNode, ctx, () =>
-        lowerMultiTargetReassignment(multi, ctx),
-      );
-      appendBlockContent(result, lowered, ctx);
-      return last;
-    }
-    const opSibling = findAssignmentOperationAfter(child);
-    if (opSibling) {
-      const { lowered, last } = lowerContinued(opSibling, ctx, () =>
-        lowerReassignment(child, opSibling, ctx),
-      );
-      appendBlockContent(result, lowered, ctx);
-      return last;
-    }
-    // Bare statement-level function call inside a Luau-context
-    // body (function/if/for/while/do/repeat). Luau allows
-    // `foo()` as a statement; sparkdown's `LuauExplicitStatement`
-    // covers the `& foo()` form, but inside function bodies the
-    // discard prefix is optional. Reuse the same lowering path
-    // as `& foo()` — produce a FunctionCall and flag
-    // `shouldPopReturnedValue` so the unused return is popped.
-    // A non-call path (a bare `x`, `a and b`) is no statement Luau can
-    // read, and is reported below.
-    //
-    // Method-call shape (`table.insert(t, 40)` etc.): the access
-    // path and the call args parse as ADJACENT siblings. Pair the
-    // access path with its sibling `LuauParenthetical` before
-    // lowering — without this pairing, dotted / namespaced calls
-    // produce a non-`FunctionCall` expression and get silently
-    // dropped. Mirrors `lowerExplicitStatement`'s combining.
-    const callNodes: SyntaxNode[] = [child];
-    let parenScan: SyntaxNode | null = child.nextSibling;
-    while (parenScan && ASSIGNMENT_PAIR_BRIDGE.has(parenScan.name)) {
-      parenScan = parenScan.nextSibling;
-    }
-    let consumedParen: SyntaxNode | null = null;
-    if (parenScan && parenScan.name === "LuauParenthetical") {
-      callNodes.push(parenScan);
-      consumedParen = parenScan;
-      // The links chained after the call apply to its result
-      // (`o:get()()`, `o:me():bump()`, `o:mk().bump()`), and a property
-      // link before an assignment stores through it (`o:get().x = 6`).
-      const links = chainedLinksAfter(parenScan);
-      const opNode = chainedStoreOperation(links);
-      if (opNode) {
-        const { lowered, last } = lowerContinued(opNode, ctx, () =>
-          lowerChainedTargetStore([child, parenScan], links, opNode, ctx),
-        );
-        if (lowered) {
-          appendBlockContent(result, lowered, ctx);
-        }
-        return last;
-      }
-      callNodes.push(...links);
-      consumedParen = links[links.length - 1] ?? parenScan;
-    }
-    // The lines that continue the call (`obj` then `:method()`), and the
-    // strings and tables after it that are its arguments (`print` then
-    // `"hello"`, `table.sort{}`).
-    const continuation = collectLineContinuation(consumedParen ?? child);
-    const lastNode =
-      continuation[continuation.length - 1] ?? consumedParen ?? child;
-    callNodes.push(...continuation);
-    const callExpr = lowerExpressionFromNodes(callNodes, ctx);
-    // Compute the statement's source range — spans the access path
-    // plus the trailing parenthetical (if any) and the lines that continue
-    // it. Used by `wrapInWeave` to attach per-statement debug metadata so
-    // the call's runtime objects report their actual source line, not
-    // the enclosing function's start line.
-    const stmtRange = {
-      from: child.from,
-      to: lastNode.to,
-    };
-    if (callExpr instanceof FunctionCall) {
-      callExpr.shouldPopReturnedValue = true;
-      appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx), ctx);
-      return lastNode;
-    }
-    // User-defined method dispatch routes through
-    // `CallValueExpression` instead of `FunctionCall`. Same
-    // statement-context treatment: pop the unused return value.
-    if (callExpr instanceof CallValueExpression) {
-      callExpr.shouldPopReturnedValue = true;
-      appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx), ctx);
-      return lastNode;
-    }
-    // A statement that is neither a call nor an assignment (a lone name, a
-    // comma list with no `=`) is one Luau cannot read, so it is reported as
-    // Luau reports it, and the rest of its line is left with it.
-    return reportExpressionStatement(child, lastNode, ctx);
-  }
-  // IIFE statement: `(function () ... end)(args)` — a parenthesized
-  // value immediately followed by call parens, both parsing as
-  // adjacent sibling `LuauParenthetical` nodes at statement level.
-  // The expression-context equivalent is folded inside
-  // `collectTokens`, but statement-level parentheticals reach this
-  // dispatcher directly and previously fell through to `default:
-  // undefined` — the whole statement (including its upvalue
-  // writes) silently vanished. basic.luau line 50:
-  //   local a = 1 (function () a = 2 end)() return a
-  // Collect the value parenthetical plus every trailing call
-  // parenthetical (`(fn)(a)(b)` chains) and lower the run as one
-  // value-call expression, popping the unused return value.
-  if (child.name === "LuauParenthetical") {
-    const links = chainedLinksAfter(child);
-    // Parenthesized-base index store: `(expr)['k'] = v` — incl.
-    // ternary bases like `(if c then t else u).x = v`
-    // (tables.luau's aliasing block), and `(t):get().x = v`. Shape:
-    // LuauParenthetical + links ending in LuauChainedPropertyAccess +
-    // LuauAssignmentOperation.
-    const opNode = chainedStoreOperation(links);
-    if (opNode) {
-      const { lowered, last } = lowerContinued(opNode, ctx, () =>
-        lowerChainedTargetStore([child], links, opNode, ctx),
-      );
-      if (lowered) {
-        appendBlockContent(result, lowered, ctx);
-      }
-      return last;
-    }
-    const callNodes: SyntaxNode[] = [child, ...links];
-    let lastNode: SyntaxNode = links[links.length - 1] ?? child;
-    // The lines that continue the call (`(t)` then `:bump()`), and the
-    // strings and tables after it that are its arguments (`(note)` then
-    // `"x"`).
-    const continuation = collectLineContinuation(lastNode);
-    callNodes.push(...continuation);
-    lastNode = continuation[continuation.length - 1] ?? lastNode;
-    if (callNodes.length > 1) {
-      const callExpr = lowerExpressionFromNodes(callNodes, ctx);
-      if (
-        callExpr instanceof CallValueExpression ||
-        callExpr instanceof FunctionCall
-      ) {
-        callExpr.shouldPopReturnedValue = true;
-        appendBlockContent(
-          result,
-          wrapInWeave(
-            [callExpr],
-            { from: child.from, to: lastNode.to },
-            ctx,
-          ),
-          ctx,
-        );
-        return lastNode;
-      }
-    }
-  }
-  // A value that is not a call (`1 + 2`, `"hi"`, `{}`, `not a`, `(t)`, `...`,
-  // `function() end`) is no statement Luau can read either.
-  if (
-    EXPRESSION_STATEMENT_STARTS.has(child.name) ||
-    (child.name === "LuauFunctionDefinition" && isAnonymousFunction(child))
-  ) {
-    return reportExpressionStatement(child, child, ctx);
-  }
-  const { lowered, last } = lowerContinued(child, ctx, () =>
-    lower(child as unknown as SparkdownSyntaxNodeRef, ctx),
-  );
-  if (lowered) {
-    appendBlockContent(result, lowered, ctx);
-  }
-  return last;
-}
-
-// The links chained after `node` at statement level, bridges skipped: a
-// call's arguments, a `:method` call and a property or index link.
-export function chainedLinksAfter(node: SyntaxNode): SyntaxNode[] {
-  const links: SyntaxNode[] = [];
-  for (let scan = nextNonBridge(node); scan && CHAIN_LINK_NAMES.has(scan.name); scan = nextNonBridge(scan)) {
-    links.push(scan);
-  }
-  return links;
-}
-
-const CHAIN_LINK_NAMES = nodeNameSet([
-  "LuauParenthetical",
-  "LuauChainedFunctionCall",
-  "LuauChainedPropertyAccess",
-]);
-
-export function nextNonBridge(node: SyntaxNode): SyntaxNode | null {
-  let next = node.nextSibling;
-  while (next && ASSIGNMENT_PAIR_BRIDGE.has(next.name)) next = next.nextSibling;
-  return next;
-}
-
-// The assignment through `links`, `=` or a compound operator, when they end
-// in a property or index link (`o:m(x).k = value`, `(t)[k] += value`); null
-// for any other shape.
-export function chainedStoreOperation(links: SyntaxNode[]): SyntaxNode | null {
-  const lastLink = links[links.length - 1];
-  if (
-    !lastLink ||
-    lastLink.name !== "LuauChainedPropertyAccess" ||
-    chainedLinkParts(lastLink).length === 0
-  ) {
-    return null;
-  }
-  const opNode = nextNonBridge(lastLink);
-  return opNode?.name === "LuauAssignmentOperation" ? opNode : null;
-}
-
-// Lower `(base)[k1][k2]... = value` and `o:m(x).a.k += value`. The base is
-// `baseNodes` (a parenthetical, or an access path and its call's
-// arguments) plus every link and every part of the last link but its last
-// part, folded as reads; that last part supplies the store key. A compound
-// operator reads and writes through the base and key once each
-// (`propertyStore`). The value takes the lines that continue it
-// (`= source` then `.y`), as a reassignment's does: `continuation`, when the
-// caller has taken them (an explicit statement), or else the lines the
-// statement's lowering offers.
-export function lowerChainedTargetStore(
-  baseNodes: SyntaxNode[],
-  links: SyntaxNode[],
-  opNode: SyntaxNode,
-  ctx: LowerContext,
-  continuation: SyntaxNode[] = takeLineContinuation(ctx),
-): CompiledBlock | null {
-  validateAssignmentValue(opNode, ctx);
-  const opMarker = getDescendent("LuauAssignmentOperator", opNode);
-  const opText = opMarker ? ctx.read(opMarker.from, opMarker.to).trim() : "=";
-  let baseExpr = lowerExpressionFromNodes(
-    [...baseNodes, ...links.slice(0, -1)],
-    ctx,
-  );
-  if (!baseExpr) return null;
-  const parts = chainedLinkParts(links[links.length - 1]!);
-  for (const part of parts.slice(0, -1)) {
-    const key = chainedPartKey(part, ctx);
-    if (!key) return null;
-    baseExpr = new IndexExpression(baseExpr, key);
-  }
-  const keyExpr = chainedPartKey(parts[parts.length - 1]!, ctx);
-  if (!keyExpr) return null;
-  const valueExpr = lowerExpressionFromContainerAndContinuation(
-    opNode,
-    continuation,
-    ctx,
-  );
-  if (!valueExpr) return null;
-  return wrapInWeave(
-    propertyStore(baseExpr, keyExpr, valueExpr, opText, baseNodes[0]!.from, ctx),
-    { from: baseNodes[0]!.from, to: (continuation[continuation.length - 1] ?? opNode).to },
-    ctx,
-  );
-}
-
-function findAssignmentOperationAfter(
-  accessPath: SyntaxNode,
-): SyntaxNode | null {
-  let next = accessPath.nextSibling;
-  while (next && ASSIGNMENT_PAIR_BRIDGE.has(next.name)) {
-    next = next.nextSibling;
-  }
-  return next?.name === "LuauAssignmentOperation" ? next : null;
-}
-
-interface MultiTargetReassignment {
-  targets: SyntaxNode[];
-  op: SyntaxNode;
-  trailingExprGroups: SyntaxNode[][];
-  lastNode: SyntaxNode;
-}
-
-// Scan siblings starting from `firstTarget` (a `LuauAccessPath`) for the
-// multi-target reassignment shape:
-//
-//   AccessPath  [Comma AccessPath]+  AssignmentOperation  [Comma Expr]*
-//
-// Returns the collected pieces if at least 2 targets sit before the
-// assignment op, or, with `withExtraValues`, one target followed by more
-// than one value (`g = 1, bump()`, whose extra values Luau still evaluates);
-// returns `null` otherwise so the caller can fall back to single-target
-// lowering. Only a caller whose siblings end with the statement (a
-// reassignment node's content) passes `withExtraValues`. Anything
-// unexpected between the multi-target pieces (e.g. a stray identifier) also
-// returns `null` rather than risk a silent mis-parse.
-function scanMultiTargetReassignment(
-  firstTarget: SyntaxNode,
-  withExtraValues = false,
-): MultiTargetReassignment | null {
-  const targets: SyntaxNode[] = [firstTarget];
-  let cursor: SyntaxNode | null = firstTarget.nextSibling;
-  while (cursor) {
-    if (ASSIGNMENT_PAIR_BRIDGE.has(cursor.name)) {
-      cursor = cursor.nextSibling;
-      continue;
-    }
-    // A comma between targets may end its line in Luau code (`a,` then
-    // `g = 1, 2`), which makes it a `LuauCommaLineBreak`.
-    if (isListCommaName(cursor.name)) {
-      const afterComma = skipBridges(cursor.nextSibling);
-      if (afterComma?.name === "LuauAccessPath") {
-        targets.push(afterComma);
-        cursor = afterComma.nextSibling;
-        continue;
-      }
-      // Comma must be followed by an access path in the target list.
-      return null;
-    }
-    if (cursor.name === "LuauAssignmentOperation") {
-      if (targets.length < 2 && !withExtraValues) return null;
-      const op = cursor;
-      const trailingExprGroups: SyntaxNode[][] = [];
-      let current: SyntaxNode[] = [];
-      let last: SyntaxNode = op;
-      let post: SyntaxNode | null = op.nextSibling;
-      while (post) {
-        if (ASSIGNMENT_PAIR_BRIDGE.has(post.name)) {
-          post = post.nextSibling;
-          continue;
-        }
-        // A second `=` after a comma that ends its line (`a, g = 1,` then
-        // `x = 99`): Luau reads the name before it as the last value, and
-        // `validateReassignmentList` reports the `=`.
-        if (post.name === "LuauAssignmentOperation") break;
-        if (isListCommaName(post.name)) {
-          if (current.length > 0) {
-            trailingExprGroups.push(current);
-            current = [];
-          }
-          // An unindented if expression after the line break is the comma's
-          // own child (`a, g = 1,` then `if c`), and the next value.
-          const held = commaLineBreakValue(post);
-          if (held) current.push(held);
-          last = post;
-          post = post.nextSibling;
-          continue;
-        }
-        current.push(post);
-        last = post;
-        post = post.nextSibling;
-      }
-      if (current.length > 0) trailingExprGroups.push(current);
-      if (targets.length < 2 && trailingExprGroups.length === 0) return null;
-      return { targets, op, trailingExprGroups, lastNode: last };
-    }
-    return null;
-  }
-  return null;
-}
-
-// Lowers the content of an `&` statement that assigns one target, a name or a
-// field, more than one value (`& g = 1, bump()`, `& t.g = 1, bump()`) the way
-// a bare reassignment does: every value is evaluated and the first assigned,
-// as in Luau. `continuation` holds the lines that continue the last value.
-// Returns null for any other shape.
-export function lowerSingleTargetWithExtraValues(
-  content: SyntaxNode,
-  continuation: SyntaxNode[],
-  ctx: LowerContext,
-): CompiledBlock | null {
-  let first = content.firstChild;
-  while (first && ASSIGNMENT_PAIR_BRIDGE.has(first.name)) {
-    first = first.nextSibling;
-  }
-  if (first?.name !== "LuauAccessPath") return null;
-  const multi = scanMultiTargetReassignment(first, true);
-  if (
-    !multi ||
-    multi.targets.length !== 1 ||
-    !isPlainAssignment(multi.op, ctx)
-  ) {
-    return null;
-  }
-  // The multi-target lowerer takes the continuation from the context.
-  ctx.lineContinuation = continuation;
-  return lowerMultiTargetReassignment(multi, ctx);
-}
-
-// Whether the `LuauAssignmentOperation` `op` is a plain `=`.
-function isPlainAssignment(op: SyntaxNode, ctx: LowerContext): boolean {
-  const operator = getDescendent("LuauAssignmentOperator", op);
-  return !!operator && ctx.read(operator.from, operator.to).trim() === "=";
-}
-
-function skipBridges(n: SyntaxNode | null): SyntaxNode | null {
-  let cur = n;
-  while (cur && ASSIGNMENT_PAIR_BRIDGE.has(cur.name)) cur = cur.nextSibling;
-  return cur;
-}
-
-function lowerMultiTargetReassignment(
-  multi: MultiTargetReassignment,
-  ctx: LowerContext,
-): CompiledBlock {
-  // Inspect each target. If they're all plain `LuauVariableName`,
-  // route through `MultiVariableAssignment` directly (fast path —
-  // single ParsedObject, no temp expansion). If any target is a
-  // property access (`a.x`, `a[k]`), fall through to the
-  // temp-expansion path below: stash the RHS values into synthetic
-  // locals, then emit per-target stores. Multi-target with mixed
-  // property and variable targets is common in Luau (`a.x, b = …`,
-  // `a[f()], b, a[f()+3] = f(), a, 'x'`) — this fixture shape is
-  // attrib.luau lines 13, 15.
-  const allSimple = multi.targets.every((t) => isSimpleVariableTarget(t));
-  // The lines that continue the last value; their commas separate further
-  // values.
-  const trailingExprGroups = multi.trailingExprGroups.map((g) => [...g]);
-  const continuation = takeLineContinuation(ctx);
-  validateAssignmentValue(multi.op, ctx, continuation.length > 0);
-  const [continued = [], ...continuedGroups] = splitOnCommas(continuation);
-  const lastGroup = trailingExprGroups[trailingExprGroups.length - 1];
-  if (lastGroup) lastGroup.push(...continued);
-  trailingExprGroups.push(...continuedGroups);
-  const firstRhs = lowerExpressionFromContainerAndContinuation(
-    multi.op,
-    lastGroup ? [] : continued,
-    ctx,
-  );
-  const trailingExprs = trailingExprGroups
-    .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
-    .filter((e): e is NonNullable<typeof e> => e != null);
-  const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
-
-  if (allSimple) {
-    const targetIdents: Identifier[] = [];
-    for (const t of multi.targets) {
-      const nameNode = getDescendent("LuauVariableName", t);
-      if (!nameNode) return {};
-      targetIdents.push(identifierAt(nameNode, ctx));
-    }
-    return wrapInWeave([
-      new MultiVariableAssignment(targetIdents, expressions, false),
-    ]);
-  }
-
-  // Mixed shape: stash each RHS slot into a synthetic local, then
-  // emit per-target stores. Offset-tagged temp names keep multiple
-  // multi-target assignments in the same function body from
-  // colliding. The MultiVariableAssignment handles PackTuple +
-  // UnpackTuple semantics — including spreading a multi-return f()
-  // in the LAST RHS expression across as many temps as we declare.
-  const id = syntheticId(multi.targets[0]!.from, ctx);
-  const tempIdents = multi.targets.map(
-    (_, i) => new Identifier(`__mt_${id}_${i}`),
-  );
-  const tempDecl = new MultiVariableAssignment(tempIdents, expressions, true);
-
-  // Lua's "assignments with local conflicts" semantics (basic.luau
-  // lines 53-55): ALL expressions — RHS values AND each property
-  // target's base + subscript — evaluate before ANY store happens.
-  // `local a, b = 1, {} a, b[a] = 43, -1` must store into `b[1]`
-  // (the OLD a), not `b[43]`; `a[1], a = 43, -1` must store 43 into
-  // the table `a` referenced BEFORE `a` is overwritten with -1. So
-  // property targets stash their base + key into temps up front
-  // (`preStores`), and the store phase references only temps. As in Luau,
-  // whose compiler evaluates complex targets before the values, the bases
-  // and keys are taken first, so a call in a target (`t[key()]`) runs before
-  // a call among the values (`bump()`).
-  const preStores: ParsedObject[] = [];
-  const writes: ParsedObject[] = [];
-  for (let i = 0; i < multi.targets.length; i++) {
-    const target = multi.targets[i]!;
-    const tempRef = new VariableReference([tempIdents[i]!]);
-    const decomposed = decomposeTargetBaseAndKey(target, ctx);
-    if (decomposed) {
-      const baseTemp = new Identifier(`__mt_base_${id}_${i}`);
-      const keyTemp = new Identifier(`__mt_key_${id}_${i}`);
-      preStores.push(
-        new VariableAssignment({
-          variableIdentifier: baseTemp,
-          assignedExpression: decomposed.base,
-          isTemporaryNewDeclaration: true,
-        }),
-        new VariableAssignment({
-          variableIdentifier: keyTemp,
-          assignedExpression: decomposed.key,
-          isTemporaryNewDeclaration: true,
-        }),
-      );
-      writes.push(
-        new StorePropertyAssignment(
-          new VariableReference([baseTemp]),
-          new VariableReference([keyTemp]),
-          tempRef,
-        ),
-      );
-      continue;
-    }
-    const write = buildTargetWrite(target, tempRef, ctx);
-    if (write) writes.push(write);
-  }
-  return wrapInWeave([...preStores, tempDecl, ...writes]);
-}
-
-// True when the LuauAccessPath consists of a single LuauVariable
-// segment (no property accessor, no indexer, no function call).
-function isSimpleVariableTarget(accessPath: SyntaxNode): boolean {
-  const content = findChildByName(accessPath, "LuauAccessPath_content");
-  const root = content ?? accessPath;
-  let part: SyntaxNode | null = null;
-  let child = root.firstChild;
-  while (child) {
-    if (child.name === "LuauAccessPart") {
-      if (part) return false; // more than one part — not simple
-      part = child;
-    }
-    child = child.nextSibling;
-  }
-  if (!part) return false;
-  return part.firstChild?.name === "LuauVariable";
-}
-
-// Build a write that stores `valueExpr` into the target (variable or
-// property access). Mirrors `lowerReassignment` and
-// `lowerPropertyTargetAssignment` for the simple plain-`=` shape but
-// driven by a pre-computed value expression (the temp slot) instead
-// of lowering the RHS from a sibling op node.
-function buildTargetWrite(
-  accessPath: SyntaxNode,
-  valueExpr: Expression,
-  ctx: LowerContext,
-): ParsedObject | null {
-  const content = findChildByName(accessPath, "LuauAccessPath_content");
-  const root = content ?? accessPath;
-  const parts: SyntaxNode[] = [];
-  let child = root.firstChild;
-  while (child) {
-    if (child.name === "LuauAccessPart") parts.push(child);
-    child = child.nextSibling;
-  }
-  if (parts.length === 0) return null;
-
-  // Single-segment variable target → `VariableAssignment` reassign.
-  if (parts.length === 1) {
-    const inner = parts[0]!.firstChild;
-    if (inner?.name !== "LuauVariable") return null;
-    const nameNode =
-      getDescendent("LuauVariableName", inner) ??
-      getDescendent("LuauStdLibConstants", inner) ??
-      getDescendent("LuauSelfKeyword", inner);
-    if (!nameNode) return null;
-    return new VariableAssignment({
-      variableIdentifier: identifierAt(nameNode, ctx),
-      assignedExpression: valueExpr,
-      isTemporaryNewDeclaration: false,
-    });
-  }
-
-  // Multi-segment target — build base + key for StorePropertyAssignment.
-  const decomposed = decomposeTargetBaseAndKey(accessPath, ctx);
-  if (!decomposed) return null;
-  return new StorePropertyAssignment(
-    decomposed.base,
-    decomposed.key,
-    valueExpr,
-  );
-}
-
-// Decompose a property-access target (`b[a]`, `obj.field`, `a.b.c[k]`)
-// into a base GET expression (everything before the final segment) and
-// a key expression (the final `.name` as a string literal, or the
-// `[expr]` indexer lowered). Returns null for single-segment variable
-// targets and anything unrecognized — callers fall back to the simple
-// variable-write path. Used by `lowerMultiTargetReassignment` to stash
-// base + key into temps BEFORE any store happens (Lua's multi-
-// assignment conflict semantics) and by `buildTargetWrite` for the
-// plain inline store.
-function decomposeTargetBaseAndKey(
-  accessPath: SyntaxNode,
-  ctx: LowerContext,
-): { base: Expression; key: Expression } | null {
-  const content = findChildByName(accessPath, "LuauAccessPath_content");
-  const root = content ?? accessPath;
-  const parts: SyntaxNode[] = [];
-  let child = root.firstChild;
-  while (child) {
-    if (child.name === "LuauAccessPart") parts.push(child);
-    child = child.nextSibling;
-  }
-  if (parts.length < 2) return null;
-  // Call-rooted targets (`f(a)[2] = 10` — attrib.luau line 85) have a
-  // FunctionCall first part the segment-walk below can't root a
-  // VariableReference on. The expression lowerer already builds the
-  // full read chain for any path shape; an IndexExpression's
-  // base/key are exactly the store's base/key. Walk-based
-  // decomposition stays first because it's also used by paths the
-  // expression lowerer would mis-handle as a READ-then-store.
-  const decomposeViaExpression = (): {
-    base: Expression;
-    key: Expression;
-  } | null => {
-    const expr = lowerExpressionFromNodes([accessPath], ctx);
-    if (expr instanceof IndexExpression) {
-      return { base: expr.baseExpression, key: expr.keyExpression };
-    }
-    return null;
-  };
-
-  // Key comes from the final segment (either a `.name` accessor or a
-  // `[expr]` indexer).
-  const finalPart = parts[parts.length - 1]!;
-  const finalInner = finalPart.firstChild;
-  if (!finalInner) return null;
-
-  let keyExpr: Expression | null = null;
-  if (finalInner.name === "LuauPropertyAccessor") {
-    const nameNode =
-      getDescendent("LuauPropertyName", finalInner) ??
-      getDescendent("LuauStdLibMethods", finalInner);
-    if (!nameNode) return null;
-    keyExpr = new StringExpression([
-      new Text(ctx.read(nameNode.from, nameNode.to)),
-    ]);
-  } else if (finalInner.name === "LuauPropertyIndexer") {
-    const indexerContent = findChildByName(
-      finalInner,
-      "LuauPropertyIndexer_content",
-    );
-    keyExpr = indexerContent
-      ? lowerExpressionFromContainer(indexerContent, ctx)
-      : null;
-  } else {
-    return decomposeViaExpression();
-  }
-  if (!keyExpr) return decomposeViaExpression();
-
-  const baseExpr = buildBaseFromParts(parts.slice(0, -1), ctx);
-  if (!baseExpr) return decomposeViaExpression();
-  return { base: baseExpr, key: keyExpr };
-}
-
-// Build a value-chain expression for a property-target's base
-// segments. Mirrors `lowerBaseFromParts` in
-// `lowerPropertyTargetAssignment.ts` (kept inline to avoid the
-// circular import — `lowerPropertyTargetAssignment.ts` already
-// imports from this module via the expression lowerer).
-function buildBaseFromParts(
-  parts: SyntaxNode[],
-  ctx: LowerContext,
-): Expression | null {
-  if (parts.length === 0) return null;
-  const firstInner = parts[0]!.firstChild;
-  if (firstInner?.name !== "LuauVariable") return null;
-  const nameNode =
-    getDescendent("LuauStdLibConstants", firstInner) ??
-    getDescendent("LuauVariableName", firstInner) ??
-    getDescendent("LuauSelfKeyword", firstInner);
-  if (!nameNode) return null;
-  let current: Expression = new VariableReference([
-    identifierAt(nameNode, ctx),
-  ]);
-  for (let i = 1; i < parts.length; i++) {
-    const inner = parts[i]!.firstChild;
-    if (!inner) return null;
-    if (inner.name === "LuauPropertyAccessor") {
-      const propNameNode =
-        getDescendent("LuauPropertyName", inner) ??
-        getDescendent("LuauStdLibMethods", inner);
-      if (!propNameNode) return null;
-      current = new IndexExpression(
-        current,
-        new StringExpression([
-          new Text(ctx.read(propNameNode.from, propNameNode.to)),
-        ]),
-      );
-    } else if (inner.name === "LuauPropertyIndexer") {
-      const indexerContent = findChildByName(
-        inner,
-        "LuauPropertyIndexer_content",
-      );
-      const key = indexerContent
-        ? lowerExpressionFromContainer(indexerContent, ctx)
-        : null;
-      if (!key) return null;
-      current = new IndexExpression(current, key);
-    } else {
-      return null;
-    }
-  }
-  return current;
 }
 
 // Unwraps a nested statement's block into `result`. The block's own

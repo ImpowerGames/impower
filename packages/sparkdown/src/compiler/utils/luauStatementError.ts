@@ -1,4 +1,5 @@
 import { parseLuau } from "../typecheck/DefinitionParser";
+import type { SyntaxNode } from "@lezer/common";
 import { utf16Column } from "../typecheck/LuauDocumentChecker";
 import { nextSignificantToken } from "../lower/utils/validateAssignmentValue";
 
@@ -22,13 +23,14 @@ export interface LuauStatementError {
  * when Luau reads the statement without an error.
  */
 export function luauStatementError(
+  node: SyntaxNode,
   from: number,
   read: (from: number, to: number) => string,
   nodeEnd: number = from,
 ): LuauStatementError | null {
   let lineEnd = endOfLine(Math.max(from, nodeEnd - 1), read);
   for (;;) {
-    const next = nextSignificantToken(lineEnd, read);
+    const next = nextSignificantToken(node, lineEnd, read);
     const to = next ? endOfLine(next.from + next.text.length, read) : lineEnd;
     const text = read(from, to);
     const result = parseLuau(text);

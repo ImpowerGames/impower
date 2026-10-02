@@ -1,6 +1,4 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { type SyntaxNode } from "@lezer/common";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -14,18 +12,15 @@ import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { AstStatFor } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
-import {
-  lowerExpressionFromContainer,
-  lowerExpressionFromNodes,
-  shadowSiblingSubFlow,
-} from "../expression/lowerExpression";
+import { shadowSiblingSubFlow } from "../expression/bindings";
+import { lowerExpression } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
+import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
 import { loopOf, openBody } from "../utils/statementShape";
@@ -85,42 +80,25 @@ const FOR_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
+const FOR_NODES = nodeNameSet(["LuauForLoop", "LuauSparkdownForLoop"]);
+
 export function lowerLuauForLoop(
-  nodeRef: SparkdownSyntaxNodeRef,
+  stat: AstStatFor,
+  site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  const condNode = getDescendent("LuauForCondition", nodeRef.node);
-  const doBlock = findLoopDoBlock(nodeRef, ctx);
-  // An EMPTY body (`for x in t do end`) has no `_content` child —
-  // the loop must still lower: bounds/iterands evaluate (and can
-  // raise — `for x in 42 do end` must trap "attempt to iterate"
-  // through pcall, iter.luau line 164). `lowerStatements(null)`
-  // yields [].
+  const node = statementNodeAt(stat, site, FOR_NODES, ctx);
+  if (!node) return {};
+  const doBlock = findLoopDoBlock(node, ctx);
+  // An EMPTY body (`for i = 1, 3 do end`) has no `_content` child —
+  // the loop must still lower: its bounds evaluate (and can raise).
+  // `lowerStatements(null)` yields [].
   const bodyContent = doBlock
     ? findChildByName(doBlock, `${doBlock.name}_content`)
     : null;
-  if (!condNode || !doBlock) return {};
+  if (!doBlock) return {};
 
-  // Generic-for (`for k, v in iter do`) shares this grammar node but
-  // contains `LuauInKeyword`. Routed to `lowerLuauGenericForLoop`.
-  if (getDescendent("LuauInKeyword", condNode)) {
-    return lowerLuauGenericForLoop(nodeRef, ctx);
-  }
-
-  const condContent =
-    findChildByName(condNode, "LuauForCondition_content") ?? condNode;
-
-  // Extract the loop variable name from the leading LuauAccessPath.
-  const varAccess = findChildByName(condContent, "LuauAccessPath");
-  if (!varAccess) return {};
-  const varNameNode = getDescendent("LuauVariableName", varAccess);
-  if (!varNameNode) return {};
-  const loopVarName = ctx.read(varNameNode.from, varNameNode.to);
-
-  // Start expression: the RHS of the `=` assignment, packaged into a
-  // LuauAssignmentOperation node.
-  const opNode = findChildByName(condContent, "LuauAssignmentOperation");
-  if (!opNode) return {};
+  const loopVarName = stat.variable.name;
   // Lua numeric-for coerces string bounds to numbers
   // (`for i="10","1","-2"` — iter.luau line 30). Wrap each bound in
   // `tonumber(...)`: numbers pass through, numeric strings coerce,
@@ -137,26 +115,17 @@ export function lowerLuauForLoop(
     staticallyNumeric(e)
       ? e
       : new FunctionCall(new Identifier("tonumber"), [e]);
-  const rawStartExpr = lowerExpressionFromContainer(opNode, ctx);
+  const rawStartExpr = lowerExpression(stat.from, site.source, ctx);
   if (!rawStartExpr) return {};
   const startExpr = coerce(rawStartExpr);
-
-  // Trailing expressions: comma-separated groups appearing after the
-  // assignment-operation node. Group 0 is `stop`; group 1 (optional)
-  // is `step`.
-  const trailingGroups = collectTrailingExpressionGroups(opNode);
-  const rawStopExpr =
-    trailingGroups[0] && trailingGroups[0].length > 0
-      ? lowerExpressionFromNodes(trailingGroups[0], ctx)
-      : null;
+  const rawStopExpr = lowerExpression(stat.to, site.source, ctx);
   if (!rawStopExpr) return {};
   const stopExpr = coerce(rawStopExpr);
-  const stepExpr =
-    trailingGroups[1] && trailingGroups[1].length > 0
-      ? coerce(lowerExpressionFromNodes(trailingGroups[1], ctx) ?? new NumberExpression(1, "int"))
-      : new NumberExpression(1, "int");
+  const stepExpr = stat.step
+    ? coerce(lowerExpression(stat.step, site.source, ctx) ?? new NumberExpression(1, "int"))
+    : new NumberExpression(1, "int");
 
-  const id = syntheticId(nodeRef.node.from, ctx);
+  const id = syntheticId(node.from, ctx);
   const idxName = `__forIdx_${id}`;
   const stopName = `__forStop_${id}`;
   const stepName = `__forStep_${id}`;
@@ -278,39 +247,6 @@ export function lowerLuauForLoop(
     });
   }
   return wrapInWeave(scoped);
-}
-
-// Walks `LuauForCondition_content` siblings after the
-// LuauAssignmentOperation, splitting on `LuauCommaSeparator` to
-// collect groups of expression nodes. Returns `[[stop-nodes],
-// [step-nodes]?]`.
-function collectTrailingExpressionGroups(opNode: SyntaxNode): SyntaxNode[][] {
-  const groups: SyntaxNode[][] = [];
-  let current: SyntaxNode[] = [];
-  let n: SyntaxNode | null = opNode.nextSibling;
-  while (n) {
-    if (n.name === "LuauCommaSeparator") {
-      if (current.length > 0) {
-        groups.push(current);
-        current = [];
-      }
-    } else if (!isSkippable(n.name)) {
-      current.push(n);
-    }
-    n = n.nextSibling;
-  }
-  if (current.length > 0) groups.push(current);
-  return groups;
-}
-
-function isSkippable(name: string): boolean {
-  return (
-    name === "Newline" ||
-    name === "OptionalWhitespace" ||
-    name === "RequiredWhitespace" ||
-    name === "ExtraWhitespace" ||
-    name === "LuauComment"
-  );
 }
 
 // Build `loopVar + stepName` as a BinaryExpression.

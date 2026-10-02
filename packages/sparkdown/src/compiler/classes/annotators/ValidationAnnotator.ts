@@ -250,10 +250,11 @@ const gotToken = (token: { text: string } | null) =>
  * Sparkdown access path ends with its line. It is reported at the `.`.
  */
 function danglingDotError(
+  node: SyntaxNode,
   dot: number,
   read: (from: number, to: number) => string,
 ): { message: string; from: number; to: number } {
-  const got = nextSignificantToken(dot + 1, read);
+  const got = nextSignificantToken(node, dot + 1, read);
   const nameOnLaterLine =
     got != null &&
     /^[A-Za-z_]/.test(got.text) &&
@@ -278,14 +279,15 @@ function danglingDotError(
  * `danglingDotError` reports it.
  */
 function invalidStatementError(
+  node: SyntaxNode,
   from: number,
   to: number,
   read: (from: number, to: number) => string,
 ): { message: string; from: number; to: number } | null {
-  const error = luauStatementError(from, read, to);
+  const error = luauStatementError(node, from, read, to);
   const line = read(from, to).trimEnd();
   if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
-    const dangling = danglingDotError(from + line.length - 1, read);
+    const dangling = danglingDotError(node, from + line.length - 1, read);
     if (dangling.message === NAME_ON_LATER_LINE) return dangling;
   }
   return error;
@@ -309,7 +311,7 @@ function reportedBefore(
   while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
   if (prev?.name === "LuauInvalidStatement") {
     const line = childNamed(prev, "LuauInvalidStatement_c2");
-    const error = invalidStatementError(line?.from ?? prev.from, line?.to ?? prev.to, read);
+    const error = invalidStatementError(prev, line?.from ?? prev.from, line?.to ?? prev.to, read);
     return error != null && (error.message === NAME_ON_LATER_LINE || error.from >= node.from);
   }
   return followsDanglingDot(node, read);
@@ -1229,7 +1231,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // names the token it meets instead of the name, at that token; the type
     // checker reports that where it reads the Luau (#1175).
     if (nodeRef.name === "LuauDanglingAccessor") {
-      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+      const got = nextSignificantToken(nodeRef.node, nodeRef.to, (from, to) =>
         this.read(from, to),
       );
       const nameOnLaterLine =
@@ -1260,6 +1262,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
       const error = invalidStatementError(
+        nodeRef.node,
         line?.from ?? nodeRef.from,
         line?.to ?? nodeRef.to,
         (from, to) => this.read(from, to),
@@ -1316,6 +1319,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
         const got = nextSignificantToken(
+          nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
           (from, to) => this.read(from, to),
         );

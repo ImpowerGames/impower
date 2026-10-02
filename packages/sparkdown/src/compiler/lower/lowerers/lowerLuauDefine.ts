@@ -1,4 +1,7 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { luauStatementError } from "../../utils/luauStatementError";
+import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
+import { followsDanglingDot, followsMissingValue } from "../utils/statementBefore";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -20,20 +23,42 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import type { LowerContext,SiblingSubFlowInfo } from "../context";
+import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import {
-  buildClosureExpression,
-  lowerExpressionFromContainer,
-  lowerExpressionFromNodes,
+  AstExpr,
+  AstExprBinary,
+  AstExprCall,
+  AstExprConstantBool,
+  AstExprConstantNumber,
+  AstExprConstantString,
+  AstExprFunction,
+  AstExprGroup,
+  AstExprSparkdownInterpString,
+  AstExprSparkdownRegex,
+  AstExprTable,
+  AstExprUnary,
+  BinaryOp,
+  QuoteStyle,
+  UnaryOp,
+} from "../../typecheck/Ast";
+import { recordCaptureRead } from "../expression/bindings";
+import {
+  containerValueNodes,
+  lowerExpression,
+  pathNames,
   processLuauEscapes,
-  recordCaptureRead,
-  scanFreeVariables,
+  stripQuotes,
 } from "../expression/lowerExpression";
-import { lowerStatements, reportUnreadExpressionStatement } from "../lower";
+import {
+  bodyAst,
+  buildClosureExpression,
+  freeVariables,
+} from "../expression/lowerFunction";
+import { rangeOf, readExpressionAst, type LuauSource } from "../utils/luauAst";
+import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
-import { collectLineContinuation } from "../utils/lineContinuation";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
@@ -89,72 +114,120 @@ interface DefineProperty {
   // "read" | "write" | "" — from LuauAccessModifier.
   access: string;
   node: SyntaxNode;
-  // Raw source text of the assigned value (after the `=`), used to emit
-  // a compile-time literal into the engine struct registry. See the
-  // context-emission note in `lowerLuauDefine`.
-  rawValue: string;
+  // The assigned value as the converter read it, with the nodes it was read
+  // from, used to emit a compile-time literal into the engine struct
+  // registry. See the context-emission note in `lowerLuauDefine`.
+  value: DefineValue;
 }
 
-// Coerce a raw property-value source string to a compile-time literal for
-// the engine struct registry: strip surrounding quotes (string), parse
-// numbers / booleans, otherwise keep the raw string (the engine's value
-// system interprets things like `surface-2` / `md`). Returns `undefined`
-// for values that aren't simple scalars (objects, arrays, multi-line or
-// logic expressions) — those have no faithful literal form and are left
-// out of the registry (the runtime `__def` table remains their source of
-// truth).
-//
-// `raw` holds no trailing comment: `readPropertyDefinition` ends it at the
-// value's last node, so a `-- note` the grammar read as a `LuauLineComment` is
-// never part of it. (`//` is Luau floor division, not a comment, in a define
-// body; the expression validators already report `5 // note`.)
-function coerceScalarLiteral(raw: string): unknown {
-  // A QUOTED value: the quotes bound the literal, so a `--`/`//` INSIDE them
-  // is content (`name = "Chapter 1 -- The Beginning"`). Scan to the matching
-  // close quote (escape-aware); anything after it other than whitespace means
-  // the RHS is not a simple string literal (e.g. `"a" .. "b"`), which is not a
-  // scalar.
-  //
-  // Unescape Luau string-literal escapes (\\, \", \n, \xNN, …) so the context
-  // value matches the runtime string (the StringExpression path already runs
-  // processLuauEscapes). Without this, e.g. a prosody regex `"/(?:^|\\b).../"`
-  // reaches context doubly-escaped and the engine builds an invalid RegExp.
-  const rawTrimmed = raw.trim();
-  const quote = rawTrimmed[0];
-  if ((quote === '"' || quote === "'") && !rawTrimmed.includes("\n")) {
-    let close = -1;
-    for (let i = 1; i < rawTrimmed.length; i += 1) {
-      if (rawTrimmed[i] === "\\") {
-        i += 1;
-      } else if (rawTrimmed[i] === quote) {
-        close = i;
-        break;
-      }
-    }
-    if (close === -1) return undefined;
-    if (rawTrimmed.slice(close + 1).trim()) return undefined;
-    return processLuauEscapes(rawTrimmed.slice(1, close));
+interface DefineValue {
+  expr: AstExpr;
+  source: LuauSource;
+  /** Whether the converter read the value without a syntax error. */
+  isLuau: boolean;
+  /** The nodes the value was read from, comments and whitespace left out. */
+  nodes: SyntaxNode[];
+}
+
+const DEFINE_MEMBER_NAMES = nodeNameSet([
+  "LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition",
+]);
+
+const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
+  "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary",
+  "LuauDoubleQuotedString", "LuauSingleQuotedString", "LuauMultilineString",
+  "LuauInterpolatedString", "LuauBoolean", "LuauNil", "LuauTable",
+  "LuauLengthOperation", "LuauLogicalOperation", "LuauParenthetical", "LuauUnitKeywords",
+]);
+
+// Define bodies lower members only, but still report expressions that Luau
+// cannot read as statements. A property's continuation is consumed first.
+function reportDefineStatement(start: SyntaxNode, ctx: LowerContext): SyntaxNode {
+  let last = start;
+  let dangling = false;
+  for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) {
+    last = node;
+    if (node.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", node)) dangling = true;
   }
-  // UNQUOTED values. Every test below is anchored to the whole string, which
-  // is why `raw` must not hold a trailing comment: `delay = 5 -- note` would
-  // fail the number test and store the string `"5 -- note"`.
-  const s = raw.trim();
-  if (!s || s.includes("\n")) return undefined;
-  if (s.startsWith("{") || s.startsWith("[")) return undefined;
-  if (s === "true") return true;
-  if (s === "false") return false;
-  if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+  const read = (from: number, to: number) => ctx.read(from, to);
+  if (dangling || followsDanglingDot(start, read) || followsMissingValue(start, read)) return last;
+  const error = luauStatementError(start, start.from, read, last.to);
+  if (error) ctx.diagnostics?.push({
+    message: error.message,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(error.from) + 1,
+      endLineNumber: ctx.lineNumber(error.to) + 1,
+      startCharacterNumber: ctx.characterNumber(error.from) + 1,
+      endCharacterNumber: ctx.characterNumber(error.to) + 1,
+    },
+  });
+  return last;
+}
+
+// Coerce a property's value to a compile-time literal for the engine struct
+// registry, as the converter read it: a string literal's value, with its
+// escapes read so that a regex written as a string reaches context as the
+// runtime string does, a number, a boolean, or, for a value that is no Luau
+// expression or that names nothing Luau computes (`surface-2`, `md`,
+// `inline-block`, `hero`), the value's text as written, which the engine's
+// value system interprets. A comment after the value is no part of it
+// (`delay = 5 -- note` is the number 5), and a `--` inside quotes is part of
+// the string. Returns `undefined` for values that aren't simple scalars (a
+// table, a call, a typed reference such as `layer.instance`, a
+// concatenation, anything written over several lines): those have no
+// faithful literal form and are left out of the registry (the runtime
+// `__def` table remains their source of truth), or, for a typed reference,
+// resolved by `expressionToContextValue`.
+function coerceScalarLiteral(value: DefineValue, ctx: LowerContext): unknown {
+  const first = value.nodes[0];
+  const last = value.nodes[value.nodes.length - 1];
+  if (!first || !last) return undefined;
+  if (ctx.lineNumber(first.from) !== ctx.lineNumber(last.to)) return undefined;
+  if (!value.isLuau) return ctx.read(first.from, last.to).trim();
+  const expr = value.expr;
+  const range = rangeOf(expr.location, ctx);
+  const text = ctx.read(range.from, range.to);
+  if (expr instanceof AstExprConstantString) {
+    if (expr.quoteStyle === QuoteStyle.QuotedRaw) return undefined;
+    return processLuauEscapes(stripQuotes(text));
+  }
+  if (expr instanceof AstExprSparkdownInterpString) {
+    return processLuauEscapes(stripQuotes(text));
+  }
+  if (expr instanceof AstExprConstantBool) return expr.value;
+  if (expr instanceof AstExprConstantNumber) {
+    return expr.malformed ? text : expr.value;
+  }
+  if (
+    expr instanceof AstExprUnary &&
+    expr.op === UnaryOp.Minus &&
+    expr.expr instanceof AstExprConstantNumber &&
+    !expr.expr.malformed
+  ) {
+    return -expr.expr.value;
+  }
+  // A regex literal (`@/pattern/flags`) reaches the registry as the string
+  // it lowers to, `/pattern/flags` (`expressionToContextValue`).
+  if (
+    expr instanceof AstExprSparkdownRegex ||
+    expr instanceof AstExprTable ||
+    expr instanceof AstExprCall ||
+    expr instanceof AstExprGroup ||
+    expr instanceof AstExprFunction ||
+    (expr instanceof AstExprBinary && expr.op === BinaryOp.Concat)
+  ) {
+    return undefined;
+  }
   // A TYPED reference (`layer.instance`, `image.none`) is NOT a scalar string —
   // let `expressionToContextValue` resolve it to a `{ $type, $name }` ref (the
   // engine reads e.g. `animation.target.$name`). Without this it would be
   // stored as the literal string "layer.instance" and `.$name` would be
-  // undefined. (Checked after the number rule so `1.5` stays a number.)
-  if (/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(s)) {
-    return undefined;
-  }
-  // A bare identifier / reference / call is not a literal we can store.
-  if (/[()]/.test(s)) return undefined;
-  return s;
+  // undefined.
+  if (pathNames(expr)?.length === 2) return undefined;
+  return text;
 }
 
 // Convert a parsed property-value Expression into a compile-time context
@@ -299,9 +372,6 @@ export function lowerLuauDefine(
   // keeps only the content of the blocks it lowers.
   const structureErrors = validateDefineStructure(nodeRef.node, ctx);
   ctx.diagnostics?.push(...structureErrors);
-  // A body whose header or end is broken is reported as such; its lines are
-  // not read as statements (a `with` alone on the line below the header).
-  const reportsLines = structureErrors.length === 0;
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return {};
   const nameIdentifier = identifierAt(nameNode, ctx);
@@ -316,11 +386,12 @@ export function lowerLuauDefine(
     let child = content.firstChild;
     while (child) {
       if (child.name === "LuauPropertyDefinition") {
-        // The lines that continue the value (`f` then `"x"`, `t` then `.a`).
-        const continuation = collectLineContinuation(child);
-        const prop = readPropertyDefinition(child, ctx, continuation);
-        if (prop) properties.push(prop);
-        child = continuation[continuation.length - 1] ?? child;
+        const prop = readPropertyDefinition(child, ctx);
+        if (prop) {
+          properties.push(prop);
+          const end = rangeOf(prop.value.expr.location, ctx).to;
+          while (child.nextSibling && child.nextSibling.from < end) child = child.nextSibling;
+        }
       } else if (child.name === "LuauMethodDefinition") {
         const methodNameNode = getDescendent("LuauFunctionName", child);
         if (methodNameNode) {
@@ -340,13 +411,11 @@ export function lowerLuauDefine(
             name: ctx.read(fnNameNode.from, fnNameNode.to),
             node: child,
           });
-        } else {
-          child = (reportsLines && reportUnreadExpressionStatement(child, ctx)) || child;
+        } else if (structureErrors.length === 0) {
+          child = reportDefineStatement(child, ctx);
         }
-      } else {
-        // A line in the body that Luau cannot read as a statement (`Hello`,
-        // `Hi, Bob`, `1 + 2`), which the grammar leaves an expression.
-        child = (reportsLines && reportUnreadExpressionStatement(child, ctx)) || child;
+      } else if (structureErrors.length === 0 && EXPRESSION_STATEMENT_STARTS.has(child.name)) {
+        child = reportDefineStatement(child, ctx);
       }
       child = child.nextSibling;
     }
@@ -363,7 +432,7 @@ export function lowerLuauDefine(
     // colon-form). Bare single-identifier refs (`leader = hero`) are caught
     // by `coerceScalarLiteral` and keep their runtime-object behavior.
     let entryExpr: Expression = prop.expr;
-    if (coerceScalarLiteral(prop.rawValue) === undefined) {
+    if (coerceScalarLiteral(prop.value, ctx) === undefined) {
       const ctxValue = expressionToContextValue(prop.expr);
       if (ctxValue !== undefined && containsStructRef(ctxValue)) {
         entryExpr = contextValueToExpression(ctxValue);
@@ -505,7 +574,7 @@ export function lowerLuauDefine(
         // raw source; tables/arrays/references fall back to the parsed
         // expression so a `layered_image`'s `assets = { … }` reaches context.
         if (value === undefined) {
-          value = coerceScalarLiteral(prop.rawValue);
+          value = coerceScalarLiteral(prop.value, ctx);
         }
         if (value === undefined) {
           value = expressionToContextValue(prop.expr);
@@ -532,7 +601,7 @@ export function lowerLuauDefine(
         $name: "$default",
       };
       for (const prop of properties) {
-        let value = coerceScalarLiteral(prop.rawValue);
+        let value = coerceScalarLiteral(prop.value, ctx);
         if (value === undefined) {
           value = expressionToContextValue(prop.expr);
         }
@@ -563,7 +632,16 @@ function lowerDefineMethod(
 
   const synthName = `__define_fn_${syntheticId(node.from, ctx)}`;
   const userArgs = lowerArguments(node, ctx);
-  const upvals = scanFreeVariables(node, ctx).filter((n) => n !== "self");
+  // The method's header (`name(args)`) is no Luau syntax, so only its body
+  // is read as Luau, for the names it captures.
+  const params = userArgs
+    .filter((a) => !a.isVararg)
+    .map((a) => a.identifier?.name ?? "");
+  const upvals = freeVariables(
+    params,
+    bodyAst(content, METHOD_BODY_SKIP, ctx),
+    ctx,
+  ).filter((n) => n !== "self");
   recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
@@ -633,13 +711,6 @@ const ASSIGNMENT_RHS_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
-// `node` and the siblings after it.
-function siblingsFrom(node: SyntaxNode): SyntaxNode[] {
-  const nodes: SyntaxNode[] = [];
-  for (let n: SyntaxNode | null = node; n; n = n.nextSibling) nodes.push(n);
-  return nodes;
-}
-
 function findAssignmentValueNode(
   opNode: SyntaxNode | null,
 ): SyntaxNode | null {
@@ -657,33 +728,9 @@ function findAssignmentValueNode(
   return null;
 }
 
-// What may follow the value's last node: whitespace, line breaks and comments.
-const ASSIGNMENT_RHS_TRAILING: ReadonlySet<string> = nodeNameSet([
-  "ExtraWhitespace",
-  "Whitespace",
-  "OptionalWhitespace",
-  "RequiredWhitespace",
-  "Newline",
-  "LuauLineComment",
-  "LuauDocLineComment",
-  "LuauBlockComment",
-]);
-
-// Where the value that starts at `valueNode` ends: the end of its last node,
-// before any trailing comment. `valueNode` itself when nothing but trailing
-// trivia follows the operator.
-function assignmentValueEnd(valueNode: SyntaxNode): number {
-  let end = valueNode.from;
-  for (let child: SyntaxNode | null = valueNode; child; child = child.nextSibling) {
-    if (!ASSIGNMENT_RHS_TRAILING.has(child.name)) end = child.to;
-  }
-  return end;
-}
-
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
-  continuation: SyntaxNode[] = [],
 ): DefineProperty | null {
   // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
   // plain identifier (`name = …`).
@@ -695,21 +742,16 @@ function readPropertyDefinition(
       bracketAssignment,
     );
     if (!indexNode) return null;
-    const inner = ctx
-      .read(indexNode.from, indexNode.to)
-      .replace(/^\[/, "")
-      .replace(/\]$/, "")
-      .trim();
     // Only STRING-LITERAL keys are representable in the compile-time struct;
     // computed keys (`[expr]`) stay runtime-only (the __def table still carries
-    // them). Unquote (and unescape) the literal.
+    // them). The key is the string's value, its escapes read.
+    const key = readExpressionAst(containerValueNodes(indexNode), ctx);
     if (
-      (inner.startsWith('"') && inner.endsWith('"')) ||
-      (inner.startsWith("'") && inner.endsWith("'"))
+      key?.expr instanceof AstExprConstantString &&
+      key.expr.quoteStyle !== QuoteStyle.QuotedRaw
     ) {
-      name = inner
-        .slice(1, -1)
-        .replace(/\\(["'\\])/g, "$1");
+      const range = rangeOf(key.expr.location, ctx);
+      name = processLuauEscapes(stripQuotes(ctx.read(range.from, range.to)));
     }
     if (name == null) return null;
   } else {
@@ -724,31 +766,35 @@ function readPropertyDefinition(
   }
 
   const opNode = getDescendent("LuauAssignmentOperation", propNode);
-  // The value may start on the line after an `=` that ends its line
-  // (`value =` then `12`), as Luau reads it.
-  if (opNode) validateAssignmentValue(opNode, ctx, continuation.length > 0);
+  const valueNodes = opNode ? containerValueNodes(opNode) : [];
+  // Let the shared reader decide how much of the following lines belongs
+  // to the value (including call sugar and a value after a line-ending `=`).
+  const candidates = [...valueNodes];
+  for (let next = propNode.nextSibling; next; next = next.nextSibling) {
+    // A bracket-key property's operation is a sibling of its key node.
+    // Its value nodes are already present above.
+    if (opNode && next.to <= opNode.to) continue;
+    if (DEFINE_MEMBER_NAMES.has(next.name)) break;
+    candidates.push(next);
+  }
+  const continued = readExpressionAst(candidates, ctx);
+  const end = continued ? rangeOf(continued.expr.location, ctx).to : propNode.to;
+  const consumed = end <= propNode.to ? valueNodes : candidates.filter((node) => node.from < end);
+  const reading = readExpressionAst(consumed, ctx);
+  if (opNode && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
+  const expr = reading
+    ? lowerExpression(reading.expr, reading.source, ctx)
+    : null;
+  if (!expr || !reading) return null;
+  const value: DefineValue = {
+    expr: reading.expr,
+    source: reading.source,
+    isLuau: reading.source.errors.length === 0,
+    nodes: consumed.filter(
+      (n) => !ASSIGNMENT_RHS_SKIP.has(n.name) && !n.name.endsWith("Comment"),
+    ),
+  };
   const valueNode = findAssignmentValueNode(opNode ?? null);
-  const valueStart = valueNode ?? continuation[0] ?? null;
-  const valueEnd = continuation.findLast((node) => !ASSIGNMENT_RHS_TRAILING.has(node.name))?.to
-    ?? (valueNode ? assignmentValueEnd(valueNode) : opNode?.to);
-  const expr = !opNode
-    ? null
-    : continuation.length > 0
-      ? lowerExpressionFromNodes(
-          [...(valueNode ? siblingsFrom(valueNode) : []), ...continuation],
-          ctx,
-        )
-      : lowerExpressionFromContainer(opNode, ctx);
-  if (!expr) return null;
-
-  // Raw value source (everything after the assignment operator), for the
-  // compile-time struct registry. The grammar already isolates the RHS as
-  // its own value node(s) inside `LuauAssignmentOperation` — the first
-  // significant child following the `LuauAssignmentOperator` marker. Read
-  // from that node's start to the end of the last value node (covers
-  // multi-node expressions and continuation lines, leaving out trailing comments) instead of
-  // re-deriving the RHS by string-scanning for `=`.
-  const rawValue = valueStart ? ctx.read(valueStart.from, valueEnd!) : "";
 
   // Anchor the property's value expression to its source range. Diagnostics
   // raised from inside it (notably `Cannot find variable named \`x\`` from
@@ -757,8 +803,8 @@ function readPropertyDefinition(
   // expression is enough to give every nested node a location. Without this
   // the compiler's diagnostic callback falls back to the ENTRY document at
   // 0:0, piling every such warning invisibly at the top of the wrong file.
-  if (valueStart && opNode) {
-    stampDebugMetadata([expr], valueStart.from, valueEnd!, ctx);
+  if (valueNode && opNode) {
+    stampDebugMetadata([expr], valueNode.from, opNode.to, ctx);
   }
 
   // Modifiers live in the property's begin captures, OUTSIDE the
@@ -772,5 +818,5 @@ function readPropertyDefinition(
     ? ctx.read(accessNode.from, accessNode.to).trim()
     : "";
 
-  return { name, expr, scope, access, node: propNode, rawValue };
+  return { name, expr, scope, access, node: propNode, value };
 }
