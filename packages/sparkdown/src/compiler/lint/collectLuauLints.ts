@@ -394,6 +394,11 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
   const declared: AstLocal[] = [];
   const used = new Set<AstLocal>();
   const typeNames: { name: string; at: number }[] = [];
+  // A `const` declares a global constant in Sparkdown, not a local, though the
+  // reading binds a name it declares as one; a read of that name reads the
+  // local of that name in scope, if any (`lower/lowerers/lowerVariableDefinition.ts`).
+  const constants = new Set<AstLocal>();
+  const constantReads: { name: string; at: number }[] = [];
   // Every name the function and the functions in it declare, where it can be named (document offsets).
   const bindings: { local: AstLocal; from: number; to: number }[] = [];
   const blocks: { block: AstStatBlock; from: number; to: number }[] = [];
@@ -412,7 +417,7 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
       else if (node instanceof AstStatForIn) bindBody(node.vars, node.body);
       // A local function's name is in scope from its body, after its signature, as Luau binds it.
       else if (node instanceof AstStatLocalFunction) declaredStatements.push({ stat: node, locals: [node.name], from: offsets.of(node.func.body.location.begin) });
-      // A `const` declares a global constant in Sparkdown, not a local.
+      if (node instanceof AstStatLocal && node.isConst) for (const local of node.vars) constants.add(local);
       if (node instanceof AstStatLocal && !node.isConst) {
         declared.push(...node.vars);
         declaredStatements.push({ stat: node, locals: node.vars, from: offsets.of(node.location.end) });
@@ -421,7 +426,10 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
         for (const target of node.vars) if (!(target instanceof AstExprLocal)) visitAst(target, this);
         for (const value of node.values) visitAst(value, this);
         return false;
-      } else if (node instanceof AstExprLocal) used.add(node.local);
+      } else if (node instanceof AstExprLocal) {
+        if (constants.has(node.local)) constantReads.push({ name: node.local.name, at: offsets.of(node.location.begin) });
+        else used.add(node.local);
+      }
       else if (node instanceof AstTypeReference) {
         typeNames.push({ name: node.prefix ?? node.name, at: offsets.of(node.location.begin) });
       }
@@ -450,6 +458,10 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
     }
     return found?.local;
   };
+  for (const { name, at } of constantReads) {
+    const local = resolve(name, at);
+    if (local) used.add(local);
+  }
   const names = new Set(declared.map((local) => local.name));
   for (const { name, at } of typeNames) {
     const local = names.has(name) ? resolve(name, at) : undefined;

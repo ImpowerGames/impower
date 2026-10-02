@@ -80,6 +80,8 @@ describe("the local a type name or a structural word names", () => {
     // A local function's name is in scope from its body, after its signature.
     ["a type name in a local function's signature naming an outer local", "function f()\n  local Foo = {}\n  local function Foo(x: Foo)\n    return x\n  end\n  return Foo\nend\n", []],
     ["a type name after the local's repeat", "function f()\n  repeat\n    local number = 1\n  until true\n  local x: number = 2\n  return x\nend\n", ["2:10 LocalUnused"]],
+    // A `const` declares a global constant; a read of its name reads the local of that name in scope.
+    ["a read of a name a later const also declares", "Value {f()} {n}.\nfunction f()\n  local n = 1\n  const n = 2\n  return n\nend\n", []],
   ])("%s", (_name, source, expected) => {
     expect(functionLints(source).filter((lint) => lint.endsWith("LocalUnused"))).toEqual(expected);
   });
