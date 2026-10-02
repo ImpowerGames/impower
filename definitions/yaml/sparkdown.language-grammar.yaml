@@ -6867,11 +6867,12 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauScreenNameHeader" }
       # A screen body carries no content yet; a brace block there is read as
       # a struct block, and nothing reads it.
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      # After the body-line rules: see LuauStyle.
+      - { include: "#LuauScreenNameHeader" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -6885,16 +6886,17 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   # `screen NAME`, ending at `with`. Reuses LuauDefineName so the lowerer reads
-  # the name through the same node as define / style / layout.
+  # the name through the same node as define / style / layout. Begins and ends
+  # as LuauStyleNameAndInheritance does.
   LuauScreenNameHeader:
-    begin: (?<=screen\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: ({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
           - { include: "#LuauDefineName" }
     patterns:
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
