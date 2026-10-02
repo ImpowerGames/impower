@@ -1,0 +1,8 @@
+function f(a, b, x)
+  a = b and (x)
+  a = b or (x) print(a)
+  a = not (x)
+  repeat a = a - 1 until a == 0 or (b) print(a)
+  repeat a = a - 1 until not (a) print(a)
+  repeat a = a - 1 until a and (b)
+end
