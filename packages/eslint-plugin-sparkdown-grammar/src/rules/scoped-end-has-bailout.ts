@@ -7,13 +7,20 @@
 // start of the next unindented line (§11.1's indentation-block end
 // `(?=^(?!$|//|\1{{WS}}))`).
 //
-// The check runs the resolved pattern against probe lines, so `[)]$`
-// (which needs the closer before the line end) and `(?!$)[)]` fail it
-// while `$|([)])` passes. Back-references, which refer to `begin:`
-// captures, are replaced by empty groups for the probe. A pattern that
-// does not compile as a JavaScript regex falls back to a textual check: a
-// `$` or `{{BEAT}}` outside a character class and outside a negative
-// lookaround, or a `^` followed by a negative lookahead, counts.
+// The check runs the resolved pattern as a sticky regex against probe
+// text made of a filler character no closer uses, so `[)]$` (which needs
+// the closer before the line end) and `(?!$)[)]` fail it while `$|([)])`
+// passes. The probes put line ends in all three forms (`\n`, `\r\n`,
+// `\r`). `{{BEAT}}` is replaced by a sentinel character that only the
+// beat probe holds, so the probe asks whether the pattern can reach the
+// next beat without any other text, not whether a closer happens to spell
+// a beat keyword. A back-reference stands for a `begin:` capture this
+// check cannot see, so it is replaced by a sentinel no probe holds:
+// `(\1)` needs its delimiter, while `(?!\1{{WS}})` still holds where the
+// line does not repeat it. A pattern that does not compile as a
+// JavaScript regex falls back to a textual check: a `$` or `{{BEAT}}`
+// outside a character class and outside a negative lookaround, or a `^`
+// followed by a negative lookahead, counts.
 
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { findPair, isScalar, isSequence } from "../utils/yaml-ast.ts";
@@ -22,20 +29,21 @@ import { regexGroups, scanRegex } from "../utils/regex-scan.ts";
 
 const TOKEN = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
+const FILL = "░";
+const BEAT_SENTINEL = "▒";
+const BACKREFERENCE_SENTINEL = "(?:▓)";
+
 // Places where an end with a bail-out matches without any closer: the end
-// of a line, the start of an unindented line, and the start of a beat
-// line. Line text is a character no closer uses. A beat probe counts only
-// when the same pattern fails on its control line, a longer word that is
-// no beat keyword, so an end that matches the keyword's first letters is
-// not taken for a beat bail-out.
-const LINE_PROBES: [text: string, at: number][] = [
-  ["░░\n░░", 2],
-  ["░░", 2],
-  ["░░\n░░", 3],
-];
-const BEAT_PROBES: [beat: string, control: string][] = [
-  ["░\nscene ░\n", "░\nscenery ░\n"],
-  ["░\nbranch ░\n", "░\nbranching ░\n"],
+// of a line (each newline form, and the end of the input), the start of
+// an unindented line, and the start of a beat line.
+const PROBES: [text: string, at: number][] = [
+  [`${FILL}${FILL}\n${FILL}`, 2],
+  [`${FILL}${FILL}\r\n${FILL}`, 2],
+  [`${FILL}${FILL}\r${FILL}`, 2],
+  [`${FILL}${FILL}`, 2],
+  [`${FILL}\n${FILL}`, 2],
+  [`${FILL}\r\n${FILL}`, 3],
+  [`${FILL}\n${BEAT_SENTINEL}${FILL}`, 2],
 ];
 
 // Substitutes variables (all of them, or all but `BEAT`, which then stays
@@ -64,22 +72,22 @@ function resolveVariables(
 export function hasBailOut(index: GrammarIndex, end: string): boolean {
   let probe: RegExp | null = null;
   try {
-    const source = resolveVariables(index, end, false).replace(/\\[1-9]/g, "(?:)");
+    const source = resolveVariables(index, end, true)
+      .replaceAll("{{BEAT}}", `(?:${BEAT_SENTINEL})`)
+      // Walk escapes pairwise so an escaped backslash before a digit
+      // is left alone.
+      .replace(/\\(?:[1-9]|k<[^>]*>|[^])/g, (escape) =>
+        /^\\(?:[1-9]|k<)/.test(escape) ? BACKREFERENCE_SENTINEL : escape,
+      );
     probe = new RegExp(source, "muy");
   } catch {
     probe = null;
   }
   if (probe) {
-    const matchesAt = (text: string, at: number): boolean => {
+    return PROBES.some(([text, at]) => {
       probe!.lastIndex = at;
       return probe!.test(text);
-    };
-    return (
-      LINE_PROBES.some(([text, at]) => matchesAt(text, at)) ||
-      BEAT_PROBES.some(
-        ([beat, control]) => matchesAt(beat, 2) && !matchesAt(control, 2),
-      )
-    );
+    });
   }
   return hasTextualBailOut(index, end);
 }

@@ -85,3 +85,44 @@ TextualCloser:
   });
   assert.deepEqual(lines(source), [8]);
 });
+
+test("a back-reference to a begin capture is a required closer", () => {
+  const source = grammar({
+    variables: "EOL: (?:$)",
+    repository: String.raw`Delimited:
+  begin: (["])
+  end: (\1)
+DelimitedOrLineEnd:
+  begin: (["])
+  end: (\1)|(?={{EOL}})
+IndentationBlock:
+  begin: ^([ ]*)a
+  end: (?=^(?!$|\1[ ]))`,
+  });
+  assert.deepEqual(lines(source), [7]);
+});
+
+test("only a reachable BEAT counts, whatever the closer spells", () => {
+  const source = grammar({
+    variables: "BEAT: (?:^scene[ ])",
+    repository: `ClosesOnKeyword:
+  begin: "[(]"
+  end: (scene)
+BeatOrWord:
+  begin: "[(]"
+  end: (?={{BEAT}})|([a-z]+)`,
+  });
+  assert.deepEqual(lines(source), [7]);
+});
+
+test("each newline form counts as a line end", () => {
+  const source = grammar({
+    repository: String.raw`CrLf:
+  begin: "[(]"
+  end: (?=\r\n)|([)])
+Cr:
+  begin: "[(]"
+  end: (?=\r)|([)])`,
+  });
+  assert.deepEqual(lines(source), []);
+});
