@@ -1529,8 +1529,6 @@ export const getCompletions = (
   // Dialogue
   if (
     (isWhitespaceNode(leftStack[0]?.name) &&
-      prevNode?.name === "DialogueMark") ||
-    (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "BlockDialogue_begin")) ||
     (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "InlineDialogue_begin")) ||
