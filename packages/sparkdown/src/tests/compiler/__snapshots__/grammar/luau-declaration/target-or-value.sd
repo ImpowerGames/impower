@@ -1,0 +1,14 @@
+function f(x, s, g)
+  local a, b = 10, g()
+  local c, d = 1, s:upper()
+  local e, h = 1, s : upper()
+  local t: typeof(x) = x
+  local u, v: typeof(x) = 1, x
+  local w = x == 1
+  local y, z = x, x == 1
+  local n, m = 1, nil
+  local p, q = true, false
+  local r::number = 1
+  local k: number, l = 1, 2
+  return a, b, c, d, e, h, t, u, v, w, y, z, n, m, p, q, r, k, l
+end
