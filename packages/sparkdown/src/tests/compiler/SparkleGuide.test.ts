@@ -38,17 +38,26 @@ function lineOf(code: string, offset: number): number {
 }
 
 /** The bare-word classes of a style rule's selector (`> text title`,
- *  `& secondary`). A selector is compound selectors joined by combinators
- *  (`>`, `>>`, `+`, `~`) or listed with `,`; each compound is one word, its
- *  classes glued to it with dots, so a second word after whitespace is a
- *  bare class. Attribute values, a state's arguments and quoted text are
- *  dropped first, since they may hold spaces. */
+ *  `& secondary`, `[data-x] secondary`). A selector is compounds joined by
+ *  combinators (`>`, `>>`, `+`, `~`) or listed with `,`. Within a compound,
+ *  a state (`@hovered`) or a class (`.title`) may follow after whitespace,
+ *  but a later word that starts like a name is a bare class. Attribute
+ *  selectors, a state's arguments and quoted text may hold spaces, so each
+ *  is first reduced to a token without them (quotes read whole, so a `]`
+ *  or `)` inside one does not end it). */
 function selectorBareClasses(selector: string): string[] {
   const compounds = selector
-    .replace(/\[[^\]]*\]|\([^)]*\)|"[^"]*"|'[^']*'/g, "")
+    .replace(/\[(?:"[^"]*"|'[^']*'|[^\]"'])*\]/g, "[]")
+    .replace(/\((?:"[^"]*"|'[^']*'|[^)"'])*\)/g, "()")
+    .replace(/"[^"]*"|'[^']*'/g, '""')
     .split(/>>|>|\+|~|,/);
   return compounds.flatMap((compound) =>
-    compound.trim().split(/\s+/).filter(Boolean).slice(1),
+    compound
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(1)
+      .filter((word) => /^[\p{L}\p{N}_-]/u.test(word)),
   );
 }
 
@@ -227,6 +236,10 @@ describe("the guide's old-form check", () => {
     ],
     ["a bare class after `&` and a class", style("&.secondary- extra")],
     ["a bare class in a selector list", style("@hovered, > text headline")],
+    [
+      "a bare class after an attribute selector",
+      style(`[data-label="a b"] secondary`),
+    ],
   ])("reports %s", (_, source) => {
     expect(readDeclarations(source).oldForms).not.toEqual([]);
   });
@@ -245,6 +258,13 @@ describe("the guide's old-form check", () => {
     ["states and breakpoints", style("@hovered, @pressed")],
     ["a breakpoint before a combinator", style("@screen-size(sm) > text")],
     ["an attribute selector with a space", style(`&[data-label="a b"]`)],
+    [
+      "an attribute selector with a `]` in its value",
+      style(`&[data-label="a] b"]`),
+    ],
+    ["states after a state", style("@hovered @before, @focused @before")],
+    ["a state after a name", style("> text @hovered")],
+    ["a spaced dotted class", style("> text .headline")],
     ["a non-ASCII dotted class", style("> text.заголовок")],
     [
       "a theme key of two words",
