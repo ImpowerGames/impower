@@ -683,8 +683,9 @@ Genuinely Unity-shaped, touches the most code; doing it speculatively is prematu
 
 The lowerer (rewritten from scratch, L5) must:
 
-1. Parse element lines, control flow, slots via **new grammar rules** (activate/replace the
-   dead `LuauUIElement`/`LuauUIAttribute`/`LuauUIContent`; add `if/for/match/slot/fill`).
+1. Parse element lines, control flow, slots via **new grammar rules** (replace the
+   unreachable `LuauUIAttribute`/`LuauUIContent` rules; `LuauUIElement` was removed in #1277;
+   add `if/for/match/slot/fill`).
    Preserve `LuauStructBodyLine`'s leading-indent capture the formatter relies on.
 2. Produce the typed AST (§6).
 3. Compile every `{expr}`, condition, iterable, `case` value, and `@event` handler into a
