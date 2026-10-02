@@ -45,7 +45,6 @@ variables:
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
   LUAU_MODULE_KEYWORDS: ["require", "export"]
-  LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
   LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]
   # Statement-boundary keywords that end an `until` condition
@@ -4161,9 +4160,10 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      # After the body-line rules: see LuauStyle.
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4197,9 +4197,10 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      # After the body-line rules: see LuauStyle.
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4235,9 +4236,10 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      # After the body-line rules: see LuauStyle.
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4337,13 +4339,12 @@ repository:
         patterns:
           - { include: "#LuauWithKeyword" }
 
-  # Name + optional `as PARENT` for `animation`/`theme`/`morph` blocks
-  # (variable-length lookbehind over the keywords). Mirrors
-  # LuauStyleNameAndInheritance / LuauUINameAndInheritance so the lowerer reads
-  # the name/parent through the same LuauDefineName / LuauDefineParentName node
-  # names as `define`.
+  # Name + optional `as PARENT` for `animation`/`theme`/`morph` blocks.
+  # Mirrors LuauStyleNameAndInheritance (how it begins and ends) so the
+  # lowerer reads the name/parent through the same LuauDefineName /
+  # LuauDefineParentName node names as `define`.
   LuauAnimationThemeNameAndInheritance:
-    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: ({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4351,7 +4352,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
