@@ -23,18 +23,25 @@ define VILLAIN as character with
 end
 
 layout main with
-  textbox:
-    character_info:
-      character_name:
+  textbox {
+    character_info {
+      character_name {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       text
-    action:
+    }
+    action {
       text
-  choice 0:
+    }
+  }
+  choice.0 {
     text
-  choice 1:
+  }
+  choice.1 {
     text
+  }
 end
 `;
 

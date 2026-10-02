@@ -1,6 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
+import type { SparkleJoins } from "./utils/sparkleContinuations";
 
 /**
  * Something a statement's lowering read from outside the statement's own
@@ -96,6 +97,12 @@ export interface LowerContext {
    * after (the iterable + `else` are lowered outside this scope).
    */
   sparkleLoopVars?: string[];
+  /**
+   * The continuation lines and own-line blocks of the Sparkle body being
+   * built, joined to the elements they continue (`joinSparkleContinuations`).
+   * Set by `buildSparkleBody` around the body.
+   */
+  sparkleJoins?: SparkleJoins;
   /**
    * When set, expression lowerers stamp per-node `DebugMetadata` (currently the
    * `VariableReference` for an identifier chain) with the chain's own source

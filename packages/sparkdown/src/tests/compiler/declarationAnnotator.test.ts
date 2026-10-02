@@ -120,4 +120,33 @@ end
     // The statement after the name is read, not declared.
     expect(decls.filter((d) => d.text === "first").length).toBe(1);
   });
+
+  // #1279: the header-name rules keep their lookbehind on the block's keyword.
+  // Their parents try them again at every position of the body, so without it
+  // a word that follows a comment in the body, where no body rule begins, is
+  // read as another name and declared.
+  test("a word after a comment in a block body declares nothing", () => {
+    const decls = collectDeclarations(`style banner with
+--[[ note ]] accidental
+end
+layout hud with
+  text "hi"
+--[[ note ]] stray
+end
+component card(title) with
+  --[[ note ]] other
+end
+screen menu with
+--[[ note ]] extra
+end
+animation fade with
+--[[ note ]] spare
+end
+external message(text) --[[ note ]] more
+`);
+    const defines = decls.filter((d) => d.type === "define").map((d) => d.text);
+    expect(defines).toEqual(["banner", "hud", "card", "menu", "fade"]);
+    const functions = decls.filter((d) => d.type === "function").map((d) => d.text);
+    expect(functions).toEqual(["message"]);
+  });
 });

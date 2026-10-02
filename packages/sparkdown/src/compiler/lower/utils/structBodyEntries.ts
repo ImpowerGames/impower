@@ -1,8 +1,20 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
+import { braceBodyParts } from "../../utils/braceBlocks";
 import { findChildByName } from "../../utils/findChildByName";
 import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import type { LowerContext } from "../context";
+import {
+  sparkleBlockContent,
+  sparkleBlockEntries,
+  sparkleControlBranches,
+  sparkleElementParts,
+  sparklePartNodes,
+} from "./sparkleBlockEntries";
+import {
+  joinSparkleContinuations,
+  type SparkleJoins,
+} from "./sparkleContinuations";
 
 // The entries of a struct body (`style`, `animation`, `theme`, `morph`, and
 // the static struct of `layout`, `screen` and `component`), as a tree both
@@ -58,6 +70,18 @@ export interface StructEntry {
   children: StructEntry[] | null;
   /** True when the entry was written in the braced form. */
   braced: boolean;
+  /**
+   * True for an element in a layout or component brace block
+   * (`LuauSparkleElement`, the entry's shape), whose key is read from its
+   * name, classes and content rather than from a line's text.
+   */
+  element?: boolean;
+  /**
+   * For an element in a layout or component body, the nodes that hold the
+   * parts of the continuation lines it takes (`sparklePartNodes`), in source
+   * order, whose text its key reads after its own (#1225).
+   */
+  continuations?: SyntaxNode[];
 }
 
 /**
@@ -74,7 +98,19 @@ interface PositionedEntry {
   entry: StructEntry;
   /** A braced entry, whose contents are already its children. */
   closed: boolean;
+  /**
+   * For an entry of a layout or component block line, the line it came from:
+   * such an entry takes as children only the entries of its own line.
+   */
+  group?: number;
 }
+
+// The indentation one level of a layout or component block adds. A block
+// line's entries are placed as the indented form of the same body would
+// place them, one level deeper per block and per control block, but in steps
+// smaller than a column, so the lines around the block line keep their place
+// beside it (see `pushSparkleBlockLine`).
+const SPARKLE_BLOCK_LEVEL = 1 / 4096;
 
 const BRACED_ENTRY_NAMES: ReadonlySet<string> = new Set([
   "LuauStructBlock",
@@ -91,13 +127,18 @@ export function readStructBodyEntries(
 ): StructEntry[] {
   if (!contentNode) return [];
   const positioned: PositionedEntry[] = [];
+  // In a layout or component body, the continuation lines and own-line
+  // blocks each element takes (#1225).
+  const joins = joinSparkleContinuations(contentNode);
   const walk = (node: SyntaxNode) => {
     let child = node.firstChild;
     while (child) {
       if (child.name === "LuauStructBodyContent") {
-        pushIndentedLine(positioned, child, ctx, classify);
+        pushIndentedLine(positioned, child, ctx, classify, joins);
       } else if (child.name === "LuauStructBlockLine") {
         pushBlockLine(positioned, child, ctx);
+      } else if (child.name === "LuauSparkleBlockLine") {
+        pushSparkleBlockLine(positioned, child, ctx, joins);
       } else {
         walk(child);
       }
@@ -113,14 +154,45 @@ function pushIndentedLine(
   content: SyntaxNode,
   ctx: LowerContext,
   classify: ClassifyIndentedLine,
+  joins: SparkleJoins,
 ): void {
   const classified = classify(content);
+  const indent = ctx.characterNumber(content.from);
+  // An element's block on a later line holds its children, as a `:` header's
+  // indented lines do; its entries go one level below the element. Like a
+  // brace element, it then takes children only from its block (`group`), so
+  // the indented lines after the block are not its children.
+  const later = joins.blocks.get(content.from);
+  if (classified) {
+    const continuations = continuationParts(content.from, joins);
+    positioned.push({
+      indent,
+      entry: {
+        ...classified,
+        ...(later ? { kind: "header" as const } : {}),
+        ...(continuations ? { continuations } : {}),
+        line: content,
+        children: null,
+        braced: false,
+      },
+      closed: false,
+      ...(later ? { group: later.from } : {}),
+    });
+  }
+  if (later) {
+    const blockContent = sparkleBlockContent(later);
+    if (blockContent) {
+      placeSparkleEntries(
+        positioned,
+        sparkleBlockEntries(blockContent),
+        indent,
+        1,
+        later.from,
+        joins,
+      );
+    }
+  }
   if (!classified) return;
-  positioned.push({
-    indent: ctx.characterNumber(content.from),
-    entry: { ...classified, line: content, children: null, braced: false },
-    closed: false,
-  });
   // A collapsed list item (`- eyes:` / `- offset = 0.4`) carries its first
   // entry on the dash line. Follow the item with that entry as a line of its
   // own, at the column the entry starts in: the shape the expanded form
@@ -152,6 +224,116 @@ function pushBlockLine(
 }
 
 /**
+ * A line of a layout or component body that holds brace blocks. Its entries
+ * are placed where the indented form of the same body places its lines: an
+ * element with a block is a header, the block's entries one level deeper, and
+ * the lines of an `if` or `for` branch one level deeper than the control
+ * block, which itself is no entry, and those of a `match` arm two levels
+ * deeper, below its `case` line. So a brace body lowers to the struct its
+ * indented form lowers to, including where the indented form flattens a
+ * control block's lines into the header before it. A component call is no
+ * entry either, as its indented line is not; its block's entries stay in
+ * place. The line sits in the indentation of the body around it at the
+ * column its first entry starts in.
+ */
+function pushSparkleBlockLine(
+  positioned: PositionedEntry[],
+  line: SyntaxNode,
+  ctx: LowerContext,
+  joins: SparkleJoins,
+): void {
+  const entries = sparkleBlockEntries(line);
+  // The line sits at the column of its first entry of its own: continuation
+  // lines, and a block the element before it takes, are no entries.
+  const first = entries.find((entry) => !isJoinedEntry(entry, joins));
+  if (!first) return;
+  const base = ctx.characterNumber(first.from);
+  placeSparkleEntries(positioned, entries, base, 0, line.from, joins);
+}
+
+/** A continuation line, or a block on a line of its own that the element
+ *  before it takes. Neither is an entry of its own. */
+function isJoinedEntry(entry: SyntaxNode, joins: SparkleJoins): boolean {
+  return (
+    entry.name === "LuauSparkleElementContinuation" ||
+    joins.joined.has(entry.from)
+  );
+}
+
+/** The part nodes of the continuation lines the element keyed `key` takes,
+ *  or `undefined` when it takes none. */
+function continuationParts(
+  key: number,
+  joins: SparkleJoins,
+): SyntaxNode[] | undefined {
+  const lines = joins.continuations.get(key);
+  return lines ? lines.flatMap((line) => sparklePartNodes(line)) : undefined;
+}
+
+/**
+ * Place the entries of a layout or component block line, or of a block, at
+ * `depth` levels below `base`, as `pushSparkleBlockLine` describes. Every
+ * entry placed takes children only from its own `group`.
+ */
+function placeSparkleEntries(
+  positioned: PositionedEntry[],
+  nodes: SyntaxNode[],
+  base: number,
+  depth: number,
+  group: number,
+  joins: SparkleJoins,
+): void {
+  const place = (nodes: SyntaxNode[], depth: number) => {
+    const indent = base + depth * SPARKLE_BLOCK_LEVEL;
+    for (const node of nodes) {
+      if (isJoinedEntry(node, joins)) continue;
+      if (node.name === "LuauSparkleElement") {
+        const parts = sparkleElementParts(node);
+        // A block on a later line is the element's block when it has none.
+        const block = parts.block ?? joins.blocks.get(node.from) ?? null;
+        if (!parts.args) {
+          const continuations = continuationParts(node.from, joins);
+          positioned.push({
+            indent,
+            closed: false,
+            group,
+            entry: {
+              kind: block ? "header" : "other",
+              shape: node,
+              line: node,
+              children: null,
+              braced: true,
+              element: true,
+              ...(continuations ? { continuations } : {}),
+            },
+          });
+        }
+        const content = block ? sparkleBlockContent(block) : null;
+        if (content) place(sparkleBlockEntries(content), depth + 1);
+      } else if (node.name === "LuauStructBlockProperty") {
+        positioned.push({
+          indent,
+          closed: false,
+          group,
+          entry: {
+            kind: "property",
+            shape: node,
+            line: node,
+            children: null,
+            braced: true,
+          },
+        });
+      } else if (node.name !== "LuauSparkleElementBlock") {
+        for (const branch of sparkleControlBranches(node)) {
+          place(sparkleBlockEntries(branch.content), depth + branch.depth);
+        }
+      }
+    }
+  };
+  place(nodes, depth);
+}
+
+/**
  * Nest positioned entries by indentation: an indented header or item takes
  * the deeper-indented entries after it as its children, and an entry indented
  * deeper than its level with no header above it is skipped.
@@ -173,7 +355,12 @@ function nest(
       !current.closed &&
       (current.entry.kind === "item" || current.entry.kind === "header");
     const next = positioned[i + 1];
-    if (opens && next && next.indent > indent) {
+    if (
+      opens &&
+      next &&
+      next.indent > indent &&
+      (current.group === undefined || next.group === current.group)
+    ) {
       const sub = nest(positioned, i + 1, next.indent);
       entries.push({ ...current.entry, children: sub.entries });
       i = sub.next;
@@ -241,23 +428,10 @@ function blockBody(block: SyntaxNode): SyntaxNode | null {
   return content ? findChildByName(content, "LuauStructBlockBody") : null;
 }
 
-// The parts of a block's braces (a `LuauStructBlockBody` or a
-// `LuauStructListBlock`), each named literally so the grammar node-name check
-// sees every name.
-function braceParts(body: SyntaxNode) {
-  const list = body.name === "LuauStructListBlock";
-  return {
-    begin: list
-      ? findChildByName(body, "LuauStructListBlock_begin")
-      : findChildByName(body, "LuauStructBlockBody_begin"),
-    content: list
-      ? findChildByName(body, "LuauStructListBlock_content")
-      : findChildByName(body, "LuauStructBlockBody_content"),
-    end: list
-      ? findChildByName(body, "LuauStructListBlock_end")
-      : findChildByName(body, "LuauStructBlockBody_end"),
-  };
-}
+// The parts of a block's braces (a `LuauStructBlockBody`, a
+// `LuauStructListBlock`, or a layout or component `LuauSparkleElementBlock`),
+// shared with the editor's completion and folding.
+const braceParts = braceBodyParts;
 
 /** The entries part of a block's braces: everything between them. */
 function bodyContent(body: SyntaxNode): SyntaxNode {

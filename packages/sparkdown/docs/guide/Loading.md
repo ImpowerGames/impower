@@ -89,10 +89,12 @@ Or replace it entirely:
 
 ```sparkdown
 layout loading with
-  column:
+  column {
     text "Loading {game.loading.name}… {game.loading.percent}%"
-    loading_bar:
+    loading_bar {
       loading_fill #transform="scaleX({game.loading.progress})"
+    }
+  }
 end
 ```
 

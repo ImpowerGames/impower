@@ -14,6 +14,7 @@ export function documentTag(filePath: string | undefined | null): string {
   }
   let tag = "";
   for (const ch of filePath) {
+    // value-level: one character of a file path
     if (/[A-Za-z0-9]/.test(ch)) {
       tag += ch;
     } else {

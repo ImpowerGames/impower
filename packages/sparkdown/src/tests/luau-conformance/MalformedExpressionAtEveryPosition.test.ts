@@ -340,14 +340,14 @@ describe("the reported layouts", () => {
     }
   });
 
-  // Interim (#1283, #1286): the errors after the first in these follow
-  // from how Luau's parser recovers, most from its reading a keyword after a
-  // `.` with no name as that name (`t.a.return 1`), or `x + function() end`
-  // as a nameless declaration. Each first error is the specification's, as
-  // the layouts above are; how many follow it is the reparse's, and a checker
-  // that reads Luau from the syntax tree may report one error for each
-  // malformed construct here instead, with these expectations changed and
-  // the reason given.
+  // Interim (#1283): the errors after the first in these follow from how
+  // Luau's parser recovers, most from its reading a keyword after a `.` with
+  // no name as that name (`t.a.return 1`), or `x + function() end` as a
+  // nameless declaration. Each first error is the specification's, as the
+  // layouts above are; how many follow it is how the reading of the syntax
+  // tree recovers (`readLuauAst.ts`), which follows Luau's parser, and a
+  // reading that reports one error for each malformed construct may change
+  // these expectations, with the reason given.
   test.each([
     ["function f(t)\n  t.a.return 1\nend", ["1:6-1:12 Expected identifier, got 'return'"]],
     ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],

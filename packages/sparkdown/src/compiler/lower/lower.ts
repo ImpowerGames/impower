@@ -166,7 +166,9 @@ export function lower(
     // Leading spaces and tabs are clamped off too: a statement's node starts
     // with its line's indentation, and its range starts at its first
     // character.
+    // value-level: the statement text, trimming its trailing whitespace
     const text = ctx.read(nodeRef.from, nodeRef.to).replace(/\s+$/, "");
+    // value-level: the statement text read above, measuring its indentation
     const indentation = text.length - text.replace(/^[ \t]+/, "").length;
     const from = nodeRef.from + indentation;
     const to = nodeRef.from + text.length;

@@ -1,8 +1,8 @@
-// Classes on a Sparkle element line are SPACE-separated bare words after the tag
-// (`row hud`), not dot-prefixed. A dotted class (`row.hud`) breaks the header
-// parse into `<tag>` + an ERROR_UNRECOGNIZED remainder; the ValidationAnnotator
-// turns that into a friendly "use spaces" warning instead of silently dropping
-// the class. See project_reactive_sparkle_ui.
+// A class on a Sparkle element line is written `.name` (`row.hud`, #1222), and
+// until the indented forms are removed a bare word after the tag (`row hud`)
+// is still one. The "classes are space-separated" warning a dotted class used
+// to get is gone (#1224); `braceLayoutBodies.test.ts` checks how a dotted
+// class lowers.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -39,16 +39,23 @@ const warnsDotted = (diags: string[]) =>
   diags.some((m) => m.includes("space-separated"));
 
 describe("dotted-class warning", () => {
-  test("a dotted class on a container element warns to use spaces", () => {
+  test("a dotted class on a container element does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12:\n    text "x"\nend\n`,
+      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
     );
-    expect(warnsDotted(diags)).toBe(true);
+    expect(diags).toEqual([]);
   });
 
-  test("a dotted class on a content element warns", () => {
+  test("a dotted class on a content element does not warn", () => {
     const diags = diagnosticsFor(`layout main with\n  text.title "Hi"\nend\n`);
-    expect(warnsDotted(diags)).toBe(true);
+    expect(diags).toEqual([]);
+  });
+
+  test("a dotted class in a brace block does not warn", () => {
+    const diags = diagnosticsFor(
+      `layout main with\n  row.hud #gap=12 { text.title "Hi" }\nend\n`,
+    );
+    expect(diags).toEqual([]);
   });
 
   test("space-separated classes produce no dotted-class warning", () => {
@@ -70,11 +77,11 @@ describe("a CSS-nesting selector is not a dotted class", () => {
     "> .child",
     "* .thing",
   ]) {
-    test(`\`${selector}:\` does not warn`, () => {
+    test(`\`${selector} { … }\` does not warn`, () => {
       expect(
         warnsDotted(
           diagnosticsFor(
-            `style card with\n  ${selector}:\n    color = blue\nend\n`,
+            `style card with\n  ${selector} {\n    color = blue\n  }\nend\n`,
           ),
         ),
       ).toBe(false);

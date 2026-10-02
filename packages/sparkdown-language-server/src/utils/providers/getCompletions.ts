@@ -6,6 +6,13 @@ import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/Spark
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import {
+  bodyUsesBraceBlocks,
+  braceBlockPathAt,
+  braceEntryAt,
+  entryInsideValue,
+  insideElementValue,
+} from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
@@ -32,7 +39,7 @@ import {
   type DeclarationScopes,
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
-import { getMorphCompletions } from "./getMorphCompletions";
+import { getMorphCompletions, indentedPathAbove } from "./getMorphCompletions";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -162,6 +169,31 @@ const isInsideKeyframesContainer = (
 };
 
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
+
+/** The innermost block key around each `state = …` written in a brace block
+ *  of `declaration`, which names the group a morph drives there. */
+const blockStateContainers = (
+  declaration: SyntaxNode,
+  tree: Tree,
+  read: (from: number, to: number) => string,
+): string[] => {
+  const containers: string[] = [];
+  const walk = (node: SyntaxNode) => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (child.name === "LuauStructBlockProperty") {
+        const key = getDescendent("DeclarationScalarPropertyKey", child);
+        if (key && key.to <= child.to && read(key.from, key.to).trim() === "state") {
+          const container = braceBlockPathAt(tree, child.from, read)?.path.at(-1);
+          if (container) containers.push(container);
+        }
+      } else {
+        walk(child);
+      }
+    }
+  };
+  walk(declaration);
+  return containers;
+};
 
 const isWhitespaceNode = (name?: SparkdownNodeName) =>
   name === "RequiredWhitespace" ||
@@ -664,6 +696,7 @@ const addStructPropertyNameContextCompletions = (
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,
   typeStruct: any,
+  name: string,
   modifier: string,
   path: string,
   valueAssignmentSeparator: " = " | ": ",
@@ -671,6 +704,7 @@ const addStructPropertyNameContextCompletions = (
   lineText: string,
   cursorPosition: Position,
   exclude?: string[],
+  braceForm = false,
 ) => {
   const textAfterCursor = lineText.slice(cursorPosition.character);
   if (typeStruct) {
@@ -700,23 +734,40 @@ const addStructPropertyNameContextCompletions = (
               !("$name" in optionValue);
             if (modifier !== "optional" || isArray || isMap) {
               const arrayItemDash = "- ";
-              const insertSuffix = textAfterCursor
+              const container =
+                isArray ||
+                isMap ||
+                modifier === "schema" ||
+                modifier === "random" ||
+                modifier === "description";
+              // In a brace body an entry ends at its `;` or `}`, and a
+              // container opens a balanced one-line block with the cursor
+              // inside it; Enter there splits it over lines.
+              const restOfEntry = braceForm
+                ? /^[^;}]*/.exec(textAfterCursor)![0].trim()
+                : textAfterCursor;
+              const braced = braceForm && container && !restOfEntry;
+              const insertSuffix = restOfEntry
                 ? ""
-                : isArray || modifier === "schema" || modifier === "random"
-                  ? `:\n${indent}${arrayItemDash}`
-                  : isMap || modifier === "description"
-                    ? `:\n${indent}`
-                    : valueAssignmentSeparator;
+                : braced
+                  ? " { $0 }"
+                  : isArray || modifier === "schema" || modifier === "random"
+                    ? `:\n${indent}${arrayItemDash}`
+                    : isMap || modifier === "description"
+                      ? `:\n${indent}`
+                      : valueAssignmentSeparator;
               const completion: CompletionItem = {
                 label: propName,
                 insertText: propName + insertSuffix,
                 kind: CompletionItemKind.Property,
                 insertTextMode: InsertTextMode.asIs,
-                command: Command.create(
-                  "suggest",
-                  "editor.action.triggerSuggest",
-                ),
+                command: braced
+                  ? undefined
+                  : Command.create("suggest", "editor.action.triggerSuggest"),
               };
+              if (braced) {
+                completion.insertTextFormat = InsertTextFormat.Snippet;
+              }
               if (includeTypeAsDetail) {
                 completion.labelDetails = { description };
               }
@@ -763,60 +814,31 @@ const addStructPropertyNameCompletions = (
   lineText: string,
   cursorPosition: Position,
   exclude: string[],
+  braceForm = false,
 ) => {
   if (type) {
-    addStructPropertyNameContextCompletions(
-      completions,
-      program,
-      config,
+    for (const typeStruct of [
       program?.context?.[type]?.["$default"],
-      modifier,
-      path,
-      valueAssignmentSeparator,
-      includeTypeAsDetail,
-      lineText,
-      cursorPosition,
-      exclude,
-    );
-    addStructPropertyNameContextCompletions(
-      completions,
-      program,
-      config,
       program?.context?.[type]?.[`$optional:${name}`],
-      modifier,
-      path,
-      valueAssignmentSeparator,
-      includeTypeAsDetail,
-      lineText,
-      cursorPosition,
-      exclude,
-    );
-    addStructPropertyNameContextCompletions(
-      completions,
-      program,
-      config,
       program?.context?.[type]?.["$optional"],
-      modifier,
-      path,
-      valueAssignmentSeparator,
-      includeTypeAsDetail,
-      lineText,
-      cursorPosition,
-      exclude,
-    );
-    addStructPropertyNameContextCompletions(
-      completions,
-      program,
-      config,
       config?.definitions?.optionals?.[type]?.["$optional"],
-      modifier,
-      path,
-      valueAssignmentSeparator,
-      includeTypeAsDetail,
-      lineText,
-      cursorPosition,
-      exclude,
-    );
+    ]) {
+      addStructPropertyNameContextCompletions(
+        completions,
+        program,
+        config,
+        typeStruct,
+        name,
+        modifier,
+        path,
+        valueAssignmentSeparator,
+        includeTypeAsDetail,
+        lineText,
+        cursorPosition,
+        exclude,
+        braceForm,
+      );
+    }
   }
 };
 
@@ -1298,6 +1320,7 @@ export const getCompletions = (
   if (morphNode) {
     const endNode = getDescendent("LuauMorph_end", morphNode);
     const nameNode = getDescendent("LuauDefineName", morphNode);
+    const braceBlock = braceBlockPathAt(tree, documentCursorOffset, read);
     const morphCompletions = getMorphCompletions(
       (line) => document.getLineText(line),
       {
@@ -1309,6 +1332,23 @@ export const getCompletions = (
       },
       program,
       position,
+      {
+        path:
+          braceBlock && braceBlock.body.from > morphNode.from
+            ? braceBlock.path
+            : null,
+        blockLine: braceBlock
+          ? document.positionAt(braceBlock.outerFrom).line
+          : null,
+        entry: braceEntryAt(
+          tree,
+          documentCursorOffset,
+          document.offsetAt({ line: position.line, character: 0 }),
+          read,
+        ),
+        usesBlocks: bodyUsesBraceBlocks(morphNode),
+        stateContainers: blockStateContainers(morphNode, tree, read),
+      },
     );
     if (morphCompletions) return morphCompletions;
   }
@@ -1488,8 +1528,6 @@ export const getCompletions = (
 
   // Dialogue
   if (
-    (isWhitespaceNode(leftStack[0]?.name) &&
-      prevNode?.name === "DialogueMark") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "BlockDialogue_begin")) ||
     (isWhitespaceNode(leftStack[0]?.name) &&
@@ -1839,6 +1877,108 @@ export const getCompletions = (
     return buildCompletions();
   }
 
+  // A key being written inside a brace block (#1222). Where the cursor is
+  // comes from the blocks around it, after the indented keys the line of
+  // blocks sits under: directly inside `keyframes` a key is a position,
+  // elsewhere a property of the block's own path. A container inserts a
+  // balanced `name { }` block with the cursor inside.
+  const braceDefine = getDefineContext(leftStack, read);
+  const braceBlock = braceDefine
+    ? braceBlockPathAt(tree, documentCursorOffset, read)
+    : null;
+  const braceDefineNode = leftStack.find(
+    (n) => STRUCTURAL_DEFINE_TYPE[n.name] || n.name === "LuauDefine",
+  );
+  // The block path for a struct lookup, a list entry read as the list's
+  // first item.
+  const braceStructPath =
+    braceBlock && braceBlock.body.name !== "LuauSparkleElementBlock"
+      ? [
+          ...(braceDefineNode
+            ? indentedPathAbove(
+                (line) => document.getLineText(line),
+                document.positionAt(braceDefineNode.from).line + 1,
+                document.positionAt(braceBlock.outerFrom).line,
+              )
+            : []),
+          ...braceBlock.path,
+        ].map((key) => (key === "-" ? "0" : key))
+      : null;
+  if (braceDefine && braceBlock) {
+    const lineText = document.getLineText(position.line);
+    const entryBefore = braceEntryAt(
+      tree,
+      documentCursorOffset,
+      document.offsetAt({ line: position.line, character: 0 }),
+      read,
+    );
+    // In a layout or component block an element is being named: offer what
+    // the indented form offers on an element line, its top-level fields.
+    // Inside a value or a quoted string neither runs, nor inside an element's
+    // attribute or handler value that began on an earlier line.
+    const keying =
+      !entryInsideValue(entryBefore) &&
+      !insideElementValue(tree, documentCursorOffset);
+    if (
+      keying &&
+      !braceStructPath &&
+      /^\s*[A-Za-z_][\w-]*$/.test(entryBefore)
+    ) {
+      addStructPropertyNameCompletions(
+        completions,
+        program,
+        config,
+        "",
+        braceDefine.type,
+        braceDefine.name,
+        "",
+        " = ",
+        true,
+        lineText,
+        position,
+        [],
+        true,
+      );
+      return buildCompletions();
+    }
+    if (
+      keying &&
+      braceStructPath &&
+      /^\s*[A-Za-z_$@&>.-]?[\w.%-]*$/.test(entryBefore)
+    ) {
+      if (braceStructPath.at(-1) === "keyframes") {
+        if (/^\s*[A-Za-z]*$/.test(entryBefore)) {
+          for (const keyword of KEYFRAME_POSITION_KEYWORDS) {
+            completions.set(keyword, {
+              label: keyword,
+              insertText: `${keyword} { $0 }`,
+              insertTextFormat: InsertTextFormat.Snippet,
+              labelDetails: { description: "keyframe position" },
+              kind: CompletionItemKind.Constant,
+            });
+          }
+        }
+        return buildCompletions();
+      }
+      addStructPropertyNameCompletions(
+        completions,
+        program,
+        config,
+        "",
+        braceDefine.type,
+        braceDefine.name,
+        "." + braceStructPath.join("."),
+        " = ",
+        true,
+        lineText,
+        position,
+        [],
+        true,
+      );
+      return buildCompletions();
+    }
+  }
+
   // Keyframe position completion: the cursor is editing a key directly inside
   // a `keyframes:` container, where a key names a position on the timeline
   // (`from:`, `40%:`, `to:`) rather than a property. Only the two word
@@ -1889,6 +2029,11 @@ export const getCompletions = (
       const defineContext = getDefineContext(leftStack, read);
       if (defineContext) {
         const lineText = document.getLineText(position.line);
+        // A body written with blocks takes a block for a container at its
+        // root too, and so does any key inside a block.
+        const defineNode = leftStack.find(
+          (n) => STRUCTURAL_DEFINE_TYPE[n.name] || n.name === "LuauDefine",
+        );
         addStructPropertyNameCompletions(
           completions,
           program,
@@ -1902,6 +2047,7 @@ export const getCompletions = (
           lineText,
           position,
           [],
+          !!braceBlock || (!!defineNode && bodyUsesBraceBlocks(defineNode)),
         );
       }
     }
@@ -1910,9 +2056,12 @@ export const getCompletions = (
 
   // Struct property VALUE completion: cursor after `=` in a scalar property
   // line (but not inside a `type.name` struct-reference access path, handled
-  // below). Offers the property's schema/option values for the top-level key.
+  // below). Offers the property's schema/option values for the top-level key,
+  // or, in a brace block, for the key at the block's path.
   const scalarPropertyNode = leftStack.find(
-    (n) => n.type.name === "LuauStructScalarProperty",
+    (n) =>
+      n.type.name === "LuauStructScalarProperty" ||
+      n.type.name === "LuauStructBlockProperty",
   );
   if (
     scalarPropertyNode &&
@@ -1962,7 +2111,14 @@ export const getCompletions = (
         "",
         defineContext.type,
         defineContext.name,
-        "." + propertyName,
+        "." +
+          [
+            ...(scalarPropertyNode.name === "LuauStructBlockProperty" &&
+            braceStructPath
+              ? braceStructPath
+              : []),
+            propertyName,
+          ].join("."),
         valueText,
         valueCursorOffset,
         context,

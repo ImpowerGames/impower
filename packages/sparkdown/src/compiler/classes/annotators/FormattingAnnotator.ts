@@ -6,6 +6,12 @@ import {
   isInsideOneLineAlternator,
   PRESERVE_WHITESPACE_ALTERNATOR_NAMES,
 } from "../../utils/inlineAlternators";
+import {
+  braceBodySpacing,
+  isInStructBlockKey,
+  isSpacedBraceEdge,
+  keepsSpaceBeforeClass,
+} from "../../utils/braceBodySpacing";
 import { oneLineTableBraces, tableOuterGaps } from "../../utils/oneLineTableBraces";
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
@@ -601,6 +607,16 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         ),
       );
     }
+    // Brace bodies (#1227): the spacing around and inside a block's braces,
+    // after a `;` that separates entries, and inside a one-line closure.
+    for (const mark of braceBodySpacing(nodeRef.node, read)) {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>(mark.type).range(
+          mark.from,
+          mark.to,
+        ),
+      );
+    }
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("choice_mark").range(
@@ -659,12 +675,30 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       // line the line shows its text without them; after an interpolation
       // (`{x} ..   more`) the mark and the spaces are text the player sees.
       if (followsLeadingGlue(nodeRef.node)) return annotations;
+      // A struct block's key is read as written (#1227).
+      if (isInStructBlockKey(nodeRef.node)) return annotations;
       // The space between a cue's colon and the `..` that begins its text
       // (`HERO: .. Wait.`) is one space, as after any colon; the separator
       // rule would read the `..` as a member access and remove it.
       if (
         this.read(nodeRef.from - 1, nodeRef.from) === ":" &&
         precedesLeadingGlue(nodeRef.node)
+      ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+            nodeRef.from,
+            nodeRef.to,
+          ),
+        );
+        return annotations;
+      }
+      // In a brace element's head, a class is glued to the name or class
+      // before it (`text .title` → `text.title`); after anything else it
+      // keeps one space, since `#width=1 .x` glued would read `1.x` as the
+      // value, and `"Go" .primary` glued would join the content.
+      if (
+        keepsSpaceBeforeClass(nodeRef.node) ||
+        isSpacedBraceEdge(nodeRef.node, read)
       ) {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
@@ -706,8 +740,13 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ExtraWhitespace") {
       if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
         return annotations;
+      if (isInStructBlockKey(nodeRef.node)) return annotations;
       annotations.push(
-        SparkdownAnnotation.mark<FormatType>("extra").range(
+        SparkdownAnnotation.mark<FormatType>(
+          isSpacedBraceEdge(nodeRef.node, (from, to) => this.read(from, to))
+            ? "keyword_separator"
+            : "extra",
+        ).range(
           nodeRef.from,
           nodeRef.to,
         ),

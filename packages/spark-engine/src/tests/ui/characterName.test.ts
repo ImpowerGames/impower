@@ -11,12 +11,16 @@ import {
 } from "./harness/uiTestHarness";
 
 const SCREEN = `layout main with
-  textbox:
-    character_info:
-      character_name:
+  textbox {
+    character_info {
+      character_name {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       text
+    }
+  }
 end
 `;
 

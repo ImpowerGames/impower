@@ -39,6 +39,13 @@ import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
+import {
+  sparkleBlockContent,
+  sparkleBlockEntries,
+  sparkleElementParts,
+  sparklePartNodes,
+} from "../utils/sparkleBlockEntries";
+import { joinSparkleContinuations } from "../utils/sparkleContinuations";
 
 // Builds the reactive Sparkle UI AST (docs/sparkle/reactive-sparkle-spec.md §6)
 // for a screen/component body. Unlike the static `lowerStructBody` (which
@@ -58,13 +65,27 @@ import {
 //
 // Nesting is reconstructed from the indentation column (the grammar emits flat
 // body-line siblings), as `readStructBodyEntries` nests the static struct.
+//
+// A body may also be written with brace blocks (`column.panel { … }`). A line
+// that holds one is a `LuauSparkleBlockLine`: it sits in the indentation of
+// the lines around it at the column its first entry starts in, and its
+// entries nest by their braces, whatever their indentation
+// (`buildBracedEntries`). It never takes the deeper-indented lines after it as
+// its children.
+//
+// An element's parts may go on over later lines (#1225): a line that starts
+// with `.`, `#`, `@` or a quote, and a block on a line of its own, join the
+// element before them (`joinSparkleContinuations`). They take no place in the
+// indentation, and their parts are read as if written on the element's line.
 
 interface NodeLine {
   indent: number;
-  /** A `LuauStructBodyContent` element line, or a `LuauSparkleIfBlock` control
-   *  block (when `control` is set). */
+  /** A `LuauStructBodyContent` element line, a `LuauSparkleIfBlock` control
+   *  block (when `control` is set), or a `LuauSparkleBlockLine` (when
+   *  `braced` is set). */
   node: SyntaxNode;
   control?: boolean;
+  braced?: boolean;
 }
 
 const CONTROL_BLOCK_NAMES = nodeNameSet([
@@ -108,6 +129,21 @@ function collectNodeLines(
         // reason nothing shipped broken.
         if (lineKindNode(child)) {
           lines.push({ indent: ctx.characterNumber(child.from), node: child });
+        }
+      } else if (child.name === "LuauSparkleBlockLine") {
+        // A line of brace entries sits at the column its first entry starts
+        // in. A line that holds none (a stray `}`) holds nothing to place,
+        // and nor does one whose entries all continue the element before
+        // it, or continue nothing.
+        const first = sparkleBlockEntries(child).find(
+          (entry) => !isContinuation(entry, ctx),
+        );
+        if (first) {
+          lines.push({
+            indent: ctx.characterNumber(first.from),
+            node: child,
+            braced: true,
+          });
         }
       } else if (CONTROL_BLOCK_NAMES.has(child.name)) {
         // The block's `.from` is the line start (its `begin` captures the
@@ -153,6 +189,11 @@ const NAME_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "CustomComponentName",
   "NumberLiteral",
+  // A `.name` class (`mask.shadow_1`, `choice.0:`).
+  "LuauSparkleClassName",
+  // In a brace block: a name that is not a builtin, and a bare word after it.
+  "LuauSparkleElementName",
+  "LuauSparkleElementWord",
 ]);
 
 const KEY_TOKEN_NAMES = nodeNameSet([
@@ -253,7 +294,23 @@ function firstDescendant(
 /** Inline-attribute subtrees (`@event`/`#prop`) — opaque to tag/class
  *  collection, so a prop value (`#gap=16` → NumberLiteral) isn't mistaken for a
  *  class and a handler's tokens don't leak in. */
-const ATTRIBUTE_NODES = nodeNameSet(["LuauEventAttribute", "LuauPropAttribute"]);
+const ATTRIBUTE_NODES = nodeNameSet([
+  "LuauEventAttribute",
+  "LuauPropAttribute",
+  "LuauSparkleEventAttribute",
+  "LuauSparklePropAttribute",
+  "LuauSparkleEventClosureAttribute",
+]);
+
+/** A block entry the element before it takes (a continuation line, or a
+ *  block on a line of its own), or a continuation line that follows no
+ *  element. Neither is an entry of its own. */
+function isContinuation(entry: SyntaxNode, ctx: LowerContext): boolean {
+  return (
+    entry.name === "LuauSparkleElementContinuation" ||
+    !!ctx.sparkleJoins?.joined.has(entry.from)
+  );
+}
 
 /** {@link firstDescendant}, but opaque to inline-attribute subtrees.
  *
@@ -422,7 +479,10 @@ function lowerBinding(
   };
 }
 
-const COMPONENT_CALL_CONTENT = nodeNameSet(["LuauStructComponentCall_content"]);
+const COMPONENT_CALL_CONTENT = nodeNameSet([
+  "LuauStructComponentCall_content",
+  "LuauSparkleCallArguments_content",
+]);
 /** Nodes inside a call's arg list that carry no expression value (separators,
  *  whitespace, comments) — skipped when grouping args. */
 const ARG_SKIP_RE = /Whitespace|Newline|Comment|Separator/;
@@ -511,9 +571,18 @@ function lowerComponentArg(
   };
 }
 
-const EVENT_ATTR = nodeNameSet(["LuauEventAttribute"]);
+const EVENT_ATTR = nodeNameSet([
+  "LuauEventAttribute",
+  "LuauSparkleEventAttribute",
+  // An event closure that goes on at the next line.
+  "LuauSparkleEventClosureAttribute",
+]);
 const EVENT_NAME = nodeNameSet(["EventAttributeName"]);
-const EVENT_CONTENT = nodeNameSet(["LuauEventAttribute_content"]);
+const EVENT_CONTENT = nodeNameSet([
+  "LuauEventAttribute_content",
+  // In a brace block, the handler is its own node (see `handlerContent`).
+  "LuauSparkleEventHandler",
+]);
 /** A bare `@e=name` handler, emitted by the grammar as its own node — which is
  *  the only reliable way to tell one from a call once a trailing comment is in
  *  the raw text. */
@@ -523,8 +592,10 @@ const EVENT_CLOSURE_BODY = nodeNameSet(["LuauSparkleHandlerClosure_content"]);
 const EVENT_CLOSURE_END = nodeNameSet(["LuauSparkleHandlerClosure_end"]);
 const BARE_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-/** DFS: every `LuauEventAttribute` descendant, in source order. */
+/** DFS: every `LuauEventAttribute` descendant, in source order, or the node
+ *  itself when it is one. */
 function eventAttributes(node: SyntaxNode): SyntaxNode[] {
+  if (EVENT_ATTR.has(node.name)) return [node];
   const out: SyntaxNode[] = [];
   const walk = (n: SyntaxNode) => {
     let c = n.firstChild;
@@ -578,7 +649,7 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
       });
       continue;
     }
-    const handlerNode = firstDescendant(attr, EVENT_CONTENT);
+    const handlerNode = handlerContent(firstDescendant(attr, EVENT_CONTENT));
     const handlerText = handlerNode
       ? ctx.read(handlerNode.from, handlerNode.to).trim()
       : "";
@@ -599,6 +670,19 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
   return events;
 }
 
+/** The node whose children are a handler's expression nodes. An indented
+ *  line's handler is its attribute's `_content`; a brace block's
+ *  `LuauSparkleEventHandler` holds them in its capture, its one child. */
+function handlerContent(node: SyntaxNode | null): SyntaxNode | null {
+  if (node?.name === "LuauSparkleEventHandler") return node.firstChild ?? node;
+  return node;
+}
+
+/** Worded like the message for a layout block left open
+ *  (`UNCLOSED_SPARKLE_BLOCK`). */
+export const UNCLOSED_HANDLER_CLOSURE =
+  "This handler is missing its closing `}`. Without it, the handler runs to the next line that starts with `end`, `else`, `elseif` or `case`, the next `scene` or `branch`, or the end of the file.";
+
 /** Compile an inline-closure handler (`@e={ stmts }`) into a {@link Binding}: a
  *  hoisted function `__binding_<id>(event, <loopvars>) <stmts> end`. Unlike
  *  {@link lowerBinding} (a single `return <expr>`), the body is the closure's
@@ -616,25 +700,28 @@ function lowerHandlerClosure(
   const source = ctx.read(closureNode.from, closureNode.to);
   const span = bindingSpan(closureNode.from, closureNode.to, ctx);
   const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])]; // see lowerBinding
-  // The attribute is line-oriented, so a closure whose `}` isn't on the `=`
-  // line is force-closed at the newline — the grammar emits no
-  // `LuauSparkleHandlerClosure_end` (closing brace). Surface that as an error
-  // rather than silently dropping the statements past line 1.
-  if (
-    childrenByName(closureNode, EVENT_CLOSURE_END).length === 0 &&
-    ctx.diagnostics
-  ) {
+  // A closure left without its `}` ends where a line starts with `end`,
+  // `else`, `elseif` or `case`, or at a beat, with an empty end, or, inside
+  // an indented element line that the brace line scan does not take (one
+  // after a value nested past the scan's limits), at the end of that line
+  // with no end at all. Either way it is reported on its `{`, as an unclosed
+  // block is.
+  const closeBrace = childrenByName(closureNode, EVENT_CLOSURE_END)[0];
+  if ((!closeBrace || closeBrace.to === closeBrace.from) && ctx.diagnostics) {
+    const open = closureNode.from;
     ctx.diagnostics.push({
-      message:
-        "Inline event handler is missing its closing `}`. Keep the whole handler on one line (multi-line handler bodies aren't supported) — use `;` to separate statements.",
+      // With no end at all, the closure stopped at the end of its line.
+      message: closeBrace
+        ? UNCLOSED_HANDLER_CLOSURE
+        : "This handler is missing its closing `}`.",
       severity: ErrorType.Error,
       source: {
         fileName: null,
         filePath: ctx.filePath ?? null,
-        startLineNumber: ctx.lineNumber(closureNode.from) + 1,
-        endLineNumber: ctx.lineNumber(closureNode.to) + 1,
-        startCharacterNumber: ctx.characterNumber(closureNode.from) + 1,
-        endCharacterNumber: ctx.characterNumber(closureNode.to) + 1,
+        startLineNumber: ctx.lineNumber(open) + 1,
+        endLineNumber: ctx.lineNumber(open + 1) + 1,
+        startCharacterNumber: ctx.characterNumber(open) + 1,
+        endCharacterNumber: ctx.characterNumber(open + 1) + 1,
       },
     });
   }
@@ -664,7 +751,7 @@ function lowerHandlerClosure(
   };
 }
 
-const PROP_ATTR = nodeNameSet(["LuauPropAttribute"]);
+const PROP_ATTR = nodeNameSet(["LuauPropAttribute", "LuauSparklePropAttribute"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
@@ -879,6 +966,16 @@ function buildBlock(
       i += 1;
       continue;
     }
+    // A line of brace entries: its elements and control blocks are children
+    // at this level and its properties style the element around it. Its
+    // entries hold their own children, so it consumes only its own line.
+    if (lines[i]!.braced) {
+      const braced = buildBracedEntries(lines[i]!.node, ctx);
+      children.push(...braced.children);
+      Object.assign(props, braced.props);
+      i += 1;
+      continue;
+    }
     const content = lines[i]!.node;
     const kind = lineKindNode(content);
     const childIndent = nextChildIndent(lines, i, indent);
@@ -905,7 +1002,7 @@ function buildBlock(
         events: readEvents(kind, ctx),
         children: [],
       };
-      i = attachBlock(element, lines, i, childIndent, ctx);
+      i = attachJoined(element, lines, i, childIndent, ctx);
       children.push(element);
       continue;
     }
@@ -927,7 +1024,7 @@ function buildBlock(
           events: [],
           children: [],
         };
-        i = attachBlock(element, lines, i, childIndent, ctx);
+        i = attachJoined(element, lines, i, childIndent, ctx);
         children.push(element);
       } else {
         // Non-builtin `key = value` → a style prop on the enclosing element.
@@ -957,7 +1054,7 @@ function buildBlock(
         params: readComponentArgs(kind, ctx),
         children: [],
       };
-      i = attachBlock(element, lines, i, childIndent, ctx);
+      i = attachJoined(element, lines, i, childIndent, ctx);
       children.push(element);
       continue;
     }
@@ -977,7 +1074,10 @@ function buildBlock(
     // `slot text`) stays a slot instead of lowering as that element with a
     // stray "slot" class. This used to need its own `first` field to bypass a
     // builtin-preferring tag rule; that rule is gone.
-    const slotName = classes[0];
+    // The name may also stand on a continuation line (`slot` then `.footer`).
+    const key = lines[i]!.node.from;
+    const slotName =
+      classes[0] ?? partClasses(continuationPartNodes(key, ctx), ctx)[0];
     if (parsedTag === "slot") {
       const slot: SlotNode = {
         kind: "slot",
@@ -993,7 +1093,13 @@ function buildBlock(
         ...(slotName ? { name: slotName } : {}),
         children: [],
       };
-      if (childIndent != null) {
+      // A later block holds the fill's children, and the indented lines
+      // after it are orphans, as for an element (`attachJoined`).
+      const joined = joinedBlock(key, ctx);
+      if (joined) {
+        fill.children = joined.children;
+        i += 1;
+      } else if (childIndent != null) {
         const sub = buildBlock(lines, i + 1, childIndent, ctx);
         fill.children = sub.children;
         i = sub.next;
@@ -1020,10 +1126,223 @@ function buildBlock(
       events: readEvents(kind, ctx),
       children: [],
     };
-    i = attachBlock(element, lines, i, childIndent, ctx);
+    i = attachJoined(element, lines, i, childIndent, ctx);
     children.push(element);
   }
   return { children, props, next: i };
+}
+
+/** An element's parts, as {@link readParts} reads them. */
+interface ElementParts {
+  classes: string[];
+  content?: ContentPart[];
+  props: Record<string, PropValue>;
+  events: EventBinding[];
+}
+
+/** Read the parts an element's part nodes hold (`sparklePartNodes`), in
+ *  source order: its classes, its first content, its `#prop`s (a later one
+ *  wins) and its `@event`s. An event closure holds no part but its event. */
+function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
+  const out: ElementParts = { classes: partClasses(parts, ctx), props: {}, events: [] };
+  for (const part of parts) {
+    if (part.name !== "LuauSparkleEventClosureAttribute") {
+      if (!out.content) {
+        const contentNode = firstContentDescendant(part, FIELD_VALUE_NAMES);
+        if (contentNode) out.content = readContentParts(contentNode, ctx);
+      }
+      Object.assign(out.props, readProps(part, ctx));
+    }
+    out.events.push(...readEvents(part, ctx));
+  }
+  return out;
+}
+
+/** The classes the part nodes hold (`sparklePartNodes`), in source order:
+ *  each `.name`, and each bare word after an element's name. An event
+ *  closure holds none. */
+function partClasses(parts: SyntaxNode[], ctx: LowerContext): string[] {
+  return parts.flatMap((part) =>
+    part.name === "LuauSparkleEventClosureAttribute"
+      ? []
+      : descendants(part, HEAD_CLASS_NAMES)
+          .map((t) => ctx.read(t.from, t.to).trim())
+          .filter(Boolean),
+  );
+}
+
+/** The part nodes of the continuation lines the element keyed `key` (its
+ *  node's `from`) takes, in source order. */
+function continuationPartNodes(key: number, ctx: LowerContext): SyntaxNode[] {
+  return (ctx.sparkleJoins?.continuations.get(key) ?? []).flatMap((line) =>
+    sparklePartNodes(line),
+  );
+}
+
+/** Add the parts of the continuation lines an element takes (keyed by its
+ *  node's `from`) to it, as if written after its own parts on its line. */
+function joinContinuations(
+  element: ElementNode,
+  key: number,
+  ctx: LowerContext,
+): void {
+  const parts = readParts(continuationPartNodes(key, ctx), ctx);
+  element.classes.push(...parts.classes);
+  if (!element.content && parts.content) element.content = parts.content;
+  element.props = { ...element.props, ...parts.props };
+  element.events.push(...parts.events);
+}
+
+/** The entries of the block an element takes from a later line (keyed by its
+ *  node's `from`): its children, and the style props its `key = value` lines
+ *  set. */
+function joinedBlock(
+  key: number,
+  ctx: LowerContext,
+): { children: BodyNode[]; props: Record<string, PropValue> } | null {
+  const block = ctx.sparkleJoins?.blocks.get(key);
+  if (!block) return null;
+  // An empty block (`{}`) has no content, and still holds the children.
+  const content = sparkleBlockContent(block);
+  return content
+    ? buildBracedEntries(content, ctx)
+    : { children: [], props: {} };
+}
+
+/** {@link attachBlock}, with the continuation lines and the later block the
+ *  element on line i takes. An element with a block holds only its block's
+ *  entries, so one that takes a later block takes no indented lines: they
+ *  are orphans, as after the same element with its block on its own line. */
+function attachJoined(
+  element: ElementNode,
+  lines: NodeLine[],
+  i: number,
+  childIndent: number | null,
+  ctx: LowerContext,
+): number {
+  const key = lines[i]!.node.from;
+  joinContinuations(element, key, ctx);
+  const sub = joinedBlock(key, ctx);
+  if (!sub) return attachBlock(element, lines, i, childIndent, ctx);
+  element.children = sub.children;
+  if (Object.keys(sub.props).length > 0) {
+    element.props = { ...element.props, ...sub.props };
+  }
+  return i + 1;
+}
+
+/** The classes in an element's head: each `.name`, and each bare word after
+ *  its name, in source order. */
+const HEAD_CLASS_NAMES = nodeNameSet([
+  "LuauSparkleClassName",
+  "LuauSparkleElementWord",
+]);
+
+/** The entries of a brace block (`container` is a block line, or the content
+ *  of a block or of a control block's branch): the elements and control
+ *  blocks it holds, and the style props its `key = value` lines set on the
+ *  element around it. The entries nest by their braces, so indentation plays
+ *  no part. */
+function buildBracedEntries(
+  container: SyntaxNode,
+  ctx: LowerContext,
+): { children: BodyNode[]; props: Record<string, PropValue> } {
+  const children: BodyNode[] = [];
+  const props: Record<string, PropValue> = {};
+  for (const entry of sparkleBlockEntries(container)) {
+    if (isContinuation(entry, ctx)) {
+      // Read with the element it continues; one that continues nothing is
+      // reported by the validator.
+      continue;
+    }
+    if (entry.name === "LuauSparkleElement") {
+      children.push(buildBracedElement(entry, ctx));
+    } else if (entry.name === "LuauStructBlockProperty") {
+      // `image = "black"` (a builtin key) is an element whose content is the
+      // value; any other key is a style prop, as on an indented line.
+      const keyNode = firstDescendant(entry, KEY_TOKEN_NAMES);
+      const valueNode = firstContentDescendant(entry, FIELD_VALUE_NAMES);
+      const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
+      if (keyNode?.name === "BuiltinComponentName") {
+        children.push({
+          kind: "element",
+          tag: key,
+          classes: [],
+          content: readContentParts(valueNode, ctx),
+          props: {},
+          events: [],
+          children: [],
+        });
+      } else if (key) {
+        props[key] = readLiteralValue(valueNode, ctx);
+      }
+    } else if (entry.name !== "LuauSparkleElementBlock") {
+      children.push(buildControl(entry, ctx));
+    }
+    // A block with no element before it holds nothing an element can take;
+    // the validator reports it.
+  }
+  return { children, props };
+}
+
+/** A `LuauSparkleElement`: an element, a component call, a `slot` or a
+ *  `fill`, built as the indented form builds the same line, with its block's
+ *  entries as its children. */
+function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
+  const { name, args, block } = sparkleElementParts(node);
+  const tag = name ? ctx.read(name.from, name.to).trim() : "";
+  // The element's parts, on its line and after a closure that goes on at
+  // the next line, then those of the continuation lines it takes.
+  const parts = [
+    ...sparklePartNodes(node),
+    ...continuationPartNodes(node.from, ctx),
+  ];
+  // The block's entries are built after the element's own parts, in the order
+  // the indented form builds them. A block on a later line is the element's
+  // block when it has none of its own.
+  const blockContent = block
+    ? sparkleBlockContent(block)
+    : (() => {
+        const later = ctx.sparkleJoins?.blocks.get(node.from);
+        return later ? sparkleBlockContent(later) : null;
+      })();
+  const buildBlockEntries = () =>
+    blockContent
+      ? buildBracedEntries(blockContent, ctx)
+      : { children: [] as BodyNode[], props: {} as Record<string, PropValue> };
+  // `slot name` and `fill name { … }` keep a bare name, which reads as the
+  // first class. A slot is a placeholder and holds nothing.
+  if (tag === "slot" || tag === "fill") {
+    const name = partClasses(parts, ctx)[0];
+    return tag === "slot"
+      ? { kind: "slot", ...(name ? { name } : {}) }
+      : {
+          kind: "fill",
+          ...(name ? { name } : {}),
+          children: buildBlockEntries().children,
+        };
+  }
+  // Content on an element with a block is read as a leaf's is, so `{expr}` in
+  // it binds.
+  const read = readParts(parts, ctx);
+  const element: ElementNode = {
+    kind: "element",
+    tag,
+    classes: read.classes,
+    ...(read.content ? { content: read.content } : {}),
+    props: read.props,
+    events: read.events,
+    ...(args ? { params: readComponentArgs(args, ctx) } : {}),
+    children: [],
+  };
+  const sub = buildBlockEntries();
+  element.children = sub.children;
+  // Block-level `key = value` style props win over the element's inline
+  // `#prop`s, as an indented element's child-level props do.
+  if (Object.keys(sub.props).length > 0) {
+    element.props = { ...element.props, ...sub.props };
+  }
+  return element;
 }
 
 /** Direct children of `node` whose name is in `names`, in source order. */
@@ -1037,13 +1356,59 @@ function childrenByName(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   return out;
 }
 
+// The parts of a control block, written in the indented form
+// (`LuauSparkleIfBlock`, a body line rule) or inside a brace block
+// (`LuauSparkleBlockIf`, a block entry). Both have the same structure, so one
+// builder reads either.
+const IF_CONTENT = nodeNameSet([
+  "LuauSparkleIfBlock_content",
+  "LuauSparkleBlockIf_content",
+]);
+const ELSEIF_CLAUSE = nodeNameSet([
+  "LuauSparkleElseifBlock",
+  "LuauSparkleBlockElseif",
+]);
+const ELSEIF_CONTENT = nodeNameSet([
+  "LuauSparkleElseifBlock_content",
+  "LuauSparkleBlockElseif_content",
+]);
+const ELSE_CLAUSE = nodeNameSet(["LuauSparkleElseBlock", "LuauSparkleBlockElse"]);
+const ELSE_CONTENT = nodeNameSet([
+  "LuauSparkleElseBlock_content",
+  "LuauSparkleBlockElse_content",
+]);
+const FOR_CONTENT = nodeNameSet([
+  "LuauSparkleForLoop_content",
+  "LuauSparkleBlockFor_content",
+]);
+const MATCH_CONTENT = nodeNameSet([
+  "LuauSparkleMatchBlock_content",
+  "LuauSparkleBlockMatch_content",
+]);
+const CASE_CLAUSE = nodeNameSet(["LuauSparkleCaseClause", "LuauSparkleBlockCase"]);
+const CASE_CONTENT = nodeNameSet([
+  "LuauSparkleCaseClause_content",
+  "LuauSparkleBlockCase_content",
+]);
+// A branch of a control block inside a brace block holds block entries.
+const BRACED_BRANCH_CONTENT = nodeNameSet([
+  "LuauSparkleBlockIf_content",
+  "LuauSparkleBlockElseif_content",
+  "LuauSparkleBlockElse_content",
+  "LuauSparkleBlockFor_content",
+  "LuauSparkleBlockCase_content",
+]);
+
 /** Build the element-tree children of a control-flow branch body (a `_content`
- *  node), reconstructing element nesting from indentation. */
+ *  node): by indentation in the indented form, by braces inside a block. */
 function buildBranchChildren(
   content: SyntaxNode | null,
   ctx: LowerContext,
 ): BodyNode[] {
   if (!content) return [];
+  if (BRACED_BRANCH_CONTENT.has(content.name)) {
+    return buildBracedEntries(content, ctx).children;
+  }
   const items = collectNodeLines(content, ctx);
   if (items.length === 0) return [];
   // Same base-indent rule as `buildSparkleBody` (see `rebaseLines`): with the
@@ -1076,8 +1441,15 @@ function lowerCondition(
 /** Build a control-flow BodyNode. `if` (IfNode) / `for` (ForNode); `match`/
  *  `slot`/`fill` follow. */
 function buildControl(node: SyntaxNode, ctx: LowerContext): BodyNode {
-  if (node.name === "LuauSparkleForLoop") return buildForNode(node, ctx);
-  if (node.name === "LuauSparkleMatchBlock") return buildMatchNode(node, ctx);
+  if (node.name === "LuauSparkleForLoop" || node.name === "LuauSparkleBlockFor") {
+    return buildForNode(node, ctx);
+  }
+  if (
+    node.name === "LuauSparkleMatchBlock" ||
+    node.name === "LuauSparkleBlockMatch"
+  ) {
+    return buildMatchNode(node, ctx);
+  }
   return buildIfNode(node, ctx);
 }
 
@@ -1088,10 +1460,7 @@ const CASE_VALUE_CONTENT = nodeNameSet(["LuauSparkleCaseValue_content"]);
  *  <value> …  [else …]  end`: each `case` arm (value + children) is a grammar
  *  child; `else` is the default. */
 function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
-  const content = firstDescendant(
-    matchBlock,
-    nodeNameSet(["LuauSparkleMatchBlock_content"]),
-  );
+  const content = firstDescendant(matchBlock, MATCH_CONTENT);
   const cases: MatchNode["cases"] = [];
   let elseChildren: BodyNode[] | undefined;
   let exprBinding: Binding | undefined;
@@ -1103,18 +1472,12 @@ function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
     if (condNode) {
       exprBinding = lowerCondition(condNode, MATCH_CONDITION_CONTENT, ctx);
     }
-    for (const clause of childrenByName(
-      content,
-      nodeNameSet(["LuauSparkleCaseClause"]),
-    )) {
+    for (const clause of childrenByName(content, CASE_CLAUSE)) {
       const valueNode = firstDescendant(
         clause,
         nodeNameSet(["LuauSparkleCaseValue"]),
       );
-      const clauseContent = firstDescendant(
-        clause,
-        nodeNameSet(["LuauSparkleCaseClause_content"]),
-      );
+      const clauseContent = firstDescendant(clause, CASE_CONTENT);
       if (valueNode) {
         cases.push({
           value: lowerCondition(valueNode, CASE_VALUE_CONTENT, ctx),
@@ -1122,15 +1485,9 @@ function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
         });
       }
     }
-    const elseBlock = childrenByName(
-      content,
-      nodeNameSet(["LuauSparkleElseBlock"]),
-    )[0];
+    const elseBlock = childrenByName(content, ELSE_CLAUSE)[0];
     if (elseBlock) {
-      const elseContent = firstDescendant(
-        elseBlock,
-        nodeNameSet(["LuauSparkleElseBlock_content"]),
-      );
+      const elseContent = firstDescendant(elseBlock, ELSE_CONTENT);
       elseChildren = buildBranchChildren(elseContent, ctx);
     }
   }
@@ -1189,10 +1546,7 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
  *  the iterable after `in`; `else` = the empty-iterable fallback. Numeric `for`
  *  (no `in`) is a follow-up. */
 function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
-  const content = firstDescendant(
-    forBlock,
-    nodeNameSet(["LuauSparkleForLoop_content"]),
-  );
+  const content = firstDescendant(forBlock, FOR_CONTENT);
   const condContent = content
     ? firstDescendant(content, nodeNameSet(["LuauForCondition_content"]))
     : null;
@@ -1227,9 +1581,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
       }
     }
   }
-  const elseBlock = content
-    ? childrenByName(content, nodeNameSet(["LuauSparkleElseBlock"]))[0]
-    : undefined;
+  const elseBlock = content ? childrenByName(content, ELSE_CLAUSE)[0] : undefined;
   // Lower the body WITH the loop variables in scope, so body bindings emit them
   // as evaluator params; the iterable (lowered above) and `else` (below) stay
   // OUTSIDE the loop scope (the loop var is undefined when the iterable is empty).
@@ -1246,10 +1598,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
     children,
   };
   if (elseBlock) {
-    const elseContent = firstDescendant(
-      elseBlock,
-      nodeNameSet(["LuauSparkleElseBlock_content"]),
-    );
+    const elseContent = firstDescendant(elseBlock, ELSE_CONTENT);
     forNode.else = buildBranchChildren(elseContent, ctx);
   }
   return forNode;
@@ -1327,10 +1676,7 @@ function parseNumericForHeader(
  *  (condition + children), `else` is the default. Branch bodies are the element
  *  lines inside each clause (grammar children — no sibling-index walking). */
 function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
-  const ifContent = firstDescendant(
-    ifBlock,
-    nodeNameSet(["LuauSparkleIfBlock_content"]),
-  );
+  const ifContent = firstDescendant(ifBlock, IF_CONTENT);
   const branches: IfNode["branches"] = [];
   if (ifContent) {
     const ifCond = firstDescendant(ifContent, IF_CONDITION);
@@ -1340,14 +1686,8 @@ function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
         children: buildBranchChildren(ifContent, ctx),
       });
     }
-    for (const elseif of childrenByName(
-      ifContent,
-      nodeNameSet(["LuauSparkleElseifBlock"]),
-    )) {
-      const elseifContent = firstDescendant(
-        elseif,
-        nodeNameSet(["LuauSparkleElseifBlock_content"]),
-      );
+    for (const elseif of childrenByName(ifContent, ELSEIF_CLAUSE)) {
+      const elseifContent = firstDescendant(elseif, ELSEIF_CONTENT);
       const cond = firstDescendant(
         elseif,
         nodeNameSet(["LuauElseifBlockCondition"]),
@@ -1359,15 +1699,9 @@ function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
         });
       }
     }
-    const elseBlock = childrenByName(
-      ifContent,
-      nodeNameSet(["LuauSparkleElseBlock"]),
-    )[0];
+    const elseBlock = childrenByName(ifContent, ELSE_CLAUSE)[0];
     if (elseBlock) {
-      const elseContent = firstDescendant(
-        elseBlock,
-        nodeNameSet(["LuauSparkleElseBlock_content"]),
-      );
+      const elseContent = firstDescendant(elseBlock, ELSE_CONTENT);
       return { kind: "if", branches, else: buildBranchChildren(elseContent, ctx) };
     }
   }
@@ -1400,18 +1734,21 @@ export function buildSparkleBody(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,
 ): BodyNode[] {
-  const lines = collectNodeLines(contentNode, ctx);
-  if (lines.length === 0) return [];
+  const prevJoins = ctx.sparkleJoins;
+  ctx.sparkleJoins = joinSparkleContinuations(contentNode);
   // Stamp per-token metadata on binding expression nodes, which the synthetic
   // functions bindings are hoisted into cannot inherit from a statement
   // (scoped to Sparkle bodies — see LowerContext.stampExpressionSpans).
   const prevStamp = ctx.stampExpressionSpans;
   ctx.stampExpressionSpans = true;
   try {
+    const lines = collectNodeLines(contentNode, ctx);
+    if (lines.length === 0) return [];
     const rebased = rebaseLines(lines, ctx);
     return buildBlock(rebased.lines, 0, rebased.base, ctx).children;
   } finally {
     ctx.stampExpressionSpans = prevStamp;
+    ctx.sparkleJoins = prevJoins;
   }
 }
 

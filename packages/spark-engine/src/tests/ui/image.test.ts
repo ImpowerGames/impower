@@ -27,11 +27,14 @@ define SHADOW as image with
 end
 
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-    portrait:
+    }
+    portrait {
       image
+    }
+  }
 end
 `;
 

@@ -24,7 +24,8 @@ const { indentationRules, onEnterRules } = LANGUAGE_CONFIG as {
   onEnterRules: {
     beforeText: string;
     afterText?: string;
-    action: { indent: string };
+    previousLineText?: string;
+    action: { indent: string; appendText?: string };
   }[];
 };
 
@@ -121,5 +122,56 @@ describe("bracket onEnterRules", () => {
     expect(matchesSingle("  [")).toBe(true);
     expect(matchesSingle("  (")).toBe(true);
     expect(matchesSingle("  foo(")).toBe(true);
+  });
+});
+
+/**
+ * The rule Enter applies, picked as both hosts pick it (VS Code, and the web
+ * editor's `vscodeOnEnterRules`): the first rule whose `beforeText` matches
+ * the line before the cursor, whose `afterText` matches the line after it and
+ * whose `previousLineText` matches the line above.
+ */
+const enterRuleFor = (previousLine: string, before: string, after: string) =>
+  onEnterRules.find(
+    (rule) =>
+      new RegExp(rule.beforeText, "u").test(before) &&
+      (!rule.afterText || new RegExp(rule.afterText, "u").test(after)) &&
+      (!rule.previousLineText ||
+        new RegExp(rule.previousLineText, "u").test(previousLine)),
+  );
+
+// `indentOutdent` puts the cursor on a new line one level deeper than the
+// cursor's line and moves the text after the cursor, its `}`, to a line below
+// at the cursor line's indentation; no text is appended.
+describe("Enter between `{` and `}` in a brace body (#1228)", () => {
+  const cases: [string, string, string, string][] = [
+    // [body, line above, line before the cursor, line after it]
+    ["layout", "layout hud with", "  column.panel {", "}"],
+    ["layout", "  column.panel {", "    row.item {", "}"],
+    ["layout", "  column.panel {", "    row.item #gap=4 {", " }"],
+    ["layout", "  column {", '    button.primary "Save" @click=save() {', "}"],
+    ["layout", "  column {", '    foldout "Level {n}" {', "}"],
+    ["layout", "  column {", "    row = {", "}"],
+    ["layout", "  column {", '    row { text "a"; text "b" }; row {', "}"],
+    ["layout", "  if open then", "    row.busy {", "}"],
+    ["style", "style card with", "  > text {", "}"],
+    ["style", "style card with", "  &.wide {", " }"],
+    ["style", "style card with", "  @hovered, @pressed {", "}"],
+    ["style", "style card with", "  &[data-label='a;b'] {", "}"],
+    ["style", "  @hovered {", "    > text {", "}"],
+  ];
+
+  it.each(cases)("%s: `%s` / `%s|%s`", (_body, previousLine, before, after) => {
+    const rule = enterRuleFor(previousLine, before, after);
+    expect(rule?.action.indent).toBe("indentOutdent");
+    expect(rule?.action.appendText ?? "").toBe("");
+  });
+
+  it("a `- {` item line still continues the list instead", () => {
+    // The one earlier rule a `{` line can meet, kept for the indented form.
+    expect(enterRuleFor("  keyframes:", "    - {", "}")?.action).toEqual({
+      indent: "indentOutdent",
+      appendText: "\t- ",
+    });
   });
 });

@@ -81,12 +81,19 @@ function luauFirstError(source: string): Found {
 
 /**
  * Luau's parser's errors for `source` read as a Luau file (ASCII only),
- * leaving out those its recovery marks as following from an earlier one:
- * each mistake once, with Luau's first error for it (#1175).
+ * omitting the incomplete-statement error that follows an error inside
+ * that same expression. The parser port no longer carries Sparkdown's
+ * recovery metadata; keep this expectation independent of the tree reader.
  */
 const luauErrors = (source: string): Found[] =>
   parseLuau(source)
-    .errors.filter((error) => !error.follows)
+    .errors.filter((error, index, errors) =>
+      error.message !== "Incomplete statement: expected assignment or a function call" ||
+      !errors.slice(0, index).some((earlier) =>
+        !earlier.location.begin.lt(error.location.begin) &&
+        !earlier.location.begin.gt(error.location.end),
+      ),
+    )
     .map((error) => ({
       message: error.message,
       severity: 1,
@@ -215,7 +222,12 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   it("keeps an `end` in a string or a comment inside the line, so the function ends at its own", () => {
     for (const line of ['He said "the end" today.', "Hello there -- the end"]) {
       const source = `function greet()\n  ${line}\nend\nAfter it.\n`;
-      expect(errorsOf(source), line).toEqual(luauErrors(source.replace("After it.\n", "")));
+      const luau = source.replace("After it.\n", "");
+      // The second bare name after `Hello` is parser recovery on the same
+      // line; the string case also has an independent dangling-dot error.
+      expect(errorsOf(source), line).toEqual(line.startsWith("Hello")
+        ? [luauFirstError(luau)]
+        : luauErrors(luau));
       expect(playedLines(source), line).toEqual(["After it.\n"]);
     }
   });

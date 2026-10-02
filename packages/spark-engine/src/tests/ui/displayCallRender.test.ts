@@ -14,8 +14,9 @@ import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 import { WriteTextMessage } from "../../game/modules/ui/classes/messages/WriteTextMessage";
 
 const SCREEN = `layout main with
-  action:
+  action {
     text
+  }
 end
 `;
 

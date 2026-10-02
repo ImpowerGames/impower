@@ -19,7 +19,7 @@ import {
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
 import { Mode } from "../typecheck/Module";
-import { endsStatement, holdsToken, isMissingNameError, SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
+import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../inkjs/engine/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
@@ -516,8 +516,9 @@ export class SparkdownCompiler {
    *  walked again. */
   protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
 
-  // Type checks each document's Luau, keeping results between compiles.
-  protected _typechecker = new SparkdownTypechecker();
+  // Type checks each document's Luau, keeping results between compiles. A
+  // `.luau` file's text is parsed as a `run` wraps it (`luauFileUnit`).
+  protected _typechecker = new SparkdownTypechecker((text) => this.documents.parser.parse(text));
 
   protected _files = new SparkdownFileRegistry();
   get files() {
@@ -6815,43 +6816,18 @@ export class SparkdownCompiler {
       // and so is a token Sparkdown already reports an error at.
       const unresolved: { name: string; range: Range }[] = [];
       const errors: Range[] = [];
-      // Sparkdown's own errors that an expression or a name is missing, but
-      // not its rule that a name after `.` stands on the `.`'s line, which
-      // Luau does not have.
-      const missingErrors: { range: Range; message: string }[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error) {
-          errors.push(d.range);
-          if (message.startsWith("Expected identifier") && !message.startsWith("Expected identifier after '.' on the same line")) missingErrors.push({ range: d.range, message });
-        }
+        if (d.severity === DiagnosticSeverity.Error) errors.push(d.range);
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
-      // A syntax error's range ends with the token Luau found.
+      // A syntax error's range ends with the token the reading found.
       const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });
-      // The missing expressions or names only Sparkdown reports, at no token
-      // Luau reports one at.
-      const ownErrors = missingErrors.filter(({ range }) => !checked.some((d) => d.syntax && rangeContains(range, tokenOf(d))));
       for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
         if (d.syntax && errors.some((range) => rangeContains(range, tokenOf(d)))) continue;
-        // An expression error that begins right after a missing expression
-        // or name only Sparkdown reports, later on its line or on the next, with no
-        // statement ending from that error's token to it (`endsStatement`),
-        // is that mistake as Luau reads the lines where Sparkdown reads them
-        // differently (an `else` that ends its line before a statement at
-        // column 0). The token Sparkdown's error is at can begin the next
-        // statement itself (`got 'local'`), unless it is a keyword on the
-        // line of a `.` with no name after it, which Luau reads as the name.
-        const followsError = ({ range, message }: { range: Range; message: string }) =>
-          (range.end.line === d.start.line - 1 || (range.end.line === d.start.line && range.end.character <= d.start.character)) &&
-          !endsStatement(
-            doc.read(doc.offsetAt(range.start), doc.offsetAt(d.start)),
-            isMissingNameError(message) && holdsToken(doc.read(doc.offsetAt({ line: range.start.line, character: 0 }), doc.offsetAt(range.start))),
-          );
-        if (d.expression && ownErrors.some(followsError)) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
     }

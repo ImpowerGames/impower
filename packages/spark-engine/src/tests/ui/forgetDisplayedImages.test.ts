@@ -14,12 +14,16 @@ const SOURCE = `define BG as image with
 end
 
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-  textbox:
-    dialogue:
+    }
+  }
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 
 -> start

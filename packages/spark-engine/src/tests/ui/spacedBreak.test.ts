@@ -26,17 +26,24 @@ define BG as image with
 end
 
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-  textbox:
-    character_info:
-      character_name:
+    }
+  }
+  textbox {
+    character_info {
+      character_name {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       text
-    action:
+    }
+    action {
       text
+    }
+  }
 end
 `;
 

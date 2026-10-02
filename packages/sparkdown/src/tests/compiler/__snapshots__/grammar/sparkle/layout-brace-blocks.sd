@@ -1,0 +1,87 @@
+component card(title) with
+  column.card {
+    text.title "{title}"
+    slot
+    slot footer
+  }
+end
+
+layout inventory with
+  column.panel #child-gap=8 {
+    text.title "Inventory" -- the heading
+    row.item.wide #gap={gap} @click=pick(item) {
+      image #src={item.icon} #alt="An {item.name}"
+      text "{item.name}"
+      button "Use" @click={ used = true; count = count + 1 }
+    }
+    choice.0 { text }
+    title { stroke; text }
+    row = { text "a" #width=5; text "b" }
+    column #gap=4 { text "c" }
+    foldout "Level {n}" #open=true {
+      text 'single {quoted}'
+      text "a ; b } c"
+      link "Docs" #href="http://example.com/a{b}"
+    }
+    card("Inventory", hero.hp) {
+      text "body"
+      fill footer { button.secondary "Ok" @click=close_menu }
+    }
+    input #value = {x} #--custom-gap=4 @input=set_x
+    // a slash comment with a brace {
+    image = "black"
+    color = white
+    名前 { text "unicode" }
+    button "Go" @click=use(item, max(1, min(2, x))) .wide
+    text #x={ {a = {b = {c = 1}}} } "after" #font=a,b
+    button @click={ local t = {a={b={c={}}}} } #--label='a{b}c'
+    button @click={ print([[a}b]]) } "B" --[[ note ]] .wide
+    card([[a)b{c]]) { text "c" }
+    button @click={ print([====[a}b]====]) } "Long" ; card(f(f(f(f(f(1)))))) { text "deep" }
+    row { button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Over"; text "after" }
+    row,
+  }
+  stage:
+    portrait {
+      image
+    }
+    mask.shadow_1
+    button "Go" @click={ local t = {a={b={c={}}}} }
+    text #--label='a{b}c'
+    choice.1:
+      text
+end
+
+layout values with
+  button @click=f--{text}
+  button @click=f--{comment
+  button @click=f--note { text }
+  button @click=f--[[ { ]] { text "child" }
+  text #--label=var(--accent) { stroke }
+  row { text #--label=card--large; text "next" }
+  text #--label=[[a{b}]] { stroke }
+  text #--label=[=======[a{b}]=======]
+  text #--label='a{b}
+  text #label=a{b} { stroke }
+  button @click={ print('a}b) } "Go"
+  card('a)b{c) { text "body" }
+  button @click={ print([==[a]=]}b]==]) }
+  card([==[a]=]) { text "comment" } ]==])
+  button @click=f(-- ) { text "comment" }
+  card(-- ) { text "comment" }
+  card([========[a]=========]) { text "string" } b]========])
+  button @click={ print([========[a]=========]}b]========]) }
+  button @click={ print(`a\}b`) }
+  card(`a) \{ text \} b`)
+  row { button @click={ print(`x}`) } "Go"; text "after" }
+  button @click={ print(`a {f(`}`)} b`) }
+  row { button @click={ print(`{"`"}`) }; text "after" }
+  row { button @click={ print(`{ --[[ ` ]] 1 }`) }; text "after" }
+  row { button @click={ print(`{f({x = "}`"})}`) }; text "after" }
+  row { button @click={ print(`{f({x = 1 --[[ }` ]]})}`) }; text "after" }
+  text = Hello {who}
+  text = [[a{b}]]
+  items:
+    - Hello {who}
+    - {a}
+end

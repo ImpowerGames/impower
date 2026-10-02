@@ -403,6 +403,107 @@ function computeBlockIndent(
   return level;
 }
 
+// A body line that holds a brace (#1222): it nests by its braces, and may
+// span lines up to the `}` of its last block.
+const BRACE_LINES = nodeNameSet(["LuauSparkleBlockLine", "LuauStructBlockLine"]);
+
+// The index in `stack` (leaf first) of the outermost brace line around the
+// leaf, or -1.
+function findBraceLine(stack: GrammarSyntaxNode<SparkdownNodeName>[]): number {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const node = stack[i];
+    if (node && BRACE_LINES.has(node.name)) return i;
+  }
+  return -1;
+}
+
+// What indents a line inside a brace line by one level, when the line starts
+// inside the node's `_content`: a block's braces, a multi-line handler
+// closure, an `if` / `for` / `match` in a block and each of their branches,
+// and a continuation line, whose parts, block and closure sit one level past
+// the element they continue. A header's own line and a closing `}` or `end`
+// are outside the `_content`, so they stay at the level around it.
+const BRACE_INDENTERS = nodeNameSet([
+  "LuauSparkleElementBlock",
+  "LuauStructBlockBody",
+  "LuauStructListBlock",
+  "LuauSparkleHandlerClosure",
+  "LuauSparkleElementContinuation",
+  "LuauSparkleBlockIf",
+  "LuauSparkleBlockElseif",
+  "LuauSparkleBlockElse",
+  "LuauSparkleBlockFor",
+  "LuauSparkleBlockMatch",
+  "LuauSparkleBlockCase",
+]);
+
+// An `elseif` / `else` branch is read inside the `_content` of the `if` or
+// `for` it belongs to, yet lines up with it.
+const BRACE_SIBLING_CLAUSES = nodeNameSet([
+  "LuauSparkleBlockElseif",
+  "LuauSparkleBlockElse",
+]);
+const BRACE_CLAUSE_OWNERS = nodeNameSet([
+  "LuauSparkleBlockIf",
+  "LuauSparkleBlockFor",
+]);
+
+// The depth of a line below the first line of the brace line at
+// `stack[braceLineIndex]`: the braces, branches and continuations it starts
+// inside, and any Luau block it starts inside within a handler closure.
+function braceDepth(
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
+  braceLineIndex: number,
+  lineStart: number,
+): number {
+  const inner = stack.slice(0, braceLineIndex);
+  let depth = 0;
+  for (let i = 1; i < inner.length; i++) {
+    const node = inner[i];
+    if (!node || !BRACE_INDENTERS.has(node.name)) continue;
+    if (inner[i - 1]?.name !== `${node.name}_content`) continue;
+    if (
+      BRACE_CLAUSE_OWNERS.has(node.name) &&
+      BRACE_SIBLING_CLAUSES.has(inner[i - 2]?.name ?? "")
+    ) {
+      continue;
+    }
+    depth += 1;
+  }
+  depth += computeBlockIndent(inner);
+  if (isContinuationLine(inner, lineStart)) depth += 1;
+  return depth;
+}
+
+// The next line after `line` that is neither blank nor a comment (`end`, or
+// the line count when there is none), and whether it continues an element
+// (#1225): a comment between an element and its continuation lines lines up
+// with them. Every comment line before `end` shares the answer, so the
+// caller reads it once per run of comments.
+function continuationAfterComments(
+  document: SparkdownDocument,
+  tree: Tree,
+  line: number,
+): { end: number; continues: boolean } {
+  for (let l = line + 1; l < document.lineCount; l++) {
+    const text = document.getLineText(l);
+    const first = text.search(/\S/);
+    if (first < 0) continue;
+    const rest = text.slice(first);
+    if (rest.startsWith("--") || rest.startsWith("//")) continue;
+    const lineStart = document.offsetAt({ line: l, character: 0 });
+    const pos = lineStart + first;
+    // The continuation must begin on that line, not merely hold it (a
+    // closure's statements sit inside the continuation that opened it).
+    const continues = getStack<SparkdownNodeName>(tree, pos, 1).some(
+      (n) =>
+        n?.name === "LuauSparkleElementContinuation" && n.from >= lineStart,
+    );
+    return { end: l, continues };
+  }
+  return { end: document.lineCount, continues: false };
+}
+
 const isInRange = (
   document: SparkdownDocument,
   innerRange: Range,
@@ -465,6 +566,17 @@ export const getFormatting = (
   // whenever we enter a different body (`_content` node identity changes).
   let sparkleContentFrom: number | undefined = undefined;
   let sparkleIndentStack: number[] = [];
+  // Brace lines (#1227) nest by their braces. The first line of each takes
+  // its level as an indented line does, and is recorded here by the brace
+  // line's offset, so its later lines indent by their depth below it.
+  let braceLineLevels = new Map<number, number>();
+  // The level of the last element line at the top of the body, which a
+  // continuation line or a `{` on its own line there is placed against.
+  let lastElementLevel: number | undefined = undefined;
+  // The run of comment and blank lines last looked past for a continuation:
+  // a comment line after `start` and before `end` shares its answer.
+  let commentRun: { start: number; end: number; continues: boolean } | null =
+    null;
 
   let tempIndentLevel: number | undefined = undefined;
   let matchNextIndentLevel: { from: number; to: number } | undefined =
@@ -571,26 +683,84 @@ export const getFormatting = (
             )
           : undefined;
       if (sparkleContentNode) {
-        // A line inside a brace block (`timing {` … `}`) nests by its braces,
-        // not its column, so its indentation carries no meaning and is left
-        // as written. It stays out of the level stack too: the stack tracks
-        // the indented lines around the block, and a brace line's column
-        // would otherwise re-indent the next of them into a child of the
-        // block, where the readers drop it.
-        if (
-          stack.some(
-            (n) =>
-              n &&
-              (n.name === "LuauStructBlockBody" ||
-                n.name === "LuauStructListBlock"),
-          )
-        ) {
-          return;
-        }
+        const emitLevel = (level: number) => {
+          const expectedIndentation = options.insertSpaces
+            ? " ".repeat(level * options.tabSize)
+            : "\t".repeat(level);
+          if (currentIndentation !== expectedIndentation) {
+            pushIfInRange({
+              lineNumber: indentRange.start.line + 1,
+              range: indentRange,
+              oldText: document.getText(indentRange),
+              newText: expectedIndentation,
+              type: "indent",
+            });
+          }
+        };
         // Reset the level stack when we cross into a different body.
         if (sparkleContentFrom !== sparkleContentNode.from) {
           sparkleContentFrom = sparkleContentNode.from;
           sparkleIndentStack = [];
+          braceLineLevels = new Map();
+          lastElementLevel = undefined;
+        }
+        // A line of a brace line (`column {` … `}`, `timing {` … `}`) nests
+        // by its braces, not its column (#1227). Its lines stay out of the
+        // level stack: the stack tracks the indented lines around them, and
+        // their columns would otherwise make the next indented line a child
+        // of the block, where the readers drop it.
+        const trimmedLine = lineText.trimStart();
+        const isCommentLine =
+          trimmedLine.startsWith("--") || trimmedLine.startsWith("//");
+        // A comment between an element and the lines that continue it lines
+        // up with those lines.
+        let commentsContinuation = false;
+        if (isCommentLine) {
+          const line = range.start.line;
+          if (!commentRun || line < commentRun.start || line >= commentRun.end) {
+            commentRun = {
+              start: line,
+              ...continuationAfterComments(document, tree, line),
+            };
+          }
+          commentsContinuation = commentRun.continues;
+        }
+        const braceLineIndex = findBraceLine(stack);
+        const braceLine =
+          braceLineIndex >= 0 ? stack[braceLineIndex] : undefined;
+        if (braceLine && braceLineIndex >= 0) {
+          const depth = braceDepth(stack, braceLineIndex, lineStart);
+          if (braceLine.from < lineStart) {
+            // A later line of the brace line: its depth below the first.
+            const base = braceLineLevels.get(braceLine.from);
+            if (base != null) {
+              emitLevel(base + depth + (commentsContinuation ? 1 : 0));
+            }
+            return;
+          }
+          // A continuation line, or a `{` on its own line, belongs to the
+          // element above it whatever its column (#1225): the continuation
+          // one level past the element, the `{` at the element's level.
+          if (
+            braceLine.name === "LuauSparkleBlockLine" &&
+            (lineText[firstNonWs] === "{" ||
+              stack.some(
+                (n, i) =>
+                  i < braceLineIndex &&
+                  n?.name === "LuauSparkleElementContinuation",
+              ))
+          ) {
+            const base = lastElementLevel ?? computeBlockIndent(stack) + 1;
+            braceLineLevels.set(braceLine.from, base);
+            emitLevel(base + depth);
+            return;
+          }
+        }
+        // At the top of the body such a comment takes no place among the
+        // indented lines either.
+        if (commentsContinuation && lastElementLevel != null) {
+          emitLevel(lastElementLevel + 1);
+          return;
         }
         const rawWidth = rawIndentWidth(currentIndentation, options.tabSize);
         while (
@@ -630,18 +800,9 @@ export const getFormatting = (
         }
         // Body sits one level past the block header (its own level).
         const bodyLevel = computeBlockIndent(stack) + 1 + depth;
-        const expectedIndentation = options.insertSpaces
-          ? " ".repeat(bodyLevel * options.tabSize)
-          : "\t".repeat(bodyLevel);
-        if (currentIndentation !== expectedIndentation) {
-          pushIfInRange({
-            lineNumber: indentRange.start.line + 1,
-            range: indentRange,
-            oldText: document.getText(indentRange),
-            newText: expectedIndentation,
-            type: "indent",
-          });
-        }
+        if (braceLine) braceLineLevels.set(braceLine.from, bodyLevel);
+        if (!isCommentLine) lastElementLevel = bodyLevel;
+        emitLevel(bodyLevel);
         return;
       }
 

@@ -1,0 +1,24 @@
+animation fade with
+  target = layer.self
+  keyframes {
+    from { opacity = 0 }
+    40% { opacity = 0.5 }
+    to {
+      opacity = 1
+    }
+  }
+  timing {
+    duration = 0.4
+    easing = ease-in-out
+  }
+end
+
+animation pulse with
+  keyframes {
+    { offset = 0; opacity = 0 }
+    {
+      offset = 1
+      transform = "scale(1.1)"
+    }
+  }
+end

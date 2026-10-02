@@ -20,8 +20,9 @@ const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "ut
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
 const EXPECTED_CHECKS = 54;
-// The grammar scanner needs the full tree and runs in typecheck.yml.
-const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
+// The grammar and lowerer scanners need the full tree and run in typecheck.yml.
+const FULL_TREE_CHECKS = ["scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"];
+const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && !FULL_TREE_CHECKS.includes(f));
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
 const fixtures = checks.filter((f) => /\.(?:json|snap|md|txt)$/.test(f));
 const discovered = checks.filter((f) => !fixtures.includes(f));

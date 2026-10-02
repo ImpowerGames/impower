@@ -1,3 +1,4 @@
+import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
@@ -10,6 +11,11 @@ import {
   type StructEntry,
   type StructEntryKind,
 } from "../utils/structBodyEntries";
+import {
+  sparkleClosureAttributeEnd,
+  sparkleElementParts,
+  sparklePartNodes,
+} from "../utils/sparkleBlockEntries";
 import { unescapeString } from "../utils/unescapeString";
 import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 
@@ -41,7 +47,12 @@ import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 // `@hovered, @pressed { … }`). The body is read as the entry tree of
 // `readStructBodyEntries`, which gives the indented lines (including a
 // collapsed `- label:` list item) and the braced entries the same entries, so
-// both forms lower to the same struct.
+// both forms lower to the same struct. A `layout` or `component` body's brace
+// blocks (`row.item { … }`) are placed where the indented form of the same
+// body places its lines, and an element in one is keyed as the same element
+// on an indented line is (`evaluateElement`). A brace leaf is adjacency
+// content when the grammar's `LuauStructAdjacencyContent` pattern, taken from
+// the generated grammar rather than restated here, matches its text.
 //
 // REACTIVE ATTRIBUTES: an element line may carry inline `@event=handler` /
 // `#prop=value` bindings (`button "Use" @click=x`, `column #gap=16:`). Those are
@@ -147,16 +158,36 @@ function firstDescendant(
   return null;
 }
 
+const ATTRIBUTE_NAMES: ReadonlySet<string> = nodeNameSet([
+  "LuauEventAttribute",
+  "LuauPropAttribute",
+  "LuauSparkleEventAttribute",
+  "LuauSparklePropAttribute",
+  "LuauSparkleEventClosureAttribute",
+]);
+
 // Spans of inline element attributes (`@event=…`, `#prop=…`) within a node, in
 // source order. Used to excise reactive attributes from the static struct text
 // (they are not part of the engine-consumed struct).
-function attributeRanges(node: SyntaxNode): { from: number; to: number }[] {
-  const ranges: { from: number; to: number }[] = [];
+function attributeRanges(node: SyntaxNode): TextEdit[] {
+  return nodesOutsideAttributes(node, ATTRIBUTE_NAMES, true);
+}
+
+// The nodes named in `names` within `node`, outside its inline attributes (or,
+// with `attributes` set, the attributes themselves), as spans to remove.
+function nodesOutsideAttributes(
+  node: SyntaxNode,
+  names: ReadonlySet<string>,
+  attributes = false,
+): TextEdit[] {
+  const ranges: TextEdit[] = [];
   const walk = (n: SyntaxNode) => {
     let c = n.firstChild;
     while (c) {
-      if (c.name === "LuauEventAttribute" || c.name === "LuauPropAttribute") {
-        ranges.push({ from: c.from, to: c.to });
+      if (ATTRIBUTE_NAMES.has(c.name)) {
+        if (attributes) ranges.push({ from: c.from, to: c.to, text: "" });
+      } else if (!attributes && names.has(c.name)) {
+        ranges.push({ from: c.from, to: c.to, text: "" });
       } else {
         walk(c);
       }
@@ -167,57 +198,271 @@ function attributeRanges(node: SyntaxNode): { from: number; to: number }[] {
   return ranges;
 }
 
-// A node's source text with all inline-attribute spans removed, so the static
-// struct sees only the structural part (`column #gap=16` → `column `,
-// `button "Use" @click=x` → `button "Use" `).
-function textWithoutAttributes(node: SyntaxNode, ctx: LowerContext): string {
-  return textExcluding(node, ctx, attributeRanges(node));
+// The `.` of each `.name` class in an element's key, outside its attributes.
+// In a layout or component body the static struct keys an element by its tag
+// and classes separated by spaces (`mask.shadow_1` is keyed `mask shadow_1`,
+// as `mask shadow_1` is), because the engine splits struct paths on `.`. A
+// `.` the key already has whitespace before (`choice .0`) is dropped, so
+// the key is `choice 0` either way.
+function classDots(node: SyntaxNode): TextEdit[] {
+  return nodesOutsideAttributes(node, CLASS_DOT_NAMES).map((r) => ({
+    ...r,
+    separator: true,
+  }));
 }
 
-// A node's source text with the given spans removed (sorted defensively, since
-// callers may concatenate ranges from more than one source).
+const CLASS_DOT_NAMES: ReadonlySet<string> = nodeNameSet(["LuauSparkleClassDot"]);
+
+// A node's source text with all inline-attribute spans removed, so the static
+// struct sees only the structural part (`column #gap=16` → `column `,
+// `button "Use" @click=x` → `button "Use" `). In a layout or component body
+// (`elementKeys`) a class's `.` reads as a space.
+function textWithoutAttributes(
+  node: SyntaxNode,
+  ctx: LowerContext,
+  elementKeys = false,
+): string {
+  return textExcluding(node, ctx, [
+    ...attributeRanges(node),
+    ...(elementKeys ? classDots(node) : []),
+  ]);
+}
+
+/** A span of source text to replace. */
+interface TextEdit {
+  from: number;
+  to: number;
+  /** What the span reads as; removed when empty. */
+  text?: string;
+  /** The span reads as one space, or as nothing after whitespace. */
+  separator?: boolean;
+}
+
+// A node's source text with the given spans replaced (sorted defensively,
+// since callers may concatenate ranges from more than one source).
 function textExcluding(
   node: SyntaxNode,
   ctx: LowerContext,
-  ranges: { from: number; to: number }[],
+  ranges: TextEdit[],
+  to: number = node.to,
 ): string {
-  if (ranges.length === 0) return ctx.read(node.from, node.to);
+  if (ranges.length === 0) return ctx.read(node.from, to);
   const sorted = [...ranges].sort((a, b) => a.from - b.from);
   let result = "";
   let pos = node.from;
-  for (const { from, to } of sorted) {
+  for (const { from, to: end, text, separator } of sorted) {
     if (from > pos) result += ctx.read(pos, from);
-    pos = Math.max(pos, to);
+    if (from >= pos && separator) {
+      if (result && !/\s$/.test(result)) result += " ";
+    } else if (from >= pos && text) result += text;
+    pos = Math.max(pos, end);
   }
-  if (node.to > pos) result += ctx.read(pos, node.to);
+  if (to > pos) result += ctx.read(pos, to);
   return result;
+}
+
+export interface StructBodyOptions {
+  /**
+   * The body is a `layout` or `component` body, whose elements are keyed by
+   * their tag and classes separated by spaces.
+   */
+  elementKeys?: boolean;
 }
 
 export function parseStructBody(
   entries: StructEntry[],
   ctx: LowerContext,
+  options: StructBodyOptions = {},
 ): Record<string, unknown> {
-  const result = evaluate(entries, ctx);
+  const result = evaluate(entries, ctx, !!options.elementKeys);
   // A bare body (top-level array) is unusual for UI; coerce to object.
   return Array.isArray(result) ? { ...result } : result;
+}
+
+// The grammar's own pattern for an indented adjacency-content line
+// (`LuauStructAdjacencyContent`: a name, whitespace, a double-quoted string and
+// anything after it), anchored to the start of the text it is tried on. A
+// brace leaf whose text it matches is keyed as that indented line is, so the
+// two forms cannot drift apart when the grammar rule changes.
+const ADJACENCY_CONTENT = new RegExp(
+  `^(?:${GRAMMAR_DEFINITION.repository.LuauStructAdjacencyContent.match})`,
+);
+
+// Comments in an element's head, which are no part of its key.
+const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
+  "LuauLineComment",
+  "LuauBlockComment",
+  "LuauDocLineComment",
+  "LuauStructBlockSlashComment",
+]);
+
+// A piece of an element's text: the source from `node.from` to `to`, read
+// with `edits` applied.
+interface ElementSegment {
+  node: SyntaxNode;
+  to: number;
+  edits: TextEdit[];
+  /** The node the value is looked for in, if any. */
+  value: SyntaxNode | null;
+}
+
+// An event closure that goes on at the next line, which a segment's text
+// never holds: it is an attribute, and it spans lines.
+const CLOSURE_ATTRIBUTE = "LuauSparkleEventClosureAttribute";
+
+// Segments read as one line. Segments that follow one another directly are
+// one run, read as one range with all their edits, so an element written on
+// one line reads exactly as its own text did; runs are joined with a space.
+function joinSegments(
+  segments: ElementSegment[],
+  read: (from: SyntaxNode, edits: TextEdit[], to: number) => string,
+): string {
+  const runs: ElementSegment[][] = [];
+  for (const segment of segments) {
+    const run = runs[runs.length - 1];
+    const last = run?.[run.length - 1];
+    if (run && last && segment.node.from === last.to) run.push(segment);
+    else runs.push([segment]);
+  }
+  return runs
+    .map((run) =>
+      read(
+        run[0]!.node,
+        run.flatMap((s) => s.edits),
+        run[run.length - 1]!.to,
+      ),
+    )
+    .join(" ");
+}
+
+// The segments of an element's text, in source order: a brace element's name
+// and arguments, its head and the runs of parts and event closures after it,
+// or an indented line's shape; then the parts of the continuation lines it
+// takes (#1225). Joined (`joinSegments`) they read as the one-line element.
+function elementSegments(entry: StructEntry): ElementSegment[] {
+  const part = (node: SyntaxNode): ElementSegment =>
+    node.name === CLOSURE_ATTRIBUTE
+      ? // The closure alone: the run of parts after its `}` follows it as a
+        // segment of its own.
+        { node, to: sparkleClosureAttributeEnd(node), edits: [], value: null }
+      : {
+          node,
+          to: node.to,
+          edits: [
+            ...attributeRanges(node),
+            ...nodesOutsideAttributes(node, COMMENT_NAMES),
+            ...classDots(node),
+          ],
+          value: node,
+        };
+  const segments: ElementSegment[] = [];
+  if (entry.element) {
+    const element = entry.shape;
+    // Its name and a call's arguments, read as written.
+    const { beginTo } = sparkleElementParts(element);
+    segments.push({ node: element, to: beginTo, edits: [], value: null });
+    for (const node of sparklePartNodes(element)) segments.push(part(node));
+  } else {
+    // An indented line, read as the indented form reads it: its comments stay.
+    const shape = entry.shape;
+    segments.push({
+      node: shape,
+      to: shape.to,
+      edits: [...attributeRanges(shape), ...classDots(shape)],
+      value: shape,
+    });
+  }
+  for (const node of entry.continuations ?? []) segments.push(part(node));
+  return segments;
+}
+
+// An element in a layout or component brace block, keyed as the same element
+// on an indented line is: the line's text up to its block with its attributes
+// and comments removed and each class's `.` read as a space. An element with a
+// block keys its children by that text, content included
+// (`foldout "More" { … }` is keyed `foldout "More"`, as `foldout "More":` is).
+// One without a block is keyed by that text without its content, and its
+// content is its value (`text.title "Hi"` is `"text title": "Hi"`). An
+// element whose parts go on over later lines (#1225) is keyed as the same
+// element written on one line.
+function evaluateElement(
+  entry: StructEntry,
+  obj: Record<string, unknown>,
+  ctx: LowerContext,
+  elementKeys: boolean,
+): void {
+  const segments = elementSegments(entry);
+  const keyOf = (value: SyntaxNode | null) =>
+    oneSpace(
+      joinSegments(
+        segments.filter((s) => s.node.name !== CLOSURE_ATTRIBUTE),
+        (node, edits, to) =>
+          textExcluding(
+            node,
+            ctx,
+            value && value.from >= node.from && value.to <= to
+              ? [...edits, { from: value.from, to: value.to }]
+              : edits,
+            to,
+          ),
+      ),
+    );
+  if (entry.kind === "header") {
+    obj[keyOf(null)] = entry.children
+      ? evaluate(entry.children, ctx, elementKeys)
+      : {};
+    return;
+  }
+  // The value is found as on an indented line, attributes included, so a
+  // quoted `#prop` value before any content is the value there too
+  // (`loading_fill #transform="scaleX({p})"` is keyed `loading_fill` with
+  // that string).
+  let valueNode: SyntaxNode | null = null;
+  for (const segment of segments) {
+    if (valueNode) break;
+    if (segment.value && segment.node.name !== CLOSURE_ATTRIBUTE) {
+      valueNode = firstDescendant(segment.value, FIELD_VALUE_NAMES);
+    }
+  }
+  // An indented `name "content" …` line is adjacency content
+  // (`LuauStructAdjacencyContent`): keyed by its name alone and valued by
+  // that first string, whatever follows it (`text "a" "b"` is `text: "a"`).
+  // The same element in a block is keyed alike, decided by the grammar's own
+  // pattern for that line. An element written over several lines is tried as
+  // the one line its segments make.
+  const adjacency = ADJACENCY_CONTENT.exec(
+    joinSegments(segments, (node, _edits, to) =>
+      ctx.read(node.from, to).replace(/[\r\n]/g, " "),
+    ),
+  );
+  if (adjacency) {
+    obj[adjacency[2]!] = parseScalar(adjacency[4]!);
+    return;
+  }
+  const key = keyOf(valueNode);
+  if (!key) return;
+  obj[key] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
 }
 
 function evaluate(
   entries: StructEntry[],
   ctx: LowerContext,
+  elementKeys: boolean,
 ): Record<string, unknown> | unknown[] {
   const obj: Record<string, unknown> = {};
   let arr: unknown[] | null = null;
   for (const entry of entries) {
     const shape = entry.shape;
 
-    if (entry.kind === "item") {
+    if (entry.element || entry.continuations) {
+      evaluateElement(entry, obj, ctx, elementKeys);
+    } else if (entry.kind === "item") {
       // Entries beneath the item (indented, carried on the dash line, or
       // inside a bare `{ … }`) → object; a value → scalar.
       arr = arr ?? [];
       if (entry.children) {
         if (!entry.braced) warnValueItemWithEntries(shape, ctx);
-        arr.push(evaluate(entry.children, ctx));
+        arr.push(evaluate(entry.children, ctx, elementKeys));
       } else {
         const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
         if (valueNode) arr.push(parseScalar(readValue(valueNode, ctx)));
@@ -230,8 +475,10 @@ function evaluate(
       // structural part only.
       const key = entry.key
         ? textWithoutAttributes(entry.key, ctx).trim()
-        : headerKey(shape, ctx);
-      obj[key] = entry.children ? evaluate(entry.children, ctx) : {};
+        : headerKey(shape, ctx, elementKeys);
+      obj[key] = entry.children
+        ? evaluate(entry.children, ctx, elementKeys)
+        : {};
     } else if (entry.kind === "property") {
       // `key = value` → scalar. Key + value read from the grammar tokens.
       const keyNode = firstDescendant(shape, KEY_TOKEN_NAMES);
@@ -270,12 +517,14 @@ function evaluate(
         valueNode
           ? textExcluding(shape, ctx, [
               ...attributeRanges(shape),
+              ...(elementKeys ? classDots(shape) : []),
               { from: valueNode.from, to: valueNode.to },
             ])
-          : textWithoutAttributes(shape, ctx)
+          : textWithoutAttributes(shape, ctx, elementKeys)
       ).trim();
-      if (marker) {
-        obj[marker] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
+      const key = elementKeys ? oneSpace(marker) : marker;
+      if (key) {
+        obj[key] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
       }
     }
   }
@@ -285,11 +534,43 @@ function evaluate(
 // The text of a `key:` object-header key (everything before the colon, with
 // inline `@event`/`#prop` attributes excised). The colon lives in its own
 // `LuauStructObjectColon` node, so strip a trailing one defensively too.
-function headerKey(shape: SyntaxNode, ctx: LowerContext): string {
-  return textWithoutAttributes(shape, ctx)
+function headerKey(
+  shape: SyntaxNode,
+  ctx: LowerContext,
+  elementKeys: boolean,
+): string {
+  const key = textWithoutAttributes(shape, ctx, elementKeys)
     .trim()
     .replace(/:\s*$/, "")
     .trim();
+  return elementKeys ? oneSpace(key) : key;
+}
+
+// An element's key in a layout or component body with each run of spaces and
+// tabs outside a quoted run read as one space, and trimmed, so removing an
+// attribute, a comment or a class's `.` never leaves two spaces between its
+// parts (`image @click=go .b` and `choice .0` are keyed `image b` and
+// `choice 0`, as `image.b @click=go` and `choice.0` are). The engine splits
+// element keys on single spaces.
+function oneSpace(key: string): string {
+  let out = "";
+  let quote = "";
+  for (let i = 0; i < key.length; i++) {
+    const c = key[i]!;
+    if (quote) {
+      out += c;
+      if (c === "\\" && i + 1 < key.length) out += key[++i];
+      else if (c === quote) quote = "";
+    } else if (c === '"' || c === "'") {
+      quote = c;
+      out += c;
+    } else if (c === " " || c === "\t") {
+      if (!out.endsWith(" ")) out += " ";
+    } else {
+      out += c;
+    }
+  }
+  return out.trim();
 }
 
 // Read a value node's text. Interpolation-aware content strings and plain

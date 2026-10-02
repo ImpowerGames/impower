@@ -85,8 +85,10 @@ describe("an if statement without `then`", () => {
     expect(compiled).toContain('"^Went down the false side."');
   });
 
+  // The second operand differs from the first: `flag and flag` repeats a
+  // condition, which DuplicateCondition reports in a narrative `if` too.
   test.each([
-    ["whose `then` is on a later line", "  if flag\n    and flag\n    then\n"],
+    ["whose `then` is on a later line", "  if flag\n    and flag ~= false\n    then\n"],
     ["that begins on the line after `if`", "  if\n    flag\n  then\n"],
     ["that begins after a comment-only line", "  if\n    -- note\n    flag\n  then\n"],
   ])("in a story, a condition %s keeps both branches", (_, header) => {

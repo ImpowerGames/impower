@@ -95,10 +95,12 @@ describe("Sparkle struct/style value trailing comments", () => {
     const layouts = (
       compile(
         `layout main with\n` +
-          `  column #child-gap=8: // spaced comment\n` +
+          `  column #child-gap=8 { // spaced comment\n` +
           `    text "a"\n` +
-          `  row #child-gap=4: -- dash comment\n` +
+          `  }\n` +
+          `  row #child-gap=4 { -- dash comment\n` +
           `    text "b"\n` +
+          `  }\n` +
           `end\n`,
       ) as any
     ).sparkle?.layouts;
@@ -113,9 +115,11 @@ describe("Sparkle struct/style value trailing comments", () => {
     const kf = compile(
       `animation slide as animation with\n` +
         `  target = layer.self\n` +
-        `  keyframes:\n` +
-        `    -\n` +
+        `  keyframes {\n` +
+        `    {\n` +
         `      background_position = right -- move it\n` +
+        `    }\n` +
+        `  }\n` +
         `end\n`,
     ).context?.animation?.slide?.keyframes;
     expect(kf?.[0]?.["background_position"]).toBe("right");

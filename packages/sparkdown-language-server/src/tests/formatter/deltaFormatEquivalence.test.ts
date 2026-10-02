@@ -102,6 +102,25 @@ layout settings with
     text #class=title "Settings"
 end
 
+layout hud with
+  column.panel {
+    text.title "Inventory"
+    row { text "a"; text "b" }
+    button
+      .primary
+      @click={
+        tally(1, 2)
+      }
+  }
+end
+
+animation fade with
+  keyframes {
+    from { opacity = 0 }
+    to { opacity = 1 }
+  }
+end
+
 scene intro
   HERO: Hello there.
   branch wave
@@ -152,6 +171,30 @@ const CORRUPTIONS: { label: string; lineMatch: RegExp; mutate: (l: string) => st
   { label: "style prop (under-indent)", lineMatch: /bg-color/, mutate: (l) => l.trim() },
   { label: "screen element (bad attr spacing)", lineMatch: /#class=title/, mutate: (l) => l.replace("=", " = ") },
 ];
+
+// Brace bodies (#1227), which nest by their braces. A full format repairs
+// each of these back to the canonical text.
+const BRACE_CORRUPTIONS: typeof CORRUPTIONS = [
+  { label: "line in a layout block (extra indent)", lineMatch: /text\.title "Inventory"/, mutate: (l) => "          " + l.trim() },
+  { label: "one-line layout block (tight)", lineMatch: /row \{ text "a"/, mutate: (l) => l.replace("{ ", "{").replace("; ", ";").replace(" }", "}") },
+  { label: "continuation line (under-indent)", lineMatch: /^\s*\.primary$/, mutate: (l) => l.trim() },
+  { label: "multi-line closure body (under-indent)", lineMatch: /tally\(1, 2\)/, mutate: (l) => l.trim() },
+  { label: "keyframe block (tight)", lineMatch: /from \{ opacity/, mutate: (l) => l.replace(" { ", "{").replace(" }", "}") },
+];
+CORRUPTIONS.push(...BRACE_CORRUPTIONS);
+
+describe("a full format repairs a brace body", () => {
+  const lines = CANONICAL.split("\n");
+  for (const c of BRACE_CORRUPTIONS) {
+    test(c.label, () => {
+      const lineIndex = lines.findIndex((l) => c.lineMatch.test(l));
+      expect(lineIndex).toBeGreaterThanOrEqual(0);
+      const { source } = corruptLine(CANONICAL, lineIndex, c.mutate);
+      expect(source).not.toBe(CANONICAL);
+      expect(format(source)).toBe(CANONICAL);
+    });
+  }
+});
 
 describe("delta format ≡ full format", () => {
   const lines = CANONICAL.split("\n");

@@ -1,0 +1,64 @@
+layout mistakes with
+  column {
+    row:
+    - text
+    { text "no element" }
+    .orphan "content"
+    text "a", text "b"
+    text "x" : #y=1
+    text "x" #y=1, text "z"
+    row { text "a" } { text "b" }
+    f(a(b(c(d))))
+    text #x={ {{{{a}}}} }
+    column #gap=4{ text "c" }
+    if busy then
+      row {
+        text "busy"
+    else
+      text "idle"
+    end
+    for item in bag do
+      text "{item}"
+  }
+  }
+end
+
+layout unclosed with
+  column {
+    text "a"
+    text "b {
+    text #x={a
+end
+
+layout overflow with
+  column {
+    card(f(f(f(f(f(f(1))))))) { text "body" }
+  }
+  column {
+    button @click=f(f(f(f(f(f(f(1))))))) { text "body" }
+  }
+  column {
+    text #x=f(f(f(f(f(f(f(1))))))) { text "body" }
+  }
+  column {
+    row #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} } { text "body" }
+  }
+  text "last"
+end
+
+layout typing with
+  column {
+    if
+  }
+  column {
+    for i in bag
+  }
+  column {
+    match mode
+  }
+  row { match mode do case 1 text end }
+end
+
+layout after with
+  text "after"
+end

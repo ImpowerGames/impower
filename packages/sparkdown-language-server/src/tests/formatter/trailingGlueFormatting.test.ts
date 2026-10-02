@@ -63,3 +63,16 @@ describe("formatting a leading `..`", () => {
     }
   });
 });
+
+// An inline-glued alternator right after a cue's or heading's colon keeps
+// the text after its closing `..` as written, spaces included.
+describe("formatting the text after a glued alternator that begins a line", () => {
+  for (const [source, tail] of [
+    [`BUNNY: .. queue | Hi | Hello ..   there.\n`, `..   there.\n`],
+    [`$: .. cycle | INT. | EXT. ..   HOUSE\n`, `..   HOUSE\n`],
+  ] as const) {
+    test(`keeps ${JSON.stringify(tail)} in ${JSON.stringify(source)}`, () => {
+      expect(formatSource(source).endsWith(tail)).toBe(true);
+    });
+  }
+});

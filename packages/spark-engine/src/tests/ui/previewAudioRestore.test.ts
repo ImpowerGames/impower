@@ -18,9 +18,11 @@ const SOURCE = `define theme as audio with
 end
 
 layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 
 -> start
