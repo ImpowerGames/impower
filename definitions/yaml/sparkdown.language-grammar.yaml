@@ -6822,10 +6822,13 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauLayoutNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      # After the body-line rules (see LuauStyle). `LuauSparkleControlBlock`
+      # begins at its keyword, so a name rule tried first would take an `if`
+      # at column 0 as a name.
+      - { include: "#LuauLayoutNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -6947,8 +6950,9 @@ repository:
   # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName so the
   # lowerer reads name/parent through the same node names as `define` / `style`;
   # adds LuauLayoutScreenOperation → LuauLayoutScreenName for `in`.
+  # Begins and ends as LuauStyleNameAndInheritance does.
   LuauLayoutNameAndInheritance:
-    begin: (?<=layout\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: ({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -6957,7 +6961,7 @@ repository:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#LuauLayoutScreenOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
