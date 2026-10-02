@@ -1,5 +1,4 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -8,9 +7,9 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
 import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { AstStatWhile } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromContainer } from "../expression/lowerExpression";
+import { lowerExpression } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { syntheticId } from "../utils/documentTag";
@@ -18,6 +17,7 @@ import { findLoopDoBlock } from "../utils/loopDoBlock";
 import { loopOf, openBody } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
 // the loop's source position in the enclosing weave. The tail-jump is
@@ -68,34 +68,37 @@ const WHILE_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
+const WHILE_NODES = nodeNameSet(["LuauWhileLoop", "LuauSparkdownWhileLoop"]);
+
 export function lowerLuauWhileLoop(
-  nodeRef: SparkdownSyntaxNodeRef,
+  stat: AstStatWhile,
+  site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  // Grammar shape:
-  //   LuauWhileLoop > LuauWhileLoop_content > [ LuauWhileCondition, LuauDoBlock ]
-  // The body lives inside LuauDoBlock > LuauDoBlock_content. A loop in a
-  // scene or at the top level parses as `LuauSparkdownWhileLoop` holding a
-  // `LuauSparkdownDoBlock`, in the same shape. An EMPTY body
+  const node = statementNodeAt(stat, site, WHILE_NODES, ctx);
+  if (!node) return {};
+  // The condition is the AST's. The body lives inside the loop node's
+  // LuauDoBlock > LuauDoBlock_content. A loop in a scene or at the top level
+  // parses as `LuauSparkdownWhileLoop` holding a `LuauSparkdownDoBlock`, in
+  // the same shape. An EMPTY body
   // (`while tick() do end`) has no `_content` child; the loop must still
   // lower, since its condition runs on every iteration.
   // `lowerStatements(null)` yields [].
-  const condNode = getDescendent("LuauWhileCondition", nodeRef.node);
-  const doBlock = findLoopDoBlock(nodeRef, ctx);
+  const doBlock = findLoopDoBlock(node, ctx);
   const bodyContent = doBlock
     ? findChildByName(doBlock, `${doBlock.name}_content`)
     : null;
-  if (!condNode || !doBlock) return {};
+  if (!doBlock) return {};
 
   // The gather's name must be unique across the enclosing flow's
   // named weave points. Tagging with the document and the source offset
   // within it (`syntheticId`) gives us that without needing a counter on
   // the context.
-  const id = syntheticId(nodeRef.node.from, ctx);
+  const id = syntheticId(node.from, ctx);
   const loopLabel = `__while_${id}_loop`;
   const breakLabel = `__while_${id}_break`;
 
-  const condExpr = lowerExpressionFromContainer(condNode, ctx);
+  const condExpr = lowerExpression(stat.condition, site.source, ctx);
 
   // Push the loop's break/continue targets so any `break` /
   // `continue` inside the body lowers to a divert to the right label.

@@ -1,4 +1,3 @@
-import { type SyntaxNode } from "@lezer/common";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
 import type { SparkleJoins } from "./utils/sparkleContinuations";
@@ -39,6 +38,14 @@ export interface LowerContext {
    */
   recordRead?: (read: LoweringRead) => void;
   read: (from: number, to: number) => string;
+  /**
+   * The whole text of the document being lowered, which the syntax tree's
+   * offsets index. The lowerers read Luau through the converter
+   * (`typecheck/readLuauAst.ts`), which reads its tokens from the tree and
+   * this text (`lower/utils/luauAst.ts`). A function, so a caller that keeps
+   * the document in another form converts it once, when Luau is first read.
+   */
+  documentText?: () => string;
   /**
    * Returns the **chunk-relative** 0-based line number for an absolute byte
    * offset. Line 0 is the first line of the chunk currently being lowered.
@@ -302,29 +309,6 @@ export interface LowerContext {
    * callers that keep no statement shapes.
    */
   statementStack?: import("./utils/statementShape").StatementShape[];
-  /**
-   * The lines that continue the statement being lowered: each continuation
-   * line after it (`t` then `.a`, `a` then `- b`) and the rest of that
-   * line. `lowerStatements` sets it before lowering the statement; the
-   * statement's lowerer takes it with `takeLineContinuation` and joins it to
-   * its last value.
-   */
-  lineContinuation?: SyntaxNode[] | null;
-  /**
-   * The start offsets of the continuation lines used while lowering the
-   * current statement (see `lower/utils/lineContinuation.ts`).
-   * `lowerStatements` reports each of the statement's continuation lines
-   * that is not among them.
-   */
-  usedLineContinuations?: Set<number> | null;
-  /**
-   * The continuation lines that extend an if expression's else arm, keyed
-   * by the if expression's start offset: the else arm runs to the end of
-   * the expression, so `else 2` then `+ 1` reads as `else 2 + 1`.
-   * `lowerExpressionFromNodes` sets an entry and the if-expression lowerer
-   * takes it.
-   */
-  ifExpressionElseTails?: Map<number, SyntaxNode[]>;
 }
 
 /**
@@ -389,6 +373,7 @@ export function createLowerContextFromSource(
   };
   return {
     read: (from, to) => source.slice(from, to),
+    documentText: () => source,
     lineNumber: (pos) => lineFor(pos),
     characterNumber: (pos) => pos - lineStarts[lineFor(pos)]!,
     config,

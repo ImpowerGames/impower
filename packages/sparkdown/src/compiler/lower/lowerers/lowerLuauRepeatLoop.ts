@@ -8,16 +8,13 @@ import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Ga
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { AstStatRepeat } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
-import {
-  blockLocalNames,
-  lowerExpressionFromContainerAndContinuation,
-  shadowSiblingSubFlow,
-} from "../expression/lowerExpression";
+import { shadowSiblingSubFlow } from "../expression/bindings";
+import { lowerExpression } from "../expression/lowerExpression";
+import { blockLocalNames } from "../expression/lowerFunction";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
-import { collectLineContinuation } from "../utils/lineContinuation";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lineTextSpan, makeSource } from "../utils/validateDefineStructure";
@@ -29,6 +26,7 @@ import {
   loopOf,
   openBody,
 } from "../utils/statementShape";
+import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
 // `repeat BODY until cond` — Luau's "do-while-not".
 //
@@ -69,47 +67,45 @@ import {
 // Grammar shape (siblings, not nested):
 //   LuauRepeatLoop   — body content, ends at `until` keyword
 //   LuauUntilStatement — the condition expression
-// `lowerLuauRepeatLoop` peeks at the next sibling to grab the
-// condition; the `LuauUntilStatement` dispatch case is a no-op so
-// it isn't lowered twice.
+// The converter reads the two as one statement (`lowerLuauStatementNode`
+// reads the `until` line with the loop, and a block's walk skips it as a
+// node the loop continues into); the `LuauUntilStatement` dispatch case
+// lowers to nothing so it isn't lowered twice.
 
 const REPEAT_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauRepeatKeyword",
   "LuauComment",
 ]);
 
+const REPEAT_NODES = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
+
 export function lowerLuauRepeatLoop(
-  nodeRef: SparkdownSyntaxNodeRef,
+  stat: AstStatRepeat,
+  site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
+  const node = statementNodeAt(stat, site, REPEAT_NODES, ctx);
+  if (!node) return {};
   const bodyContent =
-    findChildByName(nodeRef.node, `${nodeRef.node.name}_content`) ?? nodeRef.node;
-  const untilNode = findNextUntilSibling(nodeRef.node);
+    findChildByName(node, `${node.name}_content`) ?? node;
+  const untilNode = findNextUntilSibling(node);
   if (!untilNode) {
-    reportUnpairedUntil(nodeRef.node, ctx);
+    reportUnpairedUntil(node, ctx);
     return {};
   }
-  const condContent =
-    findChildByName(untilNode, "LuauUntilStatement_content") ?? untilNode;
   // The condition sees the locals its body declares, as Luau scopes them:
   // each hides a variadic function of its name in the condition as in the
   // rest of the body (`shadowSiblingSubFlow`), from a block of their own
   // that ends with the condition.
   ctx.blockEndStack?.push([]);
-  for (const name of blockLocalNames(bodyContent, ctx)) {
+  for (const name of blockLocalNames(stat.body)) {
     shadowSiblingSubFlow(name, ctx);
   }
-  // The lines that continue the condition (`until t` then `.done`); the
-  // `LuauUntilStatement` dispatch case leaves them to this lowering.
-  const condExpr = lowerExpressionFromContainerAndContinuation(
-    condContent,
-    collectLineContinuation(untilNode),
-    ctx,
-  );
+  const condExpr = lowerExpression(stat.condition, site.source, ctx);
   ctx.blockEndStack?.pop()?.forEach((end) => end());
   if (!condExpr) return {};
 
-  const id = syntheticId(nodeRef.node.from, ctx);
+  const id = syntheticId(node.from, ctx);
   const loopLabel = `__repeat_${id}_loop`;
   const continueLabel = `__repeat_${id}_continue`;
   const breakLabel = `__repeat_${id}_break`;
@@ -126,7 +122,7 @@ export function lowerLuauRepeatLoop(
   });
   const body = openBody(
     ctx,
-    bodyContent === nodeRef.node ? nodeRef.node.from : bodyContent.from,
+    bodyContent === node ? node.from : bodyContent.from,
     untilNode.from,
   );
   // The `until` line is a sibling node, and a part of this statement.
@@ -186,7 +182,7 @@ export function lowerLuauRepeatLoop(
 // Walk forward from `repeatNode` through whitespace / newline / etc.
 // sibling nodes, returning the first `LuauUntilStatement` encountered
 // or null if there isn't one.
-function findNextUntilSibling(repeatNode: SyntaxNode): SyntaxNode | null {
+export function findNextUntilSibling(repeatNode: SyntaxNode): SyntaxNode | null {
   let n: SyntaxNode | null = repeatNode.nextSibling;
   while (n) {
     if (n.name === "LuauUntilStatement") return n;
@@ -221,15 +217,3 @@ function reportUnpairedUntil(repeat: SyntaxNode, ctx: LowerContext): void {
     source: makeSource(line.from, line.to, ctx),
   });
 }
-
-// Sibling consumed by `lowerLuauRepeatLoop`. The dispatch case for
-// `LuauUntilStatement` calls this so the standalone-until node is
-// handled here (there is no parser fallback — the grammar+lowerers are
-// the only path).
-export function lowerLuauUntilStatement(
-  _nodeRef: SparkdownSyntaxNodeRef,
-  _ctx: LowerContext,
-): CompiledBlock {
-  return {};
-}
-

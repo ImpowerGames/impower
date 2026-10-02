@@ -1,5 +1,3 @@
-import { type SyntaxNode } from "@lezer/common";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import { getBuiltinTypeNames } from "../../utils/builtinTypeNames";
 import type { LowerContext } from "../context";
@@ -23,7 +21,7 @@ import type { LowerContext } from "../context";
 // See [[project_define_namespace_scoping]].
 export function validateDefineTypeShadow(
   name: string,
-  node: SyntaxNode,
+  range: { from: number; to: number },
   ctx: LowerContext,
 ): void {
   if (!ctx.diagnostics) return;
@@ -31,9 +29,6 @@ export function validateDefineTypeShadow(
   const isInDocumentType = ctx.defineTypeNames?.has(trimmed) ?? false;
   const isBuiltinType = !isInDocumentType && getBuiltinTypeNames().has(trimmed);
   if (!isInDocumentType && !isBuiltinType) return;
-  // Point the diagnostic at the declared name if we can find it; fall back
-  // to the whole assignment node otherwise.
-  const nameNode = getDescendent("LuauVariableName", node) ?? node;
   const message = isBuiltinType
     ? `'${trimmed}' is a reserved builtin type/namespace. The bare name now ` +
       `refers to this variable, which will break '${trimmed}.<member>' access — ` +
@@ -44,11 +39,14 @@ export function validateDefineTypeShadow(
   ctx.diagnostics.push({
     message,
     severity: ErrorType.Warning,
-    source: makeSource(nameNode, ctx),
+    source: makeSource(range, ctx),
   });
 }
 
-function makeSource(node: SyntaxNode, ctx: LowerContext): SourceMetadata {
+function makeSource(
+  node: { from: number; to: number },
+  ctx: LowerContext,
+): SourceMetadata {
   return {
     fileName: null,
     filePath: ctx.filePath ?? null,

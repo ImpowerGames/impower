@@ -176,8 +176,8 @@ export interface LuauStatementSource {
 
 /** Some of a document's Luau, read as one block, as the type checker's units divide it. */
 export interface LuauAstUnit {
-  /** A `run` file, a `.sd` file's prelude, or one of its flows. */
-  kind: "file" | "prelude" | "flow";
+  /** A `run` file, a `.sd` file's prelude, one of its flows, or a block a lowerer reads (`readLuauBlock`). */
+  kind: "file" | "prelude" | "flow" | "block";
   /**
    * The unit's statements. A flow's block holds one statement, the local
    * function `__flow` whose parameters are the flow's and whose body is the
@@ -375,7 +375,7 @@ interface Token {
   node?: SyntaxNode;
   /** The index of the top-level node, among those a unit reads, the token was read from; -1 for a token the unit writes itself. */
   source: number;
-  /** A "break" where story ends the Luau before it, which ends there as the unit's Luau would at its end. */
+  /** A story boundary, or the scene closer ending a flow's synthetic function. */
   story?: true;
 }
 
@@ -793,7 +793,7 @@ function skipComment(text: string, at: number, to: number): number {
 
 /** A token's description in an error, as Luau's `Lexeme::toString` writes it. */
 function describe(token: Token): string {
-  if (token.story) return "<eof>";
+  if (token.story && token.kind !== "keyword") return "<eof>";
   switch (token.kind) {
     case "eof":
       return "<eof>";
@@ -1254,7 +1254,7 @@ class Parser {
     // A type or an annotation that story ends before is malformed where the
     // end of the unit's Luau would leave it so; Sparkdown's own syntax does
     // not read one (`local x:` before a line of story).
-    const atSparkdown = SPARKDOWN_TOKENS.has(this.current().kind) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
+    const atSparkdown = (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
     if (malformed && !follows && !consequence && this.sparkdownDepth === 0 && !atSparkdown && !this.atAbandonedCloser()) {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
@@ -1649,10 +1649,14 @@ class Parser {
     return new AstStatSparkdownExplicit(Location.span(mark, statement.location), statement, mark);
   }
 
-  /** `store` names [`=` values]. */
+  /** `store` names [`=` values], or `store function` and a function the story's globals hold, as `function` declares it. */
   private parseStore(): AstStat {
     const start = this.current().location;
     this.next();
+    if (this.is("function")) {
+      const stat = this.parseFunctionStat([]) as AstStatFunction;
+      return new AstStatFunction(Location.span(start, stat.location), stat.name, stat.func);
+    }
     const names: Binding[] = [];
     let equalsSignLocation: Location | undefined;
     const values: AstExpr[] = [];
@@ -3655,6 +3659,9 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
   if (flow.end) {
     const [from, to] = trimmedRange(documentText, flow.end.from, flow.end.to);
     tokenizer.push("keyword", from, to);
+    // The scene's closer is Sparkdown's syntax. Keep it for parsing the
+    // synthetic function, but leave missing-value errors here to Sparkdown.
+    tokenizer.tokens[tokenizer.tokens.length - 1]!.story = true;
   } else {
     const last = tokenizer.tokens[tokenizer.tokens.length - 1]!;
     tokenizer.synthetic("keyword", "end", last.to);
@@ -3769,6 +3776,30 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
 const WRAPPER = /_(begin|content|end)(_c\d+)*$/;
 
 /**
+ * Reads the Luau statements some sibling nodes hold as one block, for the
+ * lowerers, which lower a document a top-level node at a time and a block's
+ * statements beside the Sparkdown lines among them: a top-level statement
+ * node, or the children of a choice's body or an alternator's arm. Each
+ * statement of the block is recorded with the nodes it was read from, so a
+ * lowerer that reaches a node takes the statements that begin in it and skips
+ * the nodes they continue into. A name the block does not declare is read as
+ * a global.
+ */
+export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string): LuauAstUnit {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  const refs: TreeNodeRef[] = [];
+  for (const node of nodes) {
+    tokenizer.source = refs.length;
+    refs.push(ref(node));
+    tokenizer.read(node);
+  }
+  tokenizer.source = -1;
+  const first = tokenizer.tokens[0];
+  return readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0));
+}
+
+/**
  * Reads the one Luau expression some nodes hold (an interpolation's,
  * a choice's condition, a struct's value), with every name read as a global.
  */
@@ -3777,6 +3808,52 @@ export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], do
   const tokenizer = new Tokenizer(documentText, index);
   for (const node of Array.isArray(nodes) ? nodes : [nodes as SyntaxNode]) tokenizer.read(node);
   return parseLoneTokens(tokenizer, documentText, index);
+}
+
+// Missing-value diagnostics need Luau's reading beyond the node the
+// highlighting grammar ended. Share the converter's lexer and parser rather
+// than maintaining a second comment scanner or expression-start table.
+let lastAhead: { text: string; tokenizer: Tokenizer } | undefined;
+
+function tokensAhead(from: number, documentText: string): { tokens: Token[]; start: number } {
+  if (lastAhead?.text !== documentText) {
+    const tokenizer = new Tokenizer(documentText, lineIndex(documentText));
+    tokenizer.lex(0, documentText.length);
+    lastAhead = { text: documentText, tokenizer };
+  }
+  const tokens = lastAhead.tokenizer.tokens;
+  let lo = 0;
+  let hi = tokens.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (tokens[mid]!.from < from) lo = mid + 1;
+    else hi = mid;
+  }
+  return { tokens, start: lo };
+}
+
+/** The next token as Luau reads it, past whitespace and comments. */
+export function nextLuauToken(from: number, documentText: string): { text: string; from: number } | null {
+  const { tokens, start } = tokensAhead(from, documentText);
+  const token = tokens[start];
+  if (!token || token.kind === "eof") return null;
+  // Diagnostics historically quote a punctuation token's first character.
+  return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
+}
+
+/** Read the expression after an operator the grammar ends without a value. */
+export function readLuauExpressionAfter(from: number, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  const { tokens, start } = tokensAhead(from, documentText);
+  appendAll(tokenizer.tokens, tokens.slice(start));
+  if (tokenizer.tokens.length === 0) tokenizer.synthetic("eof", "", documentText.length);
+  return parseLoneTokens(tokenizer, documentText, index);
+}
+
+/** Convert an AST position to its document offset. */
+export function luauPositionOffset(position: Position, documentText: string): number {
+  return (lineIndex(documentText).starts[position.line] ?? documentText.length) + position.column;
 }
 
 /**

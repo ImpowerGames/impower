@@ -1148,7 +1148,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // names the token it meets instead of the name, at that token; the type
     // checker reports that where it reads the Luau (#1175).
     if (nodeRef.name === "LuauDanglingAccessor") {
-      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+      const got = nextSignificantToken(nodeRef.node, nodeRef.to, (from, to) =>
         this.read(from, to),
       );
       const nameOnLaterLine =
@@ -1217,6 +1217,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
         const got = nextSignificantToken(
+          nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
           (from, to) => this.read(from, to),
         );

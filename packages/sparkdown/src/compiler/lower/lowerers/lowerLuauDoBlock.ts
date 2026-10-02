@@ -1,12 +1,13 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { AstStatBlock } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { bodyOfBlock, openBody } from "../utils/statementShape";
+import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
 // `do BODY end` — a standalone block-scoping construct (no loop
 // semantics). Body runs once. The `BeginScope` / `EndScope` wrap
@@ -29,11 +30,16 @@ const DO_BLOCK_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
+const DO_NODES = nodeNameSet(["LuauDoBlock", "LuauSparkdownDoBlock"]);
+
 export function lowerLuauDoBlock(
-  nodeRef: SparkdownSyntaxNodeRef,
+  stat: AstStatBlock,
+  site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  const bodyContent = findChildByName(nodeRef.node, `${nodeRef.node.name}_content`);
+  const node = statementNodeAt(stat, site, DO_NODES, ctx);
+  if (!node) return {};
+  const bodyContent = findChildByName(node, `${node.name}_content`);
   if (!bodyContent) return {};
   const shape = openBody(ctx, bodyContent.from, bodyContent.to);
   // Bump `ctx.scopeDepth` around the body lowering so a `break` /

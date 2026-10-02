@@ -6,8 +6,8 @@ import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argumen
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import {
-  collectForLoopTargetNames,
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
@@ -1243,4 +1243,27 @@ export function buildSparkleBody(
     ctx.stampExpressionSpans = prevStamp;
     ctx.sparkleJoins = prevJoins;
   }
+}
+// The loop variables a Sparkle `for` declares, before its `in`
+// (`for k, v in scores`). A type annotation after one is not a variable of
+// its own, so a comma inside its type is not a separator
+// (`for k: {a: number, b: string}, v in scores`).
+function collectForLoopTargetNames(
+  condContent: SyntaxNode,
+  ctx: LowerContext,
+): string[] {
+  const names: string[] = [];
+  for (let child = condContent.firstChild; child; child = child.nextSibling) {
+    if (
+      child.name === "LuauAssignmentOperation" ||
+      child.name === "LuauInKeyword"
+    ) {
+      break;
+    }
+    if (child.name === "LuauAccessPath") {
+      const nameNode = getDescendent("LuauVariableName", child);
+      if (nameNode) names.push(ctx.read(nameNode.from, nameNode.to));
+    }
+  }
+  return names;
 }

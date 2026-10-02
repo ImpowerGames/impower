@@ -73,6 +73,7 @@ export function documentPosition(unit: LuauUnit, position: Position): { line: nu
 export { isLuauFile };
 
 function checkedUnit(read: LuauAstUnit): LuauUnit {
+  if (read.kind === "block") throw new Error("A lowering block is not a document checking unit");
   return { kind: read.kind, root: read.root, errors: read.errors, hotcomments: read.hotcomments, lines: read.lines ?? [], key: read.key ?? "" };
 }
 
