@@ -23,7 +23,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
-import { sparkdownUnits } from "../../compiler/typecheck/LuauDocumentChecker";
+import { checkerTextUnits } from "./luauCheckerText";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
 import { KNOWN_DISAGREEMENTS, luauInputs, type LuauInput } from "./luauFixtures";
 
@@ -69,7 +69,7 @@ function readings({ text, luau: source }: LuauInput): { sparkdown: string[]; lua
   }
   const tree = compiler.documents.tree(URI);
   if (!tree) throw new Error("The compiler kept no syntax tree for the document");
-  const units = sparkdownUnits(tree, text);
+  const units = checkerTextUnits(tree, text);
   const luau: string[] = [];
   for (const unit of [units.prelude, ...units.flows]) {
     for (const error of parseLuau(unit.text).errors) {

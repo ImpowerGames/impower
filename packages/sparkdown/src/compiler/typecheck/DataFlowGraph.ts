@@ -70,6 +70,7 @@ import {
 } from "./Ast";
 import { collectOperands, containsSubscriptedDefinition, DefArena, getPhi, RefinementKeyArena, type DefId, type LuauSymbol, type RefinementKey } from "./Def";
 import type { Location } from "./Location";
+import { sparkdownValue } from "./SparkdownReading";
 
 export const enum ControlFlow {
   None = 0b00001,
@@ -724,6 +725,12 @@ export class DataFlowGraphBuilder {
         for (const x of e.expressions) this.visitExpr(x);
         return { def: this.defArena.freshCell(undefined, e.location) };
       });
+    }
+    // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
+    const sparkdown = sparkdownValue(e);
+    if (sparkdown) {
+      for (const x of sparkdown.operands) this.visitExpr(x);
+      return { def: this.defArena.freshCell(undefined, e.location) };
     }
     throw new Error(`Unknown AstExpr in DataFlowGraphBuilder: ${e.kind}`);
   }

@@ -86,6 +86,7 @@ import type { Module, SourceModule } from "./Module";
 import { Normalizer, type UnifierSharedState } from "./Normalize";
 import type { Scope } from "./Scope";
 import { simplifyIntersection, simplifyUnion } from "./Simplify";
+import { sparkdownValue } from "./SparkdownReading";
 import { Subtyping } from "./Subtyping";
 import {
   emplaceTypePack,
@@ -514,7 +515,11 @@ class NonStrictTypeChecker {
         else if (expr instanceof AstExprInterpString) return this.visitExprInterpString(expr);
         else if (expr instanceof AstExprError) return this.visitExprError(expr);
         else if (expr instanceof AstExprInstantiate) return this.visitExprInstantiate(expr);
-        else throw new InternalCompilerError("NonStrictTypeChecker encountered an unknown expression type");
+        // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
+        else if (sparkdownValue(expr)) {
+          for (const operand of sparkdownValue(expr)!.operands) this.visitExpr(operand, ValueContext.RValue);
+          return new NonStrictContext();
+        } else throw new InternalCompilerError("NonStrictTypeChecker encountered an unknown expression type");
       } finally {
         pusher?.pop();
       }

@@ -6,7 +6,8 @@ import { parseSource } from "../compiler/grammarSnapshot";
 // A type that is missing, or that cannot start with the token where one must
 // stand, is one syntax error wherever a type can appear, worded and placed as
 // Luau's parser reports it: from the end of the token before it to the end of
-// the token Luau found instead (#1174). So is an annotation written with `::`,
+// the token Luau found instead (#1174), or to the end of its line where that
+// token is on a later line (#1286). So is an annotation written with `::`,
 // which Luau words by where it stands, and one with no name before it.
 
 // Luau's errors for those; its other syntax errors are not type errors.
@@ -28,6 +29,9 @@ function luauTypeErrors(diagnostics: LuauDiagnostic[]): string[] {
       tokens.add(token);
       return true;
     })
+    // Sparkdown ends a range that Luau runs on to a token on a later line
+    // with the line the type is missing from (#1286).
+    .map((d) => (d.endLine > d.line + 1 || (d.endLine === d.line + 1 && d.endColumn > 0) ? { ...d, endLine: d.line + 1, endColumn: 0 } : d))
     .map(describeDiagnostic);
 }
 
@@ -129,10 +133,10 @@ describe("a malformed type at every position", () => {
 describe("the reported layouts", () => {
   test.each([
     // #1152: a `:` at the end of its line, with the next line's token.
-    ["local w:\nlocal z = 1", "0:8-1:5 SyntaxError: Expected type, got 'local'"],
-    ["function g()\n  local w:\nend", "1:10-2:3 SyntaxError: Expected type, got 'end'"],
+    ["local w:\nlocal z = 1", "0:8-1:0 SyntaxError: Expected type, got 'local'"],
+    ["function g()\n  local w:\nend", "1:10-2:0 SyntaxError: Expected type, got 'end'"],
     ["local w:", "0:8-1:0 SyntaxError: Expected type, got <eof>"],
-    ["function g():\n  return 1\nend", "0:13-1:8 SyntaxError: Expected type, got 'return'"],
+    ["function g():\n  return 1\nend", "0:13-1:0 SyntaxError: Expected type, got 'return'"],
     ["function g(a: number): end", "0:22-0:26 SyntaxError: Expected type, got 'end'"],
     ["function g(): = nil end", "0:13-0:15 SyntaxError: Expected type, got '='"],
     // #1164: before `in`.
@@ -194,14 +198,14 @@ describe("the reported layouts", () => {
   test.each([
     ["local x:", ["0:8-1:0 Expected type, got <eof>"]],
     ["local x: --[[c]]\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
-    ["scene s\n  local x:\nend", ["1:10-2:3 Expected type, got 'end'"]],
+    ["scene s\n  local x:\nend", ["1:10-2:0 Expected type, got 'end'"]],
     ["local x --[[c]] :: number", ["0:16-0:18 Expected identifier when parsing expression, got '::'"]],
     ["store x: = 1", ["0:8-0:10 Expected type, got '='"]],
     ["store x:", ["0:8-1:0 Expected type, got <eof>"]],
     ["store x:\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
     ["store x: -- note\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
-    ["store x:\nlocal y = 1", ["0:8-1:5 Expected type, got 'local'"]],
-    ["scene s\n  store x:\nend", ["1:10-2:3 Expected type, got 'end'"]],
+    ["store x:\nlocal y = 1", ["0:8-1:0 Expected type, got 'local'"]],
+    ["scene s\n  store x:\nend", ["1:10-2:0 Expected type, got 'end'"]],
     ["scene s(a: )\nend", ["0:10-0:12 Expected type, got ')'"]],
     ["scene s(a: --[[c]] ?)\nend", ["0:10-0:20 Expected type, got '?'"]],
     ["scene s(: number)\nend", ["0:8-0:9 Expected identifier when parsing variable name, got ':'"]],
