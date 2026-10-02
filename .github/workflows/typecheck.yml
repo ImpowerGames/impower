@@ -57,6 +57,7 @@ jobs:
         package-lock.json
         scripts/typecheck.mjs
         scripts/lowerer-conventions-baseline.json
+        packages/eslint-plugin-sparkdown-grammar/baseline.json
         definitions/yaml/**
         packages/sparkdown/language/sparkdown.language-grammar.json
         vscode-sparkdown/language/sparkdown.language-grammar.json
@@ -102,8 +103,11 @@ jobs:
       # The grammar conventions in packages/eslint-plugin-sparkdown-grammar
       # (see its README). Without this step they fire only in an editor with
       # the ESLint extension installed. `--max-warnings 0` makes the
-      # warn-level rules blocking too. The `changes` patterns above include
-      # `definitions/yaml/**`, so a grammar change always reaches this step.
+      # warn-level rules blocking too. Findings that predate a rule are
+      # counted in the plugin's baseline.json and report nothing until an
+      # owner's count rises. The `changes` patterns above include
+      # `definitions/yaml/**` and that baseline, so a change to either
+      # always reaches this step.
       - name: Test the grammar lint rules
         run: node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts
 

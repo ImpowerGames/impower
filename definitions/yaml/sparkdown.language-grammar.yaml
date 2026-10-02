@@ -27,6 +27,8 @@ variables:
   LOAD_CONTROL_KEYWORDS: ["load"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
+  # referenced-from: packages/sparkdown-language-server/src/utils/providers/getCompletions.ts
+  # (keyword completions; no pattern expands it).
   FLOW_MODULE_KEYWORDS: ["include", "run"]
 
   LUAU_SCOPE_MODIFIERS: ["store", "local", "const"]
