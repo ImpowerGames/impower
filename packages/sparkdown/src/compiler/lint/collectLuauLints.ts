@@ -35,6 +35,7 @@ import {
   AstExprConstantNil,
   AstExprConstantNumber,
   AstExprConstantString,
+  AstExprError,
   AstExprFunction,
   AstExprGlobal,
   AstExprGroup,
@@ -423,7 +424,9 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
         declaredStatements.push({ stat: node, locals: node.vars, from: offsets.of(node.location.end) });
       } else if (node instanceof AstStatAssign) {
         // The targets themselves are written, not read; what they index is read.
-        for (const target of node.vars) if (!(target instanceof AstExprLocal)) visitAst(target, this);
+        // A write to a name a `const` declares is read as an error wrapping the
+        // constant (`Variable 'n' is constant`), and is still a plain write.
+        for (const target of node.vars) if (!isLocalWrite(target)) visitAst(target, this);
         for (const value of node.values) visitAst(value, this);
         return false;
       } else if (node instanceof AstExprLocal) {
@@ -475,6 +478,12 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
     if (local.name.startsWith("_") || used.has(local)) continue;
     out.push({ code: "LocalUnused", ...offsets.range(local.location), message: `Variable '${local.name}' is never used; prefix with '_' to silence` });
   }
+}
+
+/** Whether an assignment target writes a local: the local itself, or the error the reading wraps a constant's name in. */
+function isLocalWrite(target: AstExpr): boolean {
+  if (target instanceof AstExprLocal) return true;
+  return target instanceof AstExprError && target.expressions.length === 1 && target.expressions[0] instanceof AstExprLocal;
 }
 
 /** The words between two offsets that spell one of `names` and that the tree marks as one of Sparkdown's keywords. */
