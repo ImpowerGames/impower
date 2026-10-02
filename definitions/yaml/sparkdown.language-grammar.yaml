@@ -7478,27 +7478,29 @@ repository:
       - { include: "#LuauChainedPropertyAccess" }
       - { include: "#LuauTypeAnnotationOperation" }
 
+  # One target of a declaration (`local a, b: number = …`), or a define
+  # body's property name, with its annotation and `= value`.
+  #
+  # lookaround: the begin's lookaheads step aside for the values after a
+  # declaration's `=`, which `LuauVariableDefinition` and
+  # `LuauSparkdownVariableDefinition` read with `LuauVariableDefinitionValue`
+  # and `LuauExpression` after this rule. A target is a name followed by
+  # `,`, `=` (not `==`), `:` (not `::`, `LuauTargetTypeCast`, and not a
+  # method call `s:upper()`, though `t: typeof(x)` is an annotation), a
+  # comment or the line's end, and is not a reserved word before a comma,
+  # a comment or the line's end (`nil`, `true`, `false`, or `and` ending a
+  # line that the next line continues). Removing any one part changes the
+  # tree of luau-declaration/target-or-value (`local a, b = 10, g()`,
+  # `1, s:upper()`, `x, x == 1`, `1, nil`, `t: typeof(x)`). The
+  # fixes in GRAMMAR.md §10.1 do not reach it: which side of the `=` a
+  # name is on is state that only a scope can hold, and the targets and
+  # values are siblings in the declaration, so no order of its patterns
+  # tells them apart, and the lowerer reads the values as those siblings.
+  # Ordering `LuauBoolean` and `LuauNil` before this rule covers `nil`,
+  # `true` and `false`, but not `x and` at a line's end. A reserved word
+  # before `=` stays a target, so a define body can name a property
+  # `repeat`.
   LuauVariableAssignment:
-    # The lookahead distinguishes a TARGET identifier from an
-    # identifier appearing as part of a trailing RHS expression in
-    # multi-RHS syntax (`local a, b = 10, g()` — `g` must NOT match
-    # as a target since the next char after it is `(`, not `,`/`:`/
-    # `=`). Target-shape identifiers are always followed by one of:
-    #   `,` — continuing target list (`a, b = …`)
-    #   `:` — type annotation (`a: number = …`), but not a method call
-    #     (`s:upper()`), whose `:` is followed by a name and `(` (a
-    #     `typeof(x)` type is the exception), nor a `::` cast
-    #   `=` — assignment operator, but not `==`
-    #   end-of-statement (newline / EOF / `--` line comment) —
-    #     bare declaration (`local x` with no initializer)
-    # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
-    # is actually an expression — fall through to `LuauExpression`
-    # at the outer `LuauVariableDefinition` level. A reserved word
-    # before a comma or the end of its line is never a target: `true`,
-    # `false` and `nil` there are values, and the `end` or `else` on the
-    # line after a comma that ends a declaration's line closes the
-    # enclosing block. A reserved word before `=` stays a target, so a
-    # define body can name a property `repeat`.
     begin: (?!{{LUAU_RESERVED_WORDS}}{{WS}}*(?:--|,|$))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,]|[=](?![=])|[:](?![:])(?!{{WS}}*(?!typeof\b){{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\n|\r|$))
     beginCaptures:
       1:

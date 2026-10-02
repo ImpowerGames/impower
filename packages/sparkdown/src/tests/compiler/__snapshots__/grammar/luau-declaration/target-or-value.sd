@@ -10,5 +10,7 @@ function f(x, s, g)
   local p, q = true, false
   local r::number = 1
   local k: number, l = 1, 2
-  return a, b, c, d, e, h, t, u, v, w, y, z, n, m, p, q, r, k, l
+  local i, j = 1, x and
+    s
+  return a, b, c, d, e, h, t, u, v, w, y, z, n, m, p, q, r, k, l, i, j
 end
