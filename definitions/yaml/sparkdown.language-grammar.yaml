@@ -6774,10 +6774,10 @@ repository:
   # `LuauIfBlockCondition`). Its parents try it first at every position, so
   # without it the expression takes the block's `case` arms and, in a brace
   # block, its entries (`LuauSparkleCaseClause`, `LuauSparkleBlockEntries`;
-  # fixture sparkle/layout-match). `(?!{{BEAT}}|do\b)` is as in
+  # fixture sparkle/layout-match). `(?!do\b)` is as in
   # `LuauForCondition`, leaving `do` to `LuauSparkleDoMark`.
   LuauSparkleMatchCondition:
-    begin: (?<=match\b{{WS}}*)(?!{{BEAT}}|do\b)
+    begin: (?<=match\b{{WS}}*)(?!do\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -6814,11 +6814,11 @@ repository:
   # `LuauIfBlockCondition`). Without it the empty begin opens again on the
   # arm's element lines and, in a brace block, its entries
   # (`LuauSparkleBlockLine`, `LuauSparkleBlockEntries`; fixture
-  # sparkle/layout-match). `(?!{{BEAT}}|$)` leaves a `case` with nothing
+  # sparkle/layout-match). `(?!$)` leaves a `case` with nothing
   # after it on its line without a value, so the line break goes to
   # `LuauSparkleCaseClause`'s `Newline`.
   LuauSparkleCaseValue:
-    begin: (?<=case\b{{WS}}*)(?!{{BEAT}}|$)
+    begin: (?<=case\b{{WS}}*)(?!$)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -7767,10 +7767,11 @@ repository:
     # sparkle/layout-brace-control). A begin that also refuses the tokens the
     # condition ends before still opens an empty condition at any character
     # the condition cannot read, again and again (see `LuauWhileCondition`).
-    # `(?!{{BEAT}}|do\b)` keeps an empty condition from opening on a beat
-    # line or right before `do` (`for do`), which `LuauDoBlock` or
-    # `LuauSparkleDoMark` reads instead.
-    begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|do\b)
+    # `(?!do\b)` keeps an empty condition from opening right before `do`
+    # (`for do`), which `LuauDoBlock` or `LuauSparkleDoMark` reads instead.
+    # No beat needs excluding: a beat begins its line, and the lookbehind
+    # puts `for` before the begin on the same line.
+    begin: (?<=for\b{{WS}}*)(?!do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
@@ -7841,8 +7842,8 @@ repository:
     # instead (`(?!{{BEAT}}|{{WS}}*(?:do|end)\b)`) keeps every fixture, but
     # reopens an empty condition at each character the condition cannot
     # read: `while x) do` repeats it at the `)` until the parser's limit on
-    # empty matches. `(?!{{BEAT}}|do\b)` is as in `LuauForCondition`.
-    begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|do\b)
+    # empty matches. `(?!do\b)` is as in `LuauForCondition`.
+    begin: (?<=while\b{{WS}}*)(?!do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
@@ -8063,12 +8064,12 @@ repository:
     # `LuauForCondition`, `LuauWhileCondition`, `LuauSparkleMatchCondition`,
     # `LuauSparkleCaseValue`, `LuauTernaryExpressionCondition` and
     # `LuauConditionalAlternatorCondition` keep theirs for the same reason.
-    # The begin's `(?!{{BEAT}})` keeps the empty begin from opening on a beat
-    # line, which the parent's end closes on instead. The end's `^(?!…)` is
-    # the line rule above: a positive alternative cannot name "any other
+    # The begin needs no beat exclusion: a beat begins its line, and the
+    # lookbehind puts `if` before the begin on the same line. The end's
+    # `^(?!…)` is the line rule above: a positive alternative cannot name "any other
     # line", so the line that begins the branch's first statement
     # (`LuauBlockBody`) ends the condition through it.
-    begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}})
+    begin: (?<=\bif\b{{WS}}*)
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
@@ -8113,12 +8114,12 @@ repository:
   # rule before `LuauExpression`, which reads its arms, so without it the
   # condition would take each arm's value (fixture
   # luau-function/if-expression-condition). The begin's `(?!…)` keeps the
-  # condition from opening on a beat line, at a line end, before more
+  # condition from opening at a line end, before more
   # whitespace (the begin takes the whitespace itself) or right before
   # `then`, where `LuauThenExpression` reads the arm (`if then 1`). The
   # end's `^(?!…)` is the line rule above, as in `LuauIfBlockCondition`.
   LuauTernaryExpressionCondition:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}}|then\b)
+    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!$|{{WS}}|then\b)
     beginCaptures:
       1:
         emit: true
@@ -8187,9 +8188,9 @@ repository:
     #
     # lookaround: as in `LuauIfBlockCondition`, the lookbehind keeps the
     # condition out of the branch's statements (`LuauBlockBody`,
-    # `LuauSparkleBlockEntries`; fixture sparkle/layout-if). Its
-    # `(?!{{BEAT}})` and its end's `^(?!…)` are as there.
-    begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}})
+    # `LuauSparkleBlockEntries`; fixture sparkle/layout-if). Its end's
+    # `^(?!…)` is as there.
+    begin: (?<=\belseif\b{{WS}}*)
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
@@ -8716,12 +8717,12 @@ repository:
   # `plural` its parent's begin took (see `LuauIfBlockCondition`). The
   # parents try it before the arms (`LuauSparkdownBlockBody`,
   # `LuauBlockBody`), so without it the condition takes each arm's first
-  # token (fixture alternator/match-paren-less). `(?!{{BEAT}}|$|{{WS}})`
-  # keeps an empty condition from opening on a beat line, at a line end
-  # (`match` alone on its line) or before whitespace, where the arms and
+  # token (fixture alternator/match-paren-less). `(?!$|{{WS}})` keeps an
+  # empty condition from opening at a line end (`match` alone on its line)
+  # or before whitespace, where the arms and
   # `LuauAlternatorSeparator` begin.
   LuauConditionalAlternatorCondition:
-    begin: (?<=(?:{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}){{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=(?:{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}){{WS}}*)(?!$|{{WS}})
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -9231,6 +9232,7 @@ repository:
       - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
+      - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionCall" }
       - { include: "#LuauVariable" }
 
@@ -9268,13 +9270,22 @@ repository:
   # header, so its own patterns meet a name only in the header or where the
   # header leaves a comment and then a word on its line: without the
   # lookbehind, `external e(x) --[[ c ]] w` declares a second function `w`.
-  # (`LuauAccessPart` used to include this rule too, which no tree in the
-  # corpus needed; it no longer does, so the lookbehind is only that anchor.)
+  # `LuauAccessPart` also includes this rule, before `LuauVariable`, so a
+  # name after `function` or `external` inside an expression
+  # (`return external value`, written before the author finishes) is read
+  # as a declared name; there the lookbehind is the rule's context as well
+  # as its anchor, and without it every name of every access path would be
+  # a declared name (fixture luau-access/chained-property).
   # `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name
   # (`function a.b()`, `function a:m()`) to `LuauBlockBody`'s access path,
-  # where `LuauPropertyAccessor` and `LuauFunctionAccessor` read its parts.
-  # The cost: a block comment between the keyword and the name hides the
-  # name.
+  # where `LuauPropertyAccessor` and `LuauFunctionAccessor` read its parts
+  # and `lowerLuauFunctionDefinition` reads it as a path. The §10.1 fixes do
+  # not replace it: tried first, the access path would also take a plain
+  # name, which must stay this rule's; `a` in `a.b` and a plain name are the
+  # same identifier, so no tightened variable separates them; and a name
+  # has no end that could stop before a `.` it has not reached. Only the
+  # character after the name tells the two apart. The cost: a block comment
+  # between the keyword and the name hides the name.
   LuauFunctionDeclarationName:
     match: (?<=(?:function|external)\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
@@ -10811,10 +10822,11 @@ repository:
   # open right after a header that has no parameter list yet, so without
   # the lookbehind a comment and a word after the name on its line
   # (`type function T --[[ c ]] q`, while the author is still typing) make
-  # `q` a second name. No fixture changes without it, since that input is
-  # unfinished and no complete header leaves such a word; that input shows
-  # it. The cost: a block comment between `function` and the
-  # name hides the name.
+  # `q` a second name, ahead of `LuauBlockBody`, which reads it otherwise
+  # (keywordLookbehinds.test.ts; no grammar fixture can hold that unfinished
+  # header). Tried after `LuauBlockBody`, the rule would never meet its name.
+  # The cost: a block comment between `function` and the name hides the
+  # name.
   LuauTypeFunctionName:
     match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)
     captures:
