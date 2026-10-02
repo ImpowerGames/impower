@@ -23,8 +23,7 @@ export const BRACE_BODY_NAMES = nodeNameSet([
   "LuauSparkleElementBlock",
 ]);
 
-/** The tokens that name a struct key (`key:`, `key = …`, `key { … }`); the
- *  annotator reads indented keys with the same list. */
+/** The tokens that name a struct key (`key = …`, `key { … }`). */
 export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
@@ -103,8 +102,8 @@ export function structBlockKeyNode(block: SyntaxNode): SyntaxNode | null {
 }
 
 /**
- * The token that names a struct key: its first key-name token, as the
- * indented form's header reads it, or the whole key when it has none (a
+ * The token that names a struct key: its first key-name token, or the
+ * whole key when it has none (a
  * selector such as `&.wide`, a keyframe position such as `from`).
  */
 export function structKeyToken(key: SyntaxNode): SyntaxNode {
@@ -197,11 +196,10 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
 }
 
 /**
- * The key a brace body adds to a path: a struct block's header key as the
- * indented form reads it, `-` for a list entry, and an element's name, words
- * and classes joined by single spaces, as the static struct keys it
- * (`column.panel` is `column panel`). A component call adds nothing, as its
- * indented line adds nothing to the static struct.
+ * The key a brace body adds to a path: a struct block's header key, `-` as
+ * the internal list-entry marker, and an element's name and dotted classes
+ * joined by single spaces, as the static struct keys it (`column.panel` is
+ * `column panel`). A component call adds nothing to the static struct.
  */
 export function braceBodyKey(
   body: SyntaxNode,
@@ -232,8 +230,7 @@ export interface BraceBlockPath {
   /** The innermost brace body that holds the offset. */
   body: SyntaxNode;
   /** Where the outermost block that holds the offset starts (its key, its
-   *  element, or a list entry's `{`). Its line sits in the body's
-   *  indentation, under the indented keys that start the path. */
+   *  element, or a list entry's `{`). */
   outerFrom: number;
 }
 
@@ -258,8 +255,8 @@ const QUOTES = ['"', "'", "`"];
 
 /**
  * The text of the brace entry being written at `offset` on the line starting
- * at `lineFrom`: what follows the last `{`, `}` or `;` the grammar reads as an
- * entry separator before the cursor. Whether a `;` or a brace is structure is
+ * at `lineFrom`: what follows the last `{`, `}` or `;`, or starts at the
+ * current element's grammar-owned head. Whether a `;` or a brace is structure is
  * the parser's decision: one inside a string (`"a;b"`, element content
  * `'a; b'`), an attribute value (`#label='a; b'`) or a bracket run
  * (`[data-label='a;b']`) is part of that token, while a quote or bracket the
@@ -283,6 +280,8 @@ export function braceEntryAt(
       if (node.to > offset && node.from >= offset) return false;
       if (ENTRY_SEPARATOR_NAMES.has(node.name) && node.to <= offset) {
         separators.push(node.to);
+      } else if (node.name === "LuauSparkleElement_begin" && node.from < offset) {
+        separators.push(node.from);
       } else if (UNCLOSED_QUOTE_TOKEN_NAMES.has(node.name)) {
         // Still open when the quote occurs an odd number of times from the
         // opener to the cursor.

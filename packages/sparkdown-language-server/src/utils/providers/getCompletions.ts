@@ -1826,7 +1826,7 @@ export const getCompletions = (
   // first item.
   const braceStructPath =
     braceBlock && braceBlock.body.name !== "LuauSparkleElementBlock"
-      ? braceBlock.path
+      ? braceBlock.path.map((key) => key === "-" ? "0" : key)
       : null;
   if (braceDefine && leftStack.some((node) => node.name.endsWith("_content") || node.name === "LuauStructBlockLine" || node.name === "LuauSparkleBlockLine")) {
     const lineText = document.getLineText(position.line);
@@ -1836,8 +1836,8 @@ export const getCompletions = (
       document.offsetAt({ line: position.line, character: 0 }),
       read,
     );
-    // In a layout or component block an element is being named: offer what
-    // the indented form offers on an element line, its top-level fields.
+    // In a layout or component block an element is being named: offer the
+    // definition's top-level fields.
     // Inside a value or a quoted string neither runs, nor inside an element's
     // attribute or handler value that began on an earlier line.
     const keying =
