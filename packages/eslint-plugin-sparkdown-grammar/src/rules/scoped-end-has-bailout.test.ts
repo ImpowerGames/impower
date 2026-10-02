@@ -8,7 +8,7 @@ const lines = (source: string) =>
 
 test("an end: with a line end or BEAT passes; a bare closer fails", () => {
   const source = grammar({
-    variables: `BEAT: (?:^scene[ ])
+    variables: `BEAT: (?:^(?:scene|branch)[ ])
 EOL: (?:$|[ ]*$)
 STOP: (?:{{EOL}}|[;])`,
     repository: `LineEnd:
@@ -46,7 +46,7 @@ test("inline begin/end rules are checked too", () => {
 
 test("a line end or BEAT inside a negative lookaround is no bail-out", () => {
   const source = grammar({
-    variables: "BEAT: (?:^scene[ ])",
+    variables: "BEAT: (?:^(?:scene|branch)[ ])",
     repository: `NotAtEnd:
   begin: a
   end: (?!$)[)]
@@ -105,7 +105,7 @@ IndentationBlock:
 
 test("only a reachable BEAT counts, whatever the closer spells", () => {
   const source = grammar({
-    variables: "BEAT: (?:^scene[ ])",
+    variables: "BEAT: (?:^(?:scene|branch)[ ])",
     repository: `ClosesOnKeyword:
   begin: "[(]"
   end: (scene)
@@ -118,7 +118,7 @@ BeatOrWord:
 
 test("assertions around BEAT keep their meaning", () => {
   const source = grammar({
-    variables: "BEAT: (?:^scene[ ])",
+    variables: "BEAT: (?:^(?:scene|branch)[ ])",
     repository: String.raw`WordBoundaryBeat:
   begin: "[(]"
   end: (?=\b{{BEAT}})|([)])
@@ -152,7 +152,7 @@ test("the grammar's own BEAT is probed as written", () => {
 
 test("an impossible BEAT branch cannot borrow a match from a closer", () => {
   const source = grammar({
-    variables: "BEAT: (?:^scene[ ])",
+    variables: "BEAT: (?:^(?:scene|branch)[ ])",
     repository: String.raw`SelfContradicting:
   begin: "[(]"
   end: (?={{BEAT}})(?!{{BEAT}})|(scene)
@@ -180,7 +180,7 @@ AnyNonSpace:
 
 test("nested and variable wrappers do not hide a BEAT alternative", () => {
   const source = grammar({
-    variables: "BEAT: (?:^scene[ ])\n_STOP_: (?:(?={{BEAT}})|([a-z]+))",
+    variables: "BEAT: (?:^(?:scene|branch)[ ])\n_STOP_: (?:(?={{BEAT}})|([a-z]+))",
     repository: `DoubleWrapped:
   begin: "[(]"
   end: (?:(?:(?={{BEAT}})|([a-z]+)))
@@ -201,6 +201,29 @@ WordOnly:
   end: (?<=\w)[)]|(?<=\W)[)]`,
   });
   assert.deepEqual(lines(source), [8]);
+});
+
+test("BEAT inside a shared lookahead, after a prefix or in a named group counts", () => {
+  const source = grammar({
+    variables:
+      "BEAT: (?:^(?:scene|branch)[ ])\nWS: (?:[ ])\nSTOPS: (?:{{BEAT}}|[a-z]+)",
+    repository: `SharedLookahead:
+  begin: "[(]"
+  end: (?={{BEAT}}|[a-z]+)
+Prefixed:
+  begin: "[(]"
+  end: ({{WS}}*)(?:(?={{BEAT}})|([a-z]+))
+Named:
+  begin: "[(]"
+  end: (?<stop>(?={{BEAT}})|([a-z]+))
+ThroughVariable:
+  begin: "[(]"
+  end: (?={{STOPS}})
+OneKeywordOnly:
+  begin: "[(]"
+  end: (?={{BEAT}})(?!branch)|([)])`,
+  });
+  assert.deepEqual(lines(source), [21]);
 });
 
 test("each newline form counts as a line end", () => {

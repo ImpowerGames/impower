@@ -7,25 +7,22 @@
 // start of the next unindented line (§11.1's indentation-block end
 // `(?=^(?!$|//|\1{{WS}}))`).
 //
-// The check resolves the variables (`{{BEAT}}` to its real definition),
-// splits the pattern into its alternatives (unwrapping, as often as
-// needed, any capturing or non-capturing group that holds the whole of
-// one, so `({{_STOP_}})` splits like the variable's own alternatives), and
-// runs each alternative as a sticky regex at probe positions. The end has
-// a bail-out when either holds:
+// The check is behavioural. It resolves the variables (`{{BEAT}}` to its
+// real definition) and runs the whole pattern, exactly as the engine
+// would, as a sticky regex at probe positions. The end has a bail-out
+// when either holds:
 //
 // - Line boundary: at one kind of boundary (a line end as `\n`, `\r\n`,
-//   `\r` or the end of the input, or the start of an unindented line),
-//   whatever text surrounds it, some alternative matches. Every filler in
-//   FILLERS must be matched, by one alternative or another, so a closer
-//   class such as `[^\w\s]` that happens to match one filler is not a
-//   bail-out, while `(?<=\w)$|(?<=\W)$` is.
-// - Beat: one alternative matches at the start of a `scene` / `branch`
-//   line but not at the same text in the middle of a line, so the match
-//   depends on the beat's line start rather than on a closer that spells
-//   the keyword. This is judged per alternative, which keeps an impossible
-//   BEAT branch, `(?={{BEAT}})(?!{{BEAT}})`, from borrowing a match from an
-//   unrelated closer such as `|(scene)`.
+//   `\r` or the end of the input, or the start of an unindented line), the
+//   pattern matches whatever text surrounds it: with every filler in
+//   FILLERS. So a closer class such as `[^\w\s]` that happens to match
+//   one filler is not a bail-out, while `(?<=\w)$|(?<=\W)$` is.
+// - Beat: the pattern matches at the start of every beat line, one per
+//   beat keyword the grammar's own BEAT recognises (`scene`, `branch`).
+//   A closer that spells one keyword, `(scene)`, or a BEAT branch the
+//   pattern contradicts, `(?={{BEAT}})(?!{{BEAT}})|(scene)`, fails on the
+//   other keyword's line. Shared lookaheads, prefixes and named groups
+//   around BEAT need no special handling, since the whole pattern runs.
 //
 // A back-reference stands for a `begin:`
 // capture this check cannot see, so it is replaced by a sentinel no probe
@@ -38,11 +35,7 @@
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { findPair, isScalar, isSequence } from "../utils/yaml-ast.ts";
 import { getGrammarIndex, type GrammarIndex } from "../utils/grammar-index.ts";
-import {
-  regexGroups,
-  scanRegex,
-  splitTopLevelAlternation,
-} from "../utils/regex-scan.ts";
+import { regexGroups, scanRegex } from "../utils/regex-scan.ts";
 
 const TOKEN = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
@@ -64,48 +57,62 @@ const LINE_PROBES: ((f: string) => [text: string, at: number])[] = [
   (f) => [`${f}\r\n${f}`, 3],
 ];
 
-// The start of a beat line, and the same text in the middle of a line.
-const BEAT_PROBES: [beat: string, control: string][] = [
-  ["░\nscene ░\n", "░░scene ░\n"],
-  ["░\nbranch ░\n", "░░branch ░\n"],
-];
+// Beat keywords tried when the grammar names none in FLOW_BEAT_KEYWORDS.
+const DEFAULT_BEAT_KEYWORDS = ["scene", "branch"];
 
-// The alternatives of a regex source, splitting through any group (and
-// any group directly inside it) that spans a whole alternative.
-function alternativesOf(source: string): string[] {
-  const out: string[] = [];
-  for (const { text } of splitTopLevelAlternation(source)) {
-    const whole = regexGroups(text).find(
-      (g) =>
-        g.start === 0 &&
-        g.end === text.length - 1 &&
-        (g.kind === "non-capturing" || g.kind === "capture"),
-    );
-    if (whole) {
-      out.push(...alternativesOf(whole.body));
-    } else {
-      out.push(text);
-    }
-  }
-  return out;
-}
+// A beat line's text for `keyword`, probed at offset 2.
+const beatLine = (keyword: string) => `░\n${keyword} ░\n`;
 
 function matchesAt(regex: RegExp, text: string, at: number): boolean {
   regex.lastIndex = at;
   return regex.test(text);
 }
 
-function bailsOut(alternatives: RegExp[]): boolean {
+// Replaces back-references with a sentinel no probe holds. Escapes are
+// walked pairwise so an escaped backslash before a digit is left alone.
+function withoutBackreferences(source: string): string {
+  return source.replace(/\\(?:[1-9]|k<[^>]*>|[^])/g, (escape) =>
+    /^\\(?:[1-9]|k<)/.test(escape) ? BACKREFERENCE_SENTINEL : escape,
+  );
+}
+
+// The beat lines the grammar's BEAT matches at their start: one per beat
+// keyword (FLOW_BEAT_KEYWORDS, or the defaults) that BEAT recognises.
+// Empty when the grammar has no BEAT or it does not compile.
+const beatLinesCache = new WeakMap<GrammarIndex, string[]>();
+function beatLines(index: GrammarIndex): string[] {
+  const cached = beatLinesCache.get(index);
+  if (cached) return cached;
+  let lines: string[] = [];
+  if (index.variables.has("BEAT")) {
+    const declared = index.variables.get("FLOW_BEAT_KEYWORDS")?.value ?? null;
+    const keywords = isSequence(declared)
+      ? declared.entries.flatMap((e) =>
+          isScalar(e) && typeof e.value === "string" ? [e.value] : [],
+        )
+      : [];
+    try {
+      const beat = new RegExp(
+        withoutBackreferences(resolveVariables(index, "{{BEAT}}", false)),
+        "muy",
+      );
+      lines = [...new Set([...keywords, ...DEFAULT_BEAT_KEYWORDS])]
+        .map(beatLine)
+        .filter((line) => matchesAt(beat, line, 2));
+    } catch {
+      lines = [];
+    }
+  }
+  beatLinesCache.set(index, lines);
+  return lines;
+}
+
+function bailsOut(regex: RegExp, beats: string[]): boolean {
   const atLineBoundary = LINE_PROBES.some((probe) =>
-    FILLERS.every((filler) =>
-      alternatives.some((alt) => matchesAt(alt, ...probe(filler))),
-    ),
+    FILLERS.every((filler) => matchesAt(regex, ...probe(filler))),
   );
-  const atBeat = alternatives.some((alt) =>
-    BEAT_PROBES.some(
-      ([beat, control]) => matchesAt(alt, beat, 2) && !matchesAt(alt, control, 2),
-    ),
-  );
+  const atBeat =
+    beats.length > 0 && beats.every((line) => matchesAt(regex, line, 2));
   return atLineBoundary || atBeat;
 }
 
@@ -133,19 +140,16 @@ function resolveVariables(
 }
 
 export function hasBailOut(index: GrammarIndex, end: string): boolean {
-  const source = resolveVariables(index, end, false)
-    // Walk escapes pairwise so an escaped backslash before a digit is
-    // left alone.
-    .replace(/\\(?:[1-9]|k<[^>]*>|[^])/g, (escape) =>
-      /^\\(?:[1-9]|k<)/.test(escape) ? BACKREFERENCE_SENTINEL : escape,
-    );
-  let alternatives: RegExp[];
+  let regex: RegExp;
   try {
-    alternatives = alternativesOf(source).map((alt) => new RegExp(alt, "muy"));
+    regex = new RegExp(
+      withoutBackreferences(resolveVariables(index, end, false)),
+      "muy",
+    );
   } catch {
     return hasTextualBailOut(index, end);
   }
-  return bailsOut(alternatives);
+  return bailsOut(regex, beatLines(index));
 }
 
 // Whether the offset sits outside every negative lookaround of `source`.
