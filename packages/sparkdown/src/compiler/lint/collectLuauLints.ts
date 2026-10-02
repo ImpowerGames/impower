@@ -396,14 +396,17 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
   const typeNames: { name: string; at: number }[] = [];
   // Every name the function and the functions in it declare, where it can be named (document offsets).
   const bindings: { local: AstLocal; from: number; to: number }[] = [];
-  const blocks: { from: number; to: number }[] = [];
+  const blocks: { block: AstStatBlock; from: number; to: number }[] = [];
+  // A `repeat` body's locals stay in scope through its `until` condition, after the block ends.
+  const repeatEnds = new Map<AstStatBlock, number>();
   const declaredStatements: { stat: AstStat; locals: AstLocal[]; from: number }[] = [];
   const bindBody = (locals: AstLocal[], body: AstStatBlock) => {
     for (const local of locals) bindings.push({ local, from: offsets.of(body.location.begin), to: offsets.of(body.location.end) });
   };
   visitAst(fn, {
     visit(node) {
-      if (node instanceof AstStatBlock) blocks.push({ from: offsets.of(node.location.begin), to: offsets.of(node.location.end) });
+      if (node instanceof AstStatBlock) blocks.push({ block: node, from: offsets.of(node.location.begin), to: offsets.of(node.location.end) });
+      if (node instanceof AstStatRepeat) repeatEnds.set(node.body, offsets.of(node.location.end));
       if (node instanceof AstExprFunction) bindBody([...(node.self ? [node.self] : []), ...node.args], node.body);
       else if (node instanceof AstStatFor) bindBody([node.variable], node.body);
       else if (node instanceof AstStatForIn) bindBody(node.vars, node.body);
@@ -432,7 +435,7 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
     for (const block of blocks) {
       if (block.from <= at && offsets.of(stat.location.end) <= block.to && block.from >= innermost) {
         innermost = block.from;
-        to = block.to;
+        to = repeatEnds.get(block.block) ?? block.to;
       }
     }
     for (const local of locals) bindings.push({ local, from, to });

@@ -72,6 +72,12 @@ describe("the local a type name or a structural word names", () => {
     ],
     ["a structural word after the local's block has closed", "function f()\n  do\n    local style = {}\n  end\n  setStyle(style)\nend\n", ["2:10 LocalUnused"]],
     ["a type name in the local's scope", "function f()\n  local number = 1\n  local x: number = 2\n  return x\nend\n", []],
+    // A `repeat` body's locals stay in scope through its `until` condition.
+    ["a type name in the until of the local's repeat", "function f()\n  repeat\n    local number = 1\n  until (2 :: number) == 2\nend\n", []],
+    // A local is not in scope in its own statement, as in `local x = x + 1`.
+    ["a type name in the local's own annotation", "function f()\n  local number: number = 1\nend\n", ["1:8 LocalUnused"]],
+    ["a structural word in the local's own initializer", "function f()\n  local style = setStyle(style)\nend\n", ["1:8 LocalUnused"]],
+    ["a type name after the local's repeat","function f()\n  repeat\n    local number = 1\n  until true\n  local x: number = 2\n  return x\nend\n", ["2:10 LocalUnused"]],
   ])("%s", (_name, source, expected) => {
     expect(functionLints(source).filter((lint) => lint.endsWith("LocalUnused"))).toEqual(expected);
   });
