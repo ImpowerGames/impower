@@ -273,8 +273,10 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * declares, or a name a function statement declares in the function or in a
  * function between it and the read (`functionStatementNames`). A name that
  * is a variadic function of an enclosing scope is reached by path and not
- * captured. Otherwise a name an enclosing function declares is captured, and
- * a stdlib name, a global callable or any other global is not.
+ * captured. Any other name is captured, unless no enclosing function
+ * declares it and it is a stdlib name or a global callable (a top-level
+ * function, `external`, `store` or `const`): a read of a global the program
+ * never declares is captured too.
  */
 export function freeVariables(
   params: readonly string[],
