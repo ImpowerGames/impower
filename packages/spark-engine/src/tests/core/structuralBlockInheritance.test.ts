@@ -42,8 +42,9 @@ const chainOf = (story: any, global: string): string[] => {
 describe("structural blocks inherit from their `as` parent at runtime", () => {
   test("a builtin parent is inherited, and the child stays an animation", async () => {
     const ctx = await contextOf(`animation slow_fade as fadein with
-  timing:
+  timing {
     duration = 3
+  }
 end
 `);
     expect(ctx.animation?.fadein?.keyframes).toEqual([{ opacity: "1" }]);
@@ -60,19 +61,24 @@ end
 
   test("an authored parent animation is inherited, nested fields included", async () => {
     const ctx = await contextOf(`animation glow with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    to:
+    }
+    to {
       opacity = "1"
-  timing:
+    }
+  }
+  timing {
     duration = 2
     easing = "linear"
+  }
 end
 
 animation quick_glow as glow with
-  timing:
+  timing {
     duration = 0.5
+  }
 end
 `);
     const quick = ctx.animation?.quick_glow;
@@ -89,14 +95,16 @@ end
 
   test("an authored parent theme is inherited", async () => {
     const ctx = await contextOf(`theme dusk with
-  colors:
+  colors {
     primary = "#123456"
     secondary = "#654321"
+  }
 end
 
 theme late_dusk as dusk with
-  colors:
+  colors {
     primary = "#000000"
+  }
 end
 `);
     expect(ctx.theme?.late_dusk).toMatchObject({
@@ -109,18 +117,24 @@ end
   test("an authored parent morph is inherited", async () => {
     const ctx = await contextOf(`morph blink with
   method = bend
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 
 morph slow as blink with
-  timing:
+  timing {
     duration = 1
+  }
 end
 `);
     expect(ctx.morph?.slow).toMatchObject({
@@ -134,19 +148,25 @@ end
 
   test("a parent declared after its child is linked when it registers", async () => {
     const ctx = await contextOf(`morph slow as blink with
-  timing:
+  timing {
     duration = 1
+  }
 end
 
 morph blink with
   method = bend
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 `);
     expect(ctx.morph?.slow).toMatchObject({ $type: "morph", method: "bend" });
@@ -189,27 +209,36 @@ end
     const src = `store base = 1
 
 animation base with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    to:
+    }
+    to {
       opacity = "1"
+    }
+  }
 end
 
 animation child as base with
-  timing:
+  timing {
     duration = 2
+  }
 end
 
 morph base with
   method = trace
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 
 morph other as base with
@@ -258,26 +287,30 @@ end
 end
 
 theme middle as base with
-  colors:
+  colors {
     primary = "#000000"
+  }
 end
 
 theme leaf as middle with
-  colors:
+  colors {
     secondary = "#ffffff"
+  }
 end
 `,
     ],
     [
       "after",
       `theme leaf as middle with
-  colors:
+  colors {
     secondary = "#ffffff"
+  }
 end
 
 theme middle as base with
-  colors:
+  colors {
     primary = "#000000"
+  }
 end
 
 define base as theme with
@@ -307,8 +340,9 @@ define sibling as parent with
 end
 `;
   const STORE_CHILD = `theme child as parent with
-  colors:
+  colors {
     primary = "#000000"
+  }
 end
 `;
 
@@ -359,8 +393,9 @@ end
 
   test("a parent that never registers leaves the child inheriting from its type", async () => {
     const ctx = await contextOf(`animation lonely as nowhere with
-  timing:
+  timing {
     duration = 4
+  }
 end
 `);
     expect(ctx.animation?.lonely).toMatchObject({

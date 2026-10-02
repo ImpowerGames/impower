@@ -15,24 +15,33 @@ import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 // edit); everything else is identical, so the unchanged subtrees must keep their
 // node identity across the re-render.
 const V1 = `layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-    portrait:
+    }
+    portrait {
       image
-  textbox:
-    dialogue:
+    }
+  }
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 `;
 
 const V2 = `layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-  textbox:
-    dialogue:
+    }
+  }
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 `;
 

@@ -14,21 +14,29 @@ const SCREEN = `define HERO as character with
 end
 
 layout main with
-  title:
+  title {
     text
-  heading:
+  }
+  heading {
     text
-  transitional:
+  }
+  transitional {
     text
-  action:
+  }
+  action {
     text
-  dialogue:
-    character_info:
-      character_name:
+  }
+  dialogue {
+    character_info {
+      character_name {
         text
-      character_parenthetical:
+      }
+      character_parenthetical {
         text
+      }
+    }
     text
+  }
 end
 `;
 
@@ -41,16 +49,22 @@ define BG as image with
 end
 
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-  action:
+    }
+  }
+  action {
     text
-  dialogue:
-    character_info:
-      character_name:
+  }
+  dialogue {
+    character_info {
+      character_name {
         text
+      }
+    }
     text
+  }
 end
 `;
 

@@ -13,11 +13,13 @@ import { createHarness } from "./harness/uiTestHarness";
 
 const SOURCE = `style dialogue with
   height = 100%
-  @screen-size(sm):
+  @screen-size(sm) {
     width = 100%
-  > text:
+  }
+  > text {
     color = black
     font_size = 3cqh
+  }
 end
 
 style dialogue_background with
@@ -35,9 +37,11 @@ define accent as color with
 end
 
 layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 
 -> start

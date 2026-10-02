@@ -132,7 +132,7 @@ describe("autocomplete · sparkdown surfaces", () => {
       // A structural declaration names its struct through the same node as a
       // `define`, so a script with only a `layout` crashes the same way.
       const source =
-        'layout main with\n  column:\n    text "hi"\nend\n\nstore hp = 100\nfunction main()\n  return h@1\nend\n';
+        'layout main with\n  column {\n    text "hi"\n  }\nend\n\nstore hp = 100\nfunction main()\n  return h@1\nend\n';
       expect(labelsAt(source, { program })).toContain("hp");
     });
   });

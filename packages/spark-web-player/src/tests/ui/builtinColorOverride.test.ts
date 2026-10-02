@@ -70,8 +70,9 @@ function source(defines: string): string {
   return [
     defines,
     "layout main with",
-    "  column:",
+    "  column {",
     '    text "hello"',
+    "  }",
     "end",
   ].join("\n");
 }

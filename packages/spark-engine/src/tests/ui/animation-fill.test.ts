@@ -41,9 +41,11 @@ define slow_pan as animation with
 end
 
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
+    }
+  }
 end
 `;
 
