@@ -82,7 +82,11 @@ export function withInterpolations(src, blanked) {
       let depth = 0;
       let j = i + 1;
       for (; j < end; j += 1) {
-        if (src[j] === "{") depth += 1;
+        if (src[j] === '"' || src[j] === "'") {
+          // Skip a quoted string, so a brace inside it does not count.
+          const quote = src[j];
+          for (j += 1; j < end && src[j] !== quote; j += 1) if (src[j] === "\\") j += 1;
+        } else if (src[j] === "{") depth += 1;
         else if (src[j] === "}" && --depth === 0) break;
       }
       for (let k = i + 2; k < j; k += 1) out[k] = src[k];

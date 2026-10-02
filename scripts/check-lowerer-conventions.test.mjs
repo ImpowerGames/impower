@@ -50,6 +50,7 @@ test("includes is a scan; a regex-like string is not", () => {
   assert.deepEqual(scanSource(`const help = "Call text.includes( only after review.";`).scans, []);
   assert.deepEqual(scanSource("const t = `use s.split( here`;").scans, []);
   assert.deepEqual(lines(scanSource("const l = `${text.includes(\"=\")} and .split(`;").scans), ["1:.includes("]);
+  assert.deepEqual(lines(scanSource("const q = `${d === \"}\" && text.includes(\"=\")}`;").scans), ["1:.includes("]);
   assert.deepEqual(lines(scanSource("const m = prefix + /word/.source;").scans), ["1:/word/"]);
   assert.deepEqual(scanSource("const d = a / b + c / d;").scans, []);
   assert.deepEqual(lines(scanSource(`const s = "a/b"; const r = /x/;`).scans), ["1:/x/"]);
