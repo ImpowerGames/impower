@@ -1,11 +1,11 @@
-// How today's type checker reads Sparkdown's own constructs, for comparing
+// How the type checker's text read Sparkdown's own constructs, for comparing
 // the AST `readLuauAst.ts` reads from the syntax tree with the AST Luau's
 // parser reads from a unit's text (#1285).
 //
-// The checker writes a unit's text from the document (`sparkdownUnits` in
-// `LuauDocumentChecker.ts`): it blanks the `&` that marks a statement, a
-// `store` modifier and the `choose`, `then` and `end` of a `choose` block, so
-// their statements read as Luau's; it writes each of Sparkdown's own
+// The checker's text (`luauCheckerText.ts`, the checker's reading before it
+// read the tree's AST) blanks the `&` that marks a statement, a `store`
+// modifier and the `choose`, `then` and `end` of a `choose` block, so their
+// statements read as Luau's; it writes each of Sparkdown's own
 // expressions (a divert target, a regular expression, an alternator) as a
 // call of an `any` value, `_G()`, or the value alone, `_G`, where the
 // expression is too short for the call; it blanks a `{{f}}` shorthand in a
@@ -15,7 +15,7 @@
 // constructs as the checker's text reads them, so the two readings print the
 // same where they agree.
 //
-// `new ClassName(args)` has no reading here: the checker keeps its text, which
+// `new ClassName(args)` has no reading here: the text keeps it as written, which
 // Luau reads as the name `new` followed by a call, so a unit holding one
 // cannot be compared. Nor can a `store` with an annotation or without a
 // value, which the checker's text makes a syntax error.

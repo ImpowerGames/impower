@@ -149,7 +149,9 @@ export function stampStatement(
   rangeTo: number,
   ctx: LowerContext,
 ): void {
+  // value-level: the statement's isolated source range, trimming its trailing whitespace
   const text = ctx.read(rangeFrom, rangeTo).replace(/\s+$/, "");
+  // value-level: the isolated statement text, measuring its indentation
   const indentation = text.length - text.replace(/^[ \t]+/, "").length;
   const from = rangeFrom + indentation;
   const to = rangeFrom + text.length;

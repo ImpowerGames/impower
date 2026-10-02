@@ -16,10 +16,9 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
-import { luauReportsMissingValue, nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
-import { RESERVED } from "../../lint/luauNames";
+import { nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { isCheckedLuau, isCheckedLuauAt, isLuauFile } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -717,16 +716,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * Whether the type checker reports an error that a node's construct is
-   * missing something, at the token Luau finds instead (from `tokenFrom`, or
-   * the end of the Luau when there is none): it reads the construct and that
-   * token as Luau (#1175).
+   * Whether the type checker reports what a node's construct is missing, at
+   * the token Luau finds instead (`checkerReadsOnTo`). A Luau file is Luau
+   * throughout, however this document's tree reads it.
    */
-  protected checkerReportsAt(node: SyntaxNode, tokenFrom: number | undefined): boolean {
-    // A Luau file is Luau throughout, however this document's tree reads it.
+  /**
+   * The end of a missing type's range, from where the type should stand
+   * (`from`) to the end of the token found instead (`to`): the end of the
+   * line the type is missing from when the token is on a later line, as the
+   * checker gives it, or the token's end.
+   */
+  protected missingTypeEnd(from: number, to: number): number {
+    const lineBreak = this.read(from, to).indexOf("\n");
+    return lineBreak < 0 ? to : from + lineBreak + 1;
+  }
+
+  protected checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined): boolean {
     if (this.uri && isLuauFile(this.uri)) return true;
-    const read = (from: number, to: number) => this.read(from, to);
-    return isCheckedLuau(node, read) && (tokenFrom === undefined || isCheckedLuauAt(node, tokenFrom, read));
+    return checkerReadsOnTo(node, tokenFrom, (from, to) => this.read(from, to));
   }
 
   /** Whether `pos` is the `end` a `run` file's wrapper closes it with
@@ -941,7 +948,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const lineStart = this.text?.lineAt(nodeRef.from).from ?? nodeRef.from;
       const afterAnnotationColon = /(?:^|[^:]):\s*$/.test(this.read(lineStart, nodeRef.from));
       const got = this.luauTokenAt(nodeRef.to);
-      if (!afterAnnotationColon && !this.checkerReportsAt(nodeRef.node, got?.from)) {
+      if (!afterAnnotationColon && !this.checkerReadsOnTo(nodeRef.node, got?.from)) {
         this.error(
           annotations,
           `${MISSING_EXPRESSION}, got ${got ? `'${got.text}'` : "<eof>"}`,
@@ -960,7 +967,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // The checker reports a missing method name too, as it reports every
       // missing name after a member access (#1175), where it reads the token
       // found instead.
-      if (checkerReportsType && (!isMethodColon || this.checkerReportsAt(nodeRef.node, this.luauTokenAt(nodeRef.to)?.from))) {
+      if (checkerReportsType && (!isMethodColon || this.checkerReadsOnTo(nodeRef.node, this.luauTokenAt(nodeRef.to)?.from))) {
         return annotations;
       }
       if (!isMethodColon) {
@@ -974,7 +981,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           annotations,
           `${MISSING_TYPE}, got ${got.text == null ? "<eof>" : `'${got.text}'`}`,
           from,
-          got.to,
+          this.missingTypeEnd(from, got.to),
         );
         return annotations;
       }
@@ -1113,7 +1120,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           annotations,
           `${MISSING_TYPE}, got ${got.text == null ? "<eof>" : `'${got.text}'`}`,
           from,
-          got.to,
+          this.missingTypeEnd(from, got.to),
         );
         return annotations;
       }
@@ -1141,7 +1148,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // names the token it meets instead of the name, at that token; the type
     // checker reports that where it reads the Luau (#1175).
     if (nodeRef.name === "LuauDanglingAccessor") {
-      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+      const got = nextSignificantToken(nodeRef.node, nodeRef.to, (from, to) =>
         this.read(from, to),
       );
       const nameOnLaterLine =
@@ -1151,7 +1158,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.read(nodeRef.to, got.from).includes("\n");
       if (nameOnLaterLine) {
         this.error(annotations, NAME_ON_LATER_LINE, nodeRef.to - 1, nodeRef.to);
-      } else if (!this.checkerReportsAt(nodeRef.node, got?.from)) {
+      } else if (!this.checkerReadsOnTo(nodeRef.node, got?.from)) {
         this.error(
           annotations,
           `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`,
@@ -1192,7 +1199,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const read = (from: number, to: number) => this.read(from, to);
       const checkerReportsValue =
         missing?.message === IF_EXPRESSION_WITHOUT_VALUE &&
-        luauReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read);
+        typeCheckerReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read);
       if (missing && !checkerReportsValue) {
         this.error(
           annotations,
@@ -1210,6 +1217,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
         const got = nextSignificantToken(
+          nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
           (from, to) => this.read(from, to),
         );

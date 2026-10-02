@@ -6,23 +6,24 @@ import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 // the next line, so a next line that starts a statement, closes a block or
 // does not exist leaves the annotation empty. Luau reports that with the
 // token it found instead of a type, for a variable's annotation and a
-// function's return type alike (#1152), over its own range: from the end of
-// the colon to the end of that token (#1174).
+// function's return type alike (#1152), from the end of the colon (#1174)
+// to the end of the colon's line, where the type should stand, rather than
+// to the token on a later line that Luau's parser recovers with (#1286).
 
 describe("a type annotation left empty at the end of its line", () => {
   test.each([
-    ["local w:\nlocal z = 1\n", "0:8-1:5 SyntaxError: Expected type, got 'local'"],
-    ["function g()\n  local w:\nend\n", "1:10-2:3 SyntaxError: Expected type, got 'end'"],
+    ["local w:\nlocal z = 1\n", "0:8-1:0 SyntaxError: Expected type, got 'local'"],
+    ["function g()\n  local w:\nend\n", "1:10-2:0 SyntaxError: Expected type, got 'end'"],
     ["local w:\n", "0:8-1:0 SyntaxError: Expected type, got <eof>"],
     ["local w: -- a note\n", "0:8-1:0 SyntaxError: Expected type, got <eof>"],
-    ["local w:\nreturn\n", "0:8-1:6 SyntaxError: Expected type, got 'return'"],
-    ["local w:\nif true then end\n", "0:8-1:2 SyntaxError: Expected type, got 'if'"],
-    ["function g():\n  return 1\nend\n", "0:13-1:8 SyntaxError: Expected type, got 'return'"],
+    ["local w:\nreturn\n", "0:8-1:0 SyntaxError: Expected type, got 'return'"],
+    ["local w:\nif true then end\n", "0:8-1:0 SyntaxError: Expected type, got 'if'"],
+    ["function g():\n  return 1\nend\n", "0:13-1:0 SyntaxError: Expected type, got 'return'"],
     ["function g(a: number): end\n", "0:22-0:26 SyntaxError: Expected type, got 'end'"],
     ["function g(): = nil end\n", "0:13-0:15 SyntaxError: Expected type, got '='"],
-    ["function g():\n  local x = 1\nend\n", "0:13-1:7 SyntaxError: Expected type, got 'local'"],
-    ["local f = function():\n  return 1\nend\n", "0:21-1:8 SyntaxError: Expected type, got 'return'"],
-    ["type function F(t):\n  return t\nend\n", "0:19-1:8 SyntaxError: Expected type, got 'return'"],
+    ["function g():\n  local x = 1\nend\n", "0:13-1:0 SyntaxError: Expected type, got 'local'"],
+    ["local f = function():\n  return 1\nend\n", "0:21-1:0 SyntaxError: Expected type, got 'return'"],
+    ["type function F(t):\n  return t\nend\n", "0:19-1:0 SyntaxError: Expected type, got 'return'"],
     ["type function F(t): = nil end\n", "0:19-0:21 SyntaxError: Expected type, got '='"],
   ])("%j reports the missing type", (source, message) => {
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
@@ -40,7 +41,7 @@ describe("a type annotation left empty at the end of its line", () => {
     ["local w:", "0:8-0:8 Expected type, got <eof>"],
     ["local w:\n", "0:8-1:0 Expected type, got <eof>"],
     ["local w: -- a note\n", "0:8-1:0 Expected type, got <eof>"],
-    ["local w:\nlocal z = 1\n", "0:8-1:5 Expected type, got 'local'"],
+    ["local w:\nlocal z = 1\n", "0:8-1:0 Expected type, got 'local'"],
   ])("%j in a .luau file reports the missing type", (source, message) => {
     expect(errorsIn("snippet.luau", { "snippet.luau": source })).toEqual([message]);
   });
@@ -61,13 +62,13 @@ describe("a type annotation left empty at the end of its line", () => {
     expect(filler.length).toBe(16380);
     const source = `${filler}local w:\nlocal z = 1\n`;
     expect(errorsIn("snippet.luau", { "snippet.luau": source })).toEqual([
-      "1638:8-1639:5 Expected type, got 'local'",
+      "1638:8-1639:0 Expected type, got 'local'",
     ]);
   });
 
   // The implicit `function` of a method in a `define` block.
   test.each([
-    ["  greet():\n    return 1\n  end\n", "1:10-2:10 Expected type, got 'return'"],
+    ["  greet():\n    return 1\n  end\n", "1:10-2:0 Expected type, got 'return'"],
     ["  greet(): = nil end\n", "1:10-1:12 Expected type, got '='"],
   ])("a method's return type in %j", (method, message) => {
     const source = `define hero as character with\n${method}end\nHi.\n`;
@@ -90,5 +91,13 @@ describe("a type annotation left empty at the end of its line", () => {
     "function g(a: number) end\n",
   ])("%j is unaffected", (source) => {
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+  });
+
+  // Only a missing type's range ends with its line; another error that runs
+  // over several lines keeps the range Luau gives it.
+  test("an error other than a missing type keeps its range across lines", () => {
+    expect(errorsIn("main.sd", { "main.sd": "function f()\n  (1 +\n    2)\nend\n" })).toEqual([
+      "1:2-2:6 Incomplete statement: expected assignment or a function call",
+    ]);
   });
 });

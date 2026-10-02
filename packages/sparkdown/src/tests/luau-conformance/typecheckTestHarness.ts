@@ -209,7 +209,7 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
 
   // The checker reads the snippet as the compiler hands it over, with the
   // globals of the upstream fixture the case names.
-  const unit = runFileUnit(wrapped.uri, wrapped.document.getText());
+  const unit = runFileUnit(wrapped.uri, wrapped.document.getText(), wrapped.tree);
   if (!unit) throw new Error(`the checker does not read ${wrapped.uri} as a run file`);
   const frontend = fixtureFrontend(options.fixture);
   if (!frontend) {

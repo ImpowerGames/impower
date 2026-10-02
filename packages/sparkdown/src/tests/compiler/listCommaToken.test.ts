@@ -39,6 +39,11 @@ function errors(source: string): string[] {
 const missing = (got: string) => `Expected identifier when parsing expression, got ${got}`;
 
 describe("narrative body: the comma is reported with the token after it", () => {
+  test("a comment longer than the former scanner window does not hide the missing value", () => {
+    const source = "scene s\n  local a, b = 1, --[[" + "x".repeat(5000) + "]]\n  The hero.\nend\n";
+    expect(errors(source)).toEqual([`1:16-1:17 ${missing("'The'")}`]);
+  });
+
   test.each([
     ["the scene's `end`", "scene s\n  local a, b = 1,\nend\n", "'end'"],
     ["a line comment, then a statement", "scene s\n  local a, b = 1,\n  -- note\n  x = 2\nend\n", "'x'"],

@@ -1,0 +1,19 @@
+layout main with
+if busy then
+  text "busy"
+end
+for item in bag do
+  text "{item}"
+end
+match mode do
+  case 1
+    text "one"
+end
+row.top { text "top" }
+end
+component card(title) with
+if title then
+  text "{title}"
+end
+column { text "x" }
+end

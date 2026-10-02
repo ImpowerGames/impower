@@ -1,0 +1,25 @@
+{
+  "scans": {
+    "packages/sparkdown/src/compiler/lower/expression/lowerExpression.ts": 25,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerChoice.ts": 3,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerDisplay.ts": 25,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerLuauDefine.ts": 17,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerLuauFunctionDefinition.ts": 2,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerRun.ts": 5,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerSparkleBody.ts": 9,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerStructBody.ts": 12,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerStructBodyTyped.ts": 15,
+    "packages/sparkdown/src/compiler/lower/utils/lineContinuation.ts": 2,
+    "packages/sparkdown/src/compiler/lower/utils/lowerTagContent.ts": 6,
+    "packages/sparkdown/src/compiler/lower/utils/statementShape.ts": 1,
+    "packages/sparkdown/src/compiler/lower/utils/stripTrailingLineComment.ts": 1,
+    "packages/sparkdown/src/compiler/lower/utils/validateAssignmentValue.ts": 18,
+    "packages/sparkdown/src/compiler/lower/utils/validateBlockEnds.ts": 2,
+    "packages/sparkdown/src/compiler/lower/utils/validateDefineStructure.ts": 3
+  },
+  "parentNames": {
+    "packages/sparkdown/src/compiler/lower/expression/lowerExpression.ts": 1,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerDisplay.ts": 2,
+    "packages/sparkdown/src/compiler/lower/utils/lineContinuation.ts": 1
+  }
+}

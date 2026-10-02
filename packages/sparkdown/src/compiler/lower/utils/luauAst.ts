@@ -44,6 +44,7 @@ let lastLines: { text: string; starts: number[] } | undefined;
 function lineStarts(text: string): number[] {
   if (lastLines?.text !== text) {
     const starts = [0];
+    // value-level: document text, mapping AST line positions to offsets
     for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) {
       starts.push(i + 1);
     }

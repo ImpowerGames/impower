@@ -12,9 +12,9 @@ import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { RESERVED } from "../../lint/luauNames";
-import { isCheckedLuau, isCheckedLuauAt } from "../../typecheck/LuauUnitNodes";
-import { AstExprError } from "../../typecheck/Ast";
+import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
+import { AstExprError, AstExprUnary } from "../../typecheck/Ast";
+import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeUnionLineValue } from "./lineContinuation";
 import { validateExplicitStatement } from "./validateExplicitStatement";
@@ -29,11 +29,6 @@ import { validateExplicitStatement } from "./validateExplicitStatement";
 // the type checker does not read. The validateTypes merge in
 // `SparkdownCompiler` drops a type-checker syntax error whose token one of
 // these reports covers.
-
-// How far past the `=` to scan for the token Luau reports as "got '<token>'"
-// in `nextSignificantToken`, the scan `luauReportsMissingValue` and the
-// validation annotator read with.
-const LOOKAHEAD = 4096;
 
 // Grammar node names that carry no value — whitespace and comments. A comment
 // is lexical whitespace to Luau, so `name = -- todo` has an EMPTY right-hand
@@ -169,7 +164,7 @@ export function validateAssignmentValue(
     if (!isInsignificant(sib.name)) return;
   }
   const range = operatorTokenRange(operator, ctx);
-  if (typeCheckerReportsMissingValue(opNode, operator.to, ctx)) return;
+  if (typeCheckerReportsMissingValue(opNode, operator.to, (from, to) => ctx.read(from, to))) return;
   const got = nextTokenAfter(opNode, range.to, ctx);
   ctx.diagnostics.push({
     message: `Expected identifier when parsing expression, got ${display(got)}`,
@@ -195,7 +190,7 @@ export function validateListComma(
   // The node holds the comma after any whitespace before it.
   const text = ctx.read(comma.from, comma.to);
   const at = comma.from + text.length - text.trimStart().length;
-  if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, ctx)) {
+  if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, (from, to) => ctx.read(from, to))) {
     return;
   }
   const got = nextTokenAfter(comma, at + 1, ctx);
@@ -282,7 +277,7 @@ export function validateReassignmentList(
       const at = child.from + text.length - text.trimStart().length;
       // Luau's parser reports this comma too, and the type checker reports
       // its error where it reads the statement (#1175).
-      if (typeCheckerReportsMissingValue(child, at, ctx)) return;
+      if (typeCheckerReportsMissingValue(child, at, (from, to) => ctx.read(from, to))) return;
       reportParseError(
         "Expected identifier when parsing expression, got ','",
         { from: at, to: at + 1 },
@@ -622,116 +617,39 @@ function display(got: { text: string } | null): string {
   return got == null ? "<eof>" : `'${got.text}'`;
 }
 
-// A token that cannot begin a Luau value, read from raw text by
-// `startsLuauExpression` below.
-
-// The keywords that begin an expression; every other one ends it.
-const EXPRESSION_KEYWORDS: ReadonlySet<string> = new Set([
-  "nil",
-  "true",
-  "false",
-  "not",
-  "function",
-  "if",
-]);
-
-// Whether Luau's parser can read an expression that begins with `token`, as
-// `nextSignificantToken` gives it: a name, a keyword that begins an
-// expression, a number, a string, a table, a parenthesized value, a unary
-// operator, `...` (or a number such as `.5`), a long string or a Sparkdown
-// regex literal (`@/x/`).
-export function startsLuauExpression(token: string): boolean {
-  if (/^[A-Za-z_]/.test(token)) {
-    return !RESERVED.has(token) || EXPRESSION_KEYWORDS.has(token);
-  }
-  return /^[\d"'`{(\-#.[@]/.test(token);
-}
-
-// The unary operators, which an operand must follow.
-const UNARY_OPERATORS: ReadonlySet<string> = new Set(["-", "not", "#"]);
-
-// Whether Luau's parser reports a value missing where the grammar found none
-// after `pos`: the next token, past any unary operators, cannot begin a
-// value, so Luau does not read one there either. Where it can (a value on
-// a narrative body's next line, or on a line at column 0), the grammar and
-// Luau read the lines differently, and only Sparkdown reports the value
-// missing. A cast's `::` is Sparkdown's to report too (see
-// `SparkdownTypechecker`).
-// The type checker reports it only where it reads both the statement
-// (`node`) and the token Luau finds instead: in a narrative body a `;` or a
-// word the grammar reads as story is not in the checked Luau.
-export function luauReportsMissingValue(
+// Whether Luau reports the value missing where the checker reads it.
+// A valid expression on the next line belongs to Sparkdown's diagnostic;
+// an AstExprError where the operand should begin belongs to Luau's parser.
+export function typeCheckerReportsMissingValue(
   node: SyntaxNode,
   pos: number,
   read: (from: number, to: number) => string,
 ): boolean {
-  let got = nextSignificantToken(pos, read);
-  while (got && UNARY_OPERATORS.has(got.text)) {
-    got = nextSignificantToken(got.from + got.text.length, read);
-  }
-  if (got && (got.text === ":" || startsLuauExpression(got.text))) return false;
-  return isCheckedLuau(node, read) && (got == null || isCheckedLuauAt(node, got.from, read));
+  const text = wholeDocument(node, read);
+  const reading = readLuauExpressionAfter(pos, text);
+  let expr = reading.expr;
+  while (expr instanceof AstExprUnary) expr = expr.expr;
+  if (!(expr instanceof AstExprError) || expr.expressions.length > 0) return false;
+  const error = reading.errors[expr.messageIndex];
+  if (!error?.message.startsWith("Expected identifier when parsing expression")) return false;
+  const at = luauPositionOffset(error.location.begin, text);
+  const got = nextLuauToken(at, text);
+  if (got?.text === ":" || got?.text === "@") return false;
+  return checkerReadsOnTo(node, got?.from, read);
 }
 
-// Whether the type checker reports a value missing after `node`, at `pos`,
-// as Luau's parser does, with Luau's range, the token found instead (#1175).
-function typeCheckerReportsMissingValue(
-  node: SyntaxNode,
-  pos: number,
-  ctx: LowerContext,
-): boolean {
-  return luauReportsMissingValue(node, pos, (from, to) => ctx.read(from, to));
+function wholeDocument(node: SyntaxNode, read: (from: number, to: number) => string): string {
+  while (node.parent) node = node.parent;
+  return read(0, node.to);
 }
 
-// The token Luau would report after `pos`. Scans forward over whitespace,
-// newlines, and Luau comments (`-- line` and `--[[ block ]]`), returning the
-// next identifier/keyword run or the next single (punctuation) character with
-// its document offset, or `null` (rendered as `<eof>`) when nothing but
-// skippable text follows.
+/** The converter's next token, including beyond the grammar's statement end. */
 export function nextSignificantToken(
+  node: SyntaxNode,
   pos: number,
   read: (from: number, to: number) => string,
 ): { text: string; from: number } | null {
-  const window = read(pos, pos + LOOKAHEAD);
-  let i = 0;
-  while (i < window.length) {
-    const c = window[i]!;
-    if (/\s/.test(c)) {
-      i++;
-      continue;
-    }
-    if (c === "-" && window[i + 1] === "-") {
-      // Block comment `--[[ … ]]` (and long-bracket levels `--[==[ … ]==]`).
-      const block = /^--\[(=*)\[/.exec(window.slice(i));
-      if (block) {
-        const close = "]" + block[1] + "]";
-        const end = window.indexOf(close, i + block[0]!.length);
-        if (end < 0) return null; // unterminated within the window
-        i = end + close.length;
-        continue;
-      }
-      // Line comment `-- …` runs to end of line.
-      const nl = window.indexOf("\n", i);
-      if (nl < 0) return null; // runs to (at least) the window end
-      i = nl + 1;
-      continue;
-    }
-    break;
-  }
-  if (i >= window.length) return null;
-  const rest = window.slice(i);
-  const word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
-  if (word) {
-    // If the identifier match reached the window's edge it may be truncated;
-    // re-read a fresh slice from its start to capture it whole.
-    if (i + word[0].length >= window.length) {
-      const tail = read(pos + i, pos + i + 512);
-      const full = /^[A-Za-z_][A-Za-z0-9_]*/.exec(tail);
-      if (full) return { text: full[0], from: pos + i };
-    }
-    return { text: word[0], from: pos + i };
-  }
-  return { text: rest[0]!, from: pos + i };
+  return nextLuauToken(pos, wholeDocument(node, read));
 }
 
 // The `=`/`+=`/`..=` token's own range, with the surrounding same-line

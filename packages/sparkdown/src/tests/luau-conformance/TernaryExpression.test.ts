@@ -511,7 +511,7 @@ describe("if expression across lines", () => {
     ],
     [
       "a continuation line after a nested else arm",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else if c then 2 else 3\n    + 10\n  return y\nend\n",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else if c == true then 2 else 3\n    + 10\n  return y\nend\n",
       "Value 1 13.\n",
     ],
     [
@@ -551,7 +551,7 @@ describe("if expression across lines", () => {
     ],
     [
       "nested in the else arm",
-      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1\n    else if false\n      then 2\n      else 3\n  return y\nend\n",
+      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1\n    else if nil\n      then 2\n      else 3\n  return y\nend\n",
       "Value 3.\n",
     ],
     [

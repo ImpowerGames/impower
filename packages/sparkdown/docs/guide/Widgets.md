@@ -12,7 +12,7 @@ Sparkle binding is **one-way** by design: a `#value` (or `#checked`) prop makes
 the control **follow** your state. When the state changes, the control updates.
 
 ```sparkdown
-field #value={player.name}     -- the field always shows player.name
+field #value={player.name} -- the field always shows player.name
 ```
 
 To send the player's input **back** into your state, add an event handler that
@@ -36,12 +36,12 @@ labels the slider.
 Text plus a `@click`:
 
 ```sparkdown
-button "Save"  @click=save
-link   "Back"  @click=go_back
+button "Save" @click=save
+link "Back" @click=go_back
 ```
 
 Buttons ship with a filled, rounded default style and a hover state; links are
-underlined. Restyle either with classes (`button primary`) or inline props.
+underlined. Restyle either with classes (`button.primary`) or inline props.
 
 ---
 
@@ -86,14 +86,15 @@ checkbox #checked={music_muted} @change={ music_muted = event.checked }
 
 ## 5.6 Dropdown
 
-A `dropdown` holds `option` children and binds the selected value. It writes
-back on `@change`:
+A `dropdown` holds `option` children in its block and binds the selected value.
+It writes back on `@change`:
 
 ```sparkdown
-dropdown #value={difficulty} @change={ difficulty = event.value }:
-  option "Easy"   #value="easy"
+dropdown #value={difficulty} @change={ difficulty = event.value } {
+  option "Easy" #value="easy"
   option "Normal" #value="normal"
-  option "Hard"   #value="hard"
+  option "Hard" #value="hard"
+}
 ```
 
 - Each `option` has text content and an optional `#value` (it defaults to the
@@ -108,24 +109,29 @@ dropdown #value={difficulty} @change={ difficulty = event.value }:
 store volume = 80
 store music_muted = false
 store difficulty = "normal"
-function go_back()       end
+
+function go_back() end
+
 function save_settings() end
 
 layout settings with
-  column menu #child-gap=16:
-    text title "Settings"
+  column.menu #child-gap=16 {
+    text.headline "Settings"
 
     slider "Master Volume" #min=0 #max=100 #value={volume} @input={ volume = event.value }
     checkbox "Mute Music" #checked={music_muted} @change={ music_muted = event.checked }
 
-    dropdown #value={difficulty} @change={ difficulty = event.value }:
-      option "Easy"   #value="easy"
+    dropdown #value={difficulty} @change={ difficulty = event.value } {
+      option "Easy" #value="easy"
       option "Normal" #value="normal"
-      option "Hard"   #value="hard"
+      option "Hard" #value="hard"
+    }
 
-    row #child-gap=16 #child-justify=space-between:
-      button "Back"  @click=go_back
+    row #child-gap=16 #child-justify=space-between {
+      button "Back" @click=go_back
       button "Apply" @click=save_settings
+    }
+  }
 end
 ```
 

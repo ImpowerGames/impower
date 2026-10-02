@@ -95,6 +95,7 @@ import { NormalizationResult, Normalizer, type NormalizedType, type UnifierShare
 import { OverloadResolver } from "./OverloadResolver";
 import type { Scope } from "./Scope";
 import { simplifyIntersection } from "./Simplify";
+import { sparkdownValue } from "./SparkdownReading";
 import { Subtyping, SubtypingVariance, type SubtypingResult } from "./Subtyping";
 import { toString, toStringPack, toStringTypeOrPack } from "./ToString";
 import {
@@ -1426,6 +1427,10 @@ export class TypeChecker2 {
       else if (expr instanceof AstExprInstantiate) return this.visitExprInstantiate(expr);
       else if (expr instanceof AstExprInterpString) return this.visitExprInterpString(expr);
       else if (expr instanceof AstExprError) return this.visitExprError(expr);
+      // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
+      else if (sparkdownValue(expr)) {
+        for (const operand of sparkdownValue(expr)!.operands) this.visitExpr(operand, ValueContext.RValue);
+      }
     } finally {
       if (pushed) this.stack.pop();
     }

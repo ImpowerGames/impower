@@ -87,7 +87,7 @@ export function resolveCallableBinding(
  */
 export function recordSiblingRead(ctx: LowerContext, read: string): void {
   const reads = currentStatement(ctx)?.reads.other;
-  if (reads && !reads.includes(read)) {
+  if (reads && !reads.some((existing) => existing === read)) {
     reads.push(read);
   }
 }

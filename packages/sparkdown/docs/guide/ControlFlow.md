@@ -20,7 +20,7 @@ layout hud with
   if player.dead then
     text "GAME OVER"
   elseif player.hp < 10 then
-    text warning "Low health!"
+    text.warning "Low health!"
   else
     text "HP: {player.hp}"
   end
@@ -41,9 +41,10 @@ Render one copy of a block per item:
 ```sparkdown
 layout bag with
   for key, item in player.inventory do
-    row #child-gap=16:
+    row #child-gap=16 {
       text "{item.name}"
       button "Use" @click=use_item(key, item)
+    }
   else
     text "Your bag is empty."
   end
@@ -51,12 +52,12 @@ end
 
 [[open bag]]
 
-store player = { 
-  inventory = { 
-    { name = "Potion" }, 
-    { name = "Apple" }, 
-    { name = "Stew" } 
-  } 
+store player = {
+  inventory = {
+    { name = "Potion" },
+    { name = "Apple" },
+    { name = "Stew" },
+  },
 }
 
 function use_item(key, item)
@@ -107,12 +108,12 @@ store player = { class = "knight" }
 
 layout badge with
   match player.class do
-  case "knight"
-    text "⚔ Knight"
-  case "mage"
-    text "✦ Mage"
-  else
-    text "Adventurer"
+    case "knight"
+      text "⚔ Knight"
+    case "mage"
+      text "✦ Mage"
+    else
+      text "Adventurer"
   end
 end
 ```
@@ -130,14 +131,16 @@ Control-flow blocks nest freely inside each other and inside elements:
 store party = { { name = "Ana", hp = 10 }, { name = "Bo", hp = 0 } }
 
 layout roster with
-  column #child-gap=8:
+  column #child-gap=8 {
     for member in party do
-      row #child-gap=8:
+      row #child-gap=8 {
         text "{member.name}"
         if member.hp <= 0 then
-          text down "(down)"
+          text.down "(down)"
         end
+      }
     end
+  }
 end
 ```
 

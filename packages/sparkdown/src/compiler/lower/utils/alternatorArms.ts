@@ -69,6 +69,7 @@ function emptyDivertRange(
   if (node.name !== "LuauArithmeticOperation") return null;
   const text = ctx.read(node.from, node.to);
   if (text.trim() !== "->") return null;
+  // value-level: the text of one LuauArithmeticOperation node, locating its operator
   const from = node.from + text.indexOf("->");
   return { from, to: from + 2 };
 }
@@ -266,6 +267,7 @@ function lowerArmContent(
   let textBuf = "";
   const flushText = (trim: boolean): void => {
     let text = textBuf;
+    // value-level: buffered display text, trimming its trailing whitespace
     if (trim) text = text.replace(/\s+$/, "");
     if (text.length > 0) out.push(new Text(text));
     textBuf = "";
