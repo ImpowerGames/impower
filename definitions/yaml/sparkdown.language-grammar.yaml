@@ -9013,11 +9013,12 @@ repository:
     # Not at a `scene` or `branch` header: the end closes there at once, and
     # an empty path repeated at the header is an empty-match loop for the
     # rule that includes it (a declaration whose comma ends the line before
-    # the header). Not at a declaration that begins with a contextual word
-    # (`type T`, `export type T`, `store x`) either: no value begins that
-    # way, and a declaration whose comma ends the line before it must close
-    # there rather than read the word as a value.
-    begin: (?!{{BEAT}})(?!(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}}|{{LUAU_SCOPE_MODIFIERS}}{{WS}}+{{LUAU_IDENTIFIER}})(?=(?!{{LUAU_TERMINATOR_KEYWORDS}}){{LUAU_IDENTIFIER}})
+    # the header). A declaration that begins with a contextual word
+    # (`type T`, `export type T`, `store x`) after a comma that ends a line
+    # is not read as a value: the declaration or reassignment whose list the
+    # comma continues ends before it (`LUAU_DECLARATION_STOP`), and its end
+    # is tried before its values.
+    begin: (?!{{BEAT}})(?=(?!{{LUAU_TERMINATOR_KEYWORDS}}){{LUAU_IDENTIFIER}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAccessPart" }
