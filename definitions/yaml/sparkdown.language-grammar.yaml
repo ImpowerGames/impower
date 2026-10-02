@@ -963,6 +963,7 @@ patterns:
 
   - { include: "#LuauExplicitStatement" }
   - { include: "#LuauSparkdownReturnStatement" }
+  - { include: "#LuauFunctionDefinition" }
   - { include: "#LuauSparkdownVariableDefinition" }
   - { include: "#LuauDeclarations" }
   - { include: "#LuauSparkdownControlBlock" }
@@ -3768,6 +3769,9 @@ repository:
       # reference. This makes the explicit form (`& store x = 5`)
       # interchangeable with the implicit form (`store x = 5`). An `&`
       # statement is one line, so it declares with the narrative rule.
+      # `LuauFunctionDefinition` comes first, so `& local function f()`
+      # is a function rather than a declaration of `function`.
+      - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauCommaSeparator" }
@@ -7317,7 +7321,7 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauVariableDefinition:
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b(?!{{WS}}*function\b)({{WS}}*)
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -7354,11 +7358,12 @@ repository:
     # reserved word before a comma or the end of its line, and the end
     # stops at `LUAU_DECLARATION_STOP`.
     #
-    # Both declaration rules leave `local function`, `store function` and
-    # `const function` to `LuauFunctionDefinition`, whose begin takes the
-    # scope modifier itself; `LuauSparkdownVariableDefinition` is included
-    # ahead of it in narrative bodies. `luauVariableDefinitionValue.test.ts`
-    # holds the two rules' begin, captures and end together.
+    # `local function`, `store function` and `const function` are
+    # `LuauFunctionDefinition`, whose begin takes the scope modifier itself:
+    # every list that includes either declaration rule includes
+    # `LuauFunctionDefinition` before it (`LuauDeclarations` for this rule).
+    # `luauVariableDefinitionValue.test.ts` holds the two rules' begin,
+    # captures and end together.
     patterns:
       - { include: "#LuauCommaLineBreak" }
       - { include: "#LuauValueTrailingBlockComment" }
@@ -7397,7 +7402,7 @@ repository:
   # too, ahead of the Luau declaration `LuauExpression` reaches, so it also
   # ends at the line (`store a = 1 local b = 2,`).
   LuauSparkdownVariableDefinition:
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b(?!{{WS}}*function\b)({{WS}}*)
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -7414,6 +7419,7 @@ repository:
       - { include: "#LuauTargetTypeCast" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
     end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
@@ -7569,6 +7575,7 @@ repository:
     patterns:
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
@@ -8161,6 +8168,7 @@ repository:
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#FlowStatements" }
@@ -8209,6 +8217,7 @@ repository:
     patterns:
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
