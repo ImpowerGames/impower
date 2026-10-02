@@ -5751,6 +5751,10 @@ repository:
     # for LuauStructBlockSeparator, comments and braces to own their tokens.
     # Literals followed by comments belong to LuauStructListValue; without
     # the literal-comment guard this rule can consume a colon in that comment.
+    # Moving the whole list rule first also takes real invalid headers;
+    # splitting its literal forms here duplicates their value/comment bounds.
+    # A parent's line end cannot distinguish a header colon from one in a
+    # comment. The shared literal-comment variable supplies that distinction.
     match: (?!{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})((?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*)([:])(?={{WS}}*(?:$|[;{},]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
     captures:
       2:
