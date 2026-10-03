@@ -50,6 +50,12 @@ export function generatedExpressions(): GeneratedExpression[] {
 
   add("call", ["f()", "f(a)", "f(a, b)", "f(a, b, c)", "f(...)", "f(a, ...)", "f(f(a))", "f(a)(b)", "f()()", "f()(a)(b)"]);
   add("call sugar", ['f "s"', "f 's'", "f [[s]]", "f [==[s]==]", "f {}", "f {a}", "f { k = 1 }", 'f"s"', "f{a}", 'a.b "s"', "a.b {}", 'f "s" "t"', "f {} {}", 'f "s" {}']);
+  add("long-string call sugar", [
+    "f[=[s]=]", "f\t[===[s]===]", "f [========[s]========]",
+    "a.b [=[s]=]", "a:m [===[s]===]", "f() [=[s]=]",
+    "a[1] [==[s]==]", "(f) [=[s]=]", "f [=[s]=] [==[t]==]",
+    "f [===[\nend\n]=]\n]===]",
+  ]);
   add("method call", ["a:m()", "a:m(b)", "a:m(b, c)", 'a:m "s"', "a:m {}", "a:m():n()", "a.b:m()", "a[b]:m()", "f():m()", "(a):m()", '("s"):upper()']);
   add("index", ["a.b", "a.b.c", "a[b]", "a[b][c]", "a.b[c].d", 'a["s"]', "a[1 + 2]", "t[f(a)]", "a[b.c]", "f().x", "f()[1]", "(a).b", "(a)[b]"]);
   add("chain", ["a.b:c(1):d(2).e[3]", 'f(a)(b).c:d "e"', "a.b.c.d.e", "a:b():c():d()", "f(a).b[c](d)", "(f)(a)", "(f)()", "a.b(c).d(e)"]);

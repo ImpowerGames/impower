@@ -728,7 +728,8 @@ variables:
   SPARKLE_BLOCK_BAIL: (?:{{BEAT}}|^{{WS}}*(?:end|else|elseif|case)(?![{{IDENTIFIER_END_CHAR}}]))
   # A control keyword, as a whole word.
   SPARKLE_KEYWORD_END: (?![{{IDENTIFIER_END_CHAR}}])
-  LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
+  # A long string is a single call argument at every bracket level.
+  LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[=*\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
@@ -769,8 +770,14 @@ variables:
   # after its access parts, as a member access or a dangling accessor
   # (`LuauDanglingAccessor`), so the line does not end before it.
   LUAU_DANGLING_ACCESSOR_START: "[.](?![.])"
+  # lookaround: LuauMultilineString claims a long-bracket opener. Tightening
+  # the shared indexer token keeps LuauAccessPath and its chained/line ends
+  # from waiting for LuauPropertyIndexer where only a string can follow.
+  # Reordering a child list cannot close those parent scopes; no Switch is
+  # involved, and the parent ends still need the same token distinction.
+  LUAU_INDEXER_START: \[(?!=*\[)
   # A `[` that begins an indexer, not a `[[` or `[=[` long string.
-  LUAU_INDEXER_LINE_CONTINUATION: (?:{{WS}}*\[(?!=*\[))
+  LUAU_INDEXER_LINE_CONTINUATION: (?:{{WS}}*{{LUAU_INDEXER_START}})
   # A line that continues a value inside an expression that spans lines (an
   # if expression's condition or arm): a continuation line, an indexer line,
   # or a `-` line, which there reads as subtraction from the value before it.
@@ -9101,7 +9108,7 @@ repository:
     # the lookbehind does not stop at the header's `in`). A `:` after a name
     # followed by a method name and its arguments stays a method call, with
     # block comments before the arguments too (`t:m --[[c]] ()`).
-    end: (?={{BEAT}})|(?=$|{{WS}}*(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|\[))|(?<=\bfor{{WS}}+{{LUAU_IDENTIFIER}}|\bfor\b[^\n\r]*[,]{{WS}}*{{LUAU_IDENTIFIER}})(?={{WS}}*{{LUAU_TYPE_ANNOTATION_OPERATOR}})(?!{{WS}}*[:]{{WS}}*{{LUAU_IDENTIFIER}}(?:{{LUAU_BLOCK_COMMENT_ON_LINE}}|{{WS}})*{{LUAU_FUNCTION_CALL_START}})){{_LUAU_VALUE_OPERATOR_AHEAD_}}
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|{{LUAU_INDEXER_START}}))|(?<=\bfor{{WS}}+{{LUAU_IDENTIFIER}}|\bfor\b[^\n\r]*[,]{{WS}}*{{LUAU_IDENTIFIER}})(?={{WS}}*{{LUAU_TYPE_ANNOTATION_OPERATOR}})(?!{{WS}}*[:]{{WS}}*{{LUAU_IDENTIFIER}}(?:{{LUAU_BLOCK_COMMENT_ON_LINE}}|{{WS}})*{{LUAU_FUNCTION_CALL_START}})){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         emit: true
@@ -9230,7 +9237,7 @@ repository:
   # A `.` with no name after it (`(t).a.`) is a dangling accessor, as after
   # a path; `..` is the concatenation operator.
   LuauChainedPropertyAccess:
-    begin: (?<=\))({{WS}}*)(?=[.](?![.])|\[)
+    begin: (?<=\))({{WS}}*)(?=[.](?![.])|{{LUAU_INDEXER_START}})
     beginCaptures:
       1:
         patterns:
@@ -9240,7 +9247,7 @@ repository:
       - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
-    end: (?!{{WS}}*(?:[.](?![.])|\[))
+    end: (?!{{WS}}*(?:[.](?![.])|{{LUAU_INDEXER_START}}))
 
   # A line of Luau code that begins with `.name`, `:name`, a binary operator
   # or a cast's `::` continues the expression on the line before it: its
@@ -9457,7 +9464,8 @@ repository:
 
   LuauPropertyIndexer:
     brackets: true
-    begin: ({{WS}}*)(\[)
+    # A long-string opener belongs to call sugar, never to an indexer.
+    begin: ({{WS}}*)({{LUAU_INDEXER_START}})
     beginCaptures:
       1:
         patterns:
