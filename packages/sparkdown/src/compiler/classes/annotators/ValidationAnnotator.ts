@@ -1282,11 +1282,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // reads at most `module.Type`, so the segments after it are a syntax
     // error; the grammar keeps them inside the type so this can report them.
     if (nodeRef.name === "LuauTypeNameExtraQualifier" || nodeRef.name === "LuauTypeNameExtraQualifierContinuation") {
+      const to = nodeRef.name === "LuauTypeNameExtraQualifierContinuation"
+        ? nodeRef.from + this.read(nodeRef.from, nodeRef.to).trimEnd().length
+        : nodeRef.to;
       this.error(
         annotations,
         TYPE_NAME_EXTRA_QUALIFIER,
         nodeRef.from,
-        nodeRef.to,
+        to,
       );
       return annotations;
     }
