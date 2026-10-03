@@ -576,6 +576,14 @@ class Tokenizer {
       this.push("mark", from, to);
       return;
     }
+    if (name === "LuauSparkdownExplicitStatement") {
+      this.readChildren(node);
+      // Only the narrative island wrapper owns this EOF. Nested marked
+      // statements still yield to their written block's closer; genuine
+      // functions and opaque constructs extend this wrapper's own span.
+      this.tokens.push({ kind: "break", text: "", from: node.to, to: node.to, location: this.location(node.to, node.to), source: this.source, story: true });
+      return;
+    }
     if (name === "LuauSparkdownChooseBlock_begin") {
       this.markKeyword("choose", node, "choose");
       return;
@@ -1312,7 +1320,12 @@ class Parser {
     // A type or an annotation that story ends before is malformed where the
     // end of the unit's Luau would leave it so; Sparkdown's own syntax does
     // not read one (`local x:` before a line of story).
-    const atSparkdown = (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
+    // A marked narrative statement owns its missing value/closer at its
+    // authored EOF. The following prose only supplies a synthetic break;
+    // delegating this error to story grammar would drop it entirely.
+    // Genuine Luau functions keep their existing multiline recovery.
+    const boundedStoryEnd = this.explicitLine !== undefined && !this.currentFunction().luau && this.current().kind === "break" && this.current().story === true;
+    const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
     if (malformed && !follows && !consequence && this.sparkdownDepth === 0 && !atSparkdown && !this.atAbandonedCloser()) {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
@@ -1446,7 +1459,10 @@ class Parser {
     const got = `${describe(this.current())}${extra}`;
     const open = begin.kind === "chooseThen" || begin.kind === "choose" ? "choose" : begin.text;
     // Not part of Luau: a `::` where the closer was expected is an annotation written with it.
-    const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : undefined);
+    // A written expression delimiter cannot be repaired by the next story
+    // line. Keyword closers remain grammar-owned, avoiding duplicate reports.
+    const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && this.explicitLine !== undefined && !this.currentFunction().luau && this.current().kind === "break" && this.current().story === true;
+    const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
     if (location.begin.line === begin.location.begin.line)
       this.report(location, `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`, malformed);
     else this.report(location, `Expected '${text}' (to close '${open}' at line ${begin.location.begin.line + 1}), got ${got}`, malformed);

@@ -3,6 +3,8 @@ import GRAMMAR from "../../../language/sparkdown.language-grammar.json";
 import { parseSource } from "../compiler/grammarSnapshot";
 import { compareEnginesFull, treeScopeStackAt } from "../compiler/scopeEquality";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { parseOfficialTree } from "../compiler/officialAstTestUtils";
 
 // Independent grammar inventory: do not use the compiler's alias whitelist
 // to decide which rules the source grammar must bound.
@@ -63,6 +65,8 @@ describe("closed narrative expression family", () => {
     for (const [, twin] of pairs) visit(twin);
   });
   test.each([
+    "& local value = math.abs(", "& local value = (5", "& local value = {5",
+    "& local value = math[1", "& local value = 5 +", "& local value: (",
     "& do x = f(", "& do x = t[", "& do x = {", "& do x = if f(",
     "& local x: (", "& local x: {", "& do local x: (", "& do x = 5 :: (",
     "& do repeat x = 1 until f(", "& do x = (t[",
@@ -73,7 +77,28 @@ describe("closed narrative expression family", () => {
     const source = `${prefix}\nreturn to the village\nAfter.\n`;
     const tree = parseSource(source);
     for (const word of ["return to", "After"]) expect(treeScopeStackAt(tree, source.indexOf(word))).toContain("string.display.text.chunk.sd");
+    const uri = "inmemory:///bounded.sd";
+    const compiler = new SparkdownCompiler();
+    compiler.configure({ files: [{ uri, type: "script", name: "bounded", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] } as never);
+    const diagnostics = compiler.compile({ textDocument: { uri } } as never).program.diagnostics?.[uri] ?? [];
+    expect(diagnostics.some(diagnostic => diagnostic.severity === 1)).toBe(true);
+    if (prefix.startsWith("& local value")) {
+      const native = parseOfficialTree("  " + prefix.slice(2)).errors[0]!;
+      expect(diagnostics.some(diagnostic => diagnostic.code === "SyntaxError" && diagnostic.message === native.message && diagnostic.range.start.line === 0 && diagnostic.range.start.character === prefix.length)).toBe(true);
+    }
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
+  test.each(["file", "scene", "branch"])("missing marked-call value is published at %s boundary", scope => {
+    for (const tail of ["", "return to the village\n", "& math.abs(5)\n"]) {
+      const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
+      const closer = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";
+      const source = `${prefix}& local value = math.abs(\n${tail}${closer}`;
+      const uri = "inmemory:///bounded.sd";
+      const compiler = new SparkdownCompiler();
+      compiler.configure({ files: [{ uri, type: "script", name: "bounded", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] } as never);
+      const diagnostics = compiler.compile({ textDocument: { uri } } as never).program.diagnostics?.[uri] ?? [];
+      expect(diagnostics.some(diagnostic => diagnostic.code === "SyntaxError" && diagnostic.message === "Expected identifier when parsing expression, got <eof>" && diagnostic.range.start.line === prefix.split("\n").length - 1 && diagnostic.range.start.character === "& local value = math.abs(".length), `${scope}: ${JSON.stringify(tail)}`).toBe(true);
+    }
   });
   test.each([
     ["x = math.abs(-5)", 5], ["local t = {5}; x = t[1]", 5],
