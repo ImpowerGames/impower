@@ -95,6 +95,12 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
+      # Definitions use the oracle's pinned WASM at build time. Reparse the
+      # source aggregates and require byte-for-byte generated JSON agreement.
+      - name: Verify generated definition ASTs
+        if: matrix.package == 'packages/sparkdown'
+        run: node packages/sparkdown/scripts/buildDefinitionAst.mjs --check
+
       # The package's own vitest.config.ts stays in force (pool, environment,
       # setup files). The heap cap and single worker match the repository's
       # resource gate; passWithNoTests stays off so an empty include is a

@@ -8,7 +8,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { officialSyntaxErrors } from "./officialSyntax";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { checkLuau } from "../luau-conformance/typecheckTestHarness";
 
@@ -69,7 +69,7 @@ const warningsOf = (source: string) =>
 
 /** Luau's parser's first error for `source` read as a Luau file (ASCII only). */
 function luauFirstError(source: string): Found {
-  const error = parseLuau(source).errors[0];
+  const error = officialSyntaxErrors(source)[0];
   expect(error, "Luau reports an error").toBeDefined();
   return {
     message: error!.message,
@@ -82,16 +82,16 @@ function luauFirstError(source: string): Found {
 /**
  * Luau's parser's errors for `source` read as a Luau file (ASCII only),
  * omitting the incomplete-statement error that follows an error inside
- * that same expression. The parser port no longer carries Sparkdown's
- * recovery metadata; keep this expectation independent of the tree reader.
+ * that same expression. Keep this official expectation independent of the
+ * tree reader and its recovery metadata.
  */
 const luauErrors = (source: string): Found[] =>
-  parseLuau(source)
-    .errors.filter((error, index, errors) =>
+  officialSyntaxErrors(source)
+    .filter((error, index, errors) =>
       error.message !== "Incomplete statement: expected assignment or a function call" ||
       !errors.slice(0, index).some((earlier) =>
-        !earlier.location.begin.lt(error.location.begin) &&
-        !earlier.location.begin.gt(error.location.end),
+        comparePosition(earlier.location.begin, error.location.begin) >= 0 &&
+        comparePosition(earlier.location.begin, error.location.end) <= 0,
       ),
     )
     .map((error) => ({
@@ -101,6 +101,10 @@ const luauErrors = (source: string): Found[] =>
       end: { line: error.location.end.line, character: error.location.end.column },
     }))
     .sort(byPosition);
+
+function comparePosition(a: { line: number; column: number }, b: { line: number; column: number }): number {
+  return a.line - b.line || a.column - b.column;
+}
 
 /**
  * The warnings Luau's type checker gives the same source as a Luau file, in
@@ -319,7 +323,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "",
     ].join("\n");
     // Luau reads the functions without an error too.
-    expect(parseLuau(source.slice(source.indexOf("function note")).replace("{f()}", "")).errors).toEqual([]);
+    expect(officialSyntaxErrors(source.slice(source.indexOf("function note")).replace("{f()}", ""))).toEqual([]);
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual(["a2bcd\n"]);
   });
@@ -350,7 +354,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ],
     ["a negative value after a line-ending `=`", "function f()\n  local x =\n    -2\n  return x\nend\n", "-2"],
   ])("gives %s its value on the next line, as Luau does", (_, functions, played) => {
-    expect(parseLuau(functions).errors).toEqual([]);
+    expect(officialSyntaxErrors(functions)).toEqual([]);
     const source = `${functions}\n{f()}\n`;
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual([`${played}\n`]);

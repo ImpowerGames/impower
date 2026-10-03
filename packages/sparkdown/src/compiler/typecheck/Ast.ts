@@ -1,9 +1,8 @@
 // Luau's syntax tree, as `Ast/include/Luau/Ast.h` defines it; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`). The type checker's passes are ported
-// from Luau and read this tree. `DefinitionParser.ts` builds it from Luau
-// text (definition files, and today a document's units), and
-// `readLuauAst.ts` builds it from Sparkdown's syntax tree, which the checker
-// and the lowerers are to read instead (#1283). Names are resolved when the
+// from Luau and read this tree. `DefinitionFile.ts` loads build-time official
+// parser JSON for definition files, and `readLuauAst.ts` builds it from
+// Sparkdown's syntax tree for the checker, lints and lowerers. Names are resolved when the
 // tree is built: a name that refers to a local is an `AstExprLocal` pointing
 // at its `AstLocal`, and any other name is an `AstExprGlobal`.
 

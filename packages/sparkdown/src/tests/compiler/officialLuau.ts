@@ -17,6 +17,16 @@ export type Json =
 export interface OfficialResult {
   root: Json;
   errors: number;
+  diagnostics: OfficialSyntaxError[];
+}
+
+/** Upstream's unmodified message and UTF-8 byte positions. */
+export interface OfficialSyntaxError {
+  message: string;
+  location: {
+    begin: { line: number; column: number };
+    end: { line: number; column: number };
+  };
 }
 
 interface Module {
@@ -49,14 +59,15 @@ export async function loadOfficialLuau(): Promise<
   }
   const factory = createRequire(import.meta.url)(fileURLToPath(artifact));
   const module: Module = await factory({ wasmBinary: readFileSync(wasm) });
+  const readString = (pointer: number) => {
+    const end = module.HEAPU8.indexOf(0, pointer);
+    return Buffer.from(module.HEAPU8.subarray(pointer, end)).toString("latin1");
+  };
   return (source) => {
     const pointer = module.ccall("parse_ast", "number", ["string"], [source]);
-    const end = module.HEAPU8.indexOf(0, pointer);
     // Luau strings contain arbitrary bytes. Preserve them one-to-one, including
     // non-UTF8 escapes; the C++ encoder is compiled with unsigned char.
-    const output = Buffer.from(module.HEAPU8.subarray(pointer, end)).toString(
-      "latin1",
-    );
+    const output = readString(pointer);
     // The upstream encoder emits non-JSON numeric tokens. Quote those tokens
     // outside strings; use strings on both sides to preserve infinities and NaN.
     const json = output.replace(/"(?:[^"\\]|\\.)*"|-?Infinity|NaN/g, (token) =>
@@ -65,6 +76,7 @@ export async function loadOfficialLuau(): Promise<
     return {
       root: JSON.parse(json) as Json,
       errors: module.ccall("parse_errors", "number", [], []),
+      diagnostics: JSON.parse(readString(module.ccall("parse_error_json", "number", [], []))) as OfficialSyntaxError[],
     };
   };
 }

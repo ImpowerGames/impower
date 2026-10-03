@@ -60,7 +60,7 @@ execFileSync(
     "-sENVIRONMENT=node",
     "-sALLOW_MEMORY_GROWTH=1",
     "-sSTACK_SIZE=8388608",
-    "-sEXPORTED_FUNCTIONS=_parse_ast,_parse_errors,_malloc,_free",
+    "-sEXPORTED_FUNCTIONS=_parse_ast,_parse_errors,_parse_error_json,_malloc,_free",
     "-sEXPORTED_RUNTIME_METHODS=ccall,HEAPU8",
     "-o",
     join(target, "ast/luau-ast.cjs"),

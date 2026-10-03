@@ -12,7 +12,7 @@ import { ConstraintGenerator } from "./ConstraintGenerator";
 import { ConstraintGraph } from "./ConstraintGraph";
 import { ConstraintSolver } from "./ConstraintSolver";
 import { DataFlowGraphBuilder } from "./DataFlowGraph";
-import { parseDefinitionSource } from "./DefinitionParser";
+import { loadDefinitionAst, type DefinitionFile } from "./DefinitionFile";
 import type { LuauTypeError } from "./Error";
 import { GlobalTypes } from "./GlobalTypes";
 import { Location } from "./Location";
@@ -164,18 +164,17 @@ export class Frontend {
   }
 
   /**
-   * Checks a module of `declare` statements and adds the globals and
-   * exported types it declares to `targetScope`.
+   * Loads a prepared module of `declare` statements and adds its globals and
+   * exported types to `targetScope`. Definition source is parsed at build time
+   * with the official parser, never while an author's document is checked.
    */
-  loadDefinitionFile(globals: GlobalTypes, targetScope: Scope, source: string, packageName: string): LoadDefinitionFileResult {
-    const parseResult = parseDefinitionSource(source);
-    if (parseResult.errors.length) return { success: false, module: undefined, parseErrors: parseResult.errors };
+  loadDefinitionFile(globals: GlobalTypes, targetScope: Scope, definition: DefinitionFile, packageName: string): LoadDefinitionFileResult {
     const sourceModule: SourceModule = {
       name: packageName,
       humanReadableName: packageName,
-      root: parseResult.root,
+      root: loadDefinitionAst(definition),
       mode: Mode.Definition,
-      hotcomments: parseResult.hotcomments,
+      hotcomments: [],
       parseErrors: [],
     };
     const checkedModule = check(

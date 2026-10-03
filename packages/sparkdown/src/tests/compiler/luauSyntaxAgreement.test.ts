@@ -3,7 +3,7 @@
 //
 // For every Luau fixture, the document is compiled with `SparkdownCompiler`
 // and its syntax errors are collected, and the fixture's Luau is parsed with
-// the TypeScript port of Luau's parser (`parseLuau`). Where Sparkdown reports
+// the pinned official C++ parser. Where Sparkdown reports
 // no syntax error the parser must report none, and where Sparkdown reports one
 // the parser must report at least one.
 //
@@ -22,7 +22,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { officialSyntaxErrors } from "./officialSyntax";
 import { checkerTextUnits } from "./luauCheckerText";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
 import { KNOWN_DISAGREEMENTS, luauInputs, type LuauInput } from "./luauFixtures";
@@ -64,7 +64,7 @@ function readings({ text, luau: source }: LuauInput): { sparkdown: string[]; lua
     .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
     .map((d) => `${d.range.start.line}:${d.range.start.character} ${messageOf(d)}`);
   if (source !== undefined) {
-    const luau = parseLuau(source).errors.map((error) => `fixture line ${error.location.begin.line}:${error.location.begin.column} ${error.message}`);
+    const luau = officialSyntaxErrors(source).map((error) => `fixture line ${error.location.begin.line}:${error.location.begin.column} ${error.message}`);
     return { sparkdown, luau };
   }
   const tree = compiler.documents.tree(URI);
@@ -72,7 +72,7 @@ function readings({ text, luau: source }: LuauInput): { sparkdown: string[]; lua
   const units = checkerTextUnits(tree, text);
   const luau: string[] = [];
   for (const unit of [units.prelude, ...units.flows]) {
-    for (const error of parseLuau(unit.text).errors) {
+    for (const error of officialSyntaxErrors(unit.text)) {
       const line = unit.lines[error.location.begin.line] ?? "?";
       luau.push(`${line} (${unit.kind}) ${error.message}`);
     }

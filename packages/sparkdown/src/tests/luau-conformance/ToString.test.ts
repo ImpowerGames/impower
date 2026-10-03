@@ -29,8 +29,9 @@ import { describe, expect, test } from "vitest";
 import { errorToString } from "../../compiler/typecheck/Error";
 import { Frontend } from "../../compiler/typecheck/Frontend";
 import { Location } from "../../compiler/typecheck/Location";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
-import { checkLuauUnit, type LuauUnit } from "../../compiler/typecheck/LuauDocumentChecker";
+import { parseSource } from "../compiler/grammarSnapshot";
+import checkedAbsDefinition from "../compiler/definition-fixtures/checked-abs.json";
+import { checkLuauUnit, luauFileUnit, type LuauUnit } from "../../compiler/typecheck/LuauDocumentChecker";
 import { Mode } from "../../compiler/typecheck/Module";
 import {
   toString,
@@ -106,11 +107,11 @@ function ignoreMissingAnnotations(diagnostics: readonly LuauDiagnostic[]): LuauD
   return diagnostics.filter((d) => d.code !== "TypeAnnotationRequired");
 }
 
-/** A snippet as one unit, read with Luau's parser as upstream's `Fixture` reads it. */
+/** A snippet as one unit, through the same syntax-tree converter as a run file. */
 function luauTextUnit(source: string): LuauUnit {
-  const parsed = parseLuau(source);
-  const lines = source.split("\n").map((_, i) => i);
-  return { kind: "file", root: parsed.root, errors: parsed.errors, hotcomments: parsed.hotcomments, lines, key: source };
+  const unit = luauFileUnit(source, parseSource);
+  if (!unit) throw new Error("The converter did not read the Luau snippet");
+  return unit;
 }
 
 interface CheckedModule {
@@ -898,9 +899,7 @@ function foo(a, b) return a(b) end
     const loaded = frontend.loadDefinitionFile(
       frontend.globals,
       frontend.globals.globalScope,
-      `
-@checked declare function abs(n: number) : number
-`,
+      checkedAbsDefinition,
       "@test",
     );
     // Upstream's `loadDefinition` requires the definitions to load.

@@ -16,6 +16,9 @@ import {
   AstTypeGroup,
   AstExprUnary,
   AstExprBinary,
+  AstStatDeclareExternType,
+  AstStatDeclareGlobal,
+  AstStatDeclareFunction,
 } from "../../compiler/typecheck/Ast";
 import { Location } from "../../compiler/typecheck/Location";
 import type { AstSubstitution } from "../../compiler/typecheck/printAst";
@@ -60,9 +63,12 @@ const fields: Record<string, string[]> = Object.fromEntries(
     StatCompoundAssign: "op var value",
     StatFunction: "name func",
     StatLocalFunction: "name func",
-    StatTypeAlias: "name generics genericPacks value exported",
+    StatTypeAlias: "name nameLocation generics genericPacks value exported",
+    StatDeclareGlobal: "name nameLocation luauType",
+    StatDeclareFunction: "attributes name nameLocation params paramNames vararg varargLocation retTypes generics genericPacks",
+    StatDeclareExternType: "name superName props indexer",
     StatError: "expressions statements",
-    TypeReference: "prefix prefixLocation name nameLocation parameters",
+    TypeReference: "prefix prefixLocation name nameLocation parameters hasParameterList",
     TypeTable: "props indexer",
     TypeFunction:
       "attributes generics genericPacks argTypes argNames returnTypes",
@@ -79,7 +85,7 @@ const fields: Record<string, string[]> = Object.fromEntries(
     TypePackGeneric: "genericName",
     ExprInstantiate: "expr typeArguments",
     StatTypeFunction: "name nameLocation body exported hasErrors",
-    Attr: "name",
+    Attr: "name args",
   }).map(([kind, names]) => [kind, names ? names.split(" ") : []]),
 );
 const binaryNames =
@@ -144,6 +150,7 @@ export function printOfficialAst(
       if (value instanceof AstStatFor || value instanceof AstStatCompoundAssign)
         properties["var"] = value.variable;
       if (value instanceof AstStatTypeAlias) properties["value"] = value.type;
+      if (value instanceof AstStatDeclareGlobal) properties["luauType"] = value.type;
       if (value instanceof AstTypeGroup) properties["inner"] = value.type;
       if (value instanceof AstExprUnary)
         properties["op"] = ["Not", "Minus", "Len"][value.op];
@@ -176,14 +183,29 @@ export function printOfficialAst(
           name: p.name,
           location: p.location,
           propType: p.type,
+          access: p.access,
+          ...(p.accessLocation ? { accessLocation: p.accessLocation } : {}),
         }));
         properties["indexer"] = value.indexer
           ? {
               location: value.indexer.location,
               indexType: value.indexer.indexType,
               resultType: value.indexer.resultType,
+              access: value.indexer.access,
+              ...(value.indexer.accessLocation ? { accessLocation: value.indexer.accessLocation } : {}),
             }
           : null;
+      }
+      if (value instanceof AstStatDeclareExternType) {
+        properties["props"] = value.props.map((p) => ({
+          type: "AstDeclaredClassProp", name: p.name, nameLocation: p.nameLocation,
+          luauType: p.ty, location: p.location, access: p.access, isMethod: p.isMethod,
+        }));
+        properties["indexer"] = value.indexer ? {
+          location: value.indexer.location, indexType: value.indexer.indexType,
+          resultType: value.indexer.resultType, access: value.indexer.access,
+          ...(value.indexer.accessLocation ? { accessLocation: value.indexer.accessLocation } : {}),
+        } : null;
       }
       const typeList = (list: { types: unknown[]; tailType?: unknown }) => ({
         type: "AstTypeList",
@@ -198,8 +220,12 @@ export function printOfficialAst(
           n ? { type: "AstArgumentName", ...n } : null,
         );
       }
+      if (value instanceof AstStatDeclareFunction) {
+        properties["params"] = typeList(value.params);
+        properties["paramNames"] = value.paramNames.map((n) => ({ type: "AstArgumentName", ...n }));
+      }
       const out: Record<string, Json> = {
-        type: `Ast${value.kind}`,
+        type: value instanceof AstStatDeclareExternType ? "AstStatDeclareClass" : `Ast${value.kind}`,
         location: encode(value.location),
       };
       for (const name of names)

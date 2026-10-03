@@ -582,8 +582,12 @@ export class SparkdownCombinedAnnotator {
   ): { from: number; to: number | undefined } {
     const read = (a: number, b: number) =>
       text.sliceString(a, Math.min(b, text.length));
+    // All trivia probes in this window share the same immutable document.
+    // Materialize it only when a probe needs token lookahead.
+    let source: string | undefined;
+    const document = () => source ??= text.toString();
     type Line = ReturnType<Text["line"]>;
-    const isCode = (line: Line) => !this.holdsOnlyTrivia(tree, line, read);
+    const isCode = (line: Line) => !this.holdsOnlyTrivia(tree, line, read, document);
     const previousCode = (line: Line): Line | null => {
       for (let n = line.number - 1; n >= 1; n--) {
         const candidate = text.line(n);
@@ -615,7 +619,7 @@ export class SparkdownCombinedAnnotator {
     if (to == null) {
       return { from: windowFrom, to };
     }
-    const next = nextSignificantToken(tree.topNode, text.lineAt(to).to, read);
+    const next = nextSignificantToken(tree.topNode, text.lineAt(to).to, read, document);
     if (!next) {
       return { from: windowFrom, to: text.length };
     }
@@ -645,6 +649,7 @@ export class SparkdownCombinedAnnotator {
     tree: Tree,
     line: { from: number; to: number; text: string },
     read: (from: number, to: number) => string,
+    document: () => string,
   ): boolean {
     const indent = line.text.length - line.text.trimStart().length;
     if (indent === line.text.length) {
@@ -657,7 +662,7 @@ export class SparkdownCombinedAnnotator {
     if (!comment) {
       return false;
     }
-    const next = nextSignificantToken(tree.topNode, comment.to, read);
+    const next = nextSignificantToken(tree.topNode, comment.to, read, document);
     return next == null || next.from > line.to;
   }
 
