@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { loadOfficialLuau } from "../compiler/officialLuau";
 import { loadDefinitionAst } from "../../compiler/typecheck/DefinitionFile";
 import { Mode, type SourceModule } from "../../compiler/typecheck/Module";
+import { pinnedModuleDependencyOrder } from "./typecheckModuleOrder";
 import * as Ast from "../../compiler/typecheck/Ast";
 import {
   runAssertions,
@@ -180,6 +181,63 @@ describe("faithful fixture and query execution", () => {
     expect(result.syntaxDiagnostics).toEqual([]);
     expect(result.diagnostics).toEqual([]);
     expect(result.decoratedSource()).toBe("return '\\000',16  ");
+  });
+  test.each([
+    ['local x="a\\000b" :: "a\\000b"', "local x:'a'='a\\000b'::'a\\000b'"],
+    ['local x="\\000b" :: "\\000b"', "local x:''='\\000b'::'\\000b'"],
+    [
+      'local x="é\\000b" :: "é\\000b"; return x,0x10',
+      "local x:'é'='é\\000b'::'é\\000b';return x,16",
+    ],
+    [
+      'local x="😀\\000b" :: "😀\\000b"; return x,0x10',
+      "local x:'😀'='😀\\000b'::'😀\\000b';return x,16",
+    ],
+    ['local x="a\\x00b" :: "a\\x00b"', "local x:'a'='a\\000b'::'a\\000b'"],
+    [
+      'local x="a\\000b\\000c" :: "a\\000b\\000c"',
+      "local x:'a'='a\\000b\\000c'::'a\\000b\\000c'",
+    ],
+  ])("inferred singleton rehydration uses strlen for %s", (source, printed) => {
+    const result = checkLuau(source);
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.find({ type: "x" }).kind).toBe("SingletonType");
+    expect(result.decoratedSource()).toBe(printed);
+  });
+  test("explicit singleton and expression retain NUL byte lengths", () => {
+    const result = checkLuau('local x:"a\\000b"="a\\000b"');
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.decoratedSource()).toBe("local x:'a\\000b'='a\\000b'");
+  });
+  // Exact pinned AST printer with TypeAttach's AstName property attachment.
+  // The native adapter models the attachment; the checker below is real.
+  test.each([
+    ['local x={["a\\000b"]=1}', "local x:{a:number}={['a\\000b']=1}", "a\0b"],
+    ['local x={["\\000b"]=1}', "local x:{:number}={['\\000b']=1}", "\0b"],
+    [
+      'local x={["é\\000b"]=1}; return x,0x10',
+      "local x:{é:number}={['é\\000b']=1};return x,16",
+      "é\0b",
+    ],
+    [
+      'local x={["😀\\000b"]=1}; return x,0x10',
+      "local x:{😀:number}={['😀\\000b']=1};return x,16",
+      "😀\0b",
+    ],
+    ['local x={["a\\x00b"]=1}', "local x:{a:number}={['a\\000b']=1}", "a\0b"],
+  ])("inferred property AstName ends at NUL for %s", (source, printed, key) => {
+    const result = checkLuau(source);
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    const table = result.find({ type: "x" });
+    expect(table.kind).toBe("TableType");
+    const bytes = String.fromCharCode(...new TextEncoder().encode(key));
+    expect(result.find({ type: "x", path: [{ property: bytes }] }).kind).toBe(
+      "PrimitiveType",
+    );
+    expect(result.decoratedSource()).toBe(printed);
   });
   // Measured with the AST-only printer from the exact pinned native source.
   // Explicit annotations keep native and checker fixtures directly comparable.
@@ -782,14 +840,88 @@ describe("faithful fixture and query execution", () => {
     // module checking here; this does not claim natural-source parse success.
     expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
       ["game/C", "TypeMismatch"],
-      ["game/B", "TypeMismatch"],
       ["game/A", "TypeMismatch"],
+      ["game/B", "TypeMismatch"],
     ]);
     const missing = checkLuau("local X=require(game.Missing)\nreturn X", {
       fixture: "BuiltinsFixture",
       module: "game/Main",
     });
     expect(missing.diagnostics.map((d) => d.code)).toEqual(["UnknownRequire"]);
+  });
+  test("fresh sibling errors follow the pinned wasm32 DenseHashSet target", () => {
+    const result = checkLuau(
+      "local A=require(game.A)\nlocal B=require(game.B)\nreturn A",
+      {
+        fixture: "BuiltinsFixture",
+        module: "game/Main",
+        moduleSources: {
+          "game/A": "local a:number='a'\nreturn 1",
+          "game/B": "local b:number='b'\nreturn 1",
+        },
+      },
+    );
+    // The require syntax boundary #879 does not hide real module errors.
+    expect(result.checked).toBe(true);
+    expect(result.diagnostics.map((d) => [d.module, d.code])).toEqual([
+      ["game/A", "TypeMismatch"],
+      ["game/B", "TypeMismatch"],
+    ]);
+  });
+  // Exact DenseHashSet header compiled with the attested oracle's wasm32
+  // libc++ target. These constants are native outputs, not JS helper outputs.
+  test.each([
+    [[], []],
+    [["game/A"], ["game/A"]],
+    [
+      ["game/A", "game/B"],
+      ["game/B", "game/A"],
+    ],
+    [
+      ["game/B", "game/A"],
+      ["game/B", "game/A"],
+    ],
+    [
+      ["game/A", "game/B", "game/C"],
+      ["game/B", "game/A", "game/C"],
+    ],
+    [
+      ["game/A", "game/B", "game/A"],
+      ["game/B", "game/A"],
+    ],
+    [
+      ["game/é", "game/😀", "game/A"],
+      ["game/é", "game/😀", "game/A"],
+    ],
+  ])("pinned module hash iteration %j", (names, expected) => {
+    expect(pinnedModuleDependencyOrder(names)).toEqual(expected);
+  });
+  test.each([
+    [12, [4, 2, 7, 9, 1, 5, 10, 8, 11, 6, 3, 0]],
+    [13, [4, 10, 7, 2, 9, 11, 1, 5, 8, 12, 6, 3, 0]],
+    [
+      24,
+      [
+        16, 4, 10, 7, 2, 9, 11, 19, 22, 1, 5, 17, 15, 23, 8, 12, 13, 14, 18, 6,
+        21, 3, 0, 20,
+      ],
+    ],
+    [
+      25,
+      [
+        16, 4, 10, 7, 9, 11, 2, 19, 22, 5, 1, 24, 17, 15, 23, 8, 12, 13, 14, 18,
+        21, 6, 3, 0, 20,
+      ],
+    ],
+  ] as const)("pinned module hash growth boundary %i", (count, expected) => {
+    const names = Array.from({ length: count }, (_, i) => "game/Module" + i);
+    expect(pinnedModuleDependencyOrder(names)).toEqual(
+      expected.map((i) => "game/Module" + i),
+    );
+    // Duplicate insertion at the threshold must not grow/reorder the set.
+    expect(pinnedModuleDependencyOrder([...names, names[0]!])).toEqual(
+      expected.map((i) => "game/Module" + i),
+    );
   });
   test("unchanged cached dependency errors stay out of a fresh shared result", () => {
     const session: LuauCheckSession = { modules: new Map() };

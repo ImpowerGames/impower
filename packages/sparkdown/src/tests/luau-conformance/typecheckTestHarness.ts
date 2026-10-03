@@ -50,6 +50,7 @@ import {
 import { loadOfficialLuau } from "../compiler/officialLuau";
 import { decorateSource } from "./typecheckDecoration";
 import { queryType } from "./typecheckQueries";
+import { pinnedModuleDependencyOrder } from "./typecheckModuleOrder";
 import {
   Type,
   type TypeId,
@@ -548,7 +549,7 @@ export function checkLuau(
   const collect = (name: string) => {
     if (seen.has(name)) return;
     seen.add(name);
-    for (const dependency of [...(requires.get(name) ?? [])].reverse())
+    for (const dependency of pinnedModuleDependencyOrder(requires.get(name) ?? []).reverse())
       collect(dependency);
     const result = session.modules.get(name);
     if (!result) return;

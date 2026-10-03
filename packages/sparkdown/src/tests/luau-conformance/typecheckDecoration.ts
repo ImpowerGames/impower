@@ -17,6 +17,9 @@ import {
 // Pinned TypeAttach.cpp rehydrates type cells into AST annotations before
 // PrettyPrinter.cpp prints them. Diagnostic toString text is a different format.
 function inferredPrinter() {
+  // Rehydrated AstName/c_str strings and singleton strlen share this boundary.
+  // Source AST string literals retain their separate explicit byte lengths.
+  const cString = (value: string) => value.split("\0", 1)[0]!;
   const names = new Map<TypeId | TypePackId, string>();
   const active = new Set<TypeId | TypePackId>();
   const genericName = (
@@ -29,7 +32,7 @@ function inferredPrinter() {
       result = explicit ? name : generateName(names.size, true);
       names.set(id, result);
     }
-    return result;
+    return cString(result);
   };
   const printPackTail = (id: TypePackId): string => {
     const value = followPack(id),
@@ -48,7 +51,7 @@ function inferredPrinter() {
       case "BlockedTypePack":
         return "*blocked*...";
       case "TypeFunctionInstanceTypePack":
-        return p.function.name + "...";
+        return cString(p.function.name) + "...";
       default:
         throw new Error("unsupported inferred pack decoration: " + p.kind);
     }
@@ -59,7 +62,8 @@ function inferredPrinter() {
   ): string => {
     const { head, tail } = flatten(id);
     const parts = head.map(
-      (v, i) => (argNames?.[i] ? argNames[i]!.name + ":" : "") + printType(v),
+      (v, i) =>
+        (argNames?.[i] ? cString(argNames[i]!.name) + ":" : "") + printType(v),
     );
     if (tail) {
       const text = printPackTail(tail);
@@ -71,7 +75,7 @@ function inferredPrinter() {
     const value = follow(id),
       t = value.ty;
     if (active.has(value)) {
-      if (t.kind === "TableType") return t.name ?? "<Cycle>";
+      if (t.kind === "TableType") return cString(t.name ?? "<Cycle>");
       if (t.kind === "FunctionType") return "<Cycle>";
       throw new Error("unsupported cyclic inferred decoration: " + t.kind);
     }
@@ -92,7 +96,9 @@ function inferredPrinter() {
           ][t.type]!;
         case "SingletonType":
           return t.variant.kind === "StringSingleton"
-            ? pinnedString(t.variant.value)
+            ? // TypeAttach rehydrates the c_str with strlen, unlike source AST
+              // strings whose explicit byte length preserves embedded NUL.
+              pinnedString(cString(t.variant.value))
             : String(t.variant.value);
         case "AnyType":
           return "any";
@@ -113,22 +119,24 @@ function inferredPrinter() {
         case "GenericType":
           return genericName(value, t.name, t.explicitName);
         case "ExternType":
-          return t.name;
+          return cString(t.name);
         case "MetatableType":
           return printType(t.table);
         case "NegationType":
           return "negate<" + printType(t.ty) + ">";
         case "TypeFunctionInstanceType":
-          return t.function.name;
+          return cString(t.function.name);
         case "FunctionType": {
           const generics = [
             ...t.generics.map((v) => {
               const g = get(follow(v), "GenericType");
-              return g?.name ?? "";
+              return cString(g?.name ?? "");
             }),
             ...t.genericPacks.map((v) => {
               const g = followPack(v).ty;
-              return g.kind === "GenericTypePack" ? g.name + "..." : "";
+              return g.kind === "GenericTypePack"
+                ? cString(g.name) + "..."
+                : "";
             }),
           ].filter(Boolean);
           return (
@@ -146,7 +154,9 @@ function inferredPrinter() {
               ...t.instantiatedTypeParams.map(printType),
               ...t.instantiatedTypePackParams.map(printPackTail),
             ];
-            return t.name + (args.length ? "<" + args.join(",") + ">" : "");
+            return (
+              cString(t.name) + (args.length ? "<" + args.join(",") + ">" : "")
+            );
           }
           const props = [...t.props].sort(([a], [b]) =>
             a < b ? -1 : a > b ? 1 : 0,
@@ -160,9 +170,9 @@ function inferredPrinter() {
             return "{" + printType(t.indexer.indexResultType) + "}";
           const items: string[] = [];
           for (const [name, p] of props) {
-            if (p.readTy) items.push(name + ":" + printType(p.readTy));
+            if (p.readTy) items.push(cString(name) + ":" + printType(p.readTy));
             if (p.writeTy && !p.isShared())
-              items.push(name + ":" + printType(p.writeTy));
+              items.push(cString(name) + ":" + printType(p.writeTy));
           }
           if (t.indexer)
             items.push(
