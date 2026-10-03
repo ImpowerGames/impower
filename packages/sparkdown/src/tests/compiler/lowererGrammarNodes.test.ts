@@ -38,7 +38,15 @@ describe("lowerer grammar distinctions", () => {
     expect(stripAnsi(dumpTree("layout main with\n  button @click=go\nend\n"))).toContain("LuauSparkleEventHandlerName");
   });
 
-  test.each(["load forest", ": load forest", ".. load forest", ":\n  load forest"])(
+  test.each([
+    "load forest",
+    ": load forest",
+    ".. load forest",
+    ":\n  load forest",
+    ":\n\n  load forest",
+    ":\n  \n\n  load forest",
+    ":\n  // preload the next scene\n  load forest",
+  ])(
     "%s remains a load directive", (line) => {
       const { story, errorMessages } = makeRuntimeStoryFromSource(`${line}\ndone\n`);
       expect(errorMessages).toEqual([]);

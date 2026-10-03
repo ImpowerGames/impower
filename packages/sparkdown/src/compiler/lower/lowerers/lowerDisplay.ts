@@ -167,8 +167,13 @@ function buildDisplayCalls(
         (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
       );
     // A `load` line stays a directive when the line before it ends with `..`.
-    const loadArgs = lineType === "action" && body[0] instanceof LoadMark
-      ? body.slice(1) : null;
+    // Block bodies retain blank lines before their first meaningful token.
+    // Ignore that whitespace when consuming the grammar's load marker.
+    const firstContent = body.findIndex(
+      (part) => !(part instanceof Text) || part.text.trim().length > 0,
+    );
+    const loadArgs = lineType === "action" && body[firstContent] instanceof LoadMark
+      ? body.slice(firstContent + 1) : null;
     if (loadArgs) {
       // Everything after `load` names assets, so a `..` ending the line joins
       // nothing onto it.
@@ -324,8 +329,8 @@ function isBlankText(obj: ParsedObject | undefined): boolean {
 // the line shows.
 //
 // A `..` right after a break in the middle of a line begins the part after it
-// (`A .. > .. B`): the range that part starts at `leads`, and starts after the
-// mark and the spaces after it.
+// (`A .. > .. B`): the following range is marked `leads` and starts at the
+// break's end. Body walking consumes the named glue mark and its separator.
 function splitBodyRangeAtBreaks(
   parent: SyntaxNode,
   bodyStart: number,
