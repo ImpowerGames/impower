@@ -96,7 +96,11 @@ function unitGraphs(check: LuauUnitCheck): unknown {
     bindings: [...scope.bindings].map(([symbol, binding]) => [typeof symbol === "string" ? symbol : symbol.name, observe(binding)]),
     aliases: [...scope.exportedTypeBindings, ...scope.privateTypeBindings].map(([name, alias]) => [name, observe(alias)]),
   }));
-  return { scopes, cells };
+  const ast = Object.fromEntries(([
+    "astTypes", "astTypePacks", "astExpectedTypes", "astOriginalCallTypes", "astOverloadResolvedTypes",
+    "astForInNextTypes", "astResolvedTypes", "astResolvedTypePacks", "astCompoundAssignResultTypes",
+  ] as const).map((name) => [name, [...check.module[name]].map(([node, type]) => ({ location: observe(node.location), type: observe(type) }))]));
+  return { scopes, ast, cells };
 }
 
 /** What a compile says about the document's types: its type warnings and every binding's type. */
@@ -378,6 +382,18 @@ describe("prelude export equivalence", () => {
     const a = exports(), b = exports();
     a.table.ty = { kind: "BlockedType", index: 1, owner: undefined };
     b.table.ty = { kind: "BlockedType", index: 1, owner: undefined };
+    expect(equivalentExports(a.scope, b.scope)).toBe(false);
+  });
+
+  test("compares an existing metatable edge without a binding-count change", () => {
+    const a = exports(), b = exports();
+    const left = new Type({ kind: "MetatableType", table: a.table, metatable: number });
+    const right = new Type({ kind: "MetatableType", table: b.table, metatable: number });
+    a.scope.bindings.set("meta", { typeId: left, location: new Location() });
+    b.scope.bindings.set("meta", { typeId: right, location: new Location() });
+    expect(equivalentExports(a.scope, b.scope)).toBe(true);
+    if (right.ty.kind !== "MetatableType") throw new Error("metatable");
+    right.ty.metatable = string;
     expect(equivalentExports(a.scope, b.scope)).toBe(false);
   });
 });
