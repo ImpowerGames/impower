@@ -4,6 +4,7 @@ import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
+import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 
 function expectLuauReading(body: string): void {
   const source = `function run()\n  ${body}\nend\n`;
@@ -16,6 +17,22 @@ function expectLuauReading(body: string): void {
 }
 
 describe("casts read their targets as types (#877)", () => {
+  const compoundTargets = [
+    "number | string", "number & string", "() -> number",
+    "(number | string)", "(number) -> (number, string)",
+    "Array<number | string>", "{value: number | string}",
+    "{number | string}", "typeof(a)", "(number | string) & number",
+    "() -> Array<number>", "Array<(number) -> string>",
+  ];
+  const operators = ["+", "-", "*", "/", "//", "%", "^", "..", ">", "==", "and", "or"];
+  test.each(compoundTargets.flatMap((target) => operators.map((operator) => [target, operator])))
+    ("terminates %s before %s in both engines", async (target, operator) => {
+      const body = `return a :: ${target} ${operator} b`;
+      expectLuauReading(body);
+      const source = `function run()\n  ${body}\nend\n`;
+      const result = await compareEnginesFull(source);
+      expect(result.divergences, formatDivergences(source, result.divergences)).toEqual([]);
+    });
   test.each([
     "number", "number?", "number? | string", "number & string",
     "(number) -> string", "{number}", "{value: number?}",
