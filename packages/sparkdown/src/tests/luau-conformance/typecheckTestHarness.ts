@@ -474,6 +474,7 @@ export function checkLuau(
   }
   session.modules.delete(entry);
   const visiting = new Set<string>();
+  const freshlyChecked = new Set<string>();
   const requires = new Map<string, Set<string>>();
   const resolveName = (
     current: string,
@@ -516,6 +517,7 @@ export function checkLuau(
     try {
       const result = checkLuauUnit(frontend, name, input.unit, mode);
       session.modules.set(name, result);
+      freshlyChecked.add(name);
       return result;
     } finally {
       visiting.delete(name);
@@ -537,31 +539,24 @@ export function checkLuau(
   };
   frontend.moduleResolver = resolver;
   const checked = checkModule(entry)!;
-  // Pinned Frontend.cpp::accumulateErrors: reverse per-module source order,
-  // visit each reachable require once, then reverse the complete result.
+  // Fixture::check dirties the entry. Pinned Frontend::parseGraph uses LIFO
+  // dependency postorder; check appends only freshly checked module errors,
+  // without cached getCheckResult's source sorting.
   const allErrors: LuauTypeError[] = [];
   const reachable: ReturnType<typeof checkLuauUnit>[] = [];
-  const seen = new Set<string>(),
-    queue = [entry];
-  while (queue.length) {
-    const name = queue.pop()!;
-    if (seen.has(name)) continue;
+  const seen = new Set<string>();
+  const collect = (name: string) => {
+    if (seen.has(name)) return;
     seen.add(name);
-    queue.push(...(requires.get(name) ?? []));
+    for (const dependency of [...(requires.get(name) ?? [])].reverse())
+      collect(dependency);
     const result = session.modules.get(name);
-    if (!result) continue;
+    if (!result) return;
     reachable.push(result);
-    allErrors.push(
-      ...[...result.errors]
-        .reverse()
-        .sort(
-          (a, b) =>
-            b.location.begin.line - a.location.begin.line ||
-            b.location.begin.column - a.location.begin.column,
-        ),
-    );
-  }
-  allErrors.reverse();
+    if (freshlyChecked.has(name))
+      allErrors.push(...result.sourceModule.parseErrors, ...result.module.errors);
+  };
+  collect(entry);
   if (options.retainFullTypeGraphs === false) {
     for (const checked of reachable) {
       copyErrors(

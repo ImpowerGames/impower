@@ -742,6 +742,79 @@ describe("faithful fixture and query execution", () => {
     ]);
     expect(r.find({ diagnosticType: [0, "givenType"] }).print()).toBe("string");
   });
+  test("fresh fixture errors preserve checker insertion order before source sorting", () => {
+    // Pinned TypeInfer.tables.test.cpp:1867. Fixture::check marks this module
+    // dirty; Frontend::check returns raw fresh errors, not cached getCheckResult.
+    const result = checkLuau(
+      '\n        type MixedTable = {[number]: number, x: number}\n        local t: MixedTable = {"fail"}\n    ',
+    );
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics.map((d) => d.code)).toEqual([
+      "TypeMismatch",
+      "MissingProperties",
+    ]);
+    expect(result.find({ diagnosticType: [0, "wantedType"] }).print()).toBe(
+      "number",
+    );
+    expect(result.find({ diagnosticType: [0, "givenType"] }).print()).toBe(
+      "string",
+    );
+    expect(result.diagnostics[1]?.data).toMatchObject({
+      context: "Missing",
+      properties: ["x"],
+    });
+  });
+  test("fresh dependency errors use postorder and preserve missing-module errors", () => {
+    const session: LuauCheckSession = { modules: new Map() };
+    const source = "local A=require(game.A)\nlocal B=require(game.B)\nreturn A";
+    const first = checkLuau(source, {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+      session,
+      moduleSources: {
+        "game/A": "local C=require(game.C)\nlocal a:number='a'\nreturn 1",
+        "game/B": "local C=require(game.C)\nlocal b:number='b'\nreturn 1",
+        "game/C": "local c:number='c'\nreturn 1",
+        "game/Unused": "local unused:number='u'\nreturn 1",
+      },
+    });
+    // The existing require-parser defect #879 is distinct from real prepared
+    // module checking here; this does not claim natural-source parse success.
+    expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
+      ["game/C", "TypeMismatch"],
+      ["game/B", "TypeMismatch"],
+      ["game/A", "TypeMismatch"],
+    ]);
+    const missing = checkLuau("local X=require(game.Missing)\nreturn X", {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+    });
+    expect(missing.diagnostics.map((d) => d.code)).toEqual(["UnknownRequire"]);
+  });
+  test("unchanged cached dependency errors stay out of a fresh shared result", () => {
+    const session: LuauCheckSession = { modules: new Map() };
+    const source = "local A=require(game.A)\nreturn A";
+    const first = checkLuau(source, {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+      session,
+      moduleSources: { "game/A": "local a:number='a'\nreturn 1" },
+    });
+    expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
+      ["game/A", "TypeMismatch"],
+    ]);
+    const second = checkLuau(source, {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+      session,
+    });
+    expect(second.diagnostics).toEqual([]);
+    expect(
+      second
+        .find({ module: "game/A", diagnosticType: [0, "givenType"] })
+        .print(),
+    ).toBe("string");
+  });
   test("error builtin identity is accepted by port coverage validation", () => {
     const c: PortedCase = {
       name: "a",
