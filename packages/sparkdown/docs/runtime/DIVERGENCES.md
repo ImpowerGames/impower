@@ -630,8 +630,11 @@ Integer-shaped literals such as `0i`, `123i`, `0xABi` and `0b101i` report the
 error **Luau 64-bit integer literals are not supported in Sparkdown**. The
 error covers the whole literal, including its suffix and underscores. Large
 integer-shaped literals receive the same unsupported error; Sparkdown does
-not implement native integer range or overflow checks. Malformed spellings
-such as `123ii`, `0xg` and `1.2.3` still report **Malformed number**. Ordinary
+not implement native integer range or overflow checks. Luau also accepts
+hexadecimal integer spellings with no digits, such as `0xi` and `0x_i`;
+these receive the same unsupported error. Zero-digit binary spellings such
+as `0bi`, and other malformed spellings such as `123ii`, `0xg` and `1.2.3`,
+report **Malformed number**. Ordinary
 number literals remain numbers.
 
 The inherited Luau checker recognizes upstream `integer` annotations and
