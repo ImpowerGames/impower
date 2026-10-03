@@ -1,7 +1,7 @@
 // Incremental type checking (#599). The checker caches each unit's result (a
 // `.sd` file's prelude, and each scene or branch) and reuses it when the unit
-// and what it can see are unchanged; a change to the prelude checks every
-// flow of its file again. These tests
+// and what it can see are unchanged; a prelude edit rechecks its flows when
+// exported graph equivalence cannot be proved. These tests
 // edit a document between compiles and prove that each warm check gives the
 // same warnings and types as a cold check of the same text, and that it
 // reuses what it should.
@@ -13,6 +13,10 @@ import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
 import type { LuauUnitCheck } from "../../compiler/typecheck/LuauDocumentChecker";
 import type { SparkdownTypechecker } from "../../compiler/typecheck/SparkdownTypechecker";
 import { toString } from "../../compiler/typecheck/ToString";
+import { equivalentExports } from "../../compiler/typecheck/EquivalentExports";
+import { Location } from "../../compiler/typecheck/Location";
+import { Scope } from "../../compiler/typecheck/Scope";
+import { functionType, genericType, genericTypePack, PrimitiveKind, Property, Props, tableType, TableIndexer, TableState, Type, TypeFun, TypePackVar } from "../../compiler/typecheck/Type";
 
 const URI = "inmemory:///main.sd";
 
@@ -61,6 +65,44 @@ function unitTypes(check: LuauUnitCheck): string[] {
   return out;
 }
 
+/** Independent graph observations, beyond diagnostic printing's names/limits.
+ * Allocation counters, arenas and solver scope objects belong to a check's
+ * execution, so normalize those while retaining type edges/sharing and all
+ * other variant/alias/property metadata. This is test evidence, never a key.
+ */
+function unitGraphs(check: LuauUnitCheck): unknown {
+  const ids = new Map<Type | TypePackVar, number>();
+  const cells: unknown[] = [];
+  const observe = (value: unknown): unknown => {
+    if (value instanceof Type || value instanceof TypePackVar) {
+      const prior = ids.get(value);
+      if (prior !== undefined) return { ref: prior };
+      const id = cells.length;
+      ids.set(value, id);
+      cells.push(null);
+      cells[id] = { persistent: value.persistent, documentation: value instanceof Type ? value.documentationSymbol : undefined, variant: observe(value.ty) };
+      return { ref: id };
+    }
+    if (value instanceof Props) return observe(value.entries());
+    if (Array.isArray(value)) return value.map(observe);
+    if (typeof value === "function") return String(value);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => key !== "scope" && key !== "index")
+      .map(([key, item]) => [key, observe(item)]));
+    return value;
+  };
+  const scopes = check.module.scopes.map(([location, scope]) => ({
+    location: observe(location),
+    bindings: [...scope.bindings].map(([symbol, binding]) => [typeof symbol === "string" ? symbol : symbol.name, observe(binding)]),
+    aliases: [...scope.exportedTypeBindings, ...scope.privateTypeBindings].map(([name, alias]) => [name, observe(alias)]),
+  }));
+  const ast = Object.fromEntries(([
+    "astTypes", "astTypePacks", "astExpectedTypes", "astOriginalCallTypes", "astOverloadResolvedTypes",
+    "astForInNextTypes", "astResolvedTypes", "astResolvedTypePacks", "astCompoundAssignResultTypes",
+  ] as const).map((name) => [name, [...check.module[name]].map(([node, type]) => ({ location: observe(node.location), type: observe(type) }))]));
+  return { scopes, ast, cells };
+}
+
 /** What a compile says about the document's types: its type warnings and every binding's type. */
 function snapshot(compiler: SparkdownCompiler) {
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
@@ -71,7 +113,8 @@ function snapshot(compiler: SparkdownCompiler) {
       return `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${d.code}: ${message}`;
     });
   const types = typechecker(compiler).checksOf(URI).flatMap(unitTypes);
-  return { warnings, types };
+  const graphs = typechecker(compiler).checksOf(URI).map(unitGraphs);
+  return { warnings, types, graphs };
 }
 
 function position(text: string, offset: number) {
@@ -210,11 +253,23 @@ describe("incremental type checking", () => {
     ]);
     expect(stats).toEqual({ checked: 3, reused: 0 });
 
-    // A body edit changes the prelude too, and a flow sees the prelude only
-    // through its check, so the callers are checked again.
+    // A body edit checks the prelude again, but leaves the callers' types
+    // and messages unchanged, so their results can be reused (#999).
     const body = session.edit('  return "Hi " .. name', '  return "Hello " .. tostring(name)');
     expect(body.warm).toEqual(body.cold);
-    expect(body.stats).toEqual({ checked: 3, reused: 0 });
+    expect(body.stats).toEqual({ checked: 1, reused: 2 });
+  });
+
+  test("typing inside a function body reuses scenes without hiding a new prelude warning", () => {
+    const session = new Session(BASE);
+    const step = session.edit('return "Hi " .. name', 'return 42');
+    expect(step.warm).toEqual(step.cold);
+    expect(step.warm.warnings).toEqual(["7:9-7:11 TypeMismatch: Expected this to be 'string', but got 'number'"]);
+    expect(step.stats).toEqual({ checked: 1, reused: 2 });
+    const back = session.edit('return 42', 'return "Hello " .. name');
+    expect(back.warm).toEqual(back.cold);
+    expect(back.warm.warnings).toEqual([]);
+    expect(back.stats).toEqual({ checked: 1, reused: 2 });
   });
 
   test("swapping a prelude type between two aliases of the same shape checks the flows that use it again", () => {
@@ -259,5 +314,86 @@ describe("incremental type checking", () => {
     expect(warm).toEqual(cold);
     expect(warm.warnings).toEqual(["8:24-8:30 TypeMismatch: Expected this to be 'number', but got 'string'"]);
     expect(stats).toEqual({ checked: 2, reused: 0 });
+  });
+});
+
+describe("prelude export equivalence", () => {
+  const parent = Scope.root(new TypePackVar({ kind: "TypePack", head: [] }));
+  const number = new Type({ kind: "PrimitiveType", type: PrimitiveKind.Number }, true);
+  const string = new Type({ kind: "PrimitiveType", type: PrimitiveKind.String }, true);
+  function exports() {
+    const scope = Scope.child(parent);
+    const generic = new Type(genericType({ name: "T" }));
+    const pack = new TypePackVar(genericTypePack({ name: "U" }));
+    const table = new Type(tableType({ state: TableState.Sealed, props: new Props([["value", Property.rw(generic)]]) }));
+    if (table.ty.kind !== "TableType") throw new Error("table");
+    table.ty.name = "Box";
+    table.ty.instantiatedTypeParams = [generic];
+    table.ty.instantiatedTypePackParams = [pack];
+    table.ty.indexer = new TableIndexer(string, number);
+    const fn = new Type(functionType(new TypePackVar({ kind: "TypePack", head: [generic], tail: pack }),
+      new TypePackVar({ kind: "TypePack", head: [table] }), { generics: [generic], genericPacks: [pack] }));
+    scope.bindings.set("make", { typeId: fn, location: new Location() });
+    scope.privateTypeBindings.set("Box", new TypeFun(table, [{ ty: generic, defaultValue: number }], [{ tp: pack,
+      defaultValue: new TypePackVar({ kind: "VariadicTypePack", ty: string, hidden: false }) }]));
+    return { scope, table, fn, generic, pack };
+  }
+
+  test("compares recursive graphs and generic sharing without allocation indices", () => {
+    const a = exports(), b = exports();
+    expect(equivalentExports(a.scope, b.scope)).toBe(true);
+    if (a.table.ty.kind !== "TableType" || b.table.ty.kind !== "TableType") throw new Error("table");
+    a.table.ty.props.set("next", Property.rw(a.table));
+    b.table.ty.props.set("next", Property.rw(b.table));
+    expect(equivalentExports(a.scope, b.scope)).toBe(true);
+    b.table.ty.props.get("value")!.writeTy = new Type(genericType({ name: "T" }));
+    expect(equivalentExports(a.scope, b.scope)).toBe(false);
+  });
+
+  test.each(["name", "syntheticName", "state", "read", "write", "indexer", "indexerReadOnly", "metatable",
+    "default", "packDefault", "generic", "genericPack", "argumentName", "deprecation", "documentation", "tag", "newField"])(
+    "invalidates changes to %s even when the usual printed type can stay alike", (change) => {
+      const a = exports(), b = exports();
+      if (b.table.ty.kind !== "TableType" || b.fn.ty.kind !== "FunctionType" || b.generic.ty.kind !== "GenericType" || b.pack.ty.kind !== "GenericTypePack") throw new Error("fixture");
+      const table = b.table.ty;
+      switch (change) {
+        case "name": table.name = "Other"; break;
+        case "syntheticName": table.syntheticName = "Other"; break;
+        case "state": table.state = TableState.Unsealed; break;
+        case "read": table.props.get("value")!.readTy = string; break;
+        case "write": table.props.get("value")!.writeTy = undefined; break;
+        case "indexer": table.indexer!.indexResultType = string; break;
+        case "indexerReadOnly": table.indexer!.isReadOnly = true; break;
+        case "metatable": b.scope.bindings.set("meta", { typeId: new Type({ kind: "MetatableType", table: b.table, metatable: string }), location: new Location() }); break;
+        case "default": b.scope.privateTypeBindings.get("Box")!.typeParams[0]!.defaultValue = string; break;
+        case "packDefault": b.scope.privateTypeBindings.get("Box")!.typePackParams[0]!.defaultValue = b.pack; break;
+        case "generic": b.generic.ty.name = "V"; break;
+        case "genericPack": b.pack.ty.name = "V"; break;
+        case "argumentName": b.fn.ty.argNames = [{ name: "item", location: new Location() }]; break;
+        case "deprecation": table.props.get("value")!.deprecated = true; break;
+        case "documentation": b.table.documentationSymbol = "other"; break;
+        case "tag": table.tags.push("other"); break;
+        case "newField": Object.assign(table, { futureObservableField: true }); break;
+      }
+      expect(equivalentExports(a.scope, b.scope)).toBe(false);
+    });
+
+  test("unresolved and executable cells cannot be proved equivalent by matching shapes", () => {
+    const a = exports(), b = exports();
+    a.table.ty = { kind: "BlockedType", index: 1, owner: undefined };
+    b.table.ty = { kind: "BlockedType", index: 1, owner: undefined };
+    expect(equivalentExports(a.scope, b.scope)).toBe(false);
+  });
+
+  test("compares an existing metatable edge without a binding-count change", () => {
+    const a = exports(), b = exports();
+    const left = new Type({ kind: "MetatableType", table: a.table, metatable: number });
+    const right = new Type({ kind: "MetatableType", table: b.table, metatable: number });
+    a.scope.bindings.set("meta", { typeId: left, location: new Location() });
+    b.scope.bindings.set("meta", { typeId: right, location: new Location() });
+    expect(equivalentExports(a.scope, b.scope)).toBe(true);
+    if (right.ty.kind !== "MetatableType") throw new Error("metatable");
+    right.ty.metatable = string;
+    expect(equivalentExports(a.scope, b.scope)).toBe(false);
   });
 });

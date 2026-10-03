@@ -7,10 +7,6 @@ import { NEW_SOLVER_GUARD_REASON, portUpstreamFile } from "./portedCases";
 portUpstreamFile("TypeInfer.provisional.test.cpp", [
   {
     // TypeInfer.provisional.test.cpp:44 TEST_CASE_FIXTURE(Fixture, "typeguard_inference_incomplete")
-    // Upstream compares the source printed with every inferred type
-    // (decorateWithTypes) with an expected text, in which `a` is
-    // `{fn:()->(unknown,...unknown)}` and the refinements give `a1` and `a2`
-    // that type intersected with `boolean` and with every other primitive type.
     name: "typeguard_inference_incomplete",
     fixture: "Fixture",
     source: `
@@ -22,7 +18,15 @@ portUpstreamFile("TypeInfer.provisional.test.cpp", [
             end
         end
     `,
-    expect: [],
+    expect: [{ decoratedSource: `
+        function f(a:{fn:()->(unknown,...unknown)}): ()
+            if type(a) == 'boolean' then
+                local a1:{fn:()->(unknown,...unknown)}&boolean=a
+            elseif a.fn() then
+                local a2:{fn:()->(unknown,...unknown)}&(userdata|function|nil|number|integer|string|thread|buffer|table)=a
+            end
+        end
+    ` }],
   },
   {
     // TypeInfer.provisional.test.cpp:99 TEST_CASE_FIXTURE(BuiltinsFixture, "luau-polyfill.Array.filter")
@@ -59,8 +63,6 @@ end
   },
   {
     // TypeInfer.provisional.test.cpp:136 TEST_CASE_FIXTURE(BuiltinsFixture, "xpcall_returns_what_f_returns")
-    // Upstream also compares the source printed with every inferred type
-    // (decorateWithTypes) with an expected text.
     name: "xpcall_returns_what_f_returns",
     fixture: "BuiltinsFixture",
     source: `
@@ -70,6 +72,9 @@ end
       { type: "a", equals: "boolean" },
       { type: "b", equals: "number" },
       { type: "c", equals: "string" },
+      { decoratedSource: `
+        local a:boolean,b:number,c:string=xpcall(function(): (number,string)return 1,'foo'end,function(): (string,number)return'foo',1 end)
+    ` },
       { errors: 0 },
     ],
   },
@@ -350,7 +355,6 @@ end
   },
   {
     // TypeInfer.provisional.test.cpp:581 TEST_CASE_FIXTURE(BuiltinsFixture, "generic_type_leak_to_module_interface")
-    // Upstream checks that the module game/B returns `*error-type*`.
     name: "generic_type_leak_to_module_interface",
     fixture: "BuiltinsFixture",
     checks: [
@@ -384,13 +388,12 @@ local Constants = {}
 
 return wrapStrictTable(Constants, "Constants")
     `,
-        expect: [],
+        expect: [{ moduleReturn: true, equals: "*error-type*" }],
       },
     ],
   },
   {
     // TypeInfer.provisional.test.cpp:625 TEST_CASE_FIXTURE(BuiltinsFixture, "generic_type_leak_to_module_interface_variadic")
-    // Upstream checks that the module game/B returns `*error-type*`.
     name: "generic_type_leak_to_module_interface_variadic",
     fixture: "BuiltinsFixture",
     checks: [
@@ -424,7 +427,7 @@ local Constants = {}
 
 return wrapStrictTable(Constants, "Constants")
     `,
-        expect: [],
+        expect: [{ moduleReturn: true, equals: "*error-type*" }],
       },
     ],
   },
@@ -445,8 +448,6 @@ return wrapStrictTable(Constants, "Constants")
   },
   {
     // TypeInfer.provisional.test.cpp:690 TEST_CASE_FIXTURE(IsSubtypeFixture, "functions_with_mismatching_arity")
-    // Upstream checks that none of `a`, `b` and `c` is a subtype of another:
-    // `a` of `b`, `a` of `c`, `b` of `c`.
     name: "functions_with_mismatching_arity",
     fixture: "IsSubtypeFixture",
     source: `
@@ -455,12 +456,14 @@ return wrapStrictTable(Constants, "Constants")
 
         local c: () -> number
     `,
-    expect: [],
+    expect: [
+      { type: "a", subtypeOf: { type: "b" }, isSubtype: false },
+      { type: "a", subtypeOf: { type: "c" }, isSubtype: false },
+      { type: "b", subtypeOf: { type: "c" }, isSubtype: false },
+    ],
   },
   {
     // TypeInfer.provisional.test.cpp:713 TEST_CASE_FIXTURE(IsSubtypeFixture, "functions_with_mismatching_arity_but_optional_parameters")
-    // Upstream checks that `b` and `c` are not subtypes of `a`, and that `a` is
-    // a subtype of `b`.
     name: "functions_with_mismatching_arity_but_optional_parameters",
     fixture: "IsSubtypeFixture",
     source: `
@@ -468,12 +471,14 @@ return wrapStrictTable(Constants, "Constants")
         local b: (number) -> ()
         local c: (number, number?) -> ()
     `,
-    expect: [],
+    expect: [
+      { type: "b", subtypeOf: { type: "a" }, isSubtype: false },
+      { type: "c", subtypeOf: { type: "a" }, isSubtype: false },
+      { type: "a", subtypeOf: { type: "b" }, isSubtype: true },
+    ],
   },
   {
     // TypeInfer.provisional.test.cpp:773 TEST_CASE_FIXTURE(IsSubtypeFixture, "functions_with_mismatching_arity_but_any_is_an_optional_param")
-    // Upstream checks that `b` and `c` are not subtypes of `a`, and that `a` is
-    // a subtype of `b`.
     name: "functions_with_mismatching_arity_but_any_is_an_optional_param",
     fixture: "IsSubtypeFixture",
     source: `
@@ -481,7 +486,11 @@ return wrapStrictTable(Constants, "Constants")
         local b: (number) -> ()
         local c: (number, any) -> ()
     `,
-    expect: [],
+    expect: [
+      { type: "b", subtypeOf: { type: "a" }, isSubtype: false },
+      { type: "c", subtypeOf: { type: "a" }, isSubtype: false },
+      { type: "a", subtypeOf: { type: "b" }, isSubtype: true },
+    ],
   },
   {
     // TypeInfer.provisional.test.cpp:822 TEST_CASE_FIXTURE(Fixture, "assign_table_with_refined_property_with_a_similar_type_is_illegal")

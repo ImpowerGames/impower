@@ -38,12 +38,18 @@ export type Assertion =
   | { anyError: string }
   /** `LUAU_REQUIRE_NO_ERROR(result, Kind)`. */
   | { noError: string }
+  /** A fact about every error, without asserting their count. */
+  | { everyError: { line: number } }
+  /** Exact decorateWithTypes output, including its whitespace. */
+  | { decoratedSource: string }
   /** A fact about a type: printed text, class, identity, return pack, type parameter count or property count. */
   | (TypeSelector & {
       equals?: string;
       options?: LuauToStringOptions;
       kind?: string;
       sameAs?: TypeSelector;
+      subtypeOf?: TypeSelector;
+      isSubtype?: boolean;
       results?: string[];
       typeParameters?: number;
       properties?: number;
@@ -242,15 +248,20 @@ const ASSERTION_KEYS = {
   }),
   anyError: keyList<Extract<Assertion, { anyError: unknown }>>({ anyError: true }),
   noError: keyList<Extract<Assertion, { noError: unknown }>>({ noError: true }),
+  everyError: keyList<Extract<Assertion, { everyError: unknown }>>({ everyError: true }),
+  decoratedSource: keyList<Extract<Assertion, { decoratedSource: unknown }>>({ decoratedSource: true }),
   type: keyList<Extract<Assertion, TypeSelector>>({
     type: true,
     alias: true,
     typeAt: true,
+    moduleReturn: true,
     path: true,
     equals: true,
     options: true,
     kind: true,
     sameAs: true,
+    subtypeOf: true,
+    isSubtype: true,
     results: true,
     typeParameters: true,
     properties: true,
@@ -276,13 +287,17 @@ function assertionShape(a: Assertion): keyof typeof ASSERTION_KEYS {
   if ("error" in a) return "error";
   if ("anyError" in a) return "anyError";
   if ("noError" in a) return "noError";
+  if ("everyError" in a) return "everyError";
+  if ("decoratedSource" in a) return "decoratedSource";
   return "type";
 }
 
 function selectorProblems(s: TypeSelector, where: string): string[] {
-  const subjects = (["type", "alias", "typeAt"] as const).filter((k) => k in s);
+  if (!s || typeof s !== "object") return [`${where} must be a type selector`];
+  const subjects = (["type", "alias", "typeAt", "moduleReturn"] as const).filter((k) => k in s);
   const problems: string[] = [];
-  if (subjects.length !== 1) problems.push(`${where} names ${subjects.length} of type, alias and typeAt; it needs exactly one`);
+  if (subjects.length !== 1) problems.push(`${where} names ${subjects.length} of type, alias, typeAt and moduleReturn; it needs exactly one`);
+  if ("moduleReturn" in s && s.moduleReturn !== true) problems.push(`${where} moduleReturn must be true`);
   for (const step of s.path ?? []) {
     const keys = Object.keys(step);
     if (keys.length !== 1 || !PATH_STEPS.includes(keys[0]!)) {
@@ -300,10 +315,23 @@ function assertionProblems(a: Assertion, where: string, errorKinds: ReadonlySet<
   if ("error" in a && a.code !== undefined && !errorKinds.has(a.code)) problems.push(`${where} names ${a.code}, which is not a Luau error kind`);
   if ("anyError" in a && !errorKinds.has(a.anyError)) problems.push(`${where} names ${a.anyError}, which is not a Luau error kind`);
   if ("noError" in a && !errorKinds.has(a.noError)) problems.push(`${where} names ${a.noError}, which is not a Luau error kind`);
+  if ("decoratedSource" in a && typeof a.decoratedSource !== "string") problems.push(`${where} decoratedSource must be a string`);
+  if ("everyError" in a && (!a.everyError || typeof a.everyError !== "object" || Object.keys(a.everyError).length !== 1 || !Number.isInteger(a.everyError.line) || a.everyError.line < 0)) {
+    problems.push(`${where} everyError must contain only a nonnegative integer line`);
+  }
   if (shape === "type") {
-    const t = a as TypeSelector & { kind?: string; sameAs?: TypeSelector; options?: LuauToStringOptions; equals?: string };
+    const t = a as Extract<Assertion, TypeSelector>;
     problems.push(...selectorProblems(t, where));
     if (t.sameAs) problems.push(...selectorProblems(t.sameAs, `${where} sameAs`));
+    if (t.subtypeOf !== undefined) {
+      problems.push(...selectorProblems(t.subtypeOf, `${where} subtypeOf`));
+      if (t.subtypeOf && typeof t.subtypeOf === "object") {
+        const extra = Object.keys(t.subtypeOf).filter((k) => !["type", "alias", "typeAt", "moduleReturn", "path"].includes(k));
+        if (extra.length) problems.push(`${where} subtypeOf has non-selector keys ${extra.join(", ")}`);
+      }
+    }
+    if (t.subtypeOf !== undefined && typeof t.isSubtype !== "boolean") problems.push(`${where} subtypeOf needs a boolean isSubtype`);
+    if (t.isSubtype !== undefined && t.subtypeOf === undefined) problems.push(`${where} isSubtype needs a subtypeOf selector`);
     if (t.kind !== undefined && !LUAU_TYPE_KINDS.includes(t.kind)) problems.push(`${where} names ${t.kind}, which is not a Luau type class`);
     const badOptions = Object.keys(t.options ?? {}).filter((o) => !TO_STRING_OPTIONS.includes(o));
     if (badOptions.length) problems.push(`${where} has toString options ${badOptions.join(", ")} that Luau does not have`);
@@ -477,11 +505,16 @@ export function runAssertions(result: LuauCheckResult, check: PortedCheck): void
       expect(all.map((d) => d.code)).toContain(a.anyError);
     } else if ("noError" in a) {
       expect(all.map((d) => d.code)).not.toContain(a.noError);
+    } else if ("everyError" in a) {
+      for (const d of all) expect(d.line, describeDiagnostic(d)).toBe(a.everyError.line);
+    } else if ("decoratedSource" in a) {
+      expect(result.decoratedSource()).toBe(a.decoratedSource);
     } else {
       const t = result.find(selectorOf(a));
       if (a.equals !== undefined) expect(t.print(a.options)).toBe(a.equals);
       if (a.kind !== undefined) expect(t.kind).toBe(a.kind);
       if (a.sameAs) expect(t.is(result.find(selectorOf(a.sameAs))), `same type as ${JSON.stringify(a.sameAs)}`).toBe(true);
+      if (a.subtypeOf) expect(t.subtypeOf(result.find(selectorOf(a.subtypeOf))), `subtype of ${JSON.stringify(a.subtypeOf)}`).toBe(a.isSubtype);
       if (a.results) expect(t.results?.map((r) => r.print())).toEqual(a.results);
       if (a.typeParameters !== undefined) expect(t.typeParameterCount).toBe(a.typeParameters);
       if (a.properties !== undefined) expect(t.propertyCount).toBe(a.properties);
@@ -494,6 +527,7 @@ function selectorOf(s: TypeSelector): TypeSelector {
   const path = s.path ? { path: s.path } : {};
   if ("type" in s) return { type: s.type, ...path };
   if ("alias" in s) return { alias: s.alias, ...path };
+  if ("moduleReturn" in s) return { moduleReturn: s.moduleReturn, ...path };
   return { typeAt: s.typeAt, ...path };
 }
 

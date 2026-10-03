@@ -105,6 +105,34 @@ describe("syntax diagnostics", () => {
 });
 
 describe("checkLuau", () => {
+  test("missing query capabilities remain explicit while existing type queries work", () => {
+    const result = checkLuau("local a: number = 1\nlocal b: string = 'b'");
+    expect(result.typeOf("a")).toBe("number");
+    expect(() => result.find({ type: "a" }).subtypeOf(result.find({ type: "b" }))).toThrow(/not implemented: subtyping/);
+    expect(() => result.find({ moduleReturn: true })).toThrow(/not implemented: the module's return pack/);
+    expect(() => result.decoratedSource()).toThrow(/not implemented: source decorated/);
+  });
+
+  test("TypeStateFixture has the builtins and globals of its upstream parent", () => {
+    const source = "local n: number = 1\nprint(n)\nlocal g = game\nlocal w = workspace\nlocal s = script";
+    const parent = checkLuau(source, { fixture: "BuiltinsFixture" });
+    const child = checkLuau(source, { fixture: "TypeStateFixture" });
+    expect(child.checked).toBe(true);
+    expect(child.diagnostics.map(describeDiagnostic)).toEqual(parent.diagnostics.map(describeDiagnostic));
+    expect(child.diagnostics).toEqual([]);
+    for (const name of ["n", "g", "w", "s"]) expect(child.typeOf(name)).toBe(parent.typeOf(name));
+  });
+
+  test("IsSubtypeFixture inherits Fixture's globals and reaches the subtype query", () => {
+    const source = "local a: number = 1\nlocal b: string = 'b'\nprint(a)";
+    const parent = checkLuau(source, { fixture: "Fixture" });
+    const child = checkLuau(source, { fixture: "IsSubtypeFixture" });
+    expect(child.checked).toBe(true);
+    expect(child.diagnostics.map(describeDiagnostic)).toEqual(parent.diagnostics.map(describeDiagnostic));
+    expect(child.diagnostics.map((d) => d.code)).toEqual(["UnknownSymbol"]);
+    expect(child.typeOf("a")).toBe(parent.typeOf("a"));
+    expect(() => child.find({ type: "a" }).subtypeOf(child.find({ type: "b" }))).toThrow(/not implemented: subtyping/);
+  });
   test("it checks the snippet in strict mode and reports what the checker finds in the snippet's own lines and columns", () => {
     const result = checkLuau("local x: number = 1\nlocal y: string = x");
     expect(result.checked).toBe(true);
@@ -186,6 +214,7 @@ function stub(overrides: Partial<LuauCheckResult> = {}): LuauCheckResult {
     find: () => {
       throw new NotImplemented("find");
     },
+    decoratedSource: () => { throw new NotImplemented("decoratedSource"); },
     compilerMessages: [],
     ...overrides,
   };
@@ -335,6 +364,7 @@ function checkedType(printed: string, more: Partial<CheckedType> = {}): CheckedT
     print: (options) => (options?.exhaustive ? `exhaustive ${printed}` : printed),
     kind: "PrimitiveType",
     is: (other) => other === self,
+    subtypeOf: () => { throw new NotImplemented("subtypeOf"); },
     ...more,
   };
   return self;
@@ -346,6 +376,45 @@ function assertOn(result: Partial<LuauCheckResult>, expectations: PortedCheck["e
 
 describe("assertions", () => {
   const two = { diagnostics: [diagnostic("TypeMismatch", "first", { wantedType: "number" }), diagnostic("UnknownSymbol", "second")] };
+
+  test("subtyping compares both selectors in the requested direction, including false", () => {
+    const b = checkedType("b");
+    const subtypeOf = vi.fn((other: CheckedType) => other === b);
+    const a = checkedType("a", { subtypeOf });
+    const find: LuauCheckResult["find"] = (s) => "type" in s && s.type === "a" ? a : b;
+    expect(assertOn({ find }, [{ type: "a", subtypeOf: { type: "b" }, isSubtype: true }])).not.toThrow();
+    expect(subtypeOf).toHaveBeenCalledWith(b);
+    expect(assertOn({ find }, [{ type: "a", subtypeOf: { type: "a" }, isSubtype: false }])).not.toThrow();
+    expect(assertOn({ find }, [{ type: "a", subtypeOf: { type: "b" }, isSubtype: false }])).toThrow();
+  });
+
+  test("a module return pack can be printed or selected through its first result", () => {
+    const selectors: unknown[] = [];
+    const find: LuauCheckResult["find"] = (s) => {
+      selectors.push(s);
+      return checkedType(s.path ? "number" : "number, string");
+    };
+    expect(assertOn({ find }, [
+      { moduleReturn: true, equals: "number, string" },
+      { moduleReturn: true, path: [{ result: 0 }, { property: "a" }], equals: "number" },
+    ])).not.toThrow();
+    expect(selectors).toEqual([{ moduleReturn: true }, { moduleReturn: true, path: [{ result: 0 }, { property: "a" }] }]);
+    expect(assertOn({ find }, [{ moduleReturn: true, equals: "string" }])).toThrow();
+  });
+
+  test("decorated source is compared exactly, including whitespace", () => {
+    const decoratedSource = vi.fn(() => "\n local a:number=1\n");
+    expect(assertOn({ decoratedSource }, [{ decoratedSource: "\n local a:number=1\n" }])).not.toThrow();
+    expect(decoratedSource).toHaveBeenCalledOnce();
+    expect(assertOn({ decoratedSource }, [{ decoratedSource: "local a:number=1" }])).toThrow();
+  });
+
+  test("every error's beginning line is checked without assuming an error count", () => {
+    expect(assertOn(two, [{ everyError: { line: 2 } }])).not.toThrow();
+    expect(assertOn({ diagnostics: [] }, [{ everyError: { line: 2 } }])).not.toThrow();
+    expect(assertOn({ diagnostics: [...two.diagnostics, { ...diagnostic("TypeMismatch"), line: 3 }] }, [{ everyError: { line: 2 } }])).toThrow();
+    expect(assertOn({ diagnostics: [{ ...diagnostic("TypeAnnotationRequired"), line: 3 }, ...two.diagnostics] }, [{ everyError: { line: 2 } }], { ignoreMissingAnnotations: true })).not.toThrow();
+  });
 
   test("an error count, or some errors", () => {
     expect(assertOn(two, [{ errors: 2 }, { errors: "some" }])).not.toThrow();
@@ -390,7 +459,7 @@ describe("assertions", () => {
       selected.push(selector);
       if ("alias" in selector) return alias;
       if ("typeAt" in selector) return number;
-      return selector.type === "f" ? fn : number;
+      return "type" in selector && selector.type === "f" ? fn : number;
     };
     expect(
       assertOn({ find }, [
@@ -468,6 +537,27 @@ function withCase(index: number, replacement: PortedCase): PortedCase[] {
 }
 
 describe("checking a port against the manifest", () => {
+  test("new assertion shapes and the subtype selector are validated", () => {
+    const problems = (expectations: PortedCheck["expect"]) => portProblems("X.test.cpp", withCase(0, { ...FAITHFUL[0]!, expect: expectations } as PortedCase), MANIFEST);
+    expect(problems([
+      { type: "a", subtypeOf: { type: "b" }, isSubtype: false },
+      { moduleReturn: true, equals: "number" },
+      { decoratedSource: "" },
+      { everyError: { line: 0 } },
+    ])).toEqual([]);
+    const malformed = [
+      { type: "a", subtypeOf: { type: "b" } },
+      { type: "a", isSubtype: false },
+      { moduleReturn: false, equals: "number" },
+      { decoratedSource: 42 },
+      { everyError: { line: -1 } },
+      { everyError: { line: 1, column: 2 } },
+      { type: "a", subtypeOf: { type: "b", alias: "B" }, isSubtype: true },
+      { type: "a", subtypeOf: null, isSubtype: true },
+      { type: "a", subtypeOf: { type: "b", equals: "number" }, isSubtype: true },
+    ] as unknown as PortedCheck["expect"];
+    expect(problems(malformed)).toHaveLength(9);
+  });
   test("a faithful port has no problems", () => {
     expect(portProblems("X.test.cpp", FAITHFUL, MANIFEST)).toEqual([]);
   });
@@ -558,11 +648,11 @@ describe("checking a port against the manifest", () => {
       "case a assertion 2 names Nope, which is not a Luau error kind",
       "case a assertion 3 names Nope, which is not a Luau error kind",
       "case a assertion 4 names FunctionTyp, which is not a Luau type class",
-      "case a assertion 5 names 2 of type, alias and typeAt; it needs exactly one",
+      "case a assertion 5 names 2 of type, alias, typeAt and moduleReturn; it needs exactly one",
       'case a assertion 6 has a path step {"field":"a"} that is not one of property, argument, result, indexer, typeParameter',
       "case a assertion 7 has toString options exhaustiv that Luau does not have",
       "case a assertion 8 has toString options but nothing printed to compare",
-      "case a assertion 9 sameAs names 0 of type, alias and typeAt; it needs exactly one",
+      "case a assertion 9 sameAs names 0 of type, alias, typeAt and moduleReturn; it needs exactly one",
     ]);
   });
 

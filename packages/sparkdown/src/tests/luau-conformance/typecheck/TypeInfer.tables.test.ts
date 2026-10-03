@@ -2850,8 +2850,6 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:3630 TEST_CASE_FIXTURE(BuiltinsFixture, "dont_leak_free_table_props")
-    // Upstream also checks that the module's return type prints as `(...any) ->
-    // ({ read blah: unknown, read gwar: unknown }) -> ()`.
     name: "dont_leak_free_table_props",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -2875,6 +2873,7 @@ end
       { errors: 0 },
       { type: "a", equals: "({ read blah: unknown }) -> ()" },
       { type: "b", equals: "({ read gwar: unknown }) -> ()" },
+      { moduleReturn: true, equals: "(...any) -> ({ read blah: unknown, read gwar: unknown }) -> ()" },
     ],
   },
   {
@@ -3411,8 +3410,6 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:4370 TEST_CASE_FIXTURE(Fixture, "simple_method_definition")
-    // Upstream also checks that the module's return type prints as `{ m:
-    // (unknown) -> number }` exhaustively.
     name: "simple_method_definition",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -3425,7 +3422,7 @@ end
 
         return T
     `,
-    expect: [{ errors: 0 }],
+    expect: [{ errors: 0 }, { moduleReturn: true, equals: "{ m: (unknown) -> number }", options: { exhaustive: true } }],
   },
   {
     // TypeInfer.tables.test.cpp:4391 TEST_CASE_FIXTURE(Fixture, "identify_all_problematic_table_fields")

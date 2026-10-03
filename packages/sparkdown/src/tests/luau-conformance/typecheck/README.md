@@ -4,7 +4,7 @@ This directory ports Luau's own type-checker tests, from `tests/` in [luau-lang/
 
 ## What runs
 
-Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. The checker is the port of Luau's type checker in `src/compiler/typecheck/`; `checkLuau` checks a snippet with the globals of the case's fixture (`Fixture`, `BuiltinsFixture` or `NegationFixture`). From the repository root:
+Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. The checker is the port of Luau's type checker in `src/compiler/typecheck/`; `checkLuau` checks a snippet with the globals of the case's fixture (`Fixture`, `BuiltinsFixture`, its new-solver-only child `TypeStateFixture`, or `NegationFixture`). From the repository root:
 
 ```bash
 LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/tests/luau-conformance/typecheck/TypeInfer.primitives.test.ts --wait 900
@@ -25,7 +25,7 @@ LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/
 - `ignoreMissingAnnotations: true` stands for `ignoreMissingAnnotations(result)`: `TypeAnnotationRequired` errors are dropped before any assertion.
 - Where a case branches on `FFlag::DebugLuauForceOldSolver`, only the new-solver branch is ported. A branch on any other flag, or an `#if 0` block, is resolved as Luau's CI runs the new solver, with `--fflags=true`: every flag the case does not set is on, except the `Debug` and `Test` flags, and the `#else` part is the one compiled.
 - A source upstream builds in C++ (repeating a fragment up to a recursion limit, or appending generated declarations) is built the same way in TypeScript, with the limit Luau uses in an optimized build without sanitizers.
-- Upstream checks about Luau's internals rather than the checked program (which type arena holds a type, internal-error handlers, the print hook) are left out, and a comment on the case names them. So are checks about the program that the expectations below cannot state (whether one type is a subtype of another, the type a module returns, the source printed with every inferred type), and a comment on the case says what upstream checks.
+- Upstream checks about Luau's internals rather than the checked program (which type arena holds a type, internal-error handlers, the print hook) are left out, and a comment on the case names them. Program checks expressible by the expectations below remain executable data even when the harness cannot yet answer their query.
 
 ### Expectations
 
@@ -34,8 +34,16 @@ Each check's `expect` lists what upstream asserts about its result, in upstream 
 - `{ errors: n }` for `LUAU_REQUIRE_ERROR_COUNT(n, result)`, and `{ errors: 0 }` for `LUAU_REQUIRE_NO_ERRORS`; `{ errors: "some" }` for `LUAU_REQUIRE_ERRORS`.
 - `{ error: i, ... }` for facts about `result.errors[i]`: its `code` (the error kind, from `get<Kind>`), its `message` (the text of `toString(result.errors[i])`, or `{ oneOf: [...] }` when upstream accepts either of several), its `location` (`[beginLine, beginColumn, endLine, endColumn]`, counted from 0 within the snippet as Luau's `Location` is), its `line` (the line it begins on, when that is all upstream checks), and its `fields` (the error struct's fields by their upstream names, with types printed).
 - `{ anyError: Kind }` and `{ noError: Kind }` for `LUAU_REQUIRE_ERROR(result, Kind)` and `LUAU_REQUIRE_NO_ERROR(result, Kind)`.
+- `{ everyError: { line: n } }` checks every diagnostic's beginning line after any missing-annotation filtering. It makes no assertion about the count; an empty set satisfies it, as upstream's loop does.
+- `{ decoratedSource: text }` compares the exact `decorateWithTypes` output, including whitespace and the inferred annotations in the new-solver branch.
 - A type assertion names a module-level binding (`type`, as `requireType` finds it), a type alias (`alias`, as `lookupType` finds it) or the type at a position (`typeAt`, as `requireTypeAtPosition` finds it), with an optional `path` into it: a table property's read type, a function's argument or result, an indexer's key or result, or an alias's type parameter. It then states the type's printed text (`equals`, with `options` for Luau's `ToStringOptions`), its Luau class (`kind`, for `get<FunctionType>(...)` and the like), that it is the same type as another selector's (`sameAs`, for comparing `TypeId`s), a function's return pack (`results`), an alias's number of type parameters (`typeParameters`), or a table's number of properties (`properties`). A selector with nothing else states only that the type is there, as upstream's `REQUIRE` on a property, indexer or argument it goes on to read.
 - A comparison with one of Luau's builtin types (`getBuiltins()->numberType`) is ported as the type printing as that builtin's name, and a comment on the case says so.
+- `{ moduleReturn: true, equals: text }` prints the check's module return pack. Its selector can use a `path` beginning with `{ result: i }` to select a returned value, then traverse that type normally.
+- A type selector with `subtypeOf: anotherSelector` and `isSubtype: true` or `false` checks `isSubtype(selected, another)`, preserving the direction and either expected outcome.
+
+The harness currently throws `NotImplemented` for module return packs, subtyping queries, and decorated source. `IsSubtypeFixture` inherits `Fixture`'s globals so its cases reach the subtype query. Existing type queries and diagnostic assertions continue to use real checker answers. A forced area can fail an earlier assertion or skip a recorded unparsed case before reaching one of these queries; the vocabulary does not conceal that behavior.
+
+The enabled `TypeInfer.annotations` case `cloned_interface_maintains_pointers_between_definitions` still leaves out comparisons of the returned table's fields with an alias's printed text. #1368 covers those comparisons and the real module-return query needed to run them without breaking that enabled area.
 
 A case upstream asserts nothing about still has a check with an empty `expect`: once its file is switched on, the checker has to run on it.
 

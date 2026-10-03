@@ -97,6 +97,8 @@ export type TypeSelector = (
   | { type: string }
   | { alias: string }
   | { typeAt: [line: number, column: number] }
+  /** The module's return pack; a first result path step selects an entry. */
+  | { moduleReturn: true }
 ) & { path?: TypePathStep[] };
 
 /** A type the checker found. */
@@ -107,6 +109,8 @@ export interface CheckedType {
   kind: string;
   /** Whether this is the same type as another, as comparing Luau `TypeId`s is. */
   is(other: CheckedType): boolean;
+  /** Whether this type is a subtype of another, in that direction. */
+  subtypeOf(other: CheckedType): boolean;
   /** For a function: the types at the head of its return pack. */
   results?: CheckedType[];
   /** For a type alias: how many type parameters it declares. */
@@ -134,6 +138,8 @@ export interface LuauCheckResult {
   typeOf(name: string, options?: LuauToStringOptions): string;
   /** The type a selector names. */
   find(selector: TypeSelector): CheckedType;
+  /** The source printed with all inferred annotations, as decorateWithTypes does. */
+  decoratedSource(): string;
   /** The compiler's own diagnostics for the snippet, including ones it only logs; not asserted. */
   compilerMessages: string[];
 }
@@ -218,7 +224,7 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
     const missing = (): never => {
       throw new NotImplemented(`the globals of the fixture ${options.fixture}`);
     };
-    return { syntaxDiagnostics, checked: false, diagnostics: syntaxDiagnostics, typeOf: missing, find: missing, compilerMessages };
+    return { syntaxDiagnostics, checked: false, diagnostics: syntaxDiagnostics, typeOf: missing, find: missing, decoratedSource: missing, compilerMessages };
   }
   const mode = modeFromName(options.mode ?? "strict")!;
   const checked = checkLuauUnit(frontend, MAIN_MODULE_NAME, unit, mode);
@@ -235,6 +241,7 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
     diagnostics,
     typeOf: (name, options) => find({ type: name }).print(options),
     find,
+    decoratedSource: () => { throw new NotImplemented("source decorated with inferred types"); },
     compilerMessages,
   };
 }
@@ -271,8 +278,12 @@ function fixtureFrontend(fixture = "Fixture"): Frontend | undefined {
   frontend = new Frontend();
   switch (fixture) {
     case "Fixture":
+    // IsSubtypeFixture adds a query helper but inherits Fixture's globals.
+    case "IsSubtypeFixture":
       break;
     case "BuiltinsFixture":
+      // TypeStateFixture inherits BuiltinsFixture and only forces the new solver.
+    case "TypeStateFixture":
       registerBuiltinGlobals(frontend, frontend.globals);
       for (const name of ["game", "workspace", "script"]) addGlobalBinding(frontend.globals, name, frontend.builtinTypes.anyType, "@luau");
       break;
@@ -305,6 +316,7 @@ function registerHiddenTypes(frontend: Frontend): void {
 // ---------------------------------------------------------------------------
 
 function selectType(module: Module, sourceModule: SourceModule, selector: TypeSelector): CheckedType | undefined {
+  if ("moduleReturn" in selector) throw new NotImplemented("the module's return pack");
   let ty: TypeId | undefined;
   let alias: TypeFun | undefined;
   if ("type" in selector) {
@@ -359,6 +371,7 @@ function checkedType(ty: TypeId, alias?: TypeFun): CheckedType {
       const otherTy = typeOfAnswer.get(other);
       return otherTy !== undefined && follow(otherTy) === followed;
     },
+    subtypeOf: () => { throw new NotImplemented("subtyping between selected types"); },
     results: fn ? flatten(fn.retTypes).head.map((r) => checkedType(r)) : undefined,
     typeParameterCount: alias?.typeParams.length,
     propertyCount: table?.props.size,
