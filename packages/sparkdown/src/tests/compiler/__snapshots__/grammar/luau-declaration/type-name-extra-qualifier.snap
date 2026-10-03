@@ -57,9 +57,9 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [24..40]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 24
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [24..40]
- │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeReference [24..40]
- │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_begin [24..40]
- │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [24..39]
+ │   │       │   │   │       │   │   │       │   └─ LuauQualifiedTypeReference [24..40]
+ │   │       │   │   │       │   │   │       │       ├─ LuauQualifiedTypeReference_begin [24..40]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauQualifiedTypeReference_begin_c1 [24..39]
  │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeName [24..39]
  │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c1 [24..29]
  │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauVariableName [24..29]: "types"
@@ -70,11 +70,11 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauTypeNameExtraQualifier [32..39]: ".Button"
  │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c5 39
  │   │       │   │   │       │   │   │       │       │   │       └─ LuauTypeName_c6 39
- │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [39..40]
- │   │       │   │   │       │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [39..40]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauQualifiedTypeReference_begin_c2 [39..40]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauQualifiedTypeReference_begin_c2 [39..40]
  │   │       │   │   │       │   │   │       │       │   │       └─ OptionalWhitespace [39..40]: " "
- │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 40
- │   │       │   │   │       │   │   │       │       └─ LuauNamedTypeReference_end 40
+ │   │       │   │   │       │   │   │       │       │   └─ LuauQualifiedTypeReference_begin_c3 40
+ │   │       │   │   │       │   │   │       │       └─ LuauQualifiedTypeReference_end 40
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 40
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 40
  │   │       │   │   │       │   └─ LuauAssignmentOperation [40..43]
@@ -130,9 +130,9 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [55..74]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 55
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [55..74]
- │   │       │   │   │       │   │   │       │   ├─ LuauNamedTypeReference [55..72]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauNamedTypeReference_begin [55..64]
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauNamedTypeReference_begin_c1 [55..64]
+ │   │       │   │   │       │   │   │       │   ├─ LuauQualifiedTypeReference [55..72]
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauQualifiedTypeReference_begin [55..64]
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauQualifiedTypeReference_begin_c1 [55..64]
  │   │       │   │   │       │   │   │       │   │   │   │   └─ LuauTypeName [55..64]
  │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauTypeName_c1 [55..56]
  │   │       │   │   │       │   │   │       │   │   │   │       │   └─ LuauVariableName [55..56]: "a"
@@ -143,9 +143,9 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │   │   │   │       │   └─ LuauTypeNameExtraQualifier [58..64]: ".c.Foo"
  │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauTypeName_c5 64
  │   │       │   │   │       │   │   │       │   │   │   │       └─ LuauTypeName_c6 64
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauNamedTypeReference_begin_c2 64
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauNamedTypeReference_begin_c3 64
- │   │       │   │   │       │   │   │       │   │   ├─ LuauNamedTypeReference_content [64..72]
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauQualifiedTypeReference_begin_c2 64
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauQualifiedTypeReference_begin_c3 64
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauQualifiedTypeReference_content [64..72]
  │   │       │   │   │       │   │   │       │   │   │   └─ LuauNamedTypeArguments [64..72]
  │   │       │   │   │       │   │   │       │   │   │       ├─ LuauNamedTypeArguments_begin [64..65]
  │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeArguments_begin_c1 [64..65]
@@ -166,9 +166,11 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │   │   │       │       │       └─ LuauNamedTypeReference_end 71
  │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauTypeLiteral_end 71
  │   │       │   │   │       │   │   │       │   │   │       └─ LuauNamedTypeArguments_end [71..72]
- │   │       │   │   │       │   │   │       │   │   │           └─ LuauNamedTypeArguments_end_c1 [71..72]
- │   │       │   │   │       │   │   │       │   │   │               └─ PunctuationAngleClose [71..72]: ">"
- │   │       │   │   │       │   │   │       │   │   └─ LuauNamedTypeReference_end 72
+ │   │       │   │   │       │   │   │       │   │   │           ├─ LuauNamedTypeArguments_end_c1 [71..72]
+ │   │       │   │   │       │   │   │       │   │   │           │   └─ PunctuationAngleClose [71..72]: ">"
+ │   │       │   │   │       │   │   │       │   │   │           ├─ LuauNamedTypeArguments_end_c2 72
+ │   │       │   │   │       │   │   │       │   │   │           └─ LuauNamedTypeArguments_end_c3 72
+ │   │       │   │   │       │   │   │       │   │   └─ LuauQualifiedTypeReference_end 72
  │   │       │   │   │       │   │   │       │   └─ LuauTypeOptionalOperator [72..74]
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c1 72
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c2 [72..73]: "?"
@@ -230,9 +232,9 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [91..111]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 91
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [91..111]
- │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeReference [91..111]
- │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_begin [91..111]
- │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [91..110]
+ │   │       │   │   │       │   │   │       │   └─ LuauQualifiedTypeReference [91..111]
+ │   │       │   │   │       │   │   │       │       ├─ LuauQualifiedTypeReference_begin [91..111]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauQualifiedTypeReference_begin_c1 [91..110]
  │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeName [91..110]
  │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c1 [91..96]
  │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauVariableName [91..96]: "types"
@@ -245,11 +247,11 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauTypeNameExtraQualifier [101..110]: " . Button"
  │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c5 110
  │   │       │   │   │       │   │   │       │       │   │       └─ LuauTypeName_c6 110
- │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [110..111]
- │   │       │   │   │       │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [110..111]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauQualifiedTypeReference_begin_c2 [110..111]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauQualifiedTypeReference_begin_c2 [110..111]
  │   │       │   │   │       │   │   │       │       │   │       └─ OptionalWhitespace [110..111]: " "
- │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 111
- │   │       │   │   │       │   │   │       │       └─ LuauNamedTypeReference_end 111
+ │   │       │   │   │       │   │   │       │       │   └─ LuauQualifiedTypeReference_begin_c3 111
+ │   │       │   │   │       │   │   │       │       └─ LuauQualifiedTypeReference_end 111
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 111
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 111
  │   │       │   │   │       │   └─ LuauAssignmentOperation [111..114]
