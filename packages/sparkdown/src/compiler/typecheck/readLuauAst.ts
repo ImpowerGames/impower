@@ -1128,6 +1128,7 @@ class Parser {
   private readonly declaredExportBindings = new Map<string, Location>();
   private hasModuleReturn = false;
   private returnFunction?: FunctionState;
+  private explicitLine?: number;
   // Not part of Luau: how many of Sparkdown's own constructs whose syntax
   // Sparkdown reports are being read (a `store` declaration, a double-quoted
   // string's interpolation; see `report`), the index of the token the last error was reported at, and
@@ -1581,6 +1582,29 @@ class Parser {
         if (this.current().kind === "mark") this.next();
         if (!this.blockFollow(this.current())) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
         this.pos = following;
+      } else if (returned instanceof AstStatReturn && this.reports === reportsBefore &&
+        (stat instanceof AstStatSparkdownExplicit || this.explicitLine === returned.location.begin.line)) {
+        // A story discard line is its own Luau island; later prose or a
+        // new marked line is outside it, but a same-line follower is not.
+        // The grammar can leave the optional semicolon and its follower
+        // as story, so read only the remaining text on this same line.
+        const line = this.ctx.index instanceof UnitLineIndex
+          ? this.ctx.index.lines[returned.location.end.line]!
+          : returned.location.end.line;
+        const from = this.ctx.index.starts[line]! + returned.location.end.column;
+        const newline = this.ctx.text.indexOf("\n", from);
+        const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
+        tokenizer.lex(from, newline < 0 ? this.ctx.text.length : newline);
+        const follower = tokenizer.tokens[tokenizer.tokens[0]?.text === ";" ? 1 : 0];
+        const nested = begin && !(stat instanceof AstStatSparkdownExplicit);
+        const closes = nested && follower && (this.is(closer, follower) ||
+          (begin.text === "then" && (this.is("else", follower) || this.is("elseif", follower))));
+        if (follower && follower.kind !== "eof" && !closes) {
+          this.withTokens([follower], follower.location, () => {
+            if (nested) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
+            else this.report(follower.location, `Expected <eof>, got ${describe(follower)}`, "statement");
+          });
+        }
       }
       // Not part of Luau, whose parser ends a block at a `return`, `break` or
       // `continue` (marked with `&` or not): Sparkdown reads the statements
@@ -1673,7 +1697,14 @@ class Parser {
     if (this.blockFollow(this.current())) {
       return this.reportStatError(mark, [], [], `Expected a statement after '&', got ${describe(this.current())}`);
     }
-    const statement = this.parseStat();
+    const outerLine = this.explicitLine;
+    this.explicitLine = mark.begin.line;
+    let statement: AstStat;
+    try {
+      statement = this.parseStat();
+    } finally {
+      this.explicitLine = outerLine;
+    }
     return new AstStatSparkdownExplicit(Location.span(mark, statement.location), statement, mark);
   }
 

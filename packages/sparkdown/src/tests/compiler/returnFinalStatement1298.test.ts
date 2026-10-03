@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
 import { parseSource } from "./grammarSnapshot";
+import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 
 const URI = "inmemory:///main.sd";
 function compile(text: string) {
@@ -26,6 +27,41 @@ const cases = [
 ] as const;
 
 describe("return is the final Luau statement in its block (#1298)", () => {
+  it("publishes the same-line error in the live story with an entry divert", () => {
+    const source = "-> a\n\nscene a\n  & return 5; print(2)\n  Hello after the marked line.\nend\n";
+    const units = readLuauUnits(parseSource(source), source);
+    expect(units.flows[0]!.errors[0]?.message).toBe("Expected <eof>, got 'print'");
+    const errors = (Object.values(compile(source).diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
+    expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual([
+      { message: "Expected <eof>, got 'print'", range: { start: { line: 3, character: 14 }, end: { line: 3, character: 19 } } },
+    ]);
+  });
+  it.each(["return 5 f()", "return 5; f()", "do return 5 f() end", "do return 5; f() end", "return 5 end", "return 5 else", "return 5 until true", "return 5 --[[comment]] f()"])("requires a story return to finish its marked Luau line: %s", (line) => {
+    const source = `scene a\n  & ${line}\nend\n`;
+    const oracle = officialSyntaxErrors(`    ${line}`)[0]!;
+    const units = readLuauUnits(parseSource(source), source);
+    expect(units.flows[0]!.errors.slice(0, 1).map((e) => ({ message: e.message, location: e.location }))).toEqual([
+      { message: oracle.message, location: { begin: { line: 1, column: oracle.location.begin.column }, end: { line: 1, column: oracle.location.end.column } } },
+    ]);
+    const errors = (Object.values(compile(source).diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
+    expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual([
+      { message: oracle.message, range: { start: { line: 1, character: oracle.location.begin.column }, end: { line: 1, character: oracle.location.end.column } } },
+    ]);
+  });
+
+  it.each([
+    "scene a\n  & return 5\n  Hello there.\n  & f()\nend\n",
+    "scene a\n  & return 5\n  & f()\nend\n",
+    "scene a\n  & return 5; -- f() is a comment\n  Hello there.\n  & f()\nend\n",
+    "scene a\r\n  & return 5  \r\n  & f()\r\nend\r\n",
+    "scene a\n  & do return 5 end\nend\n",
+    "scene a\n  & return 5 --[[comment]]\n  Hello there.\nend\n",
+  ])("keeps prose and a new marked line outside the previous story return: %s", (source) => {
+    const units = readLuauUnits(parseSource(source), source);
+    expect(units.flows[0]!.errors).toEqual([]);
+    const errors = (Object.values(compile(source).diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
+    expect(errors).toEqual([]);
+  });
   it.each(cases)("reports Luau's syntax error for %s", (_name, source) => {
     const oracle = officialSyntaxErrors(source.replaceAll("&", " "))[0]!;
     expect(oracle).toBeDefined();
