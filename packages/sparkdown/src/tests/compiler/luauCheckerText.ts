@@ -91,12 +91,25 @@ export function normalizeNarrativeReturnScopes(root: Json, unit: LuauTextUnit): 
 }
 
 /** Project narrative returns as isolated blocks without introducing bindings. */
-function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number }[], index: LineIndex): void {
+function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number; close: number; writtenCloser: boolean }[], index: LineIndex): void {
   const original = unit.text.split("\n");
+  // Recovery may classify a same-line follower as prose. It still belongs
+  // to this Luau island: keep the complete suffix for the official parser.
+  for (const returned of returns) {
+    const line = index.lineAt(Math.max(returned.from, returned.to - 1));
+    const projected = unit.lines.indexOf(line);
+    if (projected < 0) continue;
+    const column = returned.to - index.starts[line]!;
+    original[projected] = original[projected]!.slice(0, column).padEnd(column) + index.text.slice(returned.to, index.lineEnd(line));
+  }
+  unit.text = original.join("\n");
   const starts = [0];
   for (let i = 0; i < original.length - 1; i++) starts.push(starts[i]! + original[i]!.length + 1);
   const edits: { at: number; text: string; id: number; opening: boolean }[] = [];
   for (const returned of returns) {
+    // A same-line written do/end already ends the return's real block.
+    // Inserting another block there would steal its closer.
+    if (returned.writtenCloser) continue;
     const firstLine = index.lineAt(returned.from);
     const lastLine = index.lineAt(Math.max(returned.from, returned.to - 1));
     const first = unit.lines.indexOf(firstLine);
@@ -104,7 +117,7 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
     if (first < 0) continue;
     if (last < first) throw new Error(`Narrative return end missing from ${unit.kind} projection at ${returned.to}`);
     const from = starts[first]! + returned.from - index.starts[firstLine]!;
-    const to = starts[last]! + returned.to - index.starts[lastLine]!;
+    const to = starts[last]! + returned.close - index.starts[lastLine]!;
     if (unit.text.slice(from, from + 6) !== "return") throw new Error(`Narrative return missing from ${unit.kind} projection at ${returned.from}`);
     const id = edits.length / 2;
     edits.push({ at: from, text: "do ", id, opening: true }, { at: to, text: " end", id, opening: false });
@@ -373,7 +386,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
   // A real function body keeps Luau's final-return rule. Narrative returns
   // instead stand in their own islands, including a return after another
   // statement on the same marked line.
-  const narrativeReturns: { from: number; to: number }[] = [];
+  const narrativeReturns: { from: number; to: number; close: number; writtenCloser: boolean }[] = [];
   const cursor = tree.cursor();
   do {
     if (cursor.name !== "LuauReturnStatement" && cursor.name !== "LuauSparkdownReturnStatement") continue;
@@ -385,13 +398,39 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     const text = documentText.slice(cursor.from, cursor.to);
     const from = cursor.from + text.length - text.trimStart().length;
     let to = from + 6;
+    let lineComment: number | undefined;
     const lastToken = (node: SyntaxNode) => {
+      if (node.name === "LuauLineComment" || node.name === "LuauDocLineComment") lineComment = node.from;
       if (COMMENT.test(node.name) || (NEUTRAL.test(node.name) && !node.name.startsWith("Punctuation"))) return;
       if (!node.firstChild && node.to > node.from) to = Math.max(to, node.to);
       for (let child = node.firstChild; child; child = child.nextSibling) lastToken(child);
     };
     lastToken(cursor.node);
-    narrativeReturns.push({ from, to });
+    const line = index.lineAt(Math.max(from, to - 1));
+    // Comments after a semicolon may also be classified as prose. Scan
+    // only suffix trivia so a line comment cannot swallow our closer;
+    // a block comment followed by a statement remains inside the scope.
+    const lineEnd = index.lineEnd(line);
+    let suffix = to;
+    let semicolon = false;
+    while (suffix < lineEnd) {
+      if (/\s/.test(documentText[suffix]!)) { suffix++; continue; }
+      if (!semicolon && documentText[suffix] === ";") { semicolon = true; suffix++; continue; }
+      if (!documentText.startsWith("--", suffix)) break;
+      const long = documentText.slice(suffix + 2, lineEnd).match(/^\[(=*)\[/);
+      if (!long) { lineComment = suffix; break; }
+      const end = documentText.indexOf(`]${long[1]}]`, suffix + 2 + long[0].length);
+      if (end < 0 || end >= lineEnd) break;
+      suffix = end + long[1]!.length + 2;
+    }
+    let writtenCloser = false;
+    for (let parent = cursor.node.parent; parent; parent = parent.parent) {
+      if (parent.name !== "LuauSparkdownDoBlock" && parent.name !== "LuauDoBlock") continue;
+      const end = parent.getChild(`${parent.name}_end`);
+      if (end && end.from >= to && index.lineAt(end.from) === line && documentText.slice(end.from, end.to).trim() === "end") writtenCloser = true;
+      break;
+    }
+    narrativeReturns.push({ from, to, close: lineComment ?? lineEnd, writtenCloser });
   } while (cursor.next());
   const anyName = ANY_NAMES.find((name) => !namesIdentifier(documentText, name)) ?? ANY_NAMES[0]!;
   const isSparkdownOnly = (node: SyntaxNode): boolean => {

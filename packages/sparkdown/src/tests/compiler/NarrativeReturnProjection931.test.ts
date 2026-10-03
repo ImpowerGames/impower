@@ -58,6 +58,30 @@ function agrees(text: string, scopeCount: number) {
 }
 
 describe("independent narrative-return oracle projection", () => {
+  for (const context of ["file", "scene", "branch"]) {
+    test.each(["& return 5 f()", "& return 5; f()", "& return 5 end", "& return 5 else", "& return 5 until true", "& do return 5 f() end", "& return 5 --[[ comment ]] f()"])(`never hides a malformed same-line ${context} island: %s`, (line) => {
+      const body = `${line}\nProse.\n& f()\n`;
+      const text = context === "file" ? body : `${context} a\n${body}end\n`;
+      const units = readings(text);
+      expect(units.some((result) => result.official.errors.length > 0)).toBe(true);
+      expect(units.some((result) => result.ours.errors.length > 0)).toBe(true);
+      for (const result of units) expect(result.official.errors.length > 0).toBe(result.ours.errors.length > 0);
+    });
+  }
+  test("an invalid follower keeps its written Unicode-adjusted token range", () => {
+    const text = 'scene a\n  & return "é😀"; f()\n  Prose.\nend\n';
+    const [result] = readings(text).filter((result) => result.unit.kind === "flow");
+    expect(result!.official.errors.length).toBeGreaterThan(0);
+    const error = result!.official.errors[0]!;
+    expect(textDocumentPosition(result!.unit, error.location.begin)).toEqual({ line: 1, character: 18 });
+    expect(textDocumentPosition(result!.unit, error.location.end)).toEqual({ line: 1, character: 19 });
+  });
+  test("keeps a legitimate written do closer and its real AST", () => {
+    agrees("scene a\n  & do return 5 end\n  Prose.\n  & f()\nend\n", 0);
+  });
+  test.each(["& return 5;", "& return 5; -- comment", "& return 5; --[=[ comment ]=] -- comment", "& return 1, 2 --[[ comment ]]", "& do return 5 end -- comment", "& do do return 5 end end"])("preserves valid same-line delimiters and comments: %s", (line) => {
+    agrees(`scene a\n  ${line}\n  Prose.\n  & f()\nend\n`, line.includes("do return") || line.includes("do do") ? 0 : 1);
+  });
   test("the complete return-before-prose fixture agrees ordinarily", () => {
     agrees(readFileSync(new URL("./__snapshots__/grammar/luau-function/return-before-prose.sd", import.meta.url), "utf8"), 5);
   });
