@@ -134,7 +134,7 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     const returns: string[] = [];
     const cursor = tree.cursor();
     do {
-      if (cursor.name === "LuauReturnStatement" || cursor.name === "LuauSparkdownReturnStatement") returns.push(source.slice(cursor.from, cursor.to).trim());
+      if (cursor.name === "LuauReturnStatement") returns.push(source.slice(cursor.from, cursor.to).trim());
     } while (cursor.next());
     expect(returns).toEqual(["return"]);
   });

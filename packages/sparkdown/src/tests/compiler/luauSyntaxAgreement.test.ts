@@ -37,7 +37,7 @@ const URI = "inmemory:///main.sd";
 const NOT_SYNTAX: RegExp[] = [
   /^Cannot find /,
   /^Duplicate identifier /,
-  /^Return statements can only be used in /,
+  /^Return statements can only be used (?:in |inside a function body)/,
   /shouldn't be preceded by '->' here\.$/,
   /cannot be used for the name of a function because it's a built in function$/,
   /^A variable must be initialized to /,

@@ -78,7 +78,7 @@ export function validateStatementNode(
     validateVariableDefinition(node, continuation, ctx);
     return;
   }
-  if (node.name === "LuauExplicitStatement") {
+  if (node.name === "LuauExplicitStatement" || node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
     // Stylistic diagnostic: inside a function body, the `&` prefix is
     // redundant.
     const diagnostics = validateExplicitStatement(node, ctx);
@@ -90,7 +90,7 @@ export function validateStatementNode(
     }
     // A comma that ends the statement's value list: the statement ends at
     // its line, so the comma is left without a value (`& a, b = 1,`).
-    const content = node.getChild("LuauExplicitStatement_content");
+    const content = node.getChild(`${node.name}_content`);
     if (content) validateReassignmentList(content, continuation, ctx);
     return;
   }

@@ -41,7 +41,7 @@ import {
 import { parseOfficialTree, withoutLocations, jsonNodes, jsonLocation } from "./officialAstTestUtils";
 import { printOfficialAst } from "./printOfficialAst";
 import type { Json } from "./officialLuau";
-import { checkerTextUnits, textDocumentPosition, type LuauTextUnit } from "./luauCheckerText";
+import { checkerTextUnits, normalizeNarrativeReturnScopes, textDocumentPosition, type LuauTextUnit } from "./luauCheckerText";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type LuauAstUnit } from "../../compiler/typecheck/readLuauAst";
 import { runWrapperText } from "../../compiler/utils/runWrapper";
@@ -119,7 +119,8 @@ function fixtureDifferences(input: LuauInput): string[] {
   return theirs.flatMap((unit, i) => {
     const parsed = parseOfficialTree(unit.text);
     const ourUnit = ours[i]!;
-    return compareUnit(`${unit.kind} unit ${i}`, parsed.root, parsed.errors.length, ourUnit, ourUnit.root, checkerView(input.text, extracted.anyName));
+    const root = parsed.errors.length ? parsed.root : normalizeNarrativeReturnScopes(parsed.root, unit);
+    return compareUnit(`${unit.kind} unit ${i}`, root, parsed.errors.length, ourUnit, ourUnit.root, checkerView(input.text, extracted.anyName));
   });
 }
 
@@ -183,7 +184,7 @@ function locationDifferences(text: string, pick: (units: { prelude: LuauTextUnit
   const ours = pickOurs(readLuauUnits(tree, text));
   expect(parsed.errors).toEqual([]);
   expect(ours.errors).toEqual([]);
-  const theirs = jsonNodes(parsed.root);
+  const theirs = jsonNodes(normalizeNarrativeReturnScopes(parsed.root, unit));
   const mine = jsonNodes(printOfficialAst(ours.root, checkerView(text, "_G")));
   expect(mine.map((n) => n["type"])).toEqual(theirs.map((n) => n["type"]));
   const lines = text.split("\n");
@@ -459,7 +460,7 @@ describe("Sparkdown's own constructs", () => {
       ["StatLocal", ["LuauSparkdownVariableDefinition"]],
       ["SparkdownChoose", ["LuauSparkdownChooseBlock"]],
       ["StatLocal", ["Branch"]],
-      ["SparkdownExplicit", ["LuauExplicitStatement"]],
+      ["SparkdownExplicit", ["LuauSparkdownExplicitStatement"]],
     ]);
     const choose = flow.statements[1]!.nodes[0]!;
     expect(statementAt(flow, choose)).toBe(flow.statements[1]!.statement);

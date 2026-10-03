@@ -77,7 +77,7 @@ const REPEAT_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
-const REPEAT_NODES = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
+const REPEAT_NODES = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]);
 
 export function lowerLuauRepeatLoop(
   stat: AstStatRepeat,

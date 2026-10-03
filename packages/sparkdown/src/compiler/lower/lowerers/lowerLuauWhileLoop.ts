@@ -68,7 +68,7 @@ const WHILE_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
-const WHILE_NODES = nodeNameSet(["LuauWhileLoop", "LuauSparkdownWhileLoop"]);
+const WHILE_NODES = nodeNameSet(["LuauWhileLoop", "LuauSparkdownWhileLoop", "LuauSparkdownExplicitLoop"]);
 
 export function lowerLuauWhileLoop(
   stat: AstStatWhile,

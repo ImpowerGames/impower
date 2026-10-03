@@ -10,6 +10,7 @@
 // together with the document line of each of its lines.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
+import type { Json } from "./officialLuau";
 import { loadOfficialLuau, officialLuauAvailable } from "./officialLuau";
 import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../../compiler/typecheck/LuauUnitNodes";
 
@@ -23,6 +24,10 @@ export interface LuauTextUnit {
   lines: number[];
   /** True only when a flow has no closing token and extraction appends its own `end`. */
   syntheticEnd?: boolean;
+  /** Only the do/end scopes inserted around narrative returns. */
+  returnScopes?: { begin: { line: number; character: number }; end: { line: number; character: number } }[];
+  /** Inserted columns in the projected text, measured in UTF-16. */
+  insertions?: { line: number; column: number; length: number }[];
 }
 
 // Each unit's text split into lines, once, for turning Luau's columns into the document's.
@@ -40,7 +45,119 @@ export function textDocumentPosition(unit: LuauTextUnit, position: { line: numbe
     lines = unit.text.split("\n");
     unitTextLines.set(unit, lines);
   }
-  return { line: unit.lines[index] ?? 0, character: utf16Column(lines[index] ?? "", position.column) };
+  const column = utf16Column(lines[index] ?? "", position.column);
+  const inserted = (unit.insertions ?? []).filter((i) => i.line === index)
+    .reduce((sum, i) => sum + Math.min(i.length, Math.max(0, column - i.column)), 0);
+  return { line: unit.lines[index] ?? 0, character: column - inserted };
+}
+
+/** Remove only the official parser's blocks at recorded synthetic do/end spans. */
+export function normalizeNarrativeReturnScopes(root: Json, unit: LuauTextUnit): Json {
+  const scopes = unit.returnScopes ?? [];
+  if (!scopes.length) return root;
+  const lines = unit.text.split("\n");
+  const key = (begin: { line: number; character: number }, end: { line: number; character: number }) => `${begin.line}:${begin.character}-${end.line}:${end.character}`;
+  const expected = new Set(scopes.map((s) => key(s.begin, s.end)));
+  const matched = new Set<string>();
+  const scopeOf = (value: { [key: string]: Json }): string | undefined => {
+    const m = String(value["location"]).match(/^(\d+),(\d+) - (\d+),(\d+)$/);
+    if (!m) return undefined;
+    const position = (line: string, column: string) => ({ line: Number(line), character: utf16Column(lines[Number(line)] ?? "", Number(column)) });
+    const span = key(position(m[1]!, m[2]!), position(m[3]!, m[4]!));
+    return expected.has(span) ? span : undefined;
+  };
+  const visit = (value: Json): Json => {
+    if (Array.isArray(value)) return value.flatMap((item) => {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        const scope = scopeOf(item);
+        if (scope) {
+          if (item["type"] !== "AstStatBlock" || !Array.isArray(item["body"]) || item["body"].length !== 1 ||
+            !item["body"][0] || typeof item["body"][0] !== "object" || Array.isArray(item["body"][0]) ||
+            item["body"][0]["type"] !== "AstStatReturn" || matched.has(scope)) {
+            throw new Error(`Unexpected official narrative-return wrapper at ${scope}`);
+          }
+          matched.add(scope);
+          return [visit(item["body"][0])];
+        }
+      }
+      return [visit(item)];
+    });
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, visit(item)]));
+  };
+  const normalized = visit(root);
+  if (matched.size !== expected.size) throw new Error(`Official narrative-return wrappers missing: ${[...expected].filter((s) => !matched.has(s)).join(", ")}`);
+  return normalized;
+}
+
+/** Project narrative returns as isolated blocks without introducing bindings. */
+function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number; close: number; writtenCloser: boolean }[], markers: { from: number; to: number }[], index: LineIndex): void {
+  const original = unit.text.split("\n");
+  // Recovery may classify a same-line follower as prose. It still belongs
+  // to this Luau island: keep the complete suffix for the official parser.
+  for (const returned of returns) {
+    const line = index.lineAt(Math.max(returned.from, returned.to - 1));
+    const projected = unit.lines.indexOf(line);
+    if (projected < 0) continue;
+    const column = returned.to - index.starts[line]!;
+    original[projected] = original[projected]!.slice(0, column).padEnd(column) + index.text.slice(returned.to, index.lineEnd(line));
+  }
+  // Restoring a recovery suffix can also restore later, valid explicit
+  // markers. Blank only the grammar's recorded marker spans, preserving
+  // all other suffix tokens and their document columns.
+  for (const marker of markers) {
+    const line = index.lineAt(marker.from);
+    const projected = unit.lines.indexOf(line);
+    if (projected < 0) continue;
+    const from = marker.from - index.starts[line]!;
+    const to = marker.to - index.starts[line]!;
+    const text = original[projected]!;
+    original[projected] = text.slice(0, from) + " ".repeat(to - from) + text.slice(to);
+  }
+  unit.text = original.join("\n");
+  const starts = [0];
+  for (let i = 0; i < original.length - 1; i++) starts.push(starts[i]! + original[i]!.length + 1);
+  const edits: { at: number; text: string; id: number; opening: boolean }[] = [];
+  for (const returned of returns) {
+    // A same-line written do/end already ends the return's real block.
+    // Inserting another block there would steal its closer.
+    if (returned.writtenCloser) continue;
+    const firstLine = index.lineAt(returned.from);
+    const lastLine = index.lineAt(Math.max(returned.from, returned.to - 1));
+    const first = unit.lines.indexOf(firstLine);
+    const last = unit.lines.indexOf(lastLine);
+    if (first < 0) continue;
+    if (last < first) throw new Error(`Narrative return end missing from ${unit.kind} projection at ${returned.to}`);
+    const from = starts[first]! + returned.from - index.starts[firstLine]!;
+    const to = starts[last]! + returned.close - index.starts[lastLine]!;
+    if (unit.text.slice(from, from + 6) !== "return") throw new Error(`Narrative return missing from ${unit.kind} projection at ${returned.from}`);
+    const id = edits.length / 2;
+    edits.push({ at: from, text: "do ", id, opening: true }, { at: to, text: " end", id, opening: false });
+  }
+  if (!edits.length) return;
+  edits.sort((a, b) => a.at - b.at || Number(a.opening) - Number(b.opening));
+  let out = "";
+  let previous = 0;
+  const spans = new Map<number, { from: number; to: number }>();
+  const inserted: { from: number; length: number }[] = [];
+  for (const edit of edits) {
+    out += unit.text.slice(previous, edit.at);
+    const from = out.length;
+    out += edit.text;
+    inserted.push({ from, length: edit.text.length });
+    if (edit.opening) spans.set(edit.id, { from, to: from });
+    else spans.get(edit.id)!.to = out.length;
+    previous = edit.at;
+  }
+  out += unit.text.slice(previous);
+  unit.text = out;
+  const projected = new LineIndex(out);
+  const position = (at: number) => {
+    const line = projected.lineAt(at);
+    return { line, character: at - projected.starts[line]! };
+  };
+  unit.returnScopes = [...spans.values()].map((s) => ({ begin: position(s.from), end: position(s.to) }));
+  unit.insertions = inserted.map((i) => ({ line: position(i.from).line, column: position(i.from).character, length: i.length }));
 }
 
 /** The UTF-16 column of the character a UTF-8 byte column points at. */
@@ -277,6 +394,58 @@ function removeSpan(spans: number[], from: number, to: number): number[] {
  */
 export function checkerTextUnits(tree: Tree, documentText: string, validParameters: (text: string) => boolean = parsesAsParameters): CheckerTextUnits {
   const index = new LineIndex(documentText);
+  // Grammar/source ownership is independent of the converter being checked.
+  // A real function body keeps Luau's final-return rule. Narrative returns
+  // instead stand in their own islands, including a return after another
+  // statement on the same marked line.
+  const narrativeReturns: { from: number; to: number; close: number; writtenCloser: boolean }[] = [];
+  const explicitMarkers: { from: number; to: number }[] = [];
+  const cursor = tree.cursor();
+  do {
+    if (cursor.name === "LuauExplicitStatementMark") explicitMarkers.push({ from: cursor.from, to: cursor.to });
+    if (cursor.name !== "LuauReturnStatement") continue;
+    let inFunction = false;
+    for (let parent = cursor.node.parent; parent; parent = parent.parent) {
+      if (parent.name === "LuauFunctionBody") { inFunction = true; break; }
+    }
+    if (inFunction) continue;
+    const text = documentText.slice(cursor.from, cursor.to);
+    const from = cursor.from + text.length - text.trimStart().length;
+    let to = from + 6;
+    let lineComment: number | undefined;
+    const lastToken = (node: SyntaxNode) => {
+      if (node.name === "LuauLineComment" || node.name === "LuauDocLineComment") lineComment = node.from;
+      if (COMMENT.test(node.name) || (NEUTRAL.test(node.name) && !node.name.startsWith("Punctuation"))) return;
+      if (!node.firstChild && node.to > node.from) to = Math.max(to, node.to);
+      for (let child = node.firstChild; child; child = child.nextSibling) lastToken(child);
+    };
+    lastToken(cursor.node);
+    const line = index.lineAt(Math.max(from, to - 1));
+    // Comments after a semicolon may also be classified as prose. Scan
+    // only suffix trivia so a line comment cannot swallow our closer;
+    // a block comment followed by a statement remains inside the scope.
+    const lineEnd = index.lineEnd(line);
+    let suffix = to;
+    let semicolon = false;
+    while (suffix < lineEnd) {
+      if (/\s/.test(documentText[suffix]!)) { suffix++; continue; }
+      if (!semicolon && documentText[suffix] === ";") { semicolon = true; suffix++; continue; }
+      if (!documentText.startsWith("--", suffix)) break;
+      const long = documentText.slice(suffix + 2, lineEnd).match(/^\[(=*)\[/);
+      if (!long) { lineComment = suffix; break; }
+      const end = documentText.indexOf(`]${long[1]}]`, suffix + 2 + long[0].length);
+      if (end < 0 || end >= lineEnd) break;
+      suffix = end + long[1]!.length + 2;
+    }
+    let writtenCloser = false;
+    for (let parent = cursor.node.parent; parent; parent = parent.parent) {
+      if (parent.name !== "LuauSparkdownDoBlock" && parent.name !== "LuauDoBlock" && parent.name !== "LuauSparkdownExplicitDoBlock") continue;
+      const end = parent.getChild(`${parent.name}_end`);
+      if (end && end.from >= to && index.lineAt(end.from) === line && documentText.slice(end.from, end.to).trim() === "end") writtenCloser = true;
+      break;
+    }
+    narrativeReturns.push({ from, to, close: lineComment ?? lineEnd, writtenCloser });
+  } while (cursor.next());
   const anyName = ANY_NAMES.find((name) => !namesIdentifier(documentText, name)) ?? ANY_NAMES[0]!;
   const isSparkdownOnly = (node: SyntaxNode): boolean => {
     const name = node.name;
@@ -502,6 +671,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     }
     units.flows.push({ kind: "flow", text: text.join("\n"), lines, syntheticEnd: flow.end === undefined });
   }
+  for (const unit of [units.prelude, ...units.flows]) projectNarrativeReturns(unit, narrativeReturns, explicitMarkers, index);
   return units;
 }
 

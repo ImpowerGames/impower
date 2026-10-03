@@ -14,6 +14,7 @@ import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 import { parseSource } from "./grammarSnapshot";
 import {
   checkerTextUnits,
+  normalizeNarrativeReturnScopes,
   textDocumentPosition,
   type LuauTextUnit,
 } from "./luauCheckerText";
@@ -45,10 +46,9 @@ const EXEMPTIONS = [
   "Error units compare only the presence of syntax errors, not recovery trees",
   "Lexical commentLocations are not part of the converter's AST",
 ] as const;
-const KNOWN = [
+const KNOWN: { input: string; issue: number }[] = [
   // This is the official-parser list. Port-only #1304/#1305/#1306 no longer
   // disagree here, so inheriting that oracle's list would hide passing inputs.
-  { input: "grammar/luau-function/return-before-prose.sd", issue: 1298 },
 ];
 if (!officialLuauAvailable)
   console.warn(
@@ -211,6 +211,7 @@ describe.skipIf(!officialLuauAvailable)(
         anyName = "_G",
         run = false,
         flow?: LuauTextUnit,
+        projection?: LuauTextUnit,
       ) => {
         const parsed = parse(source);
         if (parsed.errors || errors)
@@ -219,7 +220,7 @@ describe.skipIf(!officialLuauAvailable)(
             : [`syntax errors: official ${parsed.errors}, converter ${errors}`];
         const official = run
           ? (parsed.root as { body: Json[] }).body[0]!
-          : parsed.root;
+          : projection ? normalizeNarrativeReturnScopes(parsed.root, projection) : parsed.root;
         const baseView = checkerView(input.text, anyName);
         const shortenedEnds = new Map<string, string>();
         const argumentLocations = new Set<string>();
@@ -409,6 +410,7 @@ describe.skipIf(!officialLuauAvailable)(
           extracted.anyName,
           false,
           unit.kind === "flow" ? unit : undefined,
+          unit,
         ).map((d) => `${unit.kind} ${i}: ${d}`),
       );
     }

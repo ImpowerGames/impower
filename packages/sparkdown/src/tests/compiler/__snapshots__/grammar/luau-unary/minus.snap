@@ -1,13 +1,13 @@
 sparkdown [0..8]
- └─ LuauExplicitStatement [0..8]
-     ├─ LuauExplicitStatement_begin [0..2]
-     │   ├─ LuauExplicitStatement_begin_c1 0
+ └─ LuauSparkdownExplicitStatement [0..8]
+     ├─ LuauSparkdownExplicitStatement_begin [0..2]
+     │   ├─ LuauSparkdownExplicitStatement_begin_c1 0
      │   │   └─ OptionalWhitespace 0
-     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   ├─ LuauSparkdownExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
-     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
      │       └─ RequiredWhitespace [1..2]: " "
-     ├─ LuauExplicitStatement_content [2..8]
+     ├─ LuauSparkdownExplicitStatement_content [2..8]
      │   ├─ LuauAccessPath [2..4]
      │   │   ├─ LuauAccessPath_begin 2
      │   │   ├─ LuauAccessPath_content [2..3]
@@ -51,4 +51,4 @@ sparkdown [0..8]
      │       │       │       └─ LuauNumericDecimal_c2 8
      │       │       └─ LuauArithmeticOperation_end 8
      │       └─ LuauAssignmentOperation_end 8
-     └─ LuauExplicitStatement_end 8
+     └─ LuauSparkdownExplicitStatement_end 8

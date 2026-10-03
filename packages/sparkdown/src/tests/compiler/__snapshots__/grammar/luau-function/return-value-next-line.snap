@@ -216,16 +216,23 @@ sparkdown [0..146]
  │   │       └─ SceneWithoutParametersDeclaration_c2 121
  │   └─ Scene_end 121
  ├─ Newline [121..122]: "\n"
- ├─ LuauSparkdownReturnStatement [122..130]
- │   ├─ LuauSparkdownReturnStatement_begin [122..130]
- │   │   ├─ LuauSparkdownReturnStatement_begin_c1 [122..124]
- │   │   │   └─ OptionalWhitespace [122..124]: "  "
- │   │   ├─ LuauSparkdownReturnStatement_begin_c2 [124..130]
- │   │   │   └─ LuauControlKeyword [124..130]: "return"
- │   │   └─ LuauSparkdownReturnStatement_begin_c3 130
- │   │       └─ LuauSparkdownReturnStatement_begin_c3 130
- │   │           └─ OptionalWhitespace 130
- │   └─ LuauSparkdownReturnStatement_end 130
+ ├─ ImplicitAction [122..130]
+ │   ├─ ImplicitAction_begin [122..124]
+ │   │   └─ ImplicitAction_begin_c1 [122..124]
+ │   │       └─ OptionalWhitespace [122..124]: "  "
+ │   ├─ ImplicitAction_content [124..130]
+ │   │   └─ ActionLineEnd [124..130]
+ │   │       ├─ ActionLineEnd_begin 124
+ │   │       │   └─ ActionLineEnd_begin_c1 124
+ │   │       │       └─ OptionalWhitespace 124
+ │   │       ├─ ActionLineEnd_content [124..130]
+ │   │       │   └─ TextChunk [124..130]
+ │   │       │       ├─ TextChunk_begin 124
+ │   │       │       ├─ TextChunk_content [124..130]
+ │   │       │       │   └─ Word [124..130]: "return"
+ │   │       │       └─ TextChunk_end 130
+ │   │       └─ ActionLineEnd_end 130
+ │   └─ ImplicitAction_end 130
  ├─ Newline [130..131]: "\n"
  ├─ ImplicitAction [131..145]
  │   ├─ ImplicitAction_begin [131..133]

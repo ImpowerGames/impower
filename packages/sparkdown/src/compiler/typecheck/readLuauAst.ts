@@ -1606,7 +1606,9 @@ class Parser {
         const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
         tokenizer.lex(from, to);
         const follower = tokenizer.tokens[tokenizer.tokens[0]?.text === ";" ? 1 : 0];
-        const nested = begin && !(stat instanceof AstStatSparkdownExplicit);
+        // Written blocks own their closer even when their return has an
+        // explicit marker. Scene-flow function openers are synthetic spans.
+        const nested = begin && begin.from < begin.to;
         const closes = nested && follower && (this.is(closer, follower) ||
           (begin.text === "then" && (this.is("else", follower) || this.is("elseif", follower))));
         if (follower && follower.kind !== "eof" && !closes) {
@@ -2157,12 +2159,31 @@ class Parser {
     const outerReturn = this.returnFunction;
     this.returnFunction = this.currentFunction().luau ? this.currentFunction() : undefined;
     try {
-      if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
+      // A narrative island ends before the story resumes. Its bare return
+      // has no value; the story boundary is not a missing expression. Luau
+      // line breaks in written functions still permit multiline values.
+      const storyEnd = this.current().kind === "break" && this.current().story;
+      if (!storyEnd && !this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
     } finally {
       this.returnFunction = outerReturn;
     }
     const end = list.length === 0 ? start : list[list.length - 1]!.location;
     const node = new AstStatReturn(Location.span(start, end), list);
+    // A written semicolon belongs to the return's native range, including
+    // the inner return of a marked statement. Story grammar can leave it
+    // outside the statement's tokens; read only that same-line suffix.
+    let delimiter = this.is(";") ? this.current() : undefined;
+    if (!delimiter && !this.currentFunction().luau) {
+      const line = this.ctx.index instanceof UnitLineIndex ? this.ctx.index.lines[end.end.line]! : end.end.line;
+      const from = this.ctx.index.starts[line]! + end.end.column;
+      const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
+      tokenizer.lex(from, this.ctx.index.lineEnd(line));
+      if (tokenizer.tokens[0]?.text === ";") delimiter = tokenizer.tokens[0];
+    }
+    if (delimiter) {
+      node.hasSemicolon = true;
+      node.location = new Location(node.location.begin, delimiter.location.end);
+    }
     if (this.functionStack.length === 1) {
       if (this.declaredExportBindings.size !== 0) this.report(node.location, "Exporting values is not compatible with top-level return (export/return conflict)");
       this.hasModuleReturn = true;

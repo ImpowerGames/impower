@@ -178,15 +178,15 @@ sparkdown [0..169]
  │   │       │           └─ OptionalWhitespace 98
  │   │       ├─ LuauSparkdownElseBlock_content [98..159]
  │   │       │   ├─ Newline [98..99]: "\n"
- │   │       │   ├─ LuauExplicitStatement [99..117]
- │   │       │   │   ├─ LuauExplicitStatement_begin [99..105]
- │   │       │   │   │   ├─ LuauExplicitStatement_begin_c1 [99..103]
+ │   │       │   ├─ LuauSparkdownExplicitStatement [99..117]
+ │   │       │   │   ├─ LuauSparkdownExplicitStatement_begin [99..105]
+ │   │       │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [99..103]
  │   │       │   │   │   │   └─ OptionalWhitespace [99..103]: "    "
- │   │       │   │   │   ├─ LuauExplicitStatement_begin_c2 [103..104]
+ │   │       │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [103..104]
  │   │       │   │   │   │   └─ LuauExplicitStatementMark [103..104]: "&"
- │   │       │   │   │   └─ LuauExplicitStatement_begin_c3 [104..105]
+ │   │       │   │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [104..105]
  │   │       │   │   │       └─ RequiredWhitespace [104..105]: " "
- │   │       │   │   ├─ LuauExplicitStatement_content [105..117]
+ │   │       │   │   ├─ LuauSparkdownExplicitStatement_content [105..117]
  │   │       │   │   │   ├─ LuauAccessPath [105..113]
  │   │       │   │   │   │   ├─ LuauAccessPath_begin 105
  │   │       │   │   │   │   ├─ LuauAccessPath_content [105..112]
@@ -224,7 +224,7 @@ sparkdown [0..169]
  │   │       │   │   │       │       ├─ LuauNumericDecimal_c1 [116..117]: "1"
  │   │       │   │   │       │       └─ LuauNumericDecimal_c2 117
  │   │       │   │   │       └─ LuauAssignmentOperation_end 117
- │   │       │   │   └─ LuauExplicitStatement_end 117
+ │   │       │   │   └─ LuauSparkdownExplicitStatement_end 117
  │   │       │   ├─ Newline [117..118]: "\n"
  │   │       │   ├─ ImplicitAction [118..158]
  │   │       │   │   ├─ ImplicitAction_begin [118..122]
