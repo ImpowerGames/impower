@@ -6,9 +6,8 @@ import { parseSource } from "./grammarSnapshot";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 
 const URI = "inmemory:///main.sd";
-function compile(text: string) {
-  const compiler = new SparkdownCompiler();
-  compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] } as never);
+function compile(text: string, compiler = new SparkdownCompiler(), version = 1) {
+  compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version, languageId: "sparkdown" }] } as never);
   return (compiler.compile({ textDocument: { uri: URI } } as never) as any).program;
 }
 
@@ -27,6 +26,44 @@ const cases = [
 ] as const;
 
 describe("return is the final Luau statement in its block (#1298)", () => {
+  it("clears a cached follower error after a trailing line comment replaces it", () => {
+    const compiler = new SparkdownCompiler();
+    const source = (suffix: string) => `-> a\n\nscene a\n  & return 5; ${suffix}\nend\n`;
+    const errors = (program: any) => (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError").map((d: any) => ({ message: d.message, range: d.range }));
+    expect(errors(compile(source("print(2)"), compiler, 1))).toHaveLength(1);
+    expect(errors(compile(source("-- done"), compiler, 2))).toEqual([]);
+  });
+  it("reuses the checked unit when only following story prose changes", () => {
+    const compiler = new SparkdownCompiler();
+    const source = (prose: string) => `-> a\n\nscene a\n  & return 5; -- done\n  ${prose}\n  & local x = 1\nend\n`;
+    const first = compile(source("Hello there."), compiler, 1);
+    const second = compile(source("A different story line."), compiler, 2);
+    const syntax = (program: any) => (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
+    expect(syntax(first)).toEqual([]);
+    expect(syntax(second)).toEqual([]);
+    expect(compiler.typecheckStats.checked).toBe(0);
+    expect(compiler.typecheckStats.reused).toBeGreaterThan(0);
+  });
+  it.each(["return 5; ", "do return 5; "])("updates cached diagnostics when the marked return suffix changes: %s", (prefix) => {
+    const compiler = new SparkdownCompiler();
+    const nested = prefix.startsWith("do");
+    const suffixes = ["--[[done]]", "print(2)", "other(2)", " print(2)", "--[[done]]", "print(2)"];
+    for (const [index, suffix] of suffixes.entries()) {
+      const text = `-> a\n\nscene a\n  & ${prefix}${suffix}${nested ? " end" : ""}\nend\n`;
+      compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: index + 1, languageId: "sparkdown" }] } as never);
+      const program = (compiler.compile({ textDocument: { uri: URI } } as never) as any).program;
+      const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
+      if (suffix.startsWith("--")) {
+        expect(errors).toEqual([]);
+      } else {
+        const word = suffix.trimStart().split("(")[0]!;
+        const from = 4 + prefix.length + (suffix.startsWith(" ") ? 1 : 0);
+        expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual([
+          { message: nested ? `Expected 'end' (to close 'do' at column 5), got '${word}'` : `Expected <eof>, got '${word}'`, range: { start: { line: 3, character: from }, end: { line: 3, character: from + word.length } } },
+        ]);
+      }
+    }
+  });
   it("publishes the same-line error in the live story with an entry divert", () => {
     const source = "-> a\n\nscene a\n  & return 5; print(2)\n  Hello after the marked line.\nend\n";
     const units = readLuauUnits(parseSource(source), source);
