@@ -2,6 +2,11 @@ import { describe, expect, test } from "vitest";
 import type { TypeId } from "../../compiler/typecheck/Type";
 import { Frontend } from "../../compiler/typecheck/Frontend";
 import { checkLuau, type LuauCheckSession } from "./typecheckTestHarness";
+import { createHash } from "node:crypto";
+import { loadOfficialLuau } from "../compiler/officialLuau";
+import { loadDefinitionAst } from "../../compiler/typecheck/DefinitionFile";
+import { Mode, type SourceModule } from "../../compiler/typecheck/Module";
+import * as Ast from "../../compiler/typecheck/Ast";
 import {
   runAssertions,
   runPortedCase,
@@ -11,6 +16,513 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  test.each([["declare x : number", "declare x:  number"]])(
+    "prepared declaration branch uses the actual checker for %s",
+    async (source, printed) => {
+      const { decorateSource } = await import("./typecheckDecoration");
+      const parsed = (await loadOfficialLuau("typecheck"))(source);
+      expect(parsed.errors).toBe(0);
+      const root = loadDefinitionAst({
+        version: 1,
+        parser: "7d5f73364fdbbaa984fa545071630eba73cfea98",
+        sourceSha256: createHash("sha256").update(source).digest("hex"),
+        root: parsed.root,
+      });
+      const unit: SourceModule = {
+        name: "PreparedDeclaration",
+        humanReadableName: "PreparedDeclaration",
+        root,
+        hotcomments: [],
+        parseErrors: [],
+      };
+      const checked = new Frontend().checkSourceModule(unit, Mode.Strict);
+      expect(checked.errors).toEqual([]);
+      expect(decorateSource(source, checked.module, unit)).toBe(printed);
+    },
+  );
+  test.each([
+    [
+      "type function id(t:any):any return t end",
+      " type function id(t:any): any return t end",
+    ],
+    [
+      "export type function id(t:any):any return t end",
+      "export type function id(t:any): any return t end",
+    ],
+  ])(
+    "type function decoration preserves actual checker errors for %s",
+    (source, printed) => {
+      const result = checkLuau(source);
+      expect(result.syntaxDiagnostics).toEqual([]);
+      // This checks emission of the genuine AST despite the current type-function
+      // environment rejecting explicit any. It does not claim error-free checking.
+      expect(result.diagnostics.map((d) => [d.code, d.data?.["name"]])).toEqual(
+        [
+          ["UnknownSymbol", "any"],
+          ["UnknownSymbol", "any"],
+        ],
+      );
+      expect(result.decoratedSource()).toBe(printed);
+    },
+  );
+  test.each([
+    ["return f<<number>>", "return f<<number>>"],
+    ["return f<<number>>(0x10)", "return f<<number>>(16)  "],
+    ["type T = (number | string)?", "type T = (number | string)?"],
+    ["type T = number? | string", "type T = number? | string"],
+    ["type T = number | string?", "type T = number | string?"],
+  ])(
+    "remaining expression/type branch uses natural source %s",
+    (source, printed) => {
+      const result = checkLuau(source, { globals: { f: "<T>(T)->T" } });
+      expect(result.syntaxDiagnostics).toEqual([]);
+      expect(result.diagnostics).toEqual([]);
+      expect(result.decoratedSource()).toBe(printed);
+    },
+  );
+  test("prepared qualified reference preserves native positions and checker errors", async () => {
+    const { decorateSource } = await import("./typecheckDecoration");
+    const source = "type T = Mod . X";
+    const parsed = (await loadOfficialLuau("typecheck"))(source);
+    expect(parsed.errors).toBe(0);
+    const root = loadDefinitionAst({
+      version: 1,
+      parser: "7d5f73364fdbbaa984fa545071630eba73cfea98",
+      sourceSha256: createHash("sha256").update(source).digest("hex"),
+      root: parsed.root,
+    });
+    const unit: SourceModule = {
+      name: "PreparedPrefix",
+      humanReadableName: "PreparedPrefix",
+      root,
+      hotcomments: [],
+      parseErrors: [],
+    };
+    const checked = new Frontend().checkSourceModule(unit, Mode.Strict);
+    // This source-backed prepared AST tests the prefix printer independently
+    // of source grammar support. Missing Mod remains an actual checker error.
+    expect(checked.errors).toHaveLength(1);
+    expect(checked.errors[0]?.data.kind).toBe("UnknownSymbol");
+    expect(decorateSource(source, checked.module, unit)).toBe(
+      "type T = Mod.  X",
+    );
+  });
+  test("prepared native AST preserves mixed variadic lists while #876 blocks source parsing", async () => {
+    const { decorateSource } = await import("./typecheckDecoration");
+    const source = "type T=(number,...string)->(number,...string)";
+    // This natural source remains a Sparkdown grammar defect; no parse success
+    // or conformance skip is fabricated. Exercise the genuine prepared AST and
+    // real checker separately, as the definition setup boundary permits.
+    const parse = await loadOfficialLuau("typecheck"),
+      parsed = parse(source);
+    expect(parsed.errors).toBe(0);
+    const root = loadDefinitionAst({
+      version: 1,
+      parser: "7d5f73364fdbbaa984fa545071630eba73cfea98",
+      sourceSha256: createHash("sha256").update(source).digest("hex"),
+      root: parsed.root,
+    });
+    const declaration = root.body[0];
+    expect(declaration).toBeInstanceOf(Ast.AstStatTypeAlias);
+    const type = (declaration as Ast.AstStatTypeAlias)
+      .type as Ast.AstTypeFunction;
+    expect(type).toBeInstanceOf(Ast.AstTypeFunction);
+    expect(type.argTypes.tailType).toBeInstanceOf(Ast.AstTypePackVariadic);
+    const unit: SourceModule = {
+      name: "PreparedVariadic",
+      humanReadableName: "PreparedVariadic",
+      root,
+      hotcomments: [],
+      parseErrors: [],
+    };
+    const checked = new Frontend().checkSourceModule(unit, Mode.Strict);
+    expect(checked.errors).toEqual([]);
+    expect(decorateSource(source, checked.module, unit)).toBe(
+      "type T=(number,...string)->(number,...string)",
+    );
+  });
+  // The native probe installs the zero-location singleton AST which pinned
+  // TypeAttach::visitLocal rehydrates; the checker infers the actual cell here.
+  test.each([
+    ['local x="é" :: "é"; return x,0x10', "local x:'é'='é'::'é';return x,16"],
+    [
+      'local x="😀" :: "😀"; return x,0x10',
+      "local x:'😀'='😀'::'😀';return x,16",
+    ],
+    [
+      'local x="\\u{1F600}" :: "😀"; return x,0x10',
+      "local x:'😀'='😀'::'😀'; return x,16  ",
+    ],
+  ])(
+    "inferred Unicode decoration keeps byte positions for %s",
+    (source, printed) => {
+      const result = checkLuau(source);
+      expect(result.syntaxDiagnostics).toEqual([]);
+      expect(result.diagnostics).toEqual([]);
+      expect(result.find({ type: "x" }).kind).toBe("SingletonType");
+      expect(result.decoratedSource()).toBe(printed);
+    },
+  );
+  test.each([
+    'return "\\128",0x10',
+    'return "\\255",0x10',
+    'return "\\xFF",0x10',
+  ])("invalid UTF-8 output fails without replacement for %s", (source) => {
+    const result = checkLuau(source);
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(() => result.decoratedSource()).toThrow(
+      /invalid UTF-8 output bytes/,
+    );
+  });
+  test("NUL bytes retain the pinned escape before UTF-8 decoding", () => {
+    const result = checkLuau('return "\\000",0x10');
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.decoratedSource()).toBe("return '\\000',16  ");
+  });
+  // Measured with the AST-only printer from the exact pinned native source.
+  // Explicit annotations keep native and checker fixtures directly comparable.
+  test.each([
+    [
+      "assign-list",
+      "local x:number,y:number=1,2; x,y=0x10,1e2",
+      "local x:number,y:number=1,2; x,y =16, 100",
+    ],
+    [
+      "type-table-empty",
+      "type T={ --[[ comment ]] }",
+      "type T={                 }",
+    ],
+    [
+      "type-function-group-arg",
+      "type T=((number))->number",
+      "type T= (number)-> (number)",
+    ],
+    [
+      "type-generic-pack-parameter",
+      "type T<A...> = (A...)->A...\ntype U=T<number,string>",
+      "type T<A...> = (A...)->A...\ntype U=T<number,string>",
+    ],
+    ["binary-op-+", "return 0x10  +  1e2", "return 16 +     100"],
+    ["binary-op--", "return 0x10  -  1e2", "return 16 -     100"],
+    ["binary-op-*", "return 0x10  *  1e2", "return 16 *     100"],
+    ["binary-op-/", "return 0x10  /  1e2", "return 16 /     100"],
+    ["binary-op-//", "return 0x10  //  1e2", "return 16 //     100"],
+    ["binary-op-%", "return 0x10  %  1e2", "return 16 %     100"],
+    ["binary-op-^", "return 0x10  ^  1e2", "return 16 ^     100"],
+    ["binary-op-..", "return 0x10  ..  1e2", "return 16 ..     100"],
+    ["binary-op-~=", "return 0x10  ~=  1e2", "return 16 ~=     100"],
+    ["binary-op-==", "return 0x10  ==  1e2", "return 16 ==     100"],
+    ["binary-op-<", "return 0x10  <  1e2", "return 16 <     100"],
+    ["binary-op-<=", "return 0x10  <=  1e2", "return 16 <=     100"],
+    ["binary-op->", "return 0x10  >  1e2", "return 16 >     100"],
+    ["binary-op->=", "return 0x10  >=  1e2", "return 16 >=     100"],
+    ["binary-op-and", "return 0x10  and  1e2", "return 16 and     100"],
+    ["binary-op-or", "return 0x10  or  1e2", "return 16 or     100"],
+    [
+      "numeric-for-explicit",
+      "for i:number=0x10,1e2,0b10 do break end",
+      "for i:number=16,  100,2    do break end",
+    ],
+    [
+      "generic-for-explicit",
+      "for k:number,v:number in iter() do break end",
+      "for k:number,v:number in iter() do break end",
+    ],
+    [
+      "const-local",
+      "const x:number=0x10; return x",
+      "const x:number=16  ; return x",
+    ],
+    [
+      "function-self",
+      "function t:m(x:number):number return x end",
+      "function t:m(x:number): number return x end",
+    ],
+    ["type-array-read", "type T={read number}", "type T={read number}"],
+    [
+      "type-indexer-read",
+      "type T={read [string]:number}",
+      "type T={read [string]:number}",
+    ],
+    [
+      "type-table-properties-read",
+      "type T={read a:number;write b:number}",
+      "type T={     a:number,      b:number}",
+    ],
+    ["unicode-byte-columns", 'return "é",0x10', "return 'é',16  "],
+    ["unicode-nonbmp-columns", 'return "😀",0x10', "return '😀',16  "],
+    ["unicode-escape", 'return "\\u{1F600}",0x10', "return '😀',     16  "],
+    [
+      "unicode-comment",
+      "return 0x10 --[=[ 😀 ]=]",
+      "return 16                 ",
+    ],
+    [
+      "unicode-type",
+      'local x:"😀" = "😀"; return x,0x10',
+      "local x:'😀' = '😀'; return x,16  ",
+    ],
+    ["unicode-assertion", 'return "é" :: "é",0x10', "return 'é' :: 'é',16  "],
+    [
+      "comment-equals",
+      "return 1 --[=[ a ]] still comment ]=]",
+      "return 1                             ",
+    ],
+    [
+      "comment-zero",
+      "return 1 --[[ a ]=] still comment ]]",
+      "return 1                            ",
+    ],
+    [
+      "comment-nested-depth",
+      "return 1 --[==[ a ]=] ]] still comment ]==]",
+      "return 1                                   ",
+    ],
+    [
+      "comment-multiline",
+      "return --[=[ ]]\n still comment ]=]\n 0x10",
+      "return\n\n 16  ",
+    ],
+    [
+      "comments-before-after",
+      "--[[leading]]\nreturn 0x10 -- tail\n",
+      "\nreturn 16\n",
+    ],
+    ["empty-table", "return { --[=[ ]] ]=]\n}", "return {\n}"],
+    ["table-list", "return {0x10;1e2}", "return {16,  100}"],
+    ["table-trailing", "return {0x10,}", "return {16   }"],
+    ["table-record", "return {a=0x10; b=1e2;}", "return {a=16,   b=100 }"],
+    [
+      "table-general",
+      "return {[0x10] = 1e2; [1e2] = 0x10;}",
+      "return {[16] =   100,[ 100] = 16   }",
+    ],
+    [
+      "table-nested",
+      "return {{0x10;1e2;};{a={0x10,};};}",
+      "return {{16,  100 },{a={16   } } }",
+    ],
+    [
+      "table-multiline",
+      "return {\n 0x10;\n 1e2,\n}",
+      "return {\n 16,\n 100\n}",
+    ],
+    [
+      "table-string-record",
+      'return {a="hello"; b="there";}',
+      "return {a='hello', b='there' }",
+    ],
+    ["return-empty", "return --[=[ ]] ]=]", "return             "],
+    ["return-comma", "return 0x10 , 1e2", "return 16,    100"],
+    ["group", "return ( 0x10 )", "return ( 16   )"],
+    ["group-nested", "return ((0x10))", "return ((16  ))"],
+    ["nil-bool", "return nil,true,false", "return nil,true,false"],
+    ["unary-not", "return not not 0x10", "return not not 16  "],
+    ["unary-minus", "return - -1e2", "return - -100"],
+    ["unary-length", "return # {0x10;1e2}", "return # {16,  100}"],
+    ["binary-concat", "return 0x10 .. 1e2", "return 16 ..   100"],
+    ["binary-sub", "return 0x10- -1e2", "return 16 -  -100"],
+    ["binary-groups", "return (0x10)+(-1e2)", "return (16  )+(-100)"],
+    ["binary-multiline", "return 0x10\n + 1e2", "return 16+\n   100"],
+    ["binary-and", "return 0x10  and  1e2", "return 16 and     100"],
+    ["binary-or", "return nil or  1e2", "return nil or  100"],
+    ["index-name", "return t . a", "return t . a"],
+    ["index-numeric", "return t[0x10]", "return t[16]  "],
+    ["call-empty", "return f( )", "return f() "],
+    ["call-space", "return math.abs ( 0x10 )", "return math.abs(  16)   "],
+    ["call-multi", "return f(0x10, 1e2)", "return f(16,   100)"],
+    [
+      "call-nested",
+      "return math.abs(math.abs(0x10))",
+      "return math.abs(math.abs(16))  ",
+    ],
+    [
+      "if-expr",
+      "return if true then 0x10 else 1e2",
+      "return if true then 16 else   100",
+    ],
+    [
+      "if-expr-spaces",
+      "return if  true   then   0x10    else   1e2",
+      "return if  true then     16 else        100",
+    ],
+    [
+      "if-expr-elseif",
+      "return if false then 0x10 elseif true then 1e2 else 0b10",
+      "return if false then 16 elseif   true then 100 else 2   ",
+    ],
+    [
+      "if-expr-nested",
+      "return if true then (if false then 0x10 else 1e2) else 0b10",
+      "return if true then (if false then 16 else   100)else  2   ",
+    ],
+    [
+      "if-expr-multiline",
+      "return if true\n then 0x10\n else 1e2",
+      "return if true then\n      16 else\n      100",
+    ],
+    ["local-explicit", "local x : number = 0x10", "local x:  number = 16  "],
+    [
+      "local-list",
+      "local x:number,y:number=0x10,1e2",
+      "local x:number,y:number=16,  100",
+    ],
+    [
+      "local-comment",
+      "local --[=[ ]] ]=]\n x:number=0x10",
+      "local\n x:number=16  ",
+    ],
+    ["local-no-value", "local x:number", "local x:number"],
+    ["local-semicolon", "local x:number=0x10;", "local x:number=16  ;"],
+    ["assign", "local x:number=0x10; x=1e2", "local x:number=16  ; x =100"],
+    [
+      "assign-spaces",
+      "local x:number=0x10; x   =   1e2",
+      "local x:number=16  ; x =     100",
+    ],
+    ["compound", "local x:number=0x10; x+=1e2", "local x:number=16  ; x+=100"],
+    [
+      "compound-space",
+      "local x:number=0x10; x  +=  1e2",
+      "local x:number=16  ; x +=   100",
+    ],
+    [
+      "compound-concat",
+      'local x:string="a"; x ..= "b"',
+      "local x:string='a'; x ..= 'b'",
+    ],
+    ["while", "while false do break end", "while false do break end"],
+    [
+      "while-nested",
+      "while false do while false do continue end break end",
+      "while false do while false do continue end break end",
+    ],
+    ["repeat", "repeat until true", "repeat until true"],
+    [
+      "repeat-body",
+      "repeat math.abs(0x10) until true",
+      "repeat math.abs(16)   until true",
+    ],
+    [
+      "if-stat",
+      "if true then math.abs(0x10) end",
+      "if true then math.abs(16)   end",
+    ],
+    [
+      "if-stat-else",
+      "if true then math.abs(0x10) else math.abs(1e2) end",
+      "if true then math.abs(16)   else math.abs(100) end",
+    ],
+    [
+      "if-stat-elseif",
+      "if false then math.abs(0x10) elseif true then math.abs(1e2) else math.abs(0b10) end",
+      "if false then math.abs(16)   elseif true then math.abs(100) else math.abs(2)    end",
+    ],
+    ["do-block", "do math.abs(0x10) end", "   math.abs(16)      end"],
+    [
+      "function-expr",
+      "return function(x:number):number return x end",
+      "return function(x:number): number return x end",
+    ],
+    [
+      "function-local",
+      "local function f(x:number):number return x end",
+      "local function f(x:number): number return x end",
+    ],
+    [
+      "function-global",
+      "function f(x:number):number return x end",
+      "function f(x:number): number return x end",
+    ],
+    ["function-empty", "return function():() end", "return function(): ()end"],
+    [
+      "function-vararg",
+      "return function(...:number):number return 1 end",
+      "return function(...:number): number return 1 end",
+    ],
+    [
+      "function-generic",
+      "return function<T>(x:T):T return x end",
+      "return function<T>(x:T): T return x end",
+    ],
+    [
+      "function-pack",
+      "return function<T...>(...:T...):T... return ... end",
+      "return function<T...>(...:T...): T...return ... end",
+    ],
+    [
+      "function-return-pack",
+      'return function(): (number,string) return 1,"x" end',
+      "return function(): (number,string) return 1,'x' end",
+    ],
+    ["type-alias", "type T   =    number", "type T =      number"],
+    ["type-export", "export   type T = number", "export type   T = number"],
+    [
+      "type-generic",
+      "type T<A=number,B...=()> = (A,B...)->(A,B...)",
+      "type T<A=number,B...=()> = (A,B...)->(A,B...)",
+    ],
+    ["type-group", "type T = ( number )", "type T = ( number )"],
+    ["type-optional", "type T = number ?", "type T = number ?"],
+    ["type-union", "type T = number | string", "type T = number | string"],
+    ["type-nil-union", "type T = nil | number", "type T =       number?"],
+    [
+      "type-intersection",
+      "type T = (()->number) & (()->string)",
+      "type T = (()->(number))&(()->(string))",
+    ],
+    [
+      "type-table-record",
+      "type T={a:number; b:string;}",
+      "type T={a:number, b:string }",
+    ],
+    ["type-array", "type T={number}", "type T={number}"],
+    [
+      "type-indexer",
+      "type T={a:string,[number]:number}",
+      "type T={a:string,[number]:number}",
+    ],
+    ["type-typeof", "type T=typeof(math.abs)", "type T=typeof(math.abs)"],
+    ["type-singletons", 'type T=true | "hello"', "type T=true | 'hello'"],
+    [
+      "type-function",
+      "type T=(x:number,y:string)->(number,string)",
+      "type T=(x:number,y:string)->(number,string)",
+    ],
+    ["type-generic-function", "type T=<A>(A)->A", "type T=<A>(A)->(A)"],
+    [
+      "type-reference-parameters",
+      "type T<A> = A\ntype U=T<number>",
+      "type T<A> = A\ntype U=T<number>",
+    ],
+  ])("pinned AST emission context %s", (_branch, source, printed) => {
+    const result = checkLuau(source, {
+      globals: {
+        math: "{abs:(number)->number}",
+        t: "{a:number,m:(any,number)->number,[number]:number}",
+        f: "any",
+        iter: "any",
+      },
+    });
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.decoratedSource()).toBe(printed);
+  });
+  test.each([
+    ["return 1 --[=[ a ]] still comment ]=]", "return 1" + " ".repeat(29)],
+    ["return 1 --[[ a ]=] still comment ]]", "return 1" + " ".repeat(28)],
+    ["return {0x10;1e2}", "return {16,  100}"],
+    ["return {0x10,}", "return {16   }"],
+    ["return {a=0x10; b=1e2;}", "return {a=16,   b=100 }"],
+    ["return if true then 0x10 else 1e2", "return if true then 16 else   100"],
+  ])("AST decoration ignores source trivia for %s", (source, printed) => {
+    const result = checkLuau(source);
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.decoratedSource()).toBe(printed);
+  });
   test.each([
     ["0x10", "16"],
     ["0b1010", "10"],
