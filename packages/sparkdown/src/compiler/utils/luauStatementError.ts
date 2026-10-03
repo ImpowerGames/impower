@@ -1,7 +1,6 @@
-import { readLuauStatementCandidate, luauPositionOffset } from "../typecheck/readLuauAst";
+import { readLuauStatementCandidate, luauPositionOffset, nextLuauToken } from "../typecheck/readLuauAst";
 import type { SyntaxNode } from "@lezer/common";
 import type { Location } from "../typecheck/Location";
-import { nextSignificantToken } from "../lower/utils/validateAssignmentValue";
 
 /** A syntax error's message and document range. */
 export interface LuauStatementError {
@@ -27,13 +26,23 @@ export function luauStatementError(
   from: number,
   read: (from: number, to: number) => string,
   nodeEnd: number = from,
+  document: (() => string) | undefined = undefined,
 ): LuauStatementError | null {
+  // Production callers share the immutable document's text. The fallback is
+  // for isolated callers, and reads it once, including look-ahead past this
+  // candidate. Neither path builds a new document prefix on each iteration.
+  let documentText: string;
+  if (document) documentText = document();
+  else {
+    let root = node;
+    for (let parent = root.parent; parent; parent = root.parent) root = parent;
+    documentText = read(0, root.to);
+  }
   let lineEnd = endOfLine(Math.max(from, nodeEnd - 1), read);
   for (;;) {
-    const next = nextSignificantToken(node, lineEnd, read);
+    const next = nextLuauToken(lineEnd, documentText);
     const to = next ? endOfLine(next.from + next.text.length, read) : lineEnd;
     const text = read(from, to);
-    const documentText = read(0, to);
     const result = readLuauStatementCandidate(node, documentText, from, to);
     const error = result.errors[0];
     if (!error) return null;

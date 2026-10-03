@@ -3903,9 +3903,18 @@ export function readLuauStatementCandidate(
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   tokenizer.luauThroughout = true;
+  // Start at the selected statement's path, not the first sibling in the
+  // document. Retain the path through clipped wrappers so even a large
+  // function body reads only the siblings covered by this candidate.
+  const firstChildren = new Map<SyntaxNode, SyntaxNode>();
   let root = node;
-  while (root.parent) root = root.parent;
-  if (from < 0 || to < from || to > Math.min(root.to, documentText.length)) {
+  while (root.from > from || root.to < to) {
+    const parent = root.parent;
+    if (!parent) break;
+    firstChildren.set(parent, root);
+    root = parent;
+  }
+  if (from < node.from || from > node.to || to < from || to > Math.min(root.to, documentText.length)) {
     throw new Error("Statement diagnostic span lies outside its document tree");
   }
   const read = (current: SyntaxNode): void => {
@@ -3916,8 +3925,9 @@ export function readLuauStatementCandidate(
       return;
     }
     let at = Math.max(from, current.from);
-    for (let child = current.firstChild; child; child = child.nextSibling) {
-      if (child.to <= from || child.from >= to) continue;
+    for (let child = firstChildren.get(current) ?? current.firstChild; child; child = child.nextSibling) {
+      if (child.from >= to) break;
+      if (child.to <= from) continue;
       if (child.from > at) tokenizer.lex(at, Math.min(to, child.from));
       read(child);
       at = Math.max(at, Math.min(to, child.to));
