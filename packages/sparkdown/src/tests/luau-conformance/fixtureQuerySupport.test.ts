@@ -11,6 +11,66 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  test.each([
+    ["0x10", "16"],
+    ["0b1010", "10"],
+    ["1_000", "1000"],
+    ["1e2", "100"],
+    ["01.500", "1.5"],
+    [".1", "0.10000000000000001"],
+    ["1e-5", "1.0000000000000001e-05"],
+    ["1e-4", "0.0001"],
+    ["1e17", "1e+17"],
+    ["2147483647.0", "2147483647"],
+    ["2147483648.0", "2147483648"],
+    ["9007199254740993", "9007199254740992"],
+    ["5e-324", "4.9406564584124654e-324"],
+    ["1e500", "1e500"],
+    ["-0.0", "-0"],
+    ["-1e2", "-100"],
+    ["-0x10", "-16"],
+    ["1846707753922048.25", "1846707753922048.2"],
+    ["-2012579083280643.25", "-2012579083280643.2"],
+    ["27057084435577.3125", "27057084435577.312"],
+  ])(
+    "decoration prints numeric AST value %s with pinned precision",
+    (literal, printed) => {
+      const r = checkLuau(`local x=${literal}`);
+      expect(r.syntaxDiagnostics).toEqual([]);
+      expect(r.diagnostics).toEqual([]);
+      expect(r.decoratedSource()).toBe(`local x:number=${printed}`);
+    },
+  );
+  // Exact outputs measured with the AST-only PrettyPrinter at the same pin.
+  // Its separators are emitted before advancing to the next expression.
+  test.each([
+    ["return 0x0000000000000001,1e2", "return 1,                 100"],
+    ["return .1, 0b10\n", "return 0.10000000000000001,2\n"],
+    ["return -0.0,0x10", "return -0,  16  "],
+    ["return {0b10,.1};", "return {2,   0.10000000000000001};"],
+    ["return (01.500)", "return (1.5   )"],
+    ["return math.abs(0x10)", "return math.abs(16)  "],
+    ["return 0x10+1e2", "return 16 + 100"],
+    ["return 0x10  +  1e2", "return 16 +     100"],
+    ["return 0x10==1e2", "return 16 == 100"],
+    ["return 0x10//1e2", "return 16 // 100"],
+    ["return 0x10\n+1e2", "return 16+\n 100"],
+    ["return -2147483648.0", "return -2147483648  "],
+    ["return 1846707753922048.25", "return 1846707753922048.2 "],
+  ])(
+    "numeric decoration retains pinned positions for %s",
+    (source, printed) => {
+      const r = checkLuau(
+        source,
+        source.includes("math.abs")
+          ? { globals: { math: "{abs:(number)->number}" } }
+          : undefined,
+      );
+      expect(r.syntaxDiagnostics).toEqual([]);
+      expect(r.diagnostics).toEqual([]);
+      expect(r.decoratedSource()).toBe(printed);
+    },
+  );
   test("flattened pack facts preserve chained heads and the actual residual tail", () => {
     const r = checkLuau(
       "function take_two() return 2,2 end\nfunction take_three() return 1,take_two() end",

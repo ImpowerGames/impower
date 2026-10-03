@@ -2,11 +2,16 @@
 // advance the output column; original tokens retain source lines/columns where
 // those columns have not already been consumed by inserted type text.
 import {
+  AstExprConstantNumber,
+  AstExprBinary,
+  AstExprCall,
   AstExprConstantString,
   AstExprFunction,
   AstStatLocalFunction,
   AstLocal,
   AstTypeSingletonString,
+  BinaryOp,
+  binaryOpToString,
   visitAst,
 } from "../../compiler/typecheck/Ast";
 import type { Module, SourceModule } from "../../compiler/typecheck/Module";
@@ -242,6 +247,70 @@ function pinnedString(value: string): string {
   return result + quote;
 }
 
+// PrettyPrinter.cpp::isIntegerish and the AST-only constant-number branch.
+// C's %.17g switches at decimal exponents -4/17, unlike JS toString/precision.
+function pinnedNumber(value: number): string {
+  if (value === Infinity) return "1e500";
+  if (value === -Infinity) return "-1e500";
+  if (Number.isNaN(value)) return "0/0";
+  if (Object.is(value, -0)) return "-0";
+  if (Number.isInteger(value) && value >= -2147483648 && value <= 2147483647)
+    return String(value);
+  // JS decimal formatting rounds ties away from zero; C printf uses ties to
+  // even. Round the exact IEEE754 rational once to 17 significant digits.
+  const data = new DataView(new ArrayBuffer(8));
+  data.setFloat64(0, Math.abs(value));
+  const bits = data.getBigUint64(0);
+  const binaryExponent = Number((bits >> 52n) & 2047n);
+  const significand =
+    (bits & ((1n << 52n) - 1n)) | (binaryExponent ? 1n << 52n : 0n);
+  const power = (binaryExponent || 1) - 1023 - 52;
+  let numerator = power >= 0 ? significand << BigInt(power) : significand;
+  let denominator = power < 0 ? 1n << BigInt(-power) : 1n;
+  const ten = (n: number) => 10n ** BigInt(n);
+  let exponent = Math.floor(Math.log10(Math.abs(value)));
+  const atLeastPower = (n: number) =>
+    n >= 0
+      ? numerator >= denominator * ten(n)
+      : numerator * ten(-n) >= denominator;
+  while (!atLeastPower(exponent)) exponent--;
+  while (atLeastPower(exponent + 1)) exponent++;
+  const scale = 16 - exponent;
+  if (scale >= 0) numerator *= ten(scale);
+  else denominator *= ten(-scale);
+  let rounded = numerator / denominator;
+  const remainder = numerator % denominator;
+  if (
+    remainder * 2n > denominator ||
+    (remainder * 2n === denominator && rounded % 2n === 1n)
+  )
+    rounded++;
+  if (rounded === ten(17)) {
+    rounded /= 10n;
+    exponent++;
+  }
+  const digits = rounded.toString().replace(/0+$/, "");
+  const sign = value < 0 ? "-" : "";
+  if (exponent < -4 || exponent >= 17)
+    return (
+      sign +
+      digits[0] +
+      (digits.length > 1 ? "." + digits.slice(1) : "") +
+      "e" +
+      (exponent < 0 ? "-" : "+") +
+      Math.abs(exponent).toString().padStart(2, "0")
+    );
+  const point = exponent + 1;
+  return (
+    sign +
+    (point <= 0
+      ? "0." + "0".repeat(-point) + digits
+      : point >= digits.length
+        ? digits + "0".repeat(point - digits.length)
+        : digits.slice(0, point) + "." + digits.slice(point))
+  );
+}
+
 export function decorateSource(
   source: string,
   module: Module,
@@ -257,8 +326,16 @@ export function decorateSource(
   const at = (position: { line: number; column: number }) =>
     (starts[position.line] ?? source.length) + position.column;
   const insertions = new Map<number, string>(),
-    strings = new Map<number, { end: number; text: string }>();
+    literals = new Map<number, { end: number; text: string }>();
   const printer = inferredPrinter();
+  const immediate = new Set<number>();
+  const binaryOperators: {
+    begin: number;
+    end: number;
+    token: string;
+    column: number;
+    reserve: number;
+  }[] = [];
   const bindings = new Map<AstLocal, TypeId>();
   for (const [, scope] of module.scopes)
     for (const [symbol, binding] of scope.bindings)
@@ -268,15 +345,52 @@ export function decorateSource(
       insertions.set(at(local.location.end), `:${printer.printType(type)}`);
   visitAst(ast.root, {
     visit: (node) => {
+      if (node instanceof AstExprCall) {
+        const begin = at(node.argLocation.begin) - 1,
+          end = at(node.argLocation.end);
+        if (source[begin] !== "(" || source[end - 1] !== ")")
+          throw new Error(
+            "unsupported source decoration: call without parentheses",
+          );
+        // The AST-only call printer emits both delimiters immediately.
+        immediate.add(begin);
+        immediate.add(end - 1);
+      }
+      if (node instanceof AstExprBinary) {
+        const reserve =
+          node.op === BinaryOp.And
+            ? 4
+            : [
+                  BinaryOp.Concat,
+                  BinaryOp.CompareNe,
+                  BinaryOp.CompareEq,
+                  BinaryOp.CompareLe,
+                  BinaryOp.CompareGe,
+                  BinaryOp.Or,
+                ].includes(node.op)
+              ? 3
+              : 2;
+        binaryOperators.push({
+          begin: at(node.left.location.end),
+          end: at(node.right.location.begin),
+          token: binaryOpToString(node.op),
+          column: node.right.location.begin.column,
+          reserve,
+        });
+      }
       if (node instanceof AstStatLocalFunction)
         insertions.delete(at(node.name.location.end));
       if (
+        node instanceof AstExprConstantNumber ||
         node instanceof AstExprConstantString ||
         node instanceof AstTypeSingletonString
       ) {
-        strings.set(at(node.location.begin), {
+        literals.set(at(node.location.begin), {
           end: at(node.location.end),
-          text: pinnedString(node.value),
+          text:
+            node instanceof AstExprConstantNumber
+              ? pinnedNumber(node.value)
+              : pinnedString(node.value),
         });
       }
       if (
@@ -317,17 +431,17 @@ export function decorateSource(
     const targetColumn = position - starts[targetLine]!;
     if (column < targetColumn) emit(" ".repeat(targetColumn - column));
   };
-  // This is printing, not parsing: the already checked AST supplies strings
+  // This is printing, not parsing: the already checked AST supplies literals
   // and annotations. Unsupported literal tokens fail instead of guessing.
   const token =
-    /\s+|--\[=*\[[\s\S]*?\]=*\]|--[^\n]*|(?:[A-Za-z_][A-Za-z_0-9]*|(?:0[xX][a-fA-F0-9]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\.\.\.|\.\.|::|->|==|~=|<=|>=|\/\/|[+\-*\/%^#=<>~&|?:,;.(){}\[\]])/gy;
+    /\s+|--\[=*\[[\s\S]*?\]=*\]|--[^\n]*|(?:[A-Za-z_][A-Za-z_0-9]*|\.\.\.|\.\.|::|->|==|~=|<=|>=|\/\/|[+\-*\/%^#=<>~&|?:,;.(){}\[\]])/gy;
   let cursor = 0;
   while (cursor < source.length) {
-    const string = strings.get(cursor);
+    const literal = literals.get(cursor);
     let text: string, end: number;
-    if (string) {
-      text = string.text;
-      end = string.end;
+    if (literal) {
+      text = literal.text;
+      end = literal.end;
     } else {
       token.lastIndex = cursor;
       const match = token.exec(source);
@@ -340,7 +454,12 @@ export function decorateSource(
         continue;
       }
     }
-    advance(cursor);
+    const binary = binaryOperators.find(
+      (op) => op.begin <= cursor && cursor < op.end && op.token === text,
+    );
+    if (binary) {
+      if (column + binary.reserve < binary.column) emit(" ");
+    } else if (text !== "," && !immediate.has(cursor)) advance(cursor);
     if (/[A-Za-z_0-9]$/.test(last) && /^[A-Za-z_0-9]/.test(text)) emit(" ");
     emit(text);
     cursor = end;
