@@ -1,4 +1,4 @@
-text.source.sparkdown [0..87]
+text.source.sparkdown [0..157]
  ├─ keyword.control.asset.control.sd [0..4]: "load"
  ├─ punctuation.whitespace.required.sd [4..5]: " "
  ├─ string.display.text.chunk.sd [5..11]
@@ -50,4 +50,42 @@ text.source.sparkdown [0..87]
  │       ├─ markup.raw.text.sd [75..79]: "load"
  │       ├─ markup.raw.space.sd [79..80]: " "
  │       └─ markup.raw.text.sd [80..86]: "forest"
- └─ Newline [86..87]: "\n"
+ ├─ Newline [86..87]: "\n"
+ ├─ string.display.text.chunk.sd [87..93]
+ │   └─ markup.raw.text.sd [87..93]: "Before"
+ ├─ meta.break.sd [93..96]
+ │   └─ keyword.other.break.sd [93..96]: " > "
+ ├─ meta.glue.leading.sd [96..98]
+ │   └─ keyword.other.glue.sd [96..98]: ".."
+ ├─ punctuation.whitespace.extra.sd [98..99]: " "
+ ├─ keyword.control.asset.control.sd [99..103]: "load"
+ ├─ punctuation.whitespace.required.sd [103..104]: " "
+ ├─ string.display.text.chunk.sd [104..110]
+ │   └─ markup.raw.text.sd [104..110]: "forest"
+ ├─ Newline [110..111]: "\n"
+ ├─ string.display.text.chunk.sd [111..120]
+ │   ├─ markup.raw.text.sd [111..117]: "Before"
+ │   └─ meta.glue.sd [117..120]
+ │       ├─ punctuation.whitespace.sd [117..118]: " "
+ │       └─ keyword.other.glue.sd [118..120]: ".."
+ ├─ meta.break.sd [120..123]
+ │   └─ keyword.other.break.sd [120..123]: " > "
+ ├─ meta.glue.leading.sd [123..125]
+ │   └─ keyword.other.glue.sd [123..125]: ".."
+ ├─ punctuation.whitespace.extra.sd [125..126]: " "
+ ├─ keyword.control.asset.control.sd [126..130]: "load"
+ ├─ punctuation.whitespace.required.sd [130..131]: " "
+ ├─ string.display.text.chunk.sd [131..137]
+ │   └─ markup.raw.text.sd [131..137]: "forest"
+ ├─ Newline [137..138]: "\n"
+ ├─ meta.template.expression.operator.colon.sd [138..139]: ":"
+ ├─ Newline [139..140]: "\n"
+ ├─ punctuation.whitespace.optional.sd [140..142]: "  "
+ ├─ meta.glue.leading.sd [142..144]
+ │   └─ keyword.other.glue.sd [142..144]: ".."
+ ├─ punctuation.whitespace.extra.sd [144..145]: " "
+ ├─ keyword.control.asset.control.sd [145..149]: "load"
+ ├─ punctuation.whitespace.required.sd [149..150]: " "
+ ├─ string.display.text.chunk.sd [150..156]
+ │   └─ markup.raw.text.sd [150..156]: "forest"
+ └─ Newline [156..157]: "\n"

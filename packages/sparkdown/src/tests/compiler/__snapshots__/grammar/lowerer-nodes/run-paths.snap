@@ -1,4 +1,4 @@
-sparkdown [0..63]
+sparkdown [0..122]
  ├─ Run [0..24]
  │   ├─ Run_begin [0..4]
  │   │   ├─ Run_begin_c1 0
@@ -11,7 +11,8 @@ sparkdown [0..63]
  │   │   └─ RunContent [4..24]
  │   │       ├─ RunContent_c1 [4..24]
  │   │       │   └─ RunQuotedPath [4..24]: "\"scripts/start.luau\""
- │   │       └─ RunContent_c2 24
+ │   │       ├─ RunContent_c2 24
+ │   │       └─ RunContent_c3 24
  │   └─ Run_end 24
  ├─ Newline [24..25]: "\n"
  ├─ Run [25..44]
@@ -26,7 +27,8 @@ sparkdown [0..63]
  │   │   └─ RunContent [29..44]
  │   │       ├─ RunContent_c1 [29..44]
  │   │       │   └─ RunQuotedPath [29..44]: "'scripts/start'"
- │   │       └─ RunContent_c2 44
+ │   │       ├─ RunContent_c2 44
+ │   │       └─ RunContent_c3 44
  │   └─ Run_end 44
  ├─ Newline [44..45]: "\n"
  ├─ Run [45..62]
@@ -40,7 +42,68 @@ sparkdown [0..63]
  │   ├─ Run_content [49..62]
  │   │   └─ RunContent [49..62]
  │   │       ├─ RunContent_c1 49
- │   │       └─ RunContent_c2 [49..62]
+ │   │       ├─ RunContent_c2 49
+ │   │       └─ RunContent_c3 [49..62]
  │   │           └─ RunUnquotedPath [49..62]: "scripts/start"
  │   └─ Run_end 62
- └─ Newline [62..63]: "\n"
+ ├─ Newline [62..63]: "\n"
+ ├─ Run [63..94]
+ │   ├─ Run_begin [63..67]
+ │   │   ├─ Run_begin_c1 63
+ │   │   │   └─ OptionalWhitespace 63
+ │   │   ├─ Run_begin_c2 [63..66]
+ │   │   │   └─ RunKeyword [63..66]: "run"
+ │   │   └─ Run_begin_c3 [66..67]
+ │   │       └─ RequiredWhitespace [66..67]: " "
+ │   ├─ Run_content [67..94]
+ │   │   ├─ RunContent [67..89]
+ │   │   │   ├─ RunContent_c1 [67..87]
+ │   │   │   │   └─ RunQuotedPath [67..87]: "\"scripts/start.luau\""
+ │   │   │   ├─ RunContent_c2 [87..89]
+ │   │   │   │   └─ ExtraWhitespace [87..89]: "  "
+ │   │   │   └─ RunContent_c3 89
+ │   │   └─ Tags [89..94]
+ │   │       ├─ Tags_begin 89
+ │   │       ├─ Tags_content [89..94]
+ │   │       │   └─ Tag [89..94]
+ │   │       │       ├─ Tag_c1 89
+ │   │       │       ├─ Tag_c2 [89..90]: "#"
+ │   │       │       └─ Tag_c3 [90..94]
+ │   │       │           └─ TagContent [90..94]
+ │   │       │               ├─ TagContent_begin 90
+ │   │       │               ├─ TagContent_content [90..94]
+ │   │       │               │   └─ TagText [90..94]: " tag"
+ │   │       │               └─ TagContent_end 94
+ │   │       └─ Tags_end 94
+ │   └─ Run_end 94
+ ├─ Newline [94..95]: "\n"
+ ├─ Run [95..121]
+ │   ├─ Run_begin [95..99]
+ │   │   ├─ Run_begin_c1 95
+ │   │   │   └─ OptionalWhitespace 95
+ │   │   ├─ Run_begin_c2 [95..98]
+ │   │   │   └─ RunKeyword [95..98]: "run"
+ │   │   └─ Run_begin_c3 [98..99]
+ │   │       └─ RequiredWhitespace [98..99]: " "
+ │   ├─ Run_content [99..121]
+ │   │   ├─ RunContent [99..116]
+ │   │   │   ├─ RunContent_c1 [99..114]
+ │   │   │   │   └─ RunQuotedPath [99..114]: "'scripts/start'"
+ │   │   │   ├─ RunContent_c2 [114..116]
+ │   │   │   │   └─ ExtraWhitespace [114..116]: "  "
+ │   │   │   └─ RunContent_c3 116
+ │   │   └─ Tags [116..121]
+ │   │       ├─ Tags_begin 116
+ │   │       ├─ Tags_content [116..121]
+ │   │       │   └─ Tag [116..121]
+ │   │       │       ├─ Tag_c1 116
+ │   │       │       ├─ Tag_c2 [116..117]: "#"
+ │   │       │       └─ Tag_c3 [117..121]
+ │   │       │           └─ TagContent [117..121]
+ │   │       │               ├─ TagContent_begin 117
+ │   │       │               ├─ TagContent_content [117..121]
+ │   │       │               │   └─ TagText [117..121]: " tag"
+ │   │       │               └─ TagContent_end 121
+ │   │       └─ Tags_end 121
+ │   └─ Run_end 121
+ └─ Newline [121..122]: "\n"

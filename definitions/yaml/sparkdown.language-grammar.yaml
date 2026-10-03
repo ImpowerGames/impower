@@ -1258,12 +1258,15 @@ repository:
     # lookaround: Annotation owns the EOL tail. Reordering cannot stop a
     # path already being matched; splitting quoted/unquoted paths still
     # needs that boundary, and Run's end must leave annotations in its body.
-    match: (?:(".*?"|'.*?'){{WS}}*|(.+?))(?={{EOL}})
+    match: (?:(".*?"|'.*?')({{WS}}*)|(.+?))(?={{EOL}})
     captures:
       1:
         patterns:
           - { include: "#RunQuotedPath" }
       2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      3:
         patterns:
           - { include: "#RunUnquotedPath" }
 
@@ -2999,8 +3002,21 @@ repository:
 
   ActionDisplayLine:
     patterns:
-      - { include: "#DisplayLoadKeyword" }
+      - { include: "#ActionLoadKeyword" }
       - { include: "#DisplayLine" }
+
+  # LeadingGlue leaves its separator for the action body. Keep that whitespace
+  # outside DisplayLoadKeyword so body walking can skip it and still encounter
+  # the keyword node at its exact source start.
+  ActionLoadKeyword:
+    match: ({{WS}}*)({{LOAD_CONTROL_KEYWORDS}}{{WS}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#DisplayLoadKeyword" }
 
   ########## Parenthetical ##########
 

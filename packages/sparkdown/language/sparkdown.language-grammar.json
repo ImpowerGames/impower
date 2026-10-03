@@ -940,7 +940,7 @@
     "RunContent": {
       "tag": "string",
       "name": "string.run.luau.sd",
-      "match": "(?:(\".*?\"|'.*?')(?:[^\\S\\n\\r])*|(.+?))(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "(?:(\".*?\"|'.*?')((?:[^\\S\\n\\r])*)|(.+?))(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -950,6 +950,13 @@
           ]
         },
         "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "3": {
           "patterns": [
             {
               "include": "#RunUnquotedPath"
@@ -3726,12 +3733,31 @@
     "ActionDisplayLine": {
       "patterns": [
         {
-          "include": "#DisplayLoadKeyword"
+          "include": "#ActionLoadKeyword"
         },
         {
           "include": "#DisplayLine"
         }
       ]
+    },
+    "ActionLoadKeyword": {
+      "match": "((?:[^\\S\\n\\r])*)(\\b(?:load)\\b(?:[^\\S\\n\\r]))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DisplayLoadKeyword"
+            }
+          ]
+        }
+      }
     },
     "ParentheticalLine": {
       "match": "((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)((?:[^\\S\\n\\r])*)([(][^()]*?[)])((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)($|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?=(?:(?:[^\\S\\n\\r])*(?:[>])(?:[^\\S\\n\\r])*))|(?:[\\\\])(?:(?:[^\\S\\n\\r])))",

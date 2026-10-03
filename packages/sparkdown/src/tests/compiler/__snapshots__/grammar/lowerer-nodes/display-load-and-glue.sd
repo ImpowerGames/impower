@@ -4,3 +4,7 @@ load forest
 A .. > .. B
 A > load forest
 HERO: load forest
+Before > .. load forest
+Before .. > .. load forest
+:
+  .. load forest

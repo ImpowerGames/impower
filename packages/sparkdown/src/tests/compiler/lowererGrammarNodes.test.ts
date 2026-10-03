@@ -28,6 +28,40 @@ describe("lowerer grammar distinctions", () => {
     });
   });
 
+  test.each([
+    'run "scripts/start.luau" ',
+    "run 'scripts/start.luau'\t",
+    'run "scripts/start.luau"  # tag',
+  ])("%s retains its quoted path with trailing whitespace", (line) => {
+    expect(compileSource(`${line}\n`).find((e) => e.block?.run)?.block?.run).toBe("scripts/start");
+  });
+
+  test.each([
+    "Before > .. load forest",
+    "Before .. > .. load forest",
+    ":\n  .. load forest",
+    "Before > ..\tload forest",
+    ":\n  ..\tload forest",
+  ])("%s keeps a load directive after spaced glue", (line) => {
+    const { story, errorMessages } = makeRuntimeStoryFromSource(`${line}\ndone\n`);
+    expect(errorMessages).toEqual([]);
+    const warnings: string[] = [];
+    story.onError = (message) => warnings.push(message);
+    const loads: string[] = [];
+    const texts: string[] = [];
+    for (let i = 0; story.canContinue && i < 10; i++) {
+      const text = story.Continue();
+      if (text != null) texts.push(text);
+      for (const instruction of story.currentDisplayInstructions) {
+        const value = (instruction.value?.get("load") as any)?.value;
+        if (value != null) loads.push(value);
+      }
+    }
+    expect(loads).toEqual(["forest"]);
+    expect(texts.join("")).not.toContain("load forest");
+    expect(warnings).toEqual([]);
+  });
+
   test("display load keyword is visible in the tree", () => {
     expect(stripAnsi(dumpTree("load forest\n"))).toContain("DisplayLoadKeyword");
     expect(stripAnsi(dumpTree("HERO: load forest\n"))).not.toContain("DisplayLoadKeyword");
