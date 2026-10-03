@@ -11,6 +11,7 @@ sparkdown [0..157]
  │   │       ├─ ActionLineEnd_content [0..11]
  │   │       │   ├─ ActionLoadKeyword [0..5]
  │   │       │   │   ├─ ActionLoadKeyword_c1 0
+ │   │       │   │   │   └─ OptionalWhitespace 0
  │   │       │   │   └─ ActionLoadKeyword_c2 [0..5]
  │   │       │   │       └─ DisplayLoadKeyword [0..5]
  │   │       │   │           ├─ DisplayLoadKeyword_c1 [0..4]
@@ -42,6 +43,7 @@ sparkdown [0..157]
  │   │       ├─ ActionLineEnd_content [14..25]
  │   │       │   ├─ ActionLoadKeyword [14..19]
  │   │       │   │   ├─ ActionLoadKeyword_c1 14
+ │   │       │   │   │   └─ OptionalWhitespace 14
  │   │       │   │   └─ ActionLoadKeyword_c2 [14..19]
  │   │       │   │       └─ DisplayLoadKeyword [14..19]
  │   │       │   │           ├─ DisplayLoadKeyword_c1 [14..18]
@@ -73,6 +75,7 @@ sparkdown [0..157]
  │   │       ├─ ActionLineEnd_content [29..40]
  │   │       │   ├─ ActionLoadKeyword [29..34]
  │   │       │   │   ├─ ActionLoadKeyword_c1 29
+ │   │       │   │   │   └─ OptionalWhitespace 29
  │   │       │   │   └─ ActionLoadKeyword_c2 [29..34]
  │   │       │   │       └─ DisplayLoadKeyword [29..34]
  │   │       │   │           ├─ DisplayLoadKeyword_c1 [29..33]
@@ -141,6 +144,7 @@ sparkdown [0..157]
  │   │       │   │   └─ Break_c1 [54..57]: " > "
  │   │       │   ├─ ActionLoadKeyword [57..62]
  │   │       │   │   ├─ ActionLoadKeyword_c1 57
+ │   │       │   │   │   └─ OptionalWhitespace 57
  │   │       │   │   └─ ActionLoadKeyword_c2 [57..62]
  │   │       │   │       └─ DisplayLoadKeyword [57..62]
  │   │       │   │           ├─ DisplayLoadKeyword_c1 [57..61]
@@ -216,7 +220,7 @@ sparkdown [0..157]
  │   │       │   │           └─ LeadingGlue_c1 [96..98]: ".."
  │   │       │   ├─ ActionLoadKeyword [98..104]
  │   │       │   │   ├─ ActionLoadKeyword_c1 [98..99]
- │   │       │   │   │   └─ ExtraWhitespace [98..99]: " "
+ │   │       │   │   │   └─ OptionalWhitespace [98..99]: " "
  │   │       │   │   └─ ActionLoadKeyword_c2 [99..104]
  │   │       │   │       └─ DisplayLoadKeyword [99..104]
  │   │       │   │           ├─ DisplayLoadKeyword_c1 [99..103]
@@ -259,7 +263,7 @@ sparkdown [0..157]
  │   │       │   │           └─ LeadingGlue_c1 [123..125]: ".."
  │   │       │   ├─ ActionLoadKeyword [125..131]
  │   │       │   │   ├─ ActionLoadKeyword_c1 [125..126]
- │   │       │   │   │   └─ ExtraWhitespace [125..126]: " "
+ │   │       │   │   │   └─ OptionalWhitespace [125..126]: " "
  │   │       │   │   └─ ActionLoadKeyword_c2 [126..131]
  │   │       │   │       └─ DisplayLoadKeyword [126..131]
  │   │       │   │           ├─ DisplayLoadKeyword_c1 [126..130]
@@ -293,7 +297,7 @@ sparkdown [0..157]
          │   ├─ BlockActionLineContinue_content [144..156]
          │   │   ├─ ActionLoadKeyword [144..150]
          │   │   │   ├─ ActionLoadKeyword_c1 [144..145]
-         │   │   │   │   └─ ExtraWhitespace [144..145]: " "
+         │   │   │   │   └─ OptionalWhitespace [144..145]: " "
          │   │   │   └─ ActionLoadKeyword_c2 [145..150]
          │   │   │       └─ DisplayLoadKeyword [145..150]
          │   │   │           ├─ DisplayLoadKeyword_c1 [145..149]

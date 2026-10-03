@@ -44,6 +44,14 @@ describe("formatting a leading `..`", () => {
     `HERO: A .. >\nALICE: ..   B\n`,
     `$: A ..\n$: .. B\n`,
     `A .. > .. B\n`,
+    `Before > .. load forest\n`,
+    `Before > ..load forest\n`,
+    `Before .. > ..   load forest\n`,
+    `Before > ..\tload forest\n`,
+    `:\n  .. load forest\n`,
+    `:\n  ..load forest\n`,
+    `:\n  ..   load forest\n`,
+    `:\n  ..\tload forest\n`,
     `You see a ..\nif has_key then\n  .. rusty key.\nelse\n  .. locked door.\nend\n`,
   ]) {
     test(`leaves ${JSON.stringify(source)} as written`, () => {
@@ -62,6 +70,17 @@ describe("formatting a leading `..`", () => {
       expect(formatSource(source)).toBe(formatted);
     }
   });
+});
+
+test("load keyword formatting keeps ordinary action boundaries", () => {
+  for (const source of [
+    "load forest\n",
+    "Before > load forest\n",
+    ": load forest\n",
+    ":\n  load forest\n",
+  ]) {
+    expect(formatSource(source)).toBe(source);
+  }
 });
 
 // An inline-glued alternator right after a cue's or heading's colon keeps

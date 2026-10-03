@@ -3746,7 +3746,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
