@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -70,7 +71,7 @@ export function validateStatementNode(
   if (REASSIGNMENT_NAMES.has(node.name)) {
     const content = node.getChild(`${node.name}_content`) ?? node;
     validateReassignmentList(content, continuation, ctx);
-    const op = content.getChild("LuauAssignmentOperation");
+    const op = (content.getChild("LuauAssignmentOperation") ?? content.getChild("LuauSparkdownExplicitAssignmentOperation"));
     if (op) validateAssignmentValue(op, ctx);
     return;
   }
@@ -83,7 +84,7 @@ export function validateStatementNode(
     // redundant.
     const diagnostics = validateExplicitStatement(node, ctx);
     if (diagnostics.length > 0) ctx.diagnostics?.push(...diagnostics);
-    const declaration = getDescendent("LuauSparkdownVariableDefinition", node);
+    const declaration = getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node);
     if (declaration) {
       validateVariableDefinition(declaration, continuation, ctx);
       return;
@@ -126,7 +127,7 @@ function siblingAssignmentOperation(node: SyntaxNode): SyntaxNode | null {
     if (SIBLING_BRIDGE.has(next.name) || STORE_LINK_NAMES.has(next.name)) {
       continue;
     }
-    return next.name === "LuauAssignmentOperation" ? next : null;
+    return isExplicitRuleName(next.name, "LuauAssignmentOperation") ? next : null;
   }
   return null;
 }
@@ -262,11 +263,11 @@ export function validateReassignmentList(
   let last: SyntaxNode | null = null;
   for (let child = content.firstChild; child; child = child.nextSibling) {
     if (isInsignificant(child.name)) continue;
-    if (!sawAssignment && child.name !== "LuauAssignmentOperation") {
+    if (!sawAssignment && !isExplicitRuleName(child.name, "LuauAssignmentOperation")) {
       if (isListCommaName(child.name)) sawTargetComma = true;
-      else if (child.name !== "LuauAccessPath") onlyTargets = false;
+      else if (!isExplicitRuleName(child.name, "LuauAccessPath")) onlyTargets = false;
     }
-    if (child.name === "LuauAssignmentOperation") {
+    if (isExplicitRuleName(child.name, "LuauAssignmentOperation")) {
       if (sawAssignment) {
         validateSecondAssignment(child, ctx);
         return;
@@ -374,7 +375,7 @@ export function validateVariableDefinition(
     unresolvedComma = null;
     const before = previous;
     previous = child;
-    if (child.name === "LuauVariableAssignment") {
+    if (isExplicitRuleName(child.name, "LuauVariableAssignment")) {
       const opNode = ownAssignmentOperation(child);
       if (sawAssignmentOp) {
         // A second `=` (`local a = 1, x = 99`): Luau ends the list at `x`
@@ -402,7 +403,7 @@ export function validateVariableDefinition(
     }
     // A bare name before any `=` is a target (`local a` before a statement
     // on its line).
-    if (child.name === "LuauAccessPath" && !sawAssignmentOp && !hasValueGroup) {
+    if (isExplicitRuleName(child.name, "LuauAccessPath") && !sawAssignmentOp && !hasValueGroup) {
       lastTarget = child;
       continue;
     }
@@ -467,13 +468,13 @@ export function validateVariableDefinition(
   // `.Button = 1`), or on the last union member line after a comment line
   // (`local v: number` then `-- note` then `| string = 1`).
   let firstOp =
-    lastTarget.name === "LuauVariableAssignment"
+    isExplicitRuleName(lastTarget.name, "LuauVariableAssignment")
       ? ownAssignmentOperation(lastTarget)
       : null;
   if (!firstOp && trailingStatements === 0 && !valuesAfterComma) {
     for (const n of continuation) {
       if (n.name === "LuauCommaSeparator") break;
-      if (n.name === "LuauAssignmentOperation") {
+      if (isExplicitRuleName(n.name, "LuauAssignmentOperation")) {
         firstOp = n;
         break;
       }

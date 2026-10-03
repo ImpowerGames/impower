@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -185,7 +186,7 @@ export function lowerLuauRepeatLoop(
 export function findNextUntilSibling(repeatNode: SyntaxNode): SyntaxNode | null {
   let n: SyntaxNode | null = repeatNode.nextSibling;
   while (n) {
-    if (n.name === "LuauUntilStatement") return n;
+    if (isExplicitRuleName(n.name, "LuauUntilStatement") || n.name === "LuauSparkdownExplicitUntilStatement") return n;
     if (
       n.name !== "Newline" &&
       n.name !== "OptionalWhitespace" &&

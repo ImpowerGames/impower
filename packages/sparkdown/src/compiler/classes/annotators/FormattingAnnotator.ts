@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { CALL_LIKE_OPENERS } from "../../utils/callLikeOpeners";
 import { nodeNameSet } from "../../utils/nodeNameSet";
@@ -136,7 +137,7 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
   // `LuauMinusLineContinuation` in a statement body) takes its LHS from that
   // line: `x + y` then `+ z`, or `x` then `- y` → binary.
   if (
-    operation.parent?.name === "LuauLineContinuation_content" ||
+    isExplicitRuleName(operation.parent?.name, "LuauLineContinuation_content") ||
     operation.parent?.name === "LuauMinusLineContinuation_content"
   ) {
     return false;
@@ -166,7 +167,7 @@ function isBetweenLengthAndOperator(node: SparkdownSyntaxNodeRef): boolean {
 
 function ancestorNamed(node: SyntaxNode, name: string): SyntaxNode | null {
   for (let walker = node.parent; walker; walker = walker.parent) {
-    if (walker.name === name) return walker;
+    if (isExplicitRuleName(walker.name, name)) return walker;
   }
   return null;
 }
@@ -626,7 +627,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "Tag") {
+    if (isExplicitRuleName(nodeRef.name, "Tag")) {
       if (nodeRef.from === this.getLineAt(nodeRef.from).from) {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("sol_comment").range(

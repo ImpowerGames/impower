@@ -23,7 +23,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
-import { checkerTextUnits } from "./luauCheckerText";
+import { checkerTextUnits, rawIslandSyntaxErrors } from "./luauCheckerText";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
 import { KNOWN_DISAGREEMENTS, luauInputs, type LuauInput } from "./luauFixtures";
 
@@ -72,6 +72,9 @@ function readings({ text, luau: source }: LuauInput): { sparkdown: string[]; lua
   const units = checkerTextUnits(tree, text);
   const luau: string[] = [];
   for (const unit of [units.prelude, ...units.flows]) {
+    for (const error of rawIslandSyntaxErrors(unit)) {
+      luau.push(`${error.range.start.line}:${error.range.start.character} (${unit.kind} written island) ${error.message}`);
+    }
     for (const error of officialSyntaxErrors(unit.text)) {
       const line = unit.lines[error.location.begin.line] ?? "?";
       luau.push(`${line} (${unit.kind}) ${error.message}`);

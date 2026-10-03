@@ -15,6 +15,7 @@ import { parseSource } from "./grammarSnapshot";
 import {
   checkerTextUnits,
   normalizeNarrativeReturnScopes,
+  rawIslandSyntaxErrors,
   textDocumentPosition,
   type LuauTextUnit,
 } from "./luauCheckerText";
@@ -214,10 +215,14 @@ describe.skipIf(!officialLuauAvailable)(
         projection?: LuauTextUnit,
       ) => {
         const parsed = parse(source);
-        if (parsed.errors || errors)
-          return Boolean(parsed.errors) === Boolean(errors)
+        const islandErrors = projection ? rawIslandSyntaxErrors(projection) : [];
+        const nativeErrors = parsed.errors + islandErrors.length;
+        if (nativeErrors || errors)
+          return Boolean(nativeErrors) === Boolean(errors)
             ? []
-            : [`syntax errors: official ${parsed.errors}, converter ${errors}`];
+            : [projection
+              ? `syntax errors: projected flow ${parsed.errors}, written islands ${islandErrors.length}, converter ${errors}`
+              : `syntax errors: official ${parsed.errors}, converter ${errors}`];
         const official = run
           ? (parsed.root as { body: Json[] }).body[0]!
           : projection ? normalizeNarrativeReturnScopes(parsed.root, projection) : parsed.root;

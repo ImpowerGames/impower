@@ -81,6 +81,7 @@ import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
+import { nodeNameSet } from "../utils/nodeNameSet";
 
 /** The rules, by the name each warning carries as its diagnostic code. */
 export const LUAU_LINT_CODES = [
@@ -176,7 +177,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
 // Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = new Set(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop"]);
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop"]);
 
 // The wrappers around a binary operation's operator and operand, which the
 // tree nests inside the list of its operands.

@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "./explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { nodeNameSet } from "./nodeNameSet";
@@ -34,8 +35,10 @@ export const VARIABLE_DEFINITION_END_NAMES = nodeNameSet([
 export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | null {
   return (
     assignment
-      .getChild("LuauVariableAssignment_content")
-      ?.getChild("LuauAssignmentOperation") ?? null
+      .getChild(`${assignment.name}_content`)
+      ?.getChild("LuauAssignmentOperation") ?? assignment
+      .getChild(`${assignment.name}_content`)
+      ?.getChild("LuauSparkdownExplicitAssignmentOperation") ?? null
   );
 }
 
@@ -44,8 +47,8 @@ export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | nul
 // name (`x -- note`, which the grammar puts in the assignment's content) does
 // not count.
 export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
-  if (node.name !== "LuauVariableAssignment") return null;
-  const content = node.getChild("LuauVariableAssignment_content");
+  if (!isExplicitRuleName(node.name, "LuauVariableAssignment")) return null;
+  const content = (node.getChild("LuauVariableAssignment_content") ?? node.getChild("LuauSparkdownExplicitVariableAssignment_content"));
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (!child.name.includes("Comment") && !child.name.endsWith("Whitespace")) {
       return null;
@@ -57,8 +60,8 @@ export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
 // The name a `LuauVariableAssignment` puts in its declaration's list: the one
 // before its type annotation and `=`, never a name inside them.
 export function assignmentListName(node: SyntaxNode): SyntaxNode | null {
-  if (node.name !== "LuauVariableAssignment") return null;
-  const begin = node.getChild("LuauVariableAssignment_begin");
+  if (!isExplicitRuleName(node.name, "LuauVariableAssignment")) return null;
+  const begin = (node.getChild("LuauVariableAssignment_begin") ?? node.getChild("LuauSparkdownExplicitVariableAssignment_begin"));
   return begin ? (getDescendent("LuauVariableName", begin) ?? null) : null;
 }
 
@@ -84,7 +87,7 @@ export function valueListAssignmentName(node: SyntaxNode): SyntaxNode | null {
   const name = assignmentListName(node);
   if (!name) return null;
   for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
-    if (prev.name === "LuauVariableAssignment" && ownAssignmentOperation(prev)) {
+    if (isExplicitRuleName(prev.name, "LuauVariableAssignment") && ownAssignmentOperation(prev)) {
       return name;
     }
   }
@@ -96,7 +99,7 @@ export function valueListAssignmentName(node: SyntaxNode): SyntaxNode | null {
 // read, not declared.
 export function isValueListName(nameNode: SyntaxNode): boolean {
   for (let cur = nameNode.parent, depth = 0; cur && depth < 6; cur = cur.parent, depth++) {
-    if (cur.name === "LuauVariableAssignment") {
+    if (isExplicitRuleName(cur.name, "LuauVariableAssignment")) {
       return valueListAssignmentName(cur)?.from === nameNode.from;
     }
   }

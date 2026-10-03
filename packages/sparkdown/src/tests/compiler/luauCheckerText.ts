@@ -12,7 +12,24 @@
 import type { SyntaxNode, Tree } from "@lezer/common";
 import type { Json } from "./officialLuau";
 import { loadOfficialLuau, officialLuauAvailable } from "./officialLuau";
+import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../../compiler/typecheck/LuauUnitNodes";
+
+// Derive counterpart identities from the grammar being parsed, independently
+// of the converter's production alias table. Capture suffixes keep that identity.
+const grammarNames = new Set(Object.keys(GRAMMAR_DEFINITION.repository));
+const ordinaryNames = new Map<string, string>();
+for (const name of grammarNames) {
+  const original = name === "LuauSparkdownExplicitStoryVariableDefinition" ? "LuauSparkdownVariableDefinition"
+    : name.startsWith("LuauSparkdownExplicit") ? "Luau" + name.slice("LuauSparkdownExplicit".length)
+    : name.startsWith("SparkdownExplicit") ? name.slice("SparkdownExplicit".length) : undefined;
+  if (original && grammarNames.has(original)) ordinaryNames.set(name, original);
+}
+function oracleName(name: string): string {
+  const at = name.indexOf("_");
+  const root = at < 0 ? name : name.slice(0, at);
+  return (ordinaryNames.get(root) ?? root) + (at < 0 ? "" : name.slice(at));
+}
 
 /** Some of a document's Luau, as the checker's text read it. */
 export interface LuauTextUnit {
@@ -28,6 +45,23 @@ export interface LuauTextUnit {
   returnScopes?: { begin: { line: number; character: number }; end: { line: number; character: number } }[];
   /** Inserted columns in the projected text, measured in UTF-16. */
   insertions?: { line: number; column: number; length: number }[];
+  /** Written enclosing blocks checked before synthetic flow/return wrappers. */
+  rawIslands?: { text: string; lines: number[] }[];
+}
+
+/** Native errors of a written island, distinct from synthetic full-flow errors. */
+export function rawIslandSyntaxErrors(unit: LuauTextUnit) {
+  if (!parseOfficial) throw new Error("Official Luau parser artifact is unavailable");
+  return (unit.rawIslands ?? []).flatMap((island) => {
+    const textLines = island.text.split("\n");
+    return parseOfficial(island.text).diagnostics.map((error) => ({
+      message: error.message,
+      range: {
+        start: { line: island.lines[error.location.begin.line] ?? island.lines.at(-1)!, character: utf16Column(textLines[error.location.begin.line] ?? "", error.location.begin.column) },
+        end: { line: island.lines[error.location.end.line] ?? island.lines.at(-1)!, character: utf16Column(textLines[error.location.end.line] ?? "", error.location.end.column) },
+      },
+    }));
+  });
 }
 
 // Each unit's text split into lines, once, for turning Luau's columns into the document's.
@@ -91,7 +125,7 @@ export function normalizeNarrativeReturnScopes(root: Json, unit: LuauTextUnit): 
 }
 
 /** Project narrative returns as isolated blocks without introducing bindings. */
-function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number; close: number; writtenCloser: boolean }[], markers: { from: number; to: number }[], index: LineIndex): void {
+function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number; close: number; writtenCloser: boolean; islandFrom: number }[], markers: { from: number; to: number }[], index: LineIndex): void {
   const original = unit.text.split("\n");
   // Recovery may classify a same-line follower as prose. It still belongs
   // to this Luau island: keep the complete suffix for the official parser.
@@ -101,6 +135,20 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
     if (projected < 0) continue;
     const column = returned.to - index.starts[line]!;
     original[projected] = original[projected]!.slice(0, column).padEnd(column) + index.text.slice(returned.to, index.lineEnd(line));
+    // A recovery suffix can include a complete long comment whose later
+    // lines were classified as prose. Retain those source lines too.
+    let previous = projected;
+    const last = index.lineAt(Math.max(returned.to - 1, returned.close - 1));
+    for (let continued = line + 1; continued <= last; continued++) {
+      let at = unit.lines.indexOf(continued);
+      if (at < 0) {
+        at = previous + 1;
+        unit.lines.splice(at, 0, continued);
+        original.splice(at, 0, "");
+      }
+      original[at] = index.text.slice(index.starts[continued], index.lineEnd(continued));
+      previous = at;
+    }
   }
   // Restoring a recovery suffix can also restore later, valid explicit
   // markers. Blank only the grammar's recorded marker spans, preserving
@@ -114,6 +162,24 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
     const text = original[projected]!;
     original[projected] = text.slice(0, from) + " ".repeat(to - from) + text.slice(to);
   }
+  // A later independent Luau line cannot supply a missing until condition
+  // or closer in a written story island. Check its complete written suffix
+  // before adding wrappers, retaining the existing Sparkdown projections.
+  const islands = new Map<number, { text: string; lines: number[] }>();
+  for (const returned of returns) {
+    if (!returned.writtenCloser) continue;
+    const firstLine = index.lineAt(returned.islandFrom);
+    const lastLine = index.lineAt(Math.max(returned.close - 1, returned.to - 1));
+    const first = unit.lines.indexOf(firstLine);
+    const last = unit.lines.indexOf(lastLine);
+    if (first < 0) continue;
+    if (last < first) throw new Error("Written return island missing from projection");
+    const text = original.slice(first, last + 1);
+    const column = returned.islandFrom - index.starts[firstLine]!;
+    text[0] = " ".repeat(column) + text[0]!.slice(column);
+    islands.set(returned.islandFrom, { text: text.join("\n"), lines: unit.lines.slice(first, last + 1) });
+  }
+  unit.rawIslands = [...islands.values()];
   unit.text = original.join("\n");
   const starts = [0];
   for (let i = 0; i < original.length - 1; i++) starts.push(starts[i]! + original[i]!.length + 1);
@@ -123,7 +189,7 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
     // Inserting another block there would steal its closer.
     if (returned.writtenCloser) continue;
     const firstLine = index.lineAt(returned.from);
-    const lastLine = index.lineAt(Math.max(returned.from, returned.to - 1));
+    const lastLine = index.lineAt(Math.max(returned.from, returned.to - 1, returned.close - 1));
     const first = unit.lines.indexOf(firstLine);
     const last = unit.lines.indexOf(lastLine);
     if (first < 0) continue;
@@ -175,10 +241,10 @@ function utf16Column(text: string, byteColumn: number): number {
 
 // Nodes whose text is Luau as it stands: strings and comments. A backtick
 // string's interpolations are the exception (see `keepInterpolations`).
-const ATOMIC = /^Luau\w*(String|Comment)$/;
+const ATOMIC = /^Luau(?!.*TargetTypeCastAfterComment$)\w*(String|Comment)$/;
 
 // Comments, which may stand anywhere in a parameter list, `...` and its annotation included.
-const COMMENT = /^Luau\w*Comment$/;
+const COMMENT = /^Luau(?!.*TargetTypeCastAfterComment$)\w*Comment$/;
 
 // The names the checker writes its own `any` values with, in the order it
 // tries them: Luau's `_G`, which is typed `any`, then short names Luau does
@@ -398,12 +464,12 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
   // A real function body keeps Luau's final-return rule. Narrative returns
   // instead stand in their own islands, including a return after another
   // statement on the same marked line.
-  const narrativeReturns: { from: number; to: number; close: number; writtenCloser: boolean }[] = [];
+  const narrativeReturns: { from: number; to: number; close: number; writtenCloser: boolean; islandFrom: number }[] = [];
   const explicitMarkers: { from: number; to: number }[] = [];
   const cursor = tree.cursor();
   do {
     if (cursor.name === "LuauExplicitStatementMark") explicitMarkers.push({ from: cursor.from, to: cursor.to });
-    if (cursor.name !== "LuauReturnStatement") continue;
+    if (oracleName(cursor.name) !== "LuauReturnStatement") continue;
     let inFunction = false;
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
       if (parent.name === "LuauFunctionBody") { inFunction = true; break; }
@@ -424,7 +490,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     // Comments after a semicolon may also be classified as prose. Scan
     // only suffix trivia so a line comment cannot swallow our closer;
     // a block comment followed by a statement remains inside the scope.
-    const lineEnd = index.lineEnd(line);
+    let lineEnd = index.lineEnd(line);
     let suffix = to;
     let semicolon = false;
     while (suffix < lineEnd) {
@@ -434,21 +500,48 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       const long = documentText.slice(suffix + 2, lineEnd).match(/^\[(=*)\[/);
       if (!long) { lineComment = suffix; break; }
       const end = documentText.indexOf(`]${long[1]}]`, suffix + 2 + long[0].length);
-      if (end < 0 || end >= lineEnd) break;
+      if (end < 0) break;
       suffix = end + long[1]!.length + 2;
+      lineEnd = index.lineEnd(index.lineAt(Math.max(suffix - 1, 0)));
     }
     let writtenCloser = false;
+    // A direct explicit repeat currently has keyword/return/until siblings,
+    // rather than a repeat-block wrapper. Require those actual grammar
+    // tokens in the same explicit content; arbitrary until text is prose.
+    const content = cursor.node.parent;
+    if (content?.name === "LuauSparkdownExplicitStatement_content") {
+      let first = content.firstChild;
+      while (first && NEUTRAL.test(first.name)) first = first.nextSibling;
+      let following = cursor.node.nextSibling;
+      while (following && NEUTRAL.test(following.name)) following = following.nextSibling;
+      const until = following && oracleName(following.name) === "LuauUntilStatement" ? findDescendant(following, "LuauUntilKeyword") : undefined;
+      writtenCloser = first?.name === "LuauRepeatKeyword" && !!until && index.lineAt(until.from) === line;
+    }
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
-      if (parent.name !== "LuauSparkdownDoBlock" && parent.name !== "LuauDoBlock" && parent.name !== "LuauSparkdownExplicitDoBlock") continue;
+      if (writtenCloser) break;
+      if (["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"].includes(parent.name)) {
+        // Repeat's end is a lookahead. Its following until statement owns
+        // the written keyword; prose/string/comment occurrences do not.
+        let sibling = parent.nextSibling;
+        while (sibling && NEUTRAL.test(sibling.name)) sibling = sibling.nextSibling;
+        const until = sibling && oracleName(sibling.name) === "LuauUntilStatement" ? findDescendant(sibling, "LuauUntilKeyword") : undefined;
+        writtenCloser = !!until && until.from >= to && index.lineAt(until.from) === line;
+        break;
+      }
+      if (!["LuauSparkdownDoBlock", "LuauDoBlock", "LuauSparkdownExplicitDoBlock", "LuauIfBlock", "LuauSparkdownIfBlock", "LuauSparkdownExplicitIfBlock"].includes(parent.name)) continue;
       const end = parent.getChild(`${parent.name}_end`);
       if (end && end.from >= to && index.lineAt(end.from) === line && documentText.slice(end.from, end.to).trim() === "end") writtenCloser = true;
       break;
     }
-    narrativeReturns.push({ from, to, close: lineComment ?? lineEnd, writtenCloser });
+    let islandFrom = from;
+    for (let parent = cursor.node.parent; parent; parent = parent.parent) {
+      if (parent.name === "LuauSparkdownExplicitStatement") islandFrom = parent.from;
+    }
+    narrativeReturns.push({ from, to, close: lineComment ?? lineEnd, writtenCloser, islandFrom });
   } while (cursor.next());
   const anyName = ANY_NAMES.find((name) => !namesIdentifier(documentText, name)) ?? ANY_NAMES[0]!;
   const isSparkdownOnly = (node: SyntaxNode): boolean => {
-    const name = node.name;
+    const name = oracleName(node.name);
     if (SPARKDOWN_ONLY.has(name)) return true;
     if (name === "LuauScopeModifier") {
       const text = documentText.slice(node.from, node.to).trim();
@@ -464,7 +557,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
           lines.keepVerbatim(child.from, child.to);
           keepInterpolations(child);
         } else if (ATOMIC.test(child.name)) lines.keepVerbatim(child.from, child.to);
-        else if (SPARKDOWN_EXPRESSIONS.has(child.name)) replaceWithAny(child);
+        else if (SPARKDOWN_EXPRESSIONS.has(oracleName(child.name))) replaceWithAny(child);
         else if (isSparkdownOnly(child)) lines.mark(child.from, child.to, false);
         else blankWithin(child);
       }
@@ -544,7 +637,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     if (!dots) return undefined;
     let annotation = dots.nextSibling;
     while (annotation && (NEUTRAL.test(annotation.name) || COMMENT.test(annotation.name))) annotation = annotation.nextSibling;
-    if (annotation?.name !== "LuauTypeAnnotationOperation") return { dots, annotation: undefined, type: "" };
+    if (!annotation || oracleName(annotation.name) !== "LuauTypeAnnotationOperation") return { dots, annotation: undefined, type: "" };
     return { dots, annotation, type: documentText.slice(annotation.from, annotation.to).replace(/^\s*:/, "").trim() };
   };
 
@@ -605,7 +698,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       if (closed && !open.includes(closed)) closed.end = node;
     } else if (node.name === "LuauFunctionDefinition") {
       keepLuau(prelude, node);
-    } else if (LUAU_STATEMENTS.has(node.name)) {
+    } else if (LUAU_STATEMENTS.has(oracleName(node.name))) {
       keepLuau(open[open.length - 1]?.body ?? prelude, node);
     }
   }
@@ -677,7 +770,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
 
 function findDescendant(node: SyntaxNode, name: string): SyntaxNode | undefined {
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) return child;
+    if (oracleName(child.name) === name) return child;
     const found = findDescendant(child, name);
     if (found) return found;
   }
@@ -687,8 +780,8 @@ function findDescendant(node: SyntaxNode, name: string): SyntaxNode | undefined 
 /** Every node of a kind under a node, in document order, outside parameters' annotations when `outsideAnnotations` says so. */
 function findAll(node: SyntaxNode, name: string, outsideAnnotations = false, found: SyntaxNode[] = []): SyntaxNode[] {
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) found.push(child);
-    else if (!outsideAnnotations || child.name !== "LuauTypeAnnotationOperation") findAll(child, name, outsideAnnotations, found);
+    if (oracleName(child.name) === name) found.push(child);
+    else if (!outsideAnnotations || oracleName(child.name) !== "LuauTypeAnnotationOperation") findAll(child, name, outsideAnnotations, found);
   }
   return found;
 }

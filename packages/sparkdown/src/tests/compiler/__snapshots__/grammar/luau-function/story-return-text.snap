@@ -93,20 +93,20 @@ sparkdown [0..209]
  │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [51..52]
  │   │       └─ RequiredWhitespace [51..52]: " "
  │   ├─ LuauSparkdownExplicitStatement_content [52..60]
- │   │   └─ LuauReturnStatement [52..60]
- │   │       ├─ LuauReturnStatement_begin [52..59]
- │   │       │   ├─ LuauReturnStatement_begin_c1 52
+ │   │   └─ LuauSparkdownExplicitReturnStatement [52..60]
+ │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [52..59]
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 52
  │   │       │   │   └─ OptionalWhitespace 52
- │   │       │   ├─ LuauReturnStatement_begin_c2 [52..58]
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [52..58]
  │   │       │   │   └─ LuauControlKeyword [52..58]: "return"
- │   │       │   └─ LuauReturnStatement_begin_c3 [58..59]
- │   │       │       └─ LuauReturnStatement_begin_c3 [58..59]
+ │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [58..59]
+ │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [58..59]
  │   │       │           └─ OptionalWhitespace [58..59]: " "
- │   │       ├─ LuauReturnStatement_content [59..60]
+ │   │       ├─ LuauSparkdownExplicitReturnStatement_content [59..60]
  │   │       │   └─ LuauNumericDecimal [59..60]
  │   │       │       ├─ LuauNumericDecimal_c1 [59..60]: "5"
  │   │       │       └─ LuauNumericDecimal_c2 60
- │   │       └─ LuauReturnStatement_end 60
+ │   │       └─ LuauSparkdownExplicitReturnStatement_end 60
  │   └─ LuauSparkdownExplicitStatement_end 60
  ├─ Newline [60..61]: "\n"
  ├─ LuauSparkdownExplicitStatement [61..78]
@@ -128,20 +128,20 @@ sparkdown [0..209]
  │   │       │       └─ LuauSparkdownExplicitDoBlock_begin_c3 [65..66]
  │   │       │           └─ OptionalWhitespace [65..66]: " "
  │   │       ├─ LuauSparkdownExplicitDoBlock_content [66..74]
- │   │       │   └─ LuauReturnStatement [66..74]
- │   │       │       ├─ LuauReturnStatement_begin [66..73]
- │   │       │       │   ├─ LuauReturnStatement_begin_c1 66
+ │   │       │   └─ LuauSparkdownExplicitReturnStatement [66..74]
+ │   │       │       ├─ LuauSparkdownExplicitReturnStatement_begin [66..73]
+ │   │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 66
  │   │       │       │   │   └─ OptionalWhitespace 66
- │   │       │       │   ├─ LuauReturnStatement_begin_c2 [66..72]
+ │   │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [66..72]
  │   │       │       │   │   └─ LuauControlKeyword [66..72]: "return"
- │   │       │       │   └─ LuauReturnStatement_begin_c3 [72..73]
- │   │       │       │       └─ LuauReturnStatement_begin_c3 [72..73]
+ │   │       │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [72..73]
+ │   │       │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [72..73]
  │   │       │       │           └─ OptionalWhitespace [72..73]: " "
- │   │       │       ├─ LuauReturnStatement_content [73..74]
+ │   │       │       ├─ LuauSparkdownExplicitReturnStatement_content [73..74]
  │   │       │       │   └─ LuauNumericDecimal [73..74]
  │   │       │       │       ├─ LuauNumericDecimal_c1 [73..74]: "5"
  │   │       │       │       └─ LuauNumericDecimal_c2 74
- │   │       │       └─ LuauReturnStatement_end 74
+ │   │       │       └─ LuauSparkdownExplicitReturnStatement_end 74
  │   │       └─ LuauSparkdownExplicitDoBlock_end [74..78]
  │   │           ├─ LuauSparkdownExplicitDoBlock_end_c1 [74..75]
  │   │           │   └─ LuauSparkdownExplicitDoBlock_end_c1 [74..75]
@@ -191,20 +191,20 @@ sparkdown [0..209]
  │   │       │       │   │       │       └─ OptionalWhitespace [91..92]: " "
  │   │       │       │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [92..96]
  │   │       │       │   │           └─ LuauThenKeyword [92..96]: "then"
- │   │       │       │   ├─ LuauReturnStatement [96..105]
- │   │       │       │   │   ├─ LuauReturnStatement_begin [96..104]
- │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c1 [96..97]
+ │   │       │       │   ├─ LuauSparkdownExplicitReturnStatement [96..105]
+ │   │       │       │   │   ├─ LuauSparkdownExplicitReturnStatement_begin [96..104]
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [96..97]
  │   │       │       │   │   │   │   └─ OptionalWhitespace [96..97]: " "
- │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c2 [97..103]
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [97..103]
  │   │       │       │   │   │   │   └─ LuauControlKeyword [97..103]: "return"
- │   │       │       │   │   │   └─ LuauReturnStatement_begin_c3 [103..104]
- │   │       │       │   │   │       └─ LuauReturnStatement_begin_c3 [103..104]
+ │   │       │       │   │   │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [103..104]
+ │   │       │       │   │   │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [103..104]
  │   │       │       │   │   │           └─ OptionalWhitespace [103..104]: " "
- │   │       │       │   │   ├─ LuauReturnStatement_content [104..105]
+ │   │       │       │   │   ├─ LuauSparkdownExplicitReturnStatement_content [104..105]
  │   │       │       │   │   │   └─ LuauNumericDecimal [104..105]
  │   │       │       │   │   │       ├─ LuauNumericDecimal_c1 [104..105]: "5"
  │   │       │       │   │   │       └─ LuauNumericDecimal_c2 105
- │   │       │       │   │   └─ LuauReturnStatement_end 105
+ │   │       │       │   │   └─ LuauSparkdownExplicitReturnStatement_end 105
  │   │       │       │   └─ LuauSparkdownExplicitElseBlock [105..119]
  │   │       │       │       ├─ LuauSparkdownExplicitElseBlock_begin [105..111]
  │   │       │       │       │   ├─ LuauSparkdownExplicitElseBlock_begin_c1 [105..106]
@@ -215,20 +215,20 @@ sparkdown [0..209]
  │   │       │       │       │       └─ LuauSparkdownExplicitElseBlock_begin_c3 [110..111]
  │   │       │       │       │           └─ OptionalWhitespace [110..111]: " "
  │   │       │       │       ├─ LuauSparkdownExplicitElseBlock_content [111..119]
- │   │       │       │       │   └─ LuauReturnStatement [111..119]
- │   │       │       │       │       ├─ LuauReturnStatement_begin [111..118]
- │   │       │       │       │       │   ├─ LuauReturnStatement_begin_c1 111
+ │   │       │       │       │   └─ LuauSparkdownExplicitReturnStatement [111..119]
+ │   │       │       │       │       ├─ LuauSparkdownExplicitReturnStatement_begin [111..118]
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 111
  │   │       │       │       │       │   │   └─ OptionalWhitespace 111
- │   │       │       │       │       │   ├─ LuauReturnStatement_begin_c2 [111..117]
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [111..117]
  │   │       │       │       │       │   │   └─ LuauControlKeyword [111..117]: "return"
- │   │       │       │       │       │   └─ LuauReturnStatement_begin_c3 [117..118]
- │   │       │       │       │       │       └─ LuauReturnStatement_begin_c3 [117..118]
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [117..118]
+ │   │       │       │       │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [117..118]
  │   │       │       │       │       │           └─ OptionalWhitespace [117..118]: " "
- │   │       │       │       │       ├─ LuauReturnStatement_content [118..119]
+ │   │       │       │       │       ├─ LuauSparkdownExplicitReturnStatement_content [118..119]
  │   │       │       │       │       │   └─ LuauNumericDecimal [118..119]
  │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [118..119]: "2"
  │   │       │       │       │       │       └─ LuauNumericDecimal_c2 119
- │   │       │       │       │       └─ LuauReturnStatement_end 119
+ │   │       │       │       │       └─ LuauSparkdownExplicitReturnStatement_end 119
  │   │       │       │       └─ LuauSparkdownExplicitElseBlock_end 119
  │   │       │       └─ LuauSparkdownExplicitIfBlock_end [119..123]
  │   │       │           ├─ LuauSparkdownExplicitIfBlock_end_c1 [119..120]
@@ -276,22 +276,22 @@ sparkdown [0..209]
  │   │       │       │   ├─ LuauSparkdownExplicitLoopCondition [137..145]
  │   │       │       │   │   ├─ LuauSparkdownExplicitLoopCondition_begin 137
  │   │       │       │   │   ├─ LuauSparkdownExplicitLoopCondition_content [137..145]
- │   │       │       │   │   │   ├─ LuauAccessPath [137..139]
- │   │       │       │   │   │   │   ├─ LuauAccessPath_begin 137
- │   │       │       │   │   │   │   ├─ LuauAccessPath_content [137..138]
- │   │       │       │   │   │   │   │   └─ LuauAccessPart [137..138]
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitAccessPath [137..139]
+ │   │       │       │   │   │   │   ├─ LuauSparkdownExplicitAccessPath_begin 137
+ │   │       │       │   │   │   │   ├─ LuauSparkdownExplicitAccessPath_content [137..138]
+ │   │       │       │   │   │   │   │   └─ LuauSparkdownExplicitAccessPart [137..138]
  │   │       │       │   │   │   │   │       └─ LuauVariable [137..138]
  │   │       │       │   │   │   │   │           └─ LuauVariable_c1 [137..138]
  │   │       │       │   │   │   │   │               └─ LuauVariableName [137..138]: "i"
- │   │       │       │   │   │   │   └─ LuauAccessPath_end [138..139]
- │   │       │       │   │   │   │       └─ LuauAccessPath_end_c1 [138..139]
- │   │       │       │   │   │   │           └─ LuauAccessPath_end_c1 [138..139]
+ │   │       │       │   │   │   │   └─ LuauSparkdownExplicitAccessPath_end [138..139]
+ │   │       │       │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [138..139]
+ │   │       │       │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [138..139]
  │   │       │       │   │   │   │               └─ OptionalWhitespace [138..139]: " "
- │   │       │       │   │   │   ├─ LuauAssignmentOperation [139..142]
- │   │       │       │   │   │   │   ├─ LuauAssignmentOperation_begin 139
- │   │       │       │   │   │   │   │   └─ LuauAssignmentOperation_begin_c1 139
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitAssignmentOperation [139..142]
+ │   │       │       │   │   │   │   ├─ LuauSparkdownExplicitAssignmentOperation_begin 139
+ │   │       │       │   │   │   │   │   └─ LuauSparkdownExplicitAssignmentOperation_begin_c1 139
  │   │       │       │   │   │   │   │       └─ OptionalWhitespace 139
- │   │       │       │   │   │   │   ├─ LuauAssignmentOperation_content [139..142]
+ │   │       │       │   │   │   │   ├─ LuauSparkdownExplicitAssignmentOperation_content [139..142]
  │   │       │       │   │   │   │   │   ├─ LuauAssignmentOperator [139..141]
  │   │       │       │   │   │   │   │   │   ├─ LuauAssignmentOperator_begin [139..141]
  │   │       │       │   │   │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c1 139
@@ -304,7 +304,7 @@ sparkdown [0..209]
  │   │       │       │   │   │   │   │   └─ LuauNumericDecimal [141..142]
  │   │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [141..142]: "1"
  │   │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 142
- │   │       │       │   │   │   │   └─ LuauAssignmentOperation_end 142
+ │   │       │       │   │   │   │   └─ LuauSparkdownExplicitAssignmentOperation_end 142
  │   │       │       │   │   │   ├─ LuauCommaSeparator [142..144]
  │   │       │       │   │   │   │   ├─ LuauCommaSeparator_c1 142
  │   │       │       │   │   │   │   ├─ LuauCommaSeparator_c2 [142..143]: ","
@@ -325,26 +325,26 @@ sparkdown [0..209]
  │   │       │       │       │       └─ LuauSparkdownExplicitDoBlock_begin_c3 [148..149]
  │   │       │       │       │           └─ OptionalWhitespace [148..149]: " "
  │   │       │       │       ├─ LuauSparkdownExplicitDoBlock_content [149..157]
- │   │       │       │       │   └─ LuauReturnStatement [149..157]
- │   │       │       │       │       ├─ LuauReturnStatement_begin [149..156]
- │   │       │       │       │       │   ├─ LuauReturnStatement_begin_c1 149
+ │   │       │       │       │   └─ LuauSparkdownExplicitReturnStatement [149..157]
+ │   │       │       │       │       ├─ LuauSparkdownExplicitReturnStatement_begin [149..156]
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 149
  │   │       │       │       │       │   │   └─ OptionalWhitespace 149
- │   │       │       │       │       │   ├─ LuauReturnStatement_begin_c2 [149..155]
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [149..155]
  │   │       │       │       │       │   │   └─ LuauControlKeyword [149..155]: "return"
- │   │       │       │       │       │   └─ LuauReturnStatement_begin_c3 [155..156]
- │   │       │       │       │       │       └─ LuauReturnStatement_begin_c3 [155..156]
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [155..156]
+ │   │       │       │       │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [155..156]
  │   │       │       │       │       │           └─ OptionalWhitespace [155..156]: " "
- │   │       │       │       │       ├─ LuauReturnStatement_content [156..157]
- │   │       │       │       │       │   └─ LuauAccessPath [156..157]
- │   │       │       │       │       │       ├─ LuauAccessPath_begin 156
- │   │       │       │       │       │       ├─ LuauAccessPath_content [156..157]
- │   │       │       │       │       │       │   └─ LuauAccessPart [156..157]
+ │   │       │       │       │       ├─ LuauSparkdownExplicitReturnStatement_content [156..157]
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitAccessPath [156..157]
+ │   │       │       │       │       │       ├─ LuauSparkdownExplicitAccessPath_begin 156
+ │   │       │       │       │       │       ├─ LuauSparkdownExplicitAccessPath_content [156..157]
+ │   │       │       │       │       │       │   └─ LuauSparkdownExplicitAccessPart [156..157]
  │   │       │       │       │       │       │       └─ LuauVariable [156..157]
  │   │       │       │       │       │       │           └─ LuauVariable_c1 [156..157]
  │   │       │       │       │       │       │               └─ LuauVariableName [156..157]: "i"
- │   │       │       │       │       │       └─ LuauAccessPath_end 157
- │   │       │       │       │       │           └─ LuauAccessPath_end_c1 157
- │   │       │       │       │       └─ LuauReturnStatement_end 157
+ │   │       │       │       │       │       └─ LuauSparkdownExplicitAccessPath_end 157
+ │   │       │       │       │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 157
+ │   │       │       │       │       └─ LuauSparkdownExplicitReturnStatement_end 157
  │   │       │       │       └─ LuauSparkdownExplicitDoBlock_end [157..161]
  │   │       │       │           ├─ LuauSparkdownExplicitDoBlock_end_c1 [157..158]
  │   │       │       │           │   └─ LuauSparkdownExplicitDoBlock_end_c1 [157..158]

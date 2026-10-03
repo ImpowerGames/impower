@@ -8,22 +8,22 @@ sparkdown [0..18]
      │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
      │       └─ RequiredWhitespace [1..2]: " "
      ├─ LuauSparkdownExplicitStatement_content [2..18]
-     │   ├─ LuauAccessPath [2..4]
-     │   │   ├─ LuauAccessPath_begin 2
-     │   │   ├─ LuauAccessPath_content [2..3]
-     │   │   │   └─ LuauAccessPart [2..3]
+     │   ├─ LuauSparkdownExplicitAccessPath [2..4]
+     │   │   ├─ LuauSparkdownExplicitAccessPath_begin 2
+     │   │   ├─ LuauSparkdownExplicitAccessPath_content [2..3]
+     │   │   │   └─ LuauSparkdownExplicitAccessPart [2..3]
      │   │   │       └─ LuauVariable [2..3]
      │   │   │           └─ LuauVariable_c1 [2..3]
      │   │   │               └─ LuauVariableName [2..3]: "x"
-     │   │   └─ LuauAccessPath_end [3..4]
-     │   │       └─ LuauAccessPath_end_c1 [3..4]
-     │   │           └─ LuauAccessPath_end_c1 [3..4]
+     │   │   └─ LuauSparkdownExplicitAccessPath_end [3..4]
+     │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [3..4]
+     │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [3..4]
      │   │               └─ OptionalWhitespace [3..4]: " "
-     │   └─ LuauAssignmentOperation [4..18]
-     │       ├─ LuauAssignmentOperation_begin 4
-     │       │   └─ LuauAssignmentOperation_begin_c1 4
+     │   └─ LuauSparkdownExplicitAssignmentOperation [4..18]
+     │       ├─ LuauSparkdownExplicitAssignmentOperation_begin 4
+     │       │   └─ LuauSparkdownExplicitAssignmentOperation_begin_c1 4
      │       │       └─ OptionalWhitespace 4
-     │       ├─ LuauAssignmentOperation_content [4..18]
+     │       ├─ LuauSparkdownExplicitAssignmentOperation_content [4..18]
      │       │   ├─ LuauAssignmentOperator [4..6]
      │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
@@ -33,26 +33,26 @@ sparkdown [0..18]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
      │       │   │   │           └─ OptionalWhitespace [5..6]: " "
      │       │   │   └─ LuauAssignmentOperator_end 6
-     │       │   └─ LuauLengthOperation [6..18]
-     │       │       ├─ LuauLengthOperation_begin 6
-     │       │       │   └─ LuauLengthOperation_begin_c1 6
-     │       │       ├─ LuauLengthOperation_content [6..18]
-     │       │       │   ├─ LuauLengthOperator [6..7]
-     │       │       │   │   ├─ LuauLengthOperator_begin [6..7]
-     │       │       │   │   │   ├─ LuauLengthOperator_begin_c1 6
+     │       │   └─ LuauSparkdownExplicitLengthOperation [6..18]
+     │       │       ├─ LuauSparkdownExplicitLengthOperation_begin 6
+     │       │       │   └─ LuauSparkdownExplicitLengthOperation_begin_c1 6
+     │       │       ├─ LuauSparkdownExplicitLengthOperation_content [6..18]
+     │       │       │   ├─ LuauSparkdownExplicitLengthOperator [6..7]
+     │       │       │   │   ├─ LuauSparkdownExplicitLengthOperator_begin [6..7]
+     │       │       │   │   │   ├─ LuauSparkdownExplicitLengthOperator_begin_c1 6
      │       │       │   │   │   │   └─ OptionalWhitespace 6
-     │       │       │   │   │   ├─ LuauLengthOperator_begin_c2 [6..7]: "#"
-     │       │       │   │   │   └─ LuauLengthOperator_begin_c3 7
-     │       │       │   │   └─ LuauLengthOperator_end 7
-     │       │       │   └─ LuauAccessPath [7..18]
-     │       │       │       ├─ LuauAccessPath_begin 7
-     │       │       │       ├─ LuauAccessPath_content [7..18]
-     │       │       │       │   └─ LuauAccessPart [7..18]
+     │       │       │   │   │   ├─ LuauSparkdownExplicitLengthOperator_begin_c2 [6..7]: "#"
+     │       │       │   │   │   └─ LuauSparkdownExplicitLengthOperator_begin_c3 7
+     │       │       │   │   └─ LuauSparkdownExplicitLengthOperator_end 7
+     │       │       │   └─ LuauSparkdownExplicitAccessPath [7..18]
+     │       │       │       ├─ LuauSparkdownExplicitAccessPath_begin 7
+     │       │       │       ├─ LuauSparkdownExplicitAccessPath_content [7..18]
+     │       │       │       │   └─ LuauSparkdownExplicitAccessPart [7..18]
      │       │       │       │       └─ LuauVariable [7..18]
      │       │       │       │           └─ LuauVariable_c1 [7..18]
      │       │       │       │               └─ LuauVariableName [7..18]: "TIME_OF_DAY"
-     │       │       │       └─ LuauAccessPath_end 18
-     │       │       │           └─ LuauAccessPath_end_c1 18
-     │       │       └─ LuauLengthOperation_end 18
-     │       └─ LuauAssignmentOperation_end 18
+     │       │       │       └─ LuauSparkdownExplicitAccessPath_end 18
+     │       │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 18
+     │       │       └─ LuauSparkdownExplicitLengthOperation_end 18
+     │       └─ LuauSparkdownExplicitAssignmentOperation_end 18
      └─ LuauSparkdownExplicitStatement_end 18

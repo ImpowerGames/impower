@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { luauStatementError } from "../../utils/luauStatementError";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -717,7 +718,7 @@ function findAssignmentValueNode(
   if (!opNode) return null;
   let content = opNode.firstChild;
   while (content) {
-    if (content.name === "LuauAssignmentOperation_content") break;
+    if (isExplicitRuleName(content.name, "LuauAssignmentOperation_content")) break;
     content = content.nextSibling;
   }
   let child = (content ?? opNode).firstChild;
@@ -765,7 +766,7 @@ function readPropertyDefinition(
     name = ctx.read(nameNode.from, nameNode.to);
   }
 
-  const opNode = getDescendent("LuauAssignmentOperation", propNode);
+  const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
   const valueNodes = opNode ? containerValueNodes(opNode) : [];
   // Let the shared reader decide how much of the following lines belongs
   // to the value (including call sugar and a value after a line-ending `=`).

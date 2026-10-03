@@ -41,7 +41,7 @@ import {
 import { parseOfficialTree, withoutLocations, jsonNodes, jsonLocation } from "./officialAstTestUtils";
 import { printOfficialAst } from "./printOfficialAst";
 import type { Json } from "./officialLuau";
-import { checkerTextUnits, normalizeNarrativeReturnScopes, textDocumentPosition, type LuauTextUnit } from "./luauCheckerText";
+import { checkerTextUnits, normalizeNarrativeReturnScopes, rawIslandSyntaxErrors, textDocumentPosition, type LuauTextUnit } from "./luauCheckerText";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type LuauAstUnit } from "../../compiler/typecheck/readLuauAst";
 import { runWrapperText } from "../../compiler/utils/runWrapper";
@@ -120,7 +120,8 @@ function fixtureDifferences(input: LuauInput): string[] {
     const parsed = parseOfficialTree(unit.text);
     const ourUnit = ours[i]!;
     const root = parsed.errors.length ? parsed.root : normalizeNarrativeReturnScopes(parsed.root, unit);
-    return compareUnit(`${unit.kind} unit ${i}`, root, parsed.errors.length, ourUnit, ourUnit.root, checkerView(input.text, extracted.anyName));
+    const islandErrors = rawIslandSyntaxErrors(unit);
+    return compareUnit(`${unit.kind} unit ${i} (projected ${parsed.errors.length}, written islands ${islandErrors.length})`, root, parsed.errors.length + islandErrors.length, ourUnit, ourUnit.root, checkerView(input.text, extracted.anyName));
   });
 }
 

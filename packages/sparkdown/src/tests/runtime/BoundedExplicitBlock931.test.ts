@@ -78,6 +78,13 @@ describe("nested markers remain inside their bounded conditional", () => {
 });
 
 describe("unfinished bounded headers yield scene and branch ownership", () => {
+  test.each(["& return (", "& return f(", "& do x = (", "& do if f(", "& do while f(", "& do repeat x = 1 until ("])("all reachable expression children preserve prose after %s", async (prefix) => {
+    const source = `${prefix}\nreturn to the village\nAfter.\n`;
+    const tree = parseSource(source);
+    expect(treeScopeStackAt(tree, source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
+    expect(treeScopeStackAt(tree, source.indexOf("After"))).toContain("string.display.text.chunk.sd");
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
   test.each(["scene", "branch", "scene\n    + 1"])("a function parenthetical preserves the identifier %s", async (expression) => {
     const source = `Value {f(4, 5)}.\nfunction f(scene, branch)\n  return (\n    ${expression}\n  )\nend\n`;
     // These names are reserved by Sparkdown's argument validator, but their

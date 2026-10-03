@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 import { parseSource } from "./grammarSnapshot";
-import { checkerTextUnits, normalizeNarrativeReturnScopes, textDocumentPosition } from "./luauCheckerText";
+import { checkerTextUnits, normalizeNarrativeReturnScopes, rawIslandSyntaxErrors, textDocumentPosition } from "./luauCheckerText";
 import { checkerView } from "./luauCheckerView";
 import { jsonLocation, jsonNodes, parseOfficialTree, withoutLocations } from "./officialAstTestUtils";
 import { printOfficialAst } from "./printOfficialAst";
@@ -14,11 +14,17 @@ function readings(text: string, corrupt?: (actual: Json) => void) {
   const converted = readLuauUnits(tree, text);
   return [extracted.prelude, ...extracted.flows].map((unit, i) => {
     const official = parseOfficialTree(unit.text);
+    const projectedErrors = official.errors;
+    const islandErrors = rawIslandSyntaxErrors(unit);
+    const nativeErrors = [...projectedErrors, ...islandErrors.map(error => ({ message: error.message, location: {
+      begin: { line: error.range.start.line, column: error.range.start.character },
+      end: { line: error.range.end.line, column: error.range.end.character },
+    } }))];
     const ours = [converted.prelude, ...converted.flows][i]!;
     const actual = printOfficialAst(ours.root, checkerView(text, extracted.anyName));
     corrupt?.(actual);
     const expected = official.errors.length ? official.root : normalizeNarrativeReturnScopes(official.root, unit);
-    return { unit, official, ours, actual, expected };
+    return { unit, official: { ...official, errors: nativeErrors }, projectedErrors, islandErrors, ours, actual, expected };
   });
 }
 function locationPairs(text: string, corrupt?: (actual: Json) => void) {
@@ -49,7 +55,8 @@ function locationPairs(text: string, corrupt?: (actual: Json) => void) {
 function agrees(text: string, scopeCount: number) {
   const units = readings(text);
   expect(units.reduce((count, result) => count + (result.unit.returnScopes?.length ?? 0), 0)).toBe(scopeCount);
-  for (const { official, ours, actual, expected } of units) {
+  for (const { official, islandErrors, ours, actual, expected } of units) {
+    expect(islandErrors).toEqual([]);
     expect(official.errors.map((e) => e.message)).toEqual([]);
     expect(ours.errors.map((e) => e.message)).toEqual([]);
     expect(withoutLocations(actual)).toEqual(withoutLocations(expected));
@@ -78,6 +85,57 @@ describe("independent narrative-return oracle projection", () => {
   });
   test("keeps a legitimate written do closer and its real AST", () => {
     agrees("scene a\n  & do return 5 end\n  Prose.\n  & f()\nend\n", 0);
+  });
+  test("keeps a direct written repeat/until closer and following statement", () => {
+    agrees("& repeat return 5 until true\nProse.\n& f()\n", 0);
+  });
+  test("raw written-island syntax cannot borrow a later independent until condition", () => {
+    const source = "& repeat return 5 until\nProse.\n& f()\n";
+    const result = readings(source)[0]!;
+    expect(result.unit.rawIslands).toHaveLength(1);
+    expect(result.projectedErrors).toEqual([]);
+    expect(result.islandErrors).toEqual([{ message: "Expected identifier when parsing expression, got <eof>", range: {
+      start: { line: 0, character: 23 }, end: { line: 0, character: 23 },
+    } }]);
+    expect(result.ours.errors.length).toBeGreaterThan(0);
+    agrees("& repeat return 5 until true\nProse.\n& f()\n", 0);
+  });
+  test("bounded divert expressions retain the checker's complete structural view", () => {
+    // The primary official location oracle accounts for the existing _G()
+    // substitution's shorter synthetic spans in bounded-expression-family.sd.
+    // This helper's strict location pairs remain reserved for written Luau.
+    for (const { official, islandErrors, ours, actual, expected } of readings("& local target = -> place\nscene place\nProse.\nend\n")) {
+      expect(islandErrors).toEqual([]);
+      expect(official.errors).toEqual([]);
+      expect(ours.errors).toEqual([]);
+      expect(withoutLocations(actual)).toEqual(withoutLocations(expected));
+    }
+  });
+  test("a genuine same-line function closer does not locate EOF in following story", () => {
+    agrees("function f() return 5 end After.\nLater prose.\n", 0);
+  });
+  test.each([
+    "--[[ a\nb ]]",
+    "--[=[ é😀\nb ]=]",
+    "; --[[ é😀\nb ]]",
+  ])("keeps the complete multiline comment before a synthetic closer: %s", (comment) => {
+    agrees(`& return 5 ${comment}\nProse.\n& f()\n`, 1);
+  });
+  test.each([
+    "& repeat return 5",
+    '& repeat return "until true"',
+    "& repeat return 5 -- until true",
+    "& repeat return 5 --[[ until true ]]",
+    "& repeat return 5 until",
+    "& return 5 --[[ unfinished\n",
+    "& return 5 --[=[ unfinished\n",
+    "& return 5 --[[ é😀\nb ]] f()",
+    "& return 5; --[=[ é😀\nb ]=] f()",
+  ])("does not turn comment/quoted closers or invalid suffixes into a valid unit: %s", (island) => {
+    const units = readings(`${island}\nProse.\n& f()\n`);
+    expect(units.some((result) => result.official.errors.length > 0)).toBe(true);
+    expect(units.some((result) => result.ours.errors.length > 0)).toBe(true);
+    for (const result of units) expect(result.official.errors.length > 0).toBe(result.ours.errors.length > 0);
   });
   test.each([
     "if true then return 5 end",

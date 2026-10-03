@@ -175,7 +175,7 @@ export function untilReadIntoStatement(repeat: SyntaxNode): boolean {
   if (untilsLeftInside(repeat) <= 0) return false;
   const inStatement = (node: SyntaxNode): boolean => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === "LuauUntilStatement") return true;
+      if (UNTIL.has(child.name)) return true;
       if (REPEAT_LOOPS.has(child.name)) continue;
       if (END_BLOCKS[child.name] && !endKeywordOf(child)) continue;
       if (inStatement(child)) return true;
@@ -192,7 +192,7 @@ export function untilReadIntoStatement(repeat: SyntaxNode): boolean {
 function hasUntil(repeat: SyntaxNode): boolean {
   let next = repeat.nextSibling;
   while (next && skippable(next)) next = next.nextSibling;
-  const following = next?.name === "LuauUntilStatement" ? 1 : 0;
+  const following = next && UNTIL.has(next.name) ? 1 : 0;
   return following + untilsLeftInside(repeat) > 0;
 }
 
@@ -359,7 +359,7 @@ export function validateOpenBlocks(
     } else if (node.name === "Branch") {
       closeAbove((entry) => entry.kind === "scene");
       open.push({ kind: "branch" });
-    } else if (node.name === "LuauUntilStatement") {
+    } else if (UNTIL.has(node.name)) {
       // An `until` closes the innermost `repeat` open since the last scene or
       // branch; the blocks opened inside that `repeat` and still open are
       // left without their `end`s.
