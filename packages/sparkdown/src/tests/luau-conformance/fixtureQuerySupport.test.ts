@@ -11,6 +11,115 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  test("flattened pack facts preserve chained heads and the actual residual tail", () => {
+    const r = checkLuau(
+      "function take_two() return 2,2 end\nfunction take_three() return 1,take_two() end",
+    );
+    const f = r.find({ type: "take_three" });
+    expect(f.returns).toMatchObject({
+      length: 1,
+      tail: true,
+      tailKind: "TypePack",
+    });
+    expect(f.flattenedReturns).toMatchObject({ length: 3, tail: false });
+    runAssertions(r, {
+      source: "",
+      expect: [
+        { type: "take_three", flattenedReturns: { length: 3, tail: false } },
+      ],
+    });
+    expect(() =>
+      runAssertions(r, {
+        source: "",
+        expect: [{ type: "take_three", returns: { length: 3, tail: false } }],
+      }),
+    ).toThrow();
+    expect(() =>
+      runAssertions(r, {
+        source: "",
+        expect: [
+          { type: "take_three", flattenedReturns: { length: 1, tail: true } },
+        ],
+      }),
+    ).toThrow();
+    const v = checkLuau(
+      "local function f(a:number,...:string):(number,...string) return a,... end",
+    ).find({ type: "f" });
+    expect(v.flattenedArguments).toEqual({
+      length: 1,
+      tail: true,
+      tailKind: "VariadicTypePack",
+    });
+    expect(v.flattenedReturns).toEqual({
+      length: 1,
+      tail: true,
+      tailKind: "VariadicTypePack",
+    });
+    const m = checkLuau("return 1,2").find({ moduleReturn: true });
+    expect(m.flattenedReturns).toEqual({
+      length: 2,
+      tail: false,
+      tailKind: undefined,
+    });
+    expect(
+      portProblems(
+        "X.test.cpp",
+        [
+          {
+            name: "a",
+            source: "",
+            expect: [
+              {
+                type: "take_three",
+                flattenedReturns: { length: 3, tail: false },
+              },
+            ],
+          },
+        ],
+        {
+          pin: "test",
+          errorKinds: [],
+          files: { "X.test.cpp": [{ name: "a" }] },
+        },
+      ),
+    ).toEqual([]);
+  });
+  test("decoration rehydrates singleton contents inside compound types", () => {
+    const r = checkLuau("local x=foo", { globals: { foo: "'a, b'" } });
+    expect(r.diagnostics).toHaveLength(0);
+    expect(r.typeOf("x")).toBe('"a, b"');
+    expect(r.decoratedSource()).toBe("local x:'a, b'=foo");
+    const t = checkLuau("local x=foo", {
+      globals: { foo: "{value: 'a, b | c -> d'}" },
+    });
+    expect(t.diagnostics).toHaveLength(0);
+    expect(t.decoratedSource()).toBe("local x:{value:'a, b | c -> d'}=foo");
+    expect(
+      checkLuau("local x=foo", {
+        globals: { foo: "(value:number)->'a, b'" },
+      }).decoratedSource(),
+    ).toBe("local x:(value:number)->('a, b')=foo");
+    expect(
+      checkLuau("local x:'a, b'=foo", {
+        globals: { foo: "'a, b'" },
+      }).decoratedSource(),
+    ).toBe("local x:'a, b'=foo");
+  });
+  test("decoration follows pinned string quote selection and escaping", () => {
+    expect(checkLuau('local x="it\'s"').decoratedSource()).toBe(
+      'local x:string="it\\\'s"',
+    );
+    // The root block's final source position remains line1/column2 after the
+    // multiline literal is escaped, as PrettyPrinter::visualizeBlock advances.
+    expect(
+      checkLuau('local x=[["quote", {value},\t\n]]').decoratedSource(),
+    ).toBe("local x:string='\\\"quote\\\", \\123value},\\t\\n'\n  ");
+    expect(
+      checkLuau("local x=foo", {
+        globals: { foo: '"it\\\'s"' },
+      }).decoratedSource(),
+    ).toBe('local x:"it\\\'s"=foo');
+  });
   test("shared port steps assert before the next global setup transition", () => {
     runPortedCase(
       "TypeInfer.annotations.test.cpp",
@@ -287,6 +396,11 @@ describe("faithful fixture and query execution", () => {
     expect(r.decoratedSource()).toBe(
       "local a:number=1\nlocal function f(x:number): number return x end",
     );
+    expect(
+      checkLuau(
+        "local function f(...:number) return ... end",
+      ).decoratedSource(),
+    ).toBe("local function f(...:number): ...number return...end");
   });
   test("upstream generic declarations expose kind, polarity and identity", () => {
     const r = checkLuau("local function f<T>(x:T):T return x end");
@@ -555,6 +669,8 @@ describe("faithful fixture and query execution", () => {
     const malformed: unknown[] = [
       { type: "x", arguments: { length: -1 } },
       { type: "x", returns: { tail: 1 } },
+      { type: "x", flattenedArguments: { length: -1 } },
+      { type: "x", flattenedReturns: { tailKind: "ImaginaryPack" } },
       { type: "x", hasSelf: 1 },
       { type: "x", path: [{ generic: -1 }] },
       { importedAlias: ["a"] },

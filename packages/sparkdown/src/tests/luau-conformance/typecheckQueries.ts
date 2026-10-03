@@ -53,6 +53,14 @@ function facts(pack: TypePackId): PackFacts {
     tailKind: direct?.tail ? followPack(direct.tail).ty.kind : undefined,
   };
 }
+function flattenedFacts(pack: TypePackId): PackFacts {
+  const { head, tail } = flatten(pack);
+  return {
+    length: head.length,
+    tail: tail !== undefined,
+    tailKind: tail ? followPack(tail).ty.kind : undefined,
+  };
+}
 
 export function queryType(
   frontend: Frontend,
@@ -175,6 +183,7 @@ export function queryType(
           return flatten(value).head.map((v) => answer(v));
         },
         returns: facts(value),
+        flattenedReturns: flattenedFacts(value),
       };
       identities.set(result, value);
       contexts.set(result, frontend);
@@ -218,6 +227,8 @@ export function queryType(
       },
       arguments: fn ? facts(fn.argTypes) : undefined,
       returns: fn ? facts(fn.retTypes) : undefined,
+      flattenedArguments: fn ? flattenedFacts(fn.argTypes) : undefined,
+      flattenedReturns: fn ? flattenedFacts(fn.retTypes) : undefined,
       hasSelf: fn?.hasSelf,
       polarity: get(followed, "GenericType")
         ? ["None", "Positive", "Negative", "Mixed", "Unknown"][

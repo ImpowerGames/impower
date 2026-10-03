@@ -174,6 +174,9 @@ export interface CheckedType {
   propertyCount?: number;
   arguments?: PackFacts;
   returns?: PackFacts;
+  /** Facts after Luau flatten(), including the residual non-concrete tail. */
+  flattenedArguments?: PackFacts;
+  flattenedReturns?: PackFacts;
   hasSelf?: boolean;
   polarity?: string;
   instantiatedTypeParameterCount?: number;

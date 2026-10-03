@@ -78,6 +78,12 @@ export type Assertion =
       properties?: number;
       arguments?: { length?: number; tail?: boolean; tailKind?: string };
       returns?: { length?: number; tail?: boolean; tailKind?: string };
+      flattenedArguments?: {
+        length?: number;
+        tail?: boolean;
+        tailKind?: string;
+      };
+      flattenedReturns?: { length?: number; tail?: boolean; tailKind?: string };
       hasSelf?: boolean;
       polarity?: "Mixed" | "Positive" | "Negative" | "Unknown";
       instantiatedTypeParameters?: number;
@@ -361,6 +367,8 @@ const ASSERTION_KEYS = {
     properties: true,
     arguments: true,
     returns: true,
+    flattenedArguments: true,
+    flattenedReturns: true,
     hasSelf: true,
     polarity: true,
     instantiatedTypeParameters: true,
@@ -668,7 +676,12 @@ function assertionProblems(
       !["Mixed", "Positive", "Negative", "Unknown"].includes(t.polarity)
     )
       problems.push(`${where} polarity is unknown`);
-    for (const key of ["arguments", "returns"] as const) {
+    for (const key of [
+      "arguments",
+      "returns",
+      "flattenedArguments",
+      "flattenedReturns",
+    ] as const) {
       const value = t[key];
       if (value === undefined) continue;
       if (
@@ -1201,6 +1214,10 @@ export function runAssertions(
         expect(t.propertyCount).toBe(a.properties);
       if (a.arguments) expect(t.arguments).toMatchObject(a.arguments);
       if (a.returns) expect(t.returns).toMatchObject(a.returns);
+      if (a.flattenedArguments)
+        expect(t.flattenedArguments).toMatchObject(a.flattenedArguments);
+      if (a.flattenedReturns)
+        expect(t.flattenedReturns).toMatchObject(a.flattenedReturns);
       if (a.hasSelf !== undefined) expect(t.hasSelf).toBe(a.hasSelf);
       if (a.polarity !== undefined) expect(t.polarity).toBe(a.polarity);
       if (a.instantiatedTypeParameters !== undefined)
