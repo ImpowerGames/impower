@@ -1,0 +1,5 @@
+run "scripts/start.luau"
+run 'scripts/start'
+run scripts/start
+run "scripts/start.luau"  # tag
+run 'scripts/start'  # tag

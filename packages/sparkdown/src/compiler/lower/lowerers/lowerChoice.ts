@@ -74,12 +74,14 @@ export function lowerChoice(
 ): CompiledBlock {
   const markNode = getDescendent("ChoiceMark", nodeRef.node);
   const markText = markNode ? ctx.read(markNode.from, markNode.to) : "";
+  // value-level: the ChoiceMark token encodes whether this choice is once-only.
   const onceOnly = markText.includes("*");
   // The number of `*` / `+` characters in the mark determines weave
   // nesting depth — `* one` is depth 1, `* * two` is depth 2 (nested
   // under depth-1), etc. inkjs's `Weave` assembly uses this to figure
   // out which choices are siblings vs. children. A `-` gather at
   // depth N collects all loose ends at depth ≥ N.
+  // value-level: count nesting marks in the isolated ChoiceMark token.
   const depth = (markText.match(/[*+]/g) ?? []).length || 1;
 
   const labelName = getDescendent("LabelDeclarationName", nodeRef.node);

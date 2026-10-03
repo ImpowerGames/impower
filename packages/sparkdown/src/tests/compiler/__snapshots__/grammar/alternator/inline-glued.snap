@@ -4,11 +4,11 @@ sparkdown [0..52]
  │   │   └─ ImplicitAction_begin_c1 0
  │   │       └─ OptionalWhitespace 0
  │   ├─ ImplicitAction_content [0..51]
- │   │   └─ LineEnd [0..51]
- │   │       ├─ LineEnd_begin 0
- │   │       │   └─ LineEnd_begin_c1 0
+ │   │   └─ ActionLineEnd [0..51]
+ │   │       ├─ ActionLineEnd_begin 0
+ │   │       │   └─ ActionLineEnd_begin_c1 0
  │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ LineEnd_content [0..51]
+ │   │       ├─ ActionLineEnd_content [0..51]
  │   │       │   ├─ TextChunk [0..17]
  │   │       │   │   ├─ TextChunk_begin 0
  │   │       │   │   ├─ TextChunk_content [0..17]
@@ -97,6 +97,6 @@ sparkdown [0..52]
  │   │       │       │   ├─ Word [45..50]: "after"
  │   │       │       │   └─ Punctuation [50..51]: "."
  │   │       │       └─ TextChunk_end 51
- │   │       └─ LineEnd_end 51
+ │   │       └─ ActionLineEnd_end 51
  │   └─ ImplicitAction_end 51
  └─ Newline [51..52]: "\n"

@@ -25,7 +25,6 @@ import {
 //
 // The overall body is trimmed (leading/trailing whitespace dropped) to match
 // the prior `raw.trim()`; an empty body yields no objects.
-const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export function lowerTagContent(
   tagContent: SyntaxNode,
@@ -52,10 +51,10 @@ export function lowerTagContent(
       if (child.from > cursor) {
         segs.push({ kind: "text", raw: ctx.read(cursor, child.from) });
       }
-      // The isolated inner expression text (between `{` and `}`).
-      const inner = getInterpolationInnerText(child, ctx).trim();
-      if (IDENTIFIER_RE.test(inner)) {
-        segs.push({ kind: "ref", name: inner });
+      const content = findWrapperChild(child, "LuauInterpolatedStringExpression_content");
+      const variable = content ? loneVariable(content) : null;
+      if (variable) {
+        segs.push({ kind: "ref", name: ctx.read(variable.from, variable.to) });
       } else {
         // Non-identifier expression → emit the raw `{...}` as literal text.
         segs.push({ kind: "text", raw: ctx.read(child.from, child.to) });
@@ -114,20 +113,25 @@ function trimBoundaryWhitespace(
   }
 }
 
-// The text inside an interpolation's `{ ... }` — i.e. the
-// `LuauInterpolatedStringExpression_content` span (excludes the braces).
-function getInterpolationInnerText(
-  node: SyntaxNode,
-  ctx: LowerContext,
-): string {
-  const content = findWrapperChild(
-    node,
-    "LuauInterpolatedStringExpression_content",
-  );
-  if (content) return ctx.read(content.from, content.to);
-  // Fallback: strip the outer braces from the whole node text.
-  const whole = ctx.read(node.from, node.to);
-  return whole.replace(/^\{/, "").replace(/\}$/, "");
+// Access paths wrap even a bare variable. Unwrap only these transparent
+// containers; calls, member/index suffixes, operators and comments keep the
+// interpolation literal instead of being mistaken for a bare reference.
+function loneVariable(container: SyntaxNode): SyntaxNode | null {
+  let only: SyntaxNode | null = null;
+  for (let node = container.firstChild; node; node = node.nextSibling) {
+    if (node.from === node.to || node.name === "Whitespace" ||
+        node.name === "ExtraWhitespace" || node.name === "OptionalWhitespace" ||
+        node.name === "RequiredWhitespace" || node.name === "Newline") continue;
+    if (only) return null;
+    only = node;
+  }
+  if (!only) return null;
+  if (only.name === "LuauVariable") return only;
+  if (only.name === "LuauAccessPath") {
+    const content = findWrapperChild(only, "LuauAccessPath_content");
+    return content ? loneVariable(content) : null;
+  }
+  return only.name === "LuauAccessPart" ? loneVariable(only) : null;
 }
 
 // Return the FIRST child INSIDE the named generated wrapper (e.g.

@@ -557,11 +557,11 @@ sparkdown [0..402]
  │   │   └─ ImplicitAction_begin_c1 392
  │   │       └─ OptionalWhitespace 392
  │   ├─ ImplicitAction_content [392..401]
- │   │   └─ LineEnd [392..401]
- │   │       ├─ LineEnd_begin 392
- │   │       │   └─ LineEnd_begin_c1 392
+ │   │   └─ ActionLineEnd [392..401]
+ │   │       ├─ ActionLineEnd_begin 392
+ │   │       │   └─ ActionLineEnd_begin_c1 392
  │   │       │       └─ OptionalWhitespace 392
- │   │       ├─ LineEnd_content [392..401]
+ │   │       ├─ ActionLineEnd_content [392..401]
  │   │       │   └─ TextChunk [392..401]
  │   │       │       ├─ TextChunk_begin 392
  │   │       │       ├─ TextChunk_content [392..401]
@@ -570,6 +570,6 @@ sparkdown [0..402]
  │   │       │       │   ├─ Word [398..400]: "it"
  │   │       │       │   └─ Punctuation [400..401]: "."
  │   │       │       └─ TextChunk_end 401
- │   │       └─ LineEnd_end 401
+ │   │       └─ ActionLineEnd_end 401
  │   └─ ImplicitAction_end 401
  └─ Newline [401..402]: "\n"

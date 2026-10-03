@@ -29,11 +29,11 @@ sparkdown [0..189]
  │   │   └─ ImplicitAction_begin_c1 [25..27]
  │   │       └─ OptionalWhitespace [25..27]: "  "
  │   ├─ ImplicitAction_content [27..184]
- │   │   └─ LineEnd [27..184]
- │   │       ├─ LineEnd_begin 27
- │   │       │   └─ LineEnd_begin_c1 27
+ │   │   └─ ActionLineEnd [27..184]
+ │   │       ├─ ActionLineEnd_begin 27
+ │   │       │   └─ ActionLineEnd_begin_c1 27
  │   │       │       └─ OptionalWhitespace 27
- │   │       ├─ LineEnd_content [27..184]
+ │   │       ├─ ActionLineEnd_content [27..184]
  │   │       │   └─ TextChunk [27..184]
  │   │       │       ├─ TextChunk_begin 27
  │   │       │       ├─ TextChunk_content [27..184]
@@ -376,7 +376,7 @@ sparkdown [0..189]
  │   │       │       │   │           └─ PunctuationBraceClose [182..183]: "}"
  │   │       │       │   └─ Punctuation [183..184]: "."
  │   │       │       └─ TextChunk_end 184
- │   │       └─ LineEnd_end 184
+ │   │       └─ ActionLineEnd_end 184
  │   └─ ImplicitAction_end 184
  ├─ Newline [184..185]: "\n"
  ├─ LuauEndKeyword [185..188]: "end"

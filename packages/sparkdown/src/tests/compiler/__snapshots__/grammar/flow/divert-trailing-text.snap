@@ -30,11 +30,11 @@ sparkdown [0..323]
  │   │   └─ ImplicitAction_begin_c1 17
  │   │       └─ OptionalWhitespace 17
  │   ├─ ImplicitAction_content [17..35]
- │   │   └─ LineEnd [17..35]
- │   │       ├─ LineEnd_begin 17
- │   │       │   └─ LineEnd_begin_c1 17
+ │   │   └─ ActionLineEnd [17..35]
+ │   │       ├─ ActionLineEnd_begin 17
+ │   │       │   └─ ActionLineEnd_begin_c1 17
  │   │       │       └─ OptionalWhitespace 17
- │   │       ├─ LineEnd_content [17..35]
+ │   │       ├─ ActionLineEnd_content [17..35]
  │   │       │   └─ TextChunk [17..35]
  │   │       │       ├─ TextChunk_begin 17
  │   │       │       ├─ TextChunk_content [17..35]
@@ -65,7 +65,7 @@ sparkdown [0..323]
  │   │       │       │       │   └─ Unknown [28..35]: "> After"
  │   │       │       │       └─ Divert_end 35
  │   │       │       └─ TextChunk_end 35
- │   │       └─ LineEnd_end 35
+ │   │       └─ ActionLineEnd_end 35
  │   └─ ImplicitAction_end 35
  ├─ Newline [35..36]: "\n"
  ├─ ImplicitAction [36..52]
@@ -73,11 +73,11 @@ sparkdown [0..323]
  │   │   └─ ImplicitAction_begin_c1 36
  │   │       └─ OptionalWhitespace 36
  │   ├─ ImplicitAction_content [36..52]
- │   │   └─ LineEnd [36..52]
- │   │       ├─ LineEnd_begin 36
- │   │       │   └─ LineEnd_begin_c1 36
+ │   │   └─ ActionLineEnd [36..52]
+ │   │       ├─ ActionLineEnd_begin 36
+ │   │       │   └─ ActionLineEnd_begin_c1 36
  │   │       │       └─ OptionalWhitespace 36
- │   │       ├─ LineEnd_content [36..52]
+ │   │       ├─ ActionLineEnd_content [36..52]
  │   │       │   └─ TextChunk [36..52]
  │   │       │       ├─ TextChunk_begin 36
  │   │       │       ├─ TextChunk_content [36..52]
@@ -105,7 +105,7 @@ sparkdown [0..323]
  │   │       │       │       │   └─ Unknown [46..52]: ">After"
  │   │       │       │       └─ Divert_end 52
  │   │       │       └─ TextChunk_end 52
- │   │       └─ LineEnd_end 52
+ │   │       └─ ActionLineEnd_end 52
  │   └─ ImplicitAction_end 52
  ├─ Newline [52..53]: "\n"
  ├─ InlineDialogue [53..78]
@@ -275,11 +275,11 @@ sparkdown [0..323]
  │   │   └─ ImplicitAction_begin_c1 125
  │   │       └─ OptionalWhitespace 125
  │   ├─ ImplicitAction_content [125..143]
- │   │   └─ LineEnd [125..143]
- │   │       ├─ LineEnd_begin 125
- │   │       │   └─ LineEnd_begin_c1 125
+ │   │   └─ ActionLineEnd [125..143]
+ │   │       ├─ ActionLineEnd_begin 125
+ │   │       │   └─ ActionLineEnd_begin_c1 125
  │   │       │       └─ OptionalWhitespace 125
- │   │       ├─ LineEnd_content [125..143]
+ │   │       ├─ ActionLineEnd_content [125..143]
  │   │       │   └─ TextChunk [125..143]
  │   │       │       ├─ TextChunk_begin 125
  │   │       │       ├─ TextChunk_content [125..143]
@@ -310,7 +310,7 @@ sparkdown [0..323]
  │   │       │       │       │   └─ Unknown [136..143]: "! After"
  │   │       │       │       └─ Divert_end 143
  │   │       │       └─ TextChunk_end 143
- │   │       └─ LineEnd_end 143
+ │   │       └─ ActionLineEnd_end 143
  │   └─ ImplicitAction_end 143
  ├─ Newline [143..144]: "\n"
  ├─ ImplicitAction [144..162]
@@ -318,11 +318,11 @@ sparkdown [0..323]
  │   │   └─ ImplicitAction_begin_c1 144
  │   │       └─ OptionalWhitespace 144
  │   ├─ ImplicitAction_content [144..162]
- │   │   └─ LineEnd [144..162]
- │   │       ├─ LineEnd_begin 144
- │   │       │   └─ LineEnd_begin_c1 144
+ │   │   └─ ActionLineEnd [144..162]
+ │   │       ├─ ActionLineEnd_begin 144
+ │   │       │   └─ ActionLineEnd_begin_c1 144
  │   │       │       └─ OptionalWhitespace 144
- │   │       ├─ LineEnd_content [144..162]
+ │   │       ├─ ActionLineEnd_content [144..162]
  │   │       │   └─ TextChunk [144..162]
  │   │       │       ├─ TextChunk_begin 144
  │   │       │       ├─ TextChunk_content [144..162]
@@ -354,7 +354,7 @@ sparkdown [0..323]
  │   │       │       │       │       └─ SparkdownInlineComment_c3 [157..162]: " note"
  │   │       │       │       └─ Divert_end 162
  │   │       │       └─ TextChunk_end 162
- │   │       └─ LineEnd_end 162
+ │   │       └─ ActionLineEnd_end 162
  │   └─ ImplicitAction_end 162
  ├─ Newline [162..163]: "\n"
  ├─ Divert [163..179]
@@ -504,11 +504,11 @@ sparkdown [0..323]
  │   │   └─ ImplicitAction_begin_c1 230
  │   │       └─ OptionalWhitespace 230
  │   ├─ ImplicitAction_content [230..254]
- │   │   └─ LineEnd [230..254]
- │   │       ├─ LineEnd_begin 230
- │   │       │   └─ LineEnd_begin_c1 230
+ │   │   └─ ActionLineEnd [230..254]
+ │   │       ├─ ActionLineEnd_begin 230
+ │   │       │   └─ ActionLineEnd_begin_c1 230
  │   │       │       └─ OptionalWhitespace 230
- │   │       ├─ LineEnd_content [230..254]
+ │   │       ├─ ActionLineEnd_content [230..254]
  │   │       │   └─ TextChunk [230..254]
  │   │       │       ├─ TextChunk_begin 230
  │   │       │       ├─ TextChunk_content [230..254]
@@ -560,7 +560,7 @@ sparkdown [0..323]
  │   │       │       │       │   └─ Unknown [247..254]: "> After"
  │   │       │       │       └─ Divert_end 254
  │   │       │       └─ TextChunk_end 254
- │   │       └─ LineEnd_end 254
+ │   │       └─ ActionLineEnd_end 254
  │   └─ ImplicitAction_end 254
  ├─ Newline [254..255]: "\n"
  ├─ Divert [255..276]
@@ -614,11 +614,11 @@ sparkdown [0..323]
  │   │   └─ ImplicitAction_begin_c1 290
  │   │       └─ OptionalWhitespace 290
  │   ├─ ImplicitAction_content [290..311]
- │   │   └─ LineEnd [290..311]
- │   │       ├─ LineEnd_begin 290
- │   │       │   └─ LineEnd_begin_c1 290
+ │   │   └─ ActionLineEnd [290..311]
+ │   │       ├─ ActionLineEnd_begin 290
+ │   │       │   └─ ActionLineEnd_begin_c1 290
  │   │       │       └─ OptionalWhitespace 290
- │   │       ├─ LineEnd_content [290..311]
+ │   │       ├─ ActionLineEnd_content [290..311]
  │   │       │   └─ TextChunk [290..311]
  │   │       │       ├─ TextChunk_begin 290
  │   │       │       ├─ TextChunk_content [290..311]
@@ -671,7 +671,7 @@ sparkdown [0..323]
  │   │       │       │       │       └─ DivertTarget_end 311
  │   │       │       │       └─ Divert_end 311
  │   │       │       └─ TextChunk_end 311
- │   │       └─ LineEnd_end 311
+ │   │       └─ ActionLineEnd_end 311
  │   └─ ImplicitAction_end 311
  ├─ Newline [311..312]: "\n"
  ├─ ImplicitAction [312..322]
@@ -679,11 +679,11 @@ sparkdown [0..323]
  │   │   └─ ImplicitAction_begin_c1 312
  │   │       └─ OptionalWhitespace 312
  │   ├─ ImplicitAction_content [312..322]
- │   │   └─ LineEnd [312..322]
- │   │       ├─ LineEnd_begin 312
- │   │       │   └─ LineEnd_begin_c1 312
+ │   │   └─ ActionLineEnd [312..322]
+ │   │       ├─ ActionLineEnd_begin 312
+ │   │       │   └─ ActionLineEnd_begin_c1 312
  │   │       │       └─ OptionalWhitespace 312
- │   │       ├─ LineEnd_content [312..322]
+ │   │       ├─ ActionLineEnd_content [312..322]
  │   │       │   └─ TextChunk [312..322]
  │   │       │       ├─ TextChunk_begin 312
  │   │       │       ├─ TextChunk_content [312..322]
@@ -710,6 +710,6 @@ sparkdown [0..323]
  │   │       │       │       │       └─ DivertTarget_end 322
  │   │       │       │       └─ Divert_end 322
  │   │       │       └─ TextChunk_end 322
- │   │       └─ LineEnd_end 322
+ │   │       └─ ActionLineEnd_end 322
  │   └─ ImplicitAction_end 322
  └─ Newline [322..323]: "\n"

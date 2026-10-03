@@ -86,14 +86,14 @@ sparkdown [0..140]
  │   │   └─ ImplicitAction_begin_c1 29
  │   │       └─ OptionalWhitespace 29
  │   ├─ ImplicitAction_content [29..30]
- │   │   └─ LineEnd [29..30]
- │   │       ├─ LineEnd_begin 29
- │   │       │   └─ LineEnd_begin_c1 29
+ │   │   └─ ActionLineEnd [29..30]
+ │   │       ├─ ActionLineEnd_begin 29
+ │   │       │   └─ ActionLineEnd_begin_c1 29
  │   │       │       └─ OptionalWhitespace 29
- │   │       ├─ LineEnd_content [29..30]
+ │   │       ├─ ActionLineEnd_content [29..30]
  │   │       │   └─ Break [29..30]
  │   │       │       └─ Break_c1 [29..30]: ">"
- │   │       └─ LineEnd_end 30
+ │   │       └─ ActionLineEnd_end 30
  │   └─ ImplicitAction_end 30
  ├─ Newline [30..31]: "\n"
  ├─ ImplicitAction [31..38]
@@ -101,11 +101,11 @@ sparkdown [0..140]
  │   │   └─ ImplicitAction_begin_c1 31
  │   │       └─ OptionalWhitespace 31
  │   ├─ ImplicitAction_content [31..38]
- │   │   └─ LineEnd [31..38]
- │   │       ├─ LineEnd_begin 31
- │   │       │   └─ LineEnd_begin_c1 31
+ │   │   └─ ActionLineEnd [31..38]
+ │   │       ├─ ActionLineEnd_begin 31
+ │   │       │   └─ ActionLineEnd_begin_c1 31
  │   │       │       └─ OptionalWhitespace 31
- │   │       ├─ LineEnd_content [31..38]
+ │   │       ├─ ActionLineEnd_content [31..38]
  │   │       │   ├─ Break [31..33]
  │   │       │   │   └─ Break_c1 [31..33]: "> "
  │   │       │   └─ TextChunk [33..38]
@@ -113,7 +113,7 @@ sparkdown [0..140]
  │   │       │       ├─ TextChunk_content [33..38]
  │   │       │       │   └─ Word [33..38]: "Hello"
  │   │       │       └─ TextChunk_end 38
- │   │       └─ LineEnd_end 38
+ │   │       └─ ActionLineEnd_end 38
  │   └─ ImplicitAction_end 38
  ├─ Newline [38..39]: "\n"
  ├─ ImplicitAction [39..54]
@@ -121,11 +121,11 @@ sparkdown [0..140]
  │   │   └─ ImplicitAction_begin_c1 39
  │   │       └─ OptionalWhitespace 39
  │   ├─ ImplicitAction_content [39..54]
- │   │   └─ LineEnd [39..54]
- │   │       ├─ LineEnd_begin 39
- │   │       │   └─ LineEnd_begin_c1 39
+ │   │   └─ ActionLineEnd [39..54]
+ │   │       ├─ ActionLineEnd_begin 39
+ │   │       │   └─ ActionLineEnd_begin_c1 39
  │   │       │       └─ OptionalWhitespace 39
- │   │       ├─ LineEnd_content [39..54]
+ │   │       ├─ ActionLineEnd_content [39..54]
  │   │       │   ├─ TextChunk [39..53]
  │   │       │   │   ├─ TextChunk_begin 39
  │   │       │   │   ├─ TextChunk_content [39..53]
@@ -159,7 +159,7 @@ sparkdown [0..140]
  │   │       │   │   └─ TextChunk_end 53
  │   │       │   └─ Break [53..54]
  │   │       │       └─ Break_c1 [53..54]: ">"
- │   │       └─ LineEnd_end 54
+ │   │       └─ ActionLineEnd_end 54
  │   └─ ImplicitAction_end 54
  ├─ Newline [54..55]: "\n"
  ├─ ImplicitAction [55..61]
@@ -167,11 +167,11 @@ sparkdown [0..140]
  │   │   └─ ImplicitAction_begin_c1 55
  │   │       └─ OptionalWhitespace 55
  │   ├─ ImplicitAction_content [55..61]
- │   │   └─ LineEnd [55..61]
- │   │       ├─ LineEnd_begin 55
- │   │       │   └─ LineEnd_begin_c1 55
+ │   │   └─ ActionLineEnd [55..61]
+ │   │       ├─ ActionLineEnd_begin 55
+ │   │       │   └─ ActionLineEnd_begin_c1 55
  │   │       │       └─ OptionalWhitespace 55
- │   │       ├─ LineEnd_content [55..61]
+ │   │       ├─ ActionLineEnd_content [55..61]
  │   │       │   └─ TextChunk [55..61]
  │   │       │       ├─ TextChunk_begin 55
  │   │       │       ├─ TextChunk_content [55..61]
@@ -187,7 +187,7 @@ sparkdown [0..140]
  │   │       │       │   ├─ Space [59..60]: " "
  │   │       │       │   └─ Word [60..61]: "B"
  │   │       │       └─ TextChunk_end 61
- │   │       └─ LineEnd_end 61
+ │   │       └─ ActionLineEnd_end 61
  │   └─ ImplicitAction_end 61
  ├─ Newline [61..62]: "\n"
  ├─ InlineTitle [62..70]

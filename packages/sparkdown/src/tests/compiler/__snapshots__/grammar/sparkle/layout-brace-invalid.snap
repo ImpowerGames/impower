@@ -222,7 +222,7 @@ sparkdown [0..1006]
  │   │   │   │       │       │   │   │               └─ LuauSparklePropAttribute_c6 [159..160]
  │   │   │   │       │       │   │   │                   └─ InlinePropLiteralValue [159..160]
  │   │   │   │       │       │   │   │                       └─ InlinePropLiteralValue_c1 [159..160]
- │   │   │   │       │       │   │   │                           └─ NumberLiteral [159..160]: "1"
+ │   │   │   │       │       │   │   │                           └─ InlinePropNumericValue [159..160]: "1"
  │   │   │   │       │       │   │   └─ LuauSparkleElement_end 160
  │   │   │   │       │       │   ├─ LuauStructBlockEntryComma [160..161]: ","
  │   │   │   │       │       │   ├─ Whitespace [161..162]: " "
@@ -503,8 +503,9 @@ sparkdown [0..1006]
  │   │   │   │       │       │   │   │               └─ LuauSparklePropAttribute_c6 [265..278]
  │   │   │   │       │       │   │   │                   ├─ InlinePropLiteralValue [265..267]
  │   │   │   │       │       │   │   │                   │   └─ InlinePropLiteralValue_c1 [265..267]
- │   │   │   │       │       │   │   │                   │       ├─ NumberLiteral [265..266]: "4"
- │   │   │   │       │       │   │   │                   │       └─ UnquotedString [266..267]: "{"
+ │   │   │   │       │       │   │   │                   │       └─ InlinePropWordValue [265..267]
+ │   │   │   │       │       │   │   │                   │           └─ InlinePropWordValue_c1 [265..267]
+ │   │   │   │       │       │   │   │                   │               └─ UnquotedString [265..267]: "4{"
  │   │   │   │       │       │   │   │                   └─ LuauSparkleValueOverflow [267..278]
  │   │   │   │       │       │   │   │                       ├─ LuauSparkleValueOverflow_c1 [267..268]
  │   │   │   │       │       │   │   │                       │   └─ ExtraWhitespace [267..268]: " "
@@ -1331,7 +1332,9 @@ sparkdown [0..1006]
  │   │   │   │       │       │   │   │               └─ LuauSparklePropAttribute_c6 [675..713]
  │   │   │   │       │       │   │   │                   ├─ InlinePropLiteralValue [675..697]
  │   │   │   │       │       │   │   │                   │   └─ InlinePropLiteralValue_c1 [675..697]
- │   │   │   │       │       │   │   │                   │       └─ UnquotedString [675..697]: "f(f(f(f(f(f(f(1)))))))"
+ │   │   │   │       │       │   │   │                   │       └─ InlinePropWordValue [675..697]
+ │   │   │   │       │       │   │   │                   │           └─ InlinePropWordValue_c1 [675..697]
+ │   │   │   │       │       │   │   │                   │               └─ UnquotedString [675..697]: "f(f(f(f(f(f(f(1)))))))"
  │   │   │   │       │       │   │   │                   └─ LuauSparkleValueOverflow [697..713]
  │   │   │   │       │       │   │   │                       ├─ LuauSparkleValueOverflow_c1 [697..698]
  │   │   │   │       │       │   │   │                       │   └─ ExtraWhitespace [697..698]: " "

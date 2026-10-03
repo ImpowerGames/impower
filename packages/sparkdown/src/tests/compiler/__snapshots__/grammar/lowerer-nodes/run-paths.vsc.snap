@@ -1,0 +1,51 @@
+text.source.sparkdown [0..122]
+ ├─ meta.import.run.sd [0..24]
+ │   ├─ keyword.control.definition.run.sd [0..3]: "run"
+ │   ├─ punctuation.whitespace.required.sd [3..4]: " "
+ │   └─ string.run.luau.sd [4..24]
+ │       └─ string.quoted.run.luau.sd [4..24]: "\"scripts/start.luau\""
+ ├─ Newline [24..25]: "\n"
+ ├─ meta.import.run.sd [25..44]
+ │   ├─ keyword.control.definition.run.sd [25..28]: "run"
+ │   ├─ punctuation.whitespace.required.sd [28..29]: " "
+ │   └─ string.run.luau.sd [29..44]
+ │       └─ string.quoted.run.luau.sd [29..44]: "'scripts/start'"
+ ├─ Newline [44..45]: "\n"
+ ├─ meta.import.run.sd [45..62]
+ │   ├─ keyword.control.definition.run.sd [45..48]: "run"
+ │   ├─ punctuation.whitespace.required.sd [48..49]: " "
+ │   └─ string.run.luau.sd [49..62]
+ │       └─ string.unquoted.run.luau.sd [49..62]: "scripts/start"
+ ├─ Newline [62..63]: "\n"
+ ├─ meta.import.run.sd [63..94]
+ │   ├─ keyword.control.definition.run.sd [63..66]: "run"
+ │   ├─ punctuation.whitespace.required.sd [66..67]: " "
+ │   ├─ string.run.luau.sd [67..89]
+ │   │   ├─ string.quoted.run.luau.sd [67..87]: "\"scripts/start.luau\""
+ │   │   └─ punctuation.whitespace.extra.sd [87..89]: "  "
+ │   └─ comment.line.sd [89..94]
+ │       └─ entity.tag.sd [89..94]
+ │           └─ comment.line.sd [89..94]
+ │               └─ entity.tag.sd [89..94]
+ │                   ├─ punctuation.definition.comment.sd [89..90]
+ │                   │   └─ comment.line.sd [89..90]
+ │                   │       └─ entity.tag.begin.sd [89..90]: "#"
+ │                   └─ punctuation.definition.comment.content.sd [90..94]
+ │                       └─ punctuation.definition.comment.content.sd [90..94]: " tag"
+ ├─ Newline [94..95]: "\n"
+ ├─ meta.import.run.sd [95..121]
+ │   ├─ keyword.control.definition.run.sd [95..98]: "run"
+ │   ├─ punctuation.whitespace.required.sd [98..99]: " "
+ │   ├─ string.run.luau.sd [99..116]
+ │   │   ├─ string.quoted.run.luau.sd [99..114]: "'scripts/start'"
+ │   │   └─ punctuation.whitespace.extra.sd [114..116]: "  "
+ │   └─ comment.line.sd [116..121]
+ │       └─ entity.tag.sd [116..121]
+ │           └─ comment.line.sd [116..121]
+ │               └─ entity.tag.sd [116..121]
+ │                   ├─ punctuation.definition.comment.sd [116..117]
+ │                   │   └─ comment.line.sd [116..117]
+ │                   │       └─ entity.tag.begin.sd [116..117]: "#"
+ │                   └─ punctuation.definition.comment.content.sd [117..121]
+ │                       └─ punctuation.definition.comment.content.sd [117..121]: " tag"
+ └─ Newline [121..122]: "\n"

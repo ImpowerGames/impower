@@ -111,11 +111,11 @@ sparkdown [0..169]
  │   │   │   │   └─ ImplicitAction_begin_c1 [53..57]
  │   │   │   │       └─ OptionalWhitespace [53..57]: "    "
  │   │   │   ├─ ImplicitAction_content [57..91]
- │   │   │   │   └─ LineEnd [57..91]
- │   │   │   │       ├─ LineEnd_begin 57
- │   │   │   │       │   └─ LineEnd_begin_c1 57
+ │   │   │   │   └─ ActionLineEnd [57..91]
+ │   │   │   │       ├─ ActionLineEnd_begin 57
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 57
  │   │   │   │       │       └─ OptionalWhitespace 57
- │   │   │   │       ├─ LineEnd_content [57..91]
+ │   │   │   │       ├─ ActionLineEnd_content [57..91]
  │   │   │   │       │   ├─ LuauInterpolatedStringExpression [57..65]
  │   │   │   │       │   │   ├─ LuauInterpolatedStringExpression_begin [57..58]
  │   │   │   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [57..58]
@@ -158,7 +158,7 @@ sparkdown [0..169]
  │   │   │   │       │       │   ├─ Word [87..90]: "all"
  │   │   │   │       │       │   └─ Punctuation [90..91]: "."
  │   │   │   │       │       └─ TextChunk_end 91
- │   │   │   │       └─ LineEnd_end 91
+ │   │   │   │       └─ ActionLineEnd_end 91
  │   │   │   └─ ImplicitAction_end 91
  │   │   ├─ Newline [91..92]: "\n"
  │   │   └─ LuauSparkdownElseBlock [92..159]
@@ -225,11 +225,11 @@ sparkdown [0..169]
  │   │       │   │   │   └─ ImplicitAction_begin_c1 [118..122]
  │   │       │   │   │       └─ OptionalWhitespace [118..122]: "    "
  │   │       │   │   ├─ ImplicitAction_content [122..158]
- │   │       │   │   │   └─ LineEnd [122..158]
- │   │       │   │   │       ├─ LineEnd_begin 122
- │   │       │   │   │       │   └─ LineEnd_begin_c1 122
+ │   │       │   │   │   └─ ActionLineEnd [122..158]
+ │   │       │   │   │       ├─ ActionLineEnd_begin 122
+ │   │       │   │   │       │   └─ ActionLineEnd_begin_c1 122
  │   │       │   │   │       │       └─ OptionalWhitespace 122
- │   │       │   │   │       ├─ LineEnd_content [122..158]
+ │   │       │   │   │       ├─ ActionLineEnd_content [122..158]
  │   │       │   │   │       │   ├─ LuauInterpolatedStringExpression [122..130]
  │   │       │   │   │       │   │   ├─ LuauInterpolatedStringExpression_begin [122..123]
  │   │       │   │   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [122..123]
@@ -272,7 +272,7 @@ sparkdown [0..169]
  │   │       │   │   │       │       │   ├─ Punctuation [156..157]: "."
  │   │       │   │   │       │       │   └─ Punctuation [157..158]: "."
  │   │       │   │   │       │       └─ TextChunk_end 158
- │   │       │   │   │       └─ LineEnd_end 158
+ │   │       │   │   │       └─ ActionLineEnd_end 158
  │   │       │   │   └─ ImplicitAction_end 158
  │   │       │   └─ Newline [158..159]: "\n"
  │   │       └─ LuauSparkdownElseBlock_end 159

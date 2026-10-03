@@ -167,11 +167,13 @@ function buildDisplayCalls(
         (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
       );
     // A `load` line stays a directive when the line before it ends with `..`.
-    const loadArgs =
-      lineType === "action" ||
-      (isContinuation && ACTION_STATEMENTS.has(parent.name))
-        ? stripLoadKeyword(body)
-        : null;
+    // Block bodies retain blank lines before their first meaningful token.
+    // Ignore that whitespace when consuming the grammar's load marker.
+    const firstContent = body.findIndex(
+      (part) => !(part instanceof Text) || part.text.trim().length > 0,
+    );
+    const loadArgs = lineType === "action" && body[firstContent] instanceof LoadMark
+      ? body.slice(firstContent + 1) : null;
     if (loadArgs) {
       // Everything after `load` names assets, so a `..` ending the line joins
       // nothing onto it.
@@ -251,16 +253,9 @@ class LeadMark extends ParsedObject {
   }
 }
 
-// A `load <names>` action line is a world-load directive. Returns the body
-// with the keyword removed, or null when the line is not one.
-function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
-  const first = body[0];
-  if (!(first instanceof Text)) return null;
-  const match = /^\s*load\s/.exec(first.text);
-  if (!match) return null;
-  const rest = first.text.slice(match[0].length);
-  return rest ? [new Text(rest), ...body.slice(1)] : body.slice(1);
-}
+// A grammar-classified load keyword. It remains literal text unless it is
+// the first object in an action beat.
+class LoadMark extends Text {}
 
 // Resolve the `..` marks inside a body in place. A body line that ends with
 // `..` joins the next when that one begins with `..`: the spaces written before
@@ -334,8 +329,8 @@ function isBlankText(obj: ParsedObject | undefined): boolean {
 // the line shows.
 //
 // A `..` right after a break in the middle of a line begins the part after it
-// (`A .. > .. B`): the range that part starts at `leads`, and starts after the
-// mark and the spaces after it.
+// (`A .. > .. B`): the following range is marked `leads` and starts at the
+// break's end. Body walking consumes the named glue mark and its separator.
 function splitBodyRangeAtBreaks(
   parent: SyntaxNode,
   bodyStart: number,
@@ -366,8 +361,10 @@ function splitBodyRangeAtBreaks(
       leads = false;
       continue;
     }
-    const mark = MID_LINE_LEAD.exec(ctx.read(brk.to, lineEnd));
-    segStart = brk.to + (mark?.[0].length ?? 0);
+    const mark = collectTopLevelInjections(parent, brk.to, lineEnd)
+      .find((injection) => injection.kind === "leadingGlue" && injection.from === brk.to);
+    // Body walking consumes the named mark and its separator.
+    segStart = brk.to;
     leads = mark != null;
   }
   ranges.push({ from: segStart, to: bodyEnd, pause: false, leads });
@@ -389,11 +386,6 @@ interface BeatRange {
   pause: boolean;
   leads: boolean;
 }
-
-// The `..` after a break in the middle of a line, with any spaces after it,
-// when words follow: `A .. > .. B`, `A .. > ..B` and `A .. >..B`. An ellipsis
-// (`> ...`) is text.
-const MID_LINE_LEAD = /^\.\.(?!\.)[ \t]*(?=\S)/;
 
 const BODY_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "tag",
@@ -461,6 +453,7 @@ type BodySegment =
   // because another segment preceded it (its leading whitespace is the
   // author's own spacing).
   | { kind: "text"; raw: string; start: number }
+  | { kind: "load"; node: SyntaxNode }
   | { kind: "expr"; node: SyntaxNode }
   | { kind: "divert"; node: SyntaxNode }
   | { kind: "inlineGluedAlt"; node: SyntaxNode }
@@ -532,6 +525,14 @@ function processDisplayBody(
     const last = segments[segments.length - 1];
     if (last && last.kind === "text") {
       last.raw = last.raw.replace(/\s+$/, "");
+    } else if (last?.kind === "load") {
+      // With no argument, the separator is trailing display whitespace:
+      // the beat says "load" rather than issuing an empty load directive.
+      segments[segments.length - 1] = {
+        kind: "text",
+        raw: ctx.read(last.node.from, last.node.to).trimEnd(),
+        start: last.node.from,
+      };
     }
   }
 
@@ -543,6 +544,8 @@ function processDisplayBody(
     if (seg.kind === "text") {
       const text = applyDisplayEscapes(seg.raw);
       if (text.length > 0) out.push(new Text(text));
+    } else if (seg.kind === "load") {
+      out.push(new LoadMark(ctx.read(seg.node.from, seg.node.to)));
     } else if (seg.kind === "glue") {
       // A `..` that ends a line of the body. It stays in the body as a
       // marker: `buildDisplayCalls` marks the call `glue` or `extend` for one
@@ -683,7 +686,7 @@ function collectBodySegments(
     if (next && next.from === i && next.kind === "leadingGlue") {
       idx++;
       // A `..` after something else on its line is text.
-      if (!startsItsLine(next.node, ctx)) continue;
+      if (next.from !== bodyStart && !startsItsLine(next.node, ctx)) continue;
       // A line that begins with `..` shows its text without the mark or the
       // spaces after it.
       flush();
@@ -694,7 +697,9 @@ function collectBodySegments(
     }
     if (next && next.from === i) {
       flush();
-      if (next.kind === "expr") {
+      if (next.kind === "load") {
+        out.push({ kind: "load", node: next.node });
+      } else if (next.kind === "expr") {
         out.push({ kind: "expr", node: next.node });
       } else if (next.kind === "divert") {
         out.push({ kind: "divert", node: next.node });
@@ -738,6 +743,7 @@ function collectBodySegments(
 
 interface BodyInjection {
   kind:
+    | "load"
     | "expr"
     | "divert"
     | "inlineGluedAlt"
@@ -760,6 +766,12 @@ function collectTopLevelInjections(
   const visit = (node: SyntaxNode): void => {
     if (node.to <= bodyStart || node.from >= bodyEnd) return;
     if (node !== parent) {
+      if (node.name === "DisplayLoadKeyword") {
+        if (node.from >= bodyStart && node.to <= bodyEnd) {
+          out.push({ kind: "load", node, from: node.from, to: node.to });
+        }
+        return;
+      }
       // Don't descend into a backtick string — its inner `{...}` belongs to
       // the string itself, not the surrounding display body.
       if (node.name === "LuauInterpolatedString") return;

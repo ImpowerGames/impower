@@ -7,6 +7,7 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
+  DISPLAY_CHAIN_SEPARATOR: (?:$|{{WS}}+)
   # Same-line recognition of invalid Luau statements. Keep each decision
   # named so the capture rule below only describes the line structure.
   # lookaround: LuauExpression keeps valid names and paths; only an invalid continuation or character claims this line.
@@ -1254,7 +1255,30 @@ repository:
   RunContent:
     tag: string
     name: string.run.luau.sd
-    match: (.+?)(?={{EOL}})
+    # lookaround: Annotation owns the EOL tail. Reordering cannot stop a
+    # path already being matched; splitting quoted/unquoted paths still
+    # needs that boundary, and Run's end must leave annotations in its body.
+    match: (?:(".*?"|'.*?')({{WS}}*)|(.+?))(?={{EOL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#RunQuotedPath" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      3:
+        patterns:
+          - { include: "#RunUnquotedPath" }
+
+  RunQuotedPath:
+    match: (?:".*"|'.*')
+    tag: string
+    name: string.quoted.run.luau.sd
+
+  RunUnquotedPath:
+    match: .+
+    tag: string
+    name: string.unquoted.run.luau.sd
 
   ########## Break ##########
 
@@ -2874,7 +2898,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
-      - { include: "#BlockLineContinue" }
+      - { include: "#BlockActionLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
   # A `..` right after a top-level interpolation (`{x} .. more`) is text the
   # player shows, so it does not begin an action there.
@@ -2896,10 +2920,10 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineChain" }
+      - { include: "#ActionLineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#LineEnd" }
+      - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
   ImplicitAction:
@@ -2911,12 +2935,90 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineChain" }
+      - { include: "#ActionLineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#LineEnd" }
+      - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+  # Action bodies share display parsing, but also expose the load directive.
+  # Keep the enclosing line shapes parallel to the ordinary display rules.
+  BlockActionLineContinue:
+    # lookaround: BlockLineBlank owns empty lines. Ordering already tries it
+    # first, but this nullable begin can reopen at its end; splitting a Switch
+    # does not prevent that. The parent's end bounds indentation, not emptiness.
+    # No variable consumes the first display token, which must remain in the body.
+    begin: ({{WS}}*)(?=\S)({{LEADING_GLUE}})?
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LeadingGlue" }
+    patterns:
+      - { include: "#AssetLine" }
+      - { include: "#ParentheticalLine" }
+      - { include: "#ActionDisplayLine" }
+    end: ({{WS}}*)(?={{EOL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+
+  ActionLineChain:
+    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#ActionDisplayLine" }
+      3:
+        patterns:
+          - { include: "#Chain" }
+      4:
+        patterns:
+          - { include: "#EndOfLine" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+
+  ActionLineEnd:
+    # lookaround: Annotation and ExtraWhitespace own the EOL suffix. They
+    # cannot win merely by reordering while this nullable begin can reopen;
+    # splitting a Switch has the same issue. The parent's end leaves whitespace
+    # before tags to children. Tightening WS would lose indentation captures;
+    # the first nonspace display token must remain unconsumed for the body.
+    begin: ({{WS}}*)(?!{{EOL}})(?=\S)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#ActionDisplayLine" }
+    end: (?={{EOL}})
+
+  ActionDisplayLine:
+    patterns:
+      - { include: "#ActionLoadKeyword" }
+      - { include: "#DisplayLine" }
+
+  # LeadingGlue leaves its separator for the action body. Keep that whitespace
+  # outside DisplayLoadKeyword so body walking can skip it and still encounter
+  # the keyword node at its exact source start. OptionalWhitespace preserves
+  # authored spacing immediately after LeadingGlue during formatting.
+  ActionLoadKeyword:
+    match: ({{WS}}*)({{LOAD_CONTROL_KEYWORDS}}{{WS}})
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#DisplayLoadKeyword" }
+
   ########## Parenthetical ##########
 
   ParentheticalLine:
@@ -3008,7 +3110,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LineChain:
-    match: ({{WS}}*)(.*?)({{CHAIN}}(?:$|{{WS}}+))({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -3059,6 +3161,19 @@ repository:
       - { include: "#Break" }
       - { include: "#Glue" }
       - { include: "#TextChunk" }
+
+  # The load word at the beginning of an action-text run. Only a beat
+  # beginning with this token is a directive. Include its separator so the
+  # lowerer removes one token. Dialogue and other display kinds never use it.
+  DisplayLoadKeyword:
+    match: ({{LOAD_CONTROL_KEYWORDS}})({{WS}})
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandControl" }
+      2:
+        patterns:
+          - { include: "#RequiredWhitespace" }
 
   TextChunk:
     tag: special(string)
@@ -5493,8 +5608,28 @@ repository:
     captures:
       1:
         patterns:
+          - { include: "#InlinePropNumericValue" }
+          - { include: "#InlinePropBooleanValue" }
+          - { include: "#InlinePropWordValue" }
+
+  InlinePropNumericValue:
+    # The enclosing capture is exactly one non-whitespace literal. Anchor
+    # its end so a unit such as 16px remains a whole word value.
+    match: -?\d+(?:\.\d+)?$
+    tag: number
+    name: constant.numeric.sd
+
+  InlinePropBooleanValue:
+    match: (?:true|false)$
+    tag: bool
+    name: constant.language.boolean.sd
+
+  InlinePropWordValue:
+    match: ([^\s]+)
+    captures:
+      1:
+        patterns:
           - { include: "#Color" }
-          - { include: "#NumericLiteral" }
           - { include: "#UnquotedString" }
 
   # Adjacency content string for inline element positions where a class or

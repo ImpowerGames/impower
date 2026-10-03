@@ -413,17 +413,17 @@ sparkdown [0..195]
  │   │   └─ ImplicitAction_begin_c1 188
  │   │       └─ OptionalWhitespace 188
  │   ├─ ImplicitAction_content [188..194]
- │   │   └─ LineEnd [188..194]
- │   │       ├─ LineEnd_begin 188
- │   │       │   └─ LineEnd_begin_c1 188
+ │   │   └─ ActionLineEnd [188..194]
+ │   │       ├─ ActionLineEnd_begin 188
+ │   │       │   └─ ActionLineEnd_begin_c1 188
  │   │       │       └─ OptionalWhitespace 188
- │   │       ├─ LineEnd_content [188..194]
+ │   │       ├─ ActionLineEnd_content [188..194]
  │   │       │   └─ TextChunk [188..194]
  │   │       │       ├─ TextChunk_begin 188
  │   │       │       ├─ TextChunk_content [188..194]
  │   │       │       │   ├─ Word [188..193]: "Hello"
  │   │       │       │   └─ Punctuation [193..194]: "."
  │   │       │       └─ TextChunk_end 194
- │   │       └─ LineEnd_end 194
+ │   │       └─ ActionLineEnd_end 194
  │   └─ ImplicitAction_end 194
  └─ Newline [194..195]: "\n"

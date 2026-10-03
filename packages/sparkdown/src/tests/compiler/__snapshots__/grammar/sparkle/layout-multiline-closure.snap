@@ -695,7 +695,7 @@ sparkdown [0..1181]
  │   │   │   │       │       │               └─ LuauSparklePropAttribute_c6 [366..367]
  │   │   │   │       │       │                   └─ InlinePropLiteralValue [366..367]
  │   │   │   │       │       │                       └─ InlinePropLiteralValue_c1 [366..367]
- │   │   │   │       │       │                           └─ NumberLiteral [366..367]: "1"
+ │   │   │   │       │       │                           └─ InlinePropNumericValue [366..367]: "1"
  │   │   │   │       │       └─ LuauSparkleEventClosureAttribute_end 367
  │   │   │   │       └─ LuauSparkleElementContinuation_end 367
  │   │   │   └─ LuauSparkleBlockLine_end 367

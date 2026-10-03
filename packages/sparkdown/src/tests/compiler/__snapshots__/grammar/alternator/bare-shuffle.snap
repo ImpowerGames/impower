@@ -45,11 +45,11 @@ sparkdown [0..187]
  │   │   │   │   └─ ImplicitAction_begin_c1 27
  │   │   │   │       └─ OptionalWhitespace 27
  │   │   │   ├─ ImplicitAction_content [27..58]
- │   │   │   │   └─ LineEnd [27..58]
- │   │   │   │       ├─ LineEnd_begin 27
- │   │   │   │       │   └─ LineEnd_begin_c1 27
+ │   │   │   │   └─ ActionLineEnd [27..58]
+ │   │   │   │       ├─ ActionLineEnd_begin 27
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 27
  │   │   │   │       │       └─ OptionalWhitespace 27
- │   │   │   │       ├─ LineEnd_content [27..58]
+ │   │   │   │       ├─ ActionLineEnd_content [27..58]
  │   │   │   │       │   └─ TextChunk [27..58]
  │   │   │   │       │       ├─ TextChunk_begin 27
  │   │   │   │       │       ├─ TextChunk_content [27..58]
@@ -70,7 +70,7 @@ sparkdown [0..187]
  │   │   │   │       │       │   ├─ Word [53..57]: "song"
  │   │   │   │       │       │   └─ Punctuation [57..58]: "."
  │   │   │   │       │       └─ TextChunk_end 58
- │   │   │   │       └─ LineEnd_end 58
+ │   │   │   │       └─ ActionLineEnd_end 58
  │   │   │   └─ ImplicitAction_end 58
  │   │   ├─ Newline [58..59]: "\n"
  │   │   ├─ LuauAlternatorSeparator [59..65]
@@ -89,11 +89,11 @@ sparkdown [0..187]
  │   │   │   │   └─ ImplicitAction_begin_c1 65
  │   │   │   │       └─ OptionalWhitespace 65
  │   │   │   ├─ ImplicitAction_content [65..104]
- │   │   │   │   └─ LineEnd [65..104]
- │   │   │   │       ├─ LineEnd_begin 65
- │   │   │   │       │   └─ LineEnd_begin_c1 65
+ │   │   │   │   └─ ActionLineEnd [65..104]
+ │   │   │   │       ├─ ActionLineEnd_begin 65
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 65
  │   │   │   │       │       └─ OptionalWhitespace 65
- │   │   │   │       ├─ LineEnd_content [65..104]
+ │   │   │   │       ├─ ActionLineEnd_content [65..104]
  │   │   │   │       │   └─ TextChunk [65..104]
  │   │   │   │       │       ├─ TextChunk_begin 65
  │   │   │   │       │       ├─ TextChunk_content [65..104]
@@ -110,7 +110,7 @@ sparkdown [0..187]
  │   │   │   │       │       │   ├─ Word [92..103]: "coordinates"
  │   │   │   │       │       │   └─ Punctuation [103..104]: "."
  │   │   │   │       │       └─ TextChunk_end 104
- │   │   │   │       └─ LineEnd_end 104
+ │   │   │   │       └─ ActionLineEnd_end 104
  │   │   │   └─ ImplicitAction_end 104
  │   │   ├─ Newline [104..105]: "\n"
  │   │   ├─ LuauAlternatorSeparator [105..111]
@@ -129,11 +129,11 @@ sparkdown [0..187]
  │   │   │   │   └─ ImplicitAction_begin_c1 111
  │   │   │   │       └─ OptionalWhitespace 111
  │   │   │   ├─ ImplicitAction_content [111..142]
- │   │   │   │   └─ LineEnd [111..142]
- │   │   │   │       ├─ LineEnd_begin 111
- │   │   │   │       │   └─ LineEnd_begin_c1 111
+ │   │   │   │   └─ ActionLineEnd [111..142]
+ │   │   │   │       ├─ ActionLineEnd_begin 111
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 111
  │   │   │   │       │       └─ OptionalWhitespace 111
- │   │   │   │       ├─ LineEnd_content [111..142]
+ │   │   │   │       ├─ ActionLineEnd_content [111..142]
  │   │   │   │       │   └─ TextChunk [111..142]
  │   │   │   │       │       ├─ TextChunk_begin 111
  │   │   │   │       │       ├─ TextChunk_content [111..142]
@@ -146,7 +146,7 @@ sparkdown [0..187]
  │   │   │   │       │       │   ├─ Word [132..141]: "broadcast"
  │   │   │   │       │       │   └─ Punctuation [141..142]: "."
  │   │   │   │       │       └─ TextChunk_end 142
- │   │   │   │       └─ LineEnd_end 142
+ │   │   │   │       └─ ActionLineEnd_end 142
  │   │   │   └─ ImplicitAction_end 142
  │   │   ├─ Newline [142..143]: "\n"
  │   │   ├─ LuauAlternatorSeparator [143..149]
@@ -165,11 +165,11 @@ sparkdown [0..187]
  │   │   │   │   └─ ImplicitAction_begin_c1 149
  │   │   │   │       └─ OptionalWhitespace 149
  │   │   │   ├─ ImplicitAction_content [149..176]
- │   │   │   │   └─ LineEnd [149..176]
- │   │   │   │       ├─ LineEnd_begin 149
- │   │   │   │       │   └─ LineEnd_begin_c1 149
+ │   │   │   │   └─ ActionLineEnd [149..176]
+ │   │   │   │       ├─ ActionLineEnd_begin 149
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 149
  │   │   │   │       │       └─ OptionalWhitespace 149
- │   │   │   │       ├─ LineEnd_content [149..176]
+ │   │   │   │       ├─ ActionLineEnd_content [149..176]
  │   │   │   │       │   └─ TextChunk [149..176]
  │   │   │   │       │       ├─ TextChunk_begin 149
  │   │   │   │       │       ├─ TextChunk_content [149..176]
@@ -181,7 +181,7 @@ sparkdown [0..187]
  │   │   │   │       │       │   ├─ Word [166..175]: "breathing"
  │   │   │   │       │       │   └─ Punctuation [175..176]: "."
  │   │   │   │       │       └─ TextChunk_end 176
- │   │   │   │       └─ LineEnd_end 176
+ │   │   │   │       └─ ActionLineEnd_end 176
  │   │   │   └─ ImplicitAction_end 176
  │   │   └─ Newline [176..177]: "\n"
  │   └─ LuauSparkdownSequentialAlternatorBlock_end [177..182]

@@ -4,11 +4,11 @@ sparkdown [0..245]
  │   │   └─ ImplicitAction_begin_c1 0
  │   │       └─ OptionalWhitespace 0
  │   ├─ ImplicitAction_content [0..16]
- │   │   └─ LineEnd [0..16]
- │   │       ├─ LineEnd_begin 0
- │   │       │   └─ LineEnd_begin_c1 0
+ │   │   └─ ActionLineEnd [0..16]
+ │   │       ├─ ActionLineEnd_begin 0
+ │   │       │   └─ ActionLineEnd_begin_c1 0
  │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ LineEnd_content [0..16]
+ │   │       ├─ ActionLineEnd_content [0..16]
  │   │       │   └─ TextChunk [0..16]
  │   │       │       ├─ TextChunk_begin 0
  │   │       │       ├─ TextChunk_content [0..16]
@@ -45,7 +45,7 @@ sparkdown [0..245]
  │   │       │       │   ├─ Word [12..15]: "now"
  │   │       │       │   └─ Punctuation [15..16]: "."
  │   │       │       └─ TextChunk_end 16
- │   │       └─ LineEnd_end 16
+ │   │       └─ ActionLineEnd_end 16
  │   └─ ImplicitAction_end 16
  ├─ Newline [16..17]: "\n"
  ├─ ImplicitAction [17..34]
@@ -53,11 +53,11 @@ sparkdown [0..245]
  │   │   └─ ImplicitAction_begin_c1 17
  │   │       └─ OptionalWhitespace 17
  │   ├─ ImplicitAction_content [17..34]
- │   │   └─ LineEnd [17..34]
- │   │       ├─ LineEnd_begin 17
- │   │       │   └─ LineEnd_begin_c1 17
+ │   │   └─ ActionLineEnd [17..34]
+ │   │       ├─ ActionLineEnd_begin 17
+ │   │       │   └─ ActionLineEnd_begin_c1 17
  │   │       │       └─ OptionalWhitespace 17
- │   │       ├─ LineEnd_content [17..34]
+ │   │       ├─ ActionLineEnd_content [17..34]
  │   │       │   └─ TextChunk [17..34]
  │   │       │       ├─ TextChunk_begin 17
  │   │       │       ├─ TextChunk_content [17..34]
@@ -95,7 +95,7 @@ sparkdown [0..245]
  │   │       │       │   ├─ Word [30..33]: "now"
  │   │       │       │   └─ Punctuation [33..34]: "."
  │   │       │       └─ TextChunk_end 34
- │   │       └─ LineEnd_end 34
+ │   │       └─ ActionLineEnd_end 34
  │   └─ ImplicitAction_end 34
  ├─ Newline [34..35]: "\n"
  ├─ ImplicitAction [35..54]
@@ -103,11 +103,11 @@ sparkdown [0..245]
  │   │   └─ ImplicitAction_begin_c1 35
  │   │       └─ OptionalWhitespace 35
  │   ├─ ImplicitAction_content [35..54]
- │   │   └─ LineEnd [35..54]
- │   │       ├─ LineEnd_begin 35
- │   │       │   └─ LineEnd_begin_c1 35
+ │   │   └─ ActionLineEnd [35..54]
+ │   │       ├─ ActionLineEnd_begin 35
+ │   │       │   └─ ActionLineEnd_begin_c1 35
  │   │       │       └─ OptionalWhitespace 35
- │   │       ├─ LineEnd_content [35..54]
+ │   │       ├─ ActionLineEnd_content [35..54]
  │   │       │   └─ TextChunk [35..54]
  │   │       │       ├─ TextChunk_begin 35
  │   │       │       ├─ TextChunk_content [35..54]
@@ -146,7 +146,7 @@ sparkdown [0..245]
  │   │       │       │   ├─ Word [50..53]: "now"
  │   │       │       │   └─ Punctuation [53..54]: "."
  │   │       │       └─ TextChunk_end 54
- │   │       └─ LineEnd_end 54
+ │   │       └─ ActionLineEnd_end 54
  │   └─ ImplicitAction_end 54
  ├─ Newline [54..55]: "\n"
  ├─ InlineDialogue [55..77]

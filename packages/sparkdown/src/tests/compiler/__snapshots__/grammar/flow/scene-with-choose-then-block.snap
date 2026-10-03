@@ -100,11 +100,11 @@ sparkdown [0..88]
  │   │       │   │   │   └─ ImplicitAction_begin_c1 [57..61]
  │   │       │   │   │       └─ OptionalWhitespace [57..61]: "    "
  │   │       │   │   ├─ ImplicitAction_content [61..70]
- │   │       │   │   │   └─ LineEnd [61..70]
- │   │       │   │   │       ├─ LineEnd_begin 61
- │   │       │   │   │       │   └─ LineEnd_begin_c1 61
+ │   │       │   │   │   └─ ActionLineEnd [61..70]
+ │   │       │   │   │       ├─ ActionLineEnd_begin 61
+ │   │       │   │   │       │   └─ ActionLineEnd_begin_c1 61
  │   │       │   │   │       │       └─ OptionalWhitespace 61
- │   │       │   │   │       ├─ LineEnd_content [61..70]
+ │   │       │   │   │       ├─ ActionLineEnd_content [61..70]
  │   │       │   │   │       │   └─ TextChunk [61..70]
  │   │       │   │   │       │       ├─ TextChunk_begin 61
  │   │       │   │   │       │       ├─ TextChunk_content [61..70]
@@ -113,7 +113,7 @@ sparkdown [0..88]
  │   │       │   │   │       │       │   ├─ Word [65..69]: "nods"
  │   │       │   │   │       │       │   └─ Punctuation [69..70]: "."
  │   │       │   │   │       │       └─ TextChunk_end 70
- │   │       │   │   │       └─ LineEnd_end 70
+ │   │       │   │   │       └─ ActionLineEnd_end 70
  │   │       │   │   └─ ImplicitAction_end 70
  │   │       │   └─ Newline [70..71]: "\n"
  │   │       └─ LuauSparkdownChooseThenClause_end 71

@@ -163,7 +163,7 @@ sparkdown [0..314]
  │   │   │   │       │       │   │   │   │           └─ LuauSparklePropAttribute_c6 [138..140]
  │   │   │   │       │       │   │   │   │               └─ InlinePropLiteralValue [138..140]
  │   │   │   │       │       │   │   │   │                   └─ InlinePropLiteralValue_c1 [138..140]
- │   │   │   │       │       │   │   │   │                       └─ NumberLiteral [138..140]: "12"
+ │   │   │   │       │       │   │   │   │                       └─ InlinePropNumericValue [138..140]: "12"
  │   │   │   │       │       │   │   │   ├─ LuauSparkleElementAssign [140..141]
  │   │   │   │       │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [140..141]
  │   │   │   │       │       │   │   │   │       └─ Whitespace [140..141]: " "

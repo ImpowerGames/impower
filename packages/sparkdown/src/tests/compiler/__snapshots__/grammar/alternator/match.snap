@@ -54,11 +54,11 @@ sparkdown [0..104]
      │   │   │   └─ ImplicitAction_begin_c1 35
      │   │   │       └─ OptionalWhitespace 35
      │   │   ├─ ImplicitAction_content [35..51]
-     │   │   │   └─ LineEnd [35..51]
-     │   │   │       ├─ LineEnd_begin 35
-     │   │   │       │   └─ LineEnd_begin_c1 35
+     │   │   │   └─ ActionLineEnd [35..51]
+     │   │   │       ├─ ActionLineEnd_begin 35
+     │   │   │       │   └─ ActionLineEnd_begin_c1 35
      │   │   │       │       └─ OptionalWhitespace 35
-     │   │   │       ├─ LineEnd_content [35..51]
+     │   │   │       ├─ ActionLineEnd_content [35..51]
      │   │   │       │   └─ TextChunk [35..51]
      │   │   │       │       ├─ TextChunk_begin 35
      │   │   │       │       ├─ TextChunk_content [35..51]
@@ -71,7 +71,7 @@ sparkdown [0..104]
      │   │   │       │       │   ├─ Punctuation [49..50]: "."
      │   │   │       │       │   └─ Punctuation [50..51]: "\""
      │   │   │       │       └─ TextChunk_end 51
-     │   │   │       └─ LineEnd_end 51
+     │   │   │       └─ ActionLineEnd_end 51
      │   │   └─ ImplicitAction_end 51
      │   ├─ Newline [51..52]: "\n"
      │   ├─ LuauAlternatorSeparator [52..63]
@@ -96,11 +96,11 @@ sparkdown [0..104]
      │   │   │   └─ ImplicitAction_begin_c1 63
      │   │   │       └─ OptionalWhitespace 63
      │   │   ├─ ImplicitAction_content [63..75]
-     │   │   │   └─ LineEnd [63..75]
-     │   │   │       ├─ LineEnd_begin 63
-     │   │   │       │   └─ LineEnd_begin_c1 63
+     │   │   │   └─ ActionLineEnd [63..75]
+     │   │   │       ├─ ActionLineEnd_begin 63
+     │   │   │       │   └─ ActionLineEnd_begin_c1 63
      │   │   │       │       └─ OptionalWhitespace 63
-     │   │   │       ├─ LineEnd_content [63..75]
+     │   │   │       ├─ ActionLineEnd_content [63..75]
      │   │   │       │   └─ TextChunk [63..75]
      │   │   │       │       ├─ TextChunk_begin 63
      │   │   │       │       ├─ TextChunk_content [63..75]
@@ -111,7 +111,7 @@ sparkdown [0..104]
      │   │   │       │       │   ├─ Punctuation [73..74]: "."
      │   │   │       │       │   └─ Punctuation [74..75]: "\""
      │   │   │       │       └─ TextChunk_end 75
-     │   │   │       └─ LineEnd_end 75
+     │   │   │       └─ ActionLineEnd_end 75
      │   │   └─ ImplicitAction_end 75
      │   ├─ Newline [75..76]: "\n"
      │   ├─ LuauAlternatorSeparator [76..88]
@@ -136,11 +136,11 @@ sparkdown [0..104]
      │   │   │   └─ ImplicitAction_begin_c1 88
      │   │   │       └─ OptionalWhitespace 88
      │   │   ├─ ImplicitAction_content [88..100]
-     │   │   │   └─ LineEnd [88..100]
-     │   │   │       ├─ LineEnd_begin 88
-     │   │   │       │   └─ LineEnd_begin_c1 88
+     │   │   │   └─ ActionLineEnd [88..100]
+     │   │   │       ├─ ActionLineEnd_begin 88
+     │   │   │       │   └─ ActionLineEnd_begin_c1 88
      │   │   │       │       └─ OptionalWhitespace 88
-     │   │   │       ├─ LineEnd_content [88..100]
+     │   │   │       ├─ ActionLineEnd_content [88..100]
      │   │   │       │   └─ TextChunk [88..100]
      │   │   │       │       ├─ TextChunk_begin 88
      │   │   │       │       ├─ TextChunk_content [88..100]
@@ -151,7 +151,7 @@ sparkdown [0..104]
      │   │   │       │       │   ├─ Punctuation [98..99]: "."
      │   │   │       │       │   └─ Punctuation [99..100]: "\""
      │   │   │       │       └─ TextChunk_end 100
-     │   │   │       └─ LineEnd_end 100
+     │   │   │       └─ ActionLineEnd_end 100
      │   │   └─ ImplicitAction_end 100
      │   └─ Newline [100..101]: "\n"
      └─ LuauSparkdownConditionalAlternatorBlock_end [101..104]

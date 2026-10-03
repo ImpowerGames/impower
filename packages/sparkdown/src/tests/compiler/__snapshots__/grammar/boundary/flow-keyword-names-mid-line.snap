@@ -629,11 +629,11 @@ sparkdown [0..344]
  │   │   └─ ImplicitAction_begin_c1 [256..258]
  │   │       └─ OptionalWhitespace [256..258]: "  "
  │   ├─ ImplicitAction_content [258..271]
- │   │   └─ LineEnd [258..271]
- │   │       ├─ LineEnd_begin 258
- │   │       │   └─ LineEnd_begin_c1 258
+ │   │   └─ ActionLineEnd [258..271]
+ │   │       ├─ ActionLineEnd_begin 258
+ │   │       │   └─ ActionLineEnd_begin_c1 258
  │   │       │       └─ OptionalWhitespace 258
- │   │       ├─ LineEnd_content [258..271]
+ │   │       ├─ ActionLineEnd_content [258..271]
  │   │       │   └─ TextChunk [258..271]
  │   │       │       ├─ TextChunk_begin 258
  │   │       │       ├─ TextChunk_content [258..271]
@@ -642,7 +642,7 @@ sparkdown [0..344]
  │   │       │       │   ├─ Word [263..270]: "content"
  │   │       │       │   └─ Punctuation [270..271]: "."
  │   │       │       └─ TextChunk_end 271
- │   │       └─ LineEnd_end 271
+ │   │       └─ ActionLineEnd_end 271
  │   └─ ImplicitAction_end 271
  ├─ Newline [271..272]: "\n"
  ├─ LuauDefine [272..302]
@@ -726,11 +726,11 @@ sparkdown [0..344]
  │   │   └─ ImplicitAction_begin_c1 [316..320]
  │   │       └─ OptionalWhitespace [316..320]: "    "
  │   ├─ ImplicitAction_content [320..333]
- │   │   └─ LineEnd [320..333]
- │   │       ├─ LineEnd_begin 320
- │   │       │   └─ LineEnd_begin_c1 320
+ │   │   └─ ActionLineEnd [320..333]
+ │   │       ├─ ActionLineEnd_begin 320
+ │   │       │   └─ ActionLineEnd_begin_c1 320
  │   │       │       └─ OptionalWhitespace 320
- │   │       ├─ LineEnd_content [320..333]
+ │   │       ├─ ActionLineEnd_content [320..333]
  │   │       │   └─ TextChunk [320..333]
  │   │       │       ├─ TextChunk_begin 320
  │   │       │       ├─ TextChunk_content [320..333]
@@ -739,7 +739,7 @@ sparkdown [0..344]
  │   │       │       │   ├─ Word [325..332]: "content"
  │   │       │       │   └─ Punctuation [332..333]: "."
  │   │       │       └─ TextChunk_end 333
- │   │       └─ LineEnd_end 333
+ │   │       └─ ActionLineEnd_end 333
  │   └─ ImplicitAction_end 333
  ├─ Newline [333..334]: "\n"
  ├─ Whitespace [334..336]: "  "

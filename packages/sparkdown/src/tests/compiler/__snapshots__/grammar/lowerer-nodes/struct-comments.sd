@@ -1,0 +1,8 @@
+define card as style with
+  -- Whole-line comment
+  gap = 16
+  panel {
+    -- Nested comment
+    width = 32
+  }
+end

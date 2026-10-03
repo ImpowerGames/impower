@@ -305,7 +305,7 @@ text.source.sparkdown [0..2780]
  │   ├─ variable.other.constant.attribute.style.sd [534..535]: "#"
  │   ├─ variable.other.constant.attribute.style.sd [535..539]: "open"
  │   ├─ keyword.operator.assignment.sd [539..540]: "="
- │   ├─ string.unquoted.sd [540..544]: "true"
+ │   ├─ constant.language.boolean.sd [540..544]: "true"
  │   ├─ punctuation.whitespace.sd [544..545]: " "
  │   └─ punctuation.definition.template-expression.begin.sd [545..546]: "{"
  ├─ Newline [546..547]: "\n"

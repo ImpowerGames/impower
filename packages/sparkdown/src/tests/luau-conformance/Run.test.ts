@@ -36,7 +36,12 @@ function compileWithFiles(files: Array<{ uri: string; text: string }>) {
 }
 
 describe("run statement", () => {
-  test("loads a .luau file and runs its body", () => {
+  test.each([
+    'run "helpers"',
+    'run "helpers.luau"  # tag',
+    "run 'helpers'\t",
+    "run helpers",
+  ])("loads a .luau file and runs its body: %s", (runLine) => {
     // The .luau file's body becomes a wrapper function called from
     // main flow. Inside the function body, bare calls don't fire
     // (#75) so the .luau content uses `&` discard-prefix to invoke
@@ -44,7 +49,7 @@ describe("run statement", () => {
     const luau = `& harness_record(42)
 `;
     const main = `external harness_record(v)
-run "helpers"
+${runLine}
 done
 `;
     const { result, errs } = compileWithFiles([

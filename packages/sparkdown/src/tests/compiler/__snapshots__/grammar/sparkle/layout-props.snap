@@ -43,7 +43,7 @@ sparkdown [0..201]
  │   │   │   │       │   │       │   └─ LuauSparklePropAttribute_c6 [32..34]
  │   │   │   │       │   │       │       └─ InlinePropLiteralValue [32..34]
  │   │   │   │       │   │       │           └─ InlinePropLiteralValue_c1 [32..34]
- │   │   │   │       │   │       │               └─ NumberLiteral [32..34]: "16"
+ │   │   │   │       │   │       │               └─ InlinePropNumericValue [32..34]: "16"
  │   │   │   │       │   │       ├─ RequiredWhitespace [34..35]: " "
  │   │   │   │       │   │       └─ LuauSparklePropAttribute [35..54]
  │   │   │   │       │   │           ├─ LuauSparklePropAttribute_c1 [35..36]
@@ -55,7 +55,9 @@ sparkdown [0..201]
  │   │   │   │       │   │           └─ LuauSparklePropAttribute_c6 [48..54]
  │   │   │   │       │   │               └─ InlinePropLiteralValue [48..54]
  │   │   │   │       │   │                   └─ InlinePropLiteralValue_c1 [48..54]
- │   │   │   │       │   │                       └─ UnquotedString [48..54]: "center"
+ │   │   │   │       │   │                       └─ InlinePropWordValue [48..54]
+ │   │   │   │       │   │                           └─ InlinePropWordValue_c1 [48..54]
+ │   │   │   │       │   │                               └─ UnquotedString [48..54]: "center"
  │   │   │   │       │   ├─ LuauSparkleElementAssign [54..55]
  │   │   │   │       │   │   └─ LuauSparkleElementAssign_c1 [54..55]
  │   │   │   │       │   │       └─ Whitespace [54..55]: " "
@@ -226,7 +228,7 @@ sparkdown [0..201]
  │   │   │   │       │       │   │   │       │   │   │               └─ LuauSparklePropAttribute_c6 [183..186]
  │   │   │   │       │       │   │   │       │   │   │                   └─ InlinePropLiteralValue [183..186]
  │   │   │   │       │       │   │   │       │   │   │                       └─ InlinePropLiteralValue_c1 [183..186]
- │   │   │   │       │       │   │   │       │   │   │                           └─ NumberLiteral [183..186]: "0.5"
+ │   │   │   │       │       │   │   │       │   │   │                           └─ InlinePropNumericValue [183..186]: "0.5"
  │   │   │   │       │       │   │   │       │   │   └─ LuauSparkleElement_end 186
  │   │   │   │       │       │   │   │       │   ├─ Newline [186..187]: "\n"
  │   │   │   │       │       │   │   │       │   └─ Whitespace [187..191]: "    "
