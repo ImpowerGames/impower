@@ -4,7 +4,6 @@ import {
   findTypeAtPosition,
 } from "../../compiler/typecheck/AstQuery";
 import type { Frontend } from "../../compiler/typecheck/Frontend";
-import { accumulateErrors } from "../../compiler/typecheck/Frontend";
 import { Position, type Location } from "../../compiler/typecheck/Location";
 import type { Module, SourceModule } from "../../compiler/typecheck/Module";
 import {
@@ -100,8 +99,11 @@ export function queryType(
     selected = expr ? module.astExpectedTypes.get(expr) : undefined;
   } else if ("diagnosticType" in selector) {
     const [index, field] = selector.diagnosticType;
-    const error = (diagnostics ??
-      accumulateErrors([...source.parseErrors, ...module.errors]))[index];
+    // Qualified indices refer to this module's fresh parse/check sequence,
+    // matching unqualified entry queries when there are no dependencies.
+    const error = (diagnostics ?? [...source.parseErrors, ...module.errors])[
+      index
+    ];
     const value = error
       ? (error.data as unknown as Record<string, unknown>)[field]
       : undefined;

@@ -17,6 +17,76 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  // Exact pinned Lexer::readNext treats input byte zero as EOF even when
+  // Parser::parse receives the full buffer length. Escaped source NUL differs.
+  test.each([
+    ["declare foo: number" + String.fromCharCode(0) + "declare bar: )", 0],
+    ["declare foo: number declare bar: )", 2],
+    ['declare foo: "a' + String.fromCharCode(0) + 'b"', 1],
+    ["-- comment" + String.fromCharCode(0) + "\ndeclare bar: )", 0],
+    ["--[[" + String.fromCharCode(0) + "]]\ndeclare bar: )", 1],
+  ] as const)(
+    "declaration input NUL matches explicit-length native parse %s",
+    (definition, errors) => {
+      const result = checkLuau("local x=1", { definitions: [definition] });
+      expect(result.setupSyntaxDiagnostics).toHaveLength(errors);
+      if (definition.startsWith("declare foo: number") && errors === 0) {
+        expect(result.find({ global: "foo" }).print()).toBe("number");
+        expect(() => result.find({ global: "bar" })).toThrow(/no type/);
+      }
+    },
+  );
+  test.each([true, false])(
+    "module-qualified error queries preserve fresh order, retain=%s",
+    (retainFullTypeGraphs) => {
+      const result = checkLuau(
+        '\n        type MixedTable = {[number]: number, x: number}\n        local t: MixedTable = {"fail"}\n    ',
+        retainFullTypeGraphs ? {} : { retainFullTypeGraphs: false },
+      );
+      expect(result.syntaxDiagnostics).toEqual([]);
+      expect(result.diagnostics.map((d) => d.code)).toEqual([
+        "TypeMismatch",
+        "MissingProperties",
+      ]);
+      const unqualified = result.find({ diagnosticType: [0, "wantedType"] });
+      const qualified = result.find({
+        module: "MainModule",
+        diagnosticType: [0, "wantedType"],
+      });
+      expect(unqualified.print()).toBe("number");
+      expect(qualified.is(unqualified)).toBe(true);
+      expect(qualified.is(result.find({ builtin: "number" }))).toBe(true);
+    },
+  );
+  test("qualified cached-module indices keep raw module order without fresh diagnostics", () => {
+    const session: LuauCheckSession = { modules: new Map() };
+    const source = "local A=require(game.A)\nreturn A";
+    const options = {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+      session,
+    };
+    const first = checkLuau(source, {
+      ...options,
+      moduleSources: {
+        "game/A":
+          'type MixedTable = {[number]: number, x: number}\nlocal t: MixedTable = {"fail"}\nreturn 1',
+      },
+    });
+    // Actual checker errors are asserted; this is not a claim that #879's
+    // require source has become syntax-diagnostic-free.
+    expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
+      ["game/A", "TypeMismatch"],
+      ["game/A", "MissingProperties"],
+    ]);
+    const second = checkLuau(source, options);
+    expect(second.diagnostics).toEqual([]);
+    expect(
+      second
+        .find({ module: "game/A", diagnosticType: [0, "wantedType"] })
+        .is(second.find({ builtin: "number" })),
+    ).toBe(true);
+  });
   test.each([["declare x : number", "declare x:  number"]])(
     "prepared declaration branch uses the actual checker for %s",
     async (source, printed) => {
