@@ -13786,9 +13786,6 @@
       },
       "patterns": [
         {
-          "include": "#LuauStringEscape"
-        },
-        {
           "include": "#Color"
         },
         {
