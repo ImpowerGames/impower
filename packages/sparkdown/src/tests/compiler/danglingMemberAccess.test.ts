@@ -7,7 +7,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
 
@@ -71,7 +71,7 @@ const NAME_ON_LATER_LINE =
 
 /** Where Luau's parser reports its first error, which must have this message. */
 function luauErrorAt(source: string, message: string): { line: number; character: number } {
-  const error = parseLuau(source).errors[0];
+  const error = officialSyntaxErrors(source)[0];
   expect(error?.message).toBe(message);
   return { line: error!.location.begin.line, character: error!.location.begin.column };
 }
@@ -272,7 +272,7 @@ describe("a dangling member access (#1079)", () => {
     const errors = diagnostics(program).filter((d) => d.severity === 1);
     // Luau's first error, which Luau reads as `function greet()`.
     const luau = source.replace("function greet\n", "function greet()\n").replace("After it.\n", "");
-    const first = parseLuau(luau).errors[0]!;
+    const first = officialSyntaxErrors(luau)[0]!;
     expect(errors).toContainEqual({
       message: first.message,
       severity: 1,

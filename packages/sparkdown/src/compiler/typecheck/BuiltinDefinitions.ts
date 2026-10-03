@@ -3,8 +3,9 @@
 // `BuiltinDefinitions.h`/`BuiltinDefinitions.cpp`; Luau is MIT-licensed (see
 // `LICENSE-luau.txt`).
 //
-// Most builtins are declared in Luau source (`EmbeddedBuiltinDefinitions.ts`);
-// `registerBuiltinGlobals` loads those declarations and then builds the few
+// Most builtins are declared in Luau source (`EmbeddedBuiltinDefinitions.ts`)
+// and parsed into JSON at build time. `registerBuiltinGlobals` loads that data
+// and then builds the few
 // types the declaration syntax cannot express, such as `pairs`, `next`,
 // `getmetatable` and `setmetatable`, and the string metatable.
 
@@ -20,7 +21,8 @@ import {
 import { shallowClone } from "./Clone";
 import type { ConstraintSolver } from "./ConstraintSolver";
 import { symbolName } from "./Def";
-import { getBuiltinDefinitionSource, getTypeFunctionDefinitionSource } from "./EmbeddedBuiltinDefinitions";
+import builtinDefinitions from "./definitions/builtin.json";
+import typeFunctionDefinitions from "./definitions/type-functions.json";
 import { countMismatch, CountMismatchContext, typeMismatch } from "./Error";
 import type { Frontend } from "./Frontend";
 import type { GlobalTypes } from "./GlobalTypes";
@@ -64,7 +66,6 @@ import {
 } from "./Type";
 import { ErrorSuppression, extendTypePack, reduceUnion, shouldSuppressErrors, trackInteriorFreeType, unwrapGroup } from "./TypeUtils";
 
-export { getBuiltinDefinitionSource, getTypeFunctionDefinitionSource };
 export { matchTableFreeze, shouldTypestateForFirstArgument } from "./DataFlowGraph";
 
 /** The tag `registerBuiltinGlobals` attaches to the type of `require`. */
@@ -255,7 +256,7 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
 
   builtinTypes.typeFunctions.addToScope(arena, globals.globalScope);
 
-  frontend.loadDefinitionFile(globals, globals.globalScope, getBuiltinDefinitionSource(), "@luau");
+  frontend.loadDefinitionFile(globals, globals.globalScope, builtinDefinitions, "@luau");
 
   const genericK = arena.addType(genericType({ scope: globalScope, name: "K", polarity: Polarity.Mixed }));
   const genericV = arena.addType(genericType({ scope: globalScope, name: "V", polarity: Polarity.Mixed }));
@@ -436,7 +437,7 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
     if (binding) globals.globalTypeFunctionScope.bindings.set(name, { ...binding });
   }
 
-  frontend.loadDefinitionFile(globals, globals.globalTypeFunctionScope, getTypeFunctionDefinitionSource(), "@luau");
+  frontend.loadDefinitionFile(globals, globals.globalTypeFunctionScope, typeFunctionDefinitions, "@luau");
 
   finalizeGlobalBindings(globals.globalTypeFunctionScope);
 }

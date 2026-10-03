@@ -2,8 +2,8 @@
   "upstream": "c8cf2864adec33eb4eb5b4cc7e0708aa74893ba0",
   "emscripten": "4.0.10",
   "sha256": {
-    "bridge.cpp": "90d46a9cdc2573fd17e745fdcccd1d3f08aeb78a70a332dc37945d76b1c7c3bd",
-    "luau-ast.cjs": "5598b7e7a9602676e6fbaf580ce2dac53efce7c899bd2096a47e237dfd6352f1",
-    "luau-ast.wasm": "c428196ede3a5392864819af93e40cc9fbce4f43530a5ed623dba775bae7ddd3"
+    "bridge.cpp": "710aad97f93977db78985a692e986ff439e8a2841c09fcf9de15976cbfc67aaf",
+    "luau-ast.cjs": "a801f6e12b4bc8a1aeb0c4e732973874d4f010d67b14902dbfb56def72915c8f",
+    "luau-ast.wasm": "a5a8225334ea18b995d5d6178609202e8be84ba322fca70aa24166641827f565"
   }
 }

@@ -1,10 +1,9 @@
 // The AST `readLuauAst.ts` reads from Sparkdown's syntax tree must be the AST
 // Luau's parser reads from the same Luau (#1285, the second check of #1283).
 //
-// Luau's parser here is the TypeScript port in `DefinitionParser.ts`, the
-// oracle: the converter does not use it. Both ASTs are printed through one
-// canonical printer that omits locations (`printAst`), and the texts must be
-// equal:
+// The oracle is the pinned official C++ parser. Converter nodes are encoded
+// through `printOfficialAst` and compared with its JSON, omitting locations
+// for structural checks; position checks compare every encoded node's range:
 // - for every Luau fixture `luauFixtures.ts` finds, except the inputs on
 //   which the two disagree about having a syntax error (#1284's list) and
 //   those on `KNOWN_STRUCTURAL_DISAGREEMENTS` below. A `.sd` fixture's units
@@ -23,8 +22,9 @@
 // document by `textDocumentPosition`, over statements in their one-line and
 // multi-line forms. Sparkdown's own constructs have fixtures of their own.
 //
-// A disagreement that stops happening fails its test, so the fix for an
-// issue removes its entry in the fix's own pull request.
+// A bug disagreement that stops happening fails its test, so its fix removes
+// the entry. The two intentional integer limitations are checked explicitly
+// by the official oracle and remain documented after #1309 closes.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -38,7 +38,9 @@ import {
   type AstNode,
   type AstVisitor,
 } from "../../compiler/typecheck/Ast";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { parseOfficialTree, withoutLocations, jsonNodes, jsonLocation } from "./officialAstTestUtils";
+import { printOfficialAst } from "./printOfficialAst";
+import type { Json } from "./officialLuau";
 import { checkerTextUnits, textDocumentPosition, type LuauTextUnit } from "./luauCheckerText";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type LuauAstUnit } from "../../compiler/typecheck/readLuauAst";
@@ -63,7 +65,9 @@ interface StructuralDisagreement {
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
 ];
 
-const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.map((entry) => entry.fixture));
+// #1304/#1305/#1306 still disagree about extracted syntax/diagnostics, but their
+// full tree ASTs agree with C++ and remain ordinary comparisons here.
+const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.issue === 1298 || entry.limitation).map((entry) => entry.fixture));
 const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
 
 /** The first line at which two printed trees differ, with a few lines around it from each. */
@@ -80,17 +84,17 @@ function firstDifference(luau: string, tree: string): string {
 }
 
 /** Compares a reading of the tree with Luau's, returning the differences found; none when they agree. */
-function compareUnit(label: string, luauRoot: AstNode, luauErrors: number, unit: LuauAstUnit, tree: AstNode, view: Parameters<typeof printAst>[1]): string[] {
+function compareUnit(label: string, luauRoot: Json, luauErrors: number, unit: LuauAstUnit, tree: AstNode, view: Parameters<typeof printAst>[1]): string[] {
   if (luauErrors > 0 || unit.errors.length > 0) {
     if (luauErrors > 0 !== unit.errors.length > 0) {
       return [`${label}: Luau's parser finds ${luauErrors} syntax errors, the tree ${unit.errors.length} (${unit.errors.map((e) => `${e.location.begin} ${e.message}`).join("; ")})`];
     }
     return [];
   }
-  const a = printAst(luauRoot);
+  const a = JSON.stringify(withoutLocations(luauRoot), null, 2);
   let b: string;
   try {
-    b = printAst(tree, view);
+    b = JSON.stringify(withoutLocations(printOfficialAst(tree, view)), null, 2);
   } catch (error) {
     if (error instanceof NoCheckerView) return [`${label}: the checker's text has no reading of ${error.message}`];
     throw error;
@@ -103,17 +107,17 @@ function fixtureDifferences(input: LuauInput): string[] {
   const tree = parseSource(input.text);
   const units = readLuauUnits(tree, input.text);
   if (input.luau !== undefined) {
-    const parsed = parseLuau(input.luau);
+    const parsed = parseOfficialTree(input.luau);
     const run = units.prelude.root.body.find((s) => s instanceof AstStatFunction && s.name instanceof AstExprGlobal && s.name.name === "run");
     if (!run && units.prelude.errors.length === 0) return ["the tree has no `run` function"];
-    return compareUnit("run", parsed.root.body[0] ?? parsed.root, parsed.errors.length, units.prelude, run ?? units.prelude.root, checkerView(input.text, "_G"));
+    return compareUnit("run", parsed.errors.length ? parsed.root : parsed.root.body[0] ?? parsed.root, parsed.errors.length, units.prelude, run ?? units.prelude.root, checkerView(input.text, "_G"));
   }
   const extracted = checkerTextUnits(tree, input.text);
   const theirs: LuauTextUnit[] = [extracted.prelude, ...extracted.flows];
   const ours = [units.prelude, ...units.flows];
   if (theirs.length !== ours.length) return [`the type checker extracts ${theirs.length} units, the tree reads ${ours.length}`];
   return theirs.flatMap((unit, i) => {
-    const parsed = parseLuau(unit.text);
+    const parsed = parseOfficialTree(unit.text);
     const ourUnit = ours[i]!;
     return compareUnit(`${unit.kind} unit ${i}`, parsed.root, parsed.errors.length, ourUnit, ourUnit.root, checkerView(input.text, extracted.anyName));
   });
@@ -151,7 +155,7 @@ describe("The AST read from the syntax tree is the AST Luau's parser reads", () 
       for (const expression of expressions) {
         const text = expressionDocument(expression);
         const units = readLuauUnits(parseSource(text), text);
-        const parsed = parseLuau(text);
+        const parsed = parseOfficialTree(text);
         const differences = [
           ...(parsed.errors.length ? [`Luau's parser finds a syntax error: ${parsed.errors[0]!.message}`] : []),
           ...(units.flows.length ? ["the tree reads a flow"] : []),
@@ -167,13 +171,6 @@ describe("The AST read from the syntax tree is the AST Luau's parser reads", () 
   }
 });
 
-/** Every node of a tree, in `visitAst`'s order, leaving out the `&` that marks a statement, which Luau's parser does not see. */
-function nodesOf(root: AstNode): AstNode[] {
-  const nodes: AstNode[] = [];
-  visitAst(root, { visit: (node) => (node.kind === "SparkdownExplicit" || nodes.push(node), true) });
-  return nodes;
-}
-
 function range(begin: { line: number; column?: number; character?: number }, end: { line: number; column?: number; character?: number }): string {
   return `${begin.line}:${begin.character ?? begin.column}-${end.line}:${end.character ?? end.column}`;
 }
@@ -182,18 +179,20 @@ function range(begin: { line: number; column?: number; character?: number }, end
 function locationDifferences(text: string, pick: (units: { prelude: LuauTextUnit; flows: LuauTextUnit[] }) => LuauTextUnit, pickOurs: (units: ReturnType<typeof readLuauUnits>) => LuauAstUnit): string[] {
   const tree = parseSource(text);
   const unit = pick(checkerTextUnits(tree, text));
-  const parsed = parseLuau(unit.text);
+  const parsed = parseOfficialTree(unit.text);
   const ours = pickOurs(readLuauUnits(tree, text));
   expect(parsed.errors).toEqual([]);
   expect(ours.errors).toEqual([]);
-  const theirs = nodesOf(parsed.root);
-  const mine = nodesOf(ours.root);
-  expect(mine.map((n) => n.kind)).toEqual(theirs.map((n) => n.kind));
+  const theirs = jsonNodes(parsed.root);
+  const mine = jsonNodes(printOfficialAst(ours.root, checkerView(text, "_G")));
+  expect(mine.map((n) => n["type"])).toEqual(theirs.map((n) => n["type"]));
   const lines = text.split("\n");
   return theirs.flatMap((node, i) => {
-    const expected = range(textDocumentPosition(unit, node.location.begin), textDocumentPosition(unit, node.location.end));
-    const actual = range(mine[i]!.location.begin, mine[i]!.location.end);
-    return expected === actual ? [] : [`${node.kind} on ${JSON.stringify(lines[node.location.begin.line] ?? "")}: Luau ${expected}, tree ${actual}`];
+    const theirLocation = jsonLocation(node);
+    const myLocation = jsonLocation(mine[i]!);
+    const expected = range(textDocumentPosition(unit, theirLocation.begin), textDocumentPosition(unit, theirLocation.end));
+    const actual = range(myLocation.begin, myLocation.end);
+    return expected === actual ? [] : [`${node["type"]} on ${JSON.stringify(lines[theirLocation.begin.line] ?? "")}: Luau ${expected}, tree ${actual}`];
   });
 }
 
@@ -484,7 +483,7 @@ describe("Unfinished and boundary input", () => {
     const ours = readLuauUnits(tree, text).prelude;
     return {
       tree: ours.errors.map((e) => `${e.location.begin.line}:${e.location.begin.column} ${e.message}`),
-      luau: parseLuau(unit.text).errors.map((e) => {
+      luau: parseOfficialTree(unit.text).errors.map((e) => {
         const at = textDocumentPosition(unit, e.location.begin);
         return `${at.line}:${at.character} ${e.message}`;
       }),
@@ -538,7 +537,7 @@ describe("Unfinished and boundary input", () => {
     expect(extracted.flows).toHaveLength(1);
     expect(units.flows).toHaveLength(1);
     expect(units.flows[0]!.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([["StatLocal", ["Branch"]]]);
-    expect(printAst(units.flows[0]!.root, checkerView(text, extracted.anyName))).toBe(printAst(parseLuau(extracted.flows[0]!.text).root));
+    expect(withoutLocations(printOfficialAst(units.flows[0]!.root, checkerView(text, extracted.anyName)))).toEqual(withoutLocations(parseOfficialTree(extracted.flows[0]!.text).root));
   });
 });
 
@@ -548,13 +547,13 @@ describe("The other entry points", () => {
     const text = runWrapperText("W", file);
     const unit = readLuauRunFile(parseSource(text), text);
     expect(unit).toBeDefined();
-    const parsed = parseLuau(file);
+    const parsed = parseOfficialTree(file);
     expect(parsed.errors).toEqual([]);
     expect(unit!.errors).toEqual([]);
-    expect(printAst(unit!.root)).toBe(printAst(parsed.root));
+    expect(withoutLocations(printOfficialAst(unit!.root))).toEqual(withoutLocations(parsed.root));
     expect(unit!.hotcomments.map((c) => [c.header, c.content])).toEqual([[true, "strict"]]);
     // The file's lines are the wrapper document's, two lines down.
-    expect(unit!.root.body[0]!.location.begin.line).toBe(parsed.root.body[0]!.location.begin.line + 2);
+    expect(unit!.root.body[0]!.location.begin.line).toBe(jsonLocation(parsed.root.body[0]!).begin.line + 2);
   });
 
   test("a run file's statements each name the tree node they were read from", () => {
@@ -581,14 +580,14 @@ describe("The other entry points", () => {
     ].join("\n");
     const text = runWrapperText("W", file);
     const unit = readLuauRunFile(parseSource(text), text)!;
-    const parsed = parseLuau(file);
+    const parsed = parseOfficialTree(file);
     expect(parsed.errors).toEqual([]);
     expect(unit.errors).toEqual([]);
-    expect(printAst(unit.root)).toBe(printAst(parsed.root));
+    expect(withoutLocations(printOfficialAst(unit.root))).toEqual(withoutLocations(parsed.root));
     // Names an object inherits are no attributes either.
     const bad = "local x = 1\ntype function t() return x end\n@nope function f() end\n@constructor function g() end\n@toString function h() end\n@__proto__ function i() end\n@hasOwnProperty function j() end\n";
     const badText = runWrapperText("W", bad);
-    const expected = parseLuau(bad).errors.map((e) => e.message);
+    const expected = parseOfficialTree(bad).errors.map((e) => e.message);
     expect(expected).toContain("Invalid attribute '@constructor'");
     expect(readLuauRunFile(parseSource(badText), badText)!.errors.map((e) => e.message)).toEqual(expected);
   });
@@ -596,17 +595,17 @@ describe("The other entry points", () => {
   test("a narrative interpolation's expression is read with Luau's precedence, its names as globals", () => {
     const narrative = ": Total {a + b * -c ^ 2 .. f(x):m().y}\n";
     const cursor = parseSource(narrative).cursor();
-    const printed: string[] = [];
+    const printed: Json[] = [];
     do {
       if (cursor.name === "LuauInterpolatedStringExpression") {
         const inner = [];
         for (let child = cursor.node.firstChild; child; child = child.nextSibling) inner.push(child);
         const { expr, errors } = readLuauExpression(inner.slice(1, -1), narrative);
         expect(errors).toEqual([]);
-        printed.push(printAst(expr));
+        printed.push(withoutLocations(printOfficialAst(expr)));
       }
     } while (cursor.next());
-    expect(printed).toEqual([printAst(parseLuau("return a + b * -c ^ 2 .. f(x):m().y").root.body[0]!).replace(/^StatReturn\n/, "").replace(/^  /gm, "")]);
+    expect(printed).toEqual(withoutLocations(parseOfficialTree("return a + b * -c ^ 2 .. f(x):m().y").root.body[0]!["list"]!));
   });
 });
 

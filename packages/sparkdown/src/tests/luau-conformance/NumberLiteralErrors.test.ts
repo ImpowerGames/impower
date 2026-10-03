@@ -102,10 +102,11 @@ describe("number contexts", () => {
 // Luau: parse_numbers_error (the `LuauIntegerType2` half)
 // "Malformed integer" / "Integer overflow"
 //
-// N/A: sparkdown has no integer literal type, so the `i` suffix is not a
-// number character at all. `123ii` and the rest are reported as
-// "Malformed number" like any other letter after a number, and an integer
-// cannot overflow.
+// N/A: Sparkdown deliberately leaves native 64-bit integers unsupported.
+// Malformed spellings such as `123ii` report "Malformed number"; integer-shaped
+// literals, including oversized spellings, report the unsupported diagnostic.
+// UnsupportedIntegerLiterals1309.test.ts pins that distinction. Upstream
+// "Malformed integer" and "Integer overflow" semantics remain inapplicable.
 describe.skip("integer literals (N/A: no integer literal type)", () => {
   test.each([
     ["return 0x0xABCi", "Malformed integer"],

@@ -1,6 +1,6 @@
-import { parseLuau } from "../typecheck/DefinitionParser";
+import { readLuauStatementCandidate, luauPositionOffset } from "../typecheck/readLuauAst";
 import type { SyntaxNode } from "@lezer/common";
-import { utf16Column } from "../typecheck/LuauDocumentChecker";
+import type { Location } from "../typecheck/Location";
 import { nextSignificantToken } from "../lower/utils/validateAssignmentValue";
 
 /** A syntax error's message and document range. */
@@ -33,10 +33,11 @@ export function luauStatementError(
     const next = nextSignificantToken(node, lineEnd, read);
     const to = next ? endOfLine(next.from + next.text.length, read) : lineEnd;
     const text = read(from, to);
-    const result = parseLuau(text);
+    const documentText = read(0, to);
+    const result = readLuauStatementCandidate(node, documentText, from, to);
     const error = result.errors[0];
     if (!error) return null;
-    const found = locate(error, text, from);
+    const found = locate(error, documentText);
     // The text read is cut from a block, so the block's own `end`, `else`,
     // `elseif` or `until` is one Luau's parser expects no more of
     // (`print(1)` then `else`): the statements before it are whole.
@@ -55,7 +56,7 @@ export function luauStatementError(
       error.message.startsWith("Incomplete statement"),
     );
     if (owner) {
-      const start = locate({ message: "", location: owner.location }, text, from).from;
+      const start = locate({ message: "", location: owner.location }, documentText).from;
       if (start > from && start >= nodeEnd) return null;
     }
     if (!next || found.from <= next.from) return found;
@@ -63,7 +64,7 @@ export function luauStatementError(
     // that token, the error is the next statement's, which the text read
     // cuts short (a `do` opened on that line is unclosed).
     const first = result.root.body[0];
-    if (!first || locate({ message: "", location: first.location }, text, from).to <= next.from) {
+    if (!first || locate({ message: "", location: first.location }, documentText).to <= next.from) {
       return null;
     }
     // The statement took the next token; its error at the end of the text
@@ -94,34 +95,18 @@ function statementHolding<T extends { location: { begin: { line: number; column:
   return holding;
 }
 
-/** The document range of a Luau error in `text`, which starts at `from`. */
+/** The converter already reports document positions in UTF-16 units. */
 function locate(
   error: {
     message: string;
-    location: {
-      begin: { line: number; column: number };
-      end: { line: number; column: number };
-    };
+    location: Location;
   },
-  text: string,
-  from: number,
+  documentText: string,
 ): LuauStatementError {
-  const lines = text.split("\n");
-  const lineStarts: number[] = [];
-  let offset = 0;
-  for (const line of lines) {
-    lineStarts.push(offset);
-    offset += line.length + 1;
-  }
-  // Luau's columns count UTF-8 bytes; the document's count UTF-16 units.
-  const at = (position: { line: number; column: number }) =>
-    from +
-    (lineStarts[position.line] ?? text.length) +
-    utf16Column(lines[position.line] ?? "", position.column);
   return {
     message: error.message,
-    from: at(error.location.begin),
-    to: at(error.location.end),
+    from: luauPositionOffset(error.location.begin, documentText),
+    to: luauPositionOffset(error.location.end, documentText),
   };
 }
 
