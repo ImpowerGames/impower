@@ -592,13 +592,6 @@ class Tokenizer {
       this.readFunctionDefinition(node);
       return;
     }
-    if (name === "LuauReturnStatement" || name === "LuauSparkdownReturnStatement") {
-      const first = this.tokens.length;
-      this.readChildren(node);
-      const keyword = this.tokens.slice(first).find((token) => token.text === "return");
-      if (keyword) keyword.node = node;
-      return;
-    }
     this.readChildren(node);
   }
 
@@ -1044,6 +1037,8 @@ interface Binding {
 interface FunctionState {
   vararg: boolean;
   loopDepth: number;
+  /** A written Luau function, rather than the synthetic scene-flow wrapper. */
+  luau?: boolean;
 }
 
 /** What a parser reads besides its tokens: the document, for the text of Sparkdown's constructs and of strings. */
@@ -1132,6 +1127,7 @@ class Parser {
   private typeFunctionDepth = 0;
   private readonly declaredExportBindings = new Map<string, Location>();
   private hasModuleReturn = false;
+  private returnFunction?: FunctionState;
   // Not part of Luau: how many of Sparkdown's own constructs whose syntax
   // Sparkdown reports are being read (a `store` declaration, a double-quoted
   // string's interpolation; see `report`), the index of the token the last error was reported at, and
@@ -1575,10 +1571,16 @@ class Parser {
       if (record) this.statements.push({ statement: stat, first, end: this.pos });
       // Keep reading for Sparkdown's block ownership and unreachable lint,
       // while reporting the token where Luau requires this block to close.
-      // Narrative returns have their own semantics and remain unrestricted.
-      if (begin && stat instanceof AstStatReturn && start.node?.name === "LuauReturnStatement") {
+      // The scene-flow wrapper is synthetic: a marked statement there
+      // covers one story line. Written Luau functions require final returns,
+      // including statements marked with `&` in their nested blocks.
+      const returned = stat instanceof AstStatSparkdownExplicit ? stat.statement : stat;
+      if (begin && returned instanceof AstStatReturn && this.currentFunction().luau) {
         while (this.current().kind === "break" && !this.current().story) this.next();
+        const following = this.pos;
+        if (this.current().kind === "mark") this.next();
         if (!this.blockFollow(this.current())) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
+        this.pos = following;
       }
       // Not part of Luau, whose parser ends a block at a `return`, `break` or
       // `continue` (marked with `&` or not): Sparkdown reads the statements
@@ -2111,7 +2113,13 @@ class Parser {
     const start = this.current().location;
     this.next();
     const list: AstExpr[] = [];
-    if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
+    const outerReturn = this.returnFunction;
+    this.returnFunction = this.currentFunction().luau ? this.currentFunction() : undefined;
+    try {
+      if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
+    } finally {
+      this.returnFunction = outerReturn;
+    }
     const end = list.length === 0 ? start : list[list.length - 1]!.location;
     const node = new AstStatReturn(Location.span(start, end), list);
     if (this.functionStack.length === 1) {
@@ -2208,7 +2216,7 @@ class Parser {
     if (localName) funLocal = this.pushLocal({ name: localName, annotation: undefined, isConst });
 
     const localsBegin = this.saveLocals();
-    this.functionStack.push({ vararg, loopDepth: 0 });
+    this.functionStack.push({ vararg, loopDepth: 0, luau: matchFunction.from < matchFunction.to });
     let self: AstLocal | undefined;
     if (hasself) self = this.pushLocal({ name: { name: "self", location: start }, annotation: undefined, isConst: false });
     const vars = args.map((arg) => this.pushLocal(arg));
@@ -2785,6 +2793,9 @@ class Parser {
   }
 
   parseExpr(limit = 0): AstExpr {
+    // A redundant discard mark on a later function-body line cannot cut
+    // short the multiline expression that this return is still reading.
+    if (this.returnFunction === this.currentFunction() && this.current().kind === "mark" && this.current().location.begin.line > this.previousLocation().end.line) this.next();
     const oldRecursionCount = this.recursionCounter;
     this.incrementRecursionCounter("expression");
     const start = this.current().location;

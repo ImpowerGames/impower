@@ -2,6 +2,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
+import { parseSource } from "./grammarSnapshot";
 
 const URI = "inmemory:///main.sd";
 function compile(text: string) {
@@ -19,11 +20,14 @@ const cases = [
   ["same line", "function f() return 1; print(2) end\n", 0],
   ["else", "function f()\n  if x then\n    print(1)\n  else\n    return 1\n    print(2)\n  end\nend\n", 7],
   ["repeat", "function f()\n  repeat\n    return 1\n    print(2)\n  until true\nend\n", 5],
+  ["marked function", "function f()\n  & return 1\n  & print(2)\nend\n", 3],
+  ["marked do", "function f()\n  do\n    & return 1\n    & print(2)\n  end\nend\n", 5],
+  ["marked then", "function f()\n  if x then\n    & return 1\n    & print(2)\n  end\nend\n", 5],
 ] as const;
 
 describe("return is the final Luau statement in its block (#1298)", () => {
   it.each(cases)("reports Luau's syntax error for %s", (_name, source) => {
-    const oracle = officialSyntaxErrors(source)[0]!;
+    const oracle = officialSyntaxErrors(source.replaceAll("&", " "))[0]!;
     expect(oracle).toBeDefined();
     const program = compile(source + "\nBOB:\n  Hello after.\n");
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
@@ -42,10 +46,44 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     "function f()\n  if x then\n    return 1\n  else\n    return 2\n  end\n  print(3)\nend\n",
     "function f()\n  do\n    return\n  end\n  print(3)\nend\n",
     "function f()\n  return\n    1 +\n    2\nend\n",
-    "& return 1\n& print(2)\n",
-  ])("accepts final Luau returns and narrative returns: %s", (source) => {
+    "function f()\n  & return\n  & -1\nend\n",
+    "function f()\n  & return 1,\n  & print(2)\nend\n",
+    "function f()\n  & return 1 +\n  & print(2)\nend\n",
+  ])("accepts final Luau returns and multiline return values: %s", (source) => {
     const program = compile(source + "\nBOB:\n  Hello after.\n");
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
     expect(errors.map((d: any) => typeof d.message === "string" ? d.message : d.message?.value)).toEqual([]);
+  });
+
+  it("the story grammar keeps a marked return on one line", () => {
+    const source = "scene a\n  & return\n  Hello there.\n  & print(2)\nend\n";
+    const tree = parseSource(source);
+    const returns: string[] = [];
+    const cursor = tree.cursor();
+    do {
+      if (cursor.name === "LuauReturnStatement" || cursor.name === "LuauSparkdownReturnStatement") returns.push(source.slice(cursor.from, cursor.to).trim());
+    } while (cursor.next());
+    expect(returns).toEqual(["return"]);
+  });
+
+  it("keeps the existing unreachable warning alongside the marked function's syntax error", () => {
+    const program = compile("function f()\n  & return 1\n  & print(2)\nend\n");
+    const diagnostics = (Object.values(program.diagnostics ?? {}) as any[]).flat();
+    expect(diagnostics.filter((d: any) => d.code === "UnreachableCode").map((d: any) => ({ message: d.message.value, severity: d.severity, range: d.range }))).toEqual([
+      { message: "Unreachable code (previous statement always returns)", severity: 2, range: { start: { line: 2, character: 4 }, end: { line: 2, character: 12 } } },
+    ]);
+  });
+
+  it.each(["function", "do", "if"])("marked bare returns keep Luau's multiline values in %s blocks", (block) => {
+    for (const follower of ["print(2)", "x = 1"]) for (const marked of [false, true]) {
+      const header = block === "do" ? "  do\n" : block === "if" ? "  if x then\n" : "";
+      const source = `function f()\n${header}  & return\n  ${marked ? "& " : ""}${follower}\n${header ? "  end\n" : ""}end\n`;
+      const oracle = officialSyntaxErrors(source.replaceAll("&", " "))[0];
+      const program = compile(source);
+      const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
+      expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual(oracle ? [
+        { message: oracle.message, range: { start: { line: oracle.location.begin.line, character: oracle.location.begin.column }, end: { line: oracle.location.end.line, character: oracle.location.end.column } } },
+      ] : []);
+    }
   });
 });

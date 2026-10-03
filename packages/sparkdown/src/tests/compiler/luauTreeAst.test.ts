@@ -503,10 +503,9 @@ describe("Unfinished and boundary input", () => {
     }
   });
 
-  test("marked returns and breaks keep their following statements in the block", () => {
+  test("marked breaks keep their following statements in the block", () => {
     // Sparkdown runs none of them, and the unreachable-code lint reports the first (#1286).
     for (const text of [
-      "function f()\n  & return 1\n  & x = 2\nend\n",
       "function f()\n  while true do\n    & break\n    & x = 2\n  end\nend\n",
     ]) {
       const { tree, luau } = preludeErrors(text);
@@ -514,6 +513,12 @@ describe("Unfinished and boundary input", () => {
       expect(tree).toEqual([]);
     }
     expect(preludeErrors("function f()\n  & x = 2\n  & return 1\nend\n")).toEqual({ tree: [], luau: [] });
+  });
+
+  test("a marked Luau return reports the required block closer at the following token (#1298)", () => {
+    const { tree, luau } = preludeErrors("function f()\n  & return 1\n  & x = 2\nend\n");
+    expect(tree).toEqual(["2:4 Expected 'end' (to close 'function' at line 1), got 'x'"]);
+    expect(tree[0]).toBe(luau[0]);
   });
 
   test("a plain Luau return reports the required block closer at the following token (#1298)", () => {
