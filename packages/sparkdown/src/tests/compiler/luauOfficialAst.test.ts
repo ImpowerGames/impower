@@ -18,7 +18,8 @@ import {
   type LuauTextUnit,
 } from "./luauCheckerText";
 import { checkerView } from "./luauCheckerView";
-import { luauInputs, type LuauInput } from "./luauFixtures";
+import { luauInputs, UNSUPPORTED_INTEGER_INPUTS, type LuauInput } from "./luauFixtures";
+import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 import {
   expressionDocument,
   generatedExpressions,
@@ -46,11 +47,6 @@ const KNOWN = [
   // This is the official-parser list. Port-only #1304/#1305/#1306 no longer
   // disagree here, so inheriting that oracle's list would hide passing inputs.
   { input: "grammar/luau-function/return-before-prose.sd", issue: 1298 },
-  { input: "conformance/integers.luau", issue: 1309 },
-  { input: "conformance/integers_regspill.luau", issue: 1309 },
-  { input: "conformance/literals.luau", issue: 1313 },
-  { input: "f [==[s]==]", issue: 1255 },
-  { input: "a :: number? | string", issue: 877 },
 ];
 if (!officialLuauAvailable)
   console.warn(
@@ -361,6 +357,21 @@ describe.skipIf(!officialLuauAvailable)(
     }
     function assertInput(input: LuauInput, key = input.name) {
       const differences = fixtureDifferences(input);
+      const unsupported = UNSUPPORTED_INTEGER_INPUTS.find((entry) => entry.fixture === key);
+      if (unsupported) {
+        // Retain the precise intentional divergence, not any AST mismatch:
+        // official Luau accepts this file, the converter has syntax errors,
+        // and the compiler reports the unsupported integer literal diagnostic.
+        expect(input.luau, unsupported.reason).toBeDefined();
+        expect(parse(input.luau!).errors, unsupported.reason).toBe(0);
+        expect(differences, unsupported.reason).toEqual([
+          expect.stringMatching(/^syntax errors: official 0, converter [1-9][0-9]*$/),
+        ]);
+        const errors = diagnoseDetailed(input.text).filter((d) => d.severity === 1);
+        expect(errors.some((d) => d.message === unsupported.limitation!.diagnostic), unsupported.reason).toBe(true);
+        expect(errors.filter((d) => d.message === "Malformed number")).toEqual([]);
+        return;
+      }
       const known = KNOWN.find((d) => d.input === key);
       if (known)
         expect(
@@ -394,6 +405,12 @@ describe.skipIf(!officialLuauAvailable)(
       expect(new Set(KNOWN.map((input) => input.input)).size).toBe(
         KNOWN.length,
       );
+      expect(UNSUPPORTED_INTEGER_INPUTS.map((entry) => entry.fixture)).toEqual([
+        "conformance/integers.luau",
+        "conformance/integers_regspill.luau",
+      ]);
+      expect(UNSUPPORTED_INTEGER_INPUTS.filter((entry) => !names.has(entry.fixture))).toEqual([]);
+      expect(KNOWN.filter((entry) => UNSUPPORTED_INTEGER_INPUTS.some((integer) => integer.fixture === entry.input))).toEqual([]);
     });
     test("comparison rejects location, node kind, array shape and child changes", () => {
       const original = parse("local x = 1 + 2").root;

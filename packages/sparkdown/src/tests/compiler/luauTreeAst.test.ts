@@ -23,8 +23,9 @@
 // document by `textDocumentPosition`, over statements in their one-line and
 // multi-line forms. Sparkdown's own constructs have fixtures of their own.
 //
-// A disagreement that stops happening fails its test, so the fix for an
-// issue removes its entry in the fix's own pull request.
+// A bug disagreement that stops happening fails its test, so its fix removes
+// the entry. The two intentional integer limitations are checked explicitly
+// by the official oracle and remain documented after #1309 closes.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -61,21 +62,6 @@ interface StructuralDisagreement {
 // Inputs both sides read without a syntax error, but differently: the
 // grammar reads Luau's tokens another way than Luau does.
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
-  {
-    input: "conformance/literals.luau",
-    issue: 1313,
-    reason: "the long string on line 12 ends with `\\]]`, which the grammar reads as an escape, so the string runs on to line 39",
-  },
-  {
-    input: "f [==[s]==]",
-    issue: 1255,
-    reason: "the grammar reads a long string with `=` signs after a callee and a space as an index",
-  },
-  {
-    input: "a :: number? | string",
-    issue: 877,
-    reason: "the grammar reads a cast's target as a value, so the `?` ends the Luau",
-  },
 ];
 
 const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.map((entry) => entry.fixture));

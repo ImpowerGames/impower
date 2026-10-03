@@ -371,7 +371,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     // TypeInfer.annotations.test.cpp:431 TEST_CASE_FIXTURE(Fixture, "as_expr_is_bidirectional")
     name: "as_expr_is_bidirectional",
     fixture: "Fixture",
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         local a = 55 :: number?
         local b = a :: number
@@ -871,7 +870,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     // TypeInfer.annotations.test.cpp:1071 TEST_CASE_FIXTURE(BuiltinsFixture, "react_use_state_partial_annotation")
     name: "react_use_state_partial_annotation",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         type BasicStateAction<S> = ((S) -> S) | S
         type Dispatch<A> = (A) -> ()

@@ -726,7 +726,6 @@ foo(1 :: any)
     name: "luau_roact_useState_nilable_state_1",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         type Dispatch<A> = (A) -> ()
         type BasicStateAction<S> = ((S) -> S) | S
@@ -755,7 +754,6 @@ foo(1 :: any)
     // TypeInfer.provisional.test.cpp:1192 TEST_CASE_FIXTURE(BuiltinsFixture, "luau_roact_useState_minimization")
     name: "luau_roact_useState_minimization",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         type BasicStateAction<S> = ((S) -> S) | S
         type Dispatch<A> = (A) -> ()

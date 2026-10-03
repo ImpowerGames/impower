@@ -33,6 +33,10 @@ const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
 // colon, blank-line-separated content, and comment-line-separated content.
 // Newlines are explicit `\n` so the fixtures are immune to CRLF checkout.
 const TARGETED: Record<string, string> = {
+  "long-string-call-argument":
+    "function f()\n  print [===[\nend\n]===]\nend\nAfter.\n",
+  "long-string-call-chains":
+    "function run()\n  a.b [=[x]=]\n  a:m [==[x]==]\n  f() [===[x]===]\n  a[1] [=[x]=]\n  local value = a[ [=[key]=] ]\nend\n",
   "struct-list-embedded-colons":
     "theme t with\nlinks {\nhttps://example.com\n12:30\nasset:icon\n}\nend\n",
   // --- the reported bug + its whole class (trailing junk on a boundary rule)

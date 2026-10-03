@@ -469,6 +469,10 @@ from numeric zero.
 
 ### A malformed type annotation is reported only where its type cannot begin
 
+Missing closing delimiters in otherwise readable function, return-pack, table, indexer, generic and `typeof`
+types are now also reported in checked Luau, including cast targets. The limitation described below applies to
+other malformed type forms.
+
 `local x: number = 1` and `function f(x: number): string ... end` are checked by the type checker ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)), which warns where a value does not match its annotation; as in Luau, an annotation never changes a value at runtime, and the lowerer drops it. Luau's parser also reports an annotation it cannot read. Sparkdown reports the ones where a type is missing or cannot start with the token where one must stand, at any position a type can appear (`local x: = 1`, `local w:` before a line that starts with `local`, `{ a: number | }`, `for k: in pairs(t)`, `local c: : number`, `local y: ?number`), an annotation written with `::` (`local x :: number`), and one with no name before it (`function f(: number)`, `{ a: number, : string }`), with Luau's wording and range, from the type checker's reading of the Luau in the syntax tree. In a scene's or branch's parameters and a `store` declaration, which the checker does not read, the validator gives the same wording and range. Any other malformed annotation, such as `local a: (number, number)`, which lacks the `->` of a function type, gets no diagnostic: Sparkdown's grammar reads an annotation only far enough to find where it ends.
 
 ### TypeCast (`::`) is a no-op at runtime
@@ -614,6 +618,38 @@ shorthand superseded spec decision D3, which briefly made `{{`/`}}`
 literal-brace escapes in Sparkle content strings; the literal escape is now
 `\{` / `\}` — the same spelling Luau itself suggests.)
 
+### Luau's native 64-bit integers are unsupported
+
+Sparkdown does not support Luau's native 64-bit integer literals, integer
+values/type, or `integer` library. This is the deliberate limitation chosen
+in [#1309](https://github.com/ImpowerGames/impower/issues/1309#issuecomment-5964149375),
+including after that ticket closes; full integer support would be separate
+feature work.
+
+Integer-shaped literals such as `0i`, `123i`, `0xABi` and `0b101i` report the
+error **Luau 64-bit integer literals are not supported in Sparkdown**. The
+error covers the whole literal, including its suffix and underscores. Large
+integer-shaped literals receive the same unsupported error; Sparkdown does
+not implement native integer range or overflow checks. Malformed spellings
+such as `123ii`, `0xg` and `1.2.3` still report **Malformed number**. Ordinary
+number literals remain numbers.
+
+The inherited Luau checker recognizes upstream `integer` annotations and
+`integer.*` declarations. That recognition does not supply native integer
+values or the library at runtime, and an annotation does not convert a number
+into a 64-bit integer. Accepting those names in the checker is not evidence
+that integer code can run correctly in Sparkdown.
+
+The two upstream fixtures `conformance/integers.luau` and
+`conformance/integers_regspill.luau` remain intentional exceptions to the
+Luau parser oracles: Luau accepts their integer syntax, while Sparkdown
+rejects their unsupported literals. The parser disagreement is retained,
+not fixed. The runtime conformance harness also skips these two files
+because they require Luau's native integer implementation. The decision in
+#1309 and this section remain their tracking references after issue closure.
+Active diagnostic coverage lives in
+[`UnsupportedIntegerLiterals1309.test.ts`](../../src/tests/luau-conformance/UnsupportedIntegerLiterals1309.test.ts).
+
 ### Malformed literals are diagnosed; malformed statements mostly are not
 
 Luau's parser tests for malformed input are ported under [`src/tests/luau-conformance/`](src/tests/luau-conformance/) (`*Errors.test.ts`), one file per area, with every upstream snippet and message quoted verbatim. A case sparkdown does not match is a `describe.skip` whose name states the reason, so the gap is visible in the test report rather than silently absent.
@@ -630,10 +666,10 @@ Literal-level diagnostics match Luau's wording exactly:
 
 Luau's lexer fails these as `BrokenString` / `BrokenComment` / a number that does not convert; a TextMate grammar cannot fail a token, so the [`ValidationAnnotator`](src/compiler/classes/annotators/ValidationAnnotator.ts) recognizes the shapes instead: a string or block-comment node with no closing part, an escape node whose digits are missing or out of range, a number whose next character is a letter, digit, `_` or `.` (the grammar reads `123x` as the number `123` followed by `x`, and the string `"abc` with no closing quote as running to the next `"` or the end of the file, so the diagnostic is what tells the author). The number check applies wherever a Luau number appears, which includes `define` and `config` field values (`version = 1.0.0` is malformed there, as it is in Luau); `style` and `theme` values are unit values rather than Luau numbers, and the inline text command's control argument is excluded, so `8px`, `1rem` and `<1.5x:...>` are not flagged.
 
-Two literal cases are deliberately different:
+These literal cases are deliberately different:
 
 - `\u{110000}` through `\u{7FFFFFFF}` are valid in Luau (it encodes them as extended UTF-8) and are accepted here too, but a JS string cannot hold a code point above U+10FFFF, so they lower to U+FFFD.
-- Luau's "Malformed integer" / "Integer overflow" cases (`123i`, `0xABii`) are "Malformed number" here: there is no integer literal type, so the `i` suffix is just a letter after a number.
+- Native integer literals are unsupported as described above; malformed integer spellings such as `0xABii` retain **Malformed number** rather than Luau's **Malformed integer**.
 
 A missing or malformed expression is reported wherever Luau reports one, with Luau's wording and range, from the type checker's reading of the Luau in the syntax tree ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)): an operator with no operand (`local y = 1 +` before `local`, `f(1 +)`), an empty value (`local a, b = 1,` before `end`, `f(1,)`), a member access with no name (`t.a.`, `get().a. = 1`), a function value with a name (`local g = function named() end`), and a statement that is a value but not a call (`x + 1`). Other statement-level diagnostics (a missing `end`, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. A malformed type annotation is reported only where its type cannot begin (see "A malformed type annotation is reported only where its type cannot begin" above), and Luau's tests for the rest are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
 

@@ -13,9 +13,10 @@
 //   harness wraps it in.
 //
 // `KNOWN_DISAGREEMENTS` names the inputs on which Sparkdown and Luau's parser
-// disagree about whether there is a syntax error, each with the open issue
-// that explains it (#1284). The oracles skip or expect them; the fix for an
-// issue removes its entry in the fix's own pull request.
+// disagree about whether there is a syntax error (#1284). Bugs name the open
+// issue to fix; intentional limitations also name their decision and docs,
+// which remain valid after issue closure. Integer limitations are checked
+// explicitly by the official oracle and are not claims of parser agreement.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -30,11 +31,35 @@ const CONFORMANCE_ROOT = join(__dirname, "..", "luau-conformance", "upstream", "
 export interface KnownDisagreement {
   /** The input, as `luauInputs` names it: `grammar/<category>/<file>.sd` or `conformance/<file>.luau`. */
   fixture: string;
-  /** The open issue that explains the disagreement. */
+  /** The bug to fix, or the decision documenting an intentional limitation. */
   issue: number;
   /** Which side reports a syntax error, and where. */
   reason: string;
+  /** A deliberate unsupported feature, retained after its decision issue closes. */
+  limitation?: { diagnostic: string; documentation: string };
 }
+
+const INTEGER_LIMITATION = {
+  diagnostic: "Luau 64-bit integer literals are not supported in Sparkdown",
+  documentation: "docs/runtime/DIVERGENCES.md#luaus-native-64-bit-integers-are-unsupported",
+};
+
+// Exactly these two pinned conformance files require native 64-bit integers.
+// #1309 records the decision to keep them unsupported; it need not stay open.
+export const UNSUPPORTED_INTEGER_INPUTS: KnownDisagreement[] = [
+  {
+    fixture: "conformance/integers.luau",
+    issue: 1309,
+    reason: "Luau accepts the literals; Sparkdown deliberately rejects native 64-bit integers",
+    limitation: INTEGER_LIMITATION,
+  },
+  {
+    fixture: "conformance/integers_regspill.luau",
+    issue: 1309,
+    reason: "Luau accepts the literals; Sparkdown deliberately rejects native 64-bit integers",
+    limitation: INTEGER_LIMITATION,
+  },
+];
 
 export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
   {
@@ -52,16 +77,7 @@ export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
     issue: 1298,
     reason: "Luau only: statements after `& return` in the scene follow a return in the flow's function",
   },
-  {
-    fixture: "conformance/integers.luau",
-    issue: 1309,
-    reason: "Sparkdown only: each integer literal (`123i`) is a malformed number",
-  },
-  {
-    fixture: "conformance/integers_regspill.luau",
-    issue: 1309,
-    reason: "Sparkdown only: each integer literal (`1i`) is a malformed number",
-  },
+  ...UNSUPPORTED_INTEGER_INPUTS,
   {
     fixture: "conformance/native_integer_spills.luau",
     issue: 1306,
