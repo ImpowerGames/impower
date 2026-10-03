@@ -9,16 +9,16 @@
 //
 // A unit's result is cached under its document, its key (its tokens in its
 // own lines, see `LuauAstUnit.key`), its mode and what it can see: the
-// program's names, and for a flow the check of its file's prelude. An edit
-// checks again only the units whose key changes, and every flow of a file
-// whose prelude's key changes, since a flow sees the prelude only through
-// that check. So a check that reuses results always gives what a check from
-// scratch gives.
+// program's names, and for a flow its file's prelude exports. A changed
+// prelude is checked again; its flows are reused only when a conservative
+// graph comparison proves the exported types and aliases unchanged. When
+// equivalence cannot be proved, every flow is checked again.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
 import { errorToString, UnknownSymbolContext } from "./Error";
+import { equivalentExports } from "./EquivalentExports";
 import { Frontend } from "./Frontend";
 import { lintComments } from "./Linter";
 import { Location } from "./Location";
@@ -55,7 +55,7 @@ const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
 
 interface CachedUnit {
   check: LuauUnitCheck;
-  /** For a prelude: the scope its file's flows see, and a number no other prelude check has. */
+  /** For a prelude: the scope its flows see, and its proven export-equivalence generation. */
   exports?: { scope: Scope; id: number };
 }
 
@@ -72,6 +72,7 @@ export class SparkdownTypechecker {
   private used = new Set<string>();
   private documentChecks = new Map<string, LuauUnitCheck[]>();
   private nextPreludeId = 0;
+  private previousPreludes = new Map<string, { environmentKey: string; mode: Mode; exports: { scope: Scope; id: number } }>();
   // Each `.luau` file's last text and the tree of its `run` wrapping (`luauFileUnit`).
   private luauFileTrees = new Map<string, { text: string; tree: Tree }>();
   stats: TypecheckStats = { checked: 0, reused: 0 };
@@ -121,6 +122,7 @@ export class SparkdownTypechecker {
   endCompile(): void {
     for (const key of [...this.cache.keys()]) if (!this.used.has(key)) this.cache.delete(key);
     for (const uri of [...this.luauFileTrees.keys()]) if (!this.documentChecks.has(uri)) this.luauFileTrees.delete(uri);
+    for (const uri of [...this.previousPreludes.keys()]) if (!this.documentChecks.has(uri)) this.previousPreludes.delete(uri);
   }
 
   /** Checks one document's Luau and returns its type warnings and the syntax errors it reports. */
@@ -245,13 +247,20 @@ export class SparkdownTypechecker {
     this.used.add(key);
     const cached = this.cache.get(key);
     if (cached) {
+      if (isPrelude) this.previousPreludes.set(uri, { environmentKey, mode, exports: cached.exports! });
       this.stats.reused++;
       return cached;
     }
     this.stats.checked++;
     const check = checkLuauUnit(this.frontend, uri, unit, mode, environment);
     const entry: CachedUnit = { check };
-    if (isPrelude) entry.exports = { scope: this.preludeScope(check, environment), id: this.nextPreludeId++ };
+    if (isPrelude) {
+      const scope = this.preludeScope(check, environment);
+      const previous = this.previousPreludes.get(uri);
+      const unchanged = previous?.environmentKey === environmentKey && previous.mode === mode && equivalentExports(previous.exports.scope, scope);
+      entry.exports = { scope, id: unchanged ? previous.exports.id : this.nextPreludeId++ };
+      this.previousPreludes.set(uri, { environmentKey, mode, exports: entry.exports });
+    }
     this.cache.set(key, entry);
     return entry;
   }
