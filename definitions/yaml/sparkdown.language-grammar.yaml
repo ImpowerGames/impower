@@ -11433,7 +11433,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}*)|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})|({{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}*)
 
   LuauTypeArgumentContents:
     patterns:
