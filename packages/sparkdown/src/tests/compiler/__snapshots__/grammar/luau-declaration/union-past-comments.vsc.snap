@@ -58,7 +58,7 @@ text.source.sparkdown [0..492]
  ├─ Newline [91..92]: "\n"
  ├─ meta.function.luau [92..106]
  │   └─ meta.function.body.luau [92..106]
- │       ├─ punctuation.whitespace.extra.sd [92..94]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [92..94]: "  "
  │       ├─ keyword.operator.type.luau [94..95]: "|"
  │       ├─ punctuation.whitespace.optional.sd [95..96]: " "
  │       ├─ support.type.primitive.luau [96..102]: "string"
@@ -159,7 +159,7 @@ text.source.sparkdown [0..492]
  ├─ Newline [235..236]: "\n"
  ├─ meta.function.luau [236..247]
  │   └─ meta.parameter.luau [236..247]
- │       ├─ punctuation.whitespace.extra.sd [236..238]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [236..238]: "  "
  │       ├─ keyword.operator.type.luau [238..239]: "|"
  │       ├─ punctuation.whitespace.optional.sd [239..240]: " "
  │       ├─ support.type.primitive.luau [240..246]: "string"

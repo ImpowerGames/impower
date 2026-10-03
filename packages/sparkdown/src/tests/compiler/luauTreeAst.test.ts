@@ -61,11 +61,6 @@ interface StructuralDisagreement {
 // Inputs both sides read without a syntax error, but differently: the
 // grammar reads Luau's tokens another way than Luau does.
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
-  {
-    input: "a :: number? | string",
-    issue: 877,
-    reason: "the grammar reads a cast's target as a value, so the `?` ends the Luau",
-  },
 ];
 
 const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.map((entry) => entry.fixture));

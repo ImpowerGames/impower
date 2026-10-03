@@ -920,6 +920,21 @@ variables:
   # A name that is not a reserved word.
   LUAU_UNRESERVED_IDENTIFIER: (?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}}
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
+  # lookaround: LuauTypeGenerics, LuauTypeBinaryOperation, LuauComment and
+  # the cast operator retain `<`, `->`, comments and `::`. Splitting the
+  # enclosing type rules cannot return other value operators to their parent.
+  LUAU_VALUE_OPERATOR_AFTER_TYPE: (?![-][>]|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_COMMENT_START}}){{LUAU_VALUE_BINARY_OPERATORS}}
+  # lookaround: LuauCompareOperation owns `<=`, which cannot open arguments.
+  # Splitting the reference wrapper cannot distinguish the shared `<` token.
+  LUAU_TYPE_GENERIC_OPEN: '[<](?![=])'
+  # lookaround: LuauConcatOperation owns `..`; only a single dot qualifies.
+  LUAU_TYPE_QUALIFICATION_OPEN: '[.](?![.])'
+  LUAU_TYPE_QUALIFICATION_END: '[,;)\]}>=?&|<]'
+  LUAU_TYPE_QUALIFICATION_RECOVERY: (?:{{LUAU_NON_TYPE_KEYWORDS}}|{{LUAU_TYPE_QUALIFICATION_END}}|{{LUAU_VALUE_OPERATOR_AFTER_TYPE}})
+  # lookaround: LuauComment and LuauNamedTypeArguments retain trivia and the
+  # first argument list; ending before either loses reference ownership.
+  LUAU_NAMED_TYPE_FOLLOW: (?!{{LUAU_COMMENT_START}}|{{LUAU_TYPE_GENERIC_OPEN}}|{{LUAU_TYPE_QUALIFICATION_OPEN}})[^\s]
+  LUAU_TYPE_QUALIFIED_NAME_SEGMENT: (?:{{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*{{LUAU_IDENTIFIER}})
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
   # closing bracket of its own level, as `LuauBlockComment` does, so its level
@@ -978,9 +993,9 @@ variables:
   # exactly one capture group to the host rule.
   _LUAU_BINARY_OPERATOR_AHEAD_: (?:({{WS}}*)(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
   # The same lookahead for the value-only rules (access paths, numbers, `nil`,
-  # tables, parentheses), which keep `?`: a value followed by a stray `?`, as in
-  # a `x :: T?` cast that does not parse yet (#877), still takes the whitespace
-  # before it as a separator, so formatting settles. Rules that a type can also
+  # tables, parentheses), which keep `?`: a value followed by a stray `?`
+  # still takes the whitespace before it as a separator, so formatting
+  # settles. Rules that a type can also
   # be (strings and booleans) use `_LUAU_SHARED_OPERATOR_AHEAD_` below, because a
   # type is glued to its `?`. Like the one above, this adds exactly one capture
   # group to the host rule.
@@ -10520,10 +10535,19 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauTypeCastOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
+      - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
-      - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
+      - { include: "#LuauTypeLiteral" }
+    # A cast's type can be followed by a value operator. The type reader
+    # takes its trailing whitespace, so close here even without whitespace
+    # remaining; `->` and comments still belong to the type.
+    # lookaround: LuauArithmeticOperation must claim `+`/`-` outside the
+    # cast. Reordering or splitting the type's patterns cannot hand a token
+    # back to its parent; this end carries that boundary. Tightening the
+    # shared value-operator variable would break ordinary expressions.
+    # Excluding `::` prevents closing before the cast operator is consumed;
+    # `<` belongs to LuauTypeGenerics and `->` to LuauTypeBinaryOperation.
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauTypeCastOperator:
     begin: ({{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
@@ -10807,7 +10831,7 @@ repository:
   # `LuauTypeNameExtraQualifier`, so the validator can report them and the
   # rest of the line stays inside the enclosing scope.
   LuauTypeName:
-    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}})((?:{{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*{{LUAU_IDENTIFIER}})+)?{{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}+)?{{_LUAU_TYPE_OPERATOR_AHEAD_}}
     captures:
       1:
         patterns:
@@ -10861,12 +10885,14 @@ repository:
       - { include: "#LuauTypeTableStruct" }
       - { include: "#LuauString" }
       - { include: "#LuauBoolean" }
+      - { include: "#LuauTypeofFunction" }
+      - { include: "#LuauVariadicType" }
+      - { include: "#LuauQualifiedTypeReference" }
+      - { include: "#LuauNamedTypeReference" }
       - { include: "#LuauPrimitiveType" }
       - { include: "#LuauDivertTargetType" }
       - { include: "#LuauTypeFunctionParameters" }
       - { include: "#LuauTypeGenerics" }
-      - { include: "#LuauTypeofFunction" }
-      - { include: "#LuauVariadicType" }
       - { include: "#LuauTypeName" }
       # A type goes on across the line break (GRAMMAR.md §11.5): the
       # whitespace before it and the line break are the type's own, and
@@ -10878,8 +10904,15 @@ repository:
     # (`number ?`); whitespace before the line break does not. It also ends
     # before a block comment on its line that code follows
     # (`function f(): number --[[c]] g()`, see `LUAU_BLOCK_COMMENT_ON_LINE`),
-    # and before a keyword that cannot start a type.
-    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # and before a keyword that cannot start a type. A value operator after
+    # a complete type belongs outside it (notably after a `::` cast);
+    # the function-type arrow and comments continue the type instead.
+    # lookaround: the enclosing cast's end cannot close this nested scope.
+    # Reordering/splitting these type patterns still leaves `+` unclaimed;
+    # this type's own end must return it to LuauArithmeticOperation.
+    # Tightening the shared value-operator variable would change values;
+    # `<`, `->`, `::` and comments retain their existing type rules.
+    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   # A block comment right after a type that closes on a later line
   # (`local w: number --[[a` then `b]] print(1)`). No pattern on the
@@ -11125,7 +11158,11 @@ repository:
       - { include: "#LuauTypeBinaryOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # lookaround: LuauArithmeticOperation must claim value operators after a
+    # complete union, intersection or function return type. The nested type
+    # has ended, but reordering its patterns or ending the enclosing cast
+    # cannot close this intervening scope. Generic openers/arrows stay types.
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   # A `|`, `&` or `->` with no type before the `;`, `,` or `=` after it
   # (`local m: number | = 1`), read as one token as
@@ -11260,13 +11297,145 @@ repository:
     tag: function(typeName)
     name: support.function.luau
 
-  LuauTypeGenerics:
+  # A name owns exactly one generic argument list, including all intervening
+  # trivia. Its argument child consumes the final `>`, so after that
+  # close a `<` is a comparison instead of a second argument list. Existing
+  # name/primitive/comment tokens retain their captures and source locations.
+  LuauNamedTypeReference:
+    begin: ({{LUAU_IDENTIFIER}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauPrimitiveType" }
+          - { include: "#LuauTypeName" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauNamedTypeQualification" }
+      - { include: "#LuauPrimitiveType" }
+      - { include: "#LuauTypeName" }
+      - { include: "#LuauTypeTrailingBlockComment" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauNamedTypeArguments" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # lookaround: LuauNamedTypeArguments owns the close; the reference must
+    # end immediately when that child returns, before another `<` can open.
+    # LuauComment owns trivia until an argument list or another token follows.
+    end: (?={{BEAT}})|(?<=[>]{{WS}}*)|(?={{WS}}*{{LUAU_NAMED_TYPE_FOLLOW}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+
+  LuauNamedTypeArguments:
     brackets: true
     begin: ([<])
     beginCaptures:
       1:
         patterns:
           - { include: "#PunctuationAngleOpen" }
+    patterns:
+      - { include: "#LuauTypeArgumentContents" }
+    # lookaround: LuauReturnStatement must escape unfinished arguments before
+    # indentation is consumed; splitting the argument contents cannot do so.
+    end: (?={{BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  # Preserve contiguous qualified-name captures. A reference split by comments
+  # retains its initial type-name token because a later line cannot recolor it.
+  LuauQualifiedTypeReference:
+    begin: ({{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}+){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauTypeName" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauTypeTrailingBlockComment" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauNamedTypeArguments" }
+      - { include: "#LuauExtraTypeQualification" }
+      - { include: "#LuauTypeNameExtraQualifierContinuation" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # lookaround: LuauNamedTypeArguments consumes the close and its whitespace;
+    # this wrapper must yield to LuauCompareOperation before a second `<`.
+    # LuauTypeTrailingBlockComment owns comments while the type continues;
+    # code after a completed type must return to its surrounding statement.
+    end: (?={{BEAT}})|(?<=[>]{{WS}}*)|(?={{WS}}*{{LUAU_NAMED_TYPE_FOLLOW}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+
+  LuauNamedTypeQualification:
+    begin: ({{LUAU_TYPE_QUALIFICATION_OPEN}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+    patterns:
+      - { include: "#LuauTypeTrailingBlockComment" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauQualifiedTypeFinalName" }
+      - { include: "#LuauNamedTypeArguments" }
+      - { include: "#LuauExtraTypeQualification" }
+      - { include: "#LuauTypeNameExtraQualifierContinuation" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # lookaround: LuauNamedTypeArguments consumes the close; after it,
+    # LuauCompareOperation owns another `<`. Before the qualified name is
+    # read, LuauQualifiedTypeFinalName owns the identifier after dot trivia;
+    # only a completed name may return another token to the statement.
+    # A missing final name must also leave the type's closer to its parent.
+    end: (?={{BEAT}})|(?<=[>]{{WS}}*)|(?<={{LUAU_IDENTIFIER}}{{WS}}*)(?={{LUAU_NAMED_TYPE_FOLLOW}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})
+
+  LuauQualifiedTypeFinalName:
+    match: ({{LUAU_IDENTIFIER}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    captures:
+      1:
+        tag: typeName
+        name: entity.name.type.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  LuauExtraTypeQualification:
+    match: ({{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauTypeNameExtraQualifier" }
+
+  LuauTypeNameExtraQualifierContinuation:
+    tag: invalid
+    name: invalid.illegal.type-name-qualifier.luau
+    begin: '{{LUAU_TYPE_QUALIFICATION_OPEN}}'
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})|({{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}*)
+
+  LuauTypeArgumentContents:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauVariadicType" }
@@ -11275,7 +11444,19 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+
+  LuauTypeGenerics:
+    brackets: true
+    begin: ([<])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleOpen" }
+    patterns:
+      - { include: "#LuauTypeArgumentContents" }
+    # lookaround: LuauReturnStatement must escape an unfinished generic type.
+    # Splitting the type patterns cannot return indentation to its statement.
+    end: ([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -11306,7 +11487,9 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    # lookaround: LuauReturnStatement must escape an unfinished table type.
+    # Splitting the type patterns cannot return indentation to its statement.
+    end: ([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -11383,7 +11566,10 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    # lookaround: LuauReturnStatement and other statements must start outside
+    # an unclosed type parameter list. Reordering its type patterns cannot
+    # return already-consumed indentation; yield before that whitespace.
+    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:

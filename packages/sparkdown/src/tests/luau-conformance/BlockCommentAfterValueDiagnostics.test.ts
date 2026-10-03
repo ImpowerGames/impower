@@ -31,7 +31,9 @@ test("a level-four comment keeps a type union in the type", () => {
   // `number`, the comment, then `| string` as a union in the same literal.
   expect(tree).toContain("LuauTypeTrailingBlockComment [31..50]");
   expect(tree).toContain("LuauTypeBinaryOperator [50..52]");
-  expect(tree).toContain("LuauPrimitiveType [52..59]");
+  expect(tree).toContain("LuauNamedTypeReference [52..59]");
+  expect(tree).toContain("LuauPrimitiveType [52..58]");
+  expect(tree).toContain('OptionalWhitespace [58..59]: " "');
   expect(tree).not.toContain("ERROR");
   expect(diagnoseInFunction("local w: number --[====[a]]b]====] | string = 5")).toEqual([]);
 });

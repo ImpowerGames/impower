@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { checkLuau } from "./typecheckTestHarness";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 // A line of Luau code that begins with `.name` or `:name` continues the
 // expression or type on the line before it, as Luau reads it, and does not
@@ -254,13 +255,21 @@ test.each([
   ]);
 });
 
-test("a type cast line after `end` is reported with the line after it", () => {
+test("a type cast line after `end` reports its qualified type continuation", () => {
+  const source = inFunction("if true then\nend\n  :: number\n  .a\nreturn 1");
   const ctx = makeRuntimeStoryFromSource(
-    inFunction("if true then\nend\n  :: number\n  .a\nreturn 1"),
+    source,
   );
   expect(ctx.errorMessages).toEqual([
-    expect.stringContaining("`:: number` continues the line before it"),
-    expect.stringContaining("`.a` continues the line before it"),
+    "`:: number\n    .a` continues the line before it, which does not end in a value it can continue. Join it to the value it continues.",
+  ]);
+  expect(ctx.story.ContinueMaximally()).toBe("Value 1.\n");
+  const uri = "inmemory:///main.sd";
+  const compiler = new SparkdownCompiler();
+  compiler.configure({ files: [{ uri, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] });
+  const program = compiler.compile({ textDocument: { uri } }).program;
+  expect(program.diagnostics?.[uri]?.filter((diagnostic) => diagnostic.severity === 1).map((diagnostic) => diagnostic.range)).toEqual([
+    { start: { line: 4, character: 4 }, end: { line: 5, character: 6 } },
   ]);
 });
 
