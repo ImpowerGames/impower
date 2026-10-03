@@ -8126,6 +8126,13 @@ repository:
   # a parent's end cannot select its child entry. Tightening a variable to
   # consume the tested token changes its owner; shared guard variables
   # already factor exclusions without changing scope/capture ownership.
+  # bounded-consuming-entry rationale: these rules consume a name, keyword
+  # or comma shared with the named rival. Ordering the specific form first
+  # still requires recognizing its suffix: f() versus f, name: T versus T,
+  # and a comma gap versus another value. Splitting that prefix cannot decide
+  # which suffix follows; a parent end acts after the entry decision. A global
+  # name/operator restriction would reject the rival's valid form. Consuming
+  # the suffix here instead would change the existing child's capture owner.
   # bounded-exit rationale: these predicates are the wrapper's own end,
   # leaving a delimiter/operator/next statement to its named owner. Reordering
   # or splitting children cannot close an already-open wrapper, and its
@@ -8648,7 +8655,8 @@ repository:
     # See `LuauSparkdownSequentialAlternatorBlock` for the leading-
     # lookahead structure — same shape, same zero-width-match concern.
     # lookaround: LuauAccessPath owns dotted keyword members; this alternator opens only at a standalone sequential keyword.
-    # See bounded-entry rationale above for the structural alternatives.
+    # See bounded-consuming-entry rationale above; the modifier/keyword
+    # prefix also occurs in ordinary member expressions such as queue.field.
     begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)"
     beginCaptures:
       1:
@@ -8708,7 +8716,7 @@ repository:
 
   LuauSparkdownExplicitCommaLineBreak:
     # lookaround: LuauCommaSeparator owns ordinary commas; this gap opens only after a comma and yields before a closing delimiter or following condition.
-    # See bounded-entry rationale above for the structural alternatives.
+    # See bounded-consuming-entry rationale above for comma-gap selection.
     begin: ({{WS}}*)([,])({{WS}}*)(?=$|{{LUAU_COMMENT_START}})
     beginCaptures:
       1:
@@ -9154,7 +9162,8 @@ repository:
 
   LuauSparkdownExplicitTypeofFunction:
     # lookaround: LuauAccessPath owns ordinary names; this type expression opens only at the typeof keyword.
-    # See bounded-entry rationale above for the structural alternatives.
+    # See bounded-consuming-entry rationale above; the parenthesized suffix
+    # distinguishes this type expression from a type/name declaration.
     begin: (typeof|type)\b({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -9179,7 +9188,7 @@ repository:
 
   LuauSparkdownExplicitTypeNamedFunctionParameter:
     # lookaround: LuauTypeLiteral owns unnamed parameter types; this named parameter opens only when its name is followed by an annotation.
-    # See bounded-entry rationale above for the structural alternatives.
+    # See bounded-consuming-entry rationale above for named/unnamed types.
     begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[:])
     beginCaptures:
       1:
@@ -9195,7 +9204,8 @@ repository:
 
   LuauSparkdownExplicitFunctionCall:
     # lookaround: LuauString owns string argument forms; this call scope opens only at parentheses or a supported string/table argument.
-    # See bounded-entry rationale above for the structural alternatives.
+    # See bounded-consuming-entry rationale above for call/name selection;
+    # parentheses, table and string suffixes remain with their named children.
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
     beginCaptures:
       1:
@@ -9622,7 +9632,8 @@ repository:
 
   LuauSparkdownExplicitVariableAssignment:
     # lookaround: LuauFunctionAccessor owns method colons and LuauTypeofFunction owns typeof; this binding yields to annotations or assignment values.
-    # See bounded-entry rationale above for the structural alternatives.
+    # See bounded-consuming-entry rationale above; annotation/assignment
+    # suffixes distinguish a binding from an ordinary value name.
     begin: "(?!{{LUAU_RESERVED_WORDS}}{{WS}}*(?:--|,|$))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*{{LUAU_SHARED_VARIABLE_HEAD_END}})"
     beginCaptures:
       1:
@@ -9767,7 +9778,8 @@ repository:
     # A call (`type(x)`, `type "x"`, `type { x }`) has no name after
     # `type`, so it is never a declaration.
     # lookaround: LuauTypeLiteral owns type values; this declaration opens only at type followed by a declared name.
-    # See bounded-entry rationale above for the structural alternatives.
+    # See bounded-consuming-entry rationale above; a declared name separates
+    # this type prefix from the parenthesized LuauTypeofFunction spelling.
     begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type)\\b(?={{WS}}+{{LUAU_IDENTIFIER}})({{WS}}*)"
     beginCaptures:
       1:
