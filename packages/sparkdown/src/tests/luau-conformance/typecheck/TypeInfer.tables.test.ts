@@ -2975,7 +2975,6 @@ local b = a.x
     name: "scalar_is_a_subtype_of_a_compatible_polymorphic_shape_type",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         local function f(s)
             return s:lower()
@@ -2993,7 +2992,6 @@ local b = a.x
     fixture: "Fixture",
     flags: { LuauCallErrorReportingRecoversArgumentLocationsForPacks: true },
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         local function f(s)
             return s:absolutely_no_scalar_has_this_method()
@@ -3977,7 +3975,6 @@ end
     checks: [
       {
         module: "game/worker",
-        unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
         source: `
 type WorkerImpl<T..., R...> = {
     destroy: (self: Worker<T..., R...>) -> boolean,

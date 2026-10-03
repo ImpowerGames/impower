@@ -649,7 +649,6 @@ end`,
     name: "infer_type_assertion_value_type",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
 local function f()
     return {4, "b", 3} :: {string|number}
@@ -1621,7 +1620,6 @@ end
     // TypeInfer.test.cpp:2018 TEST_CASE_FIXTURE(Fixture, "assert_allows_singleton_union_or_intersection")
     name: "assert_allows_singleton_union_or_intersection",
     fixture: "Fixture",
-    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         local x = 42 :: | number
         local y = 42 :: & number
