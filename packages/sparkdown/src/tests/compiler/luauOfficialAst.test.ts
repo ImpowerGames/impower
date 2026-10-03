@@ -18,8 +18,10 @@ import {
   type LuauTextUnit,
 } from "./luauCheckerText";
 import { checkerView } from "./luauCheckerView";
-import { luauInputs, UNSUPPORTED_INTEGER_INPUTS, type LuauInput } from "./luauFixtures";
+import { conformanceLuau, luauInputs, UNSUPPORTED_INTEGER_INPUTS, type LuauInput } from "./luauFixtures";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
+import { wrapConformanceSource } from "../luau-conformance/conformanceTestHarness";
+import { UNSUPPORTED_INTEGER_SYNTAX_ERRORS_1309, UNSUPPORTED_INTEGER_RECOVERY_DIAGNOSTICS_1309 } from "./unsupportedIntegerOracle1309";
 import {
   expressionDocument,
   generatedExpressions,
@@ -124,13 +126,80 @@ describe.skipIf(!officialLuauAvailable)(
       parse = await loadOfficialLuau();
     });
 
+    function conformanceUnit(input: LuauInput): LuauTextUnit {
+      const offset = input.text.split("\n").findIndex((line) => line === "function run()");
+      return {
+        kind: "file",
+        text: input.luau!,
+        lines: input.luau!.split("\n").map(
+          (_, i, lines) => i + offset + (i === 0 ? 0 : i >= lines.length - 2 ? 2 : 1),
+        ),
+      };
+    }
+
+    function ordinaryNumberControl(input: LuauInput): LuauInput {
+      const original = parse(input.luau!);
+      expect(original.errors).toBe(0);
+      const sourceLines = input.luau!.split("\n");
+      const documentLines = input.text.split("\n");
+      const identity: LuauTextUnit = { kind: "file", text: input.luau!, lines: sourceLines.map((_, i) => i) };
+      const document = conformanceUnit(input);
+      const sourceChars = input.luau!.split("");
+      const documentChars = input.text.split("");
+      const offset = (lines: string[], point: { line: number; character: number }) =>
+        lines.slice(0, point.line).reduce((sum, line) => sum + line.length + 1, 0) + point.character;
+      let integers = 0;
+      const walk = (value: Json): void => {
+        if (Array.isArray(value)) { value.forEach(walk); return; }
+        if (value === null || typeof value !== "object") return;
+        if (value["type"] === "AstExprConstantInteger") {
+          const coordinates = String(value["location"]).match(/^(\d+),(\d+) - (\d+),(\d+)$/);
+          expect(coordinates).not.toBeNull();
+          const [, a, b, c, d] = coordinates!.map(Number);
+          const begin = new Position(a!, b!);
+          const end = new Position(c!, d!);
+          const sourceFrom = offset(sourceLines, textDocumentPosition(identity, begin));
+          const sourceTo = offset(sourceLines, textDocumentPosition(identity, end));
+          const documentFrom = offset(documentLines, textDocumentPosition(document, begin));
+          const documentTo = offset(documentLines, textDocumentPosition(document, end));
+          const token = input.luau!.slice(sourceFrom, sourceTo);
+          expect(input.text.slice(documentFrom, documentTo)).toBe(token);
+          const suffix = token.lastIndexOf("i");
+          expect(suffix).toBeGreaterThanOrEqual(0);
+          expect(token.slice(suffix + 1)).toMatch(/^_*$/);
+          // Change only a suffix proven to belong to an official integer AST
+          // node. `_` keeps offsets and creates an ordinary number; strings
+          // and comments are untouched. This does not supply integer semantics.
+          sourceChars[sourceFrom + suffix] = "_";
+          documentChars[documentFrom + suffix] = "_";
+          integers += 1;
+          return;
+        }
+        Object.values(value).forEach(walk);
+      };
+      walk(original.root);
+      expect(integers).toBeGreaterThan(0);
+      const result = { name: `${input.name}/ordinary-number-control`, text: documentChars.join(""), luau: sourceChars.join("") };
+      expect(parse(result.luau).errors).toBe(0);
+      return result;
+    }
+
     function fixtureDifferences(
       input: LuauInput,
       mutate?: (units: ReturnType<typeof readLuauUnits>) => void,
+      expectedIntegerErrors?: readonly string[],
     ): string[] {
       const tree = parseSource(input.text);
       const ours = readLuauUnits(tree, input.text);
       mutate?.(ours);
+      if (expectedIntegerErrors) {
+        // Pin suffix-induced recovery too: a positive count alone would hide
+        // unrelated syntax errors in an intentionally unsupported fixture.
+        expect(ours.flows).toEqual([]);
+        expect(ours.prelude.errors.map(({ location, message }) =>
+          `${location.begin.line}:${location.begin.column}-${location.end.line}:${location.end.column} ${message}`,
+        )).toEqual(expectedIntegerErrors);
+      }
       const compare = (
         source: string,
         root: Parameters<typeof printOfficialAst>[0],
@@ -292,19 +361,7 @@ describe.skipIf(!officialLuauAvailable)(
             s.name instanceof AstExprGlobal &&
             s.name.name === "run",
         );
-        const offset = input.text
-          .split("\n")
-          .findIndex((line) => line === "function run()");
-        const unit: LuauTextUnit = {
-          kind: "file",
-          text: input.luau,
-          lines: input.luau
-            .split("\n")
-            .map(
-              (_, i, lines) =>
-                i + offset + (i === 0 ? 0 : i >= lines.length - 2 ? 2 : 1),
-            ),
-        };
+        const unit = conformanceUnit(input);
         return compare(
           input.luau,
           run ?? ours.prelude.root,
@@ -355,9 +412,15 @@ describe.skipIf(!officialLuauAvailable)(
         ).map((d) => `${unit.kind} ${i}: ${d}`),
       );
     }
-    function assertInput(input: LuauInput, key = input.name) {
-      const differences = fixtureDifferences(input);
+    function assertInput(
+      input: LuauInput,
+      key = input.name,
+      mutate?: (units: ReturnType<typeof readLuauUnits>) => void,
+    ) {
       const unsupported = UNSUPPORTED_INTEGER_INPUTS.find((entry) => entry.fixture === key);
+      const expectedIntegerErrors = unsupported ? UNSUPPORTED_INTEGER_SYNTAX_ERRORS_1309[key] : undefined;
+      if (unsupported) expect(expectedIntegerErrors, unsupported.reason).toBeDefined();
+      const differences = fixtureDifferences(input, mutate, expectedIntegerErrors);
       if (unsupported) {
         // Retain the precise intentional divergence, not any AST mismatch:
         // official Luau accepts this file, the converter has syntax errors,
@@ -369,7 +432,8 @@ describe.skipIf(!officialLuauAvailable)(
         ]);
         const errors = diagnoseDetailed(input.text).filter((d) => d.severity === 1);
         expect(errors.some((d) => d.message === unsupported.limitation!.diagnostic), unsupported.reason).toBe(true);
-        expect(errors.filter((d) => d.message === "Malformed number")).toEqual([]);
+        expect(errors.filter((d) => d.message !== unsupported.limitation!.diagnostic).map(({ message, range }) => ({ message, range })))
+          .toEqual(UNSUPPORTED_INTEGER_RECOVERY_DIAGNOSTICS_1309[key]);
         return;
       }
       const known = KNOWN.find((d) => d.input === key);
@@ -383,6 +447,54 @@ describe.skipIf(!officialLuauAvailable)(
           [],
         );
     }
+    test.each(UNSUPPORTED_INTEGER_INPUTS)("$fixture rejects an unrelated converter syntax error", ({ fixture }) => {
+      const input = luauInputs().find((candidate) => candidate.name === fixture)!;
+      expect(() => assertInput(input, input.name, (changed) => {
+        changed.prelude.errors.push({
+          message: "Unrelated syntax regression",
+          location: new Location(new Position(0, 0), new Position(0, 1)),
+        });
+      })).toThrow();
+    });
+    test.each(UNSUPPORTED_INTEGER_INPUTS)("$fixture rejects an altered converter message", ({ fixture }) => {
+      const input = luauInputs().find((candidate) => candidate.name === fixture)!;
+      expect(() => assertInput(input, input.name, (changed) => {
+        changed.prelude.errors[0]!.message = "Unrelated syntax regression";
+      })).toThrow();
+    });
+    test.each(UNSUPPORTED_INTEGER_INPUTS)("$fixture rejects an altered converter range", ({ fixture }) => {
+      const input = luauInputs().find((candidate) => candidate.name === fixture)!;
+      expect(() => assertInput(input, input.name, (changed) => {
+        const location = changed.prelude.errors[0]!.location;
+        location.end.column += 1;
+      })).toThrow();
+    });
+    test.each(UNSUPPORTED_INTEGER_INPUTS)("$fixture compares the full AST when only official integer suffixes are neutralized", ({ fixture }) => {
+      const input = luauInputs().find((candidate) => candidate.name === fixture)!;
+      assertInput(ordinaryNumberControl(input));
+    });
+    test("integer neutralization preserves strings, comments and UTF-16 positions", () => {
+      const source = "local keep = '🙂 123i'\n-- 123i\nreturn 123i";
+      const control = ordinaryNumberControl({
+        name: "conformance/suffix-only-control",
+        text: wrapConformanceSource(source),
+        luau: conformanceLuau(source),
+      });
+      expect(control.text).toBe(wrapConformanceSource("local keep = '🙂 123i'\n-- 123i\nreturn 123_"));
+      expect(control.luau).toBe(conformanceLuau("local keep = '🙂 123i'\n-- 123i\nreturn 123_"));
+      assertInput(control);
+    });
+    test.each(UNSUPPORTED_INTEGER_INPUTS)("$fixture rejects unrelated syntax beyond its original error inventory", ({ fixture }) => {
+      const input = luauInputs().find((candidate) => candidate.name === fixture)!;
+      const control = ordinaryNumberControl(input);
+      const at = control.text.lastIndexOf("return");
+      expect(at).toBeGreaterThan(0);
+      const broken = { ...control, text: `${control.text.slice(0, at)}return +${control.text.slice(at + 6)}` };
+      const errors = readLuauUnits(parseSource(broken.text), broken.text).prelude.errors;
+      const lastOriginalErrorLine = Math.max(...UNSUPPORTED_INTEGER_SYNTAX_ERRORS_1309[fixture]!.map((error) => Number(error.split(":")[0])));
+      expect(errors.some((error) => error.location.begin.line > lastOriginalErrorLine)).toBe(true);
+      expect(fixtureDifferences(broken).join("; ")).toContain("syntax errors: official 0, converter");
+    });
     test("official module parses and reports syntax errors", () => {
       expect(parse("local x = 1").errors).toBe(0);
       expect(parse("local =").errors).toBeGreaterThan(0);
