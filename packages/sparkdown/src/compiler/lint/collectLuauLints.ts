@@ -77,6 +77,7 @@ import {
   type AstStat,
 } from "../typecheck/Ast";
 import { doesCallError } from "../typecheck/DataFlowGraph";
+import { formatStringFindings } from "./formatString";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
@@ -89,6 +90,7 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "FormatString",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -176,7 +178,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
 // Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = new Set(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop"]);
+const LINTED_NODES = new Set(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauFunctionCall", "LuauFunctionAccessor"]);
 
 // The wrappers around a binary operation's operator and operand, which the
 // tree nests inside the list of its operands.
@@ -267,7 +269,13 @@ function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[])
   tree.iterate({
     enter(ref) {
       if (!LINTED_NODES.has(ref.name)) return true;
-      const node = ref.node;
+      let node = ref.node;
+      // Dotted and literal-receiver calls are split into an accessor and
+      // a following parenthetical. Read the surrounding expression so the
+      // AST retains the library or literal receiver as well as arguments.
+      if (ref.name === "LuauFunctionAccessor") {
+        while (node.parent && (node.parent.name === "LuauAccessPart" || node.parent.name === "LuauAccessPath_content" || node.parent.name === "LuauAccessPath" || node.parent.name === "LuauChainedFunctionCall_content" || node.parent.name === "LuauChainedFunctionCall")) node = node.parent;
+      }
       if (statementNodes.has(key(node))) return true;
       const above = opaqueAbove(node);
       if (above === null) return true;
@@ -277,7 +285,7 @@ function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[])
       } else if (ref.name === "LuauIfBlock" || ref.name === "LuauForLoop") {
         readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauStatements([node], text).expr, statements: true }) });
       } else {
-        const parts = ref.name === "LuauLogicalOperator" ? expressionAround(node, text) : [node];
+        const parts = ref.name === "LuauLogicalOperator" || ref.name === "LuauFunctionCall" || ref.name === "LuauFunctionAccessor" ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
         readings.push({ from: first.from, to: last.to, context, read: () => ({ expr: readLuauExpression(parts, text).expr, statements: false }) });
@@ -729,6 +737,13 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   const units = readDocumentUnits(tree, text);
   const narrativeIfs = narrativeIfStarts(tree);
   const out: LuauLint[] = [];
+  const lintFormats = (root: AstNode, offsets: Offsets) => {
+    visitAst(root, { visit(node) {
+      if (node instanceof AstExprCall) for (const finding of formatStringFindings(node))
+        out.push({ code: "FormatString", ...offsets.range(finding.literal.location), message: finding.message });
+      return true;
+    } });
+  };
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
     for (const fn of functions) {
       lintUnusedLocals(fn, tree, text, offsets, out);
@@ -741,6 +756,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     const narrative = (stat: AstStatIf) => narrativeIfs.has(offsets.of(stat.location.begin));
     lintFunctions(definedFunctions(unit), offsets);
     for (const source of unit.statements) {
+      lintFormats(source.statement, offsets);
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
     }
@@ -751,6 +767,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     // The function written around statements is not the author's; those inside it are.
     completeFunctions(statements && expr instanceof AstExprFunction ? expr.body : expr, functions);
     lintFunctions(functions, documentOffsets);
+    lintFormats(expr, documentOffsets);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
