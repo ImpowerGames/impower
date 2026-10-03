@@ -11,7 +11,6 @@
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { loadOfficialLuau, officialLuauAvailable } from "./officialLuau";
-import type { Position } from "../../compiler/typecheck/Location";
 import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../../compiler/typecheck/LuauUnitNodes";
 
 /** Some of a document's Luau, as the checker's text read it. */
@@ -34,7 +33,7 @@ const unitTextLines = new WeakMap<LuauTextUnit, string[]>();
  * in UTF-8 bytes and the document in UTF-16 code units; a unit's line holds
  * each of its characters at the character's document column.
  */
-export function textDocumentPosition(unit: LuauTextUnit, position: Position): { line: number; character: number } {
+export function textDocumentPosition(unit: LuauTextUnit, position: { line: number; column: number }): { line: number; character: number } {
   const index = Math.min(Math.max(position.line, 0), unit.lines.length - 1);
   let lines = unitTextLines.get(unit);
   if (!lines) {
