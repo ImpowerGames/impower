@@ -4,7 +4,7 @@ This directory ports Luau's own type-checker tests, from `tests/` in [luau-lang/
 
 ## What runs
 
-Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. The checker is the port of Luau's type checker in `src/compiler/typecheck/`; `checkLuau` checks a snippet with the globals of the case's fixture (`Fixture`, `BuiltinsFixture`, its new-solver-only child `TypeStateFixture`, or `NegationFixture`). From the repository root:
+Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. The checker is the port of Luau's type checker in `src/compiler/typecheck/`; `checkLuau` checks a snippet with the globals of the case's fixture (`Fixture`, `BuiltinsFixture`, its new-solver-only child `TypeStateFixture`, `NegationFixture`, `IsSubtypeFixture`, `ExternTypeFixture`, or `RefinementExternTypeFixture`). From the repository root:
 
 ```bash
 LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/tests/luau-conformance/typecheck/TypeInfer.primitives.test.ts --wait 900
@@ -20,7 +20,7 @@ LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/
 - `fixture` is the upstream fixture, which decides the globals and types in scope; a plain `TEST_CASE` has none, and gives the fixture it builds to each check.
 - The Luau source is carried verbatim. A case with one check writes it as `source`; a case that checks several sources, or needs a field on one of them, lists them under `checks`. `module` records the name upstream gives a source it resolves with `require`.
 - `mode` is the mode passed to `check(mode, source)`. Without one, a snippet is checked in strict mode, as Luau's test fixture checks it, and a `--!` directive in the snippet overrides that as it does in Luau.
-- `flags` records the `ScopedFastFlag`s the case sets, other than the solver switch.
+- `flags` preserves each requested `ScopedFastFlag`. When an area executes, flags are validated against the explicitly audited fixed settings below; unknown and opposite values fail rather than silently running a default configuration.
 - `limits` records the `ScopedFastInt`s the case sets, each named without its `FInt::` or `DFInt::` prefix and given the value upstream sets for an optimized build without sanitizers. The harness cannot set them, so once the case's area is on it fails as not implemented rather than asserting what upstream sees only under those limits.
 - `ignoreMissingAnnotations: true` stands for `ignoreMissingAnnotations(result)`: `TypeAnnotationRequired` errors are dropped before any assertion.
 - Where a case branches on `FFlag::DebugLuauForceOldSolver`, only the new-solver branch is ported. A branch on any other flag, or an `#if 0` block, is resolved as Luau's CI runs the new solver, with `--fflags=true`: every flag the case does not set is on, except the `Debug` and `Test` flags, and the `#else` part is the one compiled.
@@ -37,13 +37,38 @@ Each check's `expect` lists what upstream asserts about its result, in upstream 
 - `{ everyError: { line: n } }` checks every diagnostic's beginning line after any missing-annotation filtering. It makes no assertion about the count; an empty set satisfies it, as upstream's loop does.
 - `{ decoratedSource: text }` compares the exact `decorateWithTypes` output, including whitespace and the inferred annotations in the new-solver branch.
 - A type assertion names a module-level binding (`type`, as `requireType` finds it), a type alias (`alias`, as `lookupType` finds it) or the type at a position (`typeAt`, as `requireTypeAtPosition` finds it), with an optional `path` into it: a table property's read type, a function's argument or result, an indexer's key or result, or an alias's type parameter. It then states the type's printed text (`equals`, with `options` for Luau's `ToStringOptions`), its Luau class (`kind`, for `get<FunctionType>(...)` and the like), that it is the same type as another selector's (`sameAs`, for comparing `TypeId`s), a function's return pack (`results`), an alias's number of type parameters (`typeParameters`), or a table's number of properties (`properties`). A selector with nothing else states only that the type is there, as upstream's `REQUIRE` on a property, indexer or argument it goes on to read.
-- A comparison with one of Luau's builtin types (`getBuiltins()->numberType`) is ported as the type printing as that builtin's name, and a comment on the case says so.
+- `{ builtin: "number" }` selects the actual builtin TypeId; use `sameAs` for upstream builtin identity comparisons. `global` selects a fixture global. `exportedAlias` and `importedAlias: ["Import", "T"]` select genuine exported/imported bindings. `diagnosticType: [i, "wantedType"]` selects a genuine diagnostic type field; printed `fields` are a separate comparison.
 - `{ moduleReturn: true, equals: text }` prints the check's module return pack. Its selector can use a `path` beginning with `{ result: i }` to select a returned value, then traverse that type normally.
 - A type selector with `subtypeOf: anotherSelector` and `isSubtype: true` or `false` checks `isSubtype(selected, another)`, preserving the direction and either expected outcome.
 
-The harness currently throws `NotImplemented` for module return packs, subtyping queries, and decorated source. `IsSubtypeFixture` inherits `Fixture`'s globals so its cases reach the subtype query. Existing type queries and diagnostic assertions continue to use real checker answers. A forced area can fail an earlier assertion or skip a recorded unparsed case before reaching one of these queries; the vocabulary does not conceal that behavior.
+Queries execute against the real checker: module return packs, subtyping in either direction, normalization (`normalized: true`), and inferred source decoration. A selector's optional `module` chooses a checked dependency. `expectedTypeAt` reads contextual expected types; `overloadAt` selects a call's resolved overload. Missing graph entries fail explicitly.
 
-The enabled `TypeInfer.annotations` case `cloned_interface_maintains_pointers_between_definitions` still leaves out comparisons of the returned table's fields with an alias's printed text. #1368 covers those comparisons and the real module-return query needed to run them without breaking that enabled area.
+Additional type facts include `notEquals` (printed inequality), `notSameAs` (reference inequality), and `printedSameAs` (both sides printed with the same options). Function `arguments`/`returns` accept exact direct head `length` and explicit `tail` presence. `hasSelf`, `generics`, `genericPacks`, generic polarity and `generic`/`genericPack` paths preserve structural predicates. Tables expose `instantiatedTypeParameters`/`instantiatedTypePackParameters` counts and corresponding singular paths, independently of alias declaration parameters. `name`, `hasProperty`, `propertyLocations` and `definitionLocation` query stored metadata. Locations use zero-based four-tuples; a missing property location is `null`. `scopes` can assert `minimum` or exact `count`, alias locations using `scope` or `scopeAt`, and `importedModules` records with scope/name/module.
+
+Diagnostics accept `messageContains`, `messageExcludes`, `endLine`, `moduleMatchesCheck: true`, per-type-field `fieldOptions`, and `fieldLocations` presence/beginning line. `everyError.messageExcludes` preserves a loop's substring predicate. Decoration is derived from checked AST bindings and function types, with original source columns and canonical single-quoted literals; unsupported tokens fail explicitly. It is test-only and does not change author-facing formatting.
+
+### Setup and isolation
+
+Each check creates a fresh frontend, fixture, module graph and arenas. Successful `definitions: string[]` are parsed independently by the verified official parser at the manifest pin, then loaded through the TypeScript frontend's prepared-AST definition API. This parser is a test oracle only; production never imports it. `globals: { foo: "(number) -> string" }` installs independently parsed typed globals without rewriting the snippet. All setup syntax diagnostics retain their own module names and ranges; invalid setup cannot be hidden by an entry snippet's unparsed record.
+
+`moduleSources` maps exact names to exact source strings and supplies dependencies for the check's `module` entry. Every support source receives the compiler parse check, and require paths rooted at `game` or `script.Parent` follow the pinned fixture resolver. Changed names evict their module graphs. Cyclic require graphs currently fail explicitly and need separate support; a missing dependency is handled by the actual checker.
+
+`hiddenTypes: true` installs the pinned hidden aliases, including the builtin `fun` alias, in that check's environment. `retainFullTypeGraphs: false` clones error types into the interface arena, discards internal arena ownership and query maps, and retains public return/export queries. Internal graph queries and decoration fail after discard. JavaScript garbage collection cannot reproduce C++ freed-pointer lifetime failures.
+
+An intentional upstream same-fixture sequence uses case `shareFixture: true`, with `clearModules: true` on the transition. It retains the fixture's builtin/global bindings while clearing actual module graphs; unrelated cases and ordinary checks remain fresh. The builtin mutation regression therefore survives the transition instead of being masked by creating another fixture.
+
+### Requested flag settings
+
+The frontend has fixed new-solver semantics rather than mutable FastFlags. Only these proven equivalents are accepted; opposite values are rejected:
+
+| Flag | Value | Evidence in the TypeScript checker |
+| --- | --- | --- |
+| DebugLuauForceOldSolver | false | Frontend.check invokes the new solver |
+| DebugLuauMagicTypes | false | Fixture setup installs no internal magic aliases |
+| LuauAvoidTrivialPhis | true | DataFlowGraph.joinScopes skips identical definitions |
+| LuauStrictVisitInstantiatedType | true | ConstraintGenerator records failed references; TypeChecker2 visits instantiated arguments and checks failed generic references |
+
+Other recorded requests (including export values, annotation warnings, experimental if-local, compound assignment seeding, iterative search and diagnostic wording) fail with their exact name/value until their behavior or configuration is implemented or separately scoped. Per-area activation Tasks #1360–#1367 retain that work; metadata is not evidence of a tested setting. Numeric limits remain unsupported.
 
 A case upstream asserts nothing about still has a check with an empty `expect`: once its file is switched on, the checker has to run on it.
 
