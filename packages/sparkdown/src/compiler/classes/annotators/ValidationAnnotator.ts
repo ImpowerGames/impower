@@ -255,8 +255,9 @@ function danglingDotError(
   node: SyntaxNode,
   dot: number,
   read: (from: number, to: number) => string,
+  document: () => string,
 ): { message: string; from: number; to: number } {
-  const got = nextSignificantToken(node, dot + 1, read);
+  const got = nextSignificantToken(node, dot + 1, read, document);
   const nameOnLaterLine =
     got != null &&
     /^[A-Za-z_]/.test(got.text) &&
@@ -290,7 +291,7 @@ function invalidStatementError(
   const error = luauStatementError(node, from, read, to, document);
   const line = read(from, to).trimEnd();
   if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
-    const dangling = danglingDotError(node, from + line.length - 1, read);
+    const dangling = danglingDotError(node, from + line.length - 1, read, document);
     if (dangling.message === NAME_ON_LATER_LINE) return dangling;
   }
   return error;
@@ -1261,9 +1262,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // names the token it meets instead of the name, at that token; the type
     // checker reports that where it reads the Luau (#1175).
     if (nodeRef.name === "LuauDanglingAccessor") {
-      const got = nextSignificantToken(nodeRef.node, nodeRef.to, (from, to) =>
-        this.read(from, to),
-      );
+      const got = nextSignificantToken(nodeRef.node, nodeRef.to,
+        (from, to) => this.read(from, to), this.statementDocumentText);
       const nameOnLaterLine =
         got != null &&
         /^[A-Za-z_]/.test(got.text) &&
@@ -1335,7 +1335,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const read = (from: number, to: number) => this.read(from, to);
       const checkerReportsValue =
         missing?.message === IF_EXPRESSION_WITHOUT_VALUE &&
-        typeCheckerReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read);
+        typeCheckerReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read, this.statementDocumentText);
       if (missing && !checkerReportsValue) {
         this.error(
           annotations,
@@ -1356,6 +1356,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
           (from, to) => this.read(from, to),
+          this.statementDocumentText,
         );
         const eof = this.tree?.length ?? nodeRef.to;
         this.error(
