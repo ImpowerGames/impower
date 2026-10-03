@@ -128,9 +128,13 @@ describe.skipIf(!officialLuauAvailable)(
       parse = await loadOfficialLuau();
     });
 
-    function fixtureDifferences(input: LuauInput): string[] {
+    function fixtureDifferences(
+      input: LuauInput,
+      mutate?: (units: ReturnType<typeof readLuauUnits>) => void,
+    ): string[] {
       const tree = parseSource(input.text);
       const ours = readLuauUnits(tree, input.text);
+      mutate?.(ours);
       const compare = (
         source: string,
         root: Parameters<typeof printOfficialAst>[0],
@@ -141,7 +145,7 @@ describe.skipIf(!officialLuauAvailable)(
         ) => { line: number; character: number },
         anyName = "_G",
         run = false,
-        flow = false,
+        flow?: LuauTextUnit,
       ) => {
         const parsed = parse(source);
         if (parsed.errors || errors)
@@ -266,9 +270,6 @@ describe.skipIf(!officialLuauAvailable)(
             ) as Record<string, Json>;
           const header = ["body", "0"];
           const headerLine = map(0, 0).line;
-          const docLines = input.text.split("\n");
-          const lastLine = map(source.split("\n").length - 1, 0).line;
-          const syntheticEnd = docLines[lastLine]?.trim() !== "end";
           for (const path of [
             [],
             header,
@@ -282,7 +283,7 @@ describe.skipIf(!officialLuauAvailable)(
               if (path.at(-1) === "name") object["location"] = "<wrapper name>";
               else
                 object["location"] =
-                  `${location[0]!.startsWith(`${headerLine},`) ? "<wrapper begin>" : location[0]} - ${syntheticEnd ? "<wrapper end>" : location[1]}`;
+                  `${location[0]!.startsWith(`${headerLine},`) ? "<wrapper begin>" : location[0]} - ${flow.syntheticEnd ? "<wrapper end>" : location[1]}`;
             }
           }
         }
@@ -354,7 +355,7 @@ describe.skipIf(!officialLuauAvailable)(
             textDocumentPosition(unit, new Position(line, column)),
           extracted.anyName,
           false,
-          unit.kind === "flow",
+          unit.kind === "flow" ? unit : undefined,
         ).map((d) => `${unit.kind} ${i}: ${d}`),
       );
     }
@@ -418,6 +419,21 @@ describe.skipIf(!officialLuauAvailable)(
         name: "grammar/synthetic-parameters",
         text: "function greet\n  local x = 1\nend\n",
       });
+    });
+    test("real flow closers retain their end-position assertion with trailing comments", () => {
+      for (const ending of ["end", "end -- comment", "  end --[[ comment ]] "]) {
+        const input = {
+          name: "grammar/real-flow-closer",
+          text: `scene one\n  & x = 1\n${ending}\n`,
+        };
+        expect(fixtureDifferences(input), ending).toEqual([]);
+        const changed = fixtureDifferences(input, (units) => {
+          expect(units.flows).toHaveLength(1);
+          const root = units.flows[0]!.root;
+          root.location = new Location(root.location.begin, new Position(99, 99));
+        });
+        expect(changed.join("; "), ending).toContain("99,99");
+      }
     });
     for (const input of luauInputs())
       test(input.name, () => assertInput(input), 120_000);

@@ -22,6 +22,8 @@ export interface LuauTextUnit {
   text: string;
   /** The document line of each of the text's lines. */
   lines: number[];
+  /** True only when a flow has no closing token and extraction appends its own `end`. */
+  syntheticEnd?: boolean;
 }
 
 // Each unit's text split into lines, once, for turning Luau's columns into the document's.
@@ -495,7 +497,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       text.push(...bodyLines.text, "end");
       lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);
     }
-    units.flows.push({ kind: "flow", text: text.join("\n"), lines });
+    units.flows.push({ kind: "flow", text: text.join("\n"), lines, syntheticEnd: flow.end === undefined });
   }
   return units;
 }
