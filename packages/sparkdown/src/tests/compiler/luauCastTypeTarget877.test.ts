@@ -39,6 +39,26 @@ function expectLuauReading(body: string): void {
 }
 
 describe("casts read their targets as types (#877)", () => {
+  test.each(["", "  "].flatMap((indent) => ["", " --[[c]]", " --[====[long\ncomment]====]", " -- line"].map((comment) => [indent, comment])))
+    ("recovers an unfinished extra qualifier before %s return with %s", async (indent, comment) => {
+      const source = `Value {f()}.\nfunction f()\n  local a = 55 :: types.Number.${comment}\n${indent}return 55\nend\n`;
+      expect(official(source.slice(source.indexOf("function"))).errors).toBeGreaterThan(0);
+      const tree = parseSource(source);
+      expect(treeScopeStackAt(tree, source.indexOf("return"))).toContain("keyword.control.luau");
+      const result = await compareEnginesFull(source);
+      expect(result.divergences, formatDivergences(source, result.divergences)).toEqual([]);
+      const uri = "inmemory:///main.sd";
+      const compiler = new SparkdownCompiler();
+      compiler.configure({ files: [{ uri, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] });
+      const diagnostics = compiler.compile({ textDocument: { uri } }).program.diagnostics?.[uri]?.filter((diagnostic) => diagnostic.severity === 1);
+      expect(diagnostics?.map((diagnostic) => diagnostic.message)).toEqual([{ kind: "markdown", value: "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`" }]);
+      const qualifierEnd = source.indexOf(`\n${indent}return`);
+      const endLines = source.slice(0, qualifierEnd).split("\n");
+      expect(diagnostics?.[0]?.range).toEqual({ start: { line: 2, character: 30 }, end: { line: endLines.length - 1, character: endLines.at(-1)!.length } });
+      const runtime = makeRuntimeStoryFromSource(source);
+      expect(runtime.errorMessages).toEqual([expect.stringContaining("takes at most one module prefix")]);
+      expect(runtime.story.ContinueMaximally()).toBe("Value 55.\n");
+    });
   const trivia = [" --[[c]] ", " --[====[long\ncomment]====] ", " -- line\n    ", ` --[${"=".repeat(20)}[long\ncomment]${"=".repeat(20)}] `];
   test.each(["type A = Array<number>", "function f(a: Array<number>)\nend", "function f()\n  local a = nil :: types.Array<Array<number>>\nend"])
     ("matches both generic delimiters in %s", (source) => {
