@@ -962,7 +962,7 @@ Many block-shaped constructs come in pairs because the same syntactic shape need
 | `LuauSparkdownSequentialAlternatorBlock` | sparkdown context (block-form `queue \| A \| B \| C end`)           | arms parsed as display text                                       |
 | `LuauReturnStatement`                    | pure-Luau context (a function body and the blocks inside it), and a narrative line's `&` statement or expression (`& return`, `& f() return`, `& repeat return`) | values on the `return` line, or on the next line when `return` is the whole of its line |
 | `LuauExplicitStatement`, `LuauDoBlock` | pure-Luau context | explicit statements and do blocks may contain multiline function code |
-| `LuauSparkdownExplicitStatement`, `LuauSparkdownExplicitDoBlock` and its bounded if/loop body rules | narrative `&` line | explicit code and nested blocks end at the narrative line boundary |
+| `LuauSparkdownExplicitStatement`, `LuauSparkdownExplicitDoBlock` and its bounded if/loop body rules | narrative `&` line | explicit code and nested blocks end at the narrative line boundary; nested markers use `LuauSparkdownExplicitBlockStatement` to leave block closers to their parents |
 
 ### 13.1 Why pairs exist
 
@@ -984,6 +984,8 @@ Three `Switch` rules cover the different statement shapes a body might need to a
 - **`LuauDeclarations`** — declaration-shaped statements: `function`, `local`, `const`, `break`, `continue`, `goto`, label declarations, type declarations. Does _not_ include returns, reassignments or function calls.
 - **`LuauReassignment`** — the bare reassignment form: `x = expr`, `obj.field = expr`, `obj.a[k].b += expr`. Does _not_ cover declarations. As in Luau, its target and value lists continue past a comma that ends the line (`LuauCommaLineBreak`, as in `LuauVariableDefinition`). It also begins at a target list that ends its line with a comma (`LUAU_REASSIGNMENT_TARGETS_CONTINUED`, `a,` then `g = 1, 2`), since nothing else in Luau code starts with a name and a comma. It ends where the line after the comma starts a statement: its `end:` checks `LUAU_LIST_LINE_START_STATEMENT` only at the start of a line (`(?<=^{{WS}}*)`), which the reassignment reaches only through that line break. A narrative body (`LuauSparkdownControlBlock`) includes `LuauSparkdownReassignment` instead, which has no line-break pattern and so always ends at its line; a comma it ends with is reported by the lowerer.
 - **`LuauExplicitStatement`** — the `& …` discard-call / explicit-statement form in function code; narrative bodies use `LuauSparkdownExplicitStatement` to keep their line boundary.
+
+Bounded if/loop conditions use `LuauSparkdownExplicitParenthetical`: an unfinished parenthetical yields the narrative line or next beat. Actual function expressions keep `LuauParenthetical`, including multiline values and identifier expressions. The bounded block validator reports a missing `end`/`until` on its explicit line; a later narrative closer cannot repair it.
 
 When wiring up a parent block's `patterns:`, you typically want all three included. The `LuauControlBlock` Switch rule pulls in `LuauDeclarations` and `LuauExplicitStatement` for you; `LuauReassignment` is a separate include because of grammar-precedence concerns.
 

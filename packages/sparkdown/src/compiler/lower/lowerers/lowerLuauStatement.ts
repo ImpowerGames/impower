@@ -87,6 +87,7 @@ export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownVariableDefinition",
   "LuauExplicitStatement",
   "LuauSparkdownExplicitStatement",
+  "LuauSparkdownExplicitBlockStatement",
   "LuauReassignment",
   "LuauSparkdownReassignment",
   "LuauFunctionDefinition",
@@ -256,6 +257,7 @@ const VALIDATED_NODES: ReadonlySet<string> = new Set([
   ...nodeNameSet([
     "LuauExplicitStatement",
     "LuauSparkdownExplicitStatement",
+    "LuauSparkdownExplicitBlockStatement",
     "LuauAccessPath",
     "LuauParenthetical",
   ]),

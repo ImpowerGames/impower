@@ -669,13 +669,10 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         );
       }
     } else if (this.flowLevel === FlowLevel.Story) {
-      // Top-level: `return` is only valid inside a function body. A
-      // bare `return` at file scope is almost always a mistake — the
-      // `PopFunction` it emits has nothing to pop, since there's no
-      // function-call frame active. InkParser rejected the form at
-      // parse time; sparkdown's textmate grammar accepts `return X`
-      // anywhere a statement is legal, so the validation lands here
-      // at runtime-export time.
+      // Explicit Luau return nodes are only valid inside a function body:
+      // their PopFunction needs an active function-call frame. Bare return
+      // lines in narrative scope are ordinary prose and produce no return
+      // node; misplaced marked returns are validated at runtime export.
       //
       // `_rootWeave` holds the Story's free-floating top-level content
       // (everything outside a `scene` / `branch` / `function`). Inkjs's

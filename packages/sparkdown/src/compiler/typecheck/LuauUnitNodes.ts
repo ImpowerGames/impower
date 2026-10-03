@@ -13,6 +13,7 @@ export const LUAU_STATEMENTS = new Set([
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
   "LuauSparkdownExplicitStatement",
+  "LuauSparkdownExplicitBlockStatement",
   ...REASSIGNMENT_NAMES,
   "LuauReturnStatement",
   "LuauBreakStatement",

@@ -339,6 +339,7 @@ export const decorate = (
     name === "Label" ||
     name === "LuauExplicitStatement" ||
     name === "LuauSparkdownExplicitStatement" ||
+    name === "LuauSparkdownExplicitBlockStatement" ||
     name === "LuauIfBlockCondition" ||
     name === "LuauElseifBlockCondition";
 

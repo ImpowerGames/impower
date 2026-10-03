@@ -91,7 +91,7 @@ export function normalizeNarrativeReturnScopes(root: Json, unit: LuauTextUnit): 
 }
 
 /** Project narrative returns as isolated blocks without introducing bindings. */
-function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number; close: number; writtenCloser: boolean }[], index: LineIndex): void {
+function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number; close: number; writtenCloser: boolean }[], markers: { from: number; to: number }[], index: LineIndex): void {
   const original = unit.text.split("\n");
   // Recovery may classify a same-line follower as prose. It still belongs
   // to this Luau island: keep the complete suffix for the official parser.
@@ -101,6 +101,18 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
     if (projected < 0) continue;
     const column = returned.to - index.starts[line]!;
     original[projected] = original[projected]!.slice(0, column).padEnd(column) + index.text.slice(returned.to, index.lineEnd(line));
+  }
+  // Restoring a recovery suffix can also restore later, valid explicit
+  // markers. Blank only the grammar's recorded marker spans, preserving
+  // all other suffix tokens and their document columns.
+  for (const marker of markers) {
+    const line = index.lineAt(marker.from);
+    const projected = unit.lines.indexOf(line);
+    if (projected < 0) continue;
+    const from = marker.from - index.starts[line]!;
+    const to = marker.to - index.starts[line]!;
+    const text = original[projected]!;
+    original[projected] = text.slice(0, from) + " ".repeat(to - from) + text.slice(to);
   }
   unit.text = original.join("\n");
   const starts = [0];
@@ -387,8 +399,10 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
   // instead stand in their own islands, including a return after another
   // statement on the same marked line.
   const narrativeReturns: { from: number; to: number; close: number; writtenCloser: boolean }[] = [];
+  const explicitMarkers: { from: number; to: number }[] = [];
   const cursor = tree.cursor();
   do {
+    if (cursor.name === "LuauExplicitStatementMark") explicitMarkers.push({ from: cursor.from, to: cursor.to });
     if (cursor.name !== "LuauReturnStatement") continue;
     let inFunction = false;
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
@@ -657,7 +671,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     }
     units.flows.push({ kind: "flow", text: text.join("\n"), lines, syntheticEnd: flow.end === undefined });
   }
-  for (const unit of [units.prelude, ...units.flows]) projectNarrativeReturns(unit, narrativeReturns, index);
+  for (const unit of [units.prelude, ...units.flows]) projectNarrativeReturns(unit, narrativeReturns, explicitMarkers, index);
   return units;
 }
 

@@ -7972,10 +7972,11 @@ repository:
     # No line break is accepted in this narrative island.
     begin: (?<=\b(?:else)?if\b{{WS}}*)
     patterns:
+      - { include: "#LuauSparkdownExplicitParenthetical" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
-    end: ({{WS}}*)(then)\b|(?={{END}}|[}])|$
+    end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[}])|$
     endCaptures:
       1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauThenKeyword" }] }
@@ -7987,6 +7988,7 @@ repository:
       2: { patterns: [{ include: "#LuauForKeyword" }, { include: "#LuauWhileKeyword" }] }
       3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
     patterns:
+      - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitLoopCondition" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
     # lookaround: LuauSparkdownExplicitDoBlock consumes the loop's written end.
@@ -7997,16 +7999,16 @@ repository:
 
   LuauSparkdownExplicitLoopCondition:
     # lookaround: anchor the header once after for/while so it cannot reopen
-    # over LuauSparkdownExplicitBlockBody assignments. Its empty begin must
-    # leave do to LuauSparkdownExplicitDoBlock when the condition is missing;
-    # moving the header after body rules would let expressions take the header.
-    begin: (?<=\b(?:for|while)\b{{WS}}*)(?!do\b)
+    # over LuauSparkdownExplicitBlockBody assignments. The specific do rule
+    # precedes this header, so it owns do when the condition is missing.
+    begin: (?<=\b(?:for|while)\b{{WS}}*)
     patterns:
       - { include: "#LuauInKeyword" }
+      - { include: "#LuauSparkdownExplicitParenthetical" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{END}}|[}]|{{WS}}*do\b)|$
+    end: (?={{BEAT}}|{{END}}|[}]|{{WS}}*do\b)|$
 
   LuauSparkdownExplicitRepeatLoop:
     begin: ({{WS}}*)(repeat)\b({{WS}}*)
@@ -8020,6 +8022,7 @@ repository:
 
   LuauSparkdownExplicitBlockBody:
     patterns:
+      - { include: "#LuauSparkdownExplicitBlockStatement" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitIfBlock" }
       - { include: "#LuauSparkdownExplicitLoop" }
@@ -8029,6 +8032,47 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
+
+  # A nested marker stays in its code block. Leave the enclosing block's
+  # branch/end/until token to that block instead of closing incomplete there.
+  LuauSparkdownExplicitBlockStatement:
+    begin: ({{WS}}*)([&])($|{{WS}}+)
+    beginCaptures:
+      1: { patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauExplicitStatementMark" }] }
+      3: { patterns: [{ include: "#RequiredWhitespace" }] }
+    patterns:
+      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauSparkdownVariableDefinition" }
+      - { include: "#LuauSparkdownExplicitBlockBody" }
+    # lookaround: branch/end/until belong to the enclosing bounded block;
+    # consuming them here steals its closer. A sibling reorder cannot close
+    # an already-open marker scope (BoundedExplicitBlock931 ownership cases).
+    end: (?={{BEAT}})|(?={{WS}}*(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|until\b))|$|(?=^)
+
+  # Bounded conditions need their own child recovery: an unfinished ordinary
+  # Luau parenthetical may span lines and hides the parent's beat/line end.
+  # Keep that ordinary rule in actual function bodies, where scene/branch
+  # can be identifier expressions rather than story boundaries.
+  LuauSparkdownExplicitParenthetical:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1: { patterns: [{ include: "#PunctuationParenOpen" }] }
+    patterns:
+      - { include: "#LuauSparkdownExplicitParenthetical" }
+      - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    # lookaround: a scene/branch belongs to the outer story flow. This child
+    # must yield it before its condition's end can run; ordering cannot end
+    # an open parenthetical (BoundedExplicitBlock931 malformed-header parity).
+    end: (?={{BEAT}})|([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}|$
+    endCaptures:
+      1: { patterns: [{ include: "#PunctuationParenClose" }] }
+      2: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
 
   LuauDoBlock:
     begin: ({{WS}}*)(do)\b({{WS}}*)

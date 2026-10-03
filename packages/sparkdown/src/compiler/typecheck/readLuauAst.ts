@@ -1606,7 +1606,9 @@ class Parser {
         const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
         tokenizer.lex(from, to);
         const follower = tokenizer.tokens[tokenizer.tokens[0]?.text === ";" ? 1 : 0];
-        const nested = begin && !(stat instanceof AstStatSparkdownExplicit);
+        // Written blocks own their closer even when their return has an
+        // explicit marker. Scene-flow function openers are synthetic spans.
+        const nested = begin && begin.from < begin.to;
         const closes = nested && follower && (this.is(closer, follower) ||
           (begin.text === "then" && (this.is("else", follower) || this.is("elseif", follower))));
         if (follower && follower.kind !== "eof" && !closes) {

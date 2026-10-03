@@ -86,8 +86,19 @@ describe("independent narrative-return oracle projection", () => {
     "for i = 1, 2 do return i end",
     "while true do return 5 end",
     "repeat return 5 until true",
+    "if (true) then & return 5; end",
+    "if false then & return 1 elseif (true) then & return 5 else & return 2 end",
+    "for i = 1, 2 do & return i end",
+    "while (true) do & return 5 end",
+    "repeat & return 5 until true",
   ])("keeps written nested island blocks and locations: %s", (body) => {
     agrees(`scene a\n  & do ${body} end\n  return to the village\n  & f()\nend\n`, 0);
+  });
+  test.each(["return 5 f()", "return 5; f()", "return: 5"])("never masks an invalid nested marked return: %s", (returned) => {
+    const units = readings(`scene a\n  & do if true then & ${returned} end end\n  return to the village\nend\n`);
+    expect(units.some((result) => result.official.errors.length > 0)).toBe(true);
+    expect(units.some((result) => result.ours.errors.length > 0)).toBe(true);
+    for (const result of units) expect(result.official.errors.length > 0).toBe(result.ours.errors.length > 0);
   });
   test.each(["& return 5;", "& return 5; -- comment", "& return 5; --[=[ comment ]=] -- comment", "& return 1, 2 --[[ comment ]]", "& do return 5 end -- comment", "& do do return 5 end end"])("preserves valid same-line delimiters and comments: %s", (line) => {
     agrees(`scene a\n  ${line}\n  Prose.\n  & f()\nend\n`, line.includes("do return") || line.includes("do do") ? 0 : 1);

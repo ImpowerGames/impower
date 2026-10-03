@@ -15,7 +15,7 @@ import {
   type StatementSite,
 } from "./lowerLuauStatement";
 
-const EXPLICIT_STATEMENT = nodeNameSet(["LuauExplicitStatement", "LuauSparkdownExplicitStatement"]);
+const EXPLICIT_STATEMENT = nodeNameSet(["LuauExplicitStatement", "LuauSparkdownExplicitStatement", "LuauSparkdownExplicitBlockStatement"]);
 
 /**
  * A statement marked with `&`, which writes Luau where narrative would
