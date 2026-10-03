@@ -1116,6 +1116,7 @@ function deprecatedArgsErrors(attrLoc: Location, args: AstExpr[]): [Location, st
 class Parser {
   private pos = 0;
   readonly errors: LuauSyntaxError[] = [];
+  readonly sourceDependencies = new Set<string>();
   private readonly functionStack: FunctionState[] = [{ vararg: true, loopDepth: 0 }];
   private readonly localMap = new Map<string, AstLocal | undefined>();
   private readonly localStack: AstLocal[] = [];
@@ -1195,6 +1196,13 @@ class Parser {
 
   private previousLocation(): Location {
     return this.previous;
+  }
+
+  /** Source read outside the unit's tokens must also invalidate its cached check. */
+  private recordSourceDependency(from: number, to: number): void {
+    this.sourceDependencies.add(JSON.stringify([
+      this.ctx.index.position(from), this.ctx.index.position(to), this.ctx.text.slice(from, to),
+    ]));
   }
 
   private is(text: string, token = this.current()): boolean {
@@ -1593,8 +1601,10 @@ class Parser {
           : returned.location.end.line;
         const from = this.ctx.index.starts[line]! + returned.location.end.column;
         const newline = this.ctx.text.indexOf("\n", from);
+        const to = newline < 0 ? this.ctx.text.length : newline;
+        this.recordSourceDependency(from, to);
         const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
-        tokenizer.lex(from, newline < 0 ? this.ctx.text.length : newline);
+        tokenizer.lex(from, to);
         const follower = tokenizer.tokens[tokenizer.tokens[0]?.text === ";" ? 1 : 0];
         const nested = begin && !(stat instanceof AstStatSparkdownExplicit);
         const closes = nested && follower && (this.is(closer, follower) ||
@@ -3428,7 +3438,7 @@ function readUnit(
   const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements };
   if (lines) {
     unit.lines = lines;
-    unit.key = unitKey(tokenizer, start, eof);
+    unit.key = unitKey(tokenizer, start, eof, parser.sourceDependencies);
   }
   return unit;
 }
@@ -3456,9 +3466,10 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
  * `run` file, where its Luau ends (an error at the end is placed there),
  * each token's kind, unit location and text, with the shape of the tree
  * under a token read from a node (a string's interpolations, a Sparkdown
- * construct's parts), and each `--!` comment.
+ * construct's parts), each `--!` comment, and bounded source reads outside
+ * those tokens that affect the parsed unit.
  */
-function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined): string {
+function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined, sourceDependencies: ReadonlySet<string>): string {
   const parts: string[] = [`start ${start}`, `eof ${eof ?? "-"}`];
   for (const token of tokenizer.tokens) {
     // A break ends a statement wherever it stands and whatever it says.
@@ -3470,6 +3481,7 @@ function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefine
     if (token.node) parts.push(nodeShape(token.node));
   }
   for (const comment of tokenizer.hotcomments) parts.push(`--! ${comment.header} ${comment.location.begin}-${comment.location.end} ${comment.content}`);
+  for (const dependency of sourceDependencies) parts.push(`source ${dependency}`);
   return parts.join("\n");
 }
 
