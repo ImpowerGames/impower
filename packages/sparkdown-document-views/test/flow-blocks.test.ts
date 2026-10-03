@@ -21,6 +21,16 @@ import { extractVisibleText } from "./helpers/renderPreview";
 const joined = (source: string) => extractVisibleText(source).join("\n");
 
 describe("screenplay preview — Luau flow blocks", () => {
+  it("renders unmarked return prose and hides marked code in a nested story body", () => {
+    const text = joined(`scene Main\n  if true then\n    return to the village\n    return 5\n    & return 9\n    & do if true then local hidden = 8 end end\n    After.\n  end\nend\n`);
+    expect(text).toContain("return to the village");
+    expect(text).toContain("return 5");
+    expect(text).toContain("After.");
+    expect(text).not.toContain("return 9");
+    expect(text).not.toContain("hidden");
+    expect(text).not.toContain("&");
+  });
+
   it("renders dialogue + choices inside a scene/choose block; hides divert targets", () => {
     // scene-with-choices-and-divert.sd
     const src =

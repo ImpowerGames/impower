@@ -7965,8 +7965,11 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*end\b)|$
 
   LuauSparkdownExplicitIfCondition:
-    # The lookbehind opens once after its branch keyword, as in the ordinary
-    # Luau condition. No line break is accepted in this narrative island.
+    # lookaround: the keyword lookbehind opens the condition once after if or
+    # elseif. Reordering cannot separate a condition from the same tokens in
+    # LuauSparkdownExplicitBlockBody; an unanchored empty begin would reopen
+    # over its assignments (StoryReturnText931 nested-if effects controls).
+    # No line break is accepted in this narrative island.
     begin: (?<=\b(?:else)?if\b{{WS}}*)
     patterns:
       - { include: "#LuauExpression" }
@@ -7986,9 +7989,17 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitLoopCondition" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
+    # lookaround: LuauSparkdownExplicitDoBlock consumes the loop's written end.
+    # Close after that child rather than before end, which would leave the loop
+    # body unclosed; ordering cannot make the parent consume its child's closer
+    # (StoryReturnText931 numeric/generic-for and while effects controls).
     end: (?={{BEAT}})|(?<=\bend)|$
 
   LuauSparkdownExplicitLoopCondition:
+    # lookaround: anchor the header once after for/while so it cannot reopen
+    # over LuauSparkdownExplicitBlockBody assignments. Its empty begin must
+    # leave do to LuauSparkdownExplicitDoBlock when the condition is missing;
+    # moving the header after body rules would let expressions take the header.
     begin: (?<=\b(?:for|while)\b{{WS}}*)(?!do\b)
     patterns:
       - { include: "#LuauInKeyword" }
