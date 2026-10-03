@@ -167,12 +167,12 @@ export function validateAssignmentValue(
   // The highlighting node may end at the line-ending operator while Luau
   // reads a value on the following line. Validate the converter's value.
   const read = (from: number, to: number) => ctx.read(from, to);
-  const next = nextSignificantToken(opNode, operator.to, read);
+  const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText);
   if (checkerReadsOnTo(opNode, next?.from, read)) {
-    const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read));
+    const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read, ctx.documentText));
     if (value.errors.every((error) => error.message.startsWith("Expected the end of the expression"))) return;
   }
-  if (typeCheckerReportsMissingValue(opNode, operator.to, (from, to) => ctx.read(from, to))) return;
+  if (typeCheckerReportsMissingValue(opNode, operator.to, read, ctx.documentText)) return;
   const got = nextTokenAfter(opNode, range.to, ctx);
   ctx.diagnostics.push({
     message: `Expected identifier when parsing expression, got ${display(got)}`,
@@ -198,7 +198,7 @@ export function validateListComma(
   // The node holds the comma after any whitespace before it.
   const text = ctx.read(comma.from, comma.to);
   const at = comma.from + text.length - text.trimStart().length;
-  if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, (from, to) => ctx.read(from, to))) {
+  if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, (from, to) => ctx.read(from, to), ctx.documentText)) {
     return;
   }
   const got = nextTokenAfter(comma, at + 1, ctx);
@@ -285,7 +285,7 @@ export function validateReassignmentList(
       const at = child.from + text.length - text.trimStart().length;
       // Luau's parser reports this comma too, and the type checker reports
       // its error where it reads the statement (#1175).
-      if (typeCheckerReportsMissingValue(child, at, (from, to) => ctx.read(from, to))) return;
+      if (typeCheckerReportsMissingValue(child, at, (from, to) => ctx.read(from, to), ctx.documentText)) return;
       reportParseError(
         "Expected identifier when parsing expression, got ','",
         { from: at, to: at + 1 },
@@ -632,8 +632,9 @@ export function typeCheckerReportsMissingValue(
   node: SyntaxNode,
   pos: number,
   read: (from: number, to: number) => string,
+  document?: () => string,
 ): boolean {
-  const text = wholeDocument(node, read);
+  const text = wholeDocument(node, read, document);
   const reading = readLuauExpressionAfter(pos, text);
   let expr = reading.expr;
   // A leading binary operator (`+ 1`) leaves its missing left operand in
@@ -651,7 +652,8 @@ export function typeCheckerReportsMissingValue(
   return checkerReadsOnTo(node, got?.from, read);
 }
 
-function wholeDocument(node: SyntaxNode, read: (from: number, to: number) => string): string {
+function wholeDocument(node: SyntaxNode, read: (from: number, to: number) => string, document?: () => string): string {
+  if (document) return document();
   while (node.parent) node = node.parent;
   return read(0, node.to);
 }
@@ -661,8 +663,9 @@ export function nextSignificantToken(
   node: SyntaxNode,
   pos: number,
   read: (from: number, to: number) => string,
+  document?: () => string,
 ): { text: string; from: number } | null {
-  return nextLuauToken(pos, wholeDocument(node, read));
+  return nextLuauToken(pos, wholeDocument(node, read, document));
 }
 
 // The `=`/`+=`/`..=` token's own range, with the surrounding same-line
