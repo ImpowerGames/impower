@@ -45,4 +45,16 @@ describe("casts read their targets as types (#877)", () => {
     const source = `function run()\n  ${body}\nend\n`;
     expect(readLuauUnits(parseSource(source), source).prelude.errors.length).toBeGreaterThan(0);
   });
+
+  test.each(["(number -> string", "{number", "Array<number", "() -> (number", "typeof(a", "{[number: string}"])("recovers after an unfinished target %s", (target) => {
+    const source = `function f()\n  local a = nil :: ${target}\n  return 55\nend\n`;
+    const units = readLuauUnits(parseSource(source), source);
+    expect(units.prelude.errors.length).toBeGreaterThan(0);
+    expect(printAst(units.prelude.root)).toContain("StatReturn\n          ExprConstantNumber 55");
+    let node = parseSource(source).resolveInner(source.indexOf("return 55"), 1);
+    const ancestors: string[] = [];
+    for (; node.parent; node = node.parent) ancestors.push(node.name);
+    expect(ancestors).toContain("LuauReturnStatement");
+    expect(ancestors).not.toContain("LuauAssignmentOperation");
+  });
 });
