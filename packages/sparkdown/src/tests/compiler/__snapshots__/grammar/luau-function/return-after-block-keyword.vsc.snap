@@ -78,9 +78,9 @@ text.source.sparkdown [0..228]
  ├─ variable.other.readwrite.luau [117..118]: "x"
  ├─ punctuation.whitespace.optional.sd [118..119]: " "
  ├─ keyword.control.then.luau [119..123]: "then"
- ├─ meta.function.luau [123..130]
- │   ├─ punctuation.whitespace.optional.sd [123..124]: " "
- │   └─ keyword.control.luau [124..130]: "return"
+ ├─ punctuation.whitespace.optional.sd [123..124]: " "
+ ├─ string.display.text.chunk.sd [124..130]
+ │   └─ markup.raw.text.sd [124..130]: "return"
  ├─ Newline [130..131]: "\n"
  ├─ punctuation.whitespace.optional.sd [131..133]: "  "
  ├─ string.display.text.chunk.sd [133..145]

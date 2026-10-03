@@ -29,7 +29,7 @@ import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 // whose `elseif` arms nest as its `elsebody`); each arm's body is lowered
 // from its own syntax node, which holds the Sparkdown lines among its Luau.
 
-const IF_NODES = nodeNameSet(["LuauSparkdownIfBlock", "LuauIfBlock"]);
+const IF_NODES = nodeNameSet(["LuauSparkdownIfBlock", "LuauIfBlock", "LuauSparkdownExplicitIfBlock"]);
 
 export function lowerLuauIfBlock(
   stat: AstStatIf,
@@ -47,6 +47,7 @@ export function lowerLuauIfBlock(
   // declared with the union; the check script covers the literal.
   const ifBodySkip = new Set<string>([
     "LuauIfBlockCondition",
+    "LuauSparkdownExplicitIfCondition",
     elseifNodeName,
     elseNodeName,
   ]);
@@ -75,7 +76,7 @@ export function lowerLuauIfBlock(
 
   // ----- Main `if` branch -----
   const condNode = content
-    ? findChildByName(content, "LuauIfBlockCondition")
+    ? findChildByName(content, "LuauIfBlockCondition") ?? findChildByName(content, "LuauSparkdownExplicitIfCondition")
     : null;
   const condExpr = lowerExpression(stat.condition, site.source, ctx);
   // Each branch body gets its own scope frame so `local x` follows
@@ -105,7 +106,7 @@ export function lowerLuauIfBlock(
       `${elseifNodeName}_content`,
     );
     const ec = elseifContent
-      ? findChildByName(elseifContent, "LuauElseifBlockCondition")
+      ? findChildByName(elseifContent, "LuauElseifBlockCondition") ?? findChildByName(elseifContent, "LuauSparkdownExplicitIfCondition")
       : null;
     const arm = elseifArms[i];
     const ecExpr = arm ? lowerExpression(arm.condition, site.source, ctx) : null;
@@ -147,7 +148,7 @@ export function lowerLuauIfBlock(
   return wrapInWeave([conditional]);
 }
 
-const ELSEIF_BODY_SKIP = nodeNameSet(["LuauElseifBlockCondition"]);
+const ELSEIF_BODY_SKIP = nodeNameSet(["LuauElseifBlockCondition", "LuauSparkdownExplicitIfCondition"]);
 
 function buildBranch(
   condition: Expression | null,

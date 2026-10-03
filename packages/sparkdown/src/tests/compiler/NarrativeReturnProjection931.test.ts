@@ -79,6 +79,16 @@ describe("independent narrative-return oracle projection", () => {
   test("keeps a legitimate written do closer and its real AST", () => {
     agrees("scene a\n  & do return 5 end\n  Prose.\n  & f()\nend\n", 0);
   });
+  test.each([
+    "if true then return 5 end",
+    "if false then return 1 elseif true then return 5 else return 2 end",
+    "if true then if true then return 5 end end",
+    "for i = 1, 2 do return i end",
+    "while true do return 5 end",
+    "repeat return 5 until true",
+  ])("keeps written nested island blocks and locations: %s", (body) => {
+    agrees(`scene a\n  & do ${body} end\n  return to the village\n  & f()\nend\n`, 0);
+  });
   test.each(["& return 5;", "& return 5; -- comment", "& return 5; --[=[ comment ]=] -- comment", "& return 1, 2 --[[ comment ]]", "& do return 5 end -- comment", "& do do return 5 end end"])("preserves valid same-line delimiters and comments: %s", (line) => {
     agrees(`scene a\n  ${line}\n  Prose.\n  & f()\nend\n`, line.includes("do return") || line.includes("do do") ? 0 : 1);
   });

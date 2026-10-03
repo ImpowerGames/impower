@@ -389,7 +389,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
   const narrativeReturns: { from: number; to: number; close: number; writtenCloser: boolean }[] = [];
   const cursor = tree.cursor();
   do {
-    if (cursor.name !== "LuauReturnStatement" && cursor.name !== "LuauSparkdownReturnStatement") continue;
+    if (cursor.name !== "LuauReturnStatement") continue;
     let inFunction = false;
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
       if (parent.name === "LuauFunctionBody") { inFunction = true; break; }
@@ -425,7 +425,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     }
     let writtenCloser = false;
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
-      if (parent.name !== "LuauSparkdownDoBlock" && parent.name !== "LuauDoBlock") continue;
+      if (parent.name !== "LuauSparkdownDoBlock" && parent.name !== "LuauDoBlock" && parent.name !== "LuauSparkdownExplicitDoBlock") continue;
       const end = parent.getChild(`${parent.name}_end`);
       if (end && end.from >= to && index.lineAt(end.from) === line && documentText.slice(end.from, end.to).trim() === "end") writtenCloser = true;
       break;

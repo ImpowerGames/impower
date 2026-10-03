@@ -11,7 +11,7 @@ function diagnostics(text: string) {
 const messageOf = (d: { message: unknown }) => typeof d.message === "string" ? d.message : String((d.message as { value?: string })?.value);
 const returns = ["return", "return 5", "return 1, 2", "& return", "& return 5", "& return 1, 2"];
 
-describe("returns require a function body", () => {
+describe("story text and explicitly marked returns", () => {
   for (const ret of returns) {
     test.each([
       ["file", `Before.\n${ret}\nAfter.\n`, 1, 0],
@@ -21,9 +21,19 @@ describe("returns require a function body", () => {
       ["scene last statement", `-> a\nscene a\n  ${ret}\nend\n`, 2, 2],
       ["scene conditional", `-> a\nscene a\n  if true then\n    ${ret}\n  end\nend\n`, 3, 4],
       ["scene loop", `-> a\nscene a\n  while true do\n    ${ret}\n  end\nend\n`, 3, 4],
-    ] as const)(`${ret} at %s reports its written range`, (_scope, source, line, column) => {
+    ] as const)(`${ret} at %s follows its story or code context`, (_scope, source, line, column) => {
       const ds = diagnostics(source);
       const misplaced = ds.filter((d) => /Return statements can only/.test(messageOf(d)));
+      if (!ret.startsWith("& ")) {
+        expect(misplaced.map(messageOf)).toEqual([]);
+        expect(ds.filter((d) => d.severity === 1).map(messageOf)).toEqual([]);
+        if (_scope !== "scene loop") {
+          const ctx = makeRuntimeStoryFromSource(source);
+          expect(ctx.errorMessages).toEqual([]);
+          expect(ctx.story.ContinueMaximally()).toContain(`${ret}\n`);
+        }
+        return;
+      }
       expect(misplaced.map(messageOf)).toHaveLength(1);
       expect(ds.filter((d) => d.severity === 1 && !misplaced.includes(d)).map(messageOf)).toEqual([]);
       const expected = _scope.startsWith("file")

@@ -460,7 +460,7 @@ describe("Sparkdown's own constructs", () => {
       ["StatLocal", ["LuauSparkdownVariableDefinition"]],
       ["SparkdownChoose", ["LuauSparkdownChooseBlock"]],
       ["StatLocal", ["Branch"]],
-      ["SparkdownExplicit", ["LuauExplicitStatement"]],
+      ["SparkdownExplicit", ["LuauSparkdownExplicitStatement"]],
     ]);
     const choose = flow.statements[1]!.nodes[0]!;
     expect(statementAt(flow, choose)).toBe(flow.statements[1]!.statement);

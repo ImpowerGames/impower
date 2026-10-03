@@ -1039,8 +1039,7 @@ patterns:
   # target name matches a registered external.
   - { include: "#LuauExternalDeclaration" }
 
-  - { include: "#LuauExplicitStatement" }
-  - { include: "#LuauSparkdownReturnStatement" }
+  - { include: "#LuauSparkdownExplicitStatement" }
   - { include: "#LuauFunctionDefinition" }
   - { include: "#LuauSparkdownVariableDefinition" }
   - { include: "#LuauDeclarations" }
@@ -3824,6 +3823,9 @@ repository:
   LuauExpression:
     patterns:
       - { include: "#LuauComment" }
+      # Returns belong to Luau code (functions and explicit `&` islands).
+      # Story bodies try display text before their expression fallback.
+      - { include: "#LuauReturnStatement" }
       - { include: "#LuauTernaryExpression" }
       - { include: "#LuauAlternatorBlocks" }
       # Divert-target literal (`-> name`) is an inkjs-style first-class
@@ -3924,7 +3926,6 @@ repository:
       - { include: "#LuauFunctionTypeDeclaration" }
       - { include: "#LuauDataTypeDeclaration" }
       - { include: "#LuauUntilStatement" }
-      - { include: "#LuauReturnStatement" }
       - { include: "#LuauGotoStatement" }
       - { include: "#LuauBreakStatement" }
       - { include: "#LuauContinueStatement" }
@@ -3933,6 +3934,30 @@ repository:
   # ----------------------------------------------------------------------------
   # Explicit Statement
   # ----------------------------------------------------------------------------
+
+  # Story code islands end at their line. A `do` here uses the bounded
+  # counterpart so its unfinished body cannot capture the next prose line.
+  LuauSparkdownExplicitStatement:
+    begin: ({{WS}}*)([&])($|{{WS}}+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauExplicitStatementMark" }
+      3:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+    patterns:
+      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauSparkdownExplicitDoBlock" }
+      - { include: "#LuauSparkdownVariableDefinition" }
+      - { include: "#LuauDeclarations" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|$|(?=^)
 
   LuauExplicitStatement:
     begin: ({{WS}}*)([&])($|{{WS}}+)
@@ -3962,6 +3987,9 @@ repository:
       # `LuauFunctionDefinition` comes first, so `& local function f()`
       # is a function rather than a declaration of `function`.
       - { include: "#LuauFunctionDefinition" }
+      # A written `& do ... end` is a Luau island, including its return.
+      # Its body must not fall through to the narrative do-block at root.
+      - { include: "#LuauDoBlock" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauCommaSeparator" }
@@ -7440,7 +7468,7 @@ repository:
       - { include: "#LuauElseBlock" }
       - { include: "#LuauAlternatorBlocks" }
       # `LuauDeclarations` covers declarations (`local x = …`,
-      # `function …`, `return`, `break`, `continue`, `goto`, labels,
+      # `function …`, `break`, `continue`, `goto`, labels,
       # type declarations). `LuauExplicitStatement` covers the `& …`
       # discard-call / assignment statement form. Both are valid inside
       # pure-luau bodies (function definitions, `if`/`for`/`while`/`do`
@@ -7467,8 +7495,7 @@ repository:
   # comma as a structural separator would mangle the display text.
   LuauSparkdownBlockBody:
     patterns:
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauSparkdownExplicitStatement" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
@@ -7858,6 +7885,140 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
+  # Pure code inside a story's single-line `& do ... end` island. Nested
+  # do-blocks share the same line boundary; written function bodies retain
+  # their own Luau scope through LuauFunctionDefinition.
+  LuauSparkdownExplicitDoBlock:
+    begin: ({{WS}}*)(do)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauDoKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitBlockBody" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # Used only inside a narrative explicit do island. Its branches and nested
+  # blocks end at the same line; the ordinary function rules remain multiline.
+  LuauSparkdownExplicitIfBlock:
+    begin: ({{WS}}*)(if)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitIfCondition" }
+      - { include: "#LuauSparkdownExplicitElseifBlock" }
+      - { include: "#LuauSparkdownExplicitElseBlock" }
+      - { include: "#LuauSparkdownExplicitBlockBody" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitElseifBlock:
+    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    beginCaptures:
+      1: { patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauElseifKeyword" }] }
+      3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
+    patterns:
+      - { include: "#LuauSparkdownExplicitIfCondition" }
+      - { include: "#LuauSparkdownExplicitBlockBody" }
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})|$
+
+  LuauSparkdownExplicitElseBlock:
+    begin: ({{WS}}*)(else)\b({{WS}}*)
+    beginCaptures:
+      1: { patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauElseKeyword" }] }
+      3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
+    patterns:
+      - { include: "#LuauSparkdownExplicitBlockBody" }
+    end: (?={{BEAT}})|(?={{WS}}*end\b)|$
+
+  LuauSparkdownExplicitIfCondition:
+    # The lookbehind opens once after its branch keyword, as in the ordinary
+    # Luau condition. No line break is accepted in this narrative island.
+    begin: (?<=\b(?:else)?if\b{{WS}}*)
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+    end: ({{WS}}*)(then)\b|(?={{END}}|[}])|$
+    endCaptures:
+      1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauThenKeyword" }] }
+
+  LuauSparkdownExplicitLoop:
+    begin: ({{WS}}*)(for|while)\b({{WS}}*)
+    beginCaptures:
+      1: { patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauForKeyword" }, { include: "#LuauWhileKeyword" }] }
+      3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
+    patterns:
+      - { include: "#LuauSparkdownExplicitLoopCondition" }
+      - { include: "#LuauSparkdownExplicitBlockBody" }
+    end: (?={{BEAT}})|(?<=\bend)|$
+
+  LuauSparkdownExplicitLoopCondition:
+    begin: (?<=\b(?:for|while)\b{{WS}}*)(?!do\b)
+    patterns:
+      - { include: "#LuauInKeyword" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{END}}|[}]|{{WS}}*do\b)|$
+
+  LuauSparkdownExplicitRepeatLoop:
+    begin: ({{WS}}*)(repeat)\b({{WS}}*)
+    beginCaptures:
+      1: { patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauRepeatKeyword" }] }
+      3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
+    patterns:
+      - { include: "#LuauSparkdownExplicitBlockBody" }
+    end: (?={{BEAT}})|(?={{WS}}*until\b)|$
+
+  LuauSparkdownExplicitBlockBody:
+    patterns:
+      - { include: "#LuauSparkdownExplicitDoBlock" }
+      - { include: "#LuauSparkdownExplicitIfBlock" }
+      - { include: "#LuauSparkdownExplicitLoop" }
+      - { include: "#LuauSparkdownExplicitRepeatLoop" }
+      - { include: "#LuauReassignment" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#ExtraWhitespace" }
+
   LuauDoBlock:
     begin: ({{WS}}*)(do)\b({{WS}}*)
     beginCaptures:
@@ -8239,8 +8400,7 @@ repository:
       - { include: "#Choice" }
       - { include: "#LuauSparkdownChooseThenClause" }
       - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauSparkdownExplicitStatement" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
@@ -8288,8 +8448,7 @@ repository:
         patterns:
           - { include: "#Label" }
     patterns:
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauSparkdownExplicitStatement" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
@@ -8853,9 +9012,9 @@ repository:
     #
     # A `return` after other code on its line (`& return`, `local x = 5
     # return`) ends at the line, because narrative bodies reach this rule
-    # through `LuauExplicitStatement` and `LuauExpression`, and the line
-    # after them is prose. A narrative `return` that starts its line is
-    # `LuauSparkdownReturnStatement`, which also ends at the line. A
+    # through `LuauSparkdownExplicitStatement` and `LuauExpression`, and the line
+    # after them is prose. An unmarked `return` in a narrative body is
+    # display text and never reaches this rule. A
     # `return` after `then`, `else`, `do` or `repeat` ends at the line too:
     # an `&` statement can put a bare `repeat` or a ternary `else` there
     # (`& repeat return`, `& y = if c then 1 else return`), and the line
@@ -8881,30 +9040,6 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
-
-  # A `return` in a narrative body (a scene, or a sparkdown `if`, loop or
-  # `choose` around dialogue and actions) ends at its line: the next line
-  # is prose, never the returned value.
-  LuauSparkdownReturnStatement:
-    tag: meta
-    name: meta.function.luau
-    begin: ({{WS}}*)(return)\b({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauControlKeyword" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-    patterns:
-      - { include: "#LuauComment" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|;)
 
   # `external message(x)` — single-line declaration of a host-bound callable.
   # Captures the `external` keyword, the function name (via the regular

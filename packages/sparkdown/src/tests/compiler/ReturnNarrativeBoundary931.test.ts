@@ -15,6 +15,11 @@ describe("narrative return boundaries", () => {
       expect(unit.errors.map((e) => e.message)).toEqual([]);
       const statement = unit.statements[0]!.statement;
       const returned = statement instanceof AstStatSparkdownExplicit ? statement.statement : statement;
+      if (!ret.startsWith("& ")) {
+        expect(unit.statements).toHaveLength(1);
+        expect(returned instanceof AstStatReturn).toBe(false);
+        return;
+      }
       expect(returned instanceof AstStatReturn).toBe(true);
       if (!(returned instanceof AstStatReturn)) return;
       expect(returned.list).toHaveLength(ret.includes(",") ? 2 : ret.endsWith("5") ? 1 : 0);

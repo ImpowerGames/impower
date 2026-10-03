@@ -11,11 +11,17 @@ describe("written return semicolon locations", () => {
       const source = `${mark}${line}\n`;
       const text = context === "file" ? source : `${context} a${context === "function" ? "()" : ""}\n${source}end\n`;
       const units = readLuauUnits(parseSource(text), text);
+      if (context !== "function" && !mark) {
+        expect(units.prelude.statements).toEqual([]);
+        expect(units.flows).toEqual([]);
+        return;
+      }
       const converted = context === "scene" || context === "branch" ? units.flows[0]! : units.prelude;
       expect(converted.errors.map((e) => e.message)).toEqual([]);
-      const actual = jsonNodes(printOfficialAst(converted.root, checkerView(text, "_G"))).find((node) => node["type"] === "AstStatReturn")!;
+      const actual = jsonNodes(printOfficialAst(converted.root, checkerView(text, "_G"))).find((node) => node["type"] === "AstStatReturn");
+      expect(actual == null).toBe(false);
       const native = jsonNodes(parseOfficialTree(text.replace("& ", "  ").replace(/(?:scene|branch) a/, "function a()")).root).find((node) => node["type"] === "AstStatReturn")!;
-      expect(jsonLocation(actual)).toEqual(jsonLocation(native));
+      expect(jsonLocation(actual!)).toEqual(jsonLocation(native));
     });
   }
 });

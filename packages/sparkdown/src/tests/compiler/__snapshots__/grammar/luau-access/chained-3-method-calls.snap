@@ -1,13 +1,13 @@
 sparkdown [0..20]
- ├─ LuauExplicitStatement [0..19]
- │   ├─ LuauExplicitStatement_begin [0..2]
- │   │   ├─ LuauExplicitStatement_begin_c1 0
+ ├─ LuauSparkdownExplicitStatement [0..19]
+ │   ├─ LuauSparkdownExplicitStatement_begin [0..2]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
- │   │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [0..1]
  │   │   │   └─ LuauExplicitStatementMark [0..1]: "&"
- │   │   └─ LuauExplicitStatement_begin_c3 [1..2]
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
  │   │       └─ RequiredWhitespace [1..2]: " "
- │   ├─ LuauExplicitStatement_content [2..19]
+ │   ├─ LuauSparkdownExplicitStatement_content [2..19]
  │   │   ├─ LuauAccessPath [2..4]
  │   │   │   ├─ LuauAccessPath_begin 2
  │   │   │   ├─ LuauAccessPath_content [2..3]
@@ -102,5 +102,5 @@ sparkdown [0..20]
  │   │       │           │   └─ PunctuationParenClose [18..19]: ")"
  │   │       │           └─ LuauParenthetical_end_c2 19
  │   │       └─ LuauAssignmentOperation_end 19
- │   └─ LuauExplicitStatement_end 19
+ │   └─ LuauSparkdownExplicitStatement_end 19
  └─ Newline [19..20]: "\n"

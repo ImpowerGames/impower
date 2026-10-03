@@ -14,9 +14,8 @@ import type { StatementSite } from "./lowerLuauStatement";
 //                                   the N values into a MultiValue at runtime
 // `return`            (no value) → ReturnType { null } — produces Void
 //
-// Lowers both `LuauReturnStatement` (Luau code) and
-// `LuauSparkdownReturnStatement` (narrative bodies); they differ only in
-// whether the value may start on the next line, which the converter reads.
+// Luau returns occur in function bodies or explicit code islands. Unmarked
+// story lines beginning with `return` are display text, not statements.
 export function lowerLuauReturnStatement(
   stat: AstStatReturn,
   site: StatementSite,

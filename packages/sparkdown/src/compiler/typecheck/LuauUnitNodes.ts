@@ -12,6 +12,7 @@ export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
+  "LuauSparkdownExplicitStatement",
   ...REASSIGNMENT_NAMES,
   "LuauReturnStatement",
   "LuauBreakStatement",
@@ -28,7 +29,10 @@ export const LUAU_STATEMENTS = new Set([
   "LuauSparkdownForLoop",
   "LuauSparkdownRepeatLoop",
   "LuauSparkdownDoBlock",
-  "LuauSparkdownReturnStatement",
+  "LuauSparkdownExplicitDoBlock",
+  "LuauSparkdownExplicitIfBlock",
+  "LuauSparkdownExplicitLoop",
+  "LuauSparkdownExplicitRepeatLoop",
   "LuauSparkdownChooseBlock",
 ]);
 
