@@ -590,6 +590,13 @@ class Tokenizer {
       this.readFunctionDefinition(node);
       return;
     }
+    if (name === "LuauReturnStatement" || name === "LuauSparkdownReturnStatement") {
+      const first = this.tokens.length;
+      this.readChildren(node);
+      const keyword = this.tokens.slice(first).find((token) => token.text === "return");
+      if (keyword) keyword.node = node;
+      return;
+    }
     this.readChildren(node);
   }
 
@@ -1389,12 +1396,12 @@ class Parser {
     return false;
   }
 
-  private expectMatchAndConsumeFail(text: string, begin: Token, extra = ""): void {
+  private expectMatchAndConsumeFail(text: string, begin: Token, extra = "", construct?: MalformedConstruct): void {
     const location = this.current().location;
     const got = `${describe(this.current())}${extra}`;
     const open = begin.kind === "chooseThen" || begin.kind === "choose" ? "choose" : begin.text;
     // Not part of Luau: a `::` where the closer was expected is an annotation written with it.
-    const malformed = this.isAnnotationColon() ? "annotation" : undefined;
+    const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : undefined);
     if (location.begin.line === begin.location.begin.line)
       this.report(location, `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`, malformed);
     else this.report(location, `Expected '${text}' (to close '${open}' at line ${begin.location.begin.line + 1}), got ${got}`, malformed);
@@ -1483,14 +1490,14 @@ class Parser {
     return result;
   }
 
-  private parseBlock(): AstStatBlock {
+  private parseBlock(begin?: Token, closer = "end"): AstStatBlock {
     const localsBegin = this.saveLocals();
-    const result = this.parseBlockNoScope();
+    const result = this.parseBlockNoScope(begin, closer);
     this.restoreLocals(localsBegin);
     return result;
   }
 
-  private parseBlockNoScope(): AstStatBlock {
+  private parseBlockNoScope(begin?: Token, closer = "end"): AstStatBlock {
     const body: AstStat[] = [];
     const prevPosition = this.previousLocation().end;
     this.blockDepth++;
@@ -1564,6 +1571,13 @@ class Parser {
       else followerLine = inRecovery && !semicolon && this.tokens[this.pos - 1]?.text !== ";" ? this.previousLocation().end.line : undefined;
       body.push(stat);
       if (record) this.statements.push({ statement: stat, first, end: this.pos });
+      // Keep reading for Sparkdown's block ownership and unreachable lint,
+      // while reporting the token where Luau requires this block to close.
+      // Narrative returns have their own semantics and remain unrestricted.
+      if (begin && stat instanceof AstStatReturn && start.node?.name === "LuauReturnStatement") {
+        while (this.current().kind === "break" && !this.current().story) this.next();
+        if (!this.blockFollow(this.current())) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
+      }
       // Not part of Luau, whose parser ends a block at a `return`, `break` or
       // `continue` (marked with `&` or not): Sparkdown reads the statements
       // after one as its block's, never run, and the unreachable-code lint
@@ -1870,7 +1884,7 @@ class Parser {
     const matchThen = this.current();
     let thenLocation: Location | undefined;
     if (this.expectAndConsume("then", "if statement")) thenLocation = matchThen.location;
-    const thenbody = this.parseBlock();
+    const thenbody = this.parseBlock(matchThen);
 
     let elsebody: AstStat | undefined;
     let end = start;
@@ -1890,7 +1904,7 @@ class Parser {
         elseLocation = this.current().location;
         matchThenElse = this.current();
         this.next();
-        const elseBlock = this.parseBlock();
+        const elseBlock = this.parseBlock(matchThenElse);
         elseBlock.location = new Location(matchThenElse.location.end, elseBlock.location.end);
         elsebody = elseBlock;
       }
@@ -1909,7 +1923,7 @@ class Parser {
     const matchDo = this.current();
     const hasDo = this.expectAndConsume("do", "while loop");
     this.currentFunction().loopDepth++;
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchDo);
     this.currentFunction().loopDepth--;
     const end = this.current().location;
     body.hasEnd = this.expectMatchEndAndConsume("end", matchDo);
@@ -1922,7 +1936,7 @@ class Parser {
     this.next();
     const localsBegin = this.saveLocals();
     this.currentFunction().loopDepth++;
-    const body = this.parseBlockNoScope();
+    const body = this.parseBlockNoScope(matchRepeat, "until");
     this.currentFunction().loopDepth--;
     body.hasEnd = this.expectMatchEndAndConsume("until", matchRepeat);
     const cond = this.parseExpr();
@@ -1934,7 +1948,7 @@ class Parser {
     const start = this.current().location;
     const matchDo = this.current();
     this.next();
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchDo);
     body.location = new Location(start.begin, body.location.end);
     const endLocation = this.current().location;
     body.hasEnd = this.expectMatchEndAndConsume("end", matchDo);
@@ -1974,7 +1988,7 @@ class Parser {
       const localsBegin = this.saveLocals();
       this.currentFunction().loopDepth++;
       const variable = this.pushLocal(varname);
-      const body = this.parseBlock();
+      const body = this.parseBlock(matchDo);
       this.currentFunction().loopDepth--;
       this.restoreLocals(localsBegin);
       const end = this.current().location;
@@ -1995,7 +2009,7 @@ class Parser {
     const localsBegin = this.saveLocals();
     this.currentFunction().loopDepth++;
     const vars = names.map((name) => this.pushLocal(name));
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchDo);
     this.currentFunction().loopDepth--;
     this.restoreLocals(localsBegin);
     const end = this.current().location;
@@ -2196,7 +2210,7 @@ class Parser {
     let self: AstLocal | undefined;
     if (hasself) self = this.pushLocal({ name: { name: "self", location: start }, annotation: undefined, isConst: false });
     const vars = args.map((arg) => this.pushLocal(arg));
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchFunction);
     this.functionStack.pop();
     this.restoreLocals(localsBegin);
 
