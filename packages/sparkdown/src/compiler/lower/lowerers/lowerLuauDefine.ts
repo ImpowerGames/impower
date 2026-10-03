@@ -151,7 +151,7 @@ function reportDefineStatement(start: SyntaxNode, ctx: LowerContext): SyntaxNode
   }
   const read = (from: number, to: number) => ctx.read(from, to);
   if (dangling || followsDanglingDot(start, read) || followsMissingValue(start, read)) return last;
-  const error = luauStatementError(start, start.from, read, last.to);
+  const error = luauStatementError(start, start.from, read, last.to, ctx.documentText);
   if (error) ctx.diagnostics?.push({
     message: error.message,
     severity: ErrorType.Error,
