@@ -70,10 +70,16 @@ sparkdown [0..95]
  │   │   │   │       │       │   └─ LuauTypeLiteral [18..24]
  │   │   │   │       │       │       ├─ LuauTypeLiteral_begin 18
  │   │   │   │       │       │       ├─ LuauTypeLiteral_content [18..24]
- │   │   │   │       │       │       │   └─ LuauPrimitiveType [18..24]
- │   │   │   │       │       │       │       ├─ LuauPrimitiveType_c1 [18..24]: "number"
- │   │   │   │       │       │       │       ├─ LuauPrimitiveType_c2 24
- │   │   │   │       │       │       │       └─ LuauPrimitiveType_c3 24
+ │   │   │   │       │       │       │   └─ LuauNamedTypeReference [18..24]
+ │   │   │   │       │       │       │       ├─ LuauNamedTypeReference_begin [18..24]
+ │   │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [18..24]
+ │   │   │   │       │       │       │       │   │   └─ LuauPrimitiveType [18..24]
+ │   │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [18..24]: "number"
+ │   │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 24
+ │   │   │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 24
+ │   │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 24
+ │   │   │   │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 24
+ │   │   │   │       │       │       │       └─ LuauNamedTypeReference_end 24
  │   │   │   │       │       │       └─ LuauTypeLiteral_end 24
  │   │   │   │       │       └─ LuauTypeCastOperation_end 24
  │   │   │   │       └─ LuauAssignmentOperation_end 24
@@ -111,11 +117,18 @@ sparkdown [0..95]
  │   │       │   └─ LuauTypeLiteral [31..38]
  │   │       │       ├─ LuauTypeLiteral_begin 31
  │   │       │       ├─ LuauTypeLiteral_content [31..38]
- │   │       │       │   ├─ LuauPrimitiveType [31..37]
- │   │       │       │   │   ├─ LuauPrimitiveType_c1 [31..37]: "string"
- │   │       │       │   │   ├─ LuauPrimitiveType_c2 37
- │   │       │       │   │   └─ LuauPrimitiveType_c3 37
- │   │       │       │   └─ Newline [37..38]: "\n"
+ │   │       │       │   └─ LuauNamedTypeReference [31..38]
+ │   │       │       │       ├─ LuauNamedTypeReference_begin [31..37]
+ │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [31..37]
+ │   │       │       │       │   │   └─ LuauPrimitiveType [31..37]
+ │   │       │       │       │   │       ├─ LuauPrimitiveType_c1 [31..37]: "string"
+ │   │       │       │       │   │       ├─ LuauPrimitiveType_c2 37
+ │   │       │       │       │   │       └─ LuauPrimitiveType_c3 37
+ │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 37
+ │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 37
+ │   │       │       │       ├─ LuauNamedTypeReference_content [37..38]
+ │   │       │       │       │   └─ Newline [37..38]: "\n"
+ │   │       │       │       └─ LuauNamedTypeReference_end 38
  │   │       │       └─ LuauTypeLiteral_end 38
  │   │       └─ LuauTypeCastOperation_end 38
  │   └─ LuauSparkdownVariableDefinition_end 38
@@ -216,10 +229,16 @@ sparkdown [0..95]
  │   │       │       │   │   │       │       │   └─ LuauTypeLiteral [71..77]
  │   │       │       │   │   │       │       │       ├─ LuauTypeLiteral_begin 71
  │   │       │       │   │   │       │       │       ├─ LuauTypeLiteral_content [71..77]
- │   │       │       │   │   │       │       │       │   └─ LuauPrimitiveType [71..77]
- │   │       │       │   │   │       │       │       │       ├─ LuauPrimitiveType_c1 [71..77]: "number"
- │   │       │       │   │   │       │       │       │       ├─ LuauPrimitiveType_c2 77
- │   │       │       │   │   │       │       │       │       └─ LuauPrimitiveType_c3 77
+ │   │       │       │   │   │       │       │       │   └─ LuauNamedTypeReference [71..77]
+ │   │       │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_begin [71..77]
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [71..77]
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauPrimitiveType [71..77]
+ │   │       │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [71..77]: "number"
+ │   │       │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 77
+ │   │       │       │   │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 77
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 77
+ │   │       │       │   │   │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 77
+ │   │       │       │   │   │       │       │       │       └─ LuauNamedTypeReference_end 77
  │   │       │       │   │   │       │       │       └─ LuauTypeLiteral_end 77
  │   │       │       │   │   │       │       └─ LuauTypeCastOperation_end 77
  │   │       │       │   │   │       └─ LuauAssignmentOperation_end 77
@@ -257,11 +276,18 @@ sparkdown [0..95]
  │   │       │       │       │   └─ LuauTypeLiteral [84..91]
  │   │       │       │       │       ├─ LuauTypeLiteral_begin 84
  │   │       │       │       │       ├─ LuauTypeLiteral_content [84..91]
- │   │       │       │       │       │   ├─ LuauPrimitiveType [84..90]
- │   │       │       │       │       │   │   ├─ LuauPrimitiveType_c1 [84..90]: "string"
- │   │       │       │       │       │   │   ├─ LuauPrimitiveType_c2 90
- │   │       │       │       │       │   │   └─ LuauPrimitiveType_c3 90
- │   │       │       │       │       │   └─ Newline [90..91]: "\n"
+ │   │       │       │       │       │   └─ LuauNamedTypeReference [84..91]
+ │   │       │       │       │       │       ├─ LuauNamedTypeReference_begin [84..90]
+ │   │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [84..90]
+ │   │       │       │       │       │       │   │   └─ LuauPrimitiveType [84..90]
+ │   │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [84..90]: "string"
+ │   │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 90
+ │   │       │       │       │       │       │   │       └─ LuauPrimitiveType_c3 90
+ │   │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 90
+ │   │       │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 90
+ │   │       │       │       │       │       ├─ LuauNamedTypeReference_content [90..91]
+ │   │       │       │       │       │       │   └─ Newline [90..91]: "\n"
+ │   │       │       │       │       │       └─ LuauNamedTypeReference_end 91
  │   │       │       │       │       └─ LuauTypeLiteral_end 91
  │   │       │       │       └─ LuauTypeCastOperation_end 91
  │   │       │       └─ LuauVariableDefinition_end 91

@@ -2,6 +2,14 @@ import { describe, expect, test } from "vitest";
 import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 describe("Luau casts to type targets (#877)", () => {
+  test.each([["number | string", "<= 55"], ["(number | string)", "< 56"]])
+    ("compares a cast to %s with %s", (target, comparison) => {
+      const ctx = makeRuntimeStoryFromSource(
+        `Value {f()}.\nfunction f()\n  local a = 55 :: ${target} ${comparison}\n  return a\nend\n`,
+      );
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.ContinueMaximally()).toBe("Value true.\n");
+    });
   test("reports an unclosed function target", () => {
     const ctx = makeRuntimeStoryFromSource(
       "Value {f()}.\nfunction f()\n  local a = nil :: (number -> string\n  return 55\nend\n",
