@@ -5,12 +5,15 @@ import {
   AstExprConstantNumber,
   AstExprBinary,
   AstExprCall,
+  AstExprIndexExpr,
+  AstExprTable,
   AstExprConstantString,
   AstExprFunction,
   AstStatLocalFunction,
   AstLocal,
   AstTypeSingletonString,
   BinaryOp,
+  TableItemKind,
   binaryOpToString,
   visitAst,
 } from "../../compiler/typecheck/Ast";
@@ -329,6 +332,8 @@ export function decorateSource(
     literals = new Map<number, { end: number; text: string }>();
   const printer = inferredPrinter();
   const immediate = new Set<number>();
+  const immediateRanges: { begin: number; end: number; token: string }[] = [];
+  const recordKeys = new Set<AstExprConstantString>();
   const binaryOperators: {
     begin: number;
     end: number;
@@ -345,6 +350,50 @@ export function decorateSource(
       insertions.set(at(local.location.end), `:${printer.printType(type)}`);
   visitAst(ast.root, {
     visit: (node) => {
+      if (node instanceof AstExprIndexExpr) {
+        immediateRanges.push(
+          {
+            begin: at(node.expr.location.end),
+            end: at(node.index.location.begin),
+            token: "[",
+          },
+          {
+            begin: at(node.index.location.end),
+            end: at(node.location.end),
+            token: "]",
+          },
+        );
+      }
+      if (node instanceof AstExprTable) {
+        let begin = at(node.location.begin);
+        for (const item of node.items) {
+          if (item.key && item.kind !== TableItemKind.List) {
+            if (
+              item.kind === TableItemKind.Record &&
+              item.key instanceof AstExprConstantString
+            )
+              recordKeys.add(item.key);
+            else if (item.kind === TableItemKind.General) {
+              immediateRanges.push(
+                { begin, end: at(item.key.location.begin), token: "[" },
+                {
+                  begin: at(item.key.location.end),
+                  end: at(item.value.location.begin),
+                  token: "]",
+                },
+              );
+            }
+            binaryOperators.push({
+              begin: at(item.key.location.end),
+              end: at(item.value.location.begin),
+              token: "=",
+              column: item.value.location.begin.column,
+              reserve: 1,
+            });
+          }
+          begin = at(item.value.location.end);
+        }
+      }
       if (node instanceof AstExprCall) {
         const begin = at(node.argLocation.begin) - 1,
           end = at(node.argLocation.end);
@@ -382,7 +431,7 @@ export function decorateSource(
         insertions.delete(at(node.name.location.end));
       if (
         node instanceof AstExprConstantNumber ||
-        node instanceof AstExprConstantString ||
+        (node instanceof AstExprConstantString && !recordKeys.has(node)) ||
         node instanceof AstTypeSingletonString
       ) {
         literals.set(at(node.location.begin), {
@@ -459,7 +508,15 @@ export function decorateSource(
     );
     if (binary) {
       if (column + binary.reserve < binary.column) emit(" ");
-    } else if (text !== "," && !immediate.has(cursor)) advance(cursor);
+    } else if (
+      text !== "," &&
+      !immediate.has(cursor) &&
+      !immediateRanges.some(
+        (range) =>
+          range.begin <= cursor && cursor < range.end && range.token === text,
+      )
+    )
+      advance(cursor);
     if (/[A-Za-z_0-9]$/.test(last) && /^[A-Za-z_0-9]/.test(text)) emit(" ");
     emit(text);
     cursor = end;

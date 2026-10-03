@@ -57,15 +57,18 @@ describe("faithful fixture and query execution", () => {
     ["return 0x10\n+1e2", "return 16+\n 100"],
     ["return -2147483648.0", "return -2147483648  "],
     ["return 1846707753922048.25", "return 1846707753922048.2 "],
+    ["return t[0x10]", "return t[16]  "],
+    ["return {[0x10]=1e2}", "return {[16] = 100}"],
+    ["return {a=0x10,b=1e2}", "return {a=16,  b=100}"],
+    // TypeAttach.cpp annotates the loop AstLocal before printing these values.
+    ["for i=0x10,1e2 do end", "for i:number=16,100 do end"],
+    ["return -0x10+ -1e2", "return -16 +  -100"],
   ])(
     "numeric decoration retains pinned positions for %s",
     (source, printed) => {
-      const r = checkLuau(
-        source,
-        source.includes("math.abs")
-          ? { globals: { math: "{abs:(number)->number}" } }
-          : undefined,
-      );
+      const r = checkLuau(source, {
+        globals: { math: "{abs:(number)->number}", t: "{[number]:number}" },
+      });
       expect(r.syntaxDiagnostics).toEqual([]);
       expect(r.diagnostics).toEqual([]);
       expect(r.decoratedSource()).toBe(printed);
