@@ -636,7 +636,8 @@ export function typeCheckerReportsMissingValue(
   document?: () => string,
 ): boolean {
   const text = wholeDocument(node, read, document);
-  const reading = readLuauExpressionAfter(pos, text);
+  const authoredEnd = missingValueEnd(node);
+  const reading = readLuauExpressionAfter(pos, text, authoredEnd);
   let expr = reading.expr;
   // A leading binary operator (`+ 1`) leaves its missing left operand in
   // the AST while recovery reads the right operand. That missing operand
@@ -648,9 +649,21 @@ export function typeCheckerReportsMissingValue(
   const error = reading.errors[expr.messageIndex];
   if (!error?.message.startsWith("Expected identifier when parsing expression")) return false;
   const at = luauPositionOffset(error.location.begin, text);
-  const got = nextLuauToken(at, text);
+  const got = nextLuauToken(at, text, authoredEnd);
   if (got?.text === ":" || got?.text === "@") return false;
   return checkerReadsOnTo(node, got?.from, read);
+}
+
+// A marked story island has its own authored EOF. Reading the following
+// prose as an operand would make this validator report at a story token
+// while the bounded checker separately reports the missing operand at EOF.
+// A genuine function inside the island keeps its multiline Luau ownership.
+function missingValueEnd(node: SyntaxNode): number | undefined {
+  for (let parent: SyntaxNode | null = node; parent; parent = parent.parent) {
+    if (parent.name === "LuauFunctionBody") return undefined;
+    if (parent.name === "LuauSparkdownExplicitStatement") return parent.to;
+  }
+  return undefined;
 }
 
 function wholeDocument(node: SyntaxNode, read: (from: number, to: number) => string, document?: () => string): string {
@@ -665,8 +678,9 @@ export function nextSignificantToken(
   pos: number,
   read: (from: number, to: number) => string,
   document?: () => string,
+  to?: number,
 ): { text: string; from: number } | null {
-  return nextLuauToken(pos, wholeDocument(node, read, document));
+  return nextLuauToken(pos, wholeDocument(node, read, document), to);
 }
 
 // The `=`/`+=`/`..=` token's own range, with the surrounding same-line

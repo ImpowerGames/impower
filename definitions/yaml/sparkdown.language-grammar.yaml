@@ -8282,9 +8282,9 @@ repository:
       - { include: "#LuauSparkdownExplicitTypeFunctionParameters" }
       - { include: "#LuauSparkdownExplicitTypeGenerics" }
       - { include: "#LuauTypeName" }
-      # A type goes on across the line break (GRAMMAR.md §11.5): the
-      # whitespace before it and the line break are the type's own, and
-      # the next line either continues it with `|` or ends it at its start.
+      # This bounded type keeps same-line whitespace, but the authored
+      # story-line boundary ends ordinary type continuation. Genuine
+      # function headers retain their separate multiline type rules.
       - { include: "#ExtraWhitespace" }
     # Whitespace in the middle of a line ends the type, unless a type
     # operator has taken it in or the optional-type suffix follows it
@@ -8570,14 +8570,9 @@ repository:
       - { include: "#LuauSparkdownExplicitIndexerLineContinuation" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    # End at the next ternary clause keyword, at a BEAT, or at a closing
-    # bracket / arg separator. The arm reads on to the next line only when
-    # that line begins with its `else` or `elseif` or continues the arm's
-    # value (`LuauLineContinuation`), so the enclosing
-    # expression, which ends at the end of a line, stays open while that
-    # clause is still to come, and a line that begins anything else ends
-    # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
-    # ends its line, a next line that begins a statement also ends the arm.
+    # Same-line clause keywords and punctuation still end this arm.
+    # Unlike the ordinary Luau arm, its bounded continuation children
+    # cannot take an else/elseif or value from the next story line.
     # lookaround: LuauElseExpression owns the next clause; the then arm opens at then and yields before else or a following statement clause.
     end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}|$"
 
@@ -8798,16 +8793,11 @@ repository:
     # the closing brackets that a `LuauValueTrailingBlockComment` spanning
     # lines leaves when a statement follows them directly (`]]print(1)`).
     #
-    # This is the reassignment in Luau code (function bodies and Luau
-    # blocks). As in Luau, a comma that ends its line continues the value
-    # list on the next line: `LuauCommaLineBreak` carries the reassignment
-    # across the line break, as it does `LuauVariableDefinition`. That line
-    # then belongs to the enclosing block when it starts with a statement
-    # (`LUAU_LIST_LINE_START_STATEMENT`, checked only at the start of a
-    # line, which a reassignment reaches only through that line break), and
-    # the comma before it is left without a value (the lowerer reports it,
-    # as Luau does). A narrative body reassigns with
-    # `LuauSparkdownReassignment`, which ends at its line.
+    # This reassignment belongs to a bounded marked story island.
+    # Its comma child keeps same-line list ownership without taking the
+    # following story line as another value. A trailing comma therefore
+    # leaves an operand missing at authored EOF. Ordinary function-body
+    # reassignments continue through their original LuauCommaLineBreak.
     patterns:
       - { include: "#LuauSparkdownExplicitCommaLineBreak" }
       - { include: "#LuauValueTrailingBlockComment" }
@@ -8902,23 +8892,11 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
-    # As in Luau, a `return` that is the whole of its line (optionally with a
-    # comment) reads its values from the next line: `LuauReturnLineBreak`
-    # carries the scope across the line break (GRAMMAR.md §11.5). The end
-    # does not fire at the end of such a line for that reason, and closes
-    # before a keyword that ends the block (`end`, `else`, `elseif`, `until`)
-    # or starts a statement that is not an expression, so a bare `return`
-    # still returns nothing and leaves that keyword to its block.
-    #
-    # A `return` after other code on its line (`& return`, `local x = 5
-    # return`) ends at the line, because narrative bodies reach this rule
-    # through `LuauSparkdownExplicitStatement` and `LuauExpression`, and the line
-    # after them is prose. An unmarked `return` in a narrative body is
-    # display text and never reaches this rule. A
-    # `return` after `then`, `else`, `do` or `repeat` ends at the line too:
-    # an `&` statement can put a bare `repeat` or a ternary `else` there
-    # (`& repeat return`, `& y = if c then 1 else return`), and the line
-    # after it is prose.
+    # Narrative bodies reach this bounded return only through an explicit
+    # Luau island. Its values stay on that authored line, except complete
+    # opaque constructs owning their closing-line suffix. A bare narrative
+    # `return` is prose. Genuine function returns use the ordinary rule and
+    # retain multiline values; written block closers remain with the block.
     #
     # `;` alternative: `return f(x); end`-style one-liners close the
     # return statement before the separator (`;` no longer parses
@@ -8970,28 +8948,10 @@ repository:
     # `[ScopedRule:LuauTernaryExpression] Incomplete scope` warning at
     # parse time).
     #
-    # A clause may begin a line of its own. The condition reads on to a
-    # line that begins with its `then`, the then arm to a line that begins
-    # with its `else` or `elseif`, and the `then` and `else` keywords take
-    # the line break after them, so while a clause is still to come on the
-    # next line, one of those rules is open and this level does not meet
-    # the end of the line. Any other line ends the clause and, at the start
-    # of that line, this expression, so an expression whose `then` or
-    # `else` is not yet written ends with its own lines instead of reading
-    # the lines below into itself. An arm whose `then` or `else` ends its
-    # line takes its value from the next line, unless that line begins a
-    # statement (`LUAU_STATEMENT_LINE_START`), which ends the arm empty and
-    # this expression with it. `ValidationAnnotator` reports the missing
-    # clause or value.
-    #
-    # When the next line starts at column 0, the condition, the then arm and
-    # the `then` keyword instead stop before the line break
-    # (`BEFORE_LUAU_COLUMN_0_LINE`), and the `else` keyword stops there only
-    # before a line that cannot be its value (`BEFORE_LUAU_COLUMN_0_STATEMENT`),
-    # so the statement the expression belongs to ends with its own line and
-    # the next line is read on its own.
-    #
-    # The last alternative ends the expression before the `then` of an if
+    # Bounded condition/arm/operator children cannot continue onto the next
+    # story line. A missing clause or operand remains this island's error;
+    # ordinary function ternaries retain their original multiline rules.
+    # The final alternatives end the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
     # `if if c then 1 else 2 then`. Each condition takes the whitespace
     # before its own `then`, and a `then` glued to its end, so whitespace
@@ -9525,20 +9485,10 @@ repository:
     # has terminated at the first comma. The lowerer reassembles the
     # multi-RHS list by walking the def's content children.
     #
-    # This is the declaration in Luau code (function bodies and Luau
-    # blocks). As in Luau, a comma that ends its line continues the list
-    # on the next line: `LuauCommaLineBreak` carries the declaration across
-    # the line break. A narrative body declares with
-    # `LuauSparkdownVariableDefinition`, which ends at its line.
-    #
-    # After a line break it must not take a statement: a line that starts
-    # with `end`, `else`, `until`, `return`, another statement keyword or a
-    # `scene` header belongs to the enclosing block, and the comma before it
-    # is left without a value (the lowerer reports it, as Luau does).
-    # `LuauVariableDefinitionValue` is `LuauExpression` without its
-    # statements for that reason, `LuauVariableAssignment` refuses a
-    # reserved word before a comma or the end of its line, and the end
-    # stops at `LUAU_DECLARATION_STOP`.
+    # This declaration belongs to a bounded marked story island. A comma
+    # cannot continue its list into the next story line. The bounded value
+    # and assignment children leave a missing operand at authored EOF;
+    # genuine function declarations use the original multiline rules.
     #
     # `local function`, `store function` and `const function` are
     # `LuauFunctionDefinition`, whose begin takes the scope modifier itself:

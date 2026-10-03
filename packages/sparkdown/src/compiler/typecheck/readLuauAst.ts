@@ -4083,20 +4083,31 @@ function tokensAhead(from: number, documentText: string): { tokens: Token[]; sta
 }
 
 /** The next token as Luau reads it, past whitespace and comments. */
-export function nextLuauToken(from: number, documentText: string): { text: string; from: number } | null {
+export function nextLuauToken(from: number, documentText: string, to = documentText.length): { text: string; from: number } | null {
   const { tokens, start } = tokensAhead(from, documentText);
   const token = tokens[start];
-  if (!token || token.kind === "eof") return null;
+  if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
   return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
 }
 
 /** Read the expression after an operator the grammar ends without a value. */
-export function readLuauExpressionAfter(from: number, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauExpressionAfter(from: number, documentText: string, to?: number): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const { tokens, start } = tokensAhead(from, documentText);
-  appendAll(tokenizer.tokens, tokens.slice(start));
+  if (to === undefined) appendAll(tokenizer.tokens, tokens.slice(start));
+  else {
+    // Keep the full-document lexer cache reusable across authored islands.
+    // Clip only their token window; an opaque token crossing the boundary
+    // must be read with the same bound rather than borrowing its closer.
+    for (let at = start; at < tokens.length && tokens[at]!.from < to; at++) {
+      const token = tokens[at]!;
+      if (token.to <= to) tokenizer.tokens.push(token);
+      else { tokenizer.lex(token.from, to); break; }
+    }
+    tokenizer.synthetic("eof", "", to);
+  }
   if (tokenizer.tokens.length === 0) tokenizer.synthetic("eof", "", documentText.length);
   return parseLoneTokens(tokenizer, documentText, index);
 }

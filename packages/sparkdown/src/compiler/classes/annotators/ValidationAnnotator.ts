@@ -24,6 +24,7 @@ import {
 } from "../../lower/utils/statementBefore";
 import { luauStatementError } from "../../utils/luauStatementError";
 import { nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
+import { luauPositionOffset, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED } from "../../typecheck/LuauUnitNodes";
 import {
@@ -341,6 +342,9 @@ const IF_STATEMENT_WITHOUT_THEN = "Expected 'then' when parsing if statement";
 const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
   "LuauIfBlockCondition",
   "LuauElseifBlockCondition",
+  // The bounded if/elseif routes share this condition, rather than a
+  // one-to-one counterpart of either ordinary condition rule.
+  "LuauSparkdownExplicitIfCondition",
 ]);
 // The parts of an if statement's condition that are not its expression.
 const IF_CONDITION_TRIVIA = nodeNameSet([
@@ -595,6 +599,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * grammar could not read into the expression (`flag` in `if flag print(1)`).
    */
   protected conditionExpressionEnd(condition: any): number {
+    if (condition.name === "LuauSparkdownExplicitIfCondition") {
+      // The highlighting expression may include an adjacent assignment.
+      // The parsed condition ends before that token, which is the missing
+      // `then` diagnostic's owner. Keep the read inside the authored header.
+      const text = this.statementDocumentText();
+      return luauPositionOffset(readLuauExpressionAfter(condition.from, text, condition.to).expr.location.end, text);
+    }
     const content = childNamed(condition, `${condition.name}_content`);
     let end = content?.from ?? condition.from;
     for (let c = content?.firstChild; c; c = c.nextSibling) {
@@ -1355,13 +1366,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
+        let authoredEnd: number | undefined;
+        if (nodeRef.name === "LuauSparkdownExplicitIfCondition") {
+          for (let owner: SyntaxNode | null = nodeRef.node; owner; owner = owner.parent) {
+            if (owner.name === "LuauSparkdownExplicitStatement") { authoredEnd = owner.to; break; }
+          }
+        }
         const got = nextSignificantToken(
           nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
           (from, to) => this.read(from, to),
           this.statementDocumentText,
+          authoredEnd,
         );
-        const eof = this.tree?.length ?? nodeRef.to;
+        const eof = authoredEnd ?? this.tree?.length ?? nodeRef.to;
         this.error(
           annotations,
           `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
