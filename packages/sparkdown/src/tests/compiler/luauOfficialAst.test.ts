@@ -48,7 +48,6 @@ const KNOWN = [
   { input: "grammar/luau-function/return-before-prose.sd", issue: 1298 },
   { input: "conformance/integers.luau", issue: 1309 },
   { input: "conformance/integers_regspill.luau", issue: 1309 },
-  { input: "conformance/literals.luau", issue: 1313 },
   { input: "f [==[s]==]", issue: 1255 },
   { input: "a :: number? | string", issue: 877 },
 ];

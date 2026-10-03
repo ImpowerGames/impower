@@ -9658,7 +9658,6 @@ repository:
         patterns:
           - { include: "#PunctuationStringBracketQuoteOpen" }
     patterns:
-      - { include: "#LuauStringEscape" }
       - { include: "#Color" }
       - { include: "#PlainText" }
       - { include: "#Newline" }

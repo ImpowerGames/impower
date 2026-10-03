@@ -62,11 +62,6 @@ interface StructuralDisagreement {
 // grammar reads Luau's tokens another way than Luau does.
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
   {
-    input: "conformance/literals.luau",
-    issue: 1313,
-    reason: "the long string on line 12 ends with `\\]]`, which the grammar reads as an escape, so the string runs on to line 39",
-  },
-  {
     input: "f [==[s]==]",
     issue: 1255,
     reason: "the grammar reads a long string with `=` signs after a callee and a space as an index",
