@@ -1,7 +1,7 @@
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { Range } from "@codemirror/state";
-import type { SyntaxNode } from "@lezer/common";
+import { Range, type Text } from "@codemirror/state";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
@@ -285,8 +285,9 @@ function invalidStatementError(
   from: number,
   to: number,
   read: (from: number, to: number) => string,
+  document: () => string,
 ): { message: string; from: number; to: number } | null {
-  const error = luauStatementError(node, from, read, to);
+  const error = luauStatementError(node, from, read, to, document);
   const line = read(from, to).trimEnd();
   if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
     const dangling = danglingDotError(node, from + line.length - 1, read);
@@ -307,13 +308,14 @@ function invalidStatementError(
 function reportedBefore(
   node: SyntaxNode,
   read: (from: number, to: number) => string,
+  document: () => string,
 ): boolean {
   if (followsMissingValue(node, read)) return true;
   let prev = node.prevSibling;
   while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
   if (prev?.name === "LuauInvalidStatement") {
     const line = childNamed(prev, "LuauInvalidStatement_c2");
-    const error = invalidStatementError(prev, line?.from ?? prev.from, line?.to ?? prev.to, read);
+    const error = invalidStatementError(prev, line?.from ?? prev.from, line?.to ?? prev.to, read, document);
     return error != null && (error.message === NAME_ON_LATER_LINE || error.from >= node.from);
   }
   return followsDanglingDot(node, read);
@@ -538,6 +540,25 @@ export interface Diagnostic {
 export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
+  private diagnosticDocument?: { text: Text; source: string };
+
+  override update(tree: Tree, text: Text, uri?: string): void {
+    if (text !== this.text) this.diagnosticDocument = undefined;
+    super.update(tree, text, uri);
+  }
+
+  // CodeMirror Text is immutable. A replacement or edit supplies a new Text
+  // identity, including equal-length edits that leave the syntax tree shape
+  // unchanged. Keep only the current document, and convert it lazily.
+  private statementDocumentText = (): string => {
+    const text = this.text;
+    if (!text) return "";
+    if (this.diagnosticDocument?.text !== text) {
+      this.diagnosticDocument = { text, source: text.toString() };
+    }
+    return this.diagnosticDocument.source;
+  };
+
   /** Does this `[[…]]` command contain a `to <NameValue>` destination (the
    *  navigate target screen)? Mirrors how ReferenceAnnotator reads a clause
    *  value's keyword (`prevSibling.prevSibling`). */
@@ -1266,7 +1287,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // before it reports already (`reportedBefore`).
     if (nodeRef.name === "LuauInvalidStatement") {
       const read = (from: number, to: number) => this.read(from, to);
-      if (reportedBefore(nodeRef.node, read)) {
+      if (reportedBefore(nodeRef.node, read, this.statementDocumentText)) {
         return annotations;
       }
       const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
@@ -1275,6 +1296,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         line?.from ?? nodeRef.from,
         line?.to ?? nodeRef.to,
         (from, to) => this.read(from, to),
+        this.statementDocumentText,
       );
       if (error) this.error(annotations, error.message, error.from, error.to);
       return annotations;
