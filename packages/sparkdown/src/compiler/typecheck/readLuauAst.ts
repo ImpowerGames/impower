@@ -1037,6 +1037,8 @@ interface Binding {
 interface FunctionState {
   vararg: boolean;
   loopDepth: number;
+  /** A written Luau function, rather than the synthetic scene-flow wrapper. */
+  luau?: boolean;
 }
 
 /** What a parser reads besides its tokens: the document, for the text of Sparkdown's constructs and of strings. */
@@ -1114,6 +1116,7 @@ function deprecatedArgsErrors(attrLoc: Location, args: AstExpr[]): [Location, st
 class Parser {
   private pos = 0;
   readonly errors: LuauSyntaxError[] = [];
+  readonly sourceDependencies = new Set<string>();
   private readonly functionStack: FunctionState[] = [{ vararg: true, loopDepth: 0 }];
   private readonly localMap = new Map<string, AstLocal | undefined>();
   private readonly localStack: AstLocal[] = [];
@@ -1125,6 +1128,8 @@ class Parser {
   private typeFunctionDepth = 0;
   private readonly declaredExportBindings = new Map<string, Location>();
   private hasModuleReturn = false;
+  private returnFunction?: FunctionState;
+  private explicitLine?: number;
   // Not part of Luau: how many of Sparkdown's own constructs whose syntax
   // Sparkdown reports are being read (a `store` declaration, a double-quoted
   // string's interpolation; see `report`), the index of the token the last error was reported at, and
@@ -1191,6 +1196,13 @@ class Parser {
 
   private previousLocation(): Location {
     return this.previous;
+  }
+
+  /** Source read outside the unit's tokens must also invalidate its cached check. */
+  private recordSourceDependency(from: number, to: number): void {
+    this.sourceDependencies.add(JSON.stringify([
+      this.ctx.index.position(from), this.ctx.index.position(to), this.ctx.text.slice(from, to),
+    ]));
   }
 
   private is(text: string, token = this.current()): boolean {
@@ -1485,14 +1497,14 @@ class Parser {
     return result;
   }
 
-  private parseBlock(): AstStatBlock {
+  private parseBlock(begin?: Token, closer = "end"): AstStatBlock {
     const localsBegin = this.saveLocals();
-    const result = this.parseBlockNoScope();
+    const result = this.parseBlockNoScope(begin, closer);
     this.restoreLocals(localsBegin);
     return result;
   }
 
-  private parseBlockNoScope(): AstStatBlock {
+  private parseBlockNoScope(begin?: Token, closer = "end"): AstStatBlock {
     const body: AstStat[] = [];
     const prevPosition = this.previousLocation().end;
     this.blockDepth++;
@@ -1566,6 +1578,44 @@ class Parser {
       else followerLine = inRecovery && !semicolon && this.tokens[this.pos - 1]?.text !== ";" ? this.previousLocation().end.line : undefined;
       body.push(stat);
       if (record) this.statements.push({ statement: stat, first, end: this.pos });
+      // Keep reading for Sparkdown's block ownership and unreachable lint,
+      // while reporting the token where Luau requires this block to close.
+      // The scene-flow wrapper is synthetic: a marked statement there
+      // covers one story line. Written Luau functions require final returns,
+      // including statements marked with `&` in their nested blocks.
+      const returned = stat instanceof AstStatSparkdownExplicit ? stat.statement : stat;
+      if (begin && returned instanceof AstStatReturn && this.currentFunction().luau) {
+        while (this.current().kind === "break" && !this.current().story) this.next();
+        const following = this.pos;
+        if (this.current().kind === "mark") this.next();
+        if (!this.blockFollow(this.current())) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
+        this.pos = following;
+      } else if (returned instanceof AstStatReturn && this.reports === reportsBefore &&
+        (stat instanceof AstStatSparkdownExplicit || this.explicitLine === returned.location.begin.line)) {
+        // A story discard line is its own Luau island; later prose or a
+        // new marked line is outside it, but a same-line follower is not.
+        // The grammar can leave the optional semicolon and its follower
+        // as story, so read only the remaining text on this same line.
+        const line = this.ctx.index instanceof UnitLineIndex
+          ? this.ctx.index.lines[returned.location.end.line]!
+          : returned.location.end.line;
+        const from = this.ctx.index.starts[line]! + returned.location.end.column;
+        const newline = this.ctx.text.indexOf("\n", from);
+        const to = newline < 0 ? this.ctx.text.length : newline;
+        this.recordSourceDependency(from, to);
+        const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
+        tokenizer.lex(from, to);
+        const follower = tokenizer.tokens[tokenizer.tokens[0]?.text === ";" ? 1 : 0];
+        const nested = begin && !(stat instanceof AstStatSparkdownExplicit);
+        const closes = nested && follower && (this.is(closer, follower) ||
+          (begin.text === "then" && (this.is("else", follower) || this.is("elseif", follower))));
+        if (follower && follower.kind !== "eof" && !closes) {
+          this.withTokens([follower], follower.location, () => {
+            if (nested) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
+            else this.report(follower.location, `Expected <eof>, got ${describe(follower)}`, "statement");
+          });
+        }
+      }
       // Not part of Luau, whose parser ends a block at a `return`, `break` or
       // `continue` (marked with `&` or not): Sparkdown reads the statements
       // after one as its block's, never run, and the unreachable-code lint
@@ -1657,7 +1707,14 @@ class Parser {
     if (this.blockFollow(this.current())) {
       return this.reportStatError(mark, [], [], `Expected a statement after '&', got ${describe(this.current())}`);
     }
-    const statement = this.parseStat();
+    const outerLine = this.explicitLine;
+    this.explicitLine = mark.begin.line;
+    let statement: AstStat;
+    try {
+      statement = this.parseStat();
+    } finally {
+      this.explicitLine = outerLine;
+    }
     return new AstStatSparkdownExplicit(Location.span(mark, statement.location), statement, mark);
   }
 
@@ -1872,7 +1929,7 @@ class Parser {
     const matchThen = this.current();
     let thenLocation: Location | undefined;
     if (this.expectAndConsume("then", "if statement")) thenLocation = matchThen.location;
-    const thenbody = this.parseBlock();
+    const thenbody = this.parseBlock(matchThen);
 
     let elsebody: AstStat | undefined;
     let end = start;
@@ -1892,7 +1949,7 @@ class Parser {
         elseLocation = this.current().location;
         matchThenElse = this.current();
         this.next();
-        const elseBlock = this.parseBlock();
+        const elseBlock = this.parseBlock(matchThenElse);
         elseBlock.location = new Location(matchThenElse.location.end, elseBlock.location.end);
         elsebody = elseBlock;
       }
@@ -1911,7 +1968,7 @@ class Parser {
     const matchDo = this.current();
     const hasDo = this.expectAndConsume("do", "while loop");
     this.currentFunction().loopDepth++;
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchDo);
     this.currentFunction().loopDepth--;
     const end = this.current().location;
     body.hasEnd = this.expectMatchEndAndConsume("end", matchDo);
@@ -1924,7 +1981,7 @@ class Parser {
     this.next();
     const localsBegin = this.saveLocals();
     this.currentFunction().loopDepth++;
-    const body = this.parseBlockNoScope();
+    const body = this.parseBlockNoScope(matchRepeat, "until");
     this.currentFunction().loopDepth--;
     body.hasEnd = this.expectMatchEndAndConsume("until", matchRepeat);
     const cond = this.parseExpr();
@@ -1936,7 +1993,7 @@ class Parser {
     const start = this.current().location;
     const matchDo = this.current();
     this.next();
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchDo);
     body.location = new Location(start.begin, body.location.end);
     const endLocation = this.current().location;
     body.hasEnd = this.expectMatchEndAndConsume("end", matchDo);
@@ -1976,7 +2033,7 @@ class Parser {
       const localsBegin = this.saveLocals();
       this.currentFunction().loopDepth++;
       const variable = this.pushLocal(varname);
-      const body = this.parseBlock();
+      const body = this.parseBlock(matchDo);
       this.currentFunction().loopDepth--;
       this.restoreLocals(localsBegin);
       const end = this.current().location;
@@ -1997,7 +2054,7 @@ class Parser {
     const localsBegin = this.saveLocals();
     this.currentFunction().loopDepth++;
     const vars = names.map((name) => this.pushLocal(name));
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchDo);
     this.currentFunction().loopDepth--;
     this.restoreLocals(localsBegin);
     const end = this.current().location;
@@ -2097,7 +2154,13 @@ class Parser {
     const start = this.current().location;
     this.next();
     const list: AstExpr[] = [];
-    if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
+    const outerReturn = this.returnFunction;
+    this.returnFunction = this.currentFunction().luau ? this.currentFunction() : undefined;
+    try {
+      if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
+    } finally {
+      this.returnFunction = outerReturn;
+    }
     const end = list.length === 0 ? start : list[list.length - 1]!.location;
     const node = new AstStatReturn(Location.span(start, end), list);
     if (this.functionStack.length === 1) {
@@ -2194,11 +2257,11 @@ class Parser {
     if (localName) funLocal = this.pushLocal({ name: localName, annotation: undefined, isConst });
 
     const localsBegin = this.saveLocals();
-    this.functionStack.push({ vararg, loopDepth: 0 });
+    this.functionStack.push({ vararg, loopDepth: 0, luau: matchFunction.from < matchFunction.to });
     let self: AstLocal | undefined;
     if (hasself) self = this.pushLocal({ name: { name: "self", location: start }, annotation: undefined, isConst: false });
     const vars = args.map((arg) => this.pushLocal(arg));
-    const body = this.parseBlock();
+    const body = this.parseBlock(matchFunction);
     this.functionStack.pop();
     this.restoreLocals(localsBegin);
 
@@ -2771,6 +2834,9 @@ class Parser {
   }
 
   parseExpr(limit = 0): AstExpr {
+    // A redundant discard mark on a later function-body line cannot cut
+    // short the multiline expression that this return is still reading.
+    if (this.returnFunction === this.currentFunction() && this.current().kind === "mark" && this.current().location.begin.line > this.previousLocation().end.line) this.next();
     const oldRecursionCount = this.recursionCounter;
     this.incrementRecursionCounter("expression");
     const start = this.current().location;
@@ -3372,7 +3438,7 @@ function readUnit(
   const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements };
   if (lines) {
     unit.lines = lines;
-    unit.key = unitKey(tokenizer, start, eof);
+    unit.key = unitKey(tokenizer, start, eof, parser.sourceDependencies);
   }
   return unit;
 }
@@ -3400,9 +3466,10 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
  * `run` file, where its Luau ends (an error at the end is placed there),
  * each token's kind, unit location and text, with the shape of the tree
  * under a token read from a node (a string's interpolations, a Sparkdown
- * construct's parts), and each `--!` comment.
+ * construct's parts), each `--!` comment, and bounded source reads outside
+ * those tokens that affect the parsed unit.
  */
-function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined): string {
+function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined, sourceDependencies: ReadonlySet<string>): string {
   const parts: string[] = [`start ${start}`, `eof ${eof ?? "-"}`];
   for (const token of tokenizer.tokens) {
     // A break ends a statement wherever it stands and whatever it says.
@@ -3414,6 +3481,7 @@ function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefine
     if (token.node) parts.push(nodeShape(token.node));
   }
   for (const comment of tokenizer.hotcomments) parts.push(`--! ${comment.header} ${comment.location.begin}-${comment.location.end} ${comment.content}`);
+  for (const dependency of sourceDependencies) parts.push(`source ${dependency}`);
   return parts.join("\n");
 }
 
