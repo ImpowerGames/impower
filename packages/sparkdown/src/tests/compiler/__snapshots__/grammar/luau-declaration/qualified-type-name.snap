@@ -36,15 +36,21 @@ sparkdown [0..328]
  │   │   │   │       │   └─ LuauTypeLiteral [17..29]
  │   │   │   │       │       ├─ LuauTypeLiteral_begin 17
  │   │   │   │       │       ├─ LuauTypeLiteral_content [17..29]
- │   │   │   │       │       │   └─ LuauTypeName [17..29]
- │   │   │   │       │       │       ├─ LuauTypeName_c1 [17..22]
- │   │   │   │       │       │       │   └─ LuauVariableName [17..22]: "types"
- │   │   │   │       │       │       ├─ LuauTypeName_c2 [22..23]
- │   │   │   │       │       │       │   └─ LuauAccessorOperator [22..23]: "."
- │   │   │   │       │       │       ├─ LuauTypeName_c3 [23..29]: "Button"
- │   │   │   │       │       │       ├─ LuauTypeName_c4 29
- │   │   │   │       │       │       ├─ LuauTypeName_c5 29
- │   │   │   │       │       │       └─ LuauTypeName_c6 29
+ │   │   │   │       │       │   └─ LuauNamedTypeReference [17..29]
+ │   │   │   │       │       │       ├─ LuauNamedTypeReference_begin [17..29]
+ │   │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [17..29]
+ │   │   │   │       │       │       │   │   └─ LuauTypeName [17..29]
+ │   │   │   │       │       │       │   │       ├─ LuauTypeName_c1 [17..22]
+ │   │   │   │       │       │       │   │       │   └─ LuauVariableName [17..22]: "types"
+ │   │   │   │       │       │       │   │       ├─ LuauTypeName_c2 [22..23]
+ │   │   │   │       │       │       │   │       │   └─ LuauAccessorOperator [22..23]: "."
+ │   │   │   │       │       │       │   │       ├─ LuauTypeName_c3 [23..29]: "Button"
+ │   │   │   │       │       │       │   │       ├─ LuauTypeName_c4 29
+ │   │   │   │       │       │       │   │       ├─ LuauTypeName_c5 29
+ │   │   │   │       │       │       │   │       └─ LuauTypeName_c6 29
+ │   │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 29
+ │   │   │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 29
+ │   │   │   │       │       │       └─ LuauNamedTypeReference_end 29
  │   │   │   │       │       └─ LuauTypeLiteral_end 29
  │   │   │   │       └─ LuauTypeAnnotationOperation_end 29
  │   │   │   └─ LuauFunctionParameters_end [29..30]
@@ -85,17 +91,23 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [42..55]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 42
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [42..55]
- │   │       │   │   │       │   │   │       │   └─ LuauTypeName [42..55]
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c1 [42..47]
- │   │       │   │   │       │   │   │       │       │   └─ LuauVariableName [42..47]: "types"
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c2 [47..48]
- │   │       │   │   │       │   │   │       │       │   └─ LuauAccessorOperator [47..48]: "."
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c3 [48..54]: "Button"
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c4 54
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c5 [54..55]
- │   │       │   │   │       │   │   │       │       │   └─ LuauTypeName_c5 [54..55]
- │   │       │   │   │       │   │   │       │       │       └─ OptionalWhitespace [54..55]: " "
- │   │       │   │   │       │   │   │       │       └─ LuauTypeName_c6 55
+ │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeReference [42..55]
+ │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_begin [42..55]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [42..54]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeName [42..54]
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c1 [42..47]
+ │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauVariableName [42..47]: "types"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c2 [47..48]
+ │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauAccessorOperator [47..48]: "."
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c3 [48..54]: "Button"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c4 54
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c5 54
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauTypeName_c6 54
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [54..55]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [54..55]
+ │   │       │   │   │       │   │   │       │       │   │       └─ OptionalWhitespace [54..55]: " "
+ │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 55
+ │   │       │   │   │       │   │   │       │       └─ LuauNamedTypeReference_end 55
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 55
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 55
  │   │       │   │   │       │   └─ LuauAssignmentOperation [55..58]
@@ -160,15 +172,21 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │       │       │   ├─ LuauTypeLiteral [72..84]
  │   │       │   │   │       │   │   │       │       │   │   ├─ LuauTypeLiteral_begin 72
  │   │       │   │   │       │   │   │       │       │   │   ├─ LuauTypeLiteral_content [72..84]
- │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauTypeName [72..84]
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c1 [72..77]
- │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauVariableName [72..77]: "types"
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c2 [77..78]
- │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauAccessorOperator [77..78]: "."
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c3 [78..84]: "Button"
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c4 84
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c5 84
- │   │       │   │   │       │   │   │       │       │   │   │       └─ LuauTypeName_c6 84
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauNamedTypeReference [72..84]
+ │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauNamedTypeReference_begin [72..84]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   ├─ LuauNamedTypeReference_begin_c1 [72..84]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │   └─ LuauTypeName [72..84]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c1 [72..77]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       │   └─ LuauVariableName [72..77]: "types"
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c2 [77..78]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       │   └─ LuauAccessorOperator [77..78]: "."
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c3 [78..84]: "Button"
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c4 84
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c5 84
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       └─ LuauTypeName_c6 84
+ │   │       │   │   │       │   │   │       │       │   │   │       │   ├─ LuauNamedTypeReference_begin_c2 84
+ │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauNamedTypeReference_begin_c3 84
+ │   │       │   │   │       │   │   │       │       │   │   │       └─ LuauNamedTypeReference_end 84
  │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeLiteral_end 84
  │   │       │   │   │       │   │   │       │       │   └─ ExtraWhitespace [84..85]: " "
  │   │       │   │   │       │   │   │       │       └─ LuauTypeTableStruct_end [85..87]
@@ -252,15 +270,21 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │       │       │   ├─ LuauTypeLiteral [110..122]
  │   │       │   │   │       │   │   │       │       │   │   ├─ LuauTypeLiteral_begin 110
  │   │       │   │   │       │   │   │       │       │   │   ├─ LuauTypeLiteral_content [110..122]
- │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauTypeName [110..122]
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c1 [110..115]
- │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauVariableName [110..115]: "types"
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c2 [115..116]
- │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauAccessorOperator [115..116]: "."
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c3 [116..122]: "Button"
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c4 122
- │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeName_c5 122
- │   │       │   │   │       │   │   │       │       │   │   │       └─ LuauTypeName_c6 122
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauNamedTypeReference [110..122]
+ │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauNamedTypeReference_begin [110..122]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   ├─ LuauNamedTypeReference_begin_c1 [110..122]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │   └─ LuauTypeName [110..122]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c1 [110..115]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       │   └─ LuauVariableName [110..115]: "types"
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c2 [115..116]
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       │   └─ LuauAccessorOperator [115..116]: "."
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c3 [116..122]: "Button"
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c4 122
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       ├─ LuauTypeName_c5 122
+ │   │       │   │   │       │   │   │       │       │   │   │       │   │       └─ LuauTypeName_c6 122
+ │   │       │   │   │       │   │   │       │       │   │   │       │   ├─ LuauNamedTypeReference_begin_c2 122
+ │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauNamedTypeReference_begin_c3 122
+ │   │       │   │   │       │   │   │       │       │   │   │       └─ LuauNamedTypeReference_end 122
  │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeLiteral_end 122
  │   │       │   │   │       │   │   │       │       │   └─ ExtraWhitespace [122..123]: " "
  │   │       │   │   │       │   │   │       │       └─ LuauTypeTableStruct_end [123..125]
@@ -358,15 +382,21 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauTypeLiteral [151..163]
  │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeLiteral_begin 151
  │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeLiteral_content [151..163]
- │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauTypeName [151..163]
- │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauTypeName_c1 [151..156]
- │   │       │   │   │       │   │   │       │       │   │   │       │       │   └─ LuauVariableName [151..156]: "types"
- │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauTypeName_c2 [156..157]
- │   │       │   │   │       │   │   │       │       │   │   │       │       │   └─ LuauAccessorOperator [156..157]: "."
- │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauTypeName_c3 [157..163]: "Button"
- │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauTypeName_c4 163
- │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauTypeName_c5 163
- │   │       │   │   │       │   │   │       │       │   │   │       │       └─ LuauTypeName_c6 163
+ │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauNamedTypeReference [151..163]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauNamedTypeReference_begin [151..163]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [151..163]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │   └─ LuauTypeName [151..163]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       ├─ LuauTypeName_c1 [151..156]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       │   └─ LuauVariableName [151..156]: "types"
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       ├─ LuauTypeName_c2 [156..157]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       │   └─ LuauAccessorOperator [156..157]: "."
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       ├─ LuauTypeName_c3 [157..163]: "Button"
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       ├─ LuauTypeName_c4 163
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       ├─ LuauTypeName_c5 163
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       └─ LuauTypeName_c6 163
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 163
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 163
+ │   │       │   │   │       │   │   │       │       │   │   │       │       └─ LuauNamedTypeReference_end 163
  │   │       │   │   │       │   │   │       │       │   │   │       └─ LuauTypeLiteral_end 163
  │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeAnnotationOperation_end 163
  │   │       │   │   │       │   │   │       │       │   ├─ LuauCommaSeparator [163..165]
@@ -395,10 +425,16 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauTypeLiteral [168..174]
  │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeLiteral_begin 168
  │   │       │   │   │       │   │   │       │       │   │   │       ├─ LuauTypeLiteral_content [168..174]
- │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauPrimitiveType [168..174]
- │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauPrimitiveType_c1 [168..174]: "number"
- │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauPrimitiveType_c2 174
- │   │       │   │   │       │   │   │       │       │   │   │       │       └─ LuauPrimitiveType_c3 174
+ │   │       │   │   │       │   │   │       │       │   │   │       │   └─ LuauNamedTypeReference [168..174]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       ├─ LuauNamedTypeReference_begin [168..174]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [168..174]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │   └─ LuauPrimitiveType [168..174]
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [168..174]: "number"
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 174
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   │       └─ LuauPrimitiveType_c3 174
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 174
+ │   │       │   │   │       │   │   │       │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 174
+ │   │       │   │   │       │   │   │       │       │   │   │       │       └─ LuauNamedTypeReference_end 174
  │   │       │   │   │       │   │   │       │       │   │   │       └─ LuauTypeLiteral_end 174
  │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeAnnotationOperation_end 174
  │   │       │   │   │       │   │   │       │       │   └─ ExtraWhitespace [174..175]: " "
@@ -536,33 +572,44 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [207..226]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 207
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [207..226]
- │   │       │   │   │       │   │   │       │   ├─ LuauTypeName [207..216]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c1 [207..212]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauVariableName [207..212]: "types"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c2 [212..213]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAccessorOperator [212..213]: "."
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c3 [213..216]: "Foo"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c4 216
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c5 216
- │   │       │   │   │       │   │   │       │   │   └─ LuauTypeName_c6 216
- │   │       │   │   │       │   │   │       │   ├─ LuauTypeGenerics [216..224]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeGenerics_begin [216..217]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauTypeGenerics_begin_c1 [216..217]
- │   │       │   │   │       │   │   │       │   │   │       └─ PunctuationAngleOpen [216..217]: "<"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeGenerics_content [217..223]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [217..223]
- │   │       │   │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 217
- │   │       │   │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [217..223]
- │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauPrimitiveType [217..223]
- │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauPrimitiveType_c1 [217..223]: "number"
- │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauPrimitiveType_c2 223
- │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauPrimitiveType_c3 223
- │   │       │   │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 223
- │   │       │   │   │       │   │   │       │   │   └─ LuauTypeGenerics_end [223..224]
- │   │       │   │   │       │   │   │       │   │       ├─ LuauTypeGenerics_end_c1 [223..224]
- │   │       │   │   │       │   │   │       │   │       │   └─ PunctuationAngleClose [223..224]: ">"
- │   │       │   │   │       │   │   │       │   │       ├─ LuauTypeGenerics_end_c2 224
- │   │       │   │   │       │   │   │       │   │       └─ LuauTypeGenerics_end_c3 224
+ │   │       │   │   │       │   │   │       │   ├─ LuauNamedTypeReference [207..224]
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauNamedTypeReference_begin [207..216]
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauNamedTypeReference_begin_c1 [207..216]
+ │   │       │   │   │       │   │   │       │   │   │   │   └─ LuauTypeName [207..216]
+ │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauTypeName_c1 [207..212]
+ │   │       │   │   │       │   │   │       │   │   │   │       │   └─ LuauVariableName [207..212]: "types"
+ │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauTypeName_c2 [212..213]
+ │   │       │   │   │       │   │   │       │   │   │   │       │   └─ LuauAccessorOperator [212..213]: "."
+ │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauTypeName_c3 [213..216]: "Foo"
+ │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauTypeName_c4 216
+ │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauTypeName_c5 216
+ │   │       │   │   │       │   │   │       │   │   │   │       └─ LuauTypeName_c6 216
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauNamedTypeReference_begin_c2 216
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauNamedTypeReference_begin_c3 216
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauNamedTypeReference_content [216..224]
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauNamedTypeArguments [216..224]
+ │   │       │   │   │       │   │   │       │   │   │       ├─ LuauNamedTypeArguments_begin [216..217]
+ │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeArguments_begin_c1 [216..217]
+ │   │       │   │   │       │   │   │       │   │   │       │       └─ PunctuationAngleOpen [216..217]: "<"
+ │   │       │   │   │       │   │   │       │   │   │       ├─ LuauNamedTypeArguments_content [217..223]
+ │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauTypeLiteral [217..223]
+ │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauTypeLiteral_begin 217
+ │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauTypeLiteral_content [217..223]
+ │   │       │   │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference [217..223]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       ├─ LuauNamedTypeReference_begin [217..223]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [217..223]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   │   └─ LuauPrimitiveType [217..223]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c1 [217..223]: "number"
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c2 223
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   │       └─ LuauPrimitiveType_c3 223
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 223
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 223
+ │   │       │   │   │       │   │   │       │   │   │       │       │       └─ LuauNamedTypeReference_end 223
+ │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauTypeLiteral_end 223
+ │   │       │   │   │       │   │   │       │   │   │       └─ LuauNamedTypeArguments_end [223..224]
+ │   │       │   │   │       │   │   │       │   │   │           └─ LuauNamedTypeArguments_end_c1 [223..224]
+ │   │       │   │   │       │   │   │       │   │   │               └─ PunctuationAngleClose [223..224]: ">"
+ │   │       │   │   │       │   │   │       │   │   └─ LuauNamedTypeReference_end 224
  │   │       │   │   │       │   │   │       │   └─ LuauTypeOptionalOperator [224..226]
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c1 224
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c2 [224..225]: "?"
@@ -624,17 +671,23 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [243..257]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 243
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [243..257]
- │   │       │   │   │       │   │   │       │   └─ LuauTypeName [243..257]
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c1 [243..249]
- │   │       │   │   │       │   │   │       │       │   └─ LuauVariableName [243..249]: "string"
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c2 [249..250]
- │   │       │   │   │       │   │   │       │       │   └─ LuauAccessorOperator [249..250]: "."
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c3 [250..256]: "Button"
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c4 256
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c5 [256..257]
- │   │       │   │   │       │   │   │       │       │   └─ LuauTypeName_c5 [256..257]
- │   │       │   │   │       │   │   │       │       │       └─ OptionalWhitespace [256..257]: " "
- │   │       │   │   │       │   │   │       │       └─ LuauTypeName_c6 257
+ │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeReference [243..257]
+ │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_begin [243..257]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [243..256]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeName [243..256]
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c1 [243..249]
+ │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauVariableName [243..249]: "string"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c2 [249..250]
+ │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauAccessorOperator [249..250]: "."
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c3 [250..256]: "Button"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c4 256
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c5 256
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauTypeName_c6 256
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [256..257]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [256..257]
+ │   │       │   │   │       │   │   │       │       │   │       └─ OptionalWhitespace [256..257]: " "
+ │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 257
+ │   │       │   │   │       │   │   │       │       └─ LuauNamedTypeReference_end 257
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 257
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 257
  │   │       │   │   │       │   └─ LuauAssignmentOperation [257..260]
@@ -690,19 +743,25 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [272..287]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 272
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [272..287]
- │   │       │   │   │       │   │   │       │   └─ LuauTypeName [272..287]
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c1 [272..277]
- │   │       │   │   │       │   │   │       │       │   └─ LuauVariableName [272..277]: "types"
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c2 [277..280]
- │   │       │   │   │       │   │   │       │       │   ├─ Whitespace [277..278]: " "
- │   │       │   │   │       │   │   │       │       │   ├─ LuauAccessorOperator [278..279]: "."
- │   │       │   │   │       │   │   │       │       │   └─ Whitespace [279..280]: " "
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c3 [280..286]: "Button"
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c4 286
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c5 [286..287]
- │   │       │   │   │       │   │   │       │       │   └─ LuauTypeName_c5 [286..287]
- │   │       │   │   │       │   │   │       │       │       └─ OptionalWhitespace [286..287]: " "
- │   │       │   │   │       │   │   │       │       └─ LuauTypeName_c6 287
+ │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeReference [272..287]
+ │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_begin [272..287]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [272..286]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauTypeName [272..286]
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c1 [272..277]
+ │   │       │   │   │       │   │   │       │       │   │       │   └─ LuauVariableName [272..277]: "types"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c2 [277..280]
+ │   │       │   │   │       │   │   │       │       │   │       │   ├─ Whitespace [277..278]: " "
+ │   │       │   │   │       │   │   │       │       │   │       │   ├─ LuauAccessorOperator [278..279]: "."
+ │   │       │   │   │       │   │   │       │       │   │       │   └─ Whitespace [279..280]: " "
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c3 [280..286]: "Button"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c4 286
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauTypeName_c5 286
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauTypeName_c6 286
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [286..287]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [286..287]
+ │   │       │   │   │       │   │   │       │       │   │       └─ OptionalWhitespace [286..287]: " "
+ │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 287
+ │   │       │   │   │       │   │   │       │       └─ LuauNamedTypeReference_end 287
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 287
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 287
  │   │       │   │   │       │   └─ LuauAssignmentOperation [287..290]
@@ -758,11 +817,18 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [302..309]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 302
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [302..309]
- │   │       │   │   │       │   │   │       │   └─ LuauPrimitiveType [302..309]
- │   │       │   │   │       │   │   │       │       ├─ LuauPrimitiveType_c1 [302..308]: "number"
- │   │       │   │   │       │   │   │       │       ├─ LuauPrimitiveType_c2 [308..309]
- │   │       │   │   │       │   │   │       │       │   └─ OptionalWhitespace [308..309]: " "
- │   │       │   │   │       │   │   │       │       └─ LuauPrimitiveType_c3 309
+ │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeReference [302..309]
+ │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_begin [302..309]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [302..308]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauPrimitiveType [302..308]
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [302..308]: "number"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 308
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauPrimitiveType_c3 308
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [308..309]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [308..309]
+ │   │       │   │   │       │   │   │       │       │   │       └─ OptionalWhitespace [308..309]: " "
+ │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 309
+ │   │       │   │   │       │   │   │       │       └─ LuauNamedTypeReference_end 309
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 309
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 309
  │   │       │   │   │       │   └─ LuauAssignmentOperation [309..312]

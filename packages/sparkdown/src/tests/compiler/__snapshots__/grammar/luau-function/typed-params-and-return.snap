@@ -36,10 +36,16 @@ sparkdown [0..150]
      │   │   │   │   │   └─ LuauTypeLiteral [32..38]
      │   │   │   │   │       ├─ LuauTypeLiteral_begin 32
      │   │   │   │   │       ├─ LuauTypeLiteral_content [32..38]
-     │   │   │   │   │       │   └─ LuauPrimitiveType [32..38]
-     │   │   │   │   │       │       ├─ LuauPrimitiveType_c1 [32..38]: "number"
-     │   │   │   │   │       │       ├─ LuauPrimitiveType_c2 38
-     │   │   │   │   │       │       └─ LuauPrimitiveType_c3 38
+     │   │   │   │   │       │   └─ LuauNamedTypeReference [32..38]
+     │   │   │   │   │       │       ├─ LuauNamedTypeReference_begin [32..38]
+     │   │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [32..38]
+     │   │   │   │   │       │       │   │   └─ LuauPrimitiveType [32..38]
+     │   │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [32..38]: "number"
+     │   │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 38
+     │   │   │   │   │       │       │   │       └─ LuauPrimitiveType_c3 38
+     │   │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 38
+     │   │   │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 38
+     │   │   │   │   │       │       └─ LuauNamedTypeReference_end 38
      │   │   │   │   │       └─ LuauTypeLiteral_end 38
      │   │   │   │   └─ LuauTypeAnnotationOperation_end 38
      │   │   │   ├─ LuauCommaSeparator [38..40]
@@ -64,10 +70,16 @@ sparkdown [0..150]
      │   │   │       │   └─ LuauTypeLiteral [46..52]
      │   │   │       │       ├─ LuauTypeLiteral_begin 46
      │   │   │       │       ├─ LuauTypeLiteral_content [46..52]
-     │   │   │       │       │   └─ LuauPrimitiveType [46..52]
-     │   │   │       │       │       ├─ LuauPrimitiveType_c1 [46..52]: "string"
-     │   │   │       │       │       ├─ LuauPrimitiveType_c2 52
-     │   │   │       │       │       └─ LuauPrimitiveType_c3 52
+     │   │   │       │       │   └─ LuauNamedTypeReference [46..52]
+     │   │   │       │       │       ├─ LuauNamedTypeReference_begin [46..52]
+     │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [46..52]
+     │   │   │       │       │       │   │   └─ LuauPrimitiveType [46..52]
+     │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c1 [46..52]: "string"
+     │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c2 52
+     │   │   │       │       │       │   │       └─ LuauPrimitiveType_c3 52
+     │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 52
+     │   │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 52
+     │   │   │       │       │       └─ LuauNamedTypeReference_end 52
      │   │   │       │       └─ LuauTypeLiteral_end 52
      │   │   │       └─ LuauTypeAnnotationOperation_end 52
      │   │   └─ LuauFunctionParameters_end [52..53]
@@ -84,11 +96,18 @@ sparkdown [0..150]
      │   │   │   └─ LuauTypeLiteral [55..62]
      │   │   │       ├─ LuauTypeLiteral_begin 55
      │   │   │       ├─ LuauTypeLiteral_content [55..62]
-     │   │   │       │   ├─ LuauPrimitiveType [55..61]
-     │   │   │       │   │   ├─ LuauPrimitiveType_c1 [55..61]: "string"
-     │   │   │       │   │   ├─ LuauPrimitiveType_c2 61
-     │   │   │       │   │   └─ LuauPrimitiveType_c3 61
-     │   │   │       │   └─ Newline [61..62]: "\n"
+     │   │   │       │   └─ LuauNamedTypeReference [55..62]
+     │   │   │       │       ├─ LuauNamedTypeReference_begin [55..61]
+     │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [55..61]
+     │   │   │       │       │   │   └─ LuauPrimitiveType [55..61]
+     │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [55..61]: "string"
+     │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 61
+     │   │   │       │       │   │       └─ LuauPrimitiveType_c3 61
+     │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 61
+     │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 61
+     │   │   │       │       ├─ LuauNamedTypeReference_content [61..62]
+     │   │   │       │       │   └─ Newline [61..62]: "\n"
+     │   │   │       │       └─ LuauNamedTypeReference_end 62
      │   │   │       └─ LuauTypeLiteral_end 62
      │   │   └─ LuauFunctionReturnType_end 62
      │   └─ LuauFunctionBody [62..147]

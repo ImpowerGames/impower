@@ -263,8 +263,8 @@ describe("the reported layouts", () => {
     ]],
     // A bracket left open is read as statements up to the one that closes
     // it, and no further.
-    ["function f()\n  local x: {\n    bar\n    baz\n  } = {}\n  2\nend", ["5:2-5:3 Expected identifier when parsing expression, got '2'"]],
-    ["function f()\n  local x: {\n    bar\n    baz\n    qux\n  } = {}\n  2\nend", ["6:2-6:3 Expected identifier when parsing expression, got '2'"]],
+    ["function f()\n  local x: {\n    bar\n    baz\n  } = {}\n  2\nend", ["3:4-3:7 Expected '}' (to close '{' at line 2), got 'baz'", "5:2-5:3 Expected identifier when parsing expression, got '2'"]],
+    ["function f()\n  local x: {\n    bar\n    baz\n    qux\n  } = {}\n  2\nend", ["3:4-3:7 Expected '}' (to close '{' at line 2), got 'baz'", "6:2-6:3 Expected identifier when parsing expression, got '2'"]],
     // Sparkdown's rule that a name after `.` stands on its line is not the
     // next line's mistake.
     ["function f(t)\n  local a = t.\n  b local z = 1 +;\nend", [

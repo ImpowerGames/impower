@@ -36,10 +36,16 @@ sparkdown [0..124]
      │   │   │       │   └─ LuauTypeLiteral [19..25]
      │   │   │       │       ├─ LuauTypeLiteral_begin 19
      │   │   │       │       ├─ LuauTypeLiteral_content [19..25]
-     │   │   │       │       │   └─ LuauPrimitiveType [19..25]
-     │   │   │       │       │       ├─ LuauPrimitiveType_c1 [19..25]: "number"
-     │   │   │       │       │       ├─ LuauPrimitiveType_c2 25
-     │   │   │       │       │       └─ LuauPrimitiveType_c3 25
+     │   │   │       │       │   └─ LuauNamedTypeReference [19..25]
+     │   │   │       │       │       ├─ LuauNamedTypeReference_begin [19..25]
+     │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [19..25]
+     │   │   │       │       │       │   │   └─ LuauPrimitiveType [19..25]
+     │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c1 [19..25]: "number"
+     │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c2 25
+     │   │   │       │       │       │   │       └─ LuauPrimitiveType_c3 25
+     │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 25
+     │   │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 25
+     │   │   │       │       │       └─ LuauNamedTypeReference_end 25
      │   │   │       │       └─ LuauTypeLiteral_end 25
      │   │   │       └─ LuauTypeAnnotationOperation_end 25
      │   │   └─ LuauFunctionParameters_end [25..26]
@@ -104,10 +110,16 @@ sparkdown [0..124]
      │       │   │   │       │   │   │       │       │       │   │   │   └─ LuauTypeLiteral [64..70]
      │       │   │   │       │   │   │       │       │       │   │   │       ├─ LuauTypeLiteral_begin 64
      │       │   │   │       │   │   │       │       │       │   │   │       ├─ LuauTypeLiteral_content [64..70]
-     │       │   │   │       │   │   │       │       │       │   │   │       │   └─ LuauPrimitiveType [64..70]
-     │       │   │   │       │   │   │       │       │       │   │   │       │       ├─ LuauPrimitiveType_c1 [64..70]: "string"
-     │       │   │   │       │   │   │       │       │       │   │   │       │       ├─ LuauPrimitiveType_c2 70
-     │       │   │   │       │   │   │       │       │       │   │   │       │       └─ LuauPrimitiveType_c3 70
+     │       │   │   │       │   │   │       │       │       │   │   │       │   └─ LuauNamedTypeReference [64..70]
+     │       │   │   │       │   │   │       │       │       │   │   │       │       ├─ LuauNamedTypeReference_begin [64..70]
+     │       │   │   │       │   │   │       │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [64..70]
+     │       │   │   │       │   │   │       │       │       │   │   │       │       │   │   └─ LuauPrimitiveType [64..70]
+     │       │   │   │       │   │   │       │       │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [64..70]: "string"
+     │       │   │   │       │   │   │       │       │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 70
+     │       │   │   │       │   │   │       │       │       │   │   │       │       │   │       └─ LuauPrimitiveType_c3 70
+     │       │   │   │       │   │   │       │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 70
+     │       │   │   │       │   │   │       │       │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 70
+     │       │   │   │       │   │   │       │       │       │   │   │       │       └─ LuauNamedTypeReference_end 70
      │       │   │   │       │   │   │       │       │       │   │   │       └─ LuauTypeLiteral_end 70
      │       │   │   │       │   │   │       │       │       │   │   └─ LuauTypeTableIndexer_end [70..71]
      │       │   │   │       │   │   │       │       │       │   │       └─ LuauTypeTableIndexer_end_c1 [70..71]
@@ -127,10 +139,16 @@ sparkdown [0..124]
      │       │   │   │       │   │   │       │       │       │       │   └─ LuauTypeLiteral [73..79]
      │       │   │   │       │   │   │       │       │       │       │       ├─ LuauTypeLiteral_begin 73
      │       │   │   │       │   │   │       │       │       │       │       ├─ LuauTypeLiteral_content [73..79]
-     │       │   │   │       │   │   │       │       │       │       │       │   └─ LuauPrimitiveType [73..79]
-     │       │   │   │       │   │   │       │       │       │       │       │       ├─ LuauPrimitiveType_c1 [73..79]: "string"
-     │       │   │   │       │   │   │       │       │       │       │       │       ├─ LuauPrimitiveType_c2 79
-     │       │   │   │       │   │   │       │       │       │       │       │       └─ LuauPrimitiveType_c3 79
+     │       │   │   │       │   │   │       │       │       │       │       │   └─ LuauNamedTypeReference [73..79]
+     │       │   │   │       │   │   │       │       │       │       │       │       ├─ LuauNamedTypeReference_begin [73..79]
+     │       │   │   │       │   │   │       │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [73..79]
+     │       │   │   │       │   │   │       │       │       │       │       │       │   │   └─ LuauPrimitiveType [73..79]
+     │       │   │   │       │   │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [73..79]: "string"
+     │       │   │   │       │   │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 79
+     │       │   │   │       │   │   │       │       │       │       │       │       │   │       └─ LuauPrimitiveType_c3 79
+     │       │   │   │       │   │   │       │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 79
+     │       │   │   │       │   │   │       │       │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 79
+     │       │   │   │       │   │   │       │       │       │       │       │       └─ LuauNamedTypeReference_end 79
      │       │   │   │       │   │   │       │       │       │       │       └─ LuauTypeLiteral_end 79
      │       │   │   │       │   │   │       │       │       │       └─ LuauTypeAnnotationOperation_end 79
      │       │   │   │       │   │   │       │       │       └─ LuauTypeTableStruct_end [79..80]
