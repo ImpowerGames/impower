@@ -1,7 +1,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
 function compile(text: string) {
@@ -23,7 +23,7 @@ const cases = [
 
 describe("return is the final Luau statement in its block (#1298)", () => {
   it.each(cases)("reports Luau's syntax error for %s", (_name, source) => {
-    const oracle = parseLuau(source).errors[0]!;
+    const oracle = officialSyntaxErrors(source)[0]!;
     expect(oracle).toBeDefined();
     const program = compile(source + "\nBOB:\n  Hello after.\n");
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
