@@ -8,6 +8,7 @@ import type { INamedContent } from "../../../../engine/INamedContent";
 // import { Knot } from '../Knot';
 import { ParsedObject } from "../Object";
 import { ReturnType } from "../ReturnType";
+import { MultiReturnType } from "../MultiReturnType";
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { InkObject as RuntimeObject } from "../../../../engine/Object";
@@ -642,19 +643,28 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   };
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    let foundReturn: ReturnType | null = null;
+    let foundReturn: ReturnType | MultiReturnType | null = null;
+    // A scene also contains its branches, and a weave can hold function
+    // definitions. Each flow validates its own returns, rather than taking
+    // a return from a child flow and reporting it as the parent's mistake.
+    const belongsToThisFlow = (returned: ParsedObject): boolean => {
+      for (let parent = returned.parent; parent; parent = parent.parent) {
+        if (parent instanceof FlowBase) return parent === this;
+      }
+      return false;
+    };
     if (this.isFunction) {
       this.CheckForDisallowedFunctionFlowControl();
     } else if (
       this.flowLevel === FlowLevel.Knot ||
       this.flowLevel === FlowLevel.Stitch
     ) {
-      // Non-functon: Make sure knots and stitches don't attempt to use Return statement
-      foundReturn = this.Find(ReturnType)();
+      // Scenes and branches cannot return function values.
+      foundReturn = this.Find(ReturnType)(belongsToThisFlow) ?? this.Find(MultiReturnType)(belongsToThisFlow);
 
       if (foundReturn !== null) {
         this.Error(
-          `Return statements can only be used in knots that are declared as functions: == function ${this.identifier} ==`,
+          `Return statements can only be used inside a function body — found one in ${this.flowLevel === FlowLevel.Knot ? "scene" : "branch"} '${this.identifier}'.`,
           foundReturn,
         );
       }
@@ -669,12 +679,10 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       //
       // `_rootWeave` holds the Story's free-floating top-level content
       // (everything outside a `scene` / `branch` / `function`). Inkjs's
-      // `Knot` / `Stitch` checks above use `Find(ReturnType)` which
-      // would recurse into child flows; here we scope to `_rootWeave`
-      // to avoid double-flagging returns inside child functions (which
-      // are nested FlowBases that handle their own checks).
+      // Search the weave, with the same ownership predicate as child
+      // flows, so returns belonging to functions remain valid.
       if (this._rootWeave !== null) {
-        const rootReturn = this._rootWeave.Find(ReturnType)();
+        const rootReturn = this._rootWeave.Find(ReturnType)(belongsToThisFlow) ?? this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
         if (rootReturn !== null) {
           this.Error(
             `Return statements can only be used inside a function body — found one at file scope.`,

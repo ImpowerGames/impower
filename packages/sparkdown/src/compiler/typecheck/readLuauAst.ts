@@ -2116,7 +2116,11 @@ class Parser {
     const outerReturn = this.returnFunction;
     this.returnFunction = this.currentFunction().luau ? this.currentFunction() : undefined;
     try {
-      if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
+      // A narrative island ends before the story resumes. Its bare return
+      // has no value; the story boundary is not a missing expression. Luau
+      // line breaks in written functions still permit multiline values.
+      const storyEnd = this.current().kind === "break" && this.current().story;
+      if (!storyEnd && !this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
     } finally {
       this.returnFunction = outerReturn;
     }
