@@ -82,6 +82,7 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     // Upstream asserts nothing: checking a snippet with a broken annotation
     // must finish.
     name: "const_syntax_error_in_annotation",
+    malformed: "a table type must close before the second unseparated field name",
     fixture: "Fixture",
     source: `
         const foo: {

@@ -416,11 +416,18 @@ sparkdown [0..180]
  │   │       │   │   │       │       │   └─ LuauTypeLiteral [136..143]
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_begin 136
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_content [136..143]
- │   │       │   │   │       │       │       │   ├─ LuauPrimitiveType [136..142]
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c1 [136..142]: "number"
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c2 142
- │   │       │   │   │       │       │       │   │   └─ LuauPrimitiveType_c3 142
- │   │       │   │   │       │       │       │   └─ Newline [142..143]: "\n"
+ │   │       │   │   │       │       │       │   └─ LuauNamedTypeReference [136..143]
+ │   │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_begin [136..142]
+ │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [136..142]
+ │   │       │   │   │       │       │       │       │   │   └─ LuauPrimitiveType [136..142]
+ │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [136..142]: "number"
+ │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 142
+ │   │       │   │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 142
+ │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 142
+ │   │       │   │   │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 142
+ │   │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_content [142..143]
+ │   │       │   │   │       │       │       │       │   └─ Newline [142..143]: "\n"
+ │   │       │   │   │       │       │       │       └─ LuauNamedTypeReference_end 143
  │   │       │   │   │       │       │       └─ LuauTypeLiteral_end 143
  │   │       │   │   │       │       └─ LuauTypeAnnotationOperation_end 143
  │   │       │   │   │       └─ LuauVariableAssignment_end 143

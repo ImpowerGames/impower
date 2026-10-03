@@ -1,4 +1,4 @@
-text.source.sparkdown [0..586]
+text.source.sparkdown [0..703]
  ├─ meta.function.luau [0..14]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -249,19 +249,67 @@ text.source.sparkdown [0..586]
  │       ├─ punctuation.whitespace.optional.sd [553..554]: " "
  │       ├─ support.type.primitive.luau [554..560]: "string"
  │       ├─ punctuation.definition.template-expression.end.sd [560..561]: ">"
- │       ├─ punctuation.whitespace.optional.sd [561..562]: " "
+ │       ├─ punctuation.whitespace.extra.sd [561..562]: " "
  │       ├─ keyword.operator.arithmetic.luau [562..563]: "+"
  │       ├─ punctuation.whitespace.optional.sd [563..564]: " "
  │       └─ constant.numeric.decimal.luau [564..565]: "1"
  ├─ Newline [565..566]: "\n"
- ├─ meta.function.luau [566..581]
- │   └─ meta.function.body.luau [566..581]
- │       └─ meta.function.luau [566..581]
- │           ├─ punctuation.whitespace.optional.sd [566..568]: "  "
- │           ├─ keyword.control.luau [568..574]: "return"
- │           ├─ punctuation.whitespace.optional.sd [574..575]: " "
- │           └─ variable.other.readwrite.luau [575..581]: "result"
- ├─ Newline [581..582]: "\n"
- ├─ meta.function.luau [582..585]
- │   └─ keyword.control.end.luau [582..585]: "end"
- └─ Newline [585..586]: "\n"
+ ├─ meta.function.luau [566..620]
+ │   └─ meta.function.body.luau [566..620]
+ │       ├─ punctuation.whitespace.optional.sd [566..568]: "  "
+ │       ├─ storage.modifier.scope.luau [568..573]: "local"
+ │       ├─ punctuation.whitespace.optional.sd [573..574]: " "
+ │       ├─ variable.other.readwrite.luau [574..584]: "comparison"
+ │       ├─ punctuation.whitespace.optional.sd [584..585]: " "
+ │       ├─ keyword.operator.assignment.luau [585..586]: "="
+ │       ├─ punctuation.whitespace.optional.sd [586..587]: " "
+ │       ├─ variable.other.readwrite.luau [587..595]: "optional"
+ │       ├─ punctuation.whitespace.optional.sd [595..596]: " "
+ │       ├─ keyword.operator.typecast.luau [596..598]: "::"
+ │       ├─ punctuation.whitespace.optional.sd [598..599]: " "
+ │       ├─ support.type.primitive.luau [599..605]: "number"
+ │       ├─ punctuation.whitespace.optional.sd [605..606]: " "
+ │       ├─ keyword.operator.type.luau [606..607]: "|"
+ │       ├─ punctuation.whitespace.optional.sd [607..608]: " "
+ │       ├─ support.type.primitive.luau [608..614]: "string"
+ │       ├─ punctuation.whitespace.extra.sd [614..615]: " "
+ │       ├─ keyword.operator.comparison.luau [615..617]: "<="
+ │       ├─ punctuation.whitespace.optional.sd [617..618]: " "
+ │       └─ constant.numeric.decimal.luau [618..620]: "55"
+ ├─ Newline [620..621]: "\n"
+ ├─ meta.function.luau [621..682]
+ │   └─ meta.function.body.luau [621..682]
+ │       ├─ punctuation.whitespace.optional.sd [621..623]: "  "
+ │       ├─ storage.modifier.scope.luau [623..628]: "local"
+ │       ├─ punctuation.whitespace.optional.sd [628..629]: " "
+ │       ├─ variable.other.readwrite.luau [629..645]: "closedComparison"
+ │       ├─ punctuation.whitespace.optional.sd [645..646]: " "
+ │       ├─ keyword.operator.assignment.luau [646..647]: "="
+ │       ├─ punctuation.whitespace.optional.sd [647..648]: " "
+ │       ├─ variable.other.readwrite.luau [648..656]: "optional"
+ │       ├─ punctuation.whitespace.optional.sd [656..657]: " "
+ │       ├─ keyword.operator.typecast.luau [657..659]: "::"
+ │       ├─ punctuation.whitespace.optional.sd [659..660]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [660..661]: "("
+ │       ├─ support.type.primitive.luau [661..667]: "number"
+ │       ├─ punctuation.whitespace.optional.sd [667..668]: " "
+ │       ├─ keyword.operator.type.luau [668..669]: "|"
+ │       ├─ punctuation.whitespace.optional.sd [669..670]: " "
+ │       ├─ support.type.primitive.luau [670..676]: "string"
+ │       ├─ punctuation.definition.template-expression.end.sd [676..677]: ")"
+ │       ├─ punctuation.whitespace.extra.sd [677..678]: " "
+ │       ├─ keyword.operator.comparison.luau [678..679]: "<"
+ │       ├─ punctuation.whitespace.optional.sd [679..680]: " "
+ │       └─ constant.numeric.decimal.luau [680..682]: "55"
+ ├─ Newline [682..683]: "\n"
+ ├─ meta.function.luau [683..698]
+ │   └─ meta.function.body.luau [683..698]
+ │       └─ meta.function.luau [683..698]
+ │           ├─ punctuation.whitespace.optional.sd [683..685]: "  "
+ │           ├─ keyword.control.luau [685..691]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [691..692]: " "
+ │           └─ variable.other.readwrite.luau [692..698]: "result"
+ ├─ Newline [698..699]: "\n"
+ ├─ meta.function.luau [699..702]
+ │   └─ keyword.control.end.luau [699..702]: "end"
+ └─ Newline [702..703]: "\n"

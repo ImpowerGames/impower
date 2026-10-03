@@ -33,34 +33,42 @@ sparkdown [0..415]
  │   │   │   │   └─ LuauTypeLiteral [14..32]
  │   │   │   │       ├─ LuauTypeLiteral_begin 14
  │   │   │   │       ├─ LuauTypeLiteral_content [14..32]
- │   │   │   │       │   ├─ LuauPrimitiveType [14..21]
- │   │   │   │       │   │   ├─ LuauPrimitiveType_c1 [14..20]: "number"
- │   │   │   │       │   │   ├─ LuauPrimitiveType_c2 [20..21]
- │   │   │   │       │   │   │   └─ OptionalWhitespace [20..21]: " "
- │   │   │   │       │   │   └─ LuauPrimitiveType_c3 21
- │   │   │   │       │   └─ LuauTypeTrailingBlockComment [21..32]
- │   │   │   │       │       ├─ LuauTypeTrailingBlockComment_begin [21..25]
- │   │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 21
- │   │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [21..24]
- │   │   │   │       │       │   │   └─ LuauCommentMark [21..24]: "--["
- │   │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 24
- │   │   │   │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [24..25]
- │   │   │   │       │       │       └─ LuauCommentMark [24..25]: "["
- │   │   │   │       │       ├─ LuauTypeTrailingBlockComment_content [25..30]
- │   │   │   │       │       │   ├─ LuauBlockCommentContent [25..26]: "a"
- │   │   │   │       │       │   ├─ Newline [26..27]: "\n"
- │   │   │   │       │       │   ├─ LuauBlockCommentContent [27..28]: " "
- │   │   │   │       │       │   ├─ LuauBlockCommentContent [28..29]: " "
- │   │   │   │       │       │   └─ LuauBlockCommentContent [29..30]: "b"
- │   │   │   │       │       └─ LuauTypeTrailingBlockComment_end [30..32]
- │   │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c1 [30..31]
- │   │   │   │       │           │   └─ LuauCommentMark [30..31]: "]"
- │   │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c2 31
- │   │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c3 [31..32]
- │   │   │   │       │           │   └─ LuauCommentMark [31..32]: "]"
- │   │   │   │       │           └─ LuauTypeTrailingBlockComment_end_c4 32
- │   │   │   │       │               └─ LuauTypeTrailingBlockComment_end_c4 32
- │   │   │   │       │                   └─ OptionalWhitespace 32
+ │   │   │   │       │   └─ LuauNamedTypeReference [14..32]
+ │   │   │   │       │       ├─ LuauNamedTypeReference_begin [14..21]
+ │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [14..20]
+ │   │   │   │       │       │   │   └─ LuauPrimitiveType [14..20]
+ │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [14..20]: "number"
+ │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 20
+ │   │   │   │       │       │   │       └─ LuauPrimitiveType_c3 20
+ │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [20..21]
+ │   │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [20..21]
+ │   │   │   │       │       │   │       └─ OptionalWhitespace [20..21]: " "
+ │   │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 21
+ │   │   │   │       │       ├─ LuauNamedTypeReference_content [21..32]
+ │   │   │   │       │       │   └─ LuauTypeTrailingBlockComment [21..32]
+ │   │   │   │       │       │       ├─ LuauTypeTrailingBlockComment_begin [21..25]
+ │   │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 21
+ │   │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [21..24]
+ │   │   │   │       │       │       │   │   └─ LuauCommentMark [21..24]: "--["
+ │   │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 24
+ │   │   │   │       │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [24..25]
+ │   │   │   │       │       │       │       └─ LuauCommentMark [24..25]: "["
+ │   │   │   │       │       │       ├─ LuauTypeTrailingBlockComment_content [25..30]
+ │   │   │   │       │       │       │   ├─ LuauBlockCommentContent [25..26]: "a"
+ │   │   │   │       │       │       │   ├─ Newline [26..27]: "\n"
+ │   │   │   │       │       │       │   ├─ LuauBlockCommentContent [27..28]: " "
+ │   │   │   │       │       │       │   ├─ LuauBlockCommentContent [28..29]: " "
+ │   │   │   │       │       │       │   └─ LuauBlockCommentContent [29..30]: "b"
+ │   │   │   │       │       │       └─ LuauTypeTrailingBlockComment_end [30..32]
+ │   │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c1 [30..31]
+ │   │   │   │       │       │           │   └─ LuauCommentMark [30..31]: "]"
+ │   │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c2 31
+ │   │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c3 [31..32]
+ │   │   │   │       │       │           │   └─ LuauCommentMark [31..32]: "]"
+ │   │   │   │       │       │           └─ LuauTypeTrailingBlockComment_end_c4 32
+ │   │   │   │       │       │               └─ LuauTypeTrailingBlockComment_end_c4 32
+ │   │   │   │       │       │                   └─ OptionalWhitespace 32
+ │   │   │   │       │       └─ LuauNamedTypeReference_end 32
  │   │   │   │       └─ LuauTypeLiteral_end 32
  │   │   │   └─ LuauFunctionReturnType_end 32
  │   │   └─ LuauFunctionBody [32..322]
@@ -124,34 +132,42 @@ sparkdown [0..415]
  │   │       │   │   │       │       │   └─ LuauTypeLiteral [53..71]
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_begin 53
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_content [53..71]
- │   │       │   │   │       │       │       │   ├─ LuauPrimitiveType [53..60]
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c1 [53..59]: "number"
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c2 [59..60]
- │   │       │   │   │       │       │       │   │   │   └─ OptionalWhitespace [59..60]: " "
- │   │       │   │   │       │       │       │   │   └─ LuauPrimitiveType_c3 60
- │   │       │   │   │       │       │       │   └─ LuauTypeTrailingBlockComment [60..71]
- │   │       │   │   │       │       │       │       ├─ LuauTypeTrailingBlockComment_begin [60..64]
- │   │       │   │   │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 60
- │   │       │   │   │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [60..63]
- │   │       │   │   │       │       │       │       │   │   └─ LuauCommentMark [60..63]: "--["
- │   │       │   │   │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 63
- │   │       │   │   │       │       │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [63..64]
- │   │       │   │   │       │       │       │       │       └─ LuauCommentMark [63..64]: "["
- │   │       │   │   │       │       │       │       ├─ LuauTypeTrailingBlockComment_content [64..69]
- │   │       │   │   │       │       │       │       │   ├─ LuauBlockCommentContent [64..65]: "a"
- │   │       │   │   │       │       │       │       │   ├─ Newline [65..66]: "\n"
- │   │       │   │   │       │       │       │       │   ├─ LuauBlockCommentContent [66..67]: " "
- │   │       │   │   │       │       │       │       │   ├─ LuauBlockCommentContent [67..68]: " "
- │   │       │   │   │       │       │       │       │   └─ LuauBlockCommentContent [68..69]: "b"
- │   │       │   │   │       │       │       │       └─ LuauTypeTrailingBlockComment_end [69..71]
- │   │       │   │   │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c1 [69..70]
- │   │       │   │   │       │       │       │           │   └─ LuauCommentMark [69..70]: "]"
- │   │       │   │   │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c2 70
- │   │       │   │   │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c3 [70..71]
- │   │       │   │   │       │       │       │           │   └─ LuauCommentMark [70..71]: "]"
- │   │       │   │   │       │       │       │           └─ LuauTypeTrailingBlockComment_end_c4 71
- │   │       │   │   │       │       │       │               └─ LuauTypeTrailingBlockComment_end_c4 71
- │   │       │   │   │       │       │       │                   └─ OptionalWhitespace 71
+ │   │       │   │   │       │       │       │   └─ LuauNamedTypeReference [53..71]
+ │   │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_begin [53..60]
+ │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [53..59]
+ │   │       │   │   │       │       │       │       │   │   └─ LuauPrimitiveType [53..59]
+ │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [53..59]: "number"
+ │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 59
+ │   │       │   │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 59
+ │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 [59..60]
+ │   │       │   │   │       │       │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [59..60]
+ │   │       │   │   │       │       │       │       │   │       └─ OptionalWhitespace [59..60]: " "
+ │   │       │   │   │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 60
+ │   │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_content [60..71]
+ │   │       │   │   │       │       │       │       │   └─ LuauTypeTrailingBlockComment [60..71]
+ │   │       │   │   │       │       │       │       │       ├─ LuauTypeTrailingBlockComment_begin [60..64]
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 60
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [60..63]
+ │   │       │   │   │       │       │       │       │       │   │   └─ LuauCommentMark [60..63]: "--["
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 63
+ │   │       │   │   │       │       │       │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [63..64]
+ │   │       │   │   │       │       │       │       │       │       └─ LuauCommentMark [63..64]: "["
+ │   │       │   │   │       │       │       │       │       ├─ LuauTypeTrailingBlockComment_content [64..69]
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauBlockCommentContent [64..65]: "a"
+ │   │       │   │   │       │       │       │       │       │   ├─ Newline [65..66]: "\n"
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauBlockCommentContent [66..67]: " "
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauBlockCommentContent [67..68]: " "
+ │   │       │   │   │       │       │       │       │       │   └─ LuauBlockCommentContent [68..69]: "b"
+ │   │       │   │   │       │       │       │       │       └─ LuauTypeTrailingBlockComment_end [69..71]
+ │   │       │   │   │       │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c1 [69..70]
+ │   │       │   │   │       │       │       │       │           │   └─ LuauCommentMark [69..70]: "]"
+ │   │       │   │   │       │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c2 70
+ │   │       │   │   │       │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c3 [70..71]
+ │   │       │   │   │       │       │       │       │           │   └─ LuauCommentMark [70..71]: "]"
+ │   │       │   │   │       │       │       │       │           └─ LuauTypeTrailingBlockComment_end_c4 71
+ │   │       │   │   │       │       │       │       │               └─ LuauTypeTrailingBlockComment_end_c4 71
+ │   │       │   │   │       │       │       │       │                   └─ OptionalWhitespace 71
+ │   │       │   │   │       │       │       │       └─ LuauNamedTypeReference_end 71
  │   │       │   │   │       │       │       └─ LuauTypeLiteral_end 71
  │   │       │   │   │       │       └─ LuauTypeAnnotationOperation_end 71
  │   │       │   │   │       └─ LuauVariableAssignment_end 71
@@ -220,34 +236,42 @@ sparkdown [0..415]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [92..120]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 92
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [92..120]
- │   │       │   │   │       │   │   │       │   ├─ LuauPrimitiveType [92..99]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauPrimitiveType_c1 [92..98]: "number"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauPrimitiveType_c2 [98..99]
- │   │       │   │   │       │   │   │       │   │   │   └─ OptionalWhitespace [98..99]: " "
- │   │       │   │   │       │   │   │       │   │   └─ LuauPrimitiveType_c3 99
- │   │       │   │   │       │   │   │       │   ├─ LuauTypeTrailingBlockComment [99..111]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeTrailingBlockComment_begin [99..103]
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c1 99
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c2 [99..102]
- │   │       │   │   │       │   │   │       │   │   │   │   └─ LuauCommentMark [99..102]: "--["
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c3 102
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauTypeTrailingBlockComment_begin_c4 [102..103]
- │   │       │   │   │       │   │   │       │   │   │       └─ LuauCommentMark [102..103]: "["
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeTrailingBlockComment_content [103..108]
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauBlockCommentContent [103..104]: "a"
- │   │       │   │   │       │   │   │       │   │   │   ├─ Newline [104..105]: "\n"
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauBlockCommentContent [105..106]: " "
- │   │       │   │   │       │   │   │       │   │   │   ├─ LuauBlockCommentContent [106..107]: " "
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauBlockCommentContent [107..108]: "b"
- │   │       │   │   │       │   │   │       │   │   └─ LuauTypeTrailingBlockComment_end [108..111]
- │   │       │   │   │       │   │   │       │   │       ├─ LuauTypeTrailingBlockComment_end_c1 [108..109]
- │   │       │   │   │       │   │   │       │   │       │   └─ LuauCommentMark [108..109]: "]"
- │   │       │   │   │       │   │   │       │   │       ├─ LuauTypeTrailingBlockComment_end_c2 109
- │   │       │   │   │       │   │   │       │   │       ├─ LuauTypeTrailingBlockComment_end_c3 [109..110]
- │   │       │   │   │       │   │   │       │   │       │   └─ LuauCommentMark [109..110]: "]"
- │   │       │   │   │       │   │   │       │   │       └─ LuauTypeTrailingBlockComment_end_c4 [110..111]
- │   │       │   │   │       │   │   │       │   │           └─ LuauTypeTrailingBlockComment_end_c4 [110..111]
- │   │       │   │   │       │   │   │       │   │               └─ OptionalWhitespace [110..111]: " "
+ │   │       │   │   │       │   │   │       │   ├─ LuauNamedTypeReference [92..111]
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauNamedTypeReference_begin [92..99]
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauNamedTypeReference_begin_c1 [92..98]
+ │   │       │   │   │       │   │   │       │   │   │   │   └─ LuauPrimitiveType [92..98]
+ │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauPrimitiveType_c1 [92..98]: "number"
+ │   │       │   │   │       │   │   │       │   │   │   │       ├─ LuauPrimitiveType_c2 98
+ │   │       │   │   │       │   │   │       │   │   │   │       └─ LuauPrimitiveType_c3 98
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauNamedTypeReference_begin_c2 [98..99]
+ │   │       │   │   │       │   │   │       │   │   │   │   └─ LuauNamedTypeReference_begin_c2 [98..99]
+ │   │       │   │   │       │   │   │       │   │   │   │       └─ OptionalWhitespace [98..99]: " "
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauNamedTypeReference_begin_c3 99
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauNamedTypeReference_content [99..111]
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauTypeTrailingBlockComment [99..111]
+ │   │       │   │   │       │   │   │       │   │   │       ├─ LuauTypeTrailingBlockComment_begin [99..103]
+ │   │       │   │   │       │   │   │       │   │   │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 99
+ │   │       │   │   │       │   │   │       │   │   │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [99..102]
+ │   │       │   │   │       │   │   │       │   │   │       │   │   └─ LuauCommentMark [99..102]: "--["
+ │   │       │   │   │       │   │   │       │   │   │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 102
+ │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [102..103]
+ │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauCommentMark [102..103]: "["
+ │   │       │   │   │       │   │   │       │   │   │       ├─ LuauTypeTrailingBlockComment_content [103..108]
+ │   │       │   │   │       │   │   │       │   │   │       │   ├─ LuauBlockCommentContent [103..104]: "a"
+ │   │       │   │   │       │   │   │       │   │   │       │   ├─ Newline [104..105]: "\n"
+ │   │       │   │   │       │   │   │       │   │   │       │   ├─ LuauBlockCommentContent [105..106]: " "
+ │   │       │   │   │       │   │   │       │   │   │       │   ├─ LuauBlockCommentContent [106..107]: " "
+ │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauBlockCommentContent [107..108]: "b"
+ │   │       │   │   │       │   │   │       │   │   │       └─ LuauTypeTrailingBlockComment_end [108..111]
+ │   │       │   │   │       │   │   │       │   │   │           ├─ LuauTypeTrailingBlockComment_end_c1 [108..109]
+ │   │       │   │   │       │   │   │       │   │   │           │   └─ LuauCommentMark [108..109]: "]"
+ │   │       │   │   │       │   │   │       │   │   │           ├─ LuauTypeTrailingBlockComment_end_c2 109
+ │   │       │   │   │       │   │   │       │   │   │           ├─ LuauTypeTrailingBlockComment_end_c3 [109..110]
+ │   │       │   │   │       │   │   │       │   │   │           │   └─ LuauCommentMark [109..110]: "]"
+ │   │       │   │   │       │   │   │       │   │   │           └─ LuauTypeTrailingBlockComment_end_c4 [110..111]
+ │   │       │   │   │       │   │   │       │   │   │               └─ LuauTypeTrailingBlockComment_end_c4 [110..111]
+ │   │       │   │   │       │   │   │       │   │   │                   └─ OptionalWhitespace [110..111]: " "
+ │   │       │   │   │       │   │   │       │   │   └─ LuauNamedTypeReference_end 111
  │   │       │   │   │       │   │   │       │   └─ LuauTypeBinaryOperation [111..120]
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeBinaryOperation_begin 111
  │   │       │   │   │       │   │   │       │       │   └─ LuauTypeBinaryOperation_begin_c1 111
@@ -265,11 +289,18 @@ sparkdown [0..415]
  │   │       │   │   │       │   │   │       │       │   └─ LuauTypeLiteral [113..120]
  │   │       │   │   │       │   │   │       │       │       ├─ LuauTypeLiteral_begin 113
  │   │       │   │   │       │   │   │       │       │       ├─ LuauTypeLiteral_content [113..120]
- │   │       │   │   │       │   │   │       │       │       │   └─ LuauPrimitiveType [113..120]
- │   │       │   │   │       │   │   │       │       │       │       ├─ LuauPrimitiveType_c1 [113..119]: "string"
- │   │       │   │   │       │   │   │       │       │       │       ├─ LuauPrimitiveType_c2 [119..120]
- │   │       │   │   │       │   │   │       │       │       │       │   └─ OptionalWhitespace [119..120]: " "
- │   │       │   │   │       │   │   │       │       │       │       └─ LuauPrimitiveType_c3 120
+ │   │       │   │   │       │   │   │       │       │       │   └─ LuauNamedTypeReference [113..120]
+ │   │       │   │   │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_begin [113..120]
+ │   │       │   │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [113..119]
+ │   │       │   │   │       │   │   │       │       │       │       │   │   └─ LuauPrimitiveType [113..119]
+ │   │       │   │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [113..119]: "string"
+ │   │       │   │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 119
+ │   │       │   │   │       │   │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 119
+ │   │       │   │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 [119..120]
+ │   │       │   │   │       │   │   │       │       │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [119..120]
+ │   │       │   │   │       │   │   │       │       │       │       │   │       └─ OptionalWhitespace [119..120]: " "
+ │   │       │   │   │       │   │   │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 120
+ │   │       │   │   │       │   │   │       │       │       │       └─ LuauNamedTypeReference_end 120
  │   │       │   │   │       │   │   │       │       │       └─ LuauTypeLiteral_end 120
  │   │       │   │   │       │   │   │       │       └─ LuauTypeBinaryOperation_end 120
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 120
@@ -327,37 +358,45 @@ sparkdown [0..415]
  │   │       │   │   │       │       │   └─ LuauTypeLiteral [135..169]
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_begin 135
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_content [135..169]
- │   │       │   │   │       │       │       │   ├─ LuauPrimitiveType [135..142]
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c1 [135..141]: "number"
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c2 [141..142]
- │   │       │   │   │       │       │       │   │   │   └─ OptionalWhitespace [141..142]: " "
- │   │       │   │   │       │       │       │   │   └─ LuauPrimitiveType_c3 142
- │   │       │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment [142..157]
- │   │       │   │   │       │       │       │   │   ├─ LuauTypeTrailingBlockComment_begin [142..148]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c1 142
- │   │       │   │   │       │       │       │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c2 [142..145]
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauCommentMark [142..145]: "--["
- │   │       │   │   │       │       │       │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c3 [145..147]
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauCommentMark [145..147]: "=="
- │   │       │   │   │       │       │       │   │   │   └─ LuauTypeTrailingBlockComment_begin_c4 [147..148]
- │   │       │   │   │       │       │       │   │   │       └─ LuauCommentMark [147..148]: "["
- │   │       │   │   │       │       │       │   │   ├─ LuauTypeTrailingBlockComment_content [148..153]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauBlockCommentContent [148..149]: "a"
- │   │       │   │   │       │       │       │   │   │   ├─ Newline [149..150]: "\n"
- │   │       │   │   │       │       │       │   │   │   ├─ LuauBlockCommentContent [150..151]: " "
- │   │       │   │   │       │       │       │   │   │   ├─ LuauBlockCommentContent [151..152]: " "
- │   │       │   │   │       │       │       │   │   │   └─ LuauBlockCommentContent [152..153]: "b"
- │   │       │   │   │       │       │       │   │   └─ LuauTypeTrailingBlockComment_end [153..157]
- │   │       │   │   │       │       │       │   │       ├─ LuauTypeTrailingBlockComment_end_c1 [153..154]
- │   │       │   │   │       │       │       │   │       │   └─ LuauCommentMark [153..154]: "]"
- │   │       │   │   │       │       │       │   │       ├─ LuauTypeTrailingBlockComment_end_c2 [154..156]
- │   │       │   │   │       │       │       │   │       │   └─ LuauCommentMark [154..156]: "=="
- │   │       │   │   │       │       │       │   │       ├─ LuauTypeTrailingBlockComment_end_c3 [156..157]
- │   │       │   │   │       │       │       │   │       │   └─ LuauCommentMark [156..157]: "]"
- │   │       │   │   │       │       │       │   │       └─ LuauTypeTrailingBlockComment_end_c4 157
- │   │       │   │   │       │       │       │   │           └─ LuauTypeTrailingBlockComment_end_c4 157
- │   │       │   │   │       │       │       │   │               └─ OptionalWhitespace 157
- │   │       │   │   │       │       │       │   ├─ Newline [157..158]: "\n"
+ │   │       │   │   │       │       │       │   ├─ LuauNamedTypeReference [135..158]
+ │   │       │   │   │       │       │       │   │   ├─ LuauNamedTypeReference_begin [135..142]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauNamedTypeReference_begin_c1 [135..141]
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauPrimitiveType [135..141]
+ │   │       │   │   │       │       │       │   │   │   │       ├─ LuauPrimitiveType_c1 [135..141]: "number"
+ │   │       │   │   │       │       │       │   │   │   │       ├─ LuauPrimitiveType_c2 141
+ │   │       │   │   │       │       │       │   │   │   │       └─ LuauPrimitiveType_c3 141
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauNamedTypeReference_begin_c2 [141..142]
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauNamedTypeReference_begin_c2 [141..142]
+ │   │       │   │   │       │       │       │   │   │   │       └─ OptionalWhitespace [141..142]: " "
+ │   │       │   │   │       │       │       │   │   │   └─ LuauNamedTypeReference_begin_c3 142
+ │   │       │   │   │       │       │       │   │   ├─ LuauNamedTypeReference_content [142..158]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauTypeTrailingBlockComment [142..157]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauTypeTrailingBlockComment_begin [142..148]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c1 142
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c2 [142..145]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauCommentMark [142..145]: "--["
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauTypeTrailingBlockComment_begin_c3 [145..147]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauCommentMark [145..147]: "=="
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauTypeTrailingBlockComment_begin_c4 [147..148]
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauCommentMark [147..148]: "["
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauTypeTrailingBlockComment_content [148..153]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauBlockCommentContent [148..149]: "a"
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [149..150]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauBlockCommentContent [150..151]: " "
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauBlockCommentContent [151..152]: " "
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauBlockCommentContent [152..153]: "b"
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauTypeTrailingBlockComment_end [153..157]
+ │   │       │   │   │       │       │       │   │   │   │       ├─ LuauTypeTrailingBlockComment_end_c1 [153..154]
+ │   │       │   │   │       │       │       │   │   │   │       │   └─ LuauCommentMark [153..154]: "]"
+ │   │       │   │   │       │       │       │   │   │   │       ├─ LuauTypeTrailingBlockComment_end_c2 [154..156]
+ │   │       │   │   │       │       │       │   │   │   │       │   └─ LuauCommentMark [154..156]: "=="
+ │   │       │   │   │       │       │       │   │   │   │       ├─ LuauTypeTrailingBlockComment_end_c3 [156..157]
+ │   │       │   │   │       │       │       │   │   │   │       │   └─ LuauCommentMark [156..157]: "]"
+ │   │       │   │   │       │       │       │   │   │   │       └─ LuauTypeTrailingBlockComment_end_c4 157
+ │   │       │   │   │       │       │       │   │   │   │           └─ LuauTypeTrailingBlockComment_end_c4 157
+ │   │       │   │   │       │       │       │   │   │   │               └─ OptionalWhitespace 157
+ │   │       │   │   │       │       │       │   │   │   └─ Newline [157..158]: "\n"
+ │   │       │   │   │       │       │       │   │   └─ LuauNamedTypeReference_end 158
  │   │       │   │   │       │       │       │   └─ LuauTypeBinaryOperation [158..169]
  │   │       │   │   │       │       │       │       ├─ LuauTypeBinaryOperation_begin [158..160]
  │   │       │   │   │       │       │       │       │   └─ LuauTypeBinaryOperation_begin_c1 [158..160]
@@ -375,11 +414,18 @@ sparkdown [0..415]
  │   │       │   │   │       │       │       │       │   └─ LuauTypeLiteral [162..169]
  │   │       │   │   │       │       │       │       │       ├─ LuauTypeLiteral_begin 162
  │   │       │   │   │       │       │       │       │       ├─ LuauTypeLiteral_content [162..169]
- │   │       │   │   │       │       │       │       │       │   ├─ LuauPrimitiveType [162..168]
- │   │       │   │   │       │       │       │       │       │   │   ├─ LuauPrimitiveType_c1 [162..168]: "string"
- │   │       │   │   │       │       │       │       │       │   │   ├─ LuauPrimitiveType_c2 168
- │   │       │   │   │       │       │       │       │       │   │   └─ LuauPrimitiveType_c3 168
- │   │       │   │   │       │       │       │       │       │   └─ Newline [168..169]: "\n"
+ │   │       │   │   │       │       │       │       │       │   └─ LuauNamedTypeReference [162..169]
+ │   │       │   │   │       │       │       │       │       │       ├─ LuauNamedTypeReference_begin [162..168]
+ │   │       │   │   │       │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [162..168]
+ │   │       │   │   │       │       │       │       │       │       │   │   └─ LuauPrimitiveType [162..168]
+ │   │       │   │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [162..168]: "string"
+ │   │       │   │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 168
+ │   │       │   │   │       │       │       │       │       │       │   │       └─ LuauPrimitiveType_c3 168
+ │   │       │   │   │       │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 168
+ │   │       │   │   │       │       │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 168
+ │   │       │   │   │       │       │       │       │       │       ├─ LuauNamedTypeReference_content [168..169]
+ │   │       │   │   │       │       │       │       │       │       │   └─ Newline [168..169]: "\n"
+ │   │       │   │   │       │       │       │       │       │       └─ LuauNamedTypeReference_end 169
  │   │       │   │   │       │       │       │       │       └─ LuauTypeLiteral_end 169
  │   │       │   │   │       │       │       │       └─ LuauTypeBinaryOperation_end 169
  │   │       │   │   │       │       │       └─ LuauTypeLiteral_end 169
@@ -527,15 +573,21 @@ sparkdown [0..415]
  │   │       │   │   │   ├─ LuauTypeLiteral [220..222]
  │   │       │   │   │   │   ├─ LuauTypeLiteral_begin 220
  │   │       │   │   │   │   ├─ LuauTypeLiteral_content [220..222]
- │   │       │   │   │   │   │   └─ LuauTypeName [220..222]
- │   │       │   │   │   │   │       ├─ LuauTypeName_c1 220
- │   │       │   │   │   │   │       ├─ LuauTypeName_c2 220
- │   │       │   │   │   │   │       ├─ LuauTypeName_c3 [220..221]: "A"
- │   │       │   │   │   │   │       ├─ LuauTypeName_c4 221
- │   │       │   │   │   │   │       ├─ LuauTypeName_c5 [221..222]
- │   │       │   │   │   │   │       │   └─ LuauTypeName_c5 [221..222]
- │   │       │   │   │   │   │       │       └─ OptionalWhitespace [221..222]: " "
- │   │       │   │   │   │   │       └─ LuauTypeName_c6 222
+ │   │       │   │   │   │   │   └─ LuauNamedTypeReference [220..222]
+ │   │       │   │   │   │   │       ├─ LuauNamedTypeReference_begin [220..222]
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c1 [220..221]
+ │   │       │   │   │   │   │       │   │   └─ LuauTypeName [220..221]
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c1 220
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c2 220
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c3 [220..221]: "A"
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c4 221
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c5 221
+ │   │       │   │   │   │   │       │   │       └─ LuauTypeName_c6 221
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c2 [221..222]
+ │   │       │   │   │   │   │       │   │   └─ LuauNamedTypeReference_begin_c2 [221..222]
+ │   │       │   │   │   │   │       │   │       └─ OptionalWhitespace [221..222]: " "
+ │   │       │   │   │   │   │       │   └─ LuauNamedTypeReference_begin_c3 222
+ │   │       │   │   │   │   │       └─ LuauNamedTypeReference_end 222
  │   │       │   │   │   │   └─ LuauTypeLiteral_end 222
  │   │       │   │   │   └─ LuauTypeAssignment [222..242]
  │   │       │   │   │       ├─ LuauTypeAssignment_begin [222..224]
@@ -569,11 +621,18 @@ sparkdown [0..415]
  │   │       │   │   │       │   └─ LuauTypeLiteral [235..242]
  │   │       │   │   │       │       ├─ LuauTypeLiteral_begin 235
  │   │       │   │   │       │       ├─ LuauTypeLiteral_content [235..242]
- │   │       │   │   │       │       │   ├─ LuauPrimitiveType [235..241]
- │   │       │   │   │       │       │   │   ├─ LuauPrimitiveType_c1 [235..241]: "number"
- │   │       │   │   │       │       │   │   ├─ LuauPrimitiveType_c2 241
- │   │       │   │   │       │       │   │   └─ LuauPrimitiveType_c3 241
- │   │       │   │   │       │       │   └─ Newline [241..242]: "\n"
+ │   │       │   │   │       │       │   └─ LuauNamedTypeReference [235..242]
+ │   │       │   │   │       │       │       ├─ LuauNamedTypeReference_begin [235..241]
+ │   │       │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [235..241]
+ │   │       │   │   │       │       │       │   │   └─ LuauPrimitiveType [235..241]
+ │   │       │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c1 [235..241]: "number"
+ │   │       │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c2 241
+ │   │       │   │   │       │       │       │   │       └─ LuauPrimitiveType_c3 241
+ │   │       │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 241
+ │   │       │   │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 241
+ │   │       │   │   │       │       │       ├─ LuauNamedTypeReference_content [241..242]
+ │   │       │   │   │       │       │       │   └─ Newline [241..242]: "\n"
+ │   │       │   │   │       │       │       └─ LuauNamedTypeReference_end 242
  │   │       │   │   │       │       └─ LuauTypeLiteral_end 242
  │   │       │   │   │       └─ LuauTypeAssignment_end 242
  │   │       │   │   └─ LuauDataTypeDeclaration_end 242
@@ -698,30 +757,38 @@ sparkdown [0..415]
  │   │       │   │   │       │       │   └─ LuauTypeLiteral [284..300]
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_begin 284
  │   │       │   │   │       │       │       ├─ LuauTypeLiteral_content [284..300]
- │   │       │   │   │       │       │       │   ├─ LuauPrimitiveType [284..291]
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c1 [284..290]: "number"
- │   │       │   │   │       │       │       │   │   ├─ LuauPrimitiveType_c2 [290..291]
- │   │       │   │   │       │       │       │   │   │   └─ OptionalWhitespace [290..291]: " "
- │   │       │   │   │       │       │       │   │   └─ LuauPrimitiveType_c3 291
- │   │       │   │   │       │       │       │   └─ LuauTypeTrailingBlockComment [291..300]
- │   │       │   │   │       │       │       │       ├─ LuauTypeTrailingBlockComment_begin [291..295]
- │   │       │   │   │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 291
- │   │       │   │   │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [291..294]
- │   │       │   │   │       │       │       │       │   │   └─ LuauCommentMark [291..294]: "--["
- │   │       │   │   │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 294
- │   │       │   │   │       │       │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [294..295]
- │   │       │   │   │       │       │       │       │       └─ LuauCommentMark [294..295]: "["
- │   │       │   │   │       │       │       │       ├─ LuauTypeTrailingBlockComment_content [295..300]
- │   │       │   │   │       │       │       │       │   ├─ LuauBlockCommentContent [295..296]: "a"
- │   │       │   │   │       │       │       │       │   ├─ Newline [296..297]: "\n"
- │   │       │   │   │       │       │       │       │   ├─ LuauBlockCommentContent [297..298]: " "
- │   │       │   │   │       │       │       │       │   ├─ LuauBlockCommentContent [298..299]: " "
- │   │       │   │   │       │       │       │       │   └─ LuauBlockCommentContent [299..300]: "b"
- │   │       │   │   │       │       │       │       └─ LuauTypeTrailingBlockComment_end 300
- │   │       │   │   │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c1 300
- │   │       │   │   │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c2 300
- │   │       │   │   │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c3 300
- │   │       │   │   │       │       │       │           └─ LuauTypeTrailingBlockComment_end_c4 300
+ │   │       │   │   │       │       │       │   └─ LuauNamedTypeReference [284..300]
+ │   │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_begin [284..291]
+ │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [284..290]
+ │   │       │   │   │       │       │       │       │   │   └─ LuauPrimitiveType [284..290]
+ │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [284..290]: "number"
+ │   │       │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 290
+ │   │       │   │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 290
+ │   │       │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 [290..291]
+ │   │       │   │   │       │       │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [290..291]
+ │   │       │   │   │       │       │       │       │   │       └─ OptionalWhitespace [290..291]: " "
+ │   │       │   │   │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 291
+ │   │       │   │   │       │       │       │       ├─ LuauNamedTypeReference_content [291..300]
+ │   │       │   │   │       │       │       │       │   └─ LuauTypeTrailingBlockComment [291..300]
+ │   │       │   │   │       │       │       │       │       ├─ LuauTypeTrailingBlockComment_begin [291..295]
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 291
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [291..294]
+ │   │       │   │   │       │       │       │       │       │   │   └─ LuauCommentMark [291..294]: "--["
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 294
+ │   │       │   │   │       │       │       │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [294..295]
+ │   │       │   │   │       │       │       │       │       │       └─ LuauCommentMark [294..295]: "["
+ │   │       │   │   │       │       │       │       │       ├─ LuauTypeTrailingBlockComment_content [295..300]
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauBlockCommentContent [295..296]: "a"
+ │   │       │   │   │       │       │       │       │       │   ├─ Newline [296..297]: "\n"
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauBlockCommentContent [297..298]: " "
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauBlockCommentContent [298..299]: " "
+ │   │       │   │   │       │       │       │       │       │   └─ LuauBlockCommentContent [299..300]: "b"
+ │   │       │   │   │       │       │       │       │       └─ LuauTypeTrailingBlockComment_end 300
+ │   │       │   │   │       │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c1 300
+ │   │       │   │   │       │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c2 300
+ │   │       │   │   │       │       │       │       │           ├─ LuauTypeTrailingBlockComment_end_c3 300
+ │   │       │   │   │       │       │       │       │           └─ LuauTypeTrailingBlockComment_end_c4 300
+ │   │       │   │   │       │       │       │       └─ LuauNamedTypeReference_end 300
  │   │       │   │   │       │       │       └─ LuauTypeLiteral_end 300
  │   │       │   │   │       │       └─ LuauTypeAnnotationOperation_end 300
  │   │       │   │   │       └─ LuauVariableAssignment_end 300
@@ -817,30 +884,38 @@ sparkdown [0..415]
  │   │   │   │   └─ LuauTypeLiteral [340..356]
  │   │   │   │       ├─ LuauTypeLiteral_begin 340
  │   │   │   │       ├─ LuauTypeLiteral_content [340..356]
- │   │   │   │       │   ├─ LuauPrimitiveType [340..347]
- │   │   │   │       │   │   ├─ LuauPrimitiveType_c1 [340..346]: "number"
- │   │   │   │       │   │   ├─ LuauPrimitiveType_c2 [346..347]
- │   │   │   │       │   │   │   └─ OptionalWhitespace [346..347]: " "
- │   │   │   │       │   │   └─ LuauPrimitiveType_c3 347
- │   │   │   │       │   └─ LuauTypeTrailingBlockComment [347..356]
- │   │   │   │       │       ├─ LuauTypeTrailingBlockComment_begin [347..351]
- │   │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 347
- │   │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [347..350]
- │   │   │   │       │       │   │   └─ LuauCommentMark [347..350]: "--["
- │   │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 350
- │   │   │   │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [350..351]
- │   │   │   │       │       │       └─ LuauCommentMark [350..351]: "["
- │   │   │   │       │       ├─ LuauTypeTrailingBlockComment_content [351..356]
- │   │   │   │       │       │   ├─ LuauBlockCommentContent [351..352]: "a"
- │   │   │   │       │       │   ├─ Newline [352..353]: "\n"
- │   │   │   │       │       │   ├─ LuauBlockCommentContent [353..354]: " "
- │   │   │   │       │       │   ├─ LuauBlockCommentContent [354..355]: " "
- │   │   │   │       │       │   └─ LuauBlockCommentContent [355..356]: "b"
- │   │   │   │       │       └─ LuauTypeTrailingBlockComment_end 356
- │   │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c1 356
- │   │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c2 356
- │   │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c3 356
- │   │   │   │       │           └─ LuauTypeTrailingBlockComment_end_c4 356
+ │   │   │   │       │   └─ LuauNamedTypeReference [340..356]
+ │   │   │   │       │       ├─ LuauNamedTypeReference_begin [340..347]
+ │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [340..346]
+ │   │   │   │       │       │   │   └─ LuauPrimitiveType [340..346]
+ │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [340..346]: "number"
+ │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 346
+ │   │   │   │       │       │   │       └─ LuauPrimitiveType_c3 346
+ │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [346..347]
+ │   │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [346..347]
+ │   │   │   │       │       │   │       └─ OptionalWhitespace [346..347]: " "
+ │   │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 347
+ │   │   │   │       │       ├─ LuauNamedTypeReference_content [347..356]
+ │   │   │   │       │       │   └─ LuauTypeTrailingBlockComment [347..356]
+ │   │   │   │       │       │       ├─ LuauTypeTrailingBlockComment_begin [347..351]
+ │   │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 347
+ │   │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [347..350]
+ │   │   │   │       │       │       │   │   └─ LuauCommentMark [347..350]: "--["
+ │   │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 350
+ │   │   │   │       │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [350..351]
+ │   │   │   │       │       │       │       └─ LuauCommentMark [350..351]: "["
+ │   │   │   │       │       │       ├─ LuauTypeTrailingBlockComment_content [351..356]
+ │   │   │   │       │       │       │   ├─ LuauBlockCommentContent [351..352]: "a"
+ │   │   │   │       │       │       │   ├─ Newline [352..353]: "\n"
+ │   │   │   │       │       │       │   ├─ LuauBlockCommentContent [353..354]: " "
+ │   │   │   │       │       │       │   ├─ LuauBlockCommentContent [354..355]: " "
+ │   │   │   │       │       │       │   └─ LuauBlockCommentContent [355..356]: "b"
+ │   │   │   │       │       │       └─ LuauTypeTrailingBlockComment_end 356
+ │   │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c1 356
+ │   │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c2 356
+ │   │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c3 356
+ │   │   │   │       │       │           └─ LuauTypeTrailingBlockComment_end_c4 356
+ │   │   │   │       │       └─ LuauNamedTypeReference_end 356
  │   │   │   │       └─ LuauTypeLiteral_end 356
  │   │   │   └─ LuauFunctionReturnType_end 356
  │   │   └─ LuauFunctionBody [356..411]
@@ -906,34 +981,42 @@ sparkdown [0..415]
  │   │       │   │   │       │   │   │   └─ LuauTypeLiteral [378..396]
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_begin 378
  │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [378..396]
- │   │       │   │   │       │   │   │       │   ├─ LuauPrimitiveType [378..385]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauPrimitiveType_c1 [378..384]: "number"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauPrimitiveType_c2 [384..385]
- │   │       │   │   │       │   │   │       │   │   │   └─ OptionalWhitespace [384..385]: " "
- │   │       │   │   │       │   │   │       │   │   └─ LuauPrimitiveType_c3 385
- │   │       │   │   │       │   │   │       │   └─ LuauTypeTrailingBlockComment [385..396]
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeTrailingBlockComment_begin [385..389]
- │   │       │   │   │       │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 385
- │   │       │   │   │       │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [385..388]
- │   │       │   │   │       │   │   │       │       │   │   └─ LuauCommentMark [385..388]: "--["
- │   │       │   │   │       │   │   │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 388
- │   │       │   │   │       │   │   │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [388..389]
- │   │       │   │   │       │   │   │       │       │       └─ LuauCommentMark [388..389]: "["
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeTrailingBlockComment_content [389..394]
- │   │       │   │   │       │   │   │       │       │   ├─ LuauBlockCommentContent [389..390]: "a"
- │   │       │   │   │       │   │   │       │       │   ├─ Newline [390..391]: "\n"
- │   │       │   │   │       │   │   │       │       │   ├─ LuauBlockCommentContent [391..392]: " "
- │   │       │   │   │       │   │   │       │       │   ├─ LuauBlockCommentContent [392..393]: " "
- │   │       │   │   │       │   │   │       │       │   └─ LuauBlockCommentContent [393..394]: "b"
- │   │       │   │   │       │   │   │       │       └─ LuauTypeTrailingBlockComment_end [394..396]
- │   │       │   │   │       │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c1 [394..395]
- │   │       │   │   │       │   │   │       │           │   └─ LuauCommentMark [394..395]: "]"
- │   │       │   │   │       │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c2 395
- │   │       │   │   │       │   │   │       │           ├─ LuauTypeTrailingBlockComment_end_c3 [395..396]
- │   │       │   │   │       │   │   │       │           │   └─ LuauCommentMark [395..396]: "]"
- │   │       │   │   │       │   │   │       │           └─ LuauTypeTrailingBlockComment_end_c4 396
- │   │       │   │   │       │   │   │       │               └─ LuauTypeTrailingBlockComment_end_c4 396
- │   │       │   │   │       │   │   │       │                   └─ OptionalWhitespace 396
+ │   │       │   │   │       │   │   │       │   └─ LuauNamedTypeReference [378..396]
+ │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_begin [378..385]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [378..384]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauPrimitiveType [378..384]
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [378..384]: "number"
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 384
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauPrimitiveType_c3 384
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 [384..385]
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauNamedTypeReference_begin_c2 [384..385]
+ │   │       │   │   │       │   │   │       │       │   │       └─ OptionalWhitespace [384..385]: " "
+ │   │       │   │   │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 385
+ │   │       │   │   │       │   │   │       │       ├─ LuauNamedTypeReference_content [385..396]
+ │   │       │   │   │       │   │   │       │       │   └─ LuauTypeTrailingBlockComment [385..396]
+ │   │       │   │   │       │   │   │       │       │       ├─ LuauTypeTrailingBlockComment_begin [385..389]
+ │   │       │   │   │       │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c1 385
+ │   │       │   │   │       │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c2 [385..388]
+ │   │       │   │   │       │   │   │       │       │       │   │   └─ LuauCommentMark [385..388]: "--["
+ │   │       │   │   │       │   │   │       │       │       │   ├─ LuauTypeTrailingBlockComment_begin_c3 388
+ │   │       │   │   │       │   │   │       │       │       │   └─ LuauTypeTrailingBlockComment_begin_c4 [388..389]
+ │   │       │   │   │       │   │   │       │       │       │       └─ LuauCommentMark [388..389]: "["
+ │   │       │   │   │       │   │   │       │       │       ├─ LuauTypeTrailingBlockComment_content [389..394]
+ │   │       │   │   │       │   │   │       │       │       │   ├─ LuauBlockCommentContent [389..390]: "a"
+ │   │       │   │   │       │   │   │       │       │       │   ├─ Newline [390..391]: "\n"
+ │   │       │   │   │       │   │   │       │       │       │   ├─ LuauBlockCommentContent [391..392]: " "
+ │   │       │   │   │       │   │   │       │       │       │   ├─ LuauBlockCommentContent [392..393]: " "
+ │   │       │   │   │       │   │   │       │       │       │   └─ LuauBlockCommentContent [393..394]: "b"
+ │   │       │   │   │       │   │   │       │       │       └─ LuauTypeTrailingBlockComment_end [394..396]
+ │   │       │   │   │       │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c1 [394..395]
+ │   │       │   │   │       │   │   │       │       │           │   └─ LuauCommentMark [394..395]: "]"
+ │   │       │   │   │       │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c2 395
+ │   │       │   │   │       │   │   │       │       │           ├─ LuauTypeTrailingBlockComment_end_c3 [395..396]
+ │   │       │   │   │       │   │   │       │       │           │   └─ LuauCommentMark [395..396]: "]"
+ │   │       │   │   │       │   │   │       │       │           └─ LuauTypeTrailingBlockComment_end_c4 396
+ │   │       │   │   │       │   │   │       │       │               └─ LuauTypeTrailingBlockComment_end_c4 396
+ │   │       │   │   │       │   │   │       │       │                   └─ OptionalWhitespace 396
+ │   │       │   │   │       │   │   │       │       └─ LuauNamedTypeReference_end 396
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 396
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 396
  │   │       │   │   │       │   └─ LuauAssignmentOperation [396..399]

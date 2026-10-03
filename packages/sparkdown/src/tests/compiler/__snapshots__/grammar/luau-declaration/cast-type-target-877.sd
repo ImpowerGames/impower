@@ -10,5 +10,7 @@ function run()
   local packedResult = callback :: (number) -> (number, string) + 1
   local tableResult = optional :: {value: number | string} + 1
   local genericResult = optional :: Array<number | string> + 1
+  local comparison = optional :: number | string <= 55
+  local closedComparison = optional :: (number | string) < 55
   return result
 end

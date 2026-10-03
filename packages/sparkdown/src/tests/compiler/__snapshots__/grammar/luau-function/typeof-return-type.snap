@@ -36,10 +36,16 @@ sparkdown [0..56]
  │   │   │   │       │   └─ LuauTypeLiteral [22..28]
  │   │   │   │       │       ├─ LuauTypeLiteral_begin 22
  │   │   │   │       │       ├─ LuauTypeLiteral_content [22..28]
- │   │   │   │       │       │   └─ LuauPrimitiveType [22..28]
- │   │   │   │       │       │       ├─ LuauPrimitiveType_c1 [22..28]: "number"
- │   │   │   │       │       │       ├─ LuauPrimitiveType_c2 28
- │   │   │   │       │       │       └─ LuauPrimitiveType_c3 28
+ │   │   │   │       │       │   └─ LuauNamedTypeReference [22..28]
+ │   │   │   │       │       │       ├─ LuauNamedTypeReference_begin [22..28]
+ │   │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [22..28]
+ │   │   │   │       │       │       │   │   └─ LuauPrimitiveType [22..28]
+ │   │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c1 [22..28]: "number"
+ │   │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c2 28
+ │   │   │   │       │       │       │   │       └─ LuauPrimitiveType_c3 28
+ │   │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 28
+ │   │   │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 28
+ │   │   │   │       │       │       └─ LuauNamedTypeReference_end 28
  │   │   │   │       │       └─ LuauTypeLiteral_end 28
  │   │   │   │       └─ LuauTypeAnnotationOperation_end 28
  │   │   │   └─ LuauFunctionParameters_end [28..29]

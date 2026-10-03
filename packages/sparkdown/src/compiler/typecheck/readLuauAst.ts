@@ -2339,7 +2339,7 @@ class Parser {
     if (!this.is("->") && resultNames.length === 0) {
       if (result.length === 1) {
         let inner: AstType;
-        if (varargAnnotation === undefined && this.isTypeFollow()) inner = new AstTypeGroup(location, result[0]!);
+        if (varargAnnotation === undefined) inner = new AstTypeGroup(location, result[0]!);
         else inner = result[0]!;
         const returnType = this.parseTypeSuffix(inner, begin.location);
         const endPos = result.length === 1 ? location.end : returnType.location.end;
