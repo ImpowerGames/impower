@@ -3822,6 +3822,50 @@ export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string
 }
 
 /**
+ * Diagnostic recovery for a tree-selected statement candidate. The grammar
+ * can end an invalid statement before the token that explains its error
+ * (`Hi, Bob` before `end`), or classify part of it as narrative. Read the
+ * bounded span selected by the diagnostic's existing read-ahead policy:
+ * keep enclosed Luau nodes, descend clipped nodes, and lex only text the
+ * tree did not provide as Luau. This AST is used for error ownership only;
+ * document checking and lowering still read their normal tree units.
+ */
+export function readLuauStatementCandidate(
+  node: SyntaxNode,
+  documentText: string,
+  from: number,
+  to: number,
+): Pick<LuauAstUnit, "root" | "errors"> {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  tokenizer.luauThroughout = true;
+  let root = node;
+  while (root.parent) root = root.parent;
+  if (from < 0 || to < from || to > Math.min(root.to, documentText.length)) {
+    throw new Error("Statement diagnostic span lies outside its document tree");
+  }
+  const read = (current: SyntaxNode): void => {
+    if (current.to <= from || current.from >= to) return;
+    if (current.from >= from && current.to <= to && !WRAPPER.test(current.name)) {
+      if (current.name.startsWith("Luau") && !current.type.isError) tokenizer.read(current);
+      else tokenizer.lex(current.from, current.to);
+      return;
+    }
+    let at = Math.max(from, current.from);
+    for (let child = current.firstChild; child; child = child.nextSibling) {
+      if (child.to <= from || child.from >= to) continue;
+      if (child.from > at) tokenizer.lex(at, Math.min(to, child.from));
+      read(child);
+      at = Math.max(at, Math.min(to, child.to));
+    }
+    if (at < Math.min(to, current.to)) tokenizer.lex(at, Math.min(to, current.to));
+  };
+  read(root);
+  const result = readUnit("block", tokenizer, [], 1, index.position(from), {}, to);
+  return { root: result.root, errors: result.errors };
+}
+
+/**
  * Reads the one Luau expression some nodes hold (an interpolation's,
  * a choice's condition, a struct's value), with every name read as a global.
  */

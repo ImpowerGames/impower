@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "parser": "c8cf2864adec33eb4eb5b4cc7e0708aa74893ba0",
+  "sourceSha256": "0219c31be23437cd80f729096017916961a2b71da88b0fa6e24eae9ac66261d2",
+  "root": {
+    "type": "AstStatBlock",
+    "location": "0,0 - 1,0",
+    "hasEnd": true,
+    "body": [
+      {
+        "type": "AstStatDeclareFunction",
+        "location": "0,9 - 1,0",
+        "attributes": [
+          {
+            "type": "AstAttr",
+            "location": "0,0 - 0,8",
+            "name": "checked",
+            "args": []
+          }
+        ],
+        "name": "abs",
+        "nameLocation": "0,26 - 0,29",
+        "params": {
+          "type": "AstTypeList",
+          "types": [
+            {
+              "type": "AstTypeReference",
+              "location": "0,33 - 0,39",
+              "name": "number",
+              "nameLocation": "0,33 - 0,39",
+              "parameters": [],
+              "hasParameterList": false
+            }
+          ]
+        },
+        "paramNames": [
+          {
+            "type": "AstArgumentName",
+            "name": "n",
+            "location": "0,30 - 0,31"
+          }
+        ],
+        "vararg": false,
+        "varargLocation": "0,0 - 0,0",
+        "retTypes": {
+          "type": "AstTypePackExplicit",
+          "location": "0,42 - 0,48",
+          "typeList": {
+            "type": "AstTypeList",
+            "types": [
+              {
+                "type": "AstTypeReference",
+                "location": "0,42 - 0,48",
+                "name": "number",
+                "nameLocation": "0,42 - 0,48",
+                "parameters": [],
+                "hasParameterList": false
+              }
+            ]
+          }
+        },
+        "generics": [],
+        "genericPacks": []
+      }
+    ]
+  }
+}

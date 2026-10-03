@@ -1,7 +1,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { officialSyntaxErrors } from "../compiler/officialSyntax";
 import { diagnosticMessage } from "./diagnosticTestHarness";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
@@ -15,7 +15,7 @@ import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 /** Luau's first syntax error for a source, as `line:column-line:column message`. */
 function luauFirstError(source: string): string[] {
-  const error = parseLuau(source).errors[0];
+  const error = officialSyntaxErrors(source)[0];
   if (!error) return [];
   const { begin, end } = error.location;
   return [`${begin.line}:${begin.column}-${end.line}:${end.column} ${error.message}`];
@@ -32,7 +32,7 @@ const SPARKDOWN_ONLY = /\n> |^A variable must be initialized/;
  * an error Luau does not have.
  */
 function expectLuauReports(source: string, messages: readonly string[]) {
-  const luau = parseLuau(source.replace(/\bstore /g, "local ")).errors.map(
+  const luau = officialSyntaxErrors(source.replace(/\bstore /g, "local ")).map(
     ({ location: { begin, end }, message }) => `${begin.line}:${begin.column}-${end.line}:${end.column} ${message}`,
   );
   for (const message of messages) {

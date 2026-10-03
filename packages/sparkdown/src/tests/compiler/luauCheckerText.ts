@@ -10,7 +10,7 @@
 // together with the document line of each of its lines.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { loadOfficialLuau, officialLuauAvailable } from "./officialLuau";
 import type { Position } from "../../compiler/typecheck/Location";
 import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../../compiler/typecheck/LuauUnitNodes";
 
@@ -80,12 +80,16 @@ function namesIdentifier(text: string, name: string): boolean {
 
 // Whether a parameter list's text parses as Luau's, by its text.
 const wholeLists = new Map<string, boolean>();
+// An unavailable artifact must still let the official suite collect its
+// visible skip; calling the default oracle without it is a test setup error.
+const parseOfficial = officialLuauAvailable ? await loadOfficialLuau() : undefined;
 
 /** Whether a parameter list's text, brackets included, is a Luau parameter list as written. */
 function parsesAsParameters(text: string): boolean {
   let whole = wholeLists.get(text);
   if (whole === undefined) {
-    whole = parseLuau(`local function __parameters${text} end`).errors.length === 0;
+    if (!parseOfficial) throw new Error("Official Luau parser artifact is unavailable");
+    whole = parseOfficial(`local function __parameters${text} end`).errors === 0;
     if (wholeLists.size >= 1000) wholeLists.clear();
     wholeLists.set(text, whole);
   }

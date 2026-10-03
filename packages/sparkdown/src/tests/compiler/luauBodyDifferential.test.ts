@@ -1,5 +1,5 @@
 // A function body is Luau (#1158). This compares Sparkdown's reading of
-// generated function bodies with Luau's parser port (`parseLuau`):
+// generated function bodies with the pinned official C++ parser:
 //
 //  - a body Luau reads without an error gets no Sparkdown error, and the
 //    story after the function plays;
@@ -18,7 +18,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { officialSyntaxErrors } from "./officialSyntax";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const URI = "inmemory:///main.sd";
@@ -220,7 +220,7 @@ const SEEDS = Array.from({ length: 300 }, (_, i) => i + 1);
 describe("a function body read as Luau reads it (#1158)", () => {
   it.each(SEEDS)("agrees with Luau's parser on body %i", (seed) => {
     const { luau, source, closesEarly } = generate(seed);
-    const expected = parseLuau(luau).errors;
+    const expected = officialSyntaxErrors(luau);
     const program = compile(compiler(source));
     const found = errors(program).filter((e) => !NAME_ON_LATER_LINE.test(e.message));
     if (expected.length === 0) {

@@ -87,7 +87,15 @@ positions come from the unmodified upstream parser. It reuses the upstream
 `Analysis/src/AstJsonEncoder.cpp`, adding visitor dispatch for integer literals,
 explicit instantiations and type functions (that encoder otherwise emits invalid
 JSON for them). These additions serialize upstream fields, without parsing text.
-Error units return a count and no recovery tree, since recovery shapes are exempt.
+For definition loading, the adapter also preserves property/indexer access and
+access locations, extern-method flags, alias name locations, type-reference
+parameter-list presence, and attribute arguments. Global declarations name
+their annotation `luauType`, since the upstream encoder's duplicate `type` key
+otherwise overwrites the node discriminator. The TypeScript oracle printer uses
+the same schema. These are serialization changes at the same upstream pin.
+Error units return a count, upstream messages with their full UTF-8 byte ranges,
+and no recovery tree, since recovery shapes are exempt. The diagnostic oracle
+uses these fields directly; it never substitutes converter errors as expectations.
 Lexical `commentLocations` are outside the converter's node tree and are not
 compared. The test names its remaining exemptions beside the comparison.
 
@@ -99,7 +107,41 @@ represented as strings on both sides, with quoted string content untouched.
 `luauTreeAst.test.ts` and `luauSyntaxAgreement.test.ts` retain their ported oracle;
 the new test supplies the official parser for parameter-list validation too.
 The existing test-only `luauCheckerText.ts` supplies position-preserving units,
-without importing extraction code from the production checker.
+without importing extraction code from the production checker. Its default
+parameter-list validation also uses the official parser.
+
+The production statement diagnostic uses `readLuauStatementCandidate`, a bounded
+recovery operation in the existing tree converter. The highlighting tree selects
+the candidate and the diagnostic selects how far to read ahead. Enclosed Luau
+nodes keep their structure; clipped wrappers are traversed and only uncovered,
+narrative or error spans use the converter's lexer. This handles candidates such
+as `Hi, Bob` whose report is at the following `end`, and multiline calls, without
+loading WASM or introducing a second production parser. Its recovered AST is
+used only to decide which statement owns an error. Document checking and lowering
+continue to read their normal tree units. Existing diagnostic and seeded-body
+tests compare messages and ranges with the pinned C++ parser; Unicode tests pin
+the converter's document UTF-16 offsets.
+
+## Prepared definition ASTs
+
+The compiler loads the two builtin definition aggregates as committed JSON;
+the official parser is used only to generate and verify that data. Run from
+the repository root after changing `EmbeddedBuiltinDefinitions.ts`, or after
+rebuilding the parser:
+
+```sh
+node packages/sparkdown/scripts/buildDefinitionAst.mjs
+node packages/sparkdown/scripts/buildDefinitionAst.mjs --check
+```
+
+This step uses the vendored WASM and requires Node with TypeScript stripping
+(Node 24 in CI), without Emscripten. It validates the conformance pin and artifact
+hashes before parsing. The Sparkdown job in the Test Suite workflow runs check
+mode and rejects missing or stale JSON. A separate generated `abs` definition
+supports the type-printer test; it is test-only and keeps that test's existing
+assertions. `Frontend.loadDefinitionFile` is an internal prepared-data API.
+See [`scripts/DEFINITION_AST.md`](../../../../scripts/DEFINITION_AST.md) for the
+input manifest, format and loader contract.
 
 ## Type-checker test cases
 
