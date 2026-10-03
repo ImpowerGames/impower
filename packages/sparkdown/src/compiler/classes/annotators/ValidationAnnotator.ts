@@ -133,6 +133,8 @@ const LUAU_WHITESPACE_RUN = /^[ \t\r\n\v\f]+$/;
 
 const MALFORMED_STRING = "Malformed string; did you forget to finish it?";
 const MALFORMED_NUMBER = "Malformed number";
+const UNSUPPORTED_INTEGER =
+  "Luau 64-bit integer literals are not supported in Sparkdown";
 // Luau reports an unfinished `--[[` from wherever the parser was expecting
 // its next token; the expression-position wording is the one its test suite
 // pins, so it is the one sparkdown uses everywhere.
@@ -734,11 +736,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // the end of the line.
       const lineTo = this.text?.lineAt(literalTo).to ?? literalTo;
       const rest = this.read(literalTo, lineTo).match(/^[A-Za-z0-9_.]+/);
-      const noDigits = /^0_*[xX]_*$/.test(text);
+      const noDigits = /^0_*[xXbB]_*$/.test(text);
       if (rest || noDigits) {
+        // Recognize the spelling only to reject it clearly (#1309). Neither
+        // the grammar nor the runtime gains integer semantics or overflow
+        // checks. Luau ignores underscores throughout a numeric token and
+        // accepts a hexadecimal integer with no digits, such as `0xi`.
+        const integer = /^(?:[0-9]+|0[xX][0-9a-fA-F]*|0[bB][01]+)i$/.test(
+          (text + (rest?.[0] ?? "")).replaceAll("_", ""),
+        );
         this.error(
           annotations,
-          MALFORMED_NUMBER,
+          integer ? UNSUPPORTED_INTEGER : MALFORMED_NUMBER,
           nodeRef.from,
           literalTo + (rest ? rest[0].length : 0),
         );

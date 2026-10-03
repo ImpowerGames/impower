@@ -23,8 +23,9 @@
 // document by `textDocumentPosition`, over statements in their one-line and
 // multi-line forms. Sparkdown's own constructs have fixtures of their own.
 //
-// A disagreement that stops happening fails its test, so the fix for an
-// issue removes its entry in the fix's own pull request.
+// A bug disagreement that stops happening fails its test, so its fix removes
+// the entry. The two intentional integer limitations are checked explicitly
+// by the official oracle and remain documented after #1309 closes.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
