@@ -22,6 +22,8 @@ export interface LuauTextUnit {
   text: string;
   /** The document line of each of the text's lines. */
   lines: number[];
+  /** True only when a flow has no closing token and extraction appends its own `end`. */
+  syntheticEnd?: boolean;
 }
 
 // Each unit's text split into lines, once, for turning Luau's columns into the document's.
@@ -270,7 +272,7 @@ function removeSpan(spans: number[], from: number, to: number): number[] {
  * outside any flow and every function definition, and a unit per scene (its
  * branches included) or branch outside any scene that holds Luau statements.
  */
-export function checkerTextUnits(tree: Tree, documentText: string): CheckerTextUnits {
+export function checkerTextUnits(tree: Tree, documentText: string, validParameters: (text: string) => boolean = parsesAsParameters): CheckerTextUnits {
   const index = new LineIndex(documentText);
   const anyName = ANY_NAMES.find((name) => !namesIdentifier(documentText, name)) ?? ANY_NAMES[0]!;
   const isSparkdownOnly = (node: SyntaxNode): boolean => {
@@ -354,7 +356,7 @@ export function checkerTextUnits(tree: Tree, documentText: string): CheckerTextU
   const readParameters = (header: SyntaxNode): ParameterReading | undefined => {
     const node = findDescendant(header, "LuauFunctionParameters");
     if (!node) return undefined;
-    if (parsesAsParameters(documentText.slice(node.from, node.to))) return { node, whole: true, vararg: varargOf(node) };
+    if (validParameters(documentText.slice(node.from, node.to))) return { node, whole: true, vararg: varargOf(node) };
     const dots = findDescendant(node, "LuauVariadicParameter");
     const names = findAll(node, "LuauFunctionParameter").map((name) => documentText.slice(name.from, name.to));
     return { node, whole: false, names, vararg: dots ? { dots, annotation: undefined, type: "" } : undefined };
@@ -495,7 +497,7 @@ export function checkerTextUnits(tree: Tree, documentText: string): CheckerTextU
       text.push(...bodyLines.text, "end");
       lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);
     }
-    units.flows.push({ kind: "flow", text: text.join("\n"), lines });
+    units.flows.push({ kind: "flow", text: text.join("\n"), lines, syntheticEnd: flow.end === undefined });
   }
   return units;
 }
