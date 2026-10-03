@@ -88,11 +88,11 @@ describe("autocomplete · scope and visibility", () => {
     expect(three).not.toContain("myInnerLocal");
   });
 
-  upstreamCase.bug(BUG.functions, "recursive_function", "a function's own name is offered inside its body", () => {
+  upstreamCase("recursive_function", "a function's own name is offered inside its body", () => {
     expect(labelsAt("function foo()\n  f@1\nend\n")).toContain("foo");
   });
 
-  upstreamCase.bug(BUG.functions, "nested_recursive_function", "a nested local function and its enclosing function are offered inside it", () => {
+  upstreamCase("nested_recursive_function", "a nested local function and its enclosing function are offered inside it", () => {
     const labels = labelsAt(
       "function outer()\n  local function inner()\n    i@1\n  end\nend\n",
     );
@@ -100,7 +100,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("outer");
   });
 
-  upstreamCase.bug(BUG.functions, "user_defined_local_functions_in_own_definition", "a local function is offered inside its own body", () => {
+  upstreamCase("user_defined_local_functions_in_own_definition", "a local function is offered inside its own body", () => {
     // Upstream's second snippet, `local abc = function() @1 end`, expects
     // `abc` too and marks that expectation "actually incorrect": a local is
     // not in scope in its own initializer (skip_current_local), so it is not
@@ -110,7 +110,7 @@ describe("autocomplete · scope and visibility", () => {
     ).toContain("abc");
   });
 
-  upstreamCase.bug(BUG.functions, "global_functions_are_not_scoped_lexically", "a global function declared inside a block is offered after it", () => {
+  upstreamCase("global_functions_are_not_scoped_lexically", "a global function declared inside a block is offered after it", () => {
     const labels = labelsAt(
       "function main()\n  if true then\n    function abc()\n    end\n  end\n  a@1\nend\n",
     );
@@ -123,6 +123,20 @@ describe("autocomplete · scope and visibility", () => {
     );
     expect(labels).toContain("another");
     expect(labels).not.toContain("abc");
+  });
+
+  upstreamCase("local_functions_fall_out_of_scope", "a local function is visible from its declaration through its enclosing block", () => {
+    const source = "function main()\n  if true then\n    a@1\n    local function abc()\n      a@2\n    end\n    a@3\n  end\n  a@4\nend\nfunction other()\n  a@5\nend\n";
+    expect(labelsAt(source, { at: "1" })).not.toContain("abc");
+    expect(labelsAt(source, { at: "2" })).toContain("abc");
+    expect(labelsAt(source, { at: "3" })).toContain("abc");
+    expect(labelsAt(source, { at: "4" })).not.toContain("abc");
+    expect(labelsAt(source, { at: "5" })).not.toContain("abc");
+  });
+
+  upstreamCase("bias_toward_inner_scope", "a local function shadowing a global function is offered once", () => {
+    const labels = labelsAt("function abc() end\nfunction main()\n  local function abc()\n    a@1\n  end\nend\n");
+    expect(labels.filter((label) => label === "abc")).toEqual(["abc"]);
   });
 
   upstreamCase("function_parameters", "a parameter is offered for a typed word in its function's body", () => {
@@ -156,7 +170,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toEqual(expect.arrayContaining(["function", "for"]));
   });
 
-  upstreamCase.bug(BUG.functions, "statement_between_two_statements", "a function declared above is offered between two statements", () => {
+  upstreamCase("statement_between_two_statements", "a function declared above is offered between two statements", () => {
     const labels = labelsAt(
       "function getmyscripts() end\n\nfunction main()\n  g@1\n\n  getmyscripts()\nend\n",
     );
@@ -214,14 +228,14 @@ describe("autocomplete · scope and visibility", () => {
     expect(labelsAt("function main()\n  local function abc(def)@1\n  end\nend\n")).not.toEqual([]);
   });
 
-  upstreamCase.bug(BUG.functions, "local_function_params", "a word typed in a local function's body offers the function and its parameter", () => {
+  upstreamCase("local_function_params", "a word typed in a local function's body offers the function and its parameter", () => {
     const labels = labelsAt("function main()\n  local function abc(def)\n    d@1\n  end\nend\n");
     expect(labels).toContain("def");
     const own = labelsAt("function main()\n  local function abc(def)\n    a@1\n  end\nend\n");
     expect(own).toContain("abc");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "local_function_params", "a blank line in a local function's body offers the function and its parameter", () => {
+  upstreamCase.bug(BUG.emptySlot, "local_function_params", "a blank line in a local function's body offers the function and its parameter", () => {
     const labels = labelsAt("function main()\n  local function abc(def)\n    @1\n  end\nend\n");
     expect(labels).toContain("abc");
     expect(labels).toContain("def");
@@ -251,7 +265,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labelsAt("function abc(def)\n  d@1\nend\n")).toContain("def");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "global_function_params", "a blank line in a global function's body offers the function and its parameter", () => {
+  upstreamCase.bug(BUG.emptySlot, "global_function_params", "a blank line in a global function's body offers the function and its parameter", () => {
     const labels = labelsAt("function abc(def)\n  @1\nend\n");
     expect(labels).toContain("abc");
     expect(labels).toContain("def");
@@ -332,21 +346,21 @@ describe("autocomplete · scope and visibility", () => {
     expect(labelsAt("function main()\n  abc, de@1\nend\n")).not.toContain("de");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "recursive_function_global", "a global function is offered on a blank line of its body", () => {
+  upstreamCase.bug(BUG.emptySlot, "recursive_function_global", "a global function is offered on a blank line of its body", () => {
     expect(labelsAt("function abc()\n@1\nend\n")).toContain("abc");
   });
 
-  upstreamCase.bug(BUG.functions, "recursive_function_global", "a global function is offered for a typed word in its body", () => {
+  upstreamCase("recursive_function_global", "a global function is offered for a typed word in its body", () => {
     expect(labelsAt("function abc()\n  a@1\nend\n")).toContain("abc");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "recursive_function_local", "a local function is offered on a blank line of its body", () => {
+  upstreamCase.bug(BUG.emptySlot, "recursive_function_local", "a local function is offered on a blank line of its body", () => {
     expect(
       labelsAt("function main()\n  local function abc()\n@1\n  end\nend\n"),
     ).toContain("abc");
   });
 
-  upstreamCase.bug(BUG.functions, "recursive_function_local", "a local function is offered for a typed word in its body", () => {
+  upstreamCase("recursive_function_local", "a local function is offered for a typed word in its body", () => {
     expect(
       labelsAt("function main()\n  local function abc()\n    a@1\n  end\nend\n"),
     ).toContain("abc");
@@ -372,7 +386,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("myInnerLocal");
   });
 
-  upstreamCase.bug(BUG.functions, "globals_are_order_independent", "functions declared before and after are offered", () => {
+  upstreamCase("globals_are_order_independent", "functions declared before and after are offered", () => {
     const labels = labelsAt(
       "store myLocal = 4\nfunction abc0()\n  local myInnerLocal = 1\n  a@1\nend\n\nfunction abc1()\n  local myInnerLocal = 1\nend\n",
     );
@@ -380,7 +394,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("abc1");
   });
 
-  upstreamCase.bug(BUG.functions, "class_autocomplete_classname_inside_method","a define's name is offered inside its own method", () => {
+  upstreamCase("class_autocomplete_classname_inside_method","a define's name is offered inside its own method", () => {
     // Upstream uses a `class`, which sparkdown does not implement; a `define`
     // with a method is the sparkdown equivalent.
     const labels = labelsAt(

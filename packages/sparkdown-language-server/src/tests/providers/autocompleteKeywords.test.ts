@@ -40,7 +40,7 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(labelsAt("i@1")).toEqual(expect.arrayContaining(["if", "include"]));
   });
 
-  upstreamCase.bug(BUG.functions, "do_not_overwrite_context_sensitive_kws", "a function named like a keyword is offered as a name", () => {
+  upstreamCase("do_not_overwrite_context_sensitive_kws", "a function named like a keyword is offered as a name", () => {
     // Upstream declares `local function continue()`; `continue` is a keyword
     // only inside a loop, so the name is still a binding.
     const labels = labelsAt(inMain("local function continue()\nend\nc@1"));

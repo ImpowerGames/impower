@@ -1058,7 +1058,7 @@ const addImmutableAccessPathCompletions = (
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
     if (scopes) {
-      const types: DeclarationType[] = ["const"];
+      const types: DeclarationType[] = ["const", "function", "define"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (parts.length <= 1 && isWithinSection(scopePath, path)) {
           for (const type of types) {
@@ -1066,7 +1066,9 @@ const addImmutableAccessPathCompletions = (
               for (const name of declarations[type]) {
                 if (name) {
                   const description = type;
-                  const kind = CompletionItemKind.Class;
+                  const kind = type === "function"
+                    ? CompletionItemKind.Function
+                    : CompletionItemKind.Class;
                   const completion: CompletionItem = {
                     label: name,
                     insertText: insertTextPrefix + name,

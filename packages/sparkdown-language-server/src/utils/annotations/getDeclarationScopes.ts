@@ -104,6 +104,7 @@ const UNION_LINE_BRIDGE: ReadonlySet<string> = new Set([
 // before it records a `var` or `param`, so an annotated declaration always
 // finds its declaring construct here.
 const FUNCTION_PARAMETERS = nodeNameSet(["LuauFunctionParameters"]);
+const FUNCTION_DEFINITIONS = nodeNameSet(["LuauFunctionDefinition"]);
 
 /**
  * Where a local written in no block stops being visible. `Scene` and
@@ -157,7 +158,9 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
 };
 
 /**
- * The span a Luau `local` is visible in. It starts where its declaring
+ * The span a Luau `local` is visible in. A named local function starts at
+ * its name, making it visible recursively inside its own body. A variable
+ * starts where its declaring
  * statement's text ends, so it is not offered in its own initializer,
  * including a function value in it; a statement that follows on the same
  * line (`local a = 1 return a`) is the declaration's sibling and so comes
@@ -172,18 +175,25 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
  * written. Null for a local outside the cursor's script, which is never
  * visible there, so its span is not worked out.
  */
-const getVariableScope = (
+const getLocalScope = (
   tree: Tree,
   from: number,
   read: (from: number, to: number) => string,
   inCursorScript: boolean,
+  type: "var" | "function",
 ): LocalScope | null | undefined => {
   const name = tree.resolveInner(from, 1) as Node;
-  const definition: Node | null = ancestorMatching(name, VARIABLE_DEFINITION_NAMES);
+  const definition: Node | null = ancestorMatching(
+    name,
+    type === "function" ? FUNCTION_DEFINITIONS : VARIABLE_DEFINITION_NAMES,
+  );
   if (!definition) {
     return undefined;
   }
-  const modifier = getDescendent("LuauScopeModifier", definition);
+  const modifierRoot = type === "function"
+    ? definition.getChild("LuauFunctionDefinition_begin") as Node | null
+    : definition;
+  const modifier = modifierRoot && getDescendent("LuauScopeModifier", modifierRoot);
   if (!modifier || read(modifier.from, modifier.to).trim() !== "local") {
     return undefined;
   }
@@ -196,13 +206,19 @@ const getVariableScope = (
   // `local a = ` is in the initializer.
   const text = read(definition.from, definition.to);
   const trimmed = text.trimEnd();
-  let start = text.slice(trimmed.length).includes("\n")
-    ? definition.from + trimmed.length
-    : definition.to;
+  let start = type === "function"
+    ? name.to
+    : text.slice(trimmed.length).includes("\n")
+      ? definition.from + trimmed.length
+      : definition.to;
   // A union member line after a comment line continues the declaration's
   // type (`local v: number` then `-- note` then `| string = 5`) and can hold
   // its value, so the names are visible only after the last such line.
-  for (let next = definition.nextSibling; next; next = next.nextSibling) {
+  for (
+    let next = type === "var" ? definition.nextSibling : null;
+    next;
+    next = next.nextSibling
+  ) {
     if (next.name === "LuauTypeUnionLineContinuation") {
       const lineText = read(next.from, next.to);
       const lineTrimmed = lineText.trimEnd();
@@ -216,7 +232,9 @@ const getVariableScope = (
   // A statement the definition's content holds after a comma comes after
   // the declaration, so the names are visible from it. An anonymous
   // function there is a value, in which they are not.
-  const content = definition.getChild(`${definition.name}_content`);
+  const content = type === "var"
+    ? definition.getChild(`${definition.name}_content`)
+    : null;
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (
       TRAILING_STATEMENT_NAMES.has(child.name) &&
@@ -230,7 +248,11 @@ const getVariableScope = (
   // declaration, whose later siblings include the `if` branches or
   // alternator arms after it.
   let to: number | undefined;
-  let block: Node | null = definition;
+  // A local function belongs to its enclosing block, including the part
+  // after the function's own end, rather than to its own body alone.
+  let block: Node | null = type === "function"
+    ? definition.parent as Node | null
+    : definition;
   for (; block && !LUAU_BLOCKS.has(block.name); block = block.parent as Node | null) {
     // Branches and alternator arms never sit at the root, so a root-level
     // statement's later siblings, the rest of the script, are not scanned.
@@ -323,8 +345,8 @@ export const getDeclarationScopes = (
         const text = read(cur.from, cur.to);
         const type = cur.value.type;
         const localScope =
-          tree && type === "var"
-            ? getVariableScope(tree, cur.from, read, inCursorScript)
+          tree && (type === "var" || type === "function")
+            ? getLocalScope(tree, cur.from, read, inCursorScript, type)
             : tree && type === "param"
               ? getParameterScope(tree, cur.from, read, inCursorScript)
               : undefined;
