@@ -736,12 +736,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // the end of the line.
       const lineTo = this.text?.lineAt(literalTo).to ?? literalTo;
       const rest = this.read(literalTo, lineTo).match(/^[A-Za-z0-9_.]+/);
-      const noDigits = /^0_*[xX]_*$/.test(text);
+      const noDigits = /^0_*[xXbB]_*$/.test(text);
       if (rest || noDigits) {
         // Recognize the spelling only to reject it clearly (#1309). Neither
         // the grammar nor the runtime gains integer semantics or overflow
-        // checks. Luau ignores underscores throughout a numeric token.
-        const integer = /^(?:[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+)i$/.test(
+        // checks. Luau ignores underscores throughout a numeric token and
+        // accepts a hexadecimal integer with no digits, such as `0xi`.
+        const integer = /^(?:[0-9]+|0[xX][0-9a-fA-F]*|0[bB][01]+)i$/.test(
           (text + (rest?.[0] ?? "")).replaceAll("_", ""),
         );
         this.error(
