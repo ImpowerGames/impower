@@ -1269,8 +1269,6 @@ end
   },
   {
     // TypeInfer.test.cpp:1636 TEST_CASE_FIXTURE(BuiltinsFixture, "be_sure_to_use_active_txnlog_when_evaluating_a_variadic_overload")
-    // Upstream also checks that every error begins on line 5, however many
-    // there are.
     name: "be_sure_to_use_active_txnlog_when_evaluating_a_variadic_overload",
     fixture: "BuiltinsFixture",
     source: `
@@ -1280,7 +1278,7 @@ end
 
         local res = concat({"alic"}, 1, 2)
     `,
-    expect: [{ errors: "some" }],
+    expect: [{ errors: "some" }, { everyError: { line: 5 } }],
   },
   {
     // TypeInfer.test.cpp:1655 TEST_CASE_FIXTURE(Fixture, "typeof_cannot_refine_builtin_alias")
