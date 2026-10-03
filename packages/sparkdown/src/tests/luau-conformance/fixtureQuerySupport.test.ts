@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import type { TypeId } from "../../compiler/typecheck/Type";
+import { Frontend } from "../../compiler/typecheck/Frontend";
 import { checkLuau, type LuauCheckSession } from "./typecheckTestHarness";
 import {
   runAssertions,
@@ -9,6 +11,135 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  test("shared port steps assert before the next global setup transition", () => {
+    runPortedCase(
+      "TypeInfer.annotations.test.cpp",
+      {
+        name: "ordered setup",
+        shareFixture: true,
+        checks: [
+          {
+            source: "local x=sentinel",
+            globals: { sentinel: "number" },
+            expect: [{ global: "sentinel", equals: "number" }],
+          },
+          {
+            source: "local x=sentinel",
+            globals: { sentinel: "string" },
+            clearModules: true,
+            expect: [{ global: "sentinel", equals: "string" }],
+          },
+        ],
+      },
+      () => {
+        throw new Error("applicable case skipped");
+      },
+    );
+  });
+  test("dependency errors retain module names, source order and reachability", () => {
+    const r = checkLuau(
+      "local Import=require(game.Types)\nlocal x:Import.T='bad'\nreturn x",
+      {
+        fixture: "BuiltinsFixture",
+        module: "game/Main",
+        moduleSources: {
+          "game/Types":
+            "export type T=number\nlocal a:number='s'\nlocal b:string=1\nreturn 1",
+          "game/Unused": "local z:number='unused'\nreturn 1",
+        },
+      },
+    );
+    expect(r.setupSyntaxDiagnostics).toEqual([]);
+    expect(r.find({ importedAlias: ["Import", "T"] }).print()).toBe("number");
+    expect(r.diagnostics.map((d) => [d.module, d.line, d.code])).toEqual([
+      ["game/Types", 1, "TypeMismatch"],
+      ["game/Types", 2, "TypeMismatch"],
+      ["game/Main", 1, "TypeMismatch"],
+    ]);
+    expect(r.find({ diagnosticType: [0, "givenType"] }).print()).toBe("string");
+  });
+  test("error builtin identity is accepted by port coverage validation", () => {
+    const c: PortedCase = {
+      name: "a",
+      source: "local x=1",
+      expect: [{ builtin: "error", equals: "*error-type*" }],
+    };
+    expect(
+      portProblems("X.test.cpp", [c], {
+        pin: "test",
+        errorKinds: [],
+        files: { "X.test.cpp": [{ name: "a" }] },
+      }),
+    ).toEqual([]);
+  });
+  test("recursive function result queries do not eagerly expand their cycle", () => {
+    const r = checkLuau("local function f() return f end");
+    const f = r.find({ type: "f" });
+    expect(f.kind).toBe("FunctionType");
+    expect(f.results?.[0]?.is(f)).toBe(true);
+  });
+  test("const parser and negation path flags use audited fixed behavior", () => {
+    const r = checkLuau("const x=1\nx='s'", {
+      flags: { LuauExportValueSyntax: true },
+    });
+    expect(r.diagnostics[0]?.data).toMatchObject({
+      message: "Variable 'x' is constant and may not be reassigned",
+    });
+    const n = checkLuau("local a:Not<false?>=false", {
+      fixture: "NegationFixture",
+      flags: {
+        LuauNewTypePathErrorMessages: true,
+        LuauFixSuperNegationTypePaths: true,
+      },
+    });
+    expect(n.diagnostics[0]?.message).toContain("cannot be `~(false?)`");
+    expect(() =>
+      checkLuau("export const x=1", { flags: { LuauExportValueSyntax: true } }),
+    ).toThrow(/not implemented.*LuauExportValueSyntax/);
+    expect(() =>
+      checkLuau("local a=1", {
+        flags: { LuauFixSuperNegationTypePaths: false },
+      }),
+    ).toThrow(/not implemented.*LuauFixSuperNegationTypePaths/);
+  });
+  test("discarded nonpersistent diagnostic graphs are owned by the public arena", () => {
+    const source = "local x:{a:number}={a=1}\nlocal y:number=x";
+    const frontend = new Frontend();
+    const realCheck = frontend.checkSourceModule.bind(frontend);
+    let original: TypeId | undefined;
+    // Observe the real checker's returned cell before the harness clones it;
+    // this wrapper returns the unmodified real result, with no mock outcome.
+    frontend.checkSourceModule = (...args) => {
+      const result = realCheck(...args);
+      const error = result.module.errors.find(
+        (e) => e.data.kind === "TypeMismatch",
+      );
+      if (error?.data.kind === "TypeMismatch") original = error.data.givenType;
+      return result;
+    };
+    const session: LuauCheckSession = {
+      frontend,
+      fixture: "Fixture",
+      modules: new Map(),
+    };
+    const r = checkLuau(source, { session, retainFullTypeGraphs: false });
+    const module = session.modules.get("MainModule")!.module;
+    const error = module.errors.find((e) => e.data.kind === "TypeMismatch")!;
+    if (error.data.kind !== "TypeMismatch") throw new Error("missing mismatch");
+    expect(original !== undefined).toBe(true);
+    expect(original?.persistent).toBe(false);
+    expect(error.data.givenType !== original).toBe(true);
+    expect(error.data.givenType.persistent).toBe(false);
+    expect(error.data.givenType.owningArena === module.interfaceTypes).toBe(
+      true,
+    );
+    expect(module.interfaceTypes.types).toContain(error.data.givenType);
+    expect(module.internalTypes.types).toHaveLength(0);
+    expect(r.diagnostics[0]?.data?.["givenType"]).toBe("{ a: number }");
+    expect(r.find({ diagnosticType: [0, "givenType"] }).print()).toBe(
+      "{ a: number }",
+    );
+  });
   test("positive control: the ordinary checker executes", () => {
     expect(checkLuau("local x = 1").typeOf("x")).toBe("number");
   });

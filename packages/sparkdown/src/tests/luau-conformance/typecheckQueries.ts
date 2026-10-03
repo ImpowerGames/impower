@@ -59,6 +59,7 @@ export function queryType(
   module: Module,
   source: SourceModule,
   selector: TypeSelector,
+  diagnostics?: readonly import("../../compiler/typecheck/Error").LuauTypeError[],
 ): CheckedType | undefined {
   let selected: TypeId | TypePackId | undefined, alias: TypeFun | undefined;
   if ("type" in selector)
@@ -91,9 +92,8 @@ export function queryType(
     selected = expr ? module.astExpectedTypes.get(expr) : undefined;
   } else if ("diagnosticType" in selector) {
     const [index, field] = selector.diagnosticType;
-    const error = accumulateErrors([...source.parseErrors, ...module.errors])[
-      index
-    ];
+    const error = (diagnostics ??
+      accumulateErrors([...source.parseErrors, ...module.errors]))[index];
     const value = error
       ? (error.data as unknown as Record<string, unknown>)[field]
       : undefined;
@@ -171,7 +171,9 @@ export function queryType(
             throw new Error("pack subtyping hit resource limits");
           return result.isSubtype;
         },
-        results: flatten(value).head.map((v) => answer(v)),
+        get results() {
+          return flatten(value).head.map((v) => answer(v));
+        },
         returns: facts(value),
       };
       identities.set(result, value);
@@ -211,7 +213,9 @@ export function queryType(
           throw new Error("subtyping hit resource limits");
         return result.isSubtype;
       },
-      results: fn ? flatten(fn.retTypes).head.map((v) => answer(v)) : undefined,
+      get results() {
+        return fn ? flatten(fn.retTypes).head.map((v) => answer(v)) : undefined;
+      },
       arguments: fn ? facts(fn.argTypes) : undefined,
       returns: fn ? facts(fn.retTypes) : undefined,
       hasSelf: fn?.hasSelf,

@@ -24,6 +24,10 @@ import {
   AstExprGlobal,
   AstExprIndexName,
   AstExprLocal,
+  AstStatLocal,
+  AstStatLocalFunction,
+  visitAst,
+  type AstStatBlock,
 } from "../../compiler/typecheck/Ast";
 import {
   copyErrors,
@@ -253,14 +257,44 @@ const parseDefinitions = await loadOfficialLuau("typecheck");
 const upstreamPin = "7d5f73364fdbbaa984fa545071630eba73cfea98";
 
 /** Fixed settings are accepted only for explicitly audited equivalent code paths. */
-export function validateLuauFlags(flags: Record<string, boolean> = {}): void {
+export function validateLuauFlags(
+  flags: Record<string, boolean> = {},
+  roots: AstStatBlock[] = [],
+): void {
   const fixed: Record<string, boolean> = {
     DebugLuauForceOldSolver: false, // Frontend.check only invokes the new solver.
     DebugLuauMagicTypes: false, // No internal magic aliases are installed.
     LuauAvoidTrivialPhis: true, // DataFlowGraph.joinScopes skips identical defs.
     LuauStrictVisitInstantiatedType: true, // Generator records failed references; TypeChecker2 visits type arguments and checks them.
+    LuauNewTypePathErrorMessages: true, // TypeChecker2.explainReasonings traverses/render paths with metadata and enclosing negation.
+    LuauFixSuperNegationTypePaths: true, // Subtyping super-negation branches attach the Negated component at each leaf.
   };
   for (const [name, value] of Object.entries(flags)) {
+    if (name === "LuauExportValueSyntax" && value === true) {
+      let hasConst = false,
+        hasValueExport = false;
+      for (const root of roots)
+        visitAst(root, {
+          visit: (node) => {
+            if (node instanceof AstStatLocal) {
+              hasConst ||= node.isConst;
+              hasValueExport ||=
+                node.isExported || node.vars.some((v) => v.isExported);
+            } else if (node instanceof AstStatLocalFunction) {
+              hasConst ||= node.isConst;
+              hasValueExport ||= node.name.isExported;
+            }
+            return true;
+          },
+        });
+      // Pinned Parser.cpp's true branch reports const-lvalue errors through
+      // reportLValueError; readLuauAst does this unconditionally. This bounded
+      // equivalence does not authorize or claim value-export syntax support.
+      if (hasConst && !hasValueExport) continue;
+      throw new NotImplemented(
+        `flag ${name}=${value}; only const declarations without value exports have audited equivalent syntax`,
+      );
+    }
     if (!(name in fixed) || fixed[name] !== value)
       throw new NotImplemented(
         `flag ${name}=${value}; no equivalent configured checker path`,
@@ -349,8 +383,8 @@ export function checkLuau(
   source: string,
   options: CheckLuauOptions = {},
 ): LuauCheckResult {
-  validateLuauFlags(options.flags);
   const prepared = compileSource(source);
+  validateLuauFlags(options.flags, [prepared.unit.root]);
   const { syntaxDiagnostics, compilerMessages } = prepared;
   const session = options.session ?? createLuauCheckSession();
   const fixture = options.fixture ?? "Fixture";
@@ -423,6 +457,10 @@ export function checkLuau(
   ]);
   for (const [name, text] of Object.entries(options.moduleSources ?? {})) {
     const dependency = compileSource(text);
+    validateLuauFlags(options.flags, [
+      prepared.unit.root,
+      dependency.unit.root,
+    ]);
     sources.set(name, dependency);
     setupSyntaxDiagnostics.push(
       ...dependency.syntaxDiagnostics.map((d) => ({ ...d, module: name })),
@@ -433,6 +471,7 @@ export function checkLuau(
   }
   session.modules.delete(entry);
   const visiting = new Set<string>();
+  const requires = new Map<string, Set<string>>();
   const resolveName = (
     current: string,
     expression: import("../../compiler/typecheck/Ast").AstExpr,
@@ -482,6 +521,11 @@ export function checkLuau(
   const resolver: ModuleResolver = {
     resolveModuleInfo: (current, expr) => {
       const name = resolveName(current, expr);
+      if (name) {
+        const edges = requires.get(current) ?? new Set<string>();
+        edges.add(name);
+        requires.set(current, edges);
+      }
       return name ? { name, optional: false } : undefined;
     },
     getModule: (name) => checkModule(name)?.module,
@@ -490,33 +534,60 @@ export function checkLuau(
   };
   frontend.moduleResolver = resolver;
   const checked = checkModule(entry)!;
-  if (options.retainFullTypeGraphs === false) {
-    copyErrors(
-      checked.module.errors,
-      checked.module.interfaceTypes,
-      frontend.builtinTypes,
+  // Pinned Frontend.cpp::accumulateErrors: reverse per-module source order,
+  // visit each reachable require once, then reverse the complete result.
+  const allErrors: LuauTypeError[] = [];
+  const reachable: ReturnType<typeof checkLuauUnit>[] = [];
+  const seen = new Set<string>(),
+    queue = [entry];
+  while (queue.length) {
+    const name = queue.pop()!;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    queue.push(...(requires.get(name) ?? []));
+    const result = session.modules.get(name);
+    if (!result) continue;
+    reachable.push(result);
+    allErrors.push(
+      ...[...result.errors]
+        .reverse()
+        .sort(
+          (a, b) =>
+            b.location.begin.line - a.location.begin.line ||
+            b.location.begin.column - a.location.begin.column,
+        ),
     );
-    checked.module.internalTypes.types.length = 0;
-    checked.module.internalTypes.typePacks.length = 0;
-    for (const map of [
-      checked.module.astTypes,
-      checked.module.astTypePacks,
-      checked.module.astExpectedTypes,
-      checked.module.astOriginalCallTypes,
-      checked.module.astOverloadResolvedTypes,
-      checked.module.astForInNextTypes,
-      checked.module.astResolvedTypes,
-      checked.module.astResolvedTypePacks,
-      checked.module.astCompoundAssignResultTypes,
-      checked.module.upperBoundContributors,
-      checked.module.astScopes,
-    ])
-      map.clear();
-    checked.module.scopes.length = 0;
-    checked.module.astTypeReferenceLookupFailures.clear();
-    checked.module.astTypePackReferenceLookupFailures.clear();
   }
-  const diagnostics = checked.errors.map(toLuauDiagnostic);
+  allErrors.reverse();
+  if (options.retainFullTypeGraphs === false) {
+    for (const checked of reachable) {
+      copyErrors(
+        checked.module.errors,
+        checked.module.interfaceTypes,
+        frontend.builtinTypes,
+      );
+      checked.module.internalTypes.types.length = 0;
+      checked.module.internalTypes.typePacks.length = 0;
+      for (const map of [
+        checked.module.astTypes,
+        checked.module.astTypePacks,
+        checked.module.astExpectedTypes,
+        checked.module.astOriginalCallTypes,
+        checked.module.astOverloadResolvedTypes,
+        checked.module.astForInNextTypes,
+        checked.module.astResolvedTypes,
+        checked.module.astResolvedTypePacks,
+        checked.module.astCompoundAssignResultTypes,
+        checked.module.upperBoundContributors,
+        checked.module.astScopes,
+      ])
+        map.clear();
+      checked.module.scopes.length = 0;
+      checked.module.astTypeReferenceLookupFailures.clear();
+      checked.module.astTypePackReferenceLookupFailures.clear();
+    }
+  }
+  const diagnostics = allErrors.map(toLuauDiagnostic);
 
   const find = (selector: TypeSelector): CheckedType => {
     if (
@@ -524,6 +595,7 @@ export function checkLuau(
       !(
         "moduleReturn" in selector ||
         "exportedAlias" in selector ||
+        "diagnosticType" in selector ||
         "builtin" in selector
       )
     )
@@ -537,6 +609,7 @@ export function checkLuau(
       selected.module,
       selected.sourceModule,
       selector,
+      selector.module ? undefined : allErrors,
     );
     if (!ty) throw new Error(`no type for ${JSON.stringify(selector)}`);
     return ty;

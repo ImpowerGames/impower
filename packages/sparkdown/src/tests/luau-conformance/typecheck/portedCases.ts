@@ -462,6 +462,7 @@ function selectorProblems(s: TypeSelector, where: string): string[] {
       "never",
       "function",
       "table",
+      "error",
     ].includes(s.builtin)
   )
     problems.push(`${where} builtin is unknown`);
@@ -1022,9 +1023,10 @@ export function runPortedCase(
 ): void {
   const checks = checksOf(c);
   const session = c.shareFixture ? createLuauCheckSession() : undefined;
-  const results = checks.map((ch) => ({
-    check: ch,
-    result: check(ch.source, {
+  const skipped =
+    !!c.skip || checks.some((ch) => ch.unparsed) || !areaIsChecked(file);
+  for (const ch of checks) {
+    const result = check(ch.source, {
       mode: ch.mode,
       fixture: ch.fixture ?? c.fixture,
       ...(ch.module === undefined ? {} : { module: ch.module }),
@@ -1046,13 +1048,11 @@ export function runPortedCase(
       areaIsChecked(file)
         ? { flags: c.flags }
         : {}),
-    }),
-  }));
+    });
 
-  // A snippet recorded as unparsed must still fail to parse, so the record
-  // goes as soon as the defect is fixed or the divergence removed. A snippet
-  // Luau rejects must be rejected here too.
-  for (const { check: ch, result } of results) {
+    // A snippet recorded as unparsed must still fail to parse, so the record
+    // goes as soon as the defect is fixed or the divergence removed. A snippet
+    // Luau rejects must be rejected here too.
     expect(
       (result.setupSyntaxDiagnostics ?? []).map(describeDiagnostic),
       "setup source did not parse",
@@ -1073,9 +1073,13 @@ export function runPortedCase(
         "Sparkdown did not read the snippet as Luau",
       ).toEqual([]);
     }
+    // Intentional shared-fixture queries must observe this step before the
+    // next setup/reset changes its globals or module cache.
+    if (!skipped && !c.limits && !ch.doesNotPassNewSolver && !ch.notApplicable)
+      runAssertions(result, ch);
   }
 
-  if (c.skip || checks.some((ch) => ch.unparsed) || !areaIsChecked(file)) {
+  if (skipped) {
     skip();
     return;
   }
@@ -1086,10 +1090,6 @@ export function runPortedCase(
     throw new NotImplemented(
       `setting ${lowered.join(" and ")}, as upstream's ScopedFastInt does`,
     );
-  }
-  for (const { check: ch, result } of results) {
-    if (ch.doesNotPassNewSolver || ch.notApplicable) continue;
-    runAssertions(result, ch);
   }
 }
 
