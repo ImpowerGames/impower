@@ -2,6 +2,12 @@ import { describe, expect, test } from "vitest";
 import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 describe("Luau casts to type targets (#877)", () => {
+  test.each(["types --[[c]] .Number?", "types. --[[c]] Array<number>", "types --[====[long\ncomment]====] .Number?", "types. --[====[long\ncomment]====] Number?"])
+    ("preserves following return after %s", (target) => {
+      const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  local a = 55 :: ${target}\n  return a\nend\n`);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.ContinueMaximally()).toBe("Value 55.\n");
+    });
   test.each([["number | string", "<= 55"], ["(number | string)", "< 56"]])
     ("compares a cast to %s with %s", (target, comparison) => {
       const ctx = makeRuntimeStoryFromSource(

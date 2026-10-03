@@ -1281,7 +1281,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // A type name with more than one module prefix (`types.ui.Button`). Luau
     // reads at most `module.Type`, so the segments after it are a syntax
     // error; the grammar keeps them inside the type so this can report them.
-    if (nodeRef.name === "LuauTypeNameExtraQualifier") {
+    if (nodeRef.name === "LuauTypeNameExtraQualifier" || nodeRef.name === "LuauTypeNameExtraQualifierContinuation") {
       this.error(
         annotations,
         TYPE_NAME_EXTRA_QUALIFIER,

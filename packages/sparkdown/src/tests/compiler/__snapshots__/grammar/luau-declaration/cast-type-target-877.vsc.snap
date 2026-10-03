@@ -249,7 +249,7 @@ text.source.sparkdown [0..703]
  │       ├─ punctuation.whitespace.optional.sd [553..554]: " "
  │       ├─ support.type.primitive.luau [554..560]: "string"
  │       ├─ punctuation.definition.template-expression.end.sd [560..561]: ">"
- │       ├─ punctuation.whitespace.extra.sd [561..562]: " "
+ │       ├─ punctuation.whitespace.optional.sd [561..562]: " "
  │       ├─ keyword.operator.arithmetic.luau [562..563]: "+"
  │       ├─ punctuation.whitespace.optional.sd [563..564]: " "
  │       └─ constant.numeric.decimal.luau [564..565]: "1"

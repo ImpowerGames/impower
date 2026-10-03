@@ -464,6 +464,7 @@ export function reportUntakenLineContinuation(
     const raw = ctx.read(node.from, node.to);
     const text = raw.trim();
     const from = node.from + raw.length - raw.trimStart().length;
+    const to = Math.max(from, node.from + raw.trimEnd().length);
     ctx.diagnostics?.push({
       message: `\`${text}\` continues the line before it, which does not end in a value it can continue. ${advice}`,
       severity: ErrorType.Error,
@@ -471,9 +472,9 @@ export function reportUntakenLineContinuation(
         fileName: null,
         filePath: ctx.filePath ?? null,
         startLineNumber: ctx.lineNumber(from) + 1,
-        endLineNumber: ctx.lineNumber(node.to) + 1,
+        endLineNumber: ctx.lineNumber(to) + 1,
         startCharacterNumber: ctx.characterNumber(from) + 1,
-        endCharacterNumber: ctx.characterNumber(node.to) + 1,
+        endCharacterNumber: ctx.characterNumber(to) + 1,
       },
     });
   }
@@ -512,6 +513,8 @@ export const TYPE_NAME_EXTRA_QUALIFIER =
 // `LuauPrimitiveType` until its qualifier is on the same line.
 export function typeNameSegments(node: SyntaxNode): number {
   for (let n = lastSignificantLeaf(node); n && n !== node; n = n.parent) {
+    if (n.name === "LuauTypeNameExtraQualifier" || n.name === "LuauTypeNameExtraQualifierContinuation") return 3;
+    if (n.name === "LuauQualifiedTypeFinalName") return 2;
     if (n.name === "LuauPrimitiveType") return 1;
     if (n.name === "LuauTypeName") {
       if (hasDescendant(n, "LuauTypeNameExtraQualifier")) return 3;
