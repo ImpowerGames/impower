@@ -469,6 +469,10 @@ from numeric zero.
 
 ### A malformed type annotation is reported only where its type cannot begin
 
+Missing closing delimiters in otherwise readable function, return-pack, table, indexer, generic and `typeof`
+types are now also reported in checked Luau, including cast targets. The limitation described below applies to
+other malformed type forms.
+
 `local x: number = 1` and `function f(x: number): string ... end` are checked by the type checker ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)), which warns where a value does not match its annotation; as in Luau, an annotation never changes a value at runtime, and the lowerer drops it. Luau's parser also reports an annotation it cannot read. Sparkdown reports the ones where a type is missing or cannot start with the token where one must stand, at any position a type can appear (`local x: = 1`, `local w:` before a line that starts with `local`, `{ a: number | }`, `for k: in pairs(t)`, `local c: : number`, `local y: ?number`), an annotation written with `::` (`local x :: number`), and one with no name before it (`function f(: number)`, `{ a: number, : string }`), with Luau's wording and range, from the type checker's reading of the Luau in the syntax tree. In a scene's or branch's parameters and a `store` declaration, which the checker does not read, the validator gives the same wording and range. Any other malformed annotation, such as `local a: (number, number)`, which lacks the `->` of a function type, gets no diagnostic: Sparkdown's grammar reads an annotation only far enough to find where it ends.
 
 ### TypeCast (`::`) is a no-op at runtime

@@ -1,0 +1,8 @@
+function run()
+  local optional = nil :: number?
+  local callback = nil :: (number) -> string
+  local union = nil :: number? | string
+  local generic = nil :: Array<number?>
+  local result = optional :: number+1
+  return result
+end

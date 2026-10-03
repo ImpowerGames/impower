@@ -1373,12 +1373,12 @@ class Parser {
     this.report(this.current().location, message, malformed ?? (this.isAnnotationColon() ? "annotation" : undefined));
   }
 
-  private expectMatchAndConsume(text: string, begin: Token, searchForMissing = false): boolean {
+  private expectMatchAndConsume(text: string, begin: Token, searchForMissing = false, construct?: MalformedConstruct): boolean {
     if (this.is(text)) {
       this.nextExpected();
       return true;
     }
-    this.expectMatchAndConsumeFail(text, begin);
+    this.expectMatchAndConsumeFail(text, begin, "", construct);
     if (searchForMissing) {
       const line = this.previousLocation().end.line;
       while (this.current().kind !== "eof" && this.current().location.begin.line === line && !this.is(text) && !this.is("end")) this.next();
@@ -2334,6 +2334,7 @@ class Parser {
   }
 
   private parseReturnType(): AstTypePack {
+    const reportsBefore = this.reports;
     this.incrementRecursionCounter("type annotation");
     const begin = this.current();
     if (!this.is("(")) {
@@ -2347,7 +2348,7 @@ class Parser {
     let varargAnnotation: AstTypePack | undefined;
     if (!this.is(")")) varargAnnotation = this.parseTypeList(result, resultNames);
     const location = Location.span(begin.location, this.current().location);
-    this.expectMatchAndConsume(")", begin, true);
+    this.expectMatchAndConsume(")", begin, true, this.reports === reportsBefore ? "type" : undefined);
 
     if (!this.is("->") && resultNames.length === 0) {
       if (result.length === 1) {
@@ -2369,8 +2370,9 @@ class Parser {
   }
 
   private parseTableIndexer(access: AstTableAccess, accessLocation: Location | undefined, begin: Token): AstTableIndexer {
+    const reportsBefore = this.reports;
     const index = this.parseType();
-    this.expectMatchAndConsume("]", begin);
+    this.expectMatchAndConsume("]", begin, false, this.reports === reportsBefore ? "type" : undefined);
     this.expectAndConsume(":", "table field");
     const result = this.parseType();
     const indexer: AstTableIndexer = { indexType: index, resultType: result, location: Location.span(begin.location, result.location), access };
@@ -2379,6 +2381,7 @@ class Parser {
   }
 
   private parseTableType(): AstType {
+    const reportsBefore = this.reports;
     this.incrementRecursionCounter("type annotation");
     const props: AstTableProp[] = [];
     let indexer: AstTableIndexer | undefined;
@@ -2441,11 +2444,12 @@ class Parser {
       else if (!this.is("}")) break;
     }
     let end = this.current().location;
-    if (!this.expectMatchAndConsume("}", matchBrace, true)) end = this.previousLocation();
+    if (!this.expectMatchAndConsume("}", matchBrace, true, this.reports === reportsBefore ? "type" : undefined)) end = this.previousLocation();
     return new AstTypeTable(Location.span(start, end), props, indexer);
   }
 
   private parseFunctionType(allowPack: boolean): AstTypeOrPack {
+    const reportsBefore = this.reports;
     this.incrementRecursionCounter("type annotation");
     let forceFunctionType = this.is("<");
     const begin = this.current();
@@ -2457,7 +2461,7 @@ class Parser {
     let varargAnnotation: AstTypePack | undefined;
     if (!this.is(")")) varargAnnotation = this.parseTypeList(params, names);
     const closeArgsLocation = this.current().location;
-    this.expectMatchAndConsume(")", parameterStart, true);
+    this.expectMatchAndConsume(")", parameterStart, true, this.reports === reportsBefore ? "type" : undefined);
     if (names.length !== 0) forceFunctionType = true;
     const returnTypeIntroducer = this.is("->") || this.is(":");
     if (params.length === 1 && !varargAnnotation && !forceFunctionType && !returnTypeIntroducer) {
@@ -2605,11 +2609,12 @@ class Parser {
         this.report(this.current().location, "Unexpected '...' after type name; type pack is not allowed in this context");
         this.next();
       } else if (name.name === "typeof") { // not a node name
+        const reportsBefore = this.reports;
         const typeofBegin = this.current();
         this.expectAndConsume("(", "typeof type");
         const expr = this.parseExpr();
         const end = this.current().location;
-        this.expectMatchAndConsume(")", typeofBegin);
+        this.expectMatchAndConsume(")", typeofBegin, false, this.reports === reportsBefore ? "type" : undefined);
         return { type: new AstTypeTypeof(Location.span(start, end), expr) };
       }
       let hasParameters = false;
@@ -2713,6 +2718,7 @@ class Parser {
   }
 
   private parseTypeParams(): AstTypeOrPack[] {
+    const reportsBefore = this.reports;
     const parameters: AstTypeOrPack[] = [];
     if (!this.is("<")) return parameters;
     const begin = this.current();
@@ -2741,7 +2747,7 @@ class Parser {
       if (this.is(",")) this.next();
       else break;
     }
-    this.expectMatchAndConsume(">", begin);
+    this.expectMatchAndConsume(">", begin, false, this.reports === reportsBefore ? "type" : undefined);
     return parameters;
   }
 

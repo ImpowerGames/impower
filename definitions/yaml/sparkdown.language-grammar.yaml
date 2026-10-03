@@ -920,6 +920,10 @@ variables:
   # A name that is not a reserved word.
   LUAU_UNRESERVED_IDENTIFIER: (?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}}
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
+  # lookaround: LuauTypeGenerics, LuauTypeBinaryOperation, LuauComment and
+  # the cast operator retain `<`, `->`, comments and `::`. Splitting the
+  # enclosing type rules cannot return other value operators to their parent.
+  LUAU_VALUE_OPERATOR_AFTER_TYPE: (?![<]|[-][>]|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_COMMENT_START}}){{LUAU_VALUE_BINARY_OPERATORS}}
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
   # closing bracket of its own level, as `LuauBlockComment` does, so its level
@@ -978,9 +982,9 @@ variables:
   # exactly one capture group to the host rule.
   _LUAU_BINARY_OPERATOR_AHEAD_: (?:({{WS}}*)(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
   # The same lookahead for the value-only rules (access paths, numbers, `nil`,
-  # tables, parentheses), which keep `?`: a value followed by a stray `?`, as in
-  # a `x :: T?` cast that does not parse yet (#877), still takes the whitespace
-  # before it as a separator, so formatting settles. Rules that a type can also
+  # tables, parentheses), which keep `?`: a value followed by a stray `?`
+  # still takes the whitespace before it as a separator, so formatting
+  # settles. Rules that a type can also
   # be (strings and booleans) use `_LUAU_SHARED_OPERATOR_AHEAD_` below, because a
   # type is glued to its `?`. Like the one above, this adds exactly one capture
   # group to the host rule.
@@ -10520,10 +10524,19 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauTypeCastOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
+      - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
-      - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
+      - { include: "#LuauTypeLiteral" }
+    # A cast's type can be followed by a value operator. The type reader
+    # takes its trailing whitespace, so close here even without whitespace
+    # remaining; `->` and comments still belong to the type.
+    # lookaround: LuauArithmeticOperation must claim `+`/`-` outside the
+    # cast. Reordering or splitting the type's patterns cannot hand a token
+    # back to its parent; this end carries that boundary. Tightening the
+    # shared value-operator variable would break ordinary expressions.
+    # Excluding `::` prevents closing before the cast operator is consumed;
+    # `<` belongs to LuauTypeGenerics and `->` to LuauTypeBinaryOperation.
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauTypeCastOperator:
     begin: ({{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
@@ -10878,8 +10891,15 @@ repository:
     # (`number ?`); whitespace before the line break does not. It also ends
     # before a block comment on its line that code follows
     # (`function f(): number --[[c]] g()`, see `LUAU_BLOCK_COMMENT_ON_LINE`),
-    # and before a keyword that cannot start a type.
-    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # and before a keyword that cannot start a type. A value operator after
+    # a complete type belongs outside it (notably after a `::` cast);
+    # the function-type arrow and comments continue the type instead.
+    # lookaround: the enclosing cast's end cannot close this nested scope.
+    # Reordering/splitting these type patterns still leaves `+` unclaimed;
+    # this type's own end must return it to LuauArithmeticOperation.
+    # Tightening the shared value-operator variable would change values;
+    # `<`, `->`, `::` and comments retain their existing type rules.
+    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   # A block comment right after a type that closes on a later line
   # (`local w: number --[[a` then `b]] print(1)`). No pattern on the
@@ -11275,7 +11295,9 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    # lookaround: LuauReturnStatement must escape an unfinished generic type.
+    # Splitting the type patterns cannot return indentation to its statement.
+    end: ([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -11306,7 +11328,9 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    # lookaround: LuauReturnStatement must escape an unfinished table type.
+    # Splitting the type patterns cannot return indentation to its statement.
+    end: ([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -11383,7 +11407,10 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    # lookaround: LuauReturnStatement and other statements must start outside
+    # an unclosed type parameter list. Reordering its type patterns cannot
+    # return already-consumed indentation; yield before that whitespace.
+    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
