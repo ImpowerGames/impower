@@ -4,5 +4,13 @@ function run()
   local union = nil :: number? | string
   local generic = nil :: Array<number?>
   local result = optional :: number+1
+  local compound = optional :: number | string + 1
+  local intersection = optional :: number & string - 1
+  local functionResult = callback :: () -> number * 2
+  local packedResult = callback :: (number) -> (number, string) + 1
+  local tableResult = optional :: {value: number | string} + 1
+  local genericResult = optional :: Array<number | string> + 1
+  local comparison = optional :: number | string <= 55
+  local closedComparison = optional :: (number | string) < 55
   return result
 end

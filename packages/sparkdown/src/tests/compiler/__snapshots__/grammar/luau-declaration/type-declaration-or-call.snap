@@ -41,15 +41,21 @@ sparkdown [0..157]
  │   │       │   │   │   ├─ LuauTypeLiteral [21..23]
  │   │       │   │   │   │   ├─ LuauTypeLiteral_begin 21
  │   │       │   │   │   │   ├─ LuauTypeLiteral_content [21..23]
- │   │       │   │   │   │   │   └─ LuauTypeName [21..23]
- │   │       │   │   │   │   │       ├─ LuauTypeName_c1 21
- │   │       │   │   │   │   │       ├─ LuauTypeName_c2 21
- │   │       │   │   │   │   │       ├─ LuauTypeName_c3 [21..22]: "T"
- │   │       │   │   │   │   │       ├─ LuauTypeName_c4 22
- │   │       │   │   │   │   │       ├─ LuauTypeName_c5 [22..23]
- │   │       │   │   │   │   │       │   └─ LuauTypeName_c5 [22..23]
- │   │       │   │   │   │   │       │       └─ OptionalWhitespace [22..23]: " "
- │   │       │   │   │   │   │       └─ LuauTypeName_c6 23
+ │   │       │   │   │   │   │   └─ LuauNamedTypeReference [21..23]
+ │   │       │   │   │   │   │       ├─ LuauNamedTypeReference_begin [21..23]
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c1 [21..22]
+ │   │       │   │   │   │   │       │   │   └─ LuauTypeName [21..22]
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c1 21
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c2 21
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c3 [21..22]: "T"
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c4 22
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c5 22
+ │   │       │   │   │   │   │       │   │       └─ LuauTypeName_c6 22
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c2 [22..23]
+ │   │       │   │   │   │   │       │   │   └─ LuauNamedTypeReference_begin_c2 [22..23]
+ │   │       │   │   │   │   │       │   │       └─ OptionalWhitespace [22..23]: " "
+ │   │       │   │   │   │   │       │   └─ LuauNamedTypeReference_begin_c3 23
+ │   │       │   │   │   │   │       └─ LuauNamedTypeReference_end 23
  │   │       │   │   │   │   └─ LuauTypeLiteral_end 23
  │   │       │   │   │   └─ LuauTypeAssignment [23..32]
  │   │       │   │   │       ├─ LuauTypeAssignment_begin [23..25]
@@ -61,11 +67,18 @@ sparkdown [0..157]
  │   │       │   │   │       │   └─ LuauTypeLiteral [25..32]
  │   │       │   │   │       │       ├─ LuauTypeLiteral_begin 25
  │   │       │   │   │       │       ├─ LuauTypeLiteral_content [25..32]
- │   │       │   │   │       │       │   ├─ LuauPrimitiveType [25..31]
- │   │       │   │   │       │       │   │   ├─ LuauPrimitiveType_c1 [25..31]: "number"
- │   │       │   │   │       │       │   │   ├─ LuauPrimitiveType_c2 31
- │   │       │   │   │       │       │   │   └─ LuauPrimitiveType_c3 31
- │   │       │   │   │       │       │   └─ Newline [31..32]: "\n"
+ │   │       │   │   │       │       │   └─ LuauNamedTypeReference [25..32]
+ │   │       │   │   │       │       │       ├─ LuauNamedTypeReference_begin [25..31]
+ │   │       │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [25..31]
+ │   │       │   │   │       │       │       │   │   └─ LuauPrimitiveType [25..31]
+ │   │       │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c1 [25..31]: "number"
+ │   │       │   │   │       │       │       │   │       ├─ LuauPrimitiveType_c2 31
+ │   │       │   │   │       │       │       │   │       └─ LuauPrimitiveType_c3 31
+ │   │       │   │   │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 31
+ │   │       │   │   │       │       │       │   └─ LuauNamedTypeReference_begin_c3 31
+ │   │       │   │   │       │       │       ├─ LuauNamedTypeReference_content [31..32]
+ │   │       │   │   │       │       │       │   └─ Newline [31..32]: "\n"
+ │   │       │   │   │       │       │       └─ LuauNamedTypeReference_end 32
  │   │       │   │   │       │       └─ LuauTypeLiteral_end 32
  │   │       │   │   │       └─ LuauTypeAssignment_end 32
  │   │       │   │   └─ LuauDataTypeDeclaration_end 32
@@ -85,15 +98,21 @@ sparkdown [0..157]
  │   │       │   │   │   ├─ LuauTypeLiteral [46..48]
  │   │       │   │   │   │   ├─ LuauTypeLiteral_begin 46
  │   │       │   │   │   │   ├─ LuauTypeLiteral_content [46..48]
- │   │       │   │   │   │   │   └─ LuauTypeName [46..48]
- │   │       │   │   │   │   │       ├─ LuauTypeName_c1 46
- │   │       │   │   │   │   │       ├─ LuauTypeName_c2 46
- │   │       │   │   │   │   │       ├─ LuauTypeName_c3 [46..47]: "U"
- │   │       │   │   │   │   │       ├─ LuauTypeName_c4 47
- │   │       │   │   │   │   │       ├─ LuauTypeName_c5 [47..48]
- │   │       │   │   │   │   │       │   └─ LuauTypeName_c5 [47..48]
- │   │       │   │   │   │   │       │       └─ OptionalWhitespace [47..48]: " "
- │   │       │   │   │   │   │       └─ LuauTypeName_c6 48
+ │   │       │   │   │   │   │   └─ LuauNamedTypeReference [46..48]
+ │   │       │   │   │   │   │       ├─ LuauNamedTypeReference_begin [46..48]
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c1 [46..47]
+ │   │       │   │   │   │   │       │   │   └─ LuauTypeName [46..47]
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c1 46
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c2 46
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c3 [46..47]: "U"
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c4 47
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c5 47
+ │   │       │   │   │   │   │       │   │       └─ LuauTypeName_c6 47
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c2 [47..48]
+ │   │       │   │   │   │   │       │   │   └─ LuauNamedTypeReference_begin_c2 [47..48]
+ │   │       │   │   │   │   │       │   │       └─ OptionalWhitespace [47..48]: " "
+ │   │       │   │   │   │   │       │   └─ LuauNamedTypeReference_begin_c3 48
+ │   │       │   │   │   │   │       └─ LuauNamedTypeReference_end 48
  │   │       │   │   │   │   └─ LuauTypeLiteral_end 48
  │   │       │   │   │   └─ LuauTypeAssignment [48..62]
  │   │       │   │   │       ├─ LuauTypeAssignment_begin [48..50]
@@ -131,13 +150,19 @@ sparkdown [0..157]
  │   │       │   │   │       │       │   │   │   │   │   └─ LuauTypeLiteral [58..59]
  │   │       │   │   │       │       │   │   │   │   │       ├─ LuauTypeLiteral_begin 58
  │   │       │   │   │       │       │   │   │   │   │       ├─ LuauTypeLiteral_content [58..59]
- │   │       │   │   │       │       │   │   │   │   │       │   └─ LuauTypeName [58..59]
- │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauTypeName_c1 58
- │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauTypeName_c2 58
- │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauTypeName_c3 [58..59]: "T"
- │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauTypeName_c4 59
- │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauTypeName_c5 59
- │   │       │   │   │       │       │   │   │   │   │       │       └─ LuauTypeName_c6 59
+ │   │       │   │   │       │       │   │   │   │   │       │   └─ LuauNamedTypeReference [58..59]
+ │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauNamedTypeReference_begin [58..59]
+ │   │       │   │   │       │       │   │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [58..59]
+ │   │       │   │   │       │       │   │   │   │   │       │       │   │   └─ LuauTypeName [58..59]
+ │   │       │   │   │       │       │   │   │   │   │       │       │   │       ├─ LuauTypeName_c1 58
+ │   │       │   │   │       │       │   │   │   │   │       │       │   │       ├─ LuauTypeName_c2 58
+ │   │       │   │   │       │       │   │   │   │   │       │       │   │       ├─ LuauTypeName_c3 [58..59]: "T"
+ │   │       │   │   │       │       │   │   │   │   │       │       │   │       ├─ LuauTypeName_c4 59
+ │   │       │   │   │       │       │   │   │   │   │       │       │   │       ├─ LuauTypeName_c5 59
+ │   │       │   │   │       │       │   │   │   │   │       │       │   │       └─ LuauTypeName_c6 59
+ │   │       │   │   │       │       │   │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 59
+ │   │       │   │   │       │       │   │   │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 59
+ │   │       │   │   │       │       │   │   │   │   │       │       └─ LuauNamedTypeReference_end 59
  │   │       │   │   │       │       │   │   │   │   │       └─ LuauTypeLiteral_end 59
  │   │       │   │   │       │       │   │   │   │   └─ LuauTypeAnnotationOperation_end 59
  │   │       │   │   │       │       │   │   │   └─ ExtraWhitespace [59..60]: " "
