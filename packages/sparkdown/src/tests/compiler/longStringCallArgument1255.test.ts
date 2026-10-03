@@ -1,17 +1,17 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
-import { printAst } from "../../compiler/typecheck/printAst";
+import { parseOfficialTree, withoutLocations } from "./officialAstTestUtils";
+import { printOfficialAst } from "./printOfficialAst";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 
 function expectLuauReading(source: string): void {
-  const expected = parseLuau(source);
+  const expected = parseOfficialTree(source);
   expect(expected.errors).toEqual([]);
   const units = readLuauUnits(parseSource(source), source);
   expect(units.prelude.errors).toEqual([]);
   expect(units.flows).toHaveLength(0);
-  expect(printAst(units.prelude.root)).toBe(printAst(expected.root));
+  expect(withoutLocations(printOfficialAst(units.prelude.root))).toEqual(withoutLocations(expected.root));
   expect(stripAnsi(dumpTree(source))).not.toContain("ERROR_INCOMPLETE");
 }
 

@@ -104,8 +104,16 @@ reads output bytes as Latin-1 so arbitrary bytes, including invalid UTF-8, survi
 comparison. Upstream's non-JSON `Infinity`, `-Infinity` and `NaN` values are
 represented as strings on both sides, with quoted string content untouched.
 
-`luauTreeAst.test.ts` and `luauSyntaxAgreement.test.ts` retain their ported oracle;
-the new test supplies the official parser for parameter-list validation too.
+`luauTreeAst.test.ts`, `luauSyntaxAgreement.test.ts` and `luauOfficialAst.test.ts`
+all use this official parser. The TypeScript parser port is retired; its fixture,
+generated-expression, position and syntax-diagnostic coverage remains in these
+entrypoints. #1304/#1305/#1306 now pass the full tree AST comparison, but their
+existing extraction/diagnostic disagreements remain explicit in syntax agreement.
+The open #1298 return disagreement and the two documented integer limitations
+retain their existing assertions. The migrated node-position walk continues to
+visit AstNodes, including annotation types; AstLocal binding metadata is not an
+AstNode and was never visited by that walk. The official oracle separately retains
+its full JSON structure and position assertions.
 The existing test-only `luauCheckerText.ts` supplies position-preserving units,
 without importing extraction code from the production checker. Its default
 parameter-list validation also uses the official parser.

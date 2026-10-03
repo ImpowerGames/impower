@@ -65,7 +65,9 @@ interface StructuralDisagreement {
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
 ];
 
-const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.map((entry) => entry.fixture));
+// #1304/#1305/#1306 still disagree about extracted syntax/diagnostics, but their
+// full tree ASTs agree with C++ and remain ordinary comparisons here.
+const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.issue === 1298 || entry.limitation).map((entry) => entry.fixture));
 const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
 
 /** The first line at which two printed trees differ, with a few lines around it from each. */
@@ -182,7 +184,7 @@ function locationDifferences(text: string, pick: (units: { prelude: LuauTextUnit
   expect(parsed.errors).toEqual([]);
   expect(ours.errors).toEqual([]);
   const theirs = jsonNodes(parsed.root);
-  const mine = jsonNodes(printOfficialAst(ours.root));
+  const mine = jsonNodes(printOfficialAst(ours.root, checkerView(text, "_G")));
   expect(mine.map((n) => n["type"])).toEqual(theirs.map((n) => n["type"]));
   const lines = text.split("\n");
   return theirs.flatMap((node, i) => {

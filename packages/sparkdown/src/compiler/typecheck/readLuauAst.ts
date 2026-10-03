@@ -14,11 +14,14 @@
 // type checker's passes read, with every location in document lines and
 // UTF-16 characters.
 //
-// The tree is read, never the text reparsed: a token is a leaf of the tree (a
+// Normal units read the tree: a token is a leaf of the tree (a
 // leaf whose text holds several tokens, such as ` . Button`, is split at
 // their boundaries), a string, number or comment is the node the tree made of
 // it, and text the tree marks as narrative or as Sparkdown's own is never a
-// Luau token. Sparkdown's own constructs inside Luau become the
+// Luau token. The bounded statement-diagnostic recovery operation below also
+// reads uncovered/narrative/error spans through this module's lexer, because
+// an invalid candidate can need the token on a later line to explain its error.
+// Sparkdown's own constructs inside Luau become the
 // `AstExprSparkdown*` and `AstStatSparkdown*` classes of `Ast.ts`.
 //
 // The units are the type checker's (`LuauDocumentChecker.ts`): a `.sd` file's
@@ -26,10 +29,9 @@
 // the body of a function whose parameters are the flow's; and a `run` file,
 // read from the document the compiler wraps it in. `readLuauExpression` reads
 // the one expression a Sparkdown context holds (an interpolation, a choice's
-// condition, a struct's value), for the lowerers. The port of Luau's parser in
-// `DefinitionParser.ts` is not used here: it reads definition files, and the
-// tests use it to check that this module reads every Luau fixture as Luau
-// reads it.
+// condition, a struct's value), for the lowerers. Definitions are official AST
+// JSON prepared at build time; the tests use that same pinned C++ parser to
+// check this module's reading of the full Luau fixture corpus.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import {

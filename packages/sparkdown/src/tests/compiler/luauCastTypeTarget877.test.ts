@@ -1,6 +1,5 @@
 import "../../inkjs/engine/Container";
 import { beforeAll, describe, expect, test } from "vitest";
-import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
@@ -13,8 +12,7 @@ beforeAll(async () => { official = await loadOfficialLuau(); });
 
 function expectLuauReading(body: string): void {
   const source = `function run()\n  ${body}\nend\n`;
-  const expected = parseLuau(source);
-  expect(expected.errors).toEqual([]);
+  expect(official(source).diagnostics).toEqual([]);
   expect(official(source).errors).toBe(0);
   const units = readLuauUnits(parseSource(source), source);
   expect(units.prelude.errors).toEqual([]);
@@ -65,12 +63,12 @@ describe("casts read their targets as types (#877)", () => {
   test.each(["bar\n    baz", "bar\n    baz\n    qux"])("pinned parser rejects malformed table fields %s", (fields) => {
     const source = `function f()\n  local x: {\n    ${fields}\n  } = {}\n  2\nend\n`;
     expect(official(source).errors).toBeGreaterThan(0);
-    const errors = parseLuau(source).errors;
+    const errors = official(source).diagnostics;
     expect(errors.some((error) => error.message === "Expected '}' (to close '{' at line 2), got 'baz'")).toBe(true);
   });
   test("reference rejects a type pack as a cast target", () => {
     expect(official("function run()\n  return a :: (T...) < b\nend\n").errors).toBeGreaterThan(0);
-    expect(parseLuau("function run()\n  return a :: (T...) < b\nend\n").errors.length).toBeGreaterThan(0);
+    expect(official("function run()\n  return a :: (T...) < b\nend\n").diagnostics.length).toBeGreaterThan(0);
   });
   test("preserves qualified type-name captures and locations", async () => {
     const source = "function run()\n  return a :: types.Array<number> < b\nend\n";
@@ -121,7 +119,7 @@ describe("casts read their targets as types (#877)", () => {
   test.each(["number | string", "number & string", "() -> number", "(number | string) & number"])
     ("reference rejects unfinished generic after %s", (target) => {
       const source = `function run()\n  return a :: ${target} < b\nend\n`;
-      expect(parseLuau(source).errors.some((error) => error.message.includes("Expected '>'"))).toBe(true);
+      expect(official(source).diagnostics.some((error) => error.message.includes("Expected '>'"))).toBe(true);
       expect(official(source).errors).toBeGreaterThan(0);
     });
   test.each([

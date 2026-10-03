@@ -14,7 +14,7 @@ export function parseOfficialTree(source: string) {
 export function withoutLocations(value: Json): Json {
   if (Array.isArray(value)) return value.map(withoutLocations);
   if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(Object.entries(value)
+  return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))
     .filter(([key]) => !/^(location|.*Location)$/.test(key))
     .map(([key, item]) => [key, withoutLocations(item)]));
 }
@@ -22,7 +22,9 @@ export function withoutLocations(value: Json): Json {
 export function jsonNodes(value: Json): ObjectJson[] {
   if (Array.isArray(value)) return value.flatMap(jsonNodes);
   if (!value || typeof value !== "object") return [];
-  const own = typeof value["type"] === "string" && value["type"].startsWith("Ast") && typeof value["location"] === "string" ? [value] : [];
+  // AstLocal is binding metadata, not an AstNode visited by the original
+  // position oracle. Its annotation remains traversed below as an AstNode.
+  const own = typeof value["type"] === "string" && value["type"].startsWith("Ast") && value["type"] !== "AstLocal" && typeof value["location"] === "string" ? [value] : [];
   return [...own, ...Object.values(value).flatMap(jsonNodes)];
 }
 
