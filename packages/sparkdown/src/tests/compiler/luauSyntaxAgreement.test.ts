@@ -15,9 +15,9 @@
 // readings and hide the disagreement.
 //
 // `KNOWN_DISAGREEMENTS` names the inputs on which the two disagree, each with
-// the open issue that explains it. An input on the list must still disagree,
-// so the fix for an issue fails this test until its entry is removed, in the
-// fix's own pull request.
+// its bug or intentional limitation. Bugs must still disagree until their fix
+// removes the entry. Integer limitations remain after #1309 closes and require
+// Luau to accept the input while Sparkdown reports its unsupported diagnostic.
 
 import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
@@ -101,7 +101,11 @@ describe("Sparkdown and Luau's parser agree on which Luau inputs have syntax err
       ].join("\n");
       const agree = sparkdown.length > 0 === luau.length > 0;
       const entry = known.get(input.name);
-      if (entry) {
+      if (entry?.limitation) {
+        expect(luau, report).toEqual([]);
+        expect(sparkdown.some((error) => error.endsWith(entry.limitation!.diagnostic)), report).toBe(true);
+        expect(sparkdown.filter((error) => error.endsWith("Malformed number")), report).toEqual([]);
+      } else if (entry) {
         expect(
           agree,
           `${input.name} no longer disagrees. Remove its entry (#${entry.issue}) from KNOWN_DISAGREEMENTS in the pull request that fixed it.\n${report}`,
