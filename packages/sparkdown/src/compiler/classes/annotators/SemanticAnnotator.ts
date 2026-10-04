@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ChangeDesc, MapMode, Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode, Tree } from "@lezer/common";
@@ -129,10 +130,10 @@ function isAtDeclarationSite(node: any): boolean {
   for (let depth = 0; depth < 6 && cur; depth++) {
     // A value in a declaration's list (`x` in `local a, b = 1, x`) has the
     // target shape but reads `x`.
-    if (cur.name === "LuauVariableAssignment_begin") return !isValueListName(node);
+    if (isExplicitRuleName(cur.name, "LuauVariableAssignment_begin")) return !isValueListName(node);
     if (cur.name === "LuauFunctionDeclarationName") return true;
-    if (cur.name === "LuauAccessPart") return false; // value-reference shape
-    if (cur.name === "LuauFunctionCall_begin") return false; // call-site shape
+    if (isExplicitRuleName(cur.name, "LuauAccessPart")) return false; // value-reference shape
+    if (isExplicitRuleName(cur.name, "LuauFunctionCall_begin")) return false; // call-site shape
     cur = cur.parent;
   }
   return false;
@@ -531,7 +532,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
         scopeText === "const" ? "const-variable" : "variable";
     }
     if (
-      nodeRef.name === "LuauVariableAssignment" &&
+      isExplicitRuleName(nodeRef.name, "LuauVariableAssignment") &&
       this.pendingDeclKind &&
       !valueListAssignmentName(nodeRef.node)
     ) {

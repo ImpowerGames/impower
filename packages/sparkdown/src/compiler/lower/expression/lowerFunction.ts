@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 // Luau functions as values: a function expression lowers to a function of
 // its own (a `Function` flow nested in the enclosing function, or hoisted
 // when there is none) and a closure value that names it with the enclosing
@@ -545,7 +546,7 @@ function findHeaderName(node: SyntaxNode): SyntaxNode | null {
     if (child.name === "LuauFunctionDeclarationName") {
       return getDescendent("LuauFunctionName", child) ?? child;
     }
-    if (child.name === "LuauAccessPath") return child;
+    if (isExplicitRuleName(child.name, "LuauAccessPath")) return child;
   }
   return null;
 }
