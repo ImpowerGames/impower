@@ -1,0 +1,40 @@
+name: Luau Analysis Backend
+on:
+  pull_request:
+    paths:
+      - packages/sparkdown/native/luau-analysis/**
+      - packages/sparkdown/vendor/luau-analysis/**
+      - packages/sparkdown/src/analysis-backend/**
+      - packages/sparkdown/src/tests/analysis-backend/**
+      - .github/workflows/luau-analysis-backend.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reproducible-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact upstream source
+        run: |
+          git clone https://github.com/luau-lang/luau.git "$RUNNER_TEMP/luau-analysis"
+          git -C "$RUNNER_TEMP/luau-analysis" checkout --detach 7d5f73364fdbbaa984fa545071630eba73cfea98
+      - name: Official Emscripten SDK
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 4.0.10
+          "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.10
+      - name: Build exact checker and VM
+        run: node packages/sparkdown/native/luau-analysis/build.mjs "$RUNNER_TEMP/luau-analysis" "$RUNNER_TEMP/emsdk" "$RUNNER_TEMP/analysis-rebuild"
+      - name: Verify reproducible artifacts
+        run: |
+          cmp packages/sparkdown/vendor/luau-analysis/backend.wasm "$RUNNER_TEMP/analysis-rebuild/backend.wasm"
+          cmp packages/sparkdown/vendor/luau-analysis/backend.js "$RUNNER_TEMP/analysis-rebuild/backend.js"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luau-analysis-rebuild
+          path: ${{ runner.temp }}/analysis-rebuild

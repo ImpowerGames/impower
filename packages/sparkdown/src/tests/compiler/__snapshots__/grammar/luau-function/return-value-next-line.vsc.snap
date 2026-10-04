@@ -81,9 +81,9 @@ text.source.sparkdown [0..146]
  ├─ punctuation.whitespace.required.sd [119..120]: " "
  ├─ keyword.control.section.sd [120..121]: "a"
  ├─ Newline [121..122]: "\n"
- ├─ meta.function.luau [122..130]
- │   ├─ punctuation.whitespace.optional.sd [122..124]: "  "
- │   └─ keyword.control.luau [124..130]: "return"
+ ├─ punctuation.whitespace.optional.sd [122..124]: "  "
+ ├─ string.display.text.chunk.sd [124..130]
+ │   └─ markup.raw.text.sd [124..130]: "return"
  ├─ Newline [130..131]: "\n"
  ├─ punctuation.whitespace.optional.sd [131..133]: "  "
  ├─ string.display.text.chunk.sd [133..145]

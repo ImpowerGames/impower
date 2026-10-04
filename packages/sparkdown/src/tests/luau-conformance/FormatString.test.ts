@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
+import { collectLuauLints } from "../../compiler/lint/collectLuauLints";
+import { getParser } from "../compiler/grammarSnapshot";
 import { diagnoseDetailed, lintMessagesInFunction } from "./diagnosticTestHarness";
 
 describe("FormatString runtime acceptance adaptations", () => {
@@ -89,5 +91,40 @@ string.gsub("foo", "%")
     expect(diagnoseDetailed(source).filter(d => d.code === "FormatString").map(d => d.message)).toEqual([
       "Invalid format string: unfinished format specifier",
     ]);
+  });
+
+  test.each([
+    ["call shorthand", 'Hi {{string.format("%")}}.\n'],
+    ["Sparkle handler", 'layout main with\n button @click=string.format("%")\nend\n'],
+    ["Sparkle closure body", 'layout main with\n button @click={ string.format("%") }\nend\n'],
+    ["definition function value", 'define hero as character with\n callback = function() return string.format("%") end\nend\nHi.\n'],
+    ["literal method", 'Hi {("%"):format()}.\n'],
+    ["nested call", 'Hi {tostring(string.format("%"))}.\n'],
+  ])("shared outside roots check %s once with original document offsets", (_label, source) => {
+    const tree = getParser().parse(source);
+    const read = (from: number, to: number) => source.slice(from, to);
+    const first = collectLuauLints(tree, read);
+    const cached = collectLuauLints(tree, read);
+    const from = source.indexOf('"%"');
+    const expected = [{ code: "FormatString", from, to: from + 3, message: "Invalid format string: unfinished format specifier" }];
+    expect(first.lints.filter(d => d.code === "FormatString")).toEqual(expected);
+    expect(cached.lints.filter(d => d.code === "FormatString")).toEqual(expected);
+    expect(cached.roots === first.roots).toBe(true);
+    expect(cached.names === first.names).toBe(true);
+  });
+
+  test("format traversal preserves cached name identities and keyword uncertainty", () => {
+    const source = 'function inspect() local style = {}; setStyle(style); print(string.format("%")) end\n';
+    const tree = getParser().parse(source);
+    const read = (from: number, to: number) => source.slice(from, to);
+    const first = collectLuauLints(tree, read);
+    const cached = collectLuauLints(tree, read);
+    expect(first.lints.filter(d => d.code === "FormatString")).toHaveLength(1);
+    expect(first.names.declarations.filter(d => d.name === "style")).toHaveLength(1);
+    expect(first.names.references.some(d => d.name === "style")).toBe(false);
+    expect(first.names.uncertainNames).toEqual([{ name: "style", from: source.lastIndexOf("style"), to: source.lastIndexOf("style") + 5, reason: "grammar-keyword" }]);
+    expect(cached.names === first.names).toBe(true);
+    expect(cached.names.uncertainNames === first.names.uncertainNames).toBe(true);
+    expect(cached.roots === first.roots).toBe(true);
   });
 });

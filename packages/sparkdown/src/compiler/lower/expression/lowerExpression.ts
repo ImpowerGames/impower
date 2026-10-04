@@ -1040,7 +1040,7 @@ function lowerDivertTargetLiteral(
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression {
-  const pathNode = getDescendent("DivertPath", node);
+  const pathNode = getDescendent(["DivertPath", "SparkdownExplicitDivertPath"], node);
   const parts: Identifier[] = pathNode ? lowerDivertPath(pathNode, ctx) : [];
   return new DivertTarget(new Divert(parts));
 }

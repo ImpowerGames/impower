@@ -1,0 +1,14 @@
+store value = 0
+& do local t = { n = 5 }; local n: number = math.abs(-5); value = if false then t.n else n end
+& local target = -> place
+& do local identity = function(
+  n
+)
+  return n
+end; value = identity(5) end
+& return value --[=[ é😀
+comment ]=]
+return to the village
+scene place
+After.
+end
