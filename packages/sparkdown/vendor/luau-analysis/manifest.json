@@ -3,7 +3,7 @@
   "source": "7d5f73364fdbbaa984fa545071630eba73cfea98",
   "compiler": "Emscripten 4.0.10",
   "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.10 (b7dc6e5747465580df5984e723b9d1f10d8e804b)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
-  "bridgeSha256": "11b5b4700d143f3bf00f9747b2f9e495f9175db780b27b18cafb9f85c99233c8",
+  "bridgeSha256": "7aa01716fe2e4b2637405bdf9073d1be0b7c4f8f23380be0ce096e312d93052f",
   "sourceManifestSha256": "ec32f86bfd3ae5db6826d6e0f33c82400fa294e67e5291fdbe1fbb23f36c1df6",
   "compilerScriptSha256": "017f735c953318fdaaa4af68c8d4bf13936a787ddbd5dad804d532b0223b6c2f",
   "flags": [
@@ -33,17 +33,17 @@
     "VM",
     "Analysis"
   ],
-  "buildMs": 914883.3494,
+  "buildMs": 888952.4025,
   "memoryMaximumBytes": 268435456,
   "textNormalization": "LF",
   "artifacts": {
     "backend.js": {
-      "sha256": "3887b97d3b5d1d13ddfa9069947da82864a6ca39f902cff94ce322f556c45feb",
+      "sha256": "8bbd47931f3d827203f20ec232402c186ea3b8128ad971585900ae6cefaf339c",
       "bytes": 28448
     },
     "backend.wasm": {
-      "sha256": "dcc9729706117fc23a8fc0f01e155e922e058729761bf1f18def57c3d081a908",
-      "bytes": 3918851
+      "sha256": "bbe995782ea2014282fc089a02ab42ae7bedb21c45a6cfb0029c6c03421c6111",
+      "bytes": 3921919
     },
     "LICENSE.txt": {
       "sha256": "1597b423ca8f9c76225b498071f03b2b3609c4960b8dc30e63b230490fc82efd",

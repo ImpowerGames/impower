@@ -131,8 +131,15 @@ EMSCRIPTEN_KEEPALIVE const char* analysis_set(const char* name, const char* sour
             if (!remove && old == p.files.sources.end())
                 for (const auto& [module, node] : p.frontend->sourceNodes)
                     if (node->requireSet.contains(name)) p.frontend->markDirty(module);
-            p.frontend->markDirty(name);
-            if (remove) p.files.sources.erase(name); else p.files.sources[name] = source;
+            if (remove) {
+                // Invalidate dependents before releasing ASTs, type graphs and traces.
+                // Dirtying alone retains deleted modules indefinitely.
+                p.frontend->clearModules({name});
+                p.files.sources.erase(name);
+            } else {
+                p.frontend->markDirty(name);
+                p.files.sources[name] = source;
+            }
         }
         return std::string("{\"status\":\"ok\",\"changed\":") + (changed ? "true}" : "false}");
     });
@@ -165,6 +172,12 @@ EMSCRIPTEN_KEEPALIVE const char* analysis_check(const char* name, double seconds
         double checkingMs = emscripten_get_now() - start;
         double encodingStart = emscripten_get_now();
         if (!r.timeoutHits.empty()) { project.reset(); return std::string("{\"status\":\"deadline\"}"); }
+        // check() reports only newly checked modules. The public replacement
+        // snapshot must also include errors retained by cached dependencies.
+        auto complete = p.frontend->getCheckResult(name, true);
+        if (!complete) throw std::runtime_error("Module check did not produce a complete result");
+        if (!complete->timeoutHits.empty()) { project.reset(); return std::string("{\"status\":\"deadline\"}"); }
+        r.errors = std::move(complete->errors);
         std::string json = "{\"status\":\"ok\",\"checkedModules\":" + std::to_string(p.checked) + ",\"diagnostics\":[";
         bool first = true;
         for (const auto& e : r.errors) {
@@ -178,6 +191,9 @@ EMSCRIPTEN_KEEPALIVE const char* analysis_check(const char* name, double seconds
             auto current = queue.back(); queue.pop_back();
             if (!reachable.insert(current).second) continue;
             auto node = p.frontend->sourceNodes.find(current);
+            auto module = p.frontend->moduleResolver.getModule(current);
+            if (module && module->cancelled) throw std::runtime_error("Module check was cancelled");
+            if (module && module->timeout) { project.reset(); return std::string("{\"status\":\"deadline\"}"); }
             if (node != p.frontend->sourceNodes.end()) for (const auto& dependency : node->second->requireSet) queue.push_back(dependency);
         }
         json += "],\"modules\":["; first = true;
