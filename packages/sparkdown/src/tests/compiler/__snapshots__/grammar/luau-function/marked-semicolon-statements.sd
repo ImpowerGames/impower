@@ -1,0 +1,4 @@
+store x = 0
+& local voice = { say = function(self) return 5 end }; x = voice:say()
+return to the village
+Value {x}.

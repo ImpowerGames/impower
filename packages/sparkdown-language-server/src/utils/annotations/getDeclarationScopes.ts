@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
 import { ancestorMatching } from "@impower/sparkdown/src/compiler/utils/ancestorMatching";
@@ -66,6 +67,12 @@ const LUAU_BLOCKS = nodeNameSet([
   "LuauSparkdownRepeatLoop",
   "LuauSparkdownConditionalAlternatorBlock",
   "LuauSparkdownSequentialAlternatorBlock",
+  "LuauSparkdownExplicitDoBlock",
+  "LuauSparkdownExplicitIfBlock",
+  "LuauSparkdownExplicitElseifBlock",
+  "LuauSparkdownExplicitElseBlock",
+  "LuauSparkdownExplicitLoop",
+  "LuauSparkdownExplicitRepeatLoop",
 ]);
 
 /**
@@ -79,9 +86,11 @@ const LUAU_BRANCHES = nodeNameSet([
   "LuauSparkdownElseifBlock",
   "LuauSparkdownElseBlock",
   "LuauAlternatorSeparator",
+  "LuauSparkdownExplicitElseifBlock",
+  "LuauSparkdownExplicitElseBlock",
 ]);
 
-const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
+const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]);
 
 // What may come between a declaration and a union member line that
 // continues its type: blank lines, indentation and comments.
@@ -281,7 +290,7 @@ const getLocalScope = (
     while (after && (after.name === "Newline" || after.name.endsWith("Whitespace"))) {
       after = after.nextSibling;
     }
-    if (after?.name === "LuauUntilStatement") {
+    if (after && isExplicitRuleName(after.name, "LuauUntilStatement")) {
       to = after.to;
     }
   }

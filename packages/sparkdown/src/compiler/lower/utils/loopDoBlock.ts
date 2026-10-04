@@ -16,7 +16,7 @@ import type { LowerContext } from "../context";
 export function loopBodyBlock(
   loop: GrammarSyntaxNode<SparkdownNodeName>,
 ): GrammarSyntaxNode<SparkdownNodeName> | undefined {
-  return getDescendent(["LuauDoBlock", "LuauSparkdownDoBlock"], loop);
+  return getDescendent(["LuauDoBlock", "LuauSparkdownDoBlock", "LuauSparkdownExplicitDoBlock"], loop);
 }
 
 export function findLoopDoBlock(

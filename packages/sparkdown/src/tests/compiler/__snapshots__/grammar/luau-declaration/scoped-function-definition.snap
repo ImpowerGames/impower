@@ -116,15 +116,15 @@ sparkdown [0..354]
  │       └─ LuauFunctionDefinition_end_c2 [74..77]
  │           └─ LuauEndKeyword [74..77]: "end"
  ├─ Newline [77..78]: "\n"
- ├─ LuauExplicitStatement [78..102]
- │   ├─ LuauExplicitStatement_begin [78..80]
- │   │   ├─ LuauExplicitStatement_begin_c1 78
+ ├─ LuauSparkdownExplicitStatement [78..102]
+ │   ├─ LuauSparkdownExplicitStatement_begin [78..80]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 78
  │   │   │   └─ OptionalWhitespace 78
- │   │   ├─ LuauExplicitStatement_begin_c2 [78..79]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [78..79]
  │   │   │   └─ LuauExplicitStatementMark [78..79]: "&"
- │   │   └─ LuauExplicitStatement_begin_c3 [79..80]
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [79..80]
  │   │       └─ RequiredWhitespace [79..80]: " "
- │   ├─ LuauExplicitStatement_content [80..102]
+ │   ├─ LuauSparkdownExplicitStatement_content [80..102]
  │   │   └─ LuauFunctionDefinition [80..102]
  │   │       ├─ LuauFunctionDefinition_begin [80..95]
  │   │       │   ├─ LuauFunctionDefinition_begin_c1 80
@@ -157,7 +157,7 @@ sparkdown [0..354]
  │   │           │       └─ OptionalWhitespace [98..99]: " "
  │   │           └─ LuauFunctionDefinition_end_c2 [99..102]
  │   │               └─ LuauEndKeyword [99..102]: "end"
- │   └─ LuauExplicitStatement_end 102
+ │   └─ LuauSparkdownExplicitStatement_end 102
  ├─ Newline [102..103]: "\n"
  ├─ LuauSparkdownVariableDefinition [103..125]
  │   ├─ LuauSparkdownVariableDefinition_begin [103..109]

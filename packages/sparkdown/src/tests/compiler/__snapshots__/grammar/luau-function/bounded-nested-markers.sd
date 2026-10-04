@@ -1,0 +1,12 @@
+store x = 0
+& do if false then & x = 1 else & x = 2 end end
+& do while (x < 3) do & x += 1 end end
+& do repeat & x += 1 until x == 4 end
+& do for i = 1, 2 do & x += i end end
+& do if (x > 0) then & return "é😀", x; end end
+return to the village
+function value(n)
+  return (
+    n + 1
+  )
+end

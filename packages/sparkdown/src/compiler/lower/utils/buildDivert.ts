@@ -18,12 +18,12 @@ function lowerTargetWithArgs(
   targetNode: SyntaxNode,
   ctx: LowerContext,
 ): { path: Identifier[]; args: Expression[] } {
-  const fnCall = getDescendent("LuauFunctionCall", targetNode);
+  const fnCall = getDescendent(["LuauFunctionCall", "LuauSparkdownExplicitFunctionCall"], targetNode);
   if (fnCall) {
     const nameNode = getDescendent("LuauFunctionName", fnCall);
     const path = nameNode ? [divertPartIdentifier(nameNode, ctx)] : [];
     const args: Expression[] = [];
-    const params = getDescendent("LuauFunctionCallParameters_content", fnCall);
+    const params = getDescendent(["LuauFunctionCallParameters_content", "LuauSparkdownExplicitFunctionCallParameters_content"], fnCall);
     if (params) {
       // Group siblings between commas into per-argument node lists,
       // then lower each via `lowerExpressionFromNodes`. Mirrors how
@@ -119,7 +119,7 @@ export function divertLoadShapeProblem(divertNode: SyntaxNode): string | null {
 /** The flow a `load` arrow names: the first component of its target path
  *  (`-> load Chapter2.intro` loads Chapter2), or a called flow's name. */
 function loadTargetName(targetNode: SyntaxNode, ctx: LowerContext): string {
-  const fnCall = getDescendent("LuauFunctionCall", targetNode);
+  const fnCall = getDescendent(["LuauFunctionCall", "LuauSparkdownExplicitFunctionCall"], targetNode);
   if (fnCall) {
     const nameNode = getDescendent("LuauFunctionName", fnCall);
     return nameNode ? ctx.read(nameNode.from, nameNode.to) : "";

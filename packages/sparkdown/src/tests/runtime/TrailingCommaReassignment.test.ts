@@ -250,7 +250,8 @@ describe("narrative body: the reassignment ends at its line", () => {
     ["one target", "store a = 0\n& a = 1,\nThe hero has {a} health.\n"],
   ])("a reassignment in an `&` statement ends at its line too (%s)", (_name, source) => {
     const { errorMessages } = collectDiagnostics(source);
-    expect(errorMessages).toEqual([missingValue("The")]);
+    // The authored island ends before prose: its native EOF owns this error.
+    expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });
 
   test("a complete list is not an error", () => {

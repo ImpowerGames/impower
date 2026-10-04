@@ -178,23 +178,23 @@ sparkdown [0..169]
  │   │       │           └─ OptionalWhitespace 98
  │   │       ├─ LuauSparkdownElseBlock_content [98..159]
  │   │       │   ├─ Newline [98..99]: "\n"
- │   │       │   ├─ LuauExplicitStatement [99..117]
- │   │       │   │   ├─ LuauExplicitStatement_begin [99..105]
- │   │       │   │   │   ├─ LuauExplicitStatement_begin_c1 [99..103]
+ │   │       │   ├─ LuauSparkdownExplicitStatement [99..117]
+ │   │       │   │   ├─ LuauSparkdownExplicitStatement_begin [99..105]
+ │   │       │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [99..103]
  │   │       │   │   │   │   └─ OptionalWhitespace [99..103]: "    "
- │   │       │   │   │   ├─ LuauExplicitStatement_begin_c2 [103..104]
+ │   │       │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [103..104]
  │   │       │   │   │   │   └─ LuauExplicitStatementMark [103..104]: "&"
- │   │       │   │   │   └─ LuauExplicitStatement_begin_c3 [104..105]
+ │   │       │   │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [104..105]
  │   │       │   │   │       └─ RequiredWhitespace [104..105]: " "
- │   │       │   │   ├─ LuauExplicitStatement_content [105..117]
- │   │       │   │   │   ├─ LuauAccessPath [105..113]
- │   │       │   │   │   │   ├─ LuauAccessPath_begin 105
- │   │       │   │   │   │   ├─ LuauAccessPath_content [105..112]
- │   │       │   │   │   │   │   ├─ LuauAccessPart [105..106]
+ │   │       │   │   ├─ LuauSparkdownExplicitStatement_content [105..117]
+ │   │       │   │   │   ├─ LuauSparkdownExplicitAccessPath [105..113]
+ │   │       │   │   │   │   ├─ LuauSparkdownExplicitAccessPath_begin 105
+ │   │       │   │   │   │   ├─ LuauSparkdownExplicitAccessPath_content [105..112]
+ │   │       │   │   │   │   │   ├─ LuauSparkdownExplicitAccessPart [105..106]
  │   │       │   │   │   │   │   │   └─ LuauVariable [105..106]
  │   │       │   │   │   │   │   │       └─ LuauVariable_c1 [105..106]
  │   │       │   │   │   │   │   │           └─ LuauVariableName [105..106]: "c"
- │   │       │   │   │   │   │   └─ LuauAccessPart [106..112]
+ │   │       │   │   │   │   │   └─ LuauSparkdownExplicitAccessPart [106..112]
  │   │       │   │   │   │   │       └─ LuauPropertyAccessor [106..112]
  │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c1 106
  │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c2 [106..107]
@@ -202,15 +202,15 @@ sparkdown [0..169]
  │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c3 107
  │   │       │   │   │   │   │           └─ LuauPropertyAccessor_c4 [107..112]
  │   │       │   │   │   │   │               └─ LuauPropertyName [107..112]: "trust"
- │   │       │   │   │   │   └─ LuauAccessPath_end [112..113]
- │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [112..113]
- │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [112..113]
+ │   │       │   │   │   │   └─ LuauSparkdownExplicitAccessPath_end [112..113]
+ │   │       │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [112..113]
+ │   │       │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [112..113]
  │   │       │   │   │   │               └─ OptionalWhitespace [112..113]: " "
- │   │       │   │   │   └─ LuauAssignmentOperation [113..117]
- │   │       │   │   │       ├─ LuauAssignmentOperation_begin 113
- │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 113
+ │   │       │   │   │   └─ LuauSparkdownExplicitAssignmentOperation [113..117]
+ │   │       │   │   │       ├─ LuauSparkdownExplicitAssignmentOperation_begin 113
+ │   │       │   │   │       │   └─ LuauSparkdownExplicitAssignmentOperation_begin_c1 113
  │   │       │   │   │       │       └─ OptionalWhitespace 113
- │   │       │   │   │       ├─ LuauAssignmentOperation_content [113..117]
+ │   │       │   │   │       ├─ LuauSparkdownExplicitAssignmentOperation_content [113..117]
  │   │       │   │   │       │   ├─ LuauAssignmentOperator [113..116]
  │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [113..116]
  │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 113
@@ -223,8 +223,8 @@ sparkdown [0..169]
  │   │       │   │   │       │   └─ LuauNumericDecimal [116..117]
  │   │       │   │   │       │       ├─ LuauNumericDecimal_c1 [116..117]: "1"
  │   │       │   │   │       │       └─ LuauNumericDecimal_c2 117
- │   │       │   │   │       └─ LuauAssignmentOperation_end 117
- │   │       │   │   └─ LuauExplicitStatement_end 117
+ │   │       │   │   │       └─ LuauSparkdownExplicitAssignmentOperation_end 117
+ │   │       │   │   └─ LuauSparkdownExplicitStatement_end 117
  │   │       │   ├─ Newline [117..118]: "\n"
  │   │       │   ├─ ImplicitAction [118..158]
  │   │       │   │   ├─ ImplicitAction_begin [118..122]

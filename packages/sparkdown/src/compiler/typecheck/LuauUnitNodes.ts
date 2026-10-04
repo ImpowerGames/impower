@@ -3,6 +3,7 @@
 // that the validator can ask the same question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
+import { explicitRuleNames } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
@@ -12,6 +13,8 @@ export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
+  "LuauSparkdownExplicitStatement",
+  "LuauSparkdownExplicitBlockStatement",
   ...REASSIGNMENT_NAMES,
   "LuauReturnStatement",
   "LuauBreakStatement",
@@ -28,9 +31,12 @@ export const LUAU_STATEMENTS = new Set([
   "LuauSparkdownForLoop",
   "LuauSparkdownRepeatLoop",
   "LuauSparkdownDoBlock",
-  "LuauSparkdownReturnStatement",
+  "LuauSparkdownExplicitDoBlock",
+  "LuauSparkdownExplicitIfBlock",
+  "LuauSparkdownExplicitLoop",
+  "LuauSparkdownExplicitRepeatLoop",
   "LuauSparkdownChooseBlock",
-]);
+].flatMap(explicitRuleNames));
 
 // The headers that begin a flow.
 export const FLOW_HEADERS = new Set(["Scene", "Branch"]);
@@ -60,7 +66,7 @@ export const SPARKDOWN_ONLY = new Set([
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
   "LuauSparkdownInlineGluedConditionalAlternatorBlock",
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
-]);
+].flatMap(explicitRuleNames));
 
 // Sparkdown's own expressions, which Luau has no syntax for: alternators,
 // divert targets and regular expressions. Each is a value of type `any` to
@@ -71,7 +77,7 @@ export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauSequentialAlternatorBlock",
   "LuauDivertTargetLiteral",
   "LuauRegexLiteral",
-]);
+].flatMap(explicitRuleNames));
 
 // Nodes that may sit anywhere in Luau: trivia and punctuation.
 export const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
