@@ -1,5 +1,6 @@
 import { type SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { findOwnDeclarationName } from "@impower/sparkdown/src/compiler/lower/utils/findOwnDeclarationName";
+import { collectDefineTypeNames } from "@impower/sparkdown/src/compiler/utils/collectDefineTypeNames";
 import {
   AstExpr, AstExprConstantString, AstExprFunction, AstExprGlobal, AstExprGroup,
   AstExprIndexExpr, AstExprIndexName, AstExprLocal, AstExprTable, AstLocal,
@@ -29,16 +30,44 @@ interface Shape {
 }
 const FUNCTION: Shape = { callable: true };
 class Globals extends Map<string, Shape | undefined> {
+  private readonly requested = new Set<string>();
   constructor(private readonly load: (name: string) => void) { super(); }
+  peek(name: string): Shape | undefined { return super.get(name); }
   override get(name: string): Shape | undefined {
-    if (!this.has(name)) this.load(name);
+    // A namespace can already exist while another script contributes more
+    // children. Load every candidate owner once, including existing names.
+    if (!this.requested.has(name)) {
+      this.requested.add(name);
+      this.load(name);
+    }
     return super.get(name);
   }
+}
+interface DefineHeader { name: string; parent?: string }
+interface DefineIndex {
+  text: string;
+  headers: DefineHeader[];
+  types: Set<string>;
+}
+const defineIndexes = new WeakMap<Tree, DefineIndex>();
+function defineIndex(tree: Tree, text: string): DefineIndex {
+  const previous = defineIndexes.get(tree);
+  if (previous?.text === text) return previous;
+  const headers: DefineHeader[] = [];
+  tree.iterate({ enter(ref) {
+    if (ref.name !== "LuauDefine") return;
+    const name = getDescendent("LuauDefineName", ref.node);
+    const parent = getDescendent("LuauDefineParentName", ref.node);
+    if (name) headers.push({ name: text.slice(name.from, name.to), parent: parent ? text.slice(parent.from, parent.to).trim() : undefined });
+  } });
+  const result = { text, headers, types: collectDefineTypeNames(tree, (from, to) => text.slice(from, to)) };
+  defineIndexes.set(tree, result);
+  return result;
 }
 interface Reading {
   text: string;
   units: LuauAstUnits;
-  defines: Map<string, Shape>;
+  defines: (DefineHeader & { shape: Shape })[];
   stores: AstStatSparkdownStore[];
   sites: Site[];
   offset(line: number, column: number): number;
@@ -63,7 +92,7 @@ function reading(tree: Tree, text: string): Reading {
   for (let at = text.indexOf("\n"); at >= 0; at = text.indexOf("\n", at + 1)) lines.push(at + 1);
   const sections = new Map<number, string[]>();
   const result: Reading = {
-    text, units: readLuauUnits(tree, text), defines: new Map(), stores: [], sites: [],
+    text, units: readLuauUnits(tree, text), defines: [], stores: [], sites: [],
     offset: (line, column) => (lines[line] ?? text.length) + column,
     sectionAt(offset) {
       const stack = getStack<SparkdownNodeName>(tree, offset, 1);
@@ -121,7 +150,9 @@ function reading(tree: Tree, text: string): Reading {
             if (key) members.set(text.slice(key.from, key.to), FUNCTION);
           }
         }
-        result.defines.set(text.slice(name.from, name.to), { members });
+        const parent = getDescendent("LuauDefineParentName", node);
+        // Leaf names are only unique within their declared parent namespace.
+        result.defines.push({ name: text.slice(name.from, name.to), parent: parent ? text.slice(parent.from, parent.to).trim() : undefined, shape: { members } });
       }
       return;
     }
@@ -342,34 +373,98 @@ export function getStaticMemberCompletions(
   const site = memberSite(current, cursor);
   if (!site) return undefined;
   const copies = new Map<Shape, Shape>();
-  const foreign = new Map<string, AnnotatedScript[]>();
+  const foreign = new Map<string, Set<AnnotatedScript>>();
+  const indexed: { script?: AnnotatedScript; index: DefineIndex }[] = [];
+  const types = new Set<string>();
+  const parents = new Map<string, string>();
+  const includeIndex = (script: AnnotatedScript | undefined, index: DefineIndex) => {
+    indexed.push({ script, index });
+    index.types.forEach((name) => types.add(name));
+    for (const header of index.headers) if (header.parent) parents.set(header.name, header.parent);
+  };
+  includeIndex(undefined, defineIndex(tree, text));
+  const addOwner = (name: string, script: AnnotatedScript) => {
+    const owners = foreign.get(name) ?? new Set<AnnotatedScript>();
+    owners.add(script);
+    foreign.set(name, owners);
+  };
   for (const [uri, script] of scripts) {
     if (uri === document.uri || !script.tree) continue;
+    // Only syntax headers and explicit type uses are indexed here; foreign
+    // ASTs and property literals remain lazy until their owner is requested.
+    includeIndex(script, defineIndex(script.tree, script.read(0, script.tree.length)));
     const declarations = script.annotations.declarations?.iter();
     while (declarations?.value) {
       const type = declarations.value.type;
-      if (type === "var" || type === "define") {
-        const name = script.read(declarations.from, declarations.to);
-        const owners = foreign.get(name) ?? [];
-        owners.push(script);
-        foreign.set(name, owners);
-      }
+      if (type === "var") addOwner(script.read(declarations.from, declarations.to), script);
       declarations.next();
+    }
+  }
+  const ancestors = new Map<string, string[]>();
+  const ancestorNames = (name: string): string[] => {
+    const previous = ancestors.get(name);
+    if (previous) return previous;
+    const seen = new Set<string>();
+    for (let parent: string | undefined = name; parent && !seen.has(parent); parent = parents.get(parent)) seen.add(parent);
+    const result = [...seen];
+    ancestors.set(name, result);
+    return result;
+  };
+  for (const { script, index } of indexed) {
+    if (!script) continue;
+    for (const header of index.headers) {
+      if (!header.parent || types.has(header.name)) addOwner(header.name, script);
+      if (header.parent) for (const parent of ancestorNames(header.parent)) addOwner(parent, script);
     }
   }
   const loaded = new Set<Tree>([tree]);
   const globals = new Globals((name) => {
+    // Expand existing namespace tables, but keep the previous winner rule
+    // for a current script's already-bound store or reassigned global.
+    if (globals.has(name) && (!namespaces.has(name) || globals.peek(name) !== namespaces.get(name))) return;
     // Other documents contribute globals, never their locals. Their existing
-    // declaration ranges choose candidate owners without reading every body.
+    // declaration ranges and syntax headers choose candidate owners without
+    // constructing every document's AST or reading its property expressions.
     for (const script of foreign.get(name) ?? []) {
       if (!script.tree || loaded.has(script.tree)) continue;
       loaded.add(script.tree);
       initialize(reading(script.tree, script.read(0, script.tree.length)));
     }
   });
+  const namespaces = new Map<string, Shape>();
+  const namespace = (name: string): Shape => {
+    let shape = namespaces.get(name);
+    if (!shape) {
+      shape = { members: new Map() };
+      namespaces.set(name, shape);
+    }
+    return shape;
+  };
   function initialize(read: Reading) {
     // Copies preserve aliases/cycles without mutating the cached literals.
-    read.defines.forEach((shape, name) => globals.set(name, copyShape(shape, copies)));
+    const defines = read.defines.map((definition) => {
+      let shape = copyShape(definition.shape, copies);
+      // Match the compiler's whole-program leaf/type classification. A leaf
+      // remains parent-qualified, leaving its bare name free for user stores.
+      if (!definition.parent || types.has(definition.name)) {
+        const target = namespace(definition.name);
+        shape.members?.forEach((value, key) => target.members!.set(key, value));
+        shape = target;
+        copies.set(definition.shape, shape);
+        globals.set(definition.name, shape);
+      }
+      return { ...definition, shape };
+    });
+    for (const definition of defines) {
+      if (!definition.parent) continue;
+      // __def registers each instance in its declared parent and every
+      // authored ancestor. This adds membership, not inherited field types.
+      for (const parent of ancestorNames(definition.parent)) {
+        const target = namespace(parent);
+        target.members!.set(definition.name, definition.shape);
+        if (!globals.has(parent)) globals.set(parent, target);
+      }
+    }
     // Stores initialize at story start, including those after the cursor.
     const inventory = new Inventory(globals, read, -1);
     for (const store of read.stores) {
