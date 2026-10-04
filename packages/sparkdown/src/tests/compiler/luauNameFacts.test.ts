@@ -60,12 +60,12 @@ describe("shared AST name facts", () => {
     } });
     expect(calls).toHaveLength(3);
     expect(functions).toHaveLength(1);
-    const declaration = facts.declarations.find((d: any) => d.name === "arg");
-    const argument = facts.references.filter((r: any) => r.name === "arg");
+    const declaration = facts.declarations.find((d: any) => d.name === "arg"); // not a node name
+    const argument = facts.references.filter((r: any) => r.name === "arg"); // not a node name
     expect(argument).toHaveLength(1);
     expect(argument[0].local === declaration.local).toBe(true);
     expect(argument[0].enclosingFunction === functions[0]).toBe(true);
-    expect(facts.references.filter((r: any) => r.name === "message").map((r: any) => [r.access, r.from, r.to])).toEqual([["read", source.indexOf("message"), source.indexOf("message") + 7]]);
+    expect(facts.references.filter((r: any) => r.name === "message").map((r: any) => [r.access, r.from, r.to])).toEqual([["read", source.indexOf("message"), source.indexOf("message") + 7]]); // not a node name
     const cached = lint.collectLuauLints(value.tree, (from, to) => source.slice(from, to));
     expect(cached.roots === value.result.roots).toBe(true);
     expect(cached.names === facts).toBe(true);

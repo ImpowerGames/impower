@@ -158,8 +158,8 @@ string.gsub("foo", "%")
     const first = collectLuauLints(tree, read);
     const cached = collectLuauLints(tree, read);
     expect(first.lints.filter(d => d.code === "FormatString")).toHaveLength(1);
-    expect(first.names.declarations.filter(d => d.name === "style")).toHaveLength(1);
-    expect(first.names.references.some(d => d.name === "style")).toBe(false);
+    expect(first.names.declarations.filter(d => d.name === "style")).toHaveLength(1); // not a node name
+    expect(first.names.references.some(d => d.name === "style")).toBe(false); // not a node name
     expect(first.names.uncertainNames).toEqual([{ name: "style", from: source.lastIndexOf("style"), to: source.lastIndexOf("style") + 5, reason: "grammar-keyword" }]);
     expect(cached.names === first.names).toBe(true);
     expect(cached.names.uncertainNames === first.names.uncertainNames).toBe(true);
