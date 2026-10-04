@@ -4,16 +4,19 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { getCompletions } from "../../utils/providers/getCompletions";
 import { getAnnotatedScripts } from "../../utils/annotations/getAnnotatedScripts";
 
-function requests(source: string, foreign: string, reverse: boolean) {
+function requests(source: string, foreign: string, reverse: boolean, third?: string) {
   const main = "file:///proj/main.sd";
   const library = "file:///proj/shapes.sd";
+  const functions = "file:///proj/functions.sd";
   const documents = new SparkdownDocumentRegistry(["declarations", "references"]);
   documents.set({ textDocument: { uri: main, text: source, version: 1, languageId: "sparkdown" } });
   documents.set({ textDocument: { uri: library, text: foreign, version: 1, languageId: "sparkdown" } });
+  if (third !== undefined) documents.set({ textDocument: { uri: functions, text: third, version: 1, languageId: "sparkdown" } });
   const workspace = { document: (uri: string) => documents.get(uri), tree: (uri: string) => documents.tree(uri), annotations: (uri: string) => documents.annotations(uri) };
   const document = documents.get(main)!;
   const tree = documents.tree(main)!;
-  const uris = reverse ? [library, main] : [main, library];
+  const uris = third === undefined ? [main, library] : [main, library, functions];
+  if (reverse) uris.reverse();
   return (receiver: string) => (getCompletions(document, tree, getAnnotatedScripts(main, Object.fromEntries(uris.map((uri) => [uri, 1])), workspace), undefined, undefined, document.positionAt(source.indexOf(receiver) + receiver.length), undefined) ?? []).map((item) => item.label).sort();
 }
 
@@ -57,6 +60,75 @@ describe("static member assignment identity", () => {
   test("a cursor inside a stored function still traverses its local assignments", () => {
     const source = "store callback = function()\n  local t = {}\n  local alias = t\n  t.x = 1\n  return alias.@1\nend\n";
     expect(labelsAt(source)).toEqual(["x"]);
+  });
+
+  test.each([false, true])("lazy store methods retain story-start named functions through later rebinding (reverse=%s)", (reverse) => {
+    for (const value of ["main", "helper"]) {
+      for (const rebound of [false, true]) {
+        const source = `function main()\n  ${rebound ? "main = 1\n  helper = unknown()\n  " : ""}handlers:\nend\nfunction helper() end\n`;
+        const request = requests(source, `store handlers = { run = ${value} }\n`, reverse);
+        expect.soft(request("handlers:")).toEqual(["run"]);
+        expect.soft(request("handlers:")).toEqual(["run"]);
+      }
+    }
+  });
+
+  test.each([false, true])("same-file stores recognize named method values before or after declarations (later=%s)", (later) => {
+    const table = "store handlers = { run = main }\n";
+    const fn = "function main()\n  handlers:@1\nend\n";
+    expect(labelsAt(later ? fn + table : table + fn)).toEqual(["run"]);
+  });
+
+  test.each([false, true])("a lazy foreign store recognizes its owner's named function (reverse=%s)", (reverse) => {
+    const request = requests("function main()\n  handlers:\nend\n", "store handlers = { run = helper }\nfunction helper() end\n", reverse);
+    expect(request("handlers:")).toEqual(["run"]);
+    expect(request("handlers:")).toEqual(["run"]);
+  });
+
+  test.each([false, true])("a lazy store discovers a named function in a third script (reverse=%s)", (reverse) => {
+    const request = requests("function main()\n  handlers:\nend\n", "store handlers = { run = action }\n", reverse, "function action(self)\n  return 7\nend\n");
+    expect.soft(request("handlers:")).toEqual(["run"]);
+    expect.soft(request("handlers:")).toEqual(["run"]);
+  });
+
+  test.each([false, true])("same-file stores recognize same-line marked functions before or after declarations (later=%s)", (later) => {
+    const table = "store handlers = { run = action }\n";
+    const fn = "& function action(self) return 7 end\n";
+    expect(labelsAt((later ? table + fn : fn + table) + "function main()\n  handlers:@1\nend\n")).toEqual(["run"]);
+  });
+
+  test.each([false, true])("lazy stores recognize their owner's same-line marked function (reverse=%s)", (reverse) => {
+    const request = requests("function main()\n  handlers:\nend\n", "store handlers = { run = action }\n& function action(self) return 7 end\n", reverse);
+    expect.soft(request("handlers:")).toEqual(["run"]);
+    expect.soft(request("handlers:")).toEqual(["run"]);
+  });
+
+  test.each([false, true])("lazy stores discover same-line marked functions in a third script (reverse=%s)", (reverse) => {
+    const request = requests("function main()\n  handlers:\nend\n", "store handlers = { run = action }\n", reverse, "& function action(self) return 7 end\n");
+    expect.soft(request("handlers:")).toEqual(["run"]);
+    expect.soft(request("handlers:")).toEqual(["run"]);
+  });
+
+  test.each([false, true])("marked local and nested declarations stay unavailable as initial globals (reverse=%s)", (reverse) => {
+    const third = "& local function localAction() end\nfunction other()\n  & function nestedAction() end\nend\n";
+    const request = requests("function main()\n  handlers:\nend\n", "store handlers = { localAction = localAction, nested = nestedAction }\n", reverse, third);
+    expect.soft(request("handlers:")).toEqual([]);
+    expect.soft(request("handlers:")).toEqual([]);
+  });
+
+  test.each([false, true])("a third script's local, nested, conditional and define methods stay unavailable as initial globals (reverse=%s)", (reverse) => {
+    const third = "local function localAction() end\nfunction other()\n  function nestedAction() end\n  if true then\n    function conditionalAction() end\n  end\nend\ndefine Point with\n  function method() end\nend\n";
+    const request = requests("function main()\n  handlers:\nend\n", "store handlers = { localAction = localAction, nested = nestedAction, conditional = conditionalAction, method = method }\n", reverse, third);
+    expect.soft(request("handlers:")).toEqual([]);
+    expect.soft(request("handlers:")).toEqual([]);
+  });
+
+  test("named-function initialization borrows neither parameter nor sibling or define-method identities", () => {
+    expect(labelsAt("function main(main)\n  local handlers = { run = main }\n  handlers:@1\nend\n")).toEqual([]);
+    const source = "function other()\n  local function helper() end\n  if true then\n    function conditional() end\n  end\nend\ndefine Point with\n  function method() end\nend\nfunction main()\n  handlers:\nend\n";
+    const request = requests(source, "store handlers = { sibling = helper, conditional = conditional, method = method }\n", false);
+    expect(request("handlers:")).toEqual([]);
+    expect(request("handlers:")).toEqual([]);
   });
 
   test.each([false, true])("multiple assignment captures local, global, nested and quoted receivers before writes (reverse=%s)", (reverse) => {

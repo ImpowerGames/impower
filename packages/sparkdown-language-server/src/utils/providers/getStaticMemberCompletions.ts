@@ -75,6 +75,7 @@ interface Reading {
   text: string;
   units: LuauAstUnits;
   defines: (DefineHeader & { shape: Shape })[];
+  functions: string[];
   stores: AstStatSparkdownStore[];
   sites: Site[];
   offset(line: number, column: number): number;
@@ -99,7 +100,7 @@ function reading(tree: Tree, text: string): Reading {
   for (let at = text.indexOf("\n"); at >= 0; at = text.indexOf("\n", at + 1)) lines.push(at + 1);
   const sections = new Map<number, string[]>();
   const result: Reading = {
-    text, units: readLuauUnits(tree, text), defines: [], stores: [], sites: [],
+    text, units: readLuauUnits(tree, text), defines: [], functions: [], stores: [], sites: [],
     offset: (line, column) => (lines[line] ?? text.length) + column,
     sectionAt(offset) {
       const stack = getStack<SparkdownNodeName>(tree, offset, 1);
@@ -119,6 +120,13 @@ function reading(tree: Tree, text: string): Reading {
     },
   };
   result.sites = memberSites(result);
+  // Top-level named functions are story functions, available as values
+  // when stores initialize. Nested functions and generated flow wrappers
+  // keep their lexical identities and are never initial global bindings.
+  for (const stat of result.units.prelude.root.body) {
+    const declaration = stat instanceof AstStatSparkdownExplicit ? stat.statement : stat;
+    if (declaration instanceof AstStatFunction && declaration.name instanceof AstExprGlobal) result.functions.push(declaration.name.name);
+  }
   for (const unit of [result.units.prelude, ...result.units.flows]) {
     visitAst(unit.root, { visit(node) {
       if (node instanceof AstType || node instanceof AstTypePack) return false;
@@ -430,7 +438,7 @@ export function getStaticMemberCompletions(
     const declarations = script.annotations.declarations?.iter();
     while (declarations?.value) {
       const type = declarations.value.type;
-      if (type === "var") addOwner(script.read(declarations.from, declarations.to), script);
+      if (type === "var" || type === "function") addOwner(script.read(declarations.from, declarations.to), script);
       declarations.next();
     }
   }
@@ -475,6 +483,9 @@ export function getStaticMemberCompletions(
     return shape;
   };
   function initialize(read: Reading) {
+    for (const name of read.functions) {
+      if ((read === current || !currentStores.has(name)) && !globals.has(name)) globals.set(name, FUNCTION);
+    }
     // Copies preserve aliases/cycles without mutating the cached literals.
     const defines = read.defines.map((definition) => {
       let shape = copyShape(definition.shape, copies);
