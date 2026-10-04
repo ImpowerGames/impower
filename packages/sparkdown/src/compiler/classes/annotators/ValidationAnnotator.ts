@@ -818,8 +818,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * character. `""` at the end of the Luau, which for a `run` file is the
    * `end` its wrapper closes its function with.
    */
-  protected tokenAfterTrivia(pos: number): string {
+  protected tokenAfterTrivia(pos: number, to = this.text?.length ?? pos): string {
     for (;;) {
+      if (pos >= to) return "";
       const char = this.read(pos, pos + 1);
       if (!char || this.isRunWrapperEnd(pos)) {
         return "";
@@ -836,7 +837,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         if (!LUAU_NAME_START.test(char)) {
           return char;
         }
-        const lineTo = this.text?.lineAt(pos).to ?? pos + 1;
+        const lineTo = Math.min(to, this.text?.lineAt(pos).to ?? pos + 1);
         return this.read(pos, lineTo).match(LUAU_NAME)?.[0] ?? char;
       }
       pos = node.to;
@@ -941,8 +942,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    *  length, read whole as Luau's lexer reads it (`123`, `..`, `::`), `null`
    *  at the end of the text, or `undefined` at a block comment that never
    *  closes. */
-  protected luauTokenAt(pos: number): { text: string; from: number } | null | undefined {
-    const rest = this.read(pos, this.text?.length ?? pos);
+  protected luauTokenAt(pos: number, to = this.text?.length ?? pos): { text: string; from: number } | null | undefined {
+    const rest = this.read(pos, to);
     let i = 0;
     for (;;) {
       LUAU_TRIVIA.lastIndex = i;
@@ -1092,10 +1093,19 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // starts a method call, which is missing its name.
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const isMethodColon = this.isMethodColon(nodeRef.node);
+      // An unfinished narrative method call owns its island's EOF. A genuine
+      // function still permits the method name on its next Luau line.
+      let authoredEnd: number | undefined;
+      if (isMethodColon) {
+        for (let owner: SyntaxNode | null = nodeRef.node; owner; owner = owner.parent) {
+          if (owner.name === "LuauFunctionBody") break;
+          if (owner.name === "LuauSparkdownExplicitStatement") { authoredEnd = owner.to; break; }
+        }
+      }
       // The checker reports a missing method name too, as it reports every
       // missing name after a member access (#1175), where it reads the token
       // found instead.
-      if (checkerReportsType && (!isMethodColon || this.checkerReadsOnTo(nodeRef.node, this.luauTokenAt(nodeRef.to)?.from))) {
+      if (checkerReportsType && (!isMethodColon || this.checkerReadsOnTo(nodeRef.node, this.luauTokenAt(nodeRef.to, authoredEnd)?.from))) {
         return annotations;
       }
       if (!isMethodColon) {
@@ -1114,8 +1124,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
       // Luau's range is the token it found instead of the name.
-      const token = this.tokenAfterTrivia(nodeRef.to);
-      const got = token ? this.luauTokenAt(nodeRef.to) : null;
+      const token = this.tokenAfterTrivia(nodeRef.to, authoredEnd);
+      const got = token ? this.luauTokenAt(nodeRef.to, authoredEnd) : null;
       this.error(
         annotations,
         `${MISSING_METHOD_NAME}, got ${token ? `'${token}'` : "<eof>"}`,

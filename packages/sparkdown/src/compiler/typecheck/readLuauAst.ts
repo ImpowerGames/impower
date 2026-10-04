@@ -1460,8 +1460,8 @@ class Parser {
     const open = begin.kind === "chooseThen" || begin.kind === "choose" ? "choose" : begin.text;
     // Not part of Luau: a `::` where the closer was expected is an annotation written with it.
     // A written expression delimiter cannot be repaired by the next story
-    // line. Keyword closers remain grammar-owned, avoiding duplicate reports.
-    const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && this.explicitLine !== undefined && !this.currentFunction().luau && this.current().kind === "break" && this.current().story === true;
+    // line. Keyword closers retain their separate diagnostic ownership.
+    const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && this.explicitLine !== undefined && !this.currentFunction().luau;
     const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
     if (location.begin.line === begin.location.begin.line)
       this.report(location, `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`, malformed);
@@ -1473,7 +1473,12 @@ class Parser {
       this.nextExpected();
       return true;
     }
-    this.expectMatchAndConsumeFail(text, begin);
+    // A written else/elseif after else is not a later narrative branch and cannot
+    // repair this Luau island. Its grammar has a written outer end, so only
+    // the converter owns the native misplaced-branch diagnostic. Keep EOF
+    // and other keyword-closer diagnostics under their existing ownership.
+    const misplacedElseBranch = this.explicitLine !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
+    this.expectMatchAndConsumeFail(text, begin, "", misplacedElseBranch ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
       return false;
