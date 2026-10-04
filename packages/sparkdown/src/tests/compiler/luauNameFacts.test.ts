@@ -5,6 +5,8 @@ import { AstExprFunction, AstExprLocal, AstStatFor, AstStatForIn, AstStatLocal, 
 import { readDocumentUnits } from "../../compiler/typecheck/LuauDocumentChecker";
 import { getParser } from "./grammarSnapshot";
 import { testCompiler } from "../engineUnderTest";
+import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 function script(text: string) {
   const tree = getParser().parse(text);
@@ -42,6 +44,57 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
+  test("embedded stores publish explicit global writes", () => {
+    const source = "define hero as character with\n callback = function() store saved = 1; return saved end\nend\nHi.\n";
+    expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
+    const value = script(source);
+    const facts = names(value);
+    expect(facts.globals.map((d: any) => [d.name, d.kind])).toEqual([["saved", "store"]]); // not a node name
+    const uses = facts.references.filter((r: any) => r.name === "saved"); // not a node name
+    expect(uses.map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false]]);
+    expect(source.slice(uses[0].from, uses[0].to)).toBe("saved");
+    const index = (lint as any).indexProgramNames([{ uri: "embedded", names: facts }]);
+    expect(index.globals.get("saved").writes).toHaveLength(1);
+    expect(index.globals.get("saved").reads).toHaveLength(1);
+  });
+
+  test.each([
+    ["local", "function inspect() local n = 1; const n = 2; return n end", "inspect()", 1],
+    ["parameter", "function inspect(n) const n = 2; return n end", "inspect(7)", 7],
+    ["loop", "function inspect() for n = 3, 3 do const n = 2; return n end end", "inspect()", 3],
+    ["closure", "function inspect() local n = 1; const n = 2; return (function() return n end)() end", "inspect()", 1],
+    ["outer block", "function inspect() local n = 1; do const n = 2; return n end end", "inspect()", 1],
+  ])("const shadow preserves the runtime %s identity", (_label, body, call, expected) => {
+    const source = `Value {${call}} {n}.\n${body}\n`;
+    const runtime = makeRuntimeStoryFromSource(source);
+    expect(runtime.errorMessages).toEqual([]);
+    expect(runtime.story.ContinueMaximally()).toBe(`Value ${expected} 2.\n`);
+    const facts = names(script(source));
+    const declared = facts.declarations.find((d: any) => d.name === "n"); // not a node name
+    expect(declared).toBeDefined();
+    const reads = facts.references.filter((r: any) => r.name === "n" && r.enclosingFunction); // not a node name
+    expect(reads).toHaveLength(1);
+    expect(reads[0].local === declared.local).toBe(true);
+    expect(reads[0].node instanceof AstExprLocal).toBe(true);
+    expect(reads[0].node.local.isConst).toBe(true);
+    expect(reads[0].node.local.shadow === declared.local).toBe(true);
+    const index = (lint as any).indexProgramNames([{ uri: "const", names: facts }]);
+    expect(index.globals.get("n").reads).toHaveLength(1);
+    expect(index.globals.get("n").definitions.map((d: any) => d.kind)).toEqual(["const"]);
+  });
+
+  test("a rejected store/local collision still identifies the explicit global target", () => {
+    const source = "Value {inspect()} {saved}.\nfunction inspect() local saved = 7; store saved = 1; return saved end\n";
+    const runtime = makeRuntimeStoryFromSource(source);
+    expect(runtime.errorMessages).toHaveLength(1);
+    expect(runtime.errorMessages[0]).toContain("Duplicate identifier `saved`");
+    const facts = names(script(source));
+    const local = facts.declarations.find((d: any) => d.name === "saved"); // not a node name
+    expect(facts.globals.filter((d: any) => d.name === "saved").map((d: any) => d.kind)).toEqual(["store"]); // not a node name
+    const uses = facts.references.filter((r: any) => r.name === "saved"); // not a node name
+    expect(uses.map((r: any) => [r.access, !!r.local])).toEqual([["read", false], ["write", false], ["read", true]]);
+    expect(uses[2].local === local.local).toBe(true);
+  });
   test("malformed declarations do not publish parser recovery names or warn about them", () => {
     const value = script("function f()\n local a,\n type T = number\n local b,\n export type U = T\n local c,\n const d = 1\n local e,\n local g = 2\n return a\nend\n");
     expect(value.result.lints.map(lint => lint.message)).not.toContain("Variable '%error-id%' is never used; prefix with '_' to silence");
