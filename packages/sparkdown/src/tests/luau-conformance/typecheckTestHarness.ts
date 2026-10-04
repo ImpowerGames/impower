@@ -20,10 +20,6 @@ import { createHash } from "node:crypto";
 import { vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
-  AstExprCall,
-  AstExprGlobal,
-  AstExprIndexName,
-  AstExprLocal,
   AstStatLocal,
   AstStatLocalFunction,
   visitAst,
@@ -51,6 +47,7 @@ import { loadOfficialLuau } from "../compiler/officialLuau";
 import { decorateSource } from "./typecheckDecoration";
 import { queryType } from "./typecheckQueries";
 import { pinnedModuleDependencyOrder } from "./typecheckModuleOrder";
+import { traceFixtureRequires } from "./typecheckRequireTrace";
 import {
   Type,
   type TypeId,
@@ -477,34 +474,13 @@ export function checkLuau(
   const visiting = new Set<string>();
   const freshlyChecked = new Set<string>();
   const requires = new Map<string, Set<string>>();
-  const resolveName = (
-    current: string,
-    expression: import("../../compiler/typecheck/Ast").AstExpr,
-  ): string | undefined => {
-    if (expression instanceof AstExprCall) {
-      if (expression.args.length !== 1) return undefined;
-      return resolveName(current, expression.args[0]!);
-    }
-    const segments: string[] = [];
-    let cursor = expression;
-    while (cursor instanceof AstExprIndexName) {
-      segments.unshift(cursor.index);
-      cursor = cursor.expr;
-    }
-    if (!segments.length) return undefined;
-    if (cursor instanceof AstExprGlobal) segments.unshift(cursor.name);
-    else if (cursor instanceof AstExprLocal)
-      segments.unshift(cursor.local.name);
-    else return undefined;
-    const result = segments[0] === "script" ? current.split("/") : [];
-    for (const part of segments[0] === "script"
-      ? segments.slice(1)
-      : segments) {
-      if (part === "Parent" && result.length > 1) result.pop();
-      else result.push(part);
-    }
-    return result.join("/");
-  };
+  const traces = new Map(
+    [...sources].map(([name, input]) => {
+      const trace = traceFixtureRequires(input.unit.root, name);
+      requires.set(name, new Set(trace.dependencies));
+      return [name, trace] as const;
+    }),
+  );
   const checkModule = (
     name: string,
   ): ReturnType<typeof checkLuauUnit> | undefined => {
@@ -516,6 +492,12 @@ export function checkLuau(
       throw new NotImplemented(`cyclic named module graph involving ${name}`);
     visiting.add(name);
     try {
+      // Frontend's parsed require graph checks dependencies even when a magic
+      // call later rejects its arguments. Unknown sources keep UnknownRequire.
+      for (const dependency of pinnedModuleDependencyOrder(
+        requires.get(name) ?? [],
+      ).reverse())
+        checkModule(dependency);
       const result = checkLuauUnit(frontend, name, input.unit, mode);
       session.modules.set(name, result);
       freshlyChecked.add(name);
@@ -526,13 +508,8 @@ export function checkLuau(
   };
   const resolver: ModuleResolver = {
     resolveModuleInfo: (current, expr) => {
-      const name = resolveName(current, expr);
-      if (name) {
-        const edges = requires.get(current) ?? new Set<string>();
-        edges.add(name);
-        requires.set(current, edges);
-      }
-      return name ? { name, optional: false } : undefined;
+      const name = traces.get(current)?.expressions.get(expr);
+      return name !== undefined ? { name, optional: false } : undefined;
     },
     getModule: (name) => checkModule(name)?.module,
     moduleExists: (name) => sources.has(name),
@@ -549,13 +526,18 @@ export function checkLuau(
   const collect = (name: string) => {
     if (seen.has(name)) return;
     seen.add(name);
-    for (const dependency of pinnedModuleDependencyOrder(requires.get(name) ?? []).reverse())
+    for (const dependency of pinnedModuleDependencyOrder(
+      requires.get(name) ?? [],
+    ).reverse())
       collect(dependency);
     const result = session.modules.get(name);
     if (!result) return;
     reachable.push(result);
     if (freshlyChecked.has(name))
-      allErrors.push(...result.sourceModule.parseErrors, ...result.module.errors);
+      allErrors.push(
+        ...result.sourceModule.parseErrors,
+        ...result.module.errors,
+      );
   };
   collect(entry);
   if (options.retainFullTypeGraphs === false) {

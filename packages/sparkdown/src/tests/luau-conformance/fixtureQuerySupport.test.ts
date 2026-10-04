@@ -7,6 +7,7 @@ import { loadOfficialLuau } from "../compiler/officialLuau";
 import { loadDefinitionAst } from "../../compiler/typecheck/DefinitionFile";
 import { Mode, type SourceModule } from "../../compiler/typecheck/Module";
 import { pinnedModuleDependencyOrder } from "./typecheckModuleOrder";
+import { traceFixtureRequires } from "./typecheckRequireTrace";
 import * as Ast from "../../compiler/typecheck/Ast";
 import {
   runAssertions,
@@ -17,6 +18,159 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  // Actual pinned Parser + RequireTracer.cpp output, with Fixture.cpp's
+  // resolver model, compared with the actual compiled AST. Existing #879 parse
+  // diagnostics remain in the checker result; no error-free parse is claimed.
+  test.each([
+    ["local M=require(game.A)\nreturn M", ["0:8|game/A|game/A"]],
+    ["local M=require(pick(game.A))\nreturn M", ["0:8|<absent>|"]],
+    ["local M=require(pick(pick(game.A)))\nreturn M", ["0:8|<absent>|"]],
+    [
+      "local M=require(require(game.A))\nreturn M",
+      ["0:8|game/A|", "0:16|game/A|game/A"],
+    ],
+    ["local M=require((game.A))\nreturn M", ["0:8|game/A|game/A"]],
+    [
+      "local folder=game\nlocal M=require(folder.A)\nreturn M",
+      ["1:8|game/A|game/A"],
+    ],
+    [
+      "local folder=game\nfolder=workspace\nlocal M=require(folder.A)\nreturn M",
+      ["2:8|<absent>|"],
+    ],
+    [
+      "local folder=game\nlocal M=require(folder.A)\nfolder=workspace\nreturn M",
+      ["1:8|<absent>|"],
+    ],
+    [
+      "local game=workspace\nlocal M=require(game.A)\nreturn M",
+      ["1:8|workspace/A|workspace/A"],
+    ],
+    ["local game={}\nlocal M=require(game.A)\nreturn M", ["1:8|<absent>|"]],
+    ["local M=require(other.A)\nreturn M", ["0:8|<absent>|"]],
+    ["local M=require(script.Parent.A)\nreturn M", ["0:8|game/A|game/A"]],
+    ["local M=require(game.Parent.A)\nreturn M", ["0:8|<absent>|"]],
+    ['local M=require(game["A"])\nreturn M', ["0:8|game/A|game/A"]],
+    ['local M=require(game["é"])\nreturn M', ["0:8|game/é|game/é"]],
+    ['local M=require(game:GetService("A"))\nreturn M', ["0:8|game/A|game/A"]],
+    ['local M=require(workspace:GetService("A"))\nreturn M', ["0:8|<absent>|"]],
+    ['local M=require(game:Other("A"))\nreturn M', ["0:8|<absent>|"]],
+    ["local M=require(game.A)::any\nreturn M", ["0:8|<absent>|<absent>"]],
+    ["local M=require(game.A::any)\nreturn M", ["0:8|<absent>|"]],
+    ["type T=typeof(require(game.A))", ["0:14|game/A|game/A"]],
+    ["local M=require(game.A, game.B)\nreturn M", ["0:8|game/A|game/A"]],
+    ["local require=pick\nlocal M=require(game.A)\nreturn M", []],
+    [
+      "local folder=game\nlocal folder=workspace\nlocal M=require(folder.A)\nreturn M",
+      ["2:8|workspace/A|workspace/A"],
+    ],
+  ] as const)(
+    "pinned require expression map for %s",
+    async (source, expected) => {
+      const native = (await loadOfficialLuau("typecheck"))(source);
+      expect(native.errors).toBe(0);
+      const session: LuauCheckSession = { modules: new Map() };
+      const checked = checkLuau(source, {
+        fixture: "BuiltinsFixture",
+        module: "game/Main",
+        globals: { pick: "(any)->any", other: "any" },
+        session,
+      });
+      expect(checked.checked).toBe(true);
+      const parsed = session.modules.get("game/Main")!.sourceModule.root;
+      const trace = traceFixtureRequires(parsed, "game/Main");
+      const actual: string[] = [];
+      Ast.visitAst(parsed, {
+        visit(node) {
+          if (
+            node instanceof Ast.AstExprCall &&
+            node.func instanceof Ast.AstExprGlobal &&
+            node.func.name === "require" &&
+            node.args.length >= 1
+          ) {
+            const position = node.location.begin;
+            actual.push(
+              `${position.line}:${position.column}|${trace.expressions.get(node.args[0]!) ?? "<absent>"}|${trace.expressions.get(node) ?? "<absent>"}`,
+            );
+          }
+          return true;
+        },
+      });
+      expect(actual).toEqual(expected);
+    },
+  );
+  test.each(["pick(game.A)", "pick(pick(game.A))"])(
+    "computed require argument does not fabricate a dependency: %s",
+    (argument) => {
+      const result = checkLuau(`local M=require(${argument})\nreturn M`, {
+        fixture: "BuiltinsFixture",
+        module: "game/Main",
+        globals: { pick: "(any)->any" },
+        moduleSources: {
+          "game/A": "export type T=number\nlocal bad:number='bad'\nreturn 1",
+        },
+      });
+      // #879 remains the natural-source parser boundary; these assertions
+      // inspect the actual checker, not a fabricated error-free parse.
+      expect(result.checked).toBe(true);
+      expect(
+        result.find({ type: "M" }).is(result.find({ builtin: "error" })),
+      ).toBe(true);
+      expect(result.diagnostics.map((d) => d.code)).toEqual(["UnknownRequire"]);
+      expect(() => result.find({ importedAlias: ["M", "T"] })).toThrow(
+        /no type/,
+      );
+      expect(result.diagnostics.some((d) => d.module === "game/A")).toBe(false);
+    },
+  );
+  test("direct require keeps real aliases, return types and dependency errors", () => {
+    const result = checkLuau("local M=require(game.A)\nreturn M", {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+      moduleSources: {
+        "game/A": "export type T=number\nlocal bad:number='bad'\nreturn 1",
+      },
+    });
+    expect(result.checked).toBe(true);
+    expect(result.find({ type: "M" }).print()).toBe("number");
+    expect(result.find({ importedAlias: ["M", "T"] }).print()).toBe("number");
+    expect(result.diagnostics.map((d) => [d.module, d.code])).toEqual([
+      ["game/A", "TypeMismatch"],
+    ]);
+  });
+  test("nested require preserves argument versus full-call resolution", () => {
+    const result = checkLuau("local M=require(require(game.A))\nreturn M", {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+      moduleSources: { "game/A": "export type T=number\nreturn 1" },
+    });
+    // Pinned preorder gives the inner-call argument query game/A while the
+    // outer full-call query remains unresolved. This is not call unwrapping.
+    expect(
+      result.find({ type: "M" }).is(result.find({ builtin: "error" })),
+    ).toBe(true);
+    expect(result.diagnostics.map((d) => d.code)).toEqual(["UnknownRequire"]);
+    expect(result.find({ importedAlias: ["M", "T"] }).print()).toBe("number");
+  });
+  test("traced dependency errors survive a rejected require argument count", () => {
+    const result = checkLuau("local M=require(game.A,game.B)\nreturn M", {
+      fixture: "BuiltinsFixture",
+      module: "game/Main",
+      moduleSources: {
+        "game/A": "local bad:number='a'\nreturn 1",
+        "game/B": "local bad:number='b'\nreturn 1",
+      },
+    });
+    expect(result.diagnostics.some((d) => d.code === "GenericError")).toBe(
+      true,
+    );
+    expect(
+      result.diagnostics
+        .filter((d) => d.module === "game/A")
+        .map((d) => d.code),
+    ).toEqual(["TypeMismatch"]);
+    expect(result.diagnostics.some((d) => d.module === "game/B")).toBe(false);
+  });
   // Exact pinned Lexer::readNext treats input byte zero as EOF even when
   // Parser::parse receives the full buffer length. Escaped source NUL differs.
   test.each([
