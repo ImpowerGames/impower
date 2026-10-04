@@ -2,6 +2,10 @@ import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { collectLuauLints } from "../../compiler/lint/collectLuauLints";
 import { getParser } from "../compiler/grammarSnapshot";
+import { readLuauExpression } from "../../compiler/typecheck/readLuauAst";
+import { AstExprCall, AstExprConstantString, AstExprGroup, AstExprIndexName } from "../../compiler/typecheck/Ast";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import type { SyntaxNode } from "@lezer/common";
 import { diagnoseDetailed, lintMessagesInFunction } from "./diagnosticTestHarness";
 
 describe("FormatString runtime acceptance adaptations", () => {
@@ -91,6 +95,40 @@ string.gsub("foo", "%")
     expect(diagnoseDetailed(source).filter(d => d.code === "FormatString").map(d => d.message)).toEqual([
       "Invalid format string: unfinished format specifier",
     ]);
+  });
+
+  test("parenthesized literal methods are authored expressions with a complete call AST", () => {
+    const source = 'Hi {("%s"):format("hello")}.\n';
+    const tree = getParser().parse(source);
+    const nodes: SyntaxNode[] = [];
+    const walk = (node: SyntaxNode) => {
+      if (node.name === "LuauParenthetical" || node.name === "LuauChainedFunctionCall") nodes.push(node);
+      for (let child = node.firstChild; child; child = child.nextSibling) walk(child);
+    };
+    walk(tree.topNode);
+    const parent = nodes[0]?.parent;
+    const parts = nodes.filter(node => node.parent?.from === parent?.from && node.parent?.to === parent?.to);
+    expect(parts.map(node => node.name)).toEqual(["LuauParenthetical", "LuauChainedFunctionCall", "LuauParenthetical"]);
+    const { expr, errors } = readLuauExpression(parts, source);
+    expect(errors).toEqual([]);
+    expect(expr).toBeInstanceOf(AstExprCall);
+    const call = expr as AstExprCall;
+    expect(call.self).toBe(true);
+    expect(call.func).toBeInstanceOf(AstExprIndexName);
+    const method = call.func as AstExprIndexName;
+    expect(method.index).toBe("format");
+    expect(method.expr).toBeInstanceOf(AstExprGroup);
+    expect((method.expr as AstExprGroup).expr).toBeInstanceOf(AstExprConstantString);
+    expect(diagnoseDetailed(source)).toEqual([]);
+  });
+
+  test("supported literal methods execute across the same complete-expression boundary", () => {
+    const source = 'Hi {("hello"):match("%a+"):upper()}.\n';
+    expect(diagnoseDetailed(source)).toEqual([]);
+    const runtime = makeRuntimeStoryFromSource(source);
+    expect(runtime.errorMessages).toEqual([]);
+    expect(runtime.story.ContinueMaximally()).toBe("Hi HELLO.\n");
+    expect(runtime.errorMessages).toEqual([]);
   });
 
   test.each([

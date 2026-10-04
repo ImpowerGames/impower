@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { NodeType, Tree, TreeBuffer } from "@lezer/common";
 import * as lint from "../../compiler/lint/collectLuauLints";
-import { AstExprFunction, AstExprLocal, AstStatFor, AstStatForIn, AstStatLocal, AstStatLocalFunction, visitAst } from "../../compiler/typecheck/Ast";
+import { AstExprCall, AstExprFunction, AstExprLocal, AstStatFor, AstStatForIn, AstStatLocal, AstStatLocalFunction, visitAst } from "../../compiler/typecheck/Ast";
 import { readDocumentUnits } from "../../compiler/typecheck/LuauDocumentChecker";
 import { getParser } from "./grammarSnapshot";
 import { testCompiler } from "../engineUnderTest";
@@ -44,6 +44,36 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
+  test("literal receiver method chains retain complete roots and authored argument identities", () => {
+    const source = 'Hi {("%s"):format((function(arg) return arg end)(message)):upper()}.\n';
+    const value = script(source);
+    const facts = names(value);
+    const root = value.result.roots.find(({ root }) => root instanceof AstExprCall);
+    expect(root).toBeDefined();
+    expect(root!.offsets.range(root!.root.location)).toEqual({ from: 4, to: source.indexOf("}.") });
+    const calls: AstExprCall[] = [];
+    const functions: AstExprFunction[] = [];
+    visitAst(root!.root, { visit(node) {
+      if (node instanceof AstExprCall) calls.push(node);
+      if (node instanceof AstExprFunction) functions.push(node);
+      return true;
+    } });
+    expect(calls).toHaveLength(3);
+    expect(functions).toHaveLength(1);
+    const declaration = facts.declarations.find((d: any) => d.name === "arg");
+    const argument = facts.references.filter((r: any) => r.name === "arg");
+    expect(argument).toHaveLength(1);
+    expect(argument[0].local === declaration.local).toBe(true);
+    expect(argument[0].enclosingFunction === functions[0]).toBe(true);
+    expect(facts.references.filter((r: any) => r.name === "message").map((r: any) => [r.access, r.from, r.to])).toEqual([["read", source.indexOf("message"), source.indexOf("message") + 7]]);
+    const cached = lint.collectLuauLints(value.tree, (from, to) => source.slice(from, to));
+    expect(cached.roots === value.result.roots).toBe(true);
+    expect(cached.names === facts).toBe(true);
+    expect(cached.names.references[0].node === facts.references[0].node).toBe(true);
+    const expanded = lint.collectLuauLints(unpack(value.tree), (from, to) => source.slice(from, to));
+    expect(expanded.names.references.map(({ name, from, to }) => ({ name, from, to }))).toEqual(facts.references.map(({ name, from, to }: any) => ({ name, from, to })));
+  });
+
   test.each([
     ["style", "function inspect() local style = {}; setStyle(style) end\n"],
     ["layout", "function inspect() local layout = {}; return layout.x end\n"],
