@@ -26,6 +26,8 @@ The refusals are not to be overridden by hand for a tree with changes in it. Com
 
 Review-job classification and removal retain any candidate that is or contains a registered worktree, naming each protected absolute path. Embedded Git repositories and unreadable or uncertain inventory/ownership also retain the candidate. Inventory is refreshed before link removal and deletion; closed PRs and clean or merged descendants do not override protection. Independently handle an explicitly authorized worktree through guarded targeted cleanup before its ancestor can qualify.
 
+Pruning refreshes the registration inventory and waits if a prunable checkout path still exists, cannot be inspected, or has a sibling interrupted-removal probe. A missing Git marker does not establish that the checkout and its ownership are disposable. Repair that state before pruning; keep the registry evidence while it is uncertain. Only confirmed absent paths can be pruned.
+
 ### Bounded low-disk recovery
 
 Routine ticket preflight inspects a dry run without broad apply. Failed disk headroom blocks a new worktree. Obtain explicit authorization for bounded recovery: select one exact target, confirm with its owner that it is idle and no other session needs it, inspect `git status --ignored`, and preserve needed ignored files and review/reproduction artifacts outside the target. Use targeted `--remove` only when eligible, then rerun preflight. A refusal or partial failure remains a recovery blocker; preserve the log and leftovers. Leave already-running agents and review/testing gates alone. No automatic cache or machine-wide cleanup.

@@ -1213,6 +1213,9 @@ async function worldChecks(mainFn, report) {
   });
   await step("--apply prunes dead records first, so they cannot block a branch deletion, and records it", async () => {
     const pw = makeWorld();
+    const broken = pw.trees.find((t) => t.branch === "fix/19-broken");
+    broken.missing = true;
+    pw.disk.delete(broken.path.toLowerCase());
     for (const s of probeStrays) pw.disk.delete(s.toLowerCase());
     pw.trees.splice(pw.trees.findIndex((t) => t.branch === "fix/41-probe-left"), 1);
     const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN);
@@ -1378,6 +1381,9 @@ async function worldChecks(mainFn, report) {
   }, /is itself a link/));
   await step("--apply prunes a dead record that holds a removable worktree's branch, so the branch deletion is not refused", async () => {
     const pw = makeWorld();
+    const broken = pw.trees.find((t) => t.branch === "fix/19-broken");
+    broken.missing = true;
+    pw.disk.delete(broken.path.toLowerCase());
     for (const s of probeStrays) pw.disk.delete(s.toLowerCase());
     pw.trees.splice(pw.trees.findIndex((t) => t.branch === "fix/41-probe-left"), 1);
     const live = { path: R("impower.worktrees/fix/62-shared"), head: "c62", branch: "fix/62-shared", size: 1 * GB };

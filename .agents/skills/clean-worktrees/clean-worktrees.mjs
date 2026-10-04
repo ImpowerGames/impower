@@ -97,7 +97,7 @@ const norm = (p) => {
 const samePath = (a, b) => norm(a) === norm(b);
 const isUnder = (child, parent) => {
   const rel = path.relative(norm(parent), norm(child));
-  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+  return rel !== "" && rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
 };
 const n = (count, noun, plural = `${noun}s`) => `${count} ${count === 1 ? noun : plural}`;
 
@@ -886,10 +886,25 @@ export async function removeWorktree(entry, ctx, deps) {
 // and the record it points at must survive until it is renamed back. Returns
 // the paths pruned, or why nothing was.
 function pruneDeadRecords(entries, ctx, deps) {
-  const dead = entries.filter((e) => e.prunable);
+  if (!entries.some((e) => e.prunable)) return { pruned: [] };
+  const inventory = registeredWorktrees(ctx, deps);
+  if (inventory.reason) return { pruned: [], waiting: inventory.reason };
+  const dead = inventory.entries.filter((e) => e.prunable);
   if (!dead.length) return { pruned: [] };
   const probe = dead.find((e) => deps.exists(`${path.resolve(e.path)}${PROBE_SUFFIX}`));
   if (probe) return { pruned: [], waiting: `${path.resolve(probe.path)}${PROBE_SUFFIX} is beside a dead record, which is what an interrupted run's probe leaves; rename it back by hand first, since pruning would drop the record it points at` };
+  const uncertain = [];
+  const extant = dead.filter((e) => {
+    const abs = path.resolve(e.path);
+    if (!deps.lstat) return deps.exists(abs);
+    try { deps.lstat(abs); return true; }
+    catch (err) {
+      if (err.code !== "ENOENT") uncertain.push(`${abs}: ${err.code ?? err.message}`);
+      return false;
+    }
+  });
+  if (uncertain.length) return { pruned: [], waiting: `worktree ownership could not be inspected: ${uncertain.join(", ")}` };
+  if (extant.length) return { pruned: [], waiting: `protected extant worktree ownership: ${extant.map((e) => path.resolve(e.path)).join(", ")}; repair the missing Git marker before pruning` };
   const r = deps.exec("git", ["worktree", "prune"], ctx.mainRoot);
   if (r.status !== 0) return { pruned: [], waiting: `git worktree prune failed (${r.err || r.out})` };
   return { pruned: dead.map((e) => path.resolve(e.path)) };
@@ -1289,13 +1304,19 @@ export function numberState(number, deps, cwd) {
 // holding it started then; one recorded bare, or whose start time cannot be
 // read now, is taken at its number's word, which keeps a directory rather than
 // removing one in use.
-function jobProtection(dir, deps, ctx) {
-  const reasons = [];
+function registeredWorktrees(ctx, deps) {
   let inventory;
   try { inventory = deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot); }
   catch (err) { inventory = { status: 1, err: err.message }; }
   const entries = inventory.status === 0 ? parseWorktreeList(inventory.out) : [];
-  if (!entries.length || entries.some((entry) => !path.isAbsolute(entry.path)) || !entries.some((entry) => samePath(entry.path, ctx.mainRoot))) reasons.push(`registered worktree inventory could not be read (${inventory.err || "incomplete inventory"})`);
+  const reason = !entries.length || entries.some((entry) => !path.isAbsolute(entry.path)) || !entries.some((entry) => samePath(entry.path, ctx.mainRoot)) ? `registered worktree inventory could not be read (${inventory.err || "incomplete inventory"})` : null;
+  return { entries, reason };
+}
+
+function jobProtection(dir, deps, ctx) {
+  const reasons = [];
+  const { entries, reason } = registeredWorktrees(ctx, deps);
+  if (reason) reasons.push(reason);
   for (const entry of entries) {
     if (samePath(entry.path, dir) || isUnder(entry.path, dir)) reasons.push(`protected registered worktree ${path.resolve(entry.path)}`);
   }
