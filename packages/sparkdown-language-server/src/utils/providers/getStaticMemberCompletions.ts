@@ -31,9 +31,16 @@ interface Shape {
 const FUNCTION: Shape = { callable: true };
 class Globals extends Map<string, Shape | undefined> {
   private readonly requested = new Set<string>();
+  private readonly assigned = new Map<string, Shape | undefined>();
   constructor(private readonly load: (name: string) => void) { super(); }
   peek(name: string): Shape | undefined { return super.get(name); }
   override get(name: string): Shape | undefined {
+    return this.assigned.has(name) ? this.assigned.get(name) : this.initial(name);
+  }
+  assign(name: string, value: Shape | undefined) { this.assigned.set(name, value); }
+  initial(name: string): Shape | undefined {
+    // Lazy story-start declarations and their aliases must see the original
+    // bindings, independently of later procedural writes (including unknowns).
     // A namespace can already exist while another script contributes more
     // children. Load every candidate owner once, including existing names.
     if (!this.requested.has(name)) {
@@ -277,9 +284,9 @@ class Inventory {
   value(expr: AstExpr): Shape | undefined {
     if (expr instanceof AstExprLocal) {
       const local = this.visibleLocal(expr.local);
-      return local ? this.locals.get(local) : this.globals.get(expr.local.name);
+      return local ? this.locals.get(local) : this.global(expr.local.name);
     }
-    if (expr instanceof AstExprGlobal) return this.globals.get(expr.name);
+    if (expr instanceof AstExprGlobal) return this.global(expr.name);
     if (expr instanceof AstExprIndexName) return this.value(expr.expr)?.members?.get(expr.index);
     if (expr instanceof AstExprIndexExpr && expr.index instanceof AstExprConstantString) {
       return this.value(expr.expr)?.members?.get(stringValue(expr.index));
@@ -290,17 +297,30 @@ class Inventory {
     if (expr instanceof AstExprLocal || expr instanceof AstExprGlobal || expr instanceof AstExprIndexName || expr instanceof AstExprIndexExpr) return this.value(expr);
     return undefined;
   }
+  private global(name: string): Shape | undefined {
+    return this.cursor < 0 ? this.globals.initial(name) : this.globals.get(name);
+  }
+  private globalTarget(name: string) {
+    return (value: Shape | undefined) => {
+      if (this.cursor < 0) this.globals.set(name, value);
+      else this.globals.assign(name, value);
+    };
+  }
   assign(target: AstExpr, value: Shape | undefined) {
+    this.target(target)(value);
+  }
+  private target(target: AstExpr): (value: Shape | undefined) => void {
     if (target instanceof AstExprLocal) {
       const local = this.visibleLocal(target.local);
-      if (local) this.locals.set(local, value);
-      else this.globals.set(target.local.name, value);
+      return local ? (value) => { this.locals.set(local, value); } : this.globalTarget(target.local.name);
     }
-    else if (target instanceof AstExprGlobal) this.globals.set(target.name, value);
-    else if (target instanceof AstExprIndexName) this.value(target.expr)?.members?.set(target.index, value);
-    else if (target instanceof AstExprIndexExpr && target.index instanceof AstExprConstantString) {
-      this.value(target.expr)?.members?.set(stringValue(target.index), value);
+    if (target instanceof AstExprGlobal) return this.globalTarget(target.name);
+    if (target instanceof AstExprIndexName || (target instanceof AstExprIndexExpr && target.index instanceof AstExprConstantString)) {
+      const members = this.value(target.expr)?.members;
+      const key = target instanceof AstExprIndexName ? target.index : stringValue(target.index as AstExprConstantString);
+      return (value) => { members?.set(key, value); };
     }
+    return () => {};
   }
   private expression(expr: AstExpr) {
     visitAst(expr, { visit: (node) => {
@@ -321,7 +341,10 @@ class Inventory {
     } else if (stat instanceof AstStatSparkdownExplicit) this.run(stat.statement);
     else if (stat instanceof AstStatLocal || stat instanceof AstStatSparkdownStore) {
       for (const value of stat.values) this.expression(value);
-      if (end <= this.cursor) {
+      // Stores were already initialized at story start. Replaying a literal
+      // here would replace its table and detach aliases declared after cursor.
+      // Still traverse values above for a cursor inside a stored function.
+      if (stat instanceof AstStatLocal && end <= this.cursor) {
         const values = stat.values.map((expr) => this.value(expr));
         stat.vars.forEach((variable, index) => {
           if (variable instanceof AstLocal) this.locals.set(variable, values[index]);
@@ -331,8 +354,10 @@ class Inventory {
     } else if (stat instanceof AstStatAssign) {
       stat.values.forEach((expr) => this.expression(expr));
       if (end <= this.cursor) {
+        // Luau evaluates property receivers/keys before any assignment write.
+        const targets = stat.vars.map((variable) => this.target(variable));
         const values = stat.values.map((expr) => this.value(expr));
-        stat.vars.forEach((variable, index) => this.assign(variable, values[index]));
+        targets.forEach((target, index) => target(values[index]));
       }
     } else if (stat instanceof AstStatFunction || stat instanceof AstStatLocalFunction) {
       if (stat instanceof AstStatFunction) this.assign(stat.name, FUNCTION);
