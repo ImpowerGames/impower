@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { identifierAt } from "../utils/debugMetadata";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -441,13 +442,13 @@ function appendNodeContent(
     | { kind: "expr"; node: SyntaxNode };
   const markers: Marker[] = [];
   const walk = (node: SyntaxNode): void => {
-    if (node.name === "Tag") {
+    if (isExplicitRuleName(node.name, "Tag")) {
       markers.push({ kind: "tag", node });
       return;
     }
     if (
-      node.name === "LuauInterpolatedStringExpression" ||
-      node.name === "LuauFunctionCallShorthand"
+      isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
+      isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
     ) {
       markers.push({ kind: "expr", node });
       return;
@@ -483,7 +484,7 @@ function appendNodeContent(
         appended = true;
       }
     } else {
-      const tagContent = getDescendent("TagContent", m.node);
+      const tagContent = getDescendent(["TagContent", "SparkdownExplicitTagContent"], m.node);
       list.AddContent(new Tag(true, true));
       if (tagContent) {
         if (appendTagContent(tagContent, ctx, list)) {

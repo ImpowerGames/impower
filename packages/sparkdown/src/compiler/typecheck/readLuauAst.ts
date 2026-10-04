@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../utils/explicitRuleNames";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -322,6 +323,7 @@ function lineIndex(text: string): LineIndex {
 
 type TokenKind =
   | "eof"
+  | "unfinishedComment"
   | "name"
   | "keyword"
   | "symbol"
@@ -379,6 +381,10 @@ interface Token {
   source: number;
   /** A story boundary, or the scene closer ending a flow's synthetic function. */
   story?: true;
+  /** The grammar-owned EOF of a marked narrative island. */
+  authoredEnd?: true;
+  /** End offset of the grammar-owned marked narrative island containing this token. */
+  authoredIsland?: number;
 }
 
 const KEYWORDS = new Set([
@@ -461,7 +467,7 @@ const INTERPOLATED_STRING = "LuauInterpolatedString";
 const NUMBER = /^LuauNumeric\w+$/;
 // A comment, or a part of one the tree reads apart from it (the `]]` that
 // closes a block comment after a value or type); a cast after a comment is not one.
-const COMMENT = /^Luau(?!TargetTypeCastAfterComment$)\w*Comment(Close|Content|Mark|Tags)?$/;
+const COMMENT = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)\w*Comment(Close|Content|Mark|Tags)?$/;
 const LINE_COMMENT = /^Luau(Doc)?LineComment$/;
 
 /**
@@ -489,9 +495,33 @@ function trimmedRange(text: string, from: number, to: number): [number, number] 
   return [from, to];
 }
 
+/** A return's trailing trivia owns complete opaque comments, never later prose. */
+function returnSuffixSpan(text: string, index: LineIndex, from: number): { to: number; triviaEnd: number; unfinished?: number } {
+  let to = index.lineEnd(index.lineAt(from));
+  let at = from;
+  while (at < to) {
+    if (/\s/.test(text[at]!) || text[at] === ";") { at++; continue; }
+    const long = /^--\[(=*)\[/.exec(text.slice(at, to));
+    if (!long) {
+      if (text.startsWith("--", at)) at = to;
+      break;
+    }
+    const delimiter = `]${long[1]}]`;
+    const close = text.indexOf(delimiter, at + long[0].length);
+    if (close < 0) return { to: text.length, triviaEnd: text.length, unfinished: at };
+    at = close + delimiter.length;
+    to = index.lineEnd(index.lineAt(at));
+  }
+  return { to, triviaEnd: at };
+}
+
 /** Reads a unit's tokens from the tree. */
 class Tokenizer {
   readonly tokens: Token[] = [];
+  /** Raw return-comment lines whose diagnostic positions must survive unit compression. */
+  readonly returnSourceLines: Location[] = [];
+  /** Actual trailing trivia, excluding a written closer or follower. */
+  readonly returnTriviaSpans: { from: number; to: number }[] = [];
   readonly hotcomments: HotComment[] = [];
   /** The index of the top-level node being read. */
   source = -1;
@@ -524,6 +554,11 @@ class Tokenizer {
   /** Reads the tokens of a node and everything under it. */
   read(node: SyntaxNode): void {
     const name = node.name;
+    if (isExplicitRuleName(name, "LuauReturnStatement")) {
+      const suffix = returnSuffixSpan(this.text, this.index, node.to);
+      this.returnSourceLines.push(this.location(node.from, suffix.to));
+      this.returnTriviaSpans.push({ from: node.to, to: suffix.triviaEnd });
+    }
     if (isComment(node)) {
       this.comment(node);
       return;
@@ -545,6 +580,16 @@ class Tokenizer {
       this.push("mark", from, to);
       return;
     }
+    if (name === "LuauSparkdownExplicitStatement") {
+      const first = this.tokens.length;
+      this.readChildren(node);
+      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.authoredIsland ??= node.to;
+      // Only the narrative island wrapper owns this EOF. Nested marked
+      // statements still yield to their written block's closer; genuine
+      // functions and opaque constructs extend this wrapper's own span.
+      this.tokens.push({ kind: "break", text: "", from: node.to, to: node.to, location: this.location(node.to, node.to), source: this.source, story: true, authoredEnd: true });
+      return;
+    }
     if (name === "LuauSparkdownChooseBlock_begin") {
       this.markKeyword("choose", node, "choose");
       return;
@@ -563,7 +608,7 @@ class Tokenizer {
     // must not consume the next assignment's target.
     const previous = this.tokens[this.tokens.length - 1];
     const emptyArm = previous?.text === "then" || previous?.text === "else";
-    if (STATEMENT_BREAKS.has(name) && (name !== "LuauReassignment" || emptyArm)) this.statementBreak(from, to);
+    if (STATEMENT_BREAKS.has(name) && (!isExplicitRuleName(name, "LuauReassignment") || emptyArm)) this.statementBreak(from, to);
     if (SPARKDOWN_ONLY.has(name)) return;
     if (name === "LuauScopeModifier") {
       const modifier = this.text.slice(from, to);
@@ -713,6 +758,11 @@ class Tokenizer {
 
   /** A comment, which is trivia, unless it is a `--!` comment, which Luau's frontend reads. */
   private comment(node: SyntaxNode): void {
+    const long = /^--\[(=*)\[/.exec(this.text.slice(node.from, node.to));
+    if (long && this.text.indexOf(`]${long[1]}]`, node.from + long[0].length) < 0) {
+      this.push("unfinishedComment", node.from, node.to);
+      return;
+    }
     if (!LINE_COMMENT.test(node.name)) return;
     const [from, to] = trimmedRange(this.text, node.from, node.to);
     const text = this.text.slice(from, to);
@@ -805,6 +855,8 @@ function describe(token: Token): string {
   switch (token.kind) {
     case "eof":
       return "<eof>";
+    case "unfinishedComment":
+      return "unfinished comment";
     case "string":
     case "rawstring":
       return `"${token.text.replace(/^\[=*\[|^["']|["']$|\]=*\]$/g, "")}"`;
@@ -1129,7 +1181,6 @@ class Parser {
   private readonly declaredExportBindings = new Map<string, Location>();
   private hasModuleReturn = false;
   private returnFunction?: FunctionState;
-  private explicitLine?: number;
   // Not part of Luau: how many of Sparkdown's own constructs whose syntax
   // Sparkdown reports are being read (a `store` declaration, a double-quoted
   // string's interpolation; see `report`), the index of the token the last error was reported at, and
@@ -1199,7 +1250,7 @@ class Parser {
   }
 
   /** Source read outside the unit's tokens must also invalidate its cached check. */
-  private recordSourceDependency(from: number, to: number): void {
+  recordSourceDependency(from: number, to: number): void {
     this.sourceDependencies.add(JSON.stringify([
       this.ctx.index.position(from), this.ctx.index.position(to), this.ctx.text.slice(from, to),
     ]));
@@ -1274,7 +1325,12 @@ class Parser {
     // A type or an annotation that story ends before is malformed where the
     // end of the unit's Luau would leave it so; Sparkdown's own syntax does
     // not read one (`local x:` before a line of story).
-    const atSparkdown = (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
+    // A marked narrative statement owns its missing value/closer at its
+    // authored EOF. The following prose only supplies a synthetic break;
+    // delegating this error to story grammar would drop it entirely.
+    // Genuine Luau functions keep their existing multiline recovery.
+    const boundedStoryEnd = !this.currentFunction().luau && this.current().kind === "break" && this.current().authoredEnd === true;
+    const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
     if (malformed && !follows && !consequence && this.sparkdownDepth === 0 && !atSparkdown && !this.atAbandonedCloser()) {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
@@ -1408,7 +1464,10 @@ class Parser {
     const got = `${describe(this.current())}${extra}`;
     const open = begin.kind === "chooseThen" || begin.kind === "choose" ? "choose" : begin.text;
     // Not part of Luau: a `::` where the closer was expected is an annotation written with it.
-    const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : undefined);
+    // A written expression delimiter cannot be repaired by the next story
+    // line. Keyword closers retain their separate diagnostic ownership.
+    const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && begin.authoredIsland !== undefined && !this.currentFunction().luau;
+    const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
     if (location.begin.line === begin.location.begin.line)
       this.report(location, `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`, malformed);
     else this.report(location, `Expected '${text}' (to close '${open}' at line ${begin.location.begin.line + 1}), got ${got}`, malformed);
@@ -1419,7 +1478,16 @@ class Parser {
       this.nextExpected();
       return true;
     }
-    this.expectMatchAndConsumeFail(text, begin);
+    // A written else/elseif after else is not a later narrative branch and cannot
+    // repair this Luau island. Its grammar has a written outer end, so only
+    // the converter owns the native misplaced-branch diagnostic. Keep EOF
+    // and other keyword-closer diagnostics under their existing ownership.
+    const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
+    this.expectMatchAndConsumeFail(text, begin, "", misplacedElseBranch ? "statement" : undefined);
+    if (this.current().kind === "unfinishedComment") {
+      this.next();
+      return false;
+    }
     if (this.is(text, this.lookahead())) {
       this.next();
       this.nextExpected();
@@ -1465,7 +1533,7 @@ class Parser {
   // -- Blocks and statements -----------------------------------------------
 
   private blockFollow(token: Token): boolean {
-    if (token.kind === "eof" || token.kind === "chooseThen" || token.kind === "chooseEnd") return true;
+    if (token.kind === "eof" || token.kind === "unfinishedComment" || token.kind === "chooseThen" || token.kind === "chooseEnd") return true;
     return token.kind === "keyword" && (token.text === "else" || token.text === "elseif" || token.text === "end" || token.text === "until");
   }
 
@@ -1561,6 +1629,12 @@ class Parser {
         this.next();
         stat.hasSemicolon = true;
         stat.location = new Location(stat.location.begin, this.previousLocation().end);
+        // The marker wraps the authored Luau statement; its written separator
+        // belongs to that statement's native range as well as the wrapper.
+        if (stat instanceof AstStatSparkdownExplicit) {
+          stat.statement.hasSemicolon = true;
+          stat.statement.location = new Location(stat.statement.location.begin, this.previousLocation().end);
+        }
         stoppedAtError = false;
         semicolon = true;
       }
@@ -1591,22 +1665,25 @@ class Parser {
         if (!this.blockFollow(this.current())) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
         this.pos = following;
       } else if (returned instanceof AstStatReturn && this.reports === reportsBefore &&
-        (stat instanceof AstStatSparkdownExplicit || this.explicitLine === returned.location.begin.line)) {
+        (stat instanceof AstStatSparkdownExplicit || start.authoredIsland !== undefined)) {
         // A story discard line is its own Luau island; later prose or a
         // new marked line is outside it, but a same-line follower is not.
         // The grammar can leave the optional semicolon and its follower
-        // as story, so read only the remaining text on this same line.
+        // as story. Complete opaque comments still own their closing line,
+        // including its follower; ordinary prose on the next line does not.
         const line = this.ctx.index instanceof UnitLineIndex
           ? this.ctx.index.lines[returned.location.end.line]!
           : returned.location.end.line;
         const from = this.ctx.index.starts[line]! + returned.location.end.column;
-        const newline = this.ctx.text.indexOf("\n", from);
-        const to = newline < 0 ? this.ctx.text.length : newline;
+        const { to, unfinished } = returnSuffixSpan(this.ctx.text, this.ctx.index, from);
         this.recordSourceDependency(from, to);
         const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
         tokenizer.lex(from, to);
-        const follower = tokenizer.tokens[tokenizer.tokens[0]?.text === ";" ? 1 : 0];
-        const nested = begin && !(stat instanceof AstStatSparkdownExplicit);
+        if (unfinished !== undefined) tokenizer.push("unfinishedComment", unfinished, to);
+        const follower = tokenizer.tokens[!returned.hasSemicolon && tokenizer.tokens[0]?.text === ";" ? 1 : 0];
+        // Written blocks own their closer even when their return has an
+        // explicit marker. Scene-flow function openers are synthetic spans.
+        const nested = begin && begin.from < begin.to;
         const closes = nested && follower && (this.is(closer, follower) ||
           (begin.text === "then" && (this.is("else", follower) || this.is("elseif", follower))));
         if (follower && follower.kind !== "eof" && !closes) {
@@ -1614,6 +1691,10 @@ class Parser {
             if (nested) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
             else this.report(follower.location, `Expected <eof>, got ${describe(follower)}`, "statement");
           });
+          // Native Luau ends this island at its first invalid return suffix.
+          // Consume its recovery tokens so chunk recovery does not report a
+          // second error for an unfinished comment after that same suffix.
+          if (!nested) while (this.current().kind !== "eof" && this.current().from < to) this.next();
         }
       }
       // Not part of Luau, whose parser ends a block at a `return`, `break` or
@@ -1707,14 +1788,7 @@ class Parser {
     if (this.blockFollow(this.current())) {
       return this.reportStatError(mark, [], [], `Expected a statement after '&', got ${describe(this.current())}`);
     }
-    const outerLine = this.explicitLine;
-    this.explicitLine = mark.begin.line;
-    let statement: AstStat;
-    try {
-      statement = this.parseStat();
-    } finally {
-      this.explicitLine = outerLine;
-    }
+    const statement = this.parseStat();
     return new AstStatSparkdownExplicit(Location.span(mark, statement.location), statement, mark);
   }
 
@@ -1984,7 +2058,11 @@ class Parser {
     const body = this.parseBlockNoScope(matchRepeat, "until");
     this.currentFunction().loopDepth--;
     body.hasEnd = this.expectMatchEndAndConsume("until", matchRepeat);
-    const cond = this.parseExpr();
+    // Once an unfinished comment consumed the missing closer, native Luau
+    // leaves the absent condition in that recovery without a second error.
+    const cond = !body.hasEnd && this.previousLocation().end.equals(this.current().location.begin) && this.tokens[this.pos - 1]?.kind === "unfinishedComment"
+      ? new AstExprError(this.current().location, [], this.errors.length - 1)
+      : this.parseExpr();
     this.restoreLocals(localsBegin);
     return new AstStatRepeat(Location.span(start, cond.location), cond, body);
   }
@@ -2157,12 +2235,31 @@ class Parser {
     const outerReturn = this.returnFunction;
     this.returnFunction = this.currentFunction().luau ? this.currentFunction() : undefined;
     try {
-      if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
+      // A narrative island ends before the story resumes. Its bare return
+      // has no value; the story boundary is not a missing expression. Luau
+      // line breaks in written functions still permit multiline values.
+      const storyEnd = this.current().kind === "break" && this.current().story;
+      if (!storyEnd && !this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
     } finally {
       this.returnFunction = outerReturn;
     }
     const end = list.length === 0 ? start : list[list.length - 1]!.location;
     const node = new AstStatReturn(Location.span(start, end), list);
+    // A written semicolon belongs to the return's native range, including
+    // the inner return of a marked statement. Story grammar can leave it
+    // outside the statement's tokens; read only that same-line suffix.
+    let delimiter = this.is(";") ? this.current() : undefined;
+    if (!delimiter && !this.currentFunction().luau) {
+      const line = this.ctx.index instanceof UnitLineIndex ? this.ctx.index.lines[end.end.line]! : end.end.line;
+      const from = this.ctx.index.starts[line]! + end.end.column;
+      const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
+      tokenizer.lex(from, this.ctx.index.lineEnd(line));
+      if (tokenizer.tokens[0]?.text === ";") delimiter = tokenizer.tokens[0];
+    }
+    if (delimiter) {
+      node.hasSemicolon = true;
+      node.location = new Location(node.location.begin, delimiter.location.end);
+    }
     if (this.functionStack.length === 1) {
       if (this.declaredExportBindings.size !== 0) this.report(node.location, "Exporting values is not compatible with top-level return (export/return conflict)");
       this.hasModuleReturn = true;
@@ -3345,12 +3442,14 @@ function sparkdownExpression(token: Token): AstExpr {
   const source: SparkdownSource = { name: node.name, from: node.from, to: node.to, node };
   switch (node.name) {
     case "LuauDivertTargetLiteral":
+    case "LuauSparkdownExplicitDivertTargetLiteral":
       return new AstExprSparkdownDivertTarget(token.location, token.text.replace(/^->/, "").replace(/\s+/g, ""), source);
     case "LuauRegexLiteral": {
       const match = /^@\/([\s\S]*)\/([A-Za-z]*)$/.exec(token.text);
       return new AstExprSparkdownRegex(token.location, match?.[1] ?? token.text.slice(2), match?.[2] ?? "", source);
     }
     case "LuauConditionalAlternatorBlock":
+    case "LuauSparkdownExplicitConditionalAlternatorBlock":
       return new AstExprSparkdownConditionalAlternator(token.location, source);
     default:
       return new AstExprSparkdownSequentialAlternator(token.location, source);
@@ -3369,7 +3468,7 @@ function isEnoughValues(values: AstExpr[], expected: number): boolean {
 
 function findDescendant(node: SyntaxNode, name: string): SyntaxNode | undefined {
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) return child;
+    if (isExplicitRuleName(child.name, name)) return child;
     const found = findDescendant(child, name);
     if (found) return found;
   }
@@ -3379,8 +3478,8 @@ function findDescendant(node: SyntaxNode, name: string): SyntaxNode | undefined 
 /** Every node of a kind under a node, in document order, outside parameters' annotations when `outsideAnnotations` says so. */
 function findAll(node: SyntaxNode, name: string, outsideAnnotations = false, found: SyntaxNode[] = []): SyntaxNode[] {
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) found.push(child);
-    else if (!outsideAnnotations || child.name !== "LuauTypeAnnotationOperation") findAll(child, name, outsideAnnotations, found);
+    if (isExplicitRuleName(child.name, name)) found.push(child);
+    else if (!outsideAnnotations || !isExplicitRuleName(child.name, "LuauTypeAnnotationOperation")) findAll(child, name, outsideAnnotations, found);
   }
   return found;
 }
@@ -3401,6 +3500,13 @@ function readUnit(
 ): LuauAstUnit {
   let index = tokenizer.index;
   let lines: number[] | undefined;
+  // Return suffixes can own a complete comment after the last real token.
+  // That written trivia still locates EOF, but later narrative lines do not.
+  let retainedEnd: Position | undefined;
+  for (const span of tokenizer.returnTriviaSpans) {
+    const end = tokenizer.index.position(span.to);
+    if (!retainedEnd || end.gt(retainedEnd)) retainedEnd = end;
+  }
   if (options.unitLines) {
     // Every location the reading makes comes from a token's, from `start`,
     // or from the index (an interpolation's tokens, a `new`'s class name),
@@ -3410,12 +3516,16 @@ function readUnit(
     const toUnit = (location: Location) => new Location(unitIndex.unitPosition(location.begin), unitIndex.unitPosition(location.end));
     for (const token of tokenizer.tokens) token.location = toUnit(token.location);
     for (const comment of tokenizer.hotcomments) comment.location = toUnit(comment.location);
+    if (retainedEnd) retainedEnd = unitIndex.unitPosition(retainedEnd);
     start = unitIndex.unitPosition(start);
     index = unitIndex;
   }
   const ctx: ReadContext = { text: tokenizer.text, index };
-  const eof = eofAt === undefined ? undefined : index.position(eofAt);
+  const lastEnd = tokenizer.tokens.at(-1)?.location.end;
+  const eof = eofAt !== undefined ? index.position(eofAt)
+    : retainedEnd && (!lastEnd || retainedEnd.gt(lastEnd)) ? retainedEnd : undefined;
   const parser = new Parser(tokenizer.tokens, ctx, new Location(start, start), eof);
+  for (const span of tokenizer.returnTriviaSpans) parser.recordSourceDependency(span.from, span.to);
   parser.recordDepth = recordDepth;
   let root: AstStatBlock;
   try {
@@ -3455,6 +3565,7 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
   };
   for (const token of tokenizer.tokens) if (token.kind !== "break") cover(token.location);
   for (const comment of tokenizer.hotcomments) cover(comment.location);
+  for (const location of tokenizer.returnSourceLines) cover(location);
   const lines = [...found].sort((a, b) => a - b);
   if (kind !== "file") return lines;
   const first = lines[0]!;
@@ -3528,7 +3639,7 @@ interface Flow {
   end?: SyntaxNode;
 }
 
-const COMMENT_NODE = /^Luau\w*Comment$/;
+const COMMENT_NODE = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)\w*Comment$/;
 
 /**
  * Reads a `.sd` file's Luau as units: its prelude, with the Luau statements
@@ -3557,7 +3668,7 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
     if (!dots) return undefined;
     let annotation = dots.nextSibling;
     while (annotation && (NEUTRAL.test(annotation.name) || COMMENT_NODE.test(annotation.name))) annotation = annotation.nextSibling;
-    if (annotation?.name !== "LuauTypeAnnotationOperation") return { dots, annotation: undefined, type: "" };
+    if (!annotation || !isExplicitRuleName(annotation.name, "LuauTypeAnnotationOperation")) return { dots, annotation: undefined, type: "" };
     return { dots, annotation, type: documentText.slice(annotation.from, annotation.to).replace(/^\s*:/, "").trim() };
   };
 
@@ -3985,20 +4096,31 @@ function tokensAhead(from: number, documentText: string): { tokens: Token[]; sta
 }
 
 /** The next token as Luau reads it, past whitespace and comments. */
-export function nextLuauToken(from: number, documentText: string): { text: string; from: number } | null {
+export function nextLuauToken(from: number, documentText: string, to = documentText.length): { text: string; from: number } | null {
   const { tokens, start } = tokensAhead(from, documentText);
   const token = tokens[start];
-  if (!token || token.kind === "eof") return null;
+  if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
   return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
 }
 
 /** Read the expression after an operator the grammar ends without a value. */
-export function readLuauExpressionAfter(from: number, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauExpressionAfter(from: number, documentText: string, to?: number): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const { tokens, start } = tokensAhead(from, documentText);
-  appendAll(tokenizer.tokens, tokens.slice(start));
+  if (to === undefined) appendAll(tokenizer.tokens, tokens.slice(start));
+  else {
+    // Keep the full-document lexer cache reusable across authored islands.
+    // Clip only their token window; an opaque token crossing the boundary
+    // must be read with the same bound rather than borrowing its closer.
+    for (let at = start; at < tokens.length && tokens[at]!.from < to; at++) {
+      const token = tokens[at]!;
+      if (token.to <= to) tokenizer.tokens.push(token);
+      else { tokenizer.lex(token.from, to); break; }
+    }
+    tokenizer.synthetic("eof", "", to);
+  }
   if (tokenizer.tokens.length === 0) tokenizer.synthetic("eof", "", documentText.length);
   return parseLoneTokens(tokenizer, documentText, index);
 }

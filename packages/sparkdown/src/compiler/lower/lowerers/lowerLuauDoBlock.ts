@@ -30,7 +30,7 @@ const DO_BLOCK_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
-const DO_NODES = nodeNameSet(["LuauDoBlock", "LuauSparkdownDoBlock"]);
+const DO_NODES = nodeNameSet(["LuauDoBlock", "LuauSparkdownDoBlock", "LuauSparkdownExplicitDoBlock"]);
 
 export function lowerLuauDoBlock(
   stat: AstStatBlock,
