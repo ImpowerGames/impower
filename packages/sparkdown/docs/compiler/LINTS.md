@@ -8,6 +8,7 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 
 | Luau lint | What it reports | Where it runs |
 | --- | --- | --- |
+| `ImplicitReturn` | A function that returns a value on some path and can reach its end without an explicit return. Infinite loops without a break and terminating error calls do not fall through. | Function bodies |
 | `LocalUnused` | A `local` that is never read. Writing to it does not count; a name starting with `_` is exempt. | Locals inside functions |
 | `UnreachableCode` | The statement after one that always returns, breaks, continues or errors (`error(...)`, `assert(false)`). | Function bodies |
 | `DuplicateCondition` | A condition repeated in one `if`/`elseif` chain, one `if` expression, or one `and`/`or` chain. `a and b or c` is exempt. | Luau `if` statements and expressions and Luau `and`/`or` |
@@ -39,6 +40,8 @@ The rules walk the Luau AST that `src/compiler/typecheck/readLuauAst.ts` reads f
 
 The pass runs over whole scripts on every compile rather than inside the incremental annotators, since a lint depends on lines far from the one it reports, and the compiler caches each script's result until its syntax tree changes.
 
+`ImplicitReturn` checks complete Luau functions, including function values and `define` methods. It leaves bodies containing AST errors alone, and it does not infer function returns from Sparkdown's narrative flows. A nested function's return belongs only to that function. As in Luau, loop breaks count only for the loop they leave.
+
 ## Checking for false positives
 
 Every change to a lint runs the corpus script and reads what it reports:
@@ -56,7 +59,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 | Luau lint | Test file |
 | --- | --- |
 | `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
-| `MultiLineStatement`, `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
+| `MultiLineStatement`, `UnbalancedAssignment`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
 | `FormatString`, `TableLiteral`, `TableOperations`, `DeprecatedApi` for `getfenv`/`setfenv` | `LintCandidatesStdlib.test.ts` |
 
 ## Rules sparkdown omits
