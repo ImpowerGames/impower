@@ -16,6 +16,28 @@ function publishedErrors(text: string) {
 const syntaxErrors = (text: string) => publishedErrors(text).filter(d => d.code === syntaxErrorCode);
 
 describe("written island syntax diagnostics own authored tokens", () => {
+  test.each([")", "]", "}", "!", "?"])("standalone invalid follower stays in the marked line: %s", async token => {
+    const body = `print(1); ${token}`;
+    const native = parseOfficialTree(`  ${body}`).errors[0]!;
+    const source = `& ${body}\nThe path continues.\nfunction answer()\n return 42\nend\n`;
+    const errors = syntaxErrors(source);
+    expect(errors.map(message)).toContain(native.message);
+    const diagnostic = errors.find(d => message(d) === native.message)!;
+    expect(diagnostic.range).toEqual({ start: { line: 0, character: native.location.begin.column }, end: { line: 0, character: native.location.end.column } });
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("The path"))).toContain("string.display.text.chunk.sd");
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
+
+  test.each(["do print(1); ) end", "do & print(1); ] end", "do if true then print(1); } else print(2) end end", "do repeat print(1); ! until true end"])("invalid bounded-block punctuation retains its written closer: %s", async body => {
+    const native = parseOfficialTree(`  ${body.replace("&", " ")}`).errors[0]!;
+    const source = `& ${body}\nThe path continues.\n`;
+    const errors = syntaxErrors(source);
+    expect(errors.map(message)).toContain(native.message);
+    expect(errors.find(d => message(d) === native.message)!.range.start).toEqual({ line: 0, character: native.location.begin.column });
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("The path"))).toContain("string.display.text.chunk.sd");
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
+
   for (const scope of ["file", "scene", "branch"]) {
     test.each(["(2", "math.abs(2", "{2", "t[2"])(`nonempty semicolon expression owns ${scope} EOF: %s`, async value => {
       const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";

@@ -5344,6 +5344,9 @@
         },
         {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#LuauInvalidStatementToken"
         }
       ],
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|$|(?=^)"
@@ -11541,6 +11544,9 @@
         },
         {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#LuauInvalidStatementToken"
         }
       ]
     },

@@ -1370,12 +1370,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
-        let authoredEnd: number | undefined;
-        if (nodeRef.name === "LuauSparkdownExplicitIfCondition") {
-          for (let owner: SyntaxNode | null = nodeRef.node; owner; owner = owner.parent) {
-            if (owner.name === "LuauSparkdownExplicitStatement") { authoredEnd = owner.to; break; }
-          }
-        }
+        const authoredEnd = nodeRef.name === "LuauSparkdownExplicitIfCondition"
+          ? authoredIslandEnd(nodeRef.node)
+          : undefined;
         const got = nextSignificantToken(
           nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),

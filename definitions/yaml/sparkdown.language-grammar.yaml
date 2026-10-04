@@ -4013,6 +4013,9 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
+      # Keep unmatched punctuation in the authored code island so the
+      # checker reports its written token rather than losing it to prose.
+      - { include: "#LuauInvalidStatementToken" }
     end: (?={{BEAT}})|$|(?=^)
 
   LuauExplicitStatement:
@@ -8088,6 +8091,9 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
+      # The enclosing block takes its own closer first; other unmatched
+      # punctuation remains code for native diagnostic recovery.
+      - { include: "#LuauInvalidStatementToken" }
 
   # A nested marker stays in its code block. Leave the enclosing block's
   # branch/end/until token to that block instead of closing incomplete there.
