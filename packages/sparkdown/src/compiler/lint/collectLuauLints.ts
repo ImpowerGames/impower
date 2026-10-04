@@ -795,7 +795,7 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 // ---------------------------------------------------------------------------
 
 /** Comparisons and the `a and b or c` idiom, with explicit groups preserved as in Luau. */
-function lintExpressionPrecedence(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
+function lintExpressionPrecedence(root: AstNode, offsets: NameRoot["offsets"], out: LuauLint[]): void {
   const isEquality = (op: BinaryOp) => op === BinaryOp.CompareEq || op === BinaryOp.CompareNe;
   const isComparison = (op: BinaryOp) => op >= BinaryOp.CompareNe && op <= BinaryOp.CompareGe;
   const isNot = (expr: AstExpr) => expr instanceof AstExprUnary && expr.op === UnaryOp.Not;

@@ -54,3 +54,30 @@ local _ = a and b and false or c
       ]);
   });
 });
+
+// These expressions are outside checker-unit statements. The shared roots
+// must include them once, even when no identifier creates a name candidate.
+describe("precedence warnings in shared outside roots", () => {
+  test.each([
+    ["named interpolation", "Hi {not a == b} {a and false or b}.\n"],
+    ["constant-only interpolation", "Hi {not true == false} {true and nil or false}.\n"],
+    ["call shorthand", "Hi {{print(not a == b, a and false or b)}}.\n"],
+    ["define property", "define hero as character with\n  v = {not a == b, a and false or b}\nend\nHi.\n"],
+    ["define method", "define hero as character with\n  greet()\n    print(not a == b, a and false or b)\n  end\nend\nHi.\n"],
+    ["Sparkle handler expression", "layout main with\n  button @click=print(not a == b, a and false or b)\nend\nReady.\n"],
+    ["Sparkle handler statements", "layout main with\n  button @click={ print(not a == b, a and false or b) }\nend\nReady.\n"],
+  ])("%s reports each expression once with its authored range", (_name, body) => {
+    const source = `store a = true\nstore b = false\n${body}`;
+    const diagnostics = diagnoseDetailed(source);
+    expect(diagnostics.filter((d) => d.code === "SyntaxError")).toEqual([]);
+    const lines = source.split("\n");
+    expect(diagnostics.filter((d) => d.code === "ComparisonPrecedence" || d.code === "MisleadingAndOr")
+      .map((d) => ({
+        code: d.code,
+        text: lines[d.range!.start.line]!.slice(d.range!.start.character, d.range!.end.character),
+      }))).toEqual([
+        { code: "ComparisonPrecedence", text: body.includes("not true") ? "not true == false" : "not a == b" },
+        { code: "MisleadingAndOr", text: body.includes("true and nil") ? "true and nil or false" : "a and false or b" },
+      ]);
+  });
+});
