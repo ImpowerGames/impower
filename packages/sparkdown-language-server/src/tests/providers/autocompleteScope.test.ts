@@ -2,6 +2,7 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { describe, expect } from "vitest";
 import { CompletionItemKind } from "vscode-languageserver";
 import { getCompletions } from "../../utils/providers/getCompletions";
+import { getDeclarationScopes } from "../../utils/annotations/getDeclarationScopes";
 import { BUG } from "./autocompleteBugs";
 import { complete, labelsAt, upstreamCase } from "./completionHarness";
 
@@ -188,6 +189,82 @@ describe("autocomplete · scope and visibility", () => {
     }
     expect(complete(source, { at: "2" }).detail("abc")).toBe("var");
     expect(complete(source, { at: "4" }).detail("abc")).toBe("param");
+  });
+
+  for (const [outer, outerType] of [
+    ["local function abc() end", "function"],
+    ["local abc = 1", "var"],
+  ]) {
+    for (const [section, source] of [
+      ["scene", `${outer}\nscene play(abc)\n  {a@1}\nend\nscene other\n  {a@2}\nend\n`],
+      ["branch", `scene play\n  ${outer}\n  branch part(abc)\n    {a@1}\n  end\n  {a@2}\nend\n`],
+    ] as const) {
+      upstreamCase("bias_toward_inner_scope", `${section} parameter shadows an outer local ${outerType} only in its section`, async () => {
+        const parameter = complete(source, { at: "1" });
+        expect(parameter.labels.filter((label) => label === "abc")).toEqual(["abc"]);
+        expect(parameter.detail("abc")).toBe("param");
+        expect((await parameter.resolve("abc"))?.kind).toBe(CompletionItemKind.Class);
+        expect(complete(source, { at: "2" }).detail("abc")).toBe(outerType);
+      });
+    }
+  }
+
+  for (const [local, localType] of [
+    ["local function abc() end", "function"],
+    ["local abc = 1", "var"],
+  ]) {
+    for (const [section, header, footer] of [
+      ["scene", "scene play(abc)", "end"],
+      ["branch", "scene play\n  branch part(abc)", "end\nend"],
+    ]) {
+      upstreamCase("bias_toward_inner_scope", `an inner local ${localType} shadows a ${section} parameter and restores it after its block`, () => {
+        const source = `${header}\n  {a@1}\n  do\n    ${local}\n    local value = a@2\n  end\n  {a@3}\n${footer}\n`;
+        expect(complete(source, { at: "1" }).detail("abc")).toBe("param");
+        expect(complete(source, { at: "2" }).detail("abc")).toBe(localType);
+        expect(complete(source, { at: "3" }).detail("abc")).toBe("param");
+      });
+    }
+  }
+
+  upstreamCase("bias_toward_inner_scope", "nested section parameters restore the enclosing local after their branch", () => {
+    const source = "scene play(abc)\n  {a@1}\n  local function abc() end\n  {a@2}\n  branch part(abc)\n    {a@3}\n    do\n      local abc = 1\n      local value = a@4\n    end\n    {a@5}\n  end\n  {a@6}\nend\n";
+    for (const at of ["1", "3", "5"]) {
+      expect(complete(source, { at }).detail("abc")).toBe("param");
+    }
+    for (const at of ["2", "6"]) {
+      expect(complete(source, { at }).detail("abc")).toBe("function");
+    }
+    expect(complete(source, { at: "4" }).detail("abc")).toBe("var");
+  });
+
+  upstreamCase("bias_toward_inner_scope", "section winners retain unrelated section buckets and script identity", () => {
+    for (const reverse of [false, true]) {
+      const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+      const mainUri = "file:///main.sd";
+      const mainText = "local function abc() end\nscene play(abc)\n  {a}\nend\nscene later(abc)\n  {a}\nend\n";
+      const files = [["file:///other.sd", "local function abc() end\nscene elsewhere(abc)\n  {a}\nend\n"], [mainUri, mainText]];
+      if (reverse) files.reverse();
+      for (const [uri, text] of files) {
+        documents.set({ textDocument: { uri: uri!, text: text!, version: 1, languageId: "sparkdown" } });
+      }
+      const scripts = new Map(files.map(([uri]) => [uri!, {
+        annotations: documents.annotations(uri!),
+        tree: documents.tree(uri!),
+        read: (from: number, to: number) => documents.get(uri!)!.read(from, to),
+      }]));
+      const document = documents.get(mainUri)!;
+      const offset = mainText.indexOf("{a}") + 2;
+      const items = getCompletions(document, documents.tree(mainUri), scripts, undefined, undefined,
+        document.positionAt(offset), undefined) ?? [];
+      const matching = items.filter((item) => item.label === "abc");
+      expect(matching).toHaveLength(1);
+      expect(matching[0]?.labelDetails?.description).toBe("param");
+      const scopes = getDeclarationScopes(scripts, { uri: mainUri, offset });
+      for (const path of ["play", "later", "elsewhere"]) {
+        expect(scopes[path]?.param).toEqual(["abc"]);
+      }
+      expect(scopes[""]?.param ?? []).not.toContain("abc");
+    }
   });
 
   upstreamCase("bias_toward_inner_scope", "a local function shadows a stored name from another script in either registry order", () => {

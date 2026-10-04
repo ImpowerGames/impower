@@ -9,7 +9,9 @@ import { VARIABLE_DEFINITION_NAMES } from "@impower/sparkdown/src/compiler/utils
 import { findOwnDeclarationName } from "@impower/sparkdown/src/compiler/lower/utils/findOwnDeclarationName";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type Tree } from "@lezer/common";
+import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 type Node = GrammarSyntaxNode<SparkdownNodeName>;
 
@@ -342,8 +344,9 @@ export const getDeclarationScopes = (
   const scopes: DeclarationScopes = {};
   const visibleLocals = new Map<
     string,
-    { type: DeclarationType; from: number }
+    { type: DeclarationType; from: number; scopePath: string }
   >();
+  const visibleSectionParameters = new Map<string, Set<string>>();
   const file = (scopePath: string, type: DeclarationType, name: string) => {
     scopes[scopePath] ??= {};
     scopes[scopePath][type] ??= [];
@@ -357,6 +360,9 @@ export const getDeclarationScopes = (
       name: string;
     }[] = [];
     const inCursorScript = uri === cursor.uri;
+    const cursorSection = inCursorScript && tree
+      ? getParentSectionPath(getStack<SparkdownNodeName>(tree, cursor.offset, -1), read)
+      : [];
     const cur = annotations.declarations?.iter();
     if (cur) {
       while (cur.value) {
@@ -377,7 +383,7 @@ export const getDeclarationScopes = (
           ) {
             const previous = visibleLocals.get(text);
             if (!previous || localScope.from > previous.from) {
-              visibleLocals.set(text, { type, from: localScope.from });
+              visibleLocals.set(text, { type, from: localScope.from, scopePath: "" });
             }
           }
           cur.next();
@@ -413,7 +419,22 @@ export const getDeclarationScopes = (
         }
         if (type === "label" || type === "param") {
           // Section
-          file(scopePathParts.map((p) => p.name).join("."), type, text);
+          const sectionParts = scopePathParts.map((p) => p.name);
+          const scopePath = sectionParts.join(".");
+          if (type === "param" && inCursorScript && sectionParts.length > 0 &&
+              cur.to < cursor.offset &&
+              sectionParts.every((part, index) => part === cursorSection[index])) {
+            // Section parameters compete with locals in their actual enclosing
+            // scene/branch, but retain their public section bucket.
+            const parameters = visibleSectionParameters.get(scopePath) ?? new Set<string>();
+            parameters.add(text);
+            visibleSectionParameters.set(scopePath, parameters);
+            const previous = visibleLocals.get(text);
+            if (!previous || cur.to > previous.from) {
+              visibleLocals.set(text, { type, from: cur.to, scopePath });
+            }
+          }
+          file(scopePath, type, text);
         }
         cur.next();
       }
@@ -428,16 +449,20 @@ export const getDeclarationScopes = (
     "function",
     "define",
   ];
-  for (const scope of Object.values(scopes)) {
+  for (const [scopePath, scope] of Object.entries(scopes)) {
     for (const type of bindingTypes) {
       const names = scope[type];
       if (names) {
-        scope[type] = names.filter((name) => !visibleLocals.has(name));
+        scope[type] = names.filter((name) =>
+          !visibleLocals.has(name) ||
+          (type === "param" && scopePath !== "" &&
+            !visibleSectionParameters.get(scopePath)?.has(name)),
+        );
       }
     }
   }
-  for (const [name, { type }] of visibleLocals) {
-    file("", type, name);
+  for (const [name, { type, scopePath }] of visibleLocals) {
+    file(scopePath, type, name);
   }
   return scopes;
 };
