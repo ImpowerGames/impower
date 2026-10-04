@@ -49,7 +49,7 @@ local math = {}
 math = {}
 local function assert(x) return x end
 function assert(x) return x end
-local function f(print) print = 1 return print end
+local function f(print) print = 1; return print end
 table.custom = 1
 function table.custom() end
 constructor = 1
