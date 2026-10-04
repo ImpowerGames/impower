@@ -79,6 +79,38 @@ describe("shared AST name facts", () => {
     expect(facts.references.find((r: any) => r.name === "fixed").local).toBeUndefined(); // not a node name
   });
 
+  test("function-valued stores retain explicit declaration kind and function metadata", () => {
+    const source = "store callback = function() nestedWrite = 1; function nested() return nestedWrite end; return 1 end\nconst fixed = function() return 2 end\nstore function declared() return callback() end\nfunction authored() ordinary = 3; return callback() end\n& following = 4\n";
+    const facts = names(script(source));
+    const stored = facts.globals.find((g: any) => g.name === "callback"); // not a node name
+    const constant = facts.globals.find((g: any) => g.name === "fixed"); // not a node name
+    const authored = facts.globals.find((g: any) => g.name === "authored"); // not a node name
+    expect(stored.kind).toBe("store");
+    expect(stored.function instanceof AstExprFunction).toBe(true);
+    expect(constant.kind).toBe("const");
+    expect(constant.function instanceof AstExprFunction).toBe(true);
+    expect(authored.kind).toBe("function");
+    expect(authored.function instanceof AstExprFunction).toBe(true);
+    const declared = facts.globals.find((g: any) => g.name === "declared"); // not a node name
+    expect(declared.kind).toBe("store");
+    expect(declared.function instanceof AstExprFunction).toBe(true);
+    for (const name of ["nestedWrite", "ordinary", "following"]) {
+      expect(facts.globals.find((g: any) => g.name === name).kind).toBe("assignment");
+    }
+    const nested = facts.globals.find((g: any) => g.name === "nested"); // not a node name
+    expect(nested.kind).toBe("function");
+    expect(nested.enclosingFunction).toBe(stored.function);
+    expect(source.slice(stored.from, stored.to)).toBe("callback");
+    expect(source.slice(declared.from, declared.to)).toBe("declared");
+  });
+
+  test("embedded tables index their values without publishing field keys as reads", () => {
+    const value = script("store a = true\ndefine hero as character with\n v = { x = a and a, nested = { y = a }, [key] = a }\nend\nHi.\n");
+    const reads = names(value).references.filter((r: any) => r.access === "read").map((r: any) => r.name);
+    expect(reads).toEqual(["a", "a", "a", "key", "a"]);
+    expect(value.result.lints.filter(lint => lint.code === "DuplicateCondition")).toHaveLength(1);
+  });
+
   test.each([
     ["another function", "function caller() return target() end\n"],
     ["logic line", "& target()\n"],

@@ -1,4 +1,3 @@
-import type { Tree } from "@lezer/common";
 import {
   AstExpr, AstExprError, AstExprFunction, AstExprGlobal, AstExprIndexName, AstExprLocal,
   AstStatBlock, getFunctionNameAsString,
@@ -66,7 +65,7 @@ export function isAuthoredLuauName(name: string): boolean {
 /** Names over the existing converter AST. The walk classifies assignment
  * targets without treating their receivers/indexes as written, and keeps
  * AstLocal identity rather than resolving names with another scope reader. */
-export function collectNameFacts(roots: NameRoot[], tree: Tree, text: string): LuauNameFacts {
+export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts {
   const facts: LuauNameFacts = { declarations: [], references: [], globals: [], functions: [] };
   const seen = new Set<AstNode>();
   const locals = new Set<AstLocal>();
@@ -93,10 +92,11 @@ export function collectNameFacts(roots: NameRoot[], tree: Tree, text: string): L
         reference(expr, access);
         if (expr instanceof AstExprGlobal || expr.local.isConst) {
           const range = offsets.range(expr.location);
-          let node = tree.resolveInner(range.from, 1);
-          while (node.parent && !node.name.endsWith("VariableDefinition")) node = node.parent;
-          const store = /^\s*store\b/.test(text.slice(node.from, node.to));
-          facts.globals.push({ name: expr instanceof AstExprGlobal ? expr.name : expr.local.name, kind: fn ? "function" : store ? "store" : "assignment", node: stat, ...range, enclosingFunction, function: fn, scope });
+          // Store lowering retains the original statement location; the
+          // store-function form likewise starts at its authored keyword.
+          const start = offsets.range(stat.location).from;
+          const store = /^store\b/.test(text.slice(start, start + 6));
+          facts.globals.push({ name: expr instanceof AstExprGlobal ? expr.name : expr.local.name, kind: store ? "store" : fn ? "function" : "assignment", node: stat, ...range, enclosingFunction, function: fn, scope });
         }
       } else visitAst(expr, visitor);
     };

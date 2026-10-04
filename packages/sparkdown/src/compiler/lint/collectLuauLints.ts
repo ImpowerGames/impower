@@ -243,6 +243,14 @@ function endsExpression(node: SyntaxNode, text: string): boolean {
  * parameters; the value after a `define` property's `=`).
  */
 function expressionAround(node: SyntaxNode, text: string): SyntaxNode[] {
+  // Table field names are keys, and the assignment-shaped value wrappers
+  // cannot be read as a standalone expression. Read their table together.
+  for (let parent = node.parent; parent && !isOpaque(parent); parent = parent.parent) {
+    if (parent.name === "LuauTable") {
+      node = parent;
+      break;
+    }
+  }
   let part = node;
   let list = node.parent;
   while (list && OPERATION.test(list.name) && !list.name.startsWith("LuauAssignmentOperation")) {
@@ -767,7 +775,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     const outside = expressionsOutsideUnits(nodes, text, [units.prelude, ...units.flows]);
     const roots: NameRoot[] = [units.prelude, ...units.flows].map((unit) => ({ root: unit.root, offsets: new Offsets(starts, unit.lines) }));
     roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined) })));
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names: collectNameFacts(roots, tree, text), roots };
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names: collectNameFacts(roots, text), roots };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
