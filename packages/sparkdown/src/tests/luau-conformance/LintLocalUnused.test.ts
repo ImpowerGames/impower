@@ -7,9 +7,13 @@
 import { describe, expect, test } from "vitest";
 import {
   diagnoseWithLints,
-  lintInFunction,
-  lintMessagesInFunction,
+  lintInFunction as lintAllInFunction,
+  lintMessagesInFunction as lintAllMessagesInFunction,
 } from "./diagnosticTestHarness";
+
+// Upstream runs this group with the LocalUnused rule mask.
+const lintInFunction = (body: string) => lintAllInFunction(body, "LocalUnused");
+const lintMessagesInFunction = (body: string) => lintAllMessagesInFunction(body, "LocalUnused");
 
 // Luau: LocalUnused
 describe("locals that are never read", () => {

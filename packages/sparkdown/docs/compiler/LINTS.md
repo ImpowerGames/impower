@@ -16,6 +16,8 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `TableLiteral` | Duplicate literal string fields or nonnegative signed-32-bit integer indices, including indices occupied by list entries; overlapping table-type property access. | Luau table literals and table types |
 | `TableOperations` | Suspicious `table.insert`, `table.remove`, `table.move`, or `table.create` arguments. | Direct calls through the global `table` library |
 | `DeprecatedApi` for `getfenv`/`setfenv` | A numeric-literal environment level passed to the global builtin. Information severity, tagged Deprecated. | Direct builtin calls |
+| `SameLineStatement` | A second statement on the same line without a semicolon after the previous statement, once per line. A local followed by a `do` block is exempt. | Luau statement blocks |
+| `MultiLineStatement` | A continuation expression that begins no farther right than its statement, once per statement. Table contents and `repeat` conditions are exempt. | Luau statement blocks |
 
 The arms of Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions are not compared with each other; their conditions and the Luau inside them are checked like any other. The `if` and `for` control flow of Sparkle `layout` blocks is a separate construct in the grammar and is not checked.
 
@@ -45,6 +47,7 @@ The rules walk the Luau AST that `src/compiler/typecheck/readLuauAst.ts` reads f
 - The pinned `read_write_table_props` case is active coverage for `TableLiteral`. Its duplicate-access checks need only the AST's property-access bits; its earlier classification as requiring the type checker was incorrect.
 
 Grouping and type assertions on member receivers and keys are transparent for the replacement check; the inner reference retains its authoritative runtime binding. A write through an unknown computed key on global `string` also suppresses the multi-result assumption, since the key could be `"find"`; known different literal keys do not. Lexical receivers remain local even for wrapped or computed writes.
+- `SameLineStatement` and `MultiLineStatement` use the statements and expression boundaries of the existing AST, including functions in interpolations and properties. `SameLineStatement` also checks narrative `&` logic lines, which are bounded to one line; multiline continuations belong in supported multiline Luau contexts, such as actual function bodies (see [why the grammar has paired rules](GRAMMAR.md#131-why-pairs-exist)). Narrative text is excluded. Syntax errors and incomplete blocks are left alone because recovery can change those boundaries. The two diagnostic names are distinct, as in Luau.
 
 The pass runs over whole scripts rather than inside the incremental annotators, since a lint depends on lines far from the one it reports. The compiler caches each script's diagnostics and name facts until its syntax tree changes. Structural extraction uses Lezer's public `Tree`/`TreeBuffer` representation to select Luau nodes without building a cursor for every narrative word and grammar capture; embedded expression ASTs and narrative-if offsets are read once per tree. The rules themselves still execute on each direct call to `collectLuauLints`.
 
@@ -85,7 +88,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 | Luau lint | Test file |
 | --- | --- |
 | `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
-| `MultiLineStatement`, `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
+| `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
 | `FormatString` | `LintCandidatesStdlib.test.ts` |
 
 ## Rules sparkdown omits
