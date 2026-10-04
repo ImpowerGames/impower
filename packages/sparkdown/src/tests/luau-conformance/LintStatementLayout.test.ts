@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { diagnose, diagnoseDetailed, diagnoseWithLints, lintMessagesInFunction } from "./diagnosticTestHarness";
+import { getParser } from "../compiler/grammarSnapshot";
+import { readLuauStatements } from "../../compiler/typecheck/readLuauAst";
 
 const SAME_LINE = "A new statement is on the same line; add semi-colon on previous statement to silence";
 const MULTI_LINE = "Statement spans multiple lines; use indentation to silence";
@@ -57,5 +59,32 @@ describe("statement layout diagnostics", () => {
     expect(layout("Narrative\n& print(1); print(2)\nMore narrative\n& print(3) print(4)\n").map((d) => ({ code: d.code, line: d.range?.start.line }))).toEqual([
       { code: "SameLineStatement", line: 3 },
     ]);
+  });
+
+  test.each([
+    "& do print(1) print(2) end\n",
+    "layout main with\n button @click={ print(1) print(2) }\nend\n",
+  ])("checks statements in bounded islands and cached handler roots: %s", (source) => {
+    expect(layout(source).map((d) => d.code)).toEqual(["SameLineStatement"]);
+  });
+
+  test("keeps malformed bounded syntax errors without layout warnings", () => {
+    const source = "& do print(1) print( end\n";
+    const diagnostics = diagnoseDetailed(source);
+    expect(diagnostics.some((d) => d.severity === 1)).toBe(true);
+    expect(layout(source)).toEqual([]);
+  });
+
+  test("leaves a malformed handler's converter error boundary alone", () => {
+    const source = "layout main with\n button @click={ print(1) print( }\nend\n";
+    const tree = getParser().parse(source);
+    let errors = 0;
+    tree.iterate({ enter(node) {
+      if (node.name !== "LuauSparkleHandlerClosure") return;
+      const content = node.node.getChild("LuauSparkleHandlerClosure_content");
+      if (content) errors += readLuauStatements([content], source).errors.length;
+    } });
+    expect(errors).toBeGreaterThan(0);
+    expect(layout(source)).toEqual([]);
   });
 });
