@@ -46,7 +46,18 @@
     "LUAU_SHARED_PATH_OR_CALL_CONTINUATION": "(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_DANGLING_ACCESSOR_START}}|{{LUAU_FUNCTION_CALL_START}}|\\[|{{LUAU_LINE_CONTINUATION_OPERATOR}})",
     "LUAU_SHARED_TERNARY_CONDITION_LINE_END": "(?!{{WS}}*then\\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}})",
     "LUAU_SHARED_NOT_TYPEOF": "(?!typeof\\b)",
-    "LUAU_SHARED_NOT_REMOVED_MARK_CALL": "(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*{{WS}}*[(])",
+    "LUAU_SHARED_NOT_REMOVED_MARK_CALL": "(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}{{LUAU_SHARED_FUNCTION_NAME_SUFFIX}}*{{WS}}*[(])",
+    "LUAU_SHARED_FUNCTION_NAME_SUFFIX": "(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})",
+    "_LUAU_SHARED_FUNCTION_SCOPE_PREFIX_": "(?:({{LUAU_SCOPE_MODIFIERS}})\\b({{WS}}*))",
+    "LUAU_SHARED_AFTER_UNCALLABLE_VALUE": "(?:{{AFTER_LUAU_UNCALLABLE_VALUE}})",
+    "LUAU_SHARED_AFTER_CALLABLE_VALUE": "(?:{{AFTER_LUAU_VALUE}})",
+    "LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD": "(?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(])",
+    "LUAU_SHARED_GOTO_NO_COMMENT_AHEAD": "(?!{{LUAU_COMMENT_START}})",
+    "LUAU_SHARED_GOTO_LINE_END": "(?=$|{{WS}}*{{LUAU_SHARED_GOTO_NO_COMMENT_AHEAD}})",
+    "LUAU_MARKED_STRUCTURED_KEYWORDS": "(?:define|style|layout|screen|component)\\b",
+    "LUAU_MARKED_STRUCTURED_NAMESPACE_KEYWORDS": "(?:animation|theme|morph)\\b",
+    "LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL": "(?![.(])",
+    "LUAU_MARKED_STRUCTURED_HEAD": "(?:{{LUAU_MARKED_STRUCTURED_KEYWORDS}}|{{LUAU_MARKED_STRUCTURED_NAMESPACE_KEYWORDS}}{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}})",
     "LUAU_SHARED_VARIABLE_HEAD_END": "(?:[,]|[=](?![=])|[:](?![:])(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\\n|\\r|$)",
     "LUAU_SHARED_DIVERT_DOTTED_PART": "(?:[.]{{IDENTIFIER}})",
     "LUAU_SHARED_TAG_END": "(?:(?={{TAG_START}})|$)",
@@ -436,7 +447,7 @@
     "AFTER_LUAU_GLUEABLE_OPERAND": "(?<=[)\\]}\"'`]|\\.\\.\\.|/[dgimsuvy]{0,8})",
     "LUAU_STATEMENT_LINE_START": "(?:(?:end|until|local|return|break|do|while|repeat|for)\\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})",
     "LUAU_LIST_LINE_START_STATEMENT": "(?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\\b{{WS}}+{{LUAU_IDENTIFIER}})",
-    "LUAU_REASSIGNMENT_END": "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$",
+    "LUAU_REASSIGNMENT_END": "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\]{{LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$",
     "LUAU_REASSIGNMENT_START": "{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_REASSIGNMENT_INDEX}}|\\([^()\\n]*\\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}",
     "LUAU_REASSIGNMENT_INDEX": "\\[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}}|\\[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}})*\\])*\\]",
     "LUAU_REASSIGNMENT_INDEX_TEXT": "(?:[^\\[\\]\\n\"'`]|\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'|`(?:[^`\\\\\\n]|\\\\.)*`)",
@@ -578,7 +589,7 @@
     "LUAU_TYPE_QUALIFIER_DOT": "{{WS}}*[.]",
     "LUAU_TYPE_OPTIONAL_OPERATOR": "(?:[?])",
     "LUAU_TYPE_END": "(?:[\\w)}\\]>\"'`?])",
-    "LUAU_FUNCTION_HEADER": "(?:\\b(?:function|scene|branch|external|component)\\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\\n]*>)?)",
+    "LUAU_FUNCTION_HEADER": "(?:\\b(?:function|scene|branch|external|component)\\b{{WS}}*(?:{{LUAU_IDENTIFIER}}{{LUAU_SHARED_FUNCTION_NAME_SUFFIX}}*)?(?:<[^<>\\n]*>)?)",
     "LUAU_DECLARATION_STOP": "(?:(?:end|else|elseif|until|return|break|continue|goto|local|store|const|do|while|repeat|for)\\b|(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}})",
     "LUAU_TYPE_END_BEFORE_OPTIONAL": "(?:[\\w)}\\]\"'`?]|[^-]>)",
     "LUAU_TYPE_WHITESPACE_END": "(?:{{WS}}(?!{{WS}}*(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|[&]|[|])))",
@@ -5348,56 +5359,6 @@
         },
         {
           "include": "#LuauSparkdownExplicitInvalidStatementToken"
-        }
-      ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|$|(?=^)"
-    },
-    "LuauExplicitStatement": {
-      "begin": "((?:[^\\S\\n\\r])*)([&])($|(?:[^\\S\\n\\r])+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#LuauExplicitStatementMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#RequiredWhitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#LuauFunctionDefinition"
-        },
-        {
-          "include": "#LuauDoBlock"
-        },
-        {
-          "include": "#LuauSparkdownVariableDefinition"
-        },
-        {
-          "include": "#LuauDeclarations"
-        },
-        {
-          "include": "#LuauCommaSeparator"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
         }
       ],
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|$|(?=^)"

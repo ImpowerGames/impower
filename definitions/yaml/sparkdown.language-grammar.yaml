@@ -57,7 +57,30 @@ variables:
   LUAU_SHARED_NOT_TYPEOF: "(?!typeof\\b)"
   # lookaround: invalid marked calls stay in LuauInvalidStatement recovery;
   # a type name cannot take call arguments, while typeof is a valid type operand.
-  LUAU_SHARED_NOT_REMOVED_MARK_CALL: "(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*{{WS}}*[(])"
+  LUAU_SHARED_NOT_REMOVED_MARK_CALL: "(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}{{LUAU_SHARED_FUNCTION_NAME_SUFFIX}}*{{WS}}*[(])"
+  LUAU_SHARED_FUNCTION_NAME_SUFFIX: '(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})'
+  _LUAU_SHARED_FUNCTION_SCOPE_PREFIX_: '(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*))'
+  LUAU_SHARED_AFTER_UNCALLABLE_VALUE: '(?:{{AFTER_LUAU_UNCALLABLE_VALUE}})'
+  LUAU_SHARED_AFTER_CALLABLE_VALUE: '(?:{{AFTER_LUAU_VALUE}})'
+  LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD: '(?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(])'
+  # lookaround: LuauSparkdownExplicitComment owns a goto's trailing comment.
+  # Reordering children cannot end the open goto; splitting its dispatch and
+  # its parent end do not distinguish comment trivia. Share the token guard.
+  LUAU_SHARED_GOTO_NO_COMMENT_AHEAD: '(?!{{LUAU_COMMENT_START}})'
+  # lookaround: LuauLabelName and LuauSparkdownExplicitComment own the label and
+  # trailing comment. A zero-width end preserves those siblings; consuming the
+  # gap would shift their authored ranges, so the goto ends before either.
+  LUAU_SHARED_GOTO_LINE_END: '(?=$|{{WS}}*{{LUAU_SHARED_GOTO_NO_COMMENT_AHEAD}})'
+  # Keep the existing trailing-only word boundary. Array variables add a leading
+  # boundary too, which would change recovery when this capture searches a line.
+  LUAU_MARKED_STRUCTURED_KEYWORDS: '(?:define|style|layout|screen|component)\b'
+  LUAU_MARKED_STRUCTURED_NAMESPACE_KEYWORDS: '(?:animation|theme|morph)\b'
+  # lookaround: LuauAccessPath and LuauFunctionCall own animation.x and
+  # animation(...), also theme/morph. Moving expressions first consumes
+  # declaration names; splitting the root Switch still needs this boundary;
+  # a parent end cannot repair the wrong opener. Tighten the shared head token.
+  LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL: '(?![.(])'
+  LUAU_MARKED_STRUCTURED_HEAD: '(?:{{LUAU_MARKED_STRUCTURED_KEYWORDS}}|{{LUAU_MARKED_STRUCTURED_NAMESPACE_KEYWORDS}}{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}})'
   # lookaround: LuauTypeAnnotationOperation and LuauAssignmentOperation own annotations and values; LuauVariableAssignment must yield before either.
   LUAU_SHARED_VARIABLE_HEAD_END: "(?:[,]|[=](?![=])|[:](?![:])(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\\n|\\r|$)"
   LUAU_SHARED_DIVERT_DOTTED_PART: "(?:[.]{{IDENTIFIER}})"
@@ -466,7 +489,7 @@ variables:
   # this list misses would be read as a value.
   LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\b{{WS}}+{{LUAU_IDENTIFIER}})
   # Where a reassignment ends on its own line (see `LuauReassignment`).
-  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$"
+  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\]{{LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$"
   # The start of a reassignment statement: its targets (a name with `.field`,
   # `[index]` or `(call)` suffixes, or several names separated by commas) and
   # an assignment operator. `LuauReassignment` begins here, and the rules that
@@ -852,7 +875,7 @@ variables:
   # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
   # opens its `(` only right after one, and `LuauFunctionBody` never opens
   # there.
-  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}{{LUAU_SHARED_FUNCTION_NAME_SUFFIX}}*)?(?:<[^<>\n]*>)?)
   # A token that a declaration's comma line break (`LuauCommaLineBreak`)
   # can reach but that begins a statement rather than a value: a statement
   # keyword or a type declaration. An `if` there is an if expression, as in
@@ -4021,47 +4044,6 @@ repository:
       - { include: "#LuauSparkdownExplicitInvalidStatementToken" }
     end: (?={{BEAT}})|$|(?=^)
 
-  LuauExplicitStatement:
-    begin: ({{WS}}*)([&])($|{{WS}}+)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauExplicitStatementMark" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-    # `LuauCommaSeparator` is in the pattern list so multi-target /
-    # multi-RHS reassignment statements (`& a, b = 10, 20`) can break
-    # across commas at the statement level. The lowerer reconstructs
-    # the target list from the siblings of the `LuauAssignmentOperation`.
-    # Function-call commas live inside `LuauFunctionCallParameters` and
-    # are scoped there — they don't reach this pattern.
-    patterns:
-      # Declarations need to come before LuauExpression so `& store x = 5`
-      # parses as a `LuauSparkdownVariableDefinition` rather than an
-      # expression where `store` would degrade to a bare identifier
-      # reference. This makes the explicit form (`& store x = 5`)
-      # interchangeable with the implicit form (`store x = 5`). An `&`
-      # statement is one line, so it declares with the narrative rule.
-      # `LuauFunctionDefinition` comes first, so `& local function f()`
-      # is a function rather than a declaration of `function`.
-      - { include: "#LuauFunctionDefinition" }
-      # A written `& do ... end` is a Luau island, including its return.
-      # Its body must not fall through to the narrative do-block at root.
-      - { include: "#LuauDoBlock" }
-      - { include: "#LuauSparkdownVariableDefinition" }
-      - { include: "#LuauDeclarations" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-    # A statement ends at its line's end; it only stands at the start of a
-    # line when a value that spans lines, such as an unfinished if
-    # expression, took the line break and ended there, which ends it too.
-    end: (?={{BEAT}})|$|(?=^)
-
   LuauExplicitStatementMark:
     tag: keyword
     name: keyword.other.statement.explicit.luau.mark.sd
@@ -7123,7 +7105,7 @@ repository:
   LuauFunctionDefinition:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*))?(function)\b({{WS}}*)
+    begin: ({{WS}}*){{_LUAU_SHARED_FUNCTION_SCOPE_PREFIX_}}?(function)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -8437,14 +8419,19 @@ repository:
       - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauLabelName" }
     applyEndPatternLast: true
-    # lookaround: the name/comment children own their tokens. This wrapper
+    # lookaround: LuauLabelName and LuauSparkdownExplicitComment own their tokens. This wrapper
     # must yield after them without consuming the next statement's whitespace;
     # sibling ordering cannot end an already-open goto (bounded-entry contract).
-    end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+    end: (?={{BEAT}})|{{LUAU_SHARED_GOTO_LINE_END}}
 
   LuauSparkdownExplicitTypeTrailingBlockComment:
     tag: blockComment
     name: comment.block.luau
+    # lookaround: LuauSparkdownExplicitBlockComment owns complete line-local
+    # comments; LuauTypeTrailingBlockCommentClose owns closers followed by code.
+    # Reordering comments cannot close the enclosing type or locate its preceding
+    # token; splitting dispatch retains that need, and the parent cannot consume
+    # the comment's closer. These guards preserve the canonical ownership.
     begin: (?<={{LUAU_TYPE_END}}{{WS}}*)(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
     beginCaptures:
       1:
@@ -8462,6 +8449,10 @@ repository:
     patterns:
       - { include: "#LuauDocCommentTags" }
       - { include: "#LuauBlockCommentContent" }
+    # lookaround: LuauTypeTrailingBlockCommentClose owns a closer before type
+    # code; OptionalWhitespace owns the whole suffix only when no code follows.
+    # Ordering or splitting children cannot transfer an end token to the parent;
+    # the enclosing type's end needs that token, so keep the canonical end guards.
     end: (?=\]\3\]{{LUAU_TYPE_CODE_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_TYPE_CODE_AHEAD}})|)|$
     endCaptures:
       1:
@@ -8486,7 +8477,10 @@ repository:
   LuauSparkdownExplicitUncallableValueTrailingBlockComment:
     tag: blockComment
     name: comment.block.luau
-    begin: (?:{{AFTER_LUAU_UNCALLABLE_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    # lookaround: LuauSparkdownExplicitBlockComment owns a complete line-local
+    # comment. Reordering it cannot close the preceding value; splitting dispatch
+    # still needs the value boundary, and a parent end cannot consume this closer.
+    begin: '{{LUAU_SHARED_AFTER_UNCALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
     beginCaptures:
       1:
         patterns:
@@ -8503,7 +8497,11 @@ repository:
     patterns:
       - { include: "#LuauDocCommentTags" }
       - { include: "#LuauBlockCommentContent" }
-    end: (?=\]\3\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)|$
+    # lookaround: LuauTypeTrailingBlockCommentClose owns a closer before the
+    # next statement; OptionalWhitespace owns a suffix with no following code.
+    # Neither child order nor a Switch can transfer an end token to the parent;
+    # retain the canonical guards so its value ends before the next statement.
+    end: (?=\]\3\]{{LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)|$
     endCaptures:
       1:
         patterns:
@@ -8522,7 +8520,10 @@ repository:
   LuauSparkdownExplicitCallableValueTrailingBlockComment:
     tag: blockComment
     name: comment.block.luau
-    begin: (?:{{AFTER_LUAU_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    # lookaround: LuauSparkdownExplicitBlockComment owns complete line-local
+    # comments. Reordering cannot close the preceding value; splitting dispatch
+    # retains the same value boundary, and its parent cannot consume this closer.
+    begin: '{{LUAU_SHARED_AFTER_CALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
     beginCaptures:
       1:
         patterns:
@@ -8539,6 +8540,10 @@ repository:
     patterns:
       - { include: "#LuauDocCommentTags" }
       - { include: "#LuauBlockCommentContent" }
+    # lookaround: LuauTypeTrailingBlockCommentClose owns the closer before
+    # statement code; OptionalWhitespace owns the entire suffix otherwise.
+    # Child order and Switch splitting cannot transfer an end token to the
+    # enclosing value, so its parent boundary relies on these canonical guards.
     end: (?=\]\3\]{{LUAU_STATEMENT_CODE_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}})|)|$
     endCaptures:
       1:
@@ -8558,7 +8563,7 @@ repository:
   LuauSparkdownExplicitFunctionDefinition:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*))?(function)\b({{WS}}*)
+    begin: ({{WS}}*){{_LUAU_SHARED_FUNCTION_SCOPE_PREFIX_}}?(function)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -8608,6 +8613,10 @@ repository:
     tag: meta
     name: meta.parameter.luau
     brackets: true
+    # lookaround: LuauSparkdownExplicitFunctionBody owns calls after the header.
+    # Body-first ordering handles line starts but not inline calls; splitting
+    # dispatch or a parent end cannot distinguish their identical '(' token.
+    # LUAU_FUNCTION_HEADER therefore tightens the preceding-token boundary.
     begin: ((?<={{LUAU_FUNCTION_HEADER}}{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
     beginCaptures:
       1:
@@ -8629,6 +8638,10 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   LuauSparkdownExplicitFunctionReturnType:
+    # lookaround: LuauSparkdownExplicitFunctionParameters owns the preceding
+    # ')' and LuauSparkdownExplicitTypeCastOperation owns '::'. Body-first
+    # ordering cannot distinguish the two colon forms; a Switch and parent end
+    # retain the same ambiguity, so tighten this header's colon token.
     begin: (?<=[)]{{WS}}*)([:])(?![:])({{WS}}*)
     beginCaptures:
       1:
@@ -8642,6 +8655,10 @@ repository:
       - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
       - { include: "#ExtraWhitespace" }
+    # lookaround: LuauSparkdownExplicitTypeTrailingBlockComment owns a comment
+    # after the type before body code. Child reordering or Switch splitting
+    # cannot close an already-open return type; the function parent cannot
+    # place this boundary inside its header, so retain the type-end guard.
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|[;=,)\]}>]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})|$
 
   LuauSparkdownExplicitGenericsDeclaration:
@@ -10493,7 +10510,7 @@ repository:
   # explicit root twins. Nested begin/end scopes stay inside this finite
   # physical-line capture, including ordinary struct/Sparkle descendants.
   LuauSparkdownExplicitStructuredStatement:
-    match: ({{WS}}*(?:(?:define|style|layout|screen|component)\b|(?:animation|theme|morph)\b(?![.(]))[^\r\n]*)
+    match: ({{WS}}*{{LUAU_MARKED_STRUCTURED_HEAD}}[^\r\n]*)
     captures:
       1:
         patterns:
@@ -10676,7 +10693,7 @@ repository:
     # `(?![.(])` keeps `animation` an identifier/namespace when followed by `.`
     # or `(` — so `animation.fadein` refs and any `animation(...)` keep working
     # in expression position; only a true `animation NAME with …` block starts.
-    begin: ({{WS}}*)(animation)\b(?![.(])({{WS}}*)
+    begin: ({{WS}}*)(animation)\b{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -10709,7 +10726,7 @@ repository:
     name: meta.theme.luau
     # See LuauAnimation: `(?![.(])` keeps `theme.X` refs and the `theme(...)`
     # selector function working in expression position.
-    begin: ({{WS}}*)(theme)\b(?![.(])({{WS}}*)
+    begin: ({{WS}}*)(theme)\b{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -10742,7 +10759,7 @@ repository:
     name: meta.morph.luau
     # See LuauAnimation: `(?![.(])` keeps `morph.blink` a reference in
     # expression position.
-    begin: ({{WS}}*)(morph)\b(?![.(])({{WS}}*)
+    begin: ({{WS}}*)(morph)\b{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -14041,7 +14058,7 @@ repository:
   LuauUncallableValueTrailingBlockComment:
     tag: blockComment
     name: comment.block.luau
-    begin: (?:{{AFTER_LUAU_UNCALLABLE_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    begin: '{{LUAU_SHARED_AFTER_UNCALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
     beginCaptures:
       1:
         patterns:
@@ -14059,7 +14076,7 @@ repository:
       - { include: "#LuauDocCommentTags" }
       - { include: "#LuauBlockCommentContent" }
       - { include: "#Newline" }
-    end: (?=\]\3\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)
+    end: (?=\]\3\]{{LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)
     endCaptures:
       1:
         patterns:
@@ -14078,7 +14095,7 @@ repository:
   LuauCallableValueTrailingBlockComment:
     tag: blockComment
     name: comment.block.luau
-    begin: (?:{{AFTER_LUAU_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    begin: '{{LUAU_SHARED_AFTER_CALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
     beginCaptures:
       1:
         patterns:
