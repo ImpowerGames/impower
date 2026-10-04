@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { ancestorMatching } from "../../utils/ancestorMatching";
@@ -517,7 +518,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
 
     // ----- OOP define property (`store trust = 0`, `name = "RAFFLES"`) ---------
     if (nodeRef.name === "LuauPropertyDefinition") {
-      const begin = getDescendent("LuauVariableAssignment_begin", nodeRef.node);
+      const begin = getDescendent(["LuauVariableAssignment_begin", "LuauSparkdownExplicitVariableAssignment_begin"], nodeRef.node);
       const nameNode = begin
         ? getDescendent("LuauVariableName", begin)
         : getDescendent("LuauVariableName", nodeRef.node);
@@ -944,7 +945,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       this.resetDefineState();
       return annotations;
     }
-    if (nodeRef.name === "DivertPath") {
+    if (isExplicitRuleName(nodeRef.name, "DivertPath")) {
       this.divertPathParts = [];
       return annotations;
     }

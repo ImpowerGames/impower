@@ -1,5 +1,6 @@
 // `LuauVariableDefinitionValue` is `LuauExpression` without the statements
-// it reaches through `LuauDeclarations` and without bare keywords, so a Luau
+// it reaches through `LuauDeclarations`, without the direct return statement
+// and without bare keywords, so a Luau
 // declaration whose comma ends its line cannot take the next line's `end`,
 // `until` or `return` as a value. An expression form added to
 // `LuauExpression` must be added there too, or it stops working as a later
@@ -16,8 +17,10 @@ const repository = GRAMMAR_DEFINITION.repository as unknown as Record<
 >;
 
 describe("LuauVariableDefinitionValue", () => {
-  test("is LuauExpression with a function in place of statements and `...` in place of keywords", () => {
-    const expected = repository["LuauExpression"]!.patterns!.map((p) =>
+  test("excludes return statements, substitutes functions for declarations and `...` for keywords", () => {
+    const expressions = repository["LuauExpression"]!.patterns!;
+    expect(expressions).toContainEqual({ include: "#LuauReturnStatement" });
+    const expected = expressions.filter((p) => p.include !== "#LuauReturnStatement").map((p) =>
       p.include === "#LuauDeclarations"
         ? { include: "#LuauFunctionDefinition" }
         : p.include === "#LuauKeyword"
@@ -25,6 +28,7 @@ describe("LuauVariableDefinitionValue", () => {
           : p,
     );
     expect(repository["LuauVariableDefinitionValue"]!.patterns).toEqual(expected);
+    expect(repository["LuauVariableDefinitionValue"]!.patterns).not.toContainEqual({ include: "#LuauReturnStatement" });
   });
 });
 
