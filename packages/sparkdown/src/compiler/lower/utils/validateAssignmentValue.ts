@@ -636,7 +636,7 @@ export function typeCheckerReportsMissingValue(
   document?: () => string,
 ): boolean {
   const text = wholeDocument(node, read, document);
-  const authoredEnd = missingValueEnd(node);
+  const authoredEnd = authoredIslandEnd(node);
   const reading = readLuauExpressionAfter(pos, text, authoredEnd);
   let expr = reading.expr;
   // A leading binary operator (`+ 1`) leaves its missing left operand in
@@ -655,10 +655,10 @@ export function typeCheckerReportsMissingValue(
 }
 
 // A marked story island has its own authored EOF. Reading the following
-// prose as an operand would make this validator report at a story token
-// while the bounded checker separately reports the missing operand at EOF.
+// prose as an operand or method name would report at a story token while
+// the bounded checker separately reports the missing token at EOF.
 // A genuine function inside the island keeps its multiline Luau ownership.
-function missingValueEnd(node: SyntaxNode): number | undefined {
+export function authoredIslandEnd(node: SyntaxNode): number | undefined {
   for (let parent: SyntaxNode | null = node; parent; parent = parent.parent) {
     if (parent.name === "LuauFunctionBody") return undefined;
     if (parent.name === "LuauSparkdownExplicitStatement") return parent.to;

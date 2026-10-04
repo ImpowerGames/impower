@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 import { parseOfficialTree } from "../compiler/officialAstTestUtils";
 import { parseSource } from "../compiler/grammarSnapshot";
-import { treeScopeStackAt } from "../compiler/scopeEquality";
+import { compareEnginesFull, treeScopeStackAt } from "../compiler/scopeEquality";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const syntaxErrorCode = "SyntaxError";
@@ -31,6 +31,31 @@ describe("written island syntax diagnostics own authored tokens", () => {
     expect(published[0]!.range.end).toEqual({ line: prefix.split("\n").length, character: 0 });
     expect(publishedErrors(source).every(d => d.range.start.line <= prefix.split("\n").length - 1)).toBe(true);
     expect(treeScopeStackAt(parseSource(source), source.indexOf("The village"))).toContain("string.display.text.chunk.sd");
+  });
+
+  test.each([
+    "local voice = {}; voice:",
+    "local n = 1; local voice = {}; voice:",
+    "local n = 1; local x =",
+    "local n = 1; local x = math.abs(",
+  ])("missing token after a semicolon owns the authored EOF: %s", async body => {
+    const source = `& ${body}\nThe village waits.\n`;
+    const native = parseOfficialTree(`  ${body}`).errors[0]!;
+    expect(native.message).toContain("got <eof>");
+    const published = syntaxErrors(source);
+    expect(published.map(message)).toEqual([native.message]);
+    expect(published[0]!.range.start).toEqual({ line: 0, character: body.length + 2 });
+    expect(published[0]!.range.end).toEqual({ line: 1, character: 0 });
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("The village"))).toContain("string.display.text.chunk.sd");
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
+
+  test("semicolon-separated marked statements preserve their effects and following prose", async () => {
+    const source = "store x = 0\n& local voice = { say = function(self) return 5 end }; x = voice:say()\nThe village waits.\nValue {x}.\ndone\n";
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("The village waits.\nValue 5.\n");
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
 
   test.each([

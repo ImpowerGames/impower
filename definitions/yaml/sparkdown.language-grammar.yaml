@@ -4008,6 +4008,9 @@ repository:
       - { include: "#LuauSparkdownExplicitStoryVariableDefinition" }
       - { include: "#LuauSparkdownExplicitDeclarations" }
       - { include: "#LuauCommaSeparator" }
+      # A declaration yields its separator here. Keeping it in the marked
+      # wrapper makes the following statement code rather than story text.
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|$|(?=^)

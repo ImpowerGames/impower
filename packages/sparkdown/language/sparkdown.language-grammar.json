@@ -5337,6 +5337,9 @@
           "include": "#LuauCommaSeparator"
         },
         {
+          "include": "#LuauSemicolonSeparator"
+        },
+        {
           "include": "#LuauSparkdownExplicitExpression"
         },
         {

@@ -381,6 +381,8 @@ interface Token {
   source: number;
   /** A story boundary, or the scene closer ending a flow's synthetic function. */
   story?: true;
+  /** The grammar-owned EOF of a marked narrative island. */
+  authoredEnd?: true;
 }
 
 const KEYWORDS = new Set([
@@ -581,7 +583,7 @@ class Tokenizer {
       // Only the narrative island wrapper owns this EOF. Nested marked
       // statements still yield to their written block's closer; genuine
       // functions and opaque constructs extend this wrapper's own span.
-      this.tokens.push({ kind: "break", text: "", from: node.to, to: node.to, location: this.location(node.to, node.to), source: this.source, story: true });
+      this.tokens.push({ kind: "break", text: "", from: node.to, to: node.to, location: this.location(node.to, node.to), source: this.source, story: true, authoredEnd: true });
       return;
     }
     if (name === "LuauSparkdownChooseBlock_begin") {
@@ -1324,7 +1326,7 @@ class Parser {
     // authored EOF. The following prose only supplies a synthetic break;
     // delegating this error to story grammar would drop it entirely.
     // Genuine Luau functions keep their existing multiline recovery.
-    const boundedStoryEnd = this.explicitLine !== undefined && !this.currentFunction().luau && this.current().kind === "break" && this.current().story === true;
+    const boundedStoryEnd = !this.currentFunction().luau && this.current().kind === "break" && this.current().authoredEnd === true;
     const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
     if (malformed && !follows && !consequence && this.sparkdownDepth === 0 && !atSparkdown && !this.atAbandonedCloser()) {
       error.malformed = malformed;
@@ -1624,6 +1626,12 @@ class Parser {
         this.next();
         stat.hasSemicolon = true;
         stat.location = new Location(stat.location.begin, this.previousLocation().end);
+        // The marker wraps the authored Luau statement; its written separator
+        // belongs to that statement's native range as well as the wrapper.
+        if (stat instanceof AstStatSparkdownExplicit) {
+          stat.statement.hasSemicolon = true;
+          stat.statement.location = new Location(stat.statement.location.begin, this.previousLocation().end);
+        }
         stoppedAtError = false;
         semicolon = true;
       }

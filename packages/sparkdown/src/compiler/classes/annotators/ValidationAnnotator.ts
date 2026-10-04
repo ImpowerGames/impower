@@ -23,7 +23,7 @@ import {
   TRIVIA_BEFORE_STATEMENT,
 } from "../../lower/utils/statementBefore";
 import { luauStatementError } from "../../utils/luauStatementError";
-import { nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
+import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED } from "../../typecheck/LuauUnitNodes";
@@ -1095,13 +1095,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const isMethodColon = this.isMethodColon(nodeRef.node);
       // An unfinished narrative method call owns its island's EOF. A genuine
       // function still permits the method name on its next Luau line.
-      let authoredEnd: number | undefined;
-      if (isMethodColon) {
-        for (let owner: SyntaxNode | null = nodeRef.node; owner; owner = owner.parent) {
-          if (owner.name === "LuauFunctionBody") break;
-          if (owner.name === "LuauSparkdownExplicitStatement") { authoredEnd = owner.to; break; }
-        }
-      }
+      const authoredEnd = isMethodColon ? authoredIslandEnd(nodeRef.node) : undefined;
       // The checker reports a missing method name too, as it reports every
       // missing name after a member access (#1175), where it reads the token
       // found instead.
