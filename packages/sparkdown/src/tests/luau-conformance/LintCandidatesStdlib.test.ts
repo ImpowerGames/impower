@@ -294,7 +294,7 @@ os.date("!*t")
 });
 
 // Luau: TableLiteral
-describe.skip("duplicate keys in table literals and table types (not implemented: TableLiteral)", () => {
+describe("duplicate keys in table literals and table types (TableLiteral)", () => {
   test("seven duplicates", () => {
     expect(
       lintMessagesInFunction(`-- line 1
@@ -352,8 +352,54 @@ end
   });
 });
 
+// Luau: read_write_table_props
+// The pinned test uses only table-property syntax and access-bit overlap.
+// Its old-solver guard does not make this AST predicate type-dependent.
+describe("overlapping read/write table type properties (TableLiteral)", () => {
+  test("six overlapping access declarations", () => {
+    expect(lintMessagesInFunction(`-- line 1
+        type A = {x: number}
+        type B = {read x: number, write x: number}
+        type C = {x: number, read x: number} -- line 4
+        type D = {x: number, write x: number}
+        type E = {read x: number, x: boolean}
+        type F = {read x: number, read x: number}
+        type G = {write x: number, x: boolean}
+        type H = {write x: number, write x: boolean}
+    `)).toEqual([
+      "Table type field 'x' is already read-write; previously defined at line 4",
+      "Table type field 'x' is already read-write; previously defined at line 5",
+      "Table type field 'x' already has a read type defined at line 6",
+      "Table type field 'x' is a duplicate; previously defined at line 7",
+      "Table type field 'x' already has a write type defined at line 8",
+      "Table type field 'x' is a duplicate; previously defined at line 9",
+    ]);
+  });
+});
+
 // Luau: TableOperations
-describe.skip("suspicious table.insert, remove, move and create calls (not implemented: TableOperations)", () => {
+// Adaptation: the multi-result branch recognizes direct string.find calls,
+// whose runtime and builtin signature prove multiple results. Type-dependent
+// user-defined and unknown callees are left alone until the checker is used.
+describe("suspicious table.insert, remove, move and create calls (TableOperations)", () => {
+  test("parentheses, other tables and shadowed libraries silence the rule", () => {
+    expect(lintMessagesInFunction(`
+local t, other = {}, {}
+table.insert(t, (#t), 42)
+table.remove(t, (#t-1))
+table.insert(t, #other, 42)
+table.insert(t, (string.find("hello", "h")))
+table.insert(t, math.abs(1))
+table.insert(t, unknown())
+do
+  local table, string = ...
+  table.insert(t, 0, 42)
+  table.create(2, {})
+  _ = string.find("hello", "h")
+end
+`)).toEqual([]);
+  });
+
   test("ten suspicious calls", () => {
     expect(
       lintMessagesInFunction(`
@@ -396,15 +442,28 @@ table.create(42, {} :: {})
 });
 
 // Luau: DeprecatedApiFenv (adapted)
-// Sparkdown reports nothing for either call today. Upstream uses type casts
-// to choose which calls warn, and type casts are parsed but ignored, so only
-// the uncast first call of each group is kept.
-describe.skip("getfenv and setfenv (not implemented: DeprecatedApi for fenv)", () => {
+// Obsolete f/g/h locals from the omitted typed cases are removed.
+// Only an AST numeric literal is checked; upstream also uses inferred numeric
+// types. Cast and unknown-value cases are omitted from this AST-only rule.
+describe("getfenv and setfenv (DeprecatedApi for fenv)", () => {
+  test("nonliteral arguments and local names are not deprecated builtins", () => {
+    expect(lintMessagesInFunction(`
+local level = 1
+getfenv()
+getfenv(level)
+getfenv((1))
+setfenv(function() end, {})
+do
+  local getfenv, setfenv = ...
+  getfenv(1)
+  setfenv(1, {})
+end
+`)).toEqual([]);
+  });
+
   test("getfenv(1) and setfenv(1, {})", () => {
     expect(
       lintMessagesInFunction(`
-local f, g, h = ...
-
 getfenv(1)
 setfenv(1, {})
 `),

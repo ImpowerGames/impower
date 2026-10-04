@@ -54,6 +54,7 @@ import {
   AstExprUnary,
   AstExprVarargs,
   AstStatAssign,
+  AstStatCompoundAssign,
   AstStatBlock,
   AstStatBreak,
   AstStatContinue,
@@ -67,8 +68,12 @@ import {
   AstStatLocalFunction,
   AstStatRepeat,
   AstStatReturn,
+  AstStatSparkdownStore,
   AstStatWhile,
   AstTypeReference,
+  AstTypeTable,
+  AstTableAccess,
+  TableItemKind,
   BinaryOp,
   UnaryOp,
   visitAst,
@@ -89,6 +94,9 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "TableLiteral",
+  "TableOperations",
+  "DeprecatedApi",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -98,10 +106,13 @@ export interface LuauLint {
   from: number;
   to: number;
   message: string;
+  /** Internal candidate: valid only while included scripts preserve string.find. */
+  requiresBuiltinStringFind?: true;
 }
 
 export interface LuauScriptLints {
   lints: LuauLint[];
+  stringFindOverridden?: boolean;
 }
 
 /** The offset of each line of a document. */
@@ -723,12 +734,107 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 
 // ---------------------------------------------------------------------------
 
+/** The syntax-only branches of Luau's TableLiteral, TableOperations and fenv DeprecatedApi. */
+function lintTables(root: AstNode, offsets: Offsets, out: LuauLint[], facts: LuauScriptLints): void {
+  const emit = (code: LuauLintCode, location: Location, message: string) => out.push({ code, ...offsets.range(location), message });
+  const literal = (expr: AstExpr | undefined, value: number) => expr instanceof AstExprConstantNumber && expr.value === value;
+  const length = (expr: AstExpr, table: AstExpr) => expr instanceof AstExprUnary && expr.op === UnaryOp.Len && similar(expr.expr, table);
+  const globalString = (expr: AstExpr) => expr instanceof AstExprGlobal && expr.name === "string";
+  const overridesFind = (expr: AstExpr) => globalString(expr)
+    || (expr instanceof AstExprIndexName && globalString(expr.expr) && expr.index === "find")
+    || (expr instanceof AstExprIndexExpr && globalString(expr.expr) && expr.index instanceof AstExprConstantString && expr.index.value === "find");
+  visitAst(root, {
+    visit(node) {
+      const writes = node instanceof AstStatAssign || node instanceof AstStatSparkdownStore ? node.vars
+        : node instanceof AstStatFunction ? [node.name]
+        : node instanceof AstStatCompoundAssign ? [node.variable] : [];
+      if (writes.some(overridesFind)) facts.stringFindOverridden = true;
+      if (node instanceof AstExprTable) {
+        const count = node.items.filter((item) => item.kind === TableItemKind.List).length;
+        const names = new Map<string, number>();
+        const indices = new Map<number, number>();
+        for (const item of node.items) {
+          const key = item.key;
+          if (key instanceof AstExprConstantString) {
+            const previous = names.get(key.value);
+            if (previous !== undefined) emit("TableLiteral", key.location, `Table field '${key.value}' is a duplicate; previously defined at line ${previous}`);
+            else names.set(key.value, offsets.line(key.location.begin) + 1);
+          } else if (key instanceof AstExprConstantNumber && Number.isInteger(key.value)) {
+            if (key.value >= 1 && key.value <= count) {
+              emit("TableLiteral", key.location, `Table index ${key.value} is a duplicate; previously defined as a list entry`);
+            } else if (key.value >= 0 && key.value <= 2147483647) {
+              const previous = indices.get(key.value);
+              if (previous !== undefined) emit("TableLiteral", key.location, `Table index ${key.value} is a duplicate; previously defined at line ${previous}`);
+              else indices.set(key.value, offsets.line(key.location.begin) + 1);
+            }
+          }
+        }
+      } else if (node instanceof AstTypeTable) {
+        const names = new Map<string, { access: AstTableAccess; location: Location }>();
+        for (const item of node.props) {
+          const previous = names.get(item.name);
+          if (!previous) {
+            names.set(item.name, { access: item.access, location: item.location });
+            continue;
+          }
+          if (!(previous.access & item.access)) {
+            previous.access |= item.access;
+            continue;
+          }
+          const line = offsets.line(previous.location.begin) + 1;
+          if (previous.access === item.access) emit("TableLiteral", item.location, `Table type field '${item.name}' is a duplicate; previously defined at line ${line}`);
+          else if (previous.access === AstTableAccess.ReadWrite) emit("TableLiteral", item.location, `Table type field '${item.name}' is already read-write; previously defined at line ${line}`);
+          else emit("TableLiteral", previous.location, `Table type field '${item.name}' already has a ${previous.access === AstTableAccess.Read ? "read" : "write"} type defined at line ${line}`);
+        }
+      } else if (node instanceof AstExprCall && !node.self) {
+        const args = node.args;
+        const func = node.func;
+        if (func instanceof AstExprGlobal && (func.name === "getfenv" || func.name === "setfenv") && args[0] instanceof AstExprConstantNumber) {
+          emit("DeprecatedApi", node.location, `Function '${func.name}' is deprecated${func.name === "getfenv" ? "; consider using 'debug.info' instead" : ""}`);
+        }
+        if (!(func instanceof AstExprIndexName) || !(func.expr instanceof AstExprGlobal) || func.expr.name !== "table") return true;
+        const zero = (expr: AstExpr) => emit("TableOperations", expr.location, `table.${func.index} uses index 0 but arrays are 1-based; did you mean 1 instead?`);
+        if (func.index === "insert" && args.length === 2) {
+          const tail = args[1]!;
+          // Upstream uses inferred return packs. This AST-only subset checks
+          // string.find, whose runtime returns start/end (and captures).
+          if (tail instanceof AstExprCall && !tail.self && tail.func instanceof AstExprIndexName && tail.func.index === "find" && tail.func.expr instanceof AstExprGlobal && tail.func.expr.name === "string") {
+            out.push({ code: "TableOperations", ...offsets.range(tail.location), requiresBuiltinStringFind: true,
+              message: "table.insert may change behavior if the call returns more than one result; consider adding parentheses around second argument" });
+          }
+        }
+        if (func.index === "insert" && args.length >= 3) {
+          if (literal(args[1], 0)) zero(args[1]!);
+          if (length(args[1]!, args[0]!)) emit("TableOperations", args[1]!.location, "table.insert will insert the value before the last element, which is likely a bug; consider removing the second argument or wrap it in parentheses to silence");
+          const add = args[1]!;
+          if (add instanceof AstExprBinary && add.op === BinaryOp.Add && length(add.left, args[0]!) && literal(add.right, 1)) emit("TableOperations", add.location, "table.insert will append the value to the table; consider removing the second argument for efficiency");
+        }
+        if (func.index === "remove" && args.length >= 2) {
+          if (literal(args[1], 0)) zero(args[1]!);
+          const sub = args[1]!;
+          if (sub instanceof AstExprBinary && sub.op === BinaryOp.Sub && length(sub.left, args[0]!) && literal(sub.right, 1)) emit("TableOperations", sub.location, "table.remove will remove the value before the last element, which is likely a bug; consider removing the second argument or wrap it in parentheses to silence");
+        }
+        if (func.index === "move" && args.length >= 4) {
+          if (literal(args[1], 0)) zero(args[1]!);
+          else if (literal(args[3], 0)) zero(args[3]!);
+        }
+        if (func.index === "create" && args.length === 2) {
+          const value = args[1] instanceof AstExprTypeAssertion ? args[1].expr : args[1];
+          if (value instanceof AstExprTable) emit("TableOperations", value.location, "table.create with a table literal will reuse the same object for all elements; consider using a for loop instead");
+        }
+      }
+      return true;
+    },
+  });
+}
+
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
   const starts = lineStarts(text);
   const units = readDocumentUnits(tree, text);
   const narrativeIfs = narrativeIfStarts(tree);
   const out: LuauLint[] = [];
+  const facts: LuauScriptLints = { lints: out };
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
     for (const fn of functions) {
       lintUnusedLocals(fn, tree, text, offsets, out);
@@ -740,6 +846,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     const offsets = new Offsets(starts, unit.lines);
     const narrative = (stat: AstStatIf) => narrativeIfs.has(offsets.of(stat.location.begin));
     lintFunctions(definedFunctions(unit), offsets);
+    lintTables(unit.root, offsets, out, facts);
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
@@ -753,6 +860,8 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintFunctions(functions, documentOffsets);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
+    lintTables(statements && expr instanceof AstExprFunction ? expr.body : expr, documentOffsets, out, facts);
   }
-  return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to) };
+  out.sort((a, b) => a.from - b.from || a.to - b.to);
+  return facts;
 }

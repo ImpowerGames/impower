@@ -13,6 +13,9 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `DuplicateCondition` | A condition repeated in one `if`/`elseif` chain, one `if` expression, or one `and`/`or` chain. `a and b or c` is exempt. | Luau `if` statements and expressions and Luau `and`/`or` |
 | `ForRange` | A numeric `for` without a step that runs backwards, stops short of a fractional end, or starts or ends at 0 over a table's length (a bare `#t`, as in Luau). | Luau `for` loops |
 | `PlaceholderRead` | A read of the placeholder `_`, local or global, including a compound write (`_ += 1`). A plain write is not reported. | Inside functions |
+| `TableLiteral` | Duplicate literal string fields or nonnegative signed-32-bit integer indices, including indices occupied by list entries; overlapping table-type property access. | Luau table literals and table types |
+| `TableOperations` | Suspicious `table.insert`, `table.remove`, `table.move`, or `table.create` arguments. | Direct calls through the global `table` library |
+| `DeprecatedApi` for `getfenv`/`setfenv` | A numeric-literal environment level passed to the global builtin. Information severity, tagged Deprecated. | Direct builtin calls |
 
 The arms of Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions are not compared with each other; their conditions and the Luau inside them are checked like any other. The `if` and `for` control flow of Sparkle `layout` blocks is a separate construct in the grammar and is not checked.
 
@@ -36,6 +39,10 @@ The rules walk the Luau AST that `src/compiler/typecheck/readLuauAst.ts` reads f
 - The grammar reads some names as Sparkdown's structural words (`style`, `layout`, `match`) even where the author meant a name (`setStyle(style)`, `if match then`), and the reading has no name there. `LocalUnused` counts such a word, after a local's declaration in its function, as a use of the local it names, so a use is never missed (#984).
 - Unlike Luau's parser, the reading does not end a block at a `return`, `break` or `continue`: Sparkdown reads the statements after one as its block's, and `UnreachableCode` reports the first of them.
 - `DuplicateCondition` and `ForRange` read every Luau `if` statement and expression, `and`/`or` chain and numeric `for` in a script, in functions or not, Sparkdown's narrative blocks included (`if`, `while`, `for`): a narrative block's condition and the Luau inside it are read, but the conditions of a narrative `if` block's arms are not compared with each other.
+- `TableOperations` follows Luau's syntax predicates and parentheses escape hatches. Its multi-result `table.insert(t, f())` branch is adapted to the proven direct `string.find` builtin, whose runtime returns the start and end positions (plus captures) on a match. It does not infer return packs for user-defined or unknown functions. Locally shadowed `table` and `string` names are not builtin calls. An explicit global `string` or `string.find` assignment (including a constant string index or function declaration) anywhere in the included scripts conservatively suppresses this multi-result assumption. Cached per-script override facts are recombined for each compile, so adding, editing or removing another script changes only the affected candidate warnings. This approximation does not track aliases, execution order or conditional writes. `TableOperationsIndexer` remains excluded because it needs inferred table types.
+- `getfenv`/`setfenv` deprecation follows Luau's numeric-first-argument restriction using an AST numeric literal. Inferred numeric arguments and casts are omitted from this AST-only adaptation. The diagnostics retain Sparkdown's existing Information severity and Deprecated tag for deprecations.
+- `TableLiteral` checks the existing AST, including Luau's access-aware table types: separate `read` and `write` fields are allowed, overlapping access is reported. Literal keys wrapped in parentheses, fractional and negative keys, and integer keys above 2147483647 stay outside Luau's literal-key predicates.
+- The pinned `read_write_table_props` case is active coverage for `TableLiteral`. Its duplicate-access checks need only the AST's property-access bits; its earlier classification as requiring the type checker was incorrect.
 
 The pass runs over whole scripts on every compile rather than inside the incremental annotators, since a lint depends on lines far from the one it reports, and the compiler caches each script's result until its syntax tree changes.
 
@@ -57,7 +64,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 | --- | --- |
 | `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
 | `MultiLineStatement`, `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
-| `FormatString`, `TableLiteral`, `TableOperations`, `DeprecatedApi` for `getfenv`/`setfenv` | `LintCandidatesStdlib.test.ts` |
+| `FormatString` | `LintCandidatesStdlib.test.ts` |
 
 ## Rules sparkdown omits
 
@@ -65,5 +72,5 @@ These depend on Luau features sparkdown does not have, and are listed with their
 
 - `--!` directive comments: `--!nolint`, `--!optimize`, and the `WrongComment` lint that checks them. A `.luau` file's `--!strict`, `--!nonstrict` and `--!nocheck` set its type checking mode, and the type checker reports the half of that lint that concerns them (`CommentDirective`, see `TYPECHECK.md`).
 - `@deprecated` and `@native` function attributes, and `RedundantNativeAttribute`.
-- Lints that need the type checker (#589): `UnknownType`, the typed half of `DeprecatedApi`, `TableOperations` on indexers, typed `FormatString`, read/write table type properties.
+- Lints that need the type checker (#589): `UnknownType`, the typed half of `DeprecatedApi`, `TableOperations` on indexers, typed `FormatString`.
 - `ImportUnused`, which is about `require`; sparkdown has no modules.

@@ -101,7 +101,7 @@ import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, DiagnosticTag, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
@@ -6729,6 +6729,7 @@ export class SparkdownCompiler {
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
+    let stringFindOverridden = false;
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
@@ -6738,11 +6739,22 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
+      stringFindOverridden ||= !!script.stringFindOverridden;
+    }
+    // Recombine current included scripts on every compile; a cached candidate
+    // can regain its warning when a different script removes an override.
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      const script = this._lintsByTree.get(tree)!;
       for (const lint of script.lints) {
+        if (stringFindOverridden && lint.requiresBuiltinStringFind) continue;
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
           range: doc.range(lint.from, lint.to),
           code: lint.code,
-          severity: DiagnosticSeverity.Warning,
+          severity: lint.code === "DeprecatedApi" ? DiagnosticSeverity.Information : DiagnosticSeverity.Warning,
+          tags: lint.code === "DeprecatedApi" ? [DiagnosticTag.Deprecated] : undefined,
           message: { kind: "markdown", value: lint.message },
           source: LANGUAGE_NAME,
         });

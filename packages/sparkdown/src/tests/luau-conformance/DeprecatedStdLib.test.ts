@@ -47,6 +47,19 @@ function compileAndCollectDiagnostics(source: string): CapturedDiagnostic[] {
 }
 
 describe("deprecated stdlib diagnostic", () => {
+  test("numeric getfenv/setfenv calls carry Information severity and Deprecated tags", () => {
+    const diagnostics = compileAndCollectDiagnostics(`function run()
+getfenv(1)
+setfenv(1, {})
+end
+`);
+    const deprecated = diagnostics.filter((d) => d.message.startsWith("Function '"));
+    expect(deprecated).toEqual([
+      { message: "Function 'getfenv' is deprecated; consider using 'debug.info' instead", severity: 3, tags: [2] },
+      { message: "Function 'setfenv' is deprecated", severity: 3, tags: [2] },
+    ]);
+  });
+
   test("`table.getn(t)` is flagged deprecated", () => {
     const src = `external host_record(v)
 & run()
