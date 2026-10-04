@@ -1,5 +1,6 @@
 import { type SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { findOwnDeclarationName } from "@impower/sparkdown/src/compiler/lower/utils/findOwnDeclarationName";
+import { soleVariableName } from "@impower/sparkdown/src/compiler/lint/luauTree";
 import { collectDefineTypeNames } from "@impower/sparkdown/src/compiler/utils/collectDefineTypeNames";
 import {
   AstExpr, AstExprConstantString, AstExprFunction, AstExprGlobal, AstExprGroup,
@@ -7,18 +8,21 @@ import {
   AstStat, AstStatAssign, AstStatBlock, AstStatError, AstStatFor, AstStatForIn,
   AstStatFunction, AstStatIf, AstStatLocal, AstStatLocalFunction, AstStatRepeat,
   AstStatSparkdownExplicit, AstStatSparkdownStore, AstStatWhile, AstType,
-  AstTypePack, visitAst, type AstVisitor,
+  AstTypePack, visitAst, type AstNode, type AstVisitor,
 } from "@impower/sparkdown/src/compiler/typecheck/Ast";
 import { type Location } from "@impower/sparkdown/src/compiler/typecheck/Location";
 import {
-  readLuauExpression, readLuauUnits, type LuauAstUnits,
+  readLuauExpression, readLuauMethod, readLuauStatements, readLuauUnits, type LuauAstUnits,
 } from "@impower/sparkdown/src/compiler/typecheck/readLuauAst";
+import { RESERVED } from "@impower/sparkdown/src/compiler/typecheck/LuauUnitNodes";
+import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
+import { assignmentListName, ownAssignmentOperation } from "@impower/sparkdown/src/compiler/utils/variableDefinitionNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
-import { type AnnotatedScript } from "../annotations/getDeclarationScopes";
+import { getDeclarationScopeInfo, type AnnotatedScript } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 // This is a syntax inventory, not inferred types. Only literal table keys,
@@ -78,6 +82,9 @@ interface Reading {
   functions: string[];
   stores: AstStatSparkdownStore[];
   sites: Site[];
+  contexts: Map<string, { expr: AstExpr; sites: Site[] }>;
+  bindings: Map<string, string[]>;
+  properties: Map<number, { name?: string; expr?: AstExpr }>;
   offset(line: number, column: number): number;
   sectionAt(offset: number): string[];
 }
@@ -93,6 +100,48 @@ function stringValue(expr: AstExprConstantString): string {
   return value;
 }
 
+/** A define property's own key/value, shared by shape seeding and cursor reading. */
+function propertyReading(read: Reading, node: SyntaxNode): { name?: string; expr?: AstExpr } {
+  const previous = read.properties.get(node.from);
+  if (previous) return previous;
+  const content = node.getChild(`${node.name}_content`);
+  const assignment = content?.getChild("LuauVariableAssignment") ?? content?.getChild("LuauBracketKeyAssignment");
+  // A bracket key can close the property's syntax node before its '='.
+  // Select that immediately adjacent operation, never a nested assignment
+  // in the property's function/table value or a later define member.
+  const adjacent = node.nextSibling;
+  const operation = (assignment && ownAssignmentOperation(assignment))
+    ?? content?.getChild("LuauAssignmentOperation")
+    ?? (assignment?.name === "LuauBracketKeyAssignment" && adjacent?.from === node.to
+      && isExplicitRuleName(adjacent.name, "LuauAssignmentOperation") ? adjacent : undefined);
+  const values: SyntaxNode[] = [];
+  const valueContent = operation?.getChild(`${operation.name}_content`);
+  for (let child = valueContent?.firstChild; child; child = child.nextSibling) {
+    if (child.name !== "LuauAssignmentOperator") values.push(child);
+  }
+  // The shared expression reader owns continuation, including a value after
+  // a line-ending '='; another define member is never part of this RHS.
+  for (let next = node.nextSibling; next; next = next.nextSibling) {
+    if (operation && next.to <= operation.to) continue;
+    if (["LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition"].some((name) => isExplicitRuleName(next.name, name))) break;
+    values.push(next);
+  }
+  let name: string | undefined;
+  if (assignment?.name === "LuauBracketKeyAssignment") {
+    const index = assignment.getChild("LuauBracketKeyAssignment_content")?.getChild("LuauTableIndexDeclaration");
+    const keyNodes: SyntaxNode[] = [];
+    for (let child = index?.getChild("LuauTableIndexDeclaration_content")?.firstChild; child; child = child.nextSibling) keyNodes.push(child);
+    const key = keyNodes.length ? readLuauExpression(keyNodes, read.text).expr : undefined;
+    if (key instanceof AstExprConstantString) name = stringValue(key);
+  } else if (assignment) {
+    const key = assignmentListName(assignment);
+    if (key) name = read.text.slice(key.from, key.to);
+  }
+  const result = { name, expr: values.length ? readLuauExpression(values, read.text).expr : undefined };
+  read.properties.set(node.from, result);
+  return result;
+}
+
 function reading(tree: Tree, text: string): Reading {
   const previous = readings.get(tree);
   if (previous?.text === text) return previous;
@@ -100,7 +149,7 @@ function reading(tree: Tree, text: string): Reading {
   for (let at = text.indexOf("\n"); at >= 0; at = text.indexOf("\n", at + 1)) lines.push(at + 1);
   const sections = new Map<number, string[]>();
   const result: Reading = {
-    text, units: readLuauUnits(tree, text), defines: [], functions: [], stores: [], sites: [],
+    text, units: readLuauUnits(tree, text), defines: [], functions: [], stores: [], sites: [], contexts: new Map(), bindings: new Map(), properties: new Map(),
     offset: (line, column) => (lines[line] ?? text.length) + column,
     sectionAt(offset) {
       const stack = getStack<SparkdownNodeName>(tree, offset, 1);
@@ -147,18 +196,8 @@ function reading(tree: Tree, text: string): Reading {
         const members = new Map<string, Shape | undefined>();
         for (let child = body.firstChild; child; child = child.nextSibling) {
           if (child.name === "LuauPropertyDefinition") {
-            const assignment = getDescendent("LuauVariableAssignment", child);
-            const key = assignment && getDescendent("LuauVariableName", assignment);
-            if (key) {
-              const operation = getDescendent("LuauAssignmentOperation", child);
-              const values: SyntaxNode[] = [];
-              const content = operation?.getChild("LuauAssignmentOperation_content");
-              for (let value = content?.firstChild; value; value = value.nextSibling) {
-                if (value.name !== "LuauAssignmentOperator") values.push(value);
-              }
-              const expr = values.length ? readLuauExpression(values, text).expr : undefined;
-              members.set(text.slice(key.from, key.to), literal(expr));
-            }
+            const property = propertyReading(result, child);
+            if (property.name !== undefined) members.set(property.name, literal(property.expr));
           } else if (child.name === "LuauMethodDefinition" || child.name === "LuauFunctionDefinition") {
             const header = child.name === "LuauFunctionDefinition" ? findOwnDeclarationName(child) : child;
             const key = header && getDescendent("LuauFunctionName", header);
@@ -203,7 +242,7 @@ interface Site {
   quote?: string;
 }
 
-function memberSites(read: Reading): Site[] {
+function memberSites(read: Reading, roots: readonly AstNode[] = [read.units.prelude.root, ...read.units.flows.map((unit) => unit.root)]): Site[] {
   const sites: Site[] = [];
   const offset = (location: Location) => read.offset(location.begin.line, location.begin.column);
   const visitor: AstVisitor = {
@@ -235,11 +274,11 @@ function memberSites(read: Reading): Site[] {
         return true;
       },
     };
-  for (const unit of [read.units.prelude, ...read.units.flows]) visitAst(unit.root, visitor);
+  for (const root of roots) visitAst(root, visitor);
   return sites.sort((a, b) => a.start - b.start);
 }
 
-function memberSite(read: Reading, cursor: number): Site | undefined {
+function memberSite(read: { sites: Site[] }, cursor: number): Site | undefined {
   let from = 0;
   let to = read.sites.length;
   while (from < to) {
@@ -249,6 +288,117 @@ function memberSite(read: Reading, cursor: number): Site | undefined {
   }
   const site = read.sites[from - 1];
   return site && cursor <= site.to ? site : undefined;
+}
+
+interface OutsideContext { from: number; expr?: AstExpr; bindings: readonly string[] }
+
+/** Runtime evaluator parameters absent from the standalone expression reader. */
+function contextBindings(read: Reading, node: SyntaxNode, cursor: number): readonly string[] {
+  const component = node.name === "LuauComponent";
+  const loop = node.name === "LuauSparkleForLoop" || node.name === "LuauSparkleBlockFor";
+  if (!component && !loop) return [];
+  const content = node.getChild(`${node.name}_content`);
+  const header = component ? content?.getChild("LuauComponentNameAndInheritance") : content?.getChild("LuauSparkleDoMark");
+  // A loop's bounds/iterable and empty-loop fallback retain outer bindings.
+  // Component names/parameter annotations likewise are not body expressions.
+  const fallback = loop ? content?.getChild("LuauSparkleElseBlock") ?? content?.getChild("LuauSparkleBlockElse") : undefined;
+  if (!header || cursor < header.to || (fallback && cursor >= fallback.from)) return [];
+  const key = `${node.name}:${node.from}:${node.to}`;
+  const previous = read.bindings.get(key);
+  if (previous) return previous;
+  const names: string[] = [];
+  if (component) {
+    const parameters = header.getChild("LuauComponentNameAndInheritance_content")
+      ?.getChild("LuauFunctionParameters")?.getChild("LuauFunctionParameters_content");
+    // Only this header's direct parameters; nested function parameters and
+    // identifiers in type annotations keep their actual owners.
+    for (let child = parameters?.firstChild; child; child = child.nextSibling) {
+      if (child.name === "LuauFunctionParameter") names.push(read.text.slice(child.from, child.to));
+    }
+  } else {
+    const condition = content?.getChild("LuauForCondition")?.getChild("LuauForCondition_content");
+    for (let child = condition?.firstChild; child; child = child.nextSibling) {
+      if (child.name === "LuauInKeyword" || isExplicitRuleName(child.name, "LuauAssignmentOperation")) break;
+      if (isExplicitRuleName(child.name, "LuauAccessPath")) {
+        const name = soleVariableName(child);
+        if (name) names.push(read.text.slice(name.from, name.to));
+      }
+    }
+  }
+  read.bindings.set(key, names);
+  return names;
+}
+
+/** Read only the authored contexts enclosing this request, outside statement units. */
+function outsideSite(read: Reading, tree: Tree, cursor: number): { site: Site; contexts: OutsideContext[] } | undefined {
+  const contexts: OutsideContext[] = [];
+  const stack = getStack(tree, cursor, -1).reverse();
+  for (let index = 0; index < stack.length; index++) {
+    const node = stack[index]!;
+    if (isExplicitRuleName(node.name, "LuauFunctionDefinition")) {
+      // Qualified declaration targets use an owned access path instead of
+      // LuauFunctionDeclarationName. Neither is a value member request;
+      // function-body paths have their own body owner and remain eligible.
+      const name = findOwnDeclarationName(node)
+        ?? node.getChild("LuauFunctionDefinition_content")?.getChild("LuauAccessPath");
+      if (name && name.from <= cursor && cursor <= name.to) return undefined;
+    }
+    // Bracket/continued values can be siblings of the property's key node.
+    // The nearest preceding member is the only candidate owner; the shared
+    // expression reader's actual span decides whether its value encloses us.
+    if (isExplicitRuleName(node.name, "LuauDefine_content")) {
+      const child = stack[index + 1];
+      if (child && !isExplicitRuleName(child.name, "LuauPropertyDefinition")) {
+        for (let previous = child.prevSibling; previous; previous = previous.prevSibling) {
+          if (isExplicitRuleName(previous.name, "LuauPropertyDefinition")) {
+            const expr = propertyReading(read, previous).expr;
+            if (expr && read.offset(expr.location.begin.line, expr.location.begin.column) <= cursor
+              && cursor <= read.offset(expr.location.end.line, expr.location.end.column)) stack.splice(index + 1, 0, previous);
+            break;
+          }
+          if (isExplicitRuleName(previous.name, "LuauMethodDefinition") || isExplicitRuleName(previous.name, "LuauFunctionDefinition")) break;
+        }
+      }
+    }
+    const method = isExplicitRuleName(node.name, "LuauMethodDefinition");
+    const defineFunction = isExplicitRuleName(node.name, "LuauFunctionDefinition") && isExplicitRuleName(node.parent?.name, "LuauDefine_content");
+    const property = isExplicitRuleName(node.name, "LuauPropertyDefinition");
+    const handler = isExplicitRuleName(node.name, "LuauSparkleHandlerClosure");
+    const callHandler = node.name === "LuauSparkleEventHandler" || node.name === "LuauEventAttribute_content";
+    const bindings = contextBindings(read, node, cursor);
+    if (bindings.length) contexts.push({ from: node.from, bindings });
+    // Closure bodies supply their own event binding below. A named handler
+    // reference is a function value, not an evaluator with a new parameter.
+    if (callHandler && !getDescendent("LuauSparkleHandlerClosure", node) && !getDescendent("LuauSparkleEventHandlerName", node)) {
+      contexts.push({ from: node.from, bindings: ["event"] });
+    }
+    const expression = isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") || isExplicitRuleName(node.name, "LuauAccessPath");
+    if (!method && !defineFunction && !property && !handler && !expression) continue;
+    const key = `${node.name}:${node.from}:${node.to}`;
+    let context = read.contexts.get(key);
+    if (!context) {
+      let expr: AstExpr | undefined;
+      if (method) expr = readLuauMethod(node, read.text).expr;
+      else if (defineFunction) {
+        const wrapper = readLuauStatements([node], read.text).expr;
+        const declaration = wrapper instanceof AstExprFunction ? wrapper.body.body[0] : undefined;
+        // The define's name is a table member, never a bare global assignment.
+        if (declaration instanceof AstStatFunction) expr = declaration.func;
+      } else if (property) {
+        expr = propertyReading(read, node).expr;
+      } else if (handler) {
+        const content = node.getChild("LuauSparkleHandlerClosure_content");
+        if (content) expr = readLuauStatements([content], read.text).expr;
+      } else expr = readLuauExpression(node, read.text).expr;
+      if (!expr) continue;
+      context = { expr, sites: memberSites(read, [expr]) };
+      read.contexts.set(key, context);
+    }
+    contexts.push({ from: node.from, expr: context.expr, bindings: method || defineFunction ? ["self"] : handler ? ["event"] : [] });
+    const site = memberSite(context, cursor);
+    if (site) return { site, contexts };
+  }
+  return undefined;
 }
 
 function copyShape(shape: Shape, copies: Map<Shape, Shape>): Shape {
@@ -265,6 +415,10 @@ function copyShape(shape: Shape, copies: Map<Shape, Shape>): Shape {
 
 class Inventory {
   readonly locals = new Map<AstLocal, Shape | undefined>();
+  private readonly localOffsets = new Map<number, AstLocal>();
+  private readonly localValues = new Map<number, Shape | undefined>();
+  private ambient: ReadonlyMap<string, { declarationFrom: number }> | undefined;
+  private readonly contextLocals = new Map<string, { value: Shape | undefined; from: number }>();
   private inFlow = false;
   private readonly section: string[];
   constructor(readonly globals: Globals, readonly read: Reading, readonly cursor: number) {
@@ -305,11 +459,40 @@ class Inventory {
     if (expr instanceof AstExprLocal || expr instanceof AstExprGlobal || expr instanceof AstExprIndexName || expr instanceof AstExprIndexExpr) return this.value(expr);
     return undefined;
   }
+  private ambientLocal(name: string) {
+    const local = this.ambient?.get(name);
+    const binding = this.contextLocals.get(name);
+    // An evaluator parameter shadows a same-named outer script local.
+    // A separately read inner local still wins by its actual declaration.
+    return local && (!binding || local.declarationFrom >= binding.from) ? local : undefined;
+  }
   private global(name: string): Shape | undefined {
+    const local = this.ambientLocal(name);
+    if (local) return this.localValues.get(local.declarationFrom);
+    const binding = this.contextLocals.get(name);
+    if (binding) return binding.value;
     return this.cursor < 0 ? this.globals.initial(name) : this.globals.get(name);
+  }
+  private setLocal(local: AstLocal, value: Shape | undefined) {
+    const offset = this.read.offset(local.location.begin.line, local.location.begin.column);
+    this.localOffsets.set(offset, local);
+    this.localValues.set(offset, value);
+    this.locals.set(local, value);
   }
   private globalTarget(name: string) {
     return (value: Shape | undefined) => {
+      const local = this.ambientLocal(name);
+      if (local) {
+        this.localValues.set(local.declarationFrom, value);
+        const identity = this.localOffsets.get(local.declarationFrom);
+        if (identity) this.locals.set(identity, value);
+        return;
+      }
+      const binding = this.contextLocals.get(name);
+      if (binding) {
+        binding.value = value;
+        return;
+      }
       if (this.cursor < 0) this.globals.set(name, value);
       else this.globals.assign(name, value);
     };
@@ -320,7 +503,7 @@ class Inventory {
   private target(target: AstExpr): (value: Shape | undefined) => void {
     if (target instanceof AstExprLocal) {
       const local = this.visibleLocal(target.local);
-      return local ? (value) => { this.locals.set(local, value); } : this.globalTarget(target.local.name);
+      return local ? (value) => { this.setLocal(local, value); } : this.globalTarget(target.local.name);
     }
     if (target instanceof AstExprGlobal) return this.globalTarget(target.name);
     if (target instanceof AstExprIndexName || (target instanceof AstExprIndexExpr && target.index instanceof AstExprConstantString)) {
@@ -334,11 +517,26 @@ class Inventory {
     visitAst(expr, { visit: (node) => {
       if (node instanceof AstType || node instanceof AstTypePack) return false;
       if (node instanceof AstExprFunction) {
-        if (this.contains(node.location)) this.run(node.body);
+        if (this.contains(node.location)) {
+          if (node.self) this.setLocal(node.self, undefined);
+          node.args.forEach((arg) => this.setLocal(arg, undefined));
+          this.run(node.body);
+        }
         return false;
       }
       return true;
     } });
+  }
+  runOutside(context: OutsideContext, ambient: ReadonlyMap<string, { declarationFrom: number }>) {
+    // A separate reading has its own locals. Only bindings visible before
+    // its root come from the surrounding unit; later shadows remain local
+    // to that reading rather than replacing earlier initializer references.
+    this.ambient = ambient;
+    // These are actual runtime parameters, with unknown receiver shapes.
+    // They belong to this request only; cached ASTs/shapes are never mutated.
+    // Actual AST locals/parameters above retain their binding identities.
+    for (const name of context.bindings) this.contextLocals.set(name, { value: undefined, from: context.from });
+    if (context.expr) this.expression(context.expr);
   }
   run(stat: AstStat) {
     const start = this.read.offset(stat.location.begin.line, stat.location.begin.column);
@@ -355,7 +553,7 @@ class Inventory {
       if (stat instanceof AstStatLocal && end <= this.cursor) {
         const values = stat.values.map((expr) => this.value(expr));
         stat.vars.forEach((variable, index) => {
-          if (variable instanceof AstLocal) this.locals.set(variable, values[index]);
+          if (variable instanceof AstLocal) this.setLocal(variable, values[index]);
           else this.assign(variable, values[index]);
         });
       }
@@ -369,8 +567,8 @@ class Inventory {
       }
     } else if (stat instanceof AstStatFunction || stat instanceof AstStatLocalFunction) {
       if (stat instanceof AstStatFunction) this.assign(stat.name, FUNCTION);
-      else this.locals.set(stat.name, FUNCTION);
-      if (this.contains(stat.func.location)) this.run(stat.func.body);
+      else this.setLocal(stat.name, FUNCTION);
+      this.expression(stat.func);
     } else if (stat instanceof AstStatIf) {
       this.expression(stat.condition);
       if (this.contains(stat.thenbody.location)) this.run(stat.thenbody);
@@ -403,7 +601,9 @@ export function getStaticMemberCompletions(
   // actual member slot, excluding numeric dots, annotations and prose.
   if (!/[.:][ \t]*[A-Za-z_0-9]*$|\[[ \t]*["'][^\n]*$/.test(line)) return undefined;
   const current = reading(tree, text);
-  const site = memberSite(current, cursor);
+  const unitSite = memberSite(current, cursor);
+  const outside = unitSite ? undefined : outsideSite(current, tree, cursor);
+  const site = outside?.site ?? unitSite;
   if (!site) return undefined;
   // A lazy foreign owner may be needed while initializing a current store's
   // alias. Its other declarations must not replace any current stored global,
@@ -523,11 +723,17 @@ export function getStaticMemberCompletions(
   const inventory = new Inventory(globals, current, cursor);
   inventory.run(current.units.prelude.root);
   for (const unit of current.units.flows) inventory.runFlow(unit.root);
+  const currentScript = scripts.get(document.uri);
+  const scopeScripts = new Map<string, AnnotatedScript>(currentScript ? [[document.uri, currentScript]] : []);
+  for (const context of outside?.contexts ?? []) {
+    const ambient = getDeclarationScopeInfo(scopeScripts, { uri: document.uri, offset: context.from }).visibleLocals;
+    inventory.runOutside(context, ambient);
+  }
   const shape = inventory.value(site.receiver);
   const items: CompletionItem[] = [];
   for (const [name, value] of shape?.members ?? []) {
     if (site.colon && !value?.callable) continue;
-    if (!site.quote && !/^[A-Za-z_][A-Za-z_0-9]*$/.test(name)) continue;
+    if (!site.quote && (!/^[A-Za-z_][A-Za-z_0-9]*$/.test(name) || RESERVED.has(name))) continue;
     const inserted = site.quote
       ? name.replaceAll("\\", "\\\\").replaceAll(site.quote, "\\" + site.quote).replaceAll("\n", "\\n").replaceAll("\r", "\\r")
       : name;
