@@ -44,6 +44,53 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
+  test.each([
+    ["style", "function inspect() local style = {}; setStyle(style) end\n"],
+    ["layout", "function inspect() local layout = {}; return layout.x end\n"],
+    ["match", "function inspect() local match = true; if match then print(1) end end\n"],
+  ])("retains unrepresented %s keyword occurrences as uncertainty without inventing AST uses", (name, source) => {
+    const value = script(source);
+    const facts = names(value);
+    const occurrences = (facts.uncertainNames ?? []).filter((u: any) => u.name === name);
+    expect(occurrences).toEqual([{ name, from: source.lastIndexOf(name), to: source.lastIndexOf(name) + name.length, reason: "grammar-keyword" }]);
+    expect(facts.declarations.filter((d: any) => d.name === name)).toHaveLength(1);
+    expect(facts.references.some((r: any) => r.name === name)).toBe(false);
+    expect(occurrences[0]).not.toHaveProperty("node");
+    expect(occurrences[0]).not.toHaveProperty("local");
+    expect(occurrences[0]).not.toHaveProperty("access");
+    const index = (lint as any).indexProgramNames([{ uri: "keyword", names: facts }]);
+    expect(index.globals.has(name)).toBe(false);
+    expect(index.uncertainNames.get(name)).toEqual([{ ...occurrences[0], uri: "keyword" }]);
+    expect(value.result.lints).toEqual([]);
+    const expanded = lint.collectLuauLints(unpack(value.tree), (from, to) => source.slice(from, to));
+    expect(expanded.names.uncertainNames).toEqual(facts.uncertainNames);
+  });
+
+  test("uncertainty excludes represented declarations and uses, reserved words, strings, comments and prose", () => {
+    const source = "function inspect() local style = {}; local ordinary = 1; print(ordinary, 'style layout match'); -- style layout match\n if true then return ordinary end\nend\nWe discuss style, layout, and match.\n";
+    const value = script(source);
+    expect(names(value).uncertainNames).toEqual([]);
+    const reserved = script("function inspect() if true then return nil else return false end end\n");
+    expect(names(reserved).uncertainNames).toEqual([]);
+  });
+
+  test("cached uncertainty recombines changed and removed scripts without creating definite global uses", () => {
+    const first = script("function inspect() local style = {}; setStyle(style) end\n");
+    const second = script("function other() local layout = {}; return layout.x end\n");
+    const cached = names(first);
+    expect(lint.collectLuauLints(first.tree, (from, to) => first.text.slice(from, to)).names.uncertainNames === cached.uncertainNames).toBe(true);
+    const index = (lint as any).indexProgramNames;
+    const both = index([{ uri: "first", names: cached }, { uri: "second", names: names(second) }]);
+    expect(both.uncertainNames?.get("style") ?? []).toEqual([{ name: "style", from: first.text.lastIndexOf("style"), to: first.text.lastIndexOf("style") + 5, reason: "grammar-keyword", uri: "first" }]);
+    expect(both.uncertainNames?.get("layout") ?? []).toEqual([{ name: "layout", from: second.text.lastIndexOf("layout"), to: second.text.lastIndexOf("layout") + 6, reason: "grammar-keyword", uri: "second" }]);
+    expect(both.globals.has("style")).toBe(false);
+    const edited = script("function other() return 1 end\n");
+    const changed = index([{ uri: "first", names: cached }, { uri: "second", names: names(edited) }]);
+    expect(changed.scripts.get("first") === cached).toBe(true);
+    expect(changed.uncertainNames.has("style")).toBe(true);
+    expect(changed.uncertainNames.has("layout")).toBe(false);
+    expect(index([{ uri: "second", names: names(edited) }]).uncertainNames.size).toBe(0);
+  });
   test("embedded stores publish explicit global writes", () => {
     const source = "define hero as character with\n callback = function() store saved = 1; return saved end\nend\nHi.\n";
     expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
@@ -56,6 +103,19 @@ describe("shared AST name facts", () => {
     const index = (lint as any).indexProgramNames([{ uri: "embedded", names: facts }]);
     expect(index.globals.get("saved").writes).toHaveLength(1);
     expect(index.globals.get("saved").reads).toHaveLength(1);
+  });
+
+  test("embedded function-valued stores retain explicit kind and function identity", () => {
+    const source = "define hero as character with\n callback = function() store storedCallback = function() return 1 end; return storedCallback end\nend\nHi.\n";
+    expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
+    const value = script(source);
+    const facts = names(value);
+    const stored = facts.globals.find((d: any) => d.name === "storedCallback"); // not a node name
+    expect(stored).toBeDefined();
+    expect(stored.kind).toBe("store");
+    expect(stored.function instanceof AstExprFunction).toBe(true);
+    expect(stored.node.values[0] === stored.function).toBe(true);
+    expect(facts.references.filter((r: any) => r.name === "storedCallback").map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false]]); // not a node name
   });
 
   test.each([
@@ -94,6 +154,82 @@ describe("shared AST name facts", () => {
     const uses = facts.references.filter((r: any) => r.name === "saved"); // not a node name
     expect(uses.map((r: any) => [r.access, !!r.local])).toEqual([["read", false], ["write", false], ["read", true]]);
     expect(uses[2].local === local.local).toBe(true);
+  });
+
+  test.each([["=", "write", 3], ["+=", "readwrite", 4]])("rejected const %s targets retain the runtime local identity", (operator, access, expected) => {
+    const source = `Value {inspect()} {n}.\nfunction inspect() local n = 1; const n = 2; n ${operator} 3; return n end\n`;
+    const runtime = makeRuntimeStoryFromSource(source);
+    expect(runtime.errorMessages).toEqual(["Cannot re-assign the const `n`."]);
+    expect(runtime.story.ContinueMaximally()).toBe(`Value ${expected} 2.\n`);
+    const facts = names(script(source));
+    const local = facts.declarations.find((d: any) => d.name === "n"); // not a node name
+    const uses = facts.references.filter((r: any) => r.name === "n" && r.enclosingFunction); // not a node name
+    expect(uses.map((r: any) => [r.access, r.local === local.local])).toEqual([[access, true], ["read", true]]);
+    const index = (lint as any).indexProgramNames([{ uri: "const", names: facts }]);
+    expect(index.globals.get("n").writes).toHaveLength(0);
+  });
+
+  test("chained const checking bindings preserve the original local through recovery", () => {
+    const source = "Value {inspect()} {n}.\nfunction inspect() local n = 1; const n = 2; const n = 3; return n end\n";
+    const runtime = makeRuntimeStoryFromSource(source);
+    expect(runtime.errorMessages).toHaveLength(2);
+    expect(runtime.errorMessages[0]).toContain("Cannot redeclare const `n`");
+    expect(runtime.story.ContinueMaximally()).toBe("Value 1 3.\n");
+    const facts = names(script(source));
+    const local = facts.declarations.find((d: any) => d.name === "n"); // not a node name
+    const read = facts.references.find((r: any) => r.name === "n" && r.enclosingFunction); // not a node name
+    expect(read.local === local.local).toBe(true);
+    expect(read.node.local.shadow.isConst).toBe(true);
+    expect(read.node.local.shadow.shadow === local.local).toBe(true);
+  });
+
+  test("const-shadowed member function targets read their runtime local receiver", () => {
+    const source = "Value {inspect()} {T}.\nfunction inspect() local T = {}; const T = 2; function T.x() return 3 end; return T.x() end\n";
+    const runtime = makeRuntimeStoryFromSource(source);
+    expect(runtime.errorMessages).toEqual([]);
+    expect(runtime.story.ContinueMaximally()).toBe("Value 3 2.\n");
+    const facts = names(script(source));
+    const local = facts.declarations.find((d: any) => d.name === "T"); // not a node name
+    expect(facts.references.filter((r: any) => r.name === "T" && r.enclosingFunction).map((r: any) => [r.access, r.local === local.local])).toEqual([["read", true], ["read", true]]); // not a node name
+    expect(facts.functions.map((f: any) => f.name)).toEqual(["inspect", "T.x"]);
+    const index = (lint as any).indexProgramNames([{ uri: "const", names: facts }]);
+    expect(index.globals.get("T").writes).toHaveLength(0);
+    expect(index.globals.get("T").reads).toHaveLength(1);
+  });
+
+  test.each([false, true])("const shadows distinguish a flow wrapper from a real local (authored %s)", (authored) => {
+    const source = `scene intro()\n${authored ? " & local __flow = 1\n" : ""} & const __flow = 2\n & print(__flow)\nend\n`;
+    const value = script(source);
+    const facts = names(value);
+    const use = facts.references.find((r: any) => r.name === "__flow"); // not a node name
+    const wrapper = readDocumentUnits(value.tree, value.text).flows[0]!.root.body[0] as AstStatLocalFunction;
+    expect(use.node.local.isConst).toBe(true);
+    if (authored) {
+      const local = facts.declarations.find((d: any) => d.name === "__flow"); // not a node name
+      expect(use.local === local.local).toBe(true);
+      expect(use.local === wrapper.name).toBe(false);
+    } else {
+      expect(use.node.local.shadow === wrapper.name).toBe(true);
+      expect(use.local).toBeUndefined();
+    }
+  });
+
+  test.each([
+    ["ordinary interpolation", "Hi {target({ field = a, nested = { [key] = a } })} {a and a}.\n", false],
+    ["bounded written island", "& do print(target({ field = a, nested = { [key] = a } }), a and a) end\n", true],
+  ])("%s preserves nested table values, access paths and logical chains", (_label, source, bounded) => {
+    const value = script(source as string);
+    const nodeNames = new Set<string>();
+    value.tree.iterate({ enter(node) { nodeNames.add(node.name); } });
+    expect(nodeNames.has("LuauSparkdownExplicitAccessPath")).toBe(bounded);
+    expect(nodeNames.has("LuauSparkdownExplicitTable")).toBe(bounded);
+    expect(nodeNames.has("LuauSparkdownExplicitLogicalOperator")).toBe(bounded);
+    const facts = names(value);
+    expect(facts.references.map((r: any) => r.name)).toEqual([...(bounded ? ["print"] : []), "target", "a", "key", "a", "a", "a"]);
+    expect(value.result.lints.filter(l => l.code === "DuplicateCondition")).toHaveLength(1);
+    const expanded = lint.collectLuauLints(unpack(value.tree), (from, to) => value.text.slice(from, to));
+    expect(expanded.lints).toEqual(value.result.lints);
+    expect(expanded.names.references.map(r => [r.name, r.from, r.to, r.access])).toEqual(facts.references.map((r: any) => [r.name, r.from, r.to, r.access]));
   });
   test("malformed declarations do not publish parser recovery names or warn about them", () => {
     const value = script("function f()\n local a,\n type T = number\n local b,\n export type U = T\n local c,\n const d = 1\n local e,\n local g = 2\n return a\nend\n");

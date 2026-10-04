@@ -79,7 +79,7 @@ import {
 import { doesCallError } from "../typecheck/DataFlowGraph";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
-import { NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
+import { NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
@@ -188,22 +188,32 @@ const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 /** Relevant nodes in Lezer's public packed representation. Avoid constructing
  * a cursor/node for every narrative word and grammar capture. Buffer offsets
  * are relative to the buffer; Tree positions are relative to their parent. */
-function lintSyntaxNodes(tree: Tree): SyntaxNode[] {
+function lintSyntaxNodes(tree: Tree, text: string): SyntaxNode[] {
   const found: { name: string; from: number; to: number }[] = [];
-  const matches = (name: string) => LINTED_NODES.has(name) || name === "LuauIfKeyword";
+  const flags = (name: string) => (LINTED_NODES.has(name) || name === "LuauIfKeyword" ? 1 : 0) | (name.startsWith("Luau") && name.endsWith("Keyword") ? 2 : 0);
+  const eligible = (bits: number, from: number, to: number) => {
+    if (bits & 1) return true;
+    if (!(bits & 2)) return false;
+    const name = text.slice(from, to);
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !RESERVED.has(name);
+  };
   const scan = (part: Tree | TreeBuffer, offset: number): void => {
     if (part instanceof TreeBuffer) {
       const buffer = part.buffer;
       let types = lintNodeTypes.get(part.set);
       if (!types) {
-        types = Uint8Array.from(part.set.types, (type) => matches(type.name) ? 1 : 0);
+        types = Uint8Array.from(part.set.types, (type) => flags(type.name));
         lintNodeTypes.set(part.set, types);
       }
       for (let i = 0; i < buffer.length; i += 4) {
-        if (types[buffer[i]!]) found.push({ name: part.set.types[buffer[i]!]!.name, from: offset + buffer[i + 1]!, to: offset + buffer[i + 2]! });
+        const bits = types[buffer[i]!]!;
+        if (!bits) continue;
+        const from = offset + buffer[i + 1]!;
+        const to = offset + buffer[i + 2]!;
+        if (eligible(bits, from, to)) found.push({ name: part.set.types[buffer[i]!]!.name, from, to });
       }
     } else {
-      if (matches(part.type.name)) found.push({ name: part.type.name, from: offset, to: offset + part.length });
+      if (eligible(flags(part.type.name), offset, offset + part.length)) found.push({ name: part.type.name, from: offset, to: offset + part.length });
       for (let i = 0; i < part.children.length; i++) scan(part.children[i]!, offset + part.positions[i]!);
     }
   };
@@ -214,6 +224,22 @@ function lintSyntaxNodes(tree: Tree): SyntaxNode[] {
     if (node.name !== name || node.from !== from || node.to !== to) throw new Error(`Cannot resolve lint node ${name} at ${from}:${to}`);
     return node;
   });
+}
+
+/** A grammar keyword can hide an authored name from the converter. Keep its
+ * occurrence as uncertainty, without fabricating an AST node or binding. */
+function uncertainNames(nodes: SyntaxNode[], text: string, facts: LuauNameFacts): LuauNameFacts["uncertainNames"] {
+  const key = (range: { from: number; to: number }) => `${range.from}:${range.to}`;
+  const represented = new Set([...facts.declarations, ...facts.references, ...facts.globals, ...facts.functions].map(key));
+  const found: LuauNameFacts["uncertainNames"] = [];
+  for (const node of nodes) {
+    if (!node.name.startsWith("Luau") || !node.name.endsWith("Keyword") || represented.has(key(node))) continue;
+    const name = text.slice(node.from, node.to);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || RESERVED.has(name)) continue;
+    found.push({ name, from: node.from, to: node.to, reason: "grammar-keyword" });
+    represented.add(key(node));
+  }
+  return found.sort((a, b) => a.from - b.from || a.to - b.to);
 }
 
 // The wrappers around a binary operation's operator and operand, which the
@@ -773,7 +799,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   const units = readDocumentUnits(tree, text);
   let facts = documentFacts.get(tree);
   if (!facts) {
-    const nodes = lintSyntaxNodes(tree);
+    const nodes = lintSyntaxNodes(tree, text);
     const outside = expressionsOutsideUnits(nodes, text, [units.prelude, ...units.flows]);
     const roots: NameRoot[] = [units.prelude, ...units.flows].map((unit) => ({
       root: unit.root,
@@ -783,7 +809,9 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       syntheticFunction: unit.kind === "flow" && unit.root.body[0] instanceof AstStatLocalFunction ? unit.root.body[0] : undefined,
     }));
     roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined) })));
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names: collectNameFacts(roots, text), roots };
+    const names = collectNameFacts(roots, text);
+    names.uncertainNames = uncertainNames(nodes, text, names);
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;

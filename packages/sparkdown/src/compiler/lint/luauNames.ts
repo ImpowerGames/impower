@@ -2,7 +2,7 @@ import {
   AstExpr, AstExprError, AstExprFunction, AstExprGlobal, AstExprIndexName, AstExprLocal,
   AstStatBlock, getFunctionNameAsString,
   AstStatAssign, AstStatCompoundAssign, AstStatFor, AstStatForIn,
-  AstStatFunction, AstStatLocal, AstStatLocalFunction, visitAst,
+  AstStatFunction, AstStatLocal, AstStatLocalFunction, AstStatSparkdownStore, visitAst,
   type AstLocal, type AstNode,
 } from "../typecheck/Ast";
 import type { Location } from "../typecheck/Location";
@@ -11,7 +11,8 @@ export interface NameRange { from: number; to: number }
 export interface LuauNameReference extends NameRange {
   name: string;
   node: AstExprGlobal | AstExprLocal;
-  /** The converter's binding identity; absent for runtime globals, including const. */
+  /** The runtime local's converter identity; absent for global accesses. Const
+   * checking bindings can shadow this identity without declaring a local. */
   local?: AstLocal;
   access: "read" | "write" | "readwrite";
   enclosingFunction?: AstExprFunction;
@@ -51,6 +52,13 @@ export interface LuauNameFacts {
   references: LuauNameReference[];
   globals: LuauGlobalDefinition[];
   functions: LuauFunctionDefinition[];
+  /** Syntax occurrences absent from the AST. They establish no read, write
+   * or binding; absence-based conclusions must conservatively consult them. */
+  uncertainNames: LuauUncertainName[];
+}
+export interface LuauUncertainName extends NameRange {
+  name: string;
+  reason: "grammar-keyword";
 }
 export interface NameRoot {
   root: AstNode;
@@ -68,7 +76,7 @@ export function isAuthoredLuauName(name: string): boolean {
  * targets without treating their receivers/indexes as written, and keeps
  * AstLocal identity rather than resolving names with another scope reader. */
 export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts {
-  const facts: LuauNameFacts = { declarations: [], references: [], globals: [], functions: [] };
+  const facts: LuauNameFacts = { declarations: [], references: [], globals: [], functions: [], uncertainNames: [] };
   const seen = new Set<AstNode>();
   const locals = new Set<AstLocal>();
   for (const { root, offsets, syntheticFunction } of roots) {
@@ -77,7 +85,13 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
     // A flow's checking wrapper has no runtime binding. Keep the original
     // expression node while classifying accesses to that exact binding as
     // globals; a real authored local of the same spelling remains local.
-    const binding = (node: AstExprLocal | AstExprGlobal) => node instanceof AstExprLocal && !node.local.isConst && node.local !== syntheticFunction?.name ? node.local : undefined;
+    const binding = (node: AstExprLocal | AstExprGlobal): AstLocal | undefined => {
+      let local = node instanceof AstExprLocal ? node.local : undefined;
+      // A const is global at runtime. Its checking-only local preserves the
+      // binding it shadows, which still wins over that global at runtime.
+      while (local?.isConst) local = local.shadow;
+      return local === syntheticFunction?.name ? undefined : local;
+    };
     const declaration = (local: AstLocal, kind: LuauNameDeclaration["kind"], fn?: AstExprFunction, stat?: AstNode, declarationScope = scope) => {
       if (!isAuthoredLuauName(local.name)) return;
       if (locals.has(local)) return;
@@ -91,8 +105,8 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
       if (!isAuthoredLuauName(name)) return;
       facts.references.push({ name, node, local, access, ...offsets.range(node.location), enclosingFunction });
     };
-    const target = (expr: AstExpr, access: "write" | "readwrite", stat: AstNode, fn?: AstExprFunction): void => {
-      if (expr instanceof AstExprError && expr.expressions.length === 1) return target(expr.expressions[0]!, access, stat, fn);
+    const target = (expr: AstExpr, access: "write" | "readwrite", stat: AstNode, fn?: AstExprFunction, explicitStore = false): void => {
+      if (expr instanceof AstExprError && expr.expressions.length === 1) return target(expr.expressions[0]!, access, stat, fn, explicitStore);
       if (expr instanceof AstExprLocal || expr instanceof AstExprGlobal) {
         if (!isAuthoredLuauName(expr instanceof AstExprLocal ? expr.local.name : expr.name)) return;
         reference(expr, access);
@@ -101,7 +115,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
           // Store lowering retains the original statement location; the
           // store-function form likewise starts at its authored keyword.
           const start = offsets.range(stat.location).from;
-          const store = /^store\b/.test(text.slice(start, start + 6));
+          const store = explicitStore || /^store\b/.test(text.slice(start, start + 6));
           facts.globals.push({ name: expr instanceof AstExprGlobal ? expr.name : expr.local.name, kind: store ? "store" : fn ? "function" : "assignment", node: stat, ...range, enclosingFunction, function: fn, scope });
         }
       } else visitAst(expr, visitor);
@@ -136,8 +150,9 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         }
         else if (node instanceof AstStatFor) declaration(node.variable, "loop", undefined, node, node.body);
         else if (node instanceof AstStatForIn) for (const local of node.vars) declaration(local, "loop", undefined, node, node.body);
-        else if (node instanceof AstStatAssign) {
-          for (let i = 0; i < node.vars.length; i++) target(node.vars[i]!, "write", node, node.values[i] instanceof AstExprFunction ? node.values[i] as AstExprFunction : undefined);
+        else if (node instanceof AstStatAssign || node instanceof AstStatSparkdownStore) {
+          for (let i = 0; i < node.vars.length; i++) target(node.vars[i]!, "write", node, node.values[i] instanceof AstExprFunction ? node.values[i] as AstExprFunction : undefined, node instanceof AstStatSparkdownStore);
+          if (node instanceof AstStatSparkdownStore) for (const annotation of node.annotations) if (annotation) visitAst(annotation, visitor);
           for (const value of node.values) visitAst(value, visitor);
           return false;
         } else if (node instanceof AstStatCompoundAssign) {
@@ -163,6 +178,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
 
 export type ProgramNameReference = LuauNameReference & { uri: string };
 export type ProgramGlobalDefinition = LuauGlobalDefinition & { uri: string };
+export type ProgramUncertainName = LuauUncertainName & { uri: string };
 export interface ProgramGlobalName {
   definitions: ProgramGlobalDefinition[];
   reads: ProgramNameReference[];
@@ -172,12 +188,14 @@ export interface LuauProgramNames {
   scripts: Map<string, LuauNameFacts>;
   globals: Map<string, ProgramGlobalName>;
   functions: (LuauFunctionDefinition & { uri: string })[];
+  /** Kept separate: an uncertain occurrence cannot establish a global use. */
+  uncertainNames: Map<string, ProgramUncertainName[]>;
 }
 
 /** Recombine the current script set each time: no removed script/use survives
  * an edit, and unchanged scripts retain their cached AST/binding identities. */
 export function indexProgramNames(scripts: Iterable<{ uri: string; names: LuauNameFacts }>): LuauProgramNames {
-  const index: LuauProgramNames = { scripts: new Map(), globals: new Map(), functions: [] };
+  const index: LuauProgramNames = { scripts: new Map(), globals: new Map(), functions: [], uncertainNames: new Map() };
   const global = (name: string) => {
     let found = index.globals.get(name);
     if (!found) index.globals.set(name, found = { definitions: [], reads: [], writes: [] });
@@ -185,6 +203,11 @@ export function indexProgramNames(scripts: Iterable<{ uri: string; names: LuauNa
   };
   for (const { uri, names } of scripts) {
     index.scripts.set(uri, names);
+    for (const occurrence of names.uncertainNames) {
+      let list = index.uncertainNames.get(occurrence.name);
+      if (!list) index.uncertainNames.set(occurrence.name, list = []);
+      list.push({ ...occurrence, uri });
+    }
     for (const definition of names.functions) index.functions.push({ ...definition, uri });
     for (const definition of names.globals) global(definition.name).definitions.push({ ...definition, uri });
     for (const reference of names.references) {
