@@ -4,6 +4,7 @@ import { type LSPAny } from "vscode-languageserver-protocol";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { getEditor } from "./getEditor";
 import { getOpenTextDocument } from "./getOpenTextDocument";
+import { imageFileRevisions } from "./imageFileRevisions";
 
 const getFileText = async (uri: string) => {
   const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
@@ -41,6 +42,10 @@ const getFileSrc = (uri: string) => {
 };
 
 const getFileVersion = async (uri: string) => {
+  const imageVersion = vscode.env.uiKind === vscode.UIKind.Desktop
+    ? imageFileRevisions.get(uri)
+    : undefined;
+  if (imageVersion !== undefined) return imageVersion;
   const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(uri));
   if (doc) {
     return doc.version;

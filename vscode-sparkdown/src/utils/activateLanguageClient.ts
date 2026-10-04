@@ -35,6 +35,7 @@ export const activateLanguageClient = async (
   const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
   const editor = getEditor();
   const fileWatchers = getWorkspaceFileWatchers();
+  context.subscriptions.push(...fileWatchers);
   const files = await getWorkspaceFiles();
   for (const file of files) {
     file.src = await executeLanguageCommand({
