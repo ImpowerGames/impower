@@ -86,19 +86,24 @@ export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauVariableDefinition",
   "LuauSparkdownVariableDefinition",
   "LuauExplicitStatement",
+  "LuauSparkdownExplicitStatement",
+  "LuauSparkdownExplicitBlockStatement",
   "LuauReassignment",
   "LuauSparkdownReassignment",
   "LuauFunctionDefinition",
   "LuauIfBlock",
   "LuauSparkdownIfBlock",
   "LuauReturnStatement",
-  "LuauSparkdownReturnStatement",
   "LuauDataTypeDeclaration",
   "LuauFunctionTypeDeclaration",
   "LuauWhileLoop",
   "LuauSparkdownWhileLoop",
   "LuauDoBlock",
   "LuauSparkdownDoBlock",
+  "LuauSparkdownExplicitDoBlock",
+  "LuauSparkdownExplicitIfBlock",
+  "LuauSparkdownExplicitLoop",
+  "LuauSparkdownExplicitRepeatLoop",
   "LuauForLoop",
   "LuauSparkdownForLoop",
   "LuauRepeatLoop",
@@ -251,6 +256,8 @@ const VALIDATED_NODES: ReadonlySet<string> = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   ...nodeNameSet([
     "LuauExplicitStatement",
+    "LuauSparkdownExplicitStatement",
+    "LuauSparkdownExplicitBlockStatement",
     "LuauAccessPath",
     "LuauParenthetical",
   ]),
@@ -386,5 +393,5 @@ export function takesLines(stat: AstStat): boolean {
 
 /** The `LuauSparkdownVariableDefinition` an explicit statement declares with, if it is a declaration. */
 export function explicitDeclaration(node: SyntaxNode): SyntaxNode | null {
-  return getDescendent("LuauSparkdownVariableDefinition", node) ?? null;
+  return getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node) ?? null;
 }

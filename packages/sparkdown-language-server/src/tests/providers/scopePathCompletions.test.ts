@@ -3,8 +3,8 @@ import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/Sp
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { describe, expect, test } from "vitest";
 import { getDeclarationScopes } from "../../utils/annotations/getDeclarationScopes";
-import { getCompletions } from "../../utils/providers/getCompletions";
 import { getParentSectionPath } from "../../utils/syntax/getParentSectionPath";
+import { labelsAt } from "./completionHarness";
 
 // The scope path a completion is resolved against is the enclosing scene and
 // branch, which is how getDeclarationScopes files scene and branch
@@ -47,20 +47,8 @@ function scopePathAt(source: string) {
   );
 }
 
-function completionLabelsAt(source: string) {
-  const { text, position } = positionAt(source);
-  const { documents, scriptAnnotations } = setup(text);
-  const items = getCompletions(
-    documents.get(URI),
-    documents.tree(URI),
-    scriptAnnotations,
-    undefined,
-    undefined,
-    position,
-    undefined,
-  );
-  return (items ?? []).map((i) => i.label);
-}
+const completionLabelsAt = (source: string) =>
+  labelsAt(source.replace("|", "@0"));
 
 // `@@` marks the completion point inside `helper`; `##` the one inside
 // `other`. The unused marker's whole line is dropped so no whitespace-only

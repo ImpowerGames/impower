@@ -32,7 +32,7 @@ export function validateExplicitStatement(
   // `&` mark + required trailing ws; the source skips the leading ws, so
   // the range is the `& ` the author can delete, not the indentation.
   const beginNode =
-    findChildByName(stmtNode, "LuauExplicitStatement_begin") ?? stmtNode;
+    findChildByName(stmtNode, `${stmtNode.name}_begin`) ?? stmtNode;
   return [
     {
       message:

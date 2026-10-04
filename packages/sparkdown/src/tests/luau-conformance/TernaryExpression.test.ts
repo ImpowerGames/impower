@@ -665,11 +665,11 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
   });
 
-  test("in an & statement, followed by a statement at column 0", () => {
+  test("an & statement ends before a following narrative then line", () => {
     const source = `& x = 0\n& x = if true\n  then 1\nx = 6\nValue {x}.\n`;
-    expect(ifDiagnostics(source)).toEqual([`2:7-2:9 ${MISSING_ELSE}`]);
+    expect(ifDiagnostics(source)).toEqual([`2:7-2:9 ${MISSING_THEN}`]);
     const ctx = makeRuntimeStoryFromSource(source);
-    expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+    expect(ctx.story.ContinueMaximally()).toBe("then 1\nValue 6.\n");
   });
 
   test.each([

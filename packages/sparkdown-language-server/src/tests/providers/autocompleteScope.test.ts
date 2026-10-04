@@ -1,4 +1,8 @@
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect } from "vitest";
+import { CompletionItemKind } from "vscode-languageserver";
+import { getCompletions } from "../../utils/providers/getCompletions";
+import { getDeclarationScopes } from "../../utils/annotations/getDeclarationScopes";
 import { BUG } from "./autocompleteBugs";
 import { complete, labelsAt, upstreamCase } from "./completionHarness";
 
@@ -88,11 +92,11 @@ describe("autocomplete · scope and visibility", () => {
     expect(three).not.toContain("myInnerLocal");
   });
 
-  upstreamCase.bug(BUG.functions, "recursive_function", "a function's own name is offered inside its body", () => {
+  upstreamCase("recursive_function", "a function's own name is offered inside its body", () => {
     expect(labelsAt("function foo()\n  f@1\nend\n")).toContain("foo");
   });
 
-  upstreamCase.bug(BUG.functions, "nested_recursive_function", "a nested local function and its enclosing function are offered inside it", () => {
+  upstreamCase("nested_recursive_function", "a nested local function and its enclosing function are offered inside it", () => {
     const labels = labelsAt(
       "function outer()\n  local function inner()\n    i@1\n  end\nend\n",
     );
@@ -100,7 +104,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("outer");
   });
 
-  upstreamCase.bug(BUG.functions, "user_defined_local_functions_in_own_definition", "a local function is offered inside its own body", () => {
+  upstreamCase("user_defined_local_functions_in_own_definition", "a local function is offered inside its own body", () => {
     // Upstream's second snippet, `local abc = function() @1 end`, expects
     // `abc` too and marks that expectation "actually incorrect": a local is
     // not in scope in its own initializer (skip_current_local), so it is not
@@ -110,7 +114,7 @@ describe("autocomplete · scope and visibility", () => {
     ).toContain("abc");
   });
 
-  upstreamCase.bug(BUG.functions, "global_functions_are_not_scoped_lexically", "a global function declared inside a block is offered after it", () => {
+  upstreamCase("global_functions_are_not_scoped_lexically", "a global function declared inside a block is offered after it", () => {
     const labels = labelsAt(
       "function main()\n  if true then\n    function abc()\n    end\n  end\n  a@1\nend\n",
     );
@@ -123,6 +127,197 @@ describe("autocomplete · scope and visibility", () => {
     );
     expect(labels).toContain("another");
     expect(labels).not.toContain("abc");
+  });
+
+  upstreamCase("local_functions_fall_out_of_scope", "a local function is visible from its declaration through its enclosing block", () => {
+    const source = "function main()\n  if true then\n    a@1\n    local function abc()\n      a@2\n    end\n    a@3\n  end\n  a@4\nend\nfunction other()\n  a@5\nend\n";
+    expect(labelsAt(source, { at: "1" })).not.toContain("abc");
+    expect(labelsAt(source, { at: "2" })).toContain("abc");
+    expect(labelsAt(source, { at: "3" })).toContain("abc");
+    expect(labelsAt(source, { at: "4" })).not.toContain("abc");
+    expect(labelsAt(source, { at: "5" })).not.toContain("abc");
+  });
+
+  upstreamCase("bias_toward_inner_scope", "a local function shadowing a global function is offered once", () => {
+    const labels = labelsAt("function abc() end\nfunction main()\n  local function abc()\n    a@1\n  end\nend\n");
+    expect(labels.filter((label) => label === "abc")).toEqual(["abc"]);
+  });
+
+  for (const [header, parameters, outerType] of [
+    ["store abc = 1", "", "var"],
+    ["const abc = 1", "", "const"],
+    ["define abc with\n  value = 1\nend", "", "define"],
+    ["", "abc", "param"],
+  ]) {
+    upstreamCase("bias_toward_inner_scope", `a local function shadows an outer ${outerType} with function metadata`, async () => {
+      const source = `${header}\nfunction main(${parameters})\n  return a@1\n  local function abc()\n    return a@2\n  end\n  return a@3\nend\n`;
+      expect(complete(source, { at: "1" }).detail("abc")).toBe(outerType);
+      for (const at of ["2", "3"]) {
+        const result = complete(source, { at });
+        expect(result.labels.filter((label) => label === "abc")).toEqual(["abc"]);
+        expect(result.detail("abc")).toBe("function");
+        expect((await result.resolve("abc"))?.kind).toBe(CompletionItemKind.Function);
+      }
+    });
+  }
+
+  upstreamCase("bias_toward_inner_scope", "a local variable shadows a global function after its initializer", async () => {
+    const source = "function abc() end\nfunction main()\n  local abc = a@1\n  return a@2\nend\nfunction other()\n  return a@3\nend\n";
+    for (const at of ["1", "3"]) {
+      const result = complete(source, { at });
+      expect(result.detail("abc")).toBe("function");
+      expect((await result.resolve("abc"))?.kind).toBe(CompletionItemKind.Function);
+    }
+    const local = complete(source, { at: "2" });
+    expect(local.detail("abc")).toBe("var");
+    expect((await local.resolve("abc"))?.kind).toBe(CompletionItemKind.Class);
+  });
+
+  upstreamCase("bias_toward_inner_scope", "a function parameter shadows its own function and a stored variable", async () => {
+    for (const header of ["function abc(abc)", "store abc = 1\nfunction main(abc)"]) {
+      const result = complete(`${header}\n  return a@1\nend\n`);
+      expect(result.labels.filter((label) => label === "abc")).toEqual(["abc"]);
+      expect(result.detail("abc")).toBe("param");
+      expect((await result.resolve("abc"))?.kind).toBe(CompletionItemKind.Class);
+    }
+  });
+
+  upstreamCase("bias_toward_inner_scope", "nested locals select the visible binding and restore the outer parameter", () => {
+    const source = "function main(abc)\n  do\n    local function abc()\n      return a@1\n    end\n    do\n      local abc = 1\n      return a@2\n    end\n    return a@3\n  end\n  return a@4\nend\n";
+    for (const at of ["1", "3"]) {
+      expect(complete(source, { at }).detail("abc")).toBe("function");
+    }
+    expect(complete(source, { at: "2" }).detail("abc")).toBe("var");
+    expect(complete(source, { at: "4" }).detail("abc")).toBe("param");
+  });
+
+  for (const [outer, outerType] of [
+    ["local function abc() end", "function"],
+    ["local abc = 1", "var"],
+  ]) {
+    for (const [section, source] of [
+      ["scene", `${outer}\nscene play(abc)\n  {a@1}\nend\nscene other\n  {a@2}\nend\n`],
+      ["branch", `scene play\n  ${outer}\n  branch part(abc)\n    {a@1}\n  end\n  {a@2}\nend\n`],
+    ] as const) {
+      upstreamCase("bias_toward_inner_scope", `${section} parameter shadows an outer local ${outerType} only in its section`, async () => {
+        const parameter = complete(source, { at: "1" });
+        expect(parameter.labels.filter((label) => label === "abc")).toEqual(["abc"]);
+        expect(parameter.detail("abc")).toBe("param");
+        expect((await parameter.resolve("abc"))?.kind).toBe(CompletionItemKind.Class);
+        expect(complete(source, { at: "2" }).detail("abc")).toBe(outerType);
+      });
+    }
+  }
+
+  for (const [local, localType] of [
+    ["local function abc() end", "function"],
+    ["local abc = 1", "var"],
+  ]) {
+    for (const [section, header, footer] of [
+      ["scene", "scene play(abc)", "end"],
+      ["branch", "scene play\n  branch part(abc)", "end\nend"],
+    ]) {
+      upstreamCase("bias_toward_inner_scope", `an inner local ${localType} shadows a ${section} parameter and restores it after its block`, () => {
+        const source = `${header}\n  {a@1}\n  do\n    ${local}\n    local value = a@2\n  end\n  {a@3}\n${footer}\n`;
+        expect(complete(source, { at: "1" }).detail("abc")).toBe("param");
+        expect(complete(source, { at: "2" }).detail("abc")).toBe(localType);
+        expect(complete(source, { at: "3" }).detail("abc")).toBe("param");
+      });
+    }
+  }
+
+  upstreamCase("bias_toward_inner_scope", "nested section parameters restore the enclosing local after their branch", () => {
+    const source = "scene play(abc)\n  {a@1}\n  local function abc() end\n  {a@2}\n  branch part(abc)\n    {a@3}\n    do\n      local abc = 1\n      local value = a@4\n    end\n    {a@5}\n  end\n  {a@6}\nend\n";
+    for (const at of ["1", "3", "5"]) {
+      expect(complete(source, { at }).detail("abc")).toBe("param");
+    }
+    for (const at of ["2", "6"]) {
+      expect(complete(source, { at }).detail("abc")).toBe("function");
+    }
+    expect(complete(source, { at: "4" }).detail("abc")).toBe("var");
+  });
+
+  upstreamCase("bias_toward_inner_scope", "section winners retain unrelated section buckets and script identity", () => {
+    for (const reverse of [false, true]) {
+      const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+      const mainUri = "file:///main.sd";
+      const mainText = "local function abc() end\nscene play(abc)\n  {a}\nend\nscene later(abc)\n  {a}\nend\n";
+      const files = [["file:///other.sd", "local function abc() end\nscene elsewhere(abc)\n  {a}\nend\n"], [mainUri, mainText]];
+      if (reverse) files.reverse();
+      for (const [uri, text] of files) {
+        documents.set({ textDocument: { uri: uri!, text: text!, version: 1, languageId: "sparkdown" } });
+      }
+      const scripts = new Map(files.map(([uri]) => [uri!, {
+        annotations: documents.annotations(uri!),
+        tree: documents.tree(uri!),
+        read: (from: number, to: number) => documents.get(uri!)!.read(from, to),
+      }]));
+      const document = documents.get(mainUri)!;
+      const offset = mainText.indexOf("{a}") + 2;
+      const items = getCompletions(document, documents.tree(mainUri), scripts, undefined, undefined,
+        document.positionAt(offset), undefined) ?? [];
+      const matching = items.filter((item) => item.label === "abc");
+      expect(matching).toHaveLength(1);
+      expect(matching[0]?.labelDetails?.description).toBe("param");
+      const scopes = getDeclarationScopes(scripts, { uri: mainUri, offset });
+      for (const path of ["play", "later", "elsewhere"]) {
+        expect(scopes[path]?.param).toEqual(["abc"]);
+      }
+      expect(scopes[""]?.param ?? []).not.toContain("abc");
+    }
+  });
+
+  upstreamCase("bias_toward_inner_scope", "a local function shadows a stored name from another script in either registry order", () => {
+    for (const reverse of [false, true]) {
+      const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+      const mainUri = "file:///main.sd";
+      const mainText = "function main()\n  local function abc() end\n  return a\nend\n";
+      const files = [["file:///other.sd", "store abc = 1\n"], [mainUri, mainText]];
+      if (reverse) files.reverse();
+      for (const [uri, text] of files) {
+        documents.set({ textDocument: { uri: uri!, text: text!, version: 1, languageId: "sparkdown" } });
+      }
+      const scripts = new Map(files.map(([uri]) => [uri!, {
+        annotations: documents.annotations(uri!),
+        tree: documents.tree(uri!),
+        read: (from: number, to: number) => documents.get(uri!)!.read(from, to),
+      }]));
+      const document = documents.get(mainUri)!;
+      const items = getCompletions(document, documents.tree(mainUri), scripts, undefined, undefined,
+        document.positionAt(mainText.indexOf("return a") + "return a".length), undefined) ?? [];
+      const matching = items.filter((item) => item.label === "abc");
+      expect(matching).toHaveLength(1);
+      expect(matching[0]?.labelDetails?.description).toBe("function");
+      expect(matching[0]?.kind).toBe(CompletionItemKind.Function);
+    }
+  });
+
+  upstreamCase("local_functions_fall_out_of_scope", "local functions stay in their own conditional branch", () => {
+    const source = "function main()\n  if true then\n    local function abc() end\n    return a@1\n  elseif false then\n    local function def() end\n    return d@2\n  else\n    return a@3\n  end\n  return a@4\nend\n";
+    expect(labelsAt(source, { at: "1" })).toContain("abc");
+    const elseif = labelsAt(source, { at: "2" });
+    expect(elseif).toContain("def");
+    expect(elseif).not.toContain("abc");
+    for (const at of ["3", "4"]) {
+      const labels = labelsAt(source, { at });
+      expect(labels).not.toContain("abc");
+      expect(labels).not.toContain("def");
+    }
+  });
+
+  upstreamCase("local_functions_fall_out_of_scope", "a narrative branch's local function is hidden from sibling branches", () => {
+    for (const header of ["", "scene one\n"]) {
+      const source = `${header}if true then\n  local function abc() end\n  {a@1}\nelseif false then\n  {a@2}\nelse\n  {a@3}\nend\n${header ? "end\n" : ""}`;
+      expect(labelsAt(source, { at: "1" })).toContain("abc");
+      expect(labelsAt(source, { at: "2" })).not.toContain("abc");
+      expect(labelsAt(source, { at: "3" })).not.toContain("abc");
+    }
+  });
+
+  upstreamCase("local_functions_fall_out_of_scope", "a repeat's local function is visible in its condition and hidden after the loop", () => {
+    const source = "function main()\n  repeat\n    local function abc() return true end\n  until a@1\n  return a@2\nend\n";
+    expect(labelsAt(source, { at: "1" })).toContain("abc");
+    expect(labelsAt(source, { at: "2" })).not.toContain("abc");
   });
 
   upstreamCase("function_parameters", "a parameter is offered for a typed word in its function's body", () => {
@@ -156,7 +351,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toEqual(expect.arrayContaining(["function", "for"]));
   });
 
-  upstreamCase.bug(BUG.functions, "statement_between_two_statements", "a function declared above is offered between two statements", () => {
+  upstreamCase("statement_between_two_statements", "a function declared above is offered between two statements", () => {
     const labels = labelsAt(
       "function getmyscripts() end\n\nfunction main()\n  g@1\n\n  getmyscripts()\nend\n",
     );
@@ -214,14 +409,14 @@ describe("autocomplete · scope and visibility", () => {
     expect(labelsAt("function main()\n  local function abc(def)@1\n  end\nend\n")).not.toEqual([]);
   });
 
-  upstreamCase.bug(BUG.functions, "local_function_params", "a word typed in a local function's body offers the function and its parameter", () => {
+  upstreamCase("local_function_params", "a word typed in a local function's body offers the function and its parameter", () => {
     const labels = labelsAt("function main()\n  local function abc(def)\n    d@1\n  end\nend\n");
     expect(labels).toContain("def");
     const own = labelsAt("function main()\n  local function abc(def)\n    a@1\n  end\nend\n");
     expect(own).toContain("abc");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "local_function_params", "a blank line in a local function's body offers the function and its parameter", () => {
+  upstreamCase.bug(BUG.emptySlot, "local_function_params", "a blank line in a local function's body offers the function and its parameter", () => {
     const labels = labelsAt("function main()\n  local function abc(def)\n    @1\n  end\nend\n");
     expect(labels).toContain("abc");
     expect(labels).toContain("def");
@@ -251,7 +446,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labelsAt("function abc(def)\n  d@1\nend\n")).toContain("def");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "global_function_params", "a blank line in a global function's body offers the function and its parameter", () => {
+  upstreamCase.bug(BUG.emptySlot, "global_function_params", "a blank line in a global function's body offers the function and its parameter", () => {
     const labels = labelsAt("function abc(def)\n  @1\nend\n");
     expect(labels).toContain("abc");
     expect(labels).toContain("def");
@@ -332,21 +527,21 @@ describe("autocomplete · scope and visibility", () => {
     expect(labelsAt("function main()\n  abc, de@1\nend\n")).not.toContain("de");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "recursive_function_global", "a global function is offered on a blank line of its body", () => {
+  upstreamCase.bug(BUG.emptySlot, "recursive_function_global", "a global function is offered on a blank line of its body", () => {
     expect(labelsAt("function abc()\n@1\nend\n")).toContain("abc");
   });
 
-  upstreamCase.bug(BUG.functions, "recursive_function_global", "a global function is offered for a typed word in its body", () => {
+  upstreamCase("recursive_function_global", "a global function is offered for a typed word in its body", () => {
     expect(labelsAt("function abc()\n  a@1\nend\n")).toContain("abc");
   });
 
-  upstreamCase.bug([BUG.emptySlot, BUG.functions], "recursive_function_local", "a local function is offered on a blank line of its body", () => {
+  upstreamCase.bug(BUG.emptySlot, "recursive_function_local", "a local function is offered on a blank line of its body", () => {
     expect(
       labelsAt("function main()\n  local function abc()\n@1\n  end\nend\n"),
     ).toContain("abc");
   });
 
-  upstreamCase.bug(BUG.functions, "recursive_function_local", "a local function is offered for a typed word in its body", () => {
+  upstreamCase("recursive_function_local", "a local function is offered for a typed word in its body", () => {
     expect(
       labelsAt("function main()\n  local function abc()\n    a@1\n  end\nend\n"),
     ).toContain("abc");
@@ -372,7 +567,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("myInnerLocal");
   });
 
-  upstreamCase.bug(BUG.functions, "globals_are_order_independent", "functions declared before and after are offered", () => {
+  upstreamCase("globals_are_order_independent", "functions declared before and after are offered", () => {
     const labels = labelsAt(
       "store myLocal = 4\nfunction abc0()\n  local myInnerLocal = 1\n  a@1\nend\n\nfunction abc1()\n  local myInnerLocal = 1\nend\n",
     );
@@ -380,12 +575,36 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("abc1");
   });
 
-  upstreamCase.bug(BUG.functions, "class_autocomplete_classname_inside_method","a define's name is offered inside its own method", () => {
+  upstreamCase("class_autocomplete_classname_inside_method","a define's name is offered inside its own method", () => {
     // Upstream uses a `class`, which sparkdown does not implement; a `define`
     // with a method is the sparkdown equivalent.
     const labels = labelsAt(
       "define Bar with\n  value = 0\n  function new()\n    return B@1\n  end\nend\n",
     );
     expect(labels).toContain("Bar");
+  });
+
+  upstreamCase("class_autocomplete_classname_inside_method", "define methods are not bare names inside or outside their define", () => {
+    for (const header of ["function fly()", "fly()"]) {
+      const source = `define Bird with\n  ${header}\n    return f@1\n  end\nend\nfunction main()\n  return f@2\nend\n`;
+      for (const at of ["1", "2"]) {
+        const labels = labelsAt(source, { at });
+        expect(labels).toContain("Bird");
+        expect(labels).not.toContain("fly");
+      }
+    }
+  });
+
+  upstreamCase("class_autocomplete_classname_inside_method", "functions nested in a define method retain their own scope", () => {
+    const source = "define Bird with\n  function fly()\n    function globalHelper() end\n    local function localHelper() end\n    return l@1\n  end\nend\nfunction main()\n  return l@2\nend\n";
+    const inside = labelsAt(source, { at: "1" });
+    expect(inside).toContain("localHelper");
+    expect(inside).toContain("globalHelper");
+    expect(inside).not.toContain("fly");
+    const outside = labelsAt(source, { at: "2" });
+    expect(outside).toContain("Bird");
+    expect(outside).toContain("globalHelper");
+    expect(outside).not.toContain("localHelper");
+    expect(outside).not.toContain("fly");
   });
 });

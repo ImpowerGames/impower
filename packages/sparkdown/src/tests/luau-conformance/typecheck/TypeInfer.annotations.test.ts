@@ -600,9 +600,8 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
   },
   {
     // TypeInfer.annotations.test.cpp:726 TEST_CASE_FIXTURE(Fixture, "cloned_interface_maintains_pointers_between_definitions")
-    // Upstream also checks arena membership, and compares the fields `a` and
-    // `b` of the module's return value with `Record`; the harness does not
-    // expose a module's return value.
+    // C++ arena membership is internal; the returned fields' printed equality
+    // with the cloned exported alias remains an executable program check.
     name: "cloned_interface_maintains_pointers_between_definitions",
     fixture: "Fixture",
     source: `
@@ -612,7 +611,11 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
 
         return {a=a, b=b}
     `,
-    expect: [{ errors: 0 }],
+    expect: [
+      { errors: 0 },
+      { moduleReturn: true, path: [{ result: 0 }, { property: "a" }], printedSameAs: { exportedAlias: "Record" }, options: { exhaustive: true } },
+      { moduleReturn: true, path: [{ result: 0 }, { property: "b" }], printedSameAs: { exportedAlias: "Record" }, options: { exhaustive: true } },
+    ],
   },
   {
     // TypeInfer.annotations.test.cpp:764 TEST_CASE_FIXTURE(BuiltinsFixture, "use_type_required_from_another_file")

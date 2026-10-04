@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
@@ -66,7 +67,7 @@ function emptyDivertRange(
   node: SyntaxNode,
   ctx: LowerContext,
 ): { from: number; to: number } | null {
-  if (node.name !== "LuauArithmeticOperation") return null;
+  if (!isExplicitRuleName(node.name, "LuauArithmeticOperation")) return null;
   const text = ctx.read(node.from, node.to);
   if (text.trim() !== "->") return null;
   // value-level: the text of one LuauArithmeticOperation node, locating its operator
@@ -143,9 +144,9 @@ export function lowerArms(
       // depending on how the grammar's expression matcher segments the
       // token stream.
       const divertLiteral =
-        child.name === "LuauDivertTargetLiteral"
+        isExplicitRuleName(child.name, "LuauDivertTargetLiteral")
           ? child
-          : getDescendent("LuauDivertTargetLiteral", child);
+          : getDescendent(["LuauDivertTargetLiteral", "LuauSparkdownExplicitDivertTargetLiteral"], child);
       if (divertLiteral) {
         const divert = buildDivertFromTargetLiteral(divertLiteral, ctx);
         if (divert) {

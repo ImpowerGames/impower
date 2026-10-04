@@ -22,6 +22,10 @@ const TYPE_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when p
 function luauTypeErrors(diagnostics: LuauDiagnostic[]): string[] {
   const tokens = new Set<string>();
   return diagnostics
+    // The product selects the first source-position error at a token. The
+    // fixture API preserves fresh checker order, so sort a separate copy here.
+    .slice()
+    .sort((a, b) => a.line - b.line || a.column - b.column)
     .filter((d) => {
       if (d.code !== "SyntaxError" || !TYPE_ERROR.test(d.message)) return false;
       const token = `${d.endLine}:${d.endColumn}`;
