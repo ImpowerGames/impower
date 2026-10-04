@@ -207,7 +207,9 @@ function lowerInner(
     case "ImplicitAction":
       return lowerImplicitAction(nodeRef, ctx);
     case "LuauInterpolatedStringExpression":
+    case "LuauSparkdownExplicitInterpolatedStringExpression":
     case "LuauFunctionCallShorthand":
+    case "LuauSparkdownExplicitFunctionCallShorthand":
       // Bare `{ expr }` / `{{fn}}` lines at top level — the grammar matches
       // these directly (not wrapped in ImplicitAction the way
       // `text {expr} text` lines are). Sparkdown handles them via
@@ -271,6 +273,7 @@ function lowerInner(
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
     case "LuauUntilStatement":
+    case "LuauSparkdownExplicitUntilStatement":
       // A `repeat` loop reads the `until` line after it as its own
       // (`lowerLuauStatementNode`), so the line lowers to nothing here.
       return {};
@@ -279,6 +282,7 @@ function lowerInner(
       // It's purely a structural marker — no runtime content.
       return {};
     case "Tags":
+    case "SparkdownExplicitTags":
       // Top-level `# tag` (or `# a # b`) line. The grammar produces a
       // single `Tags` wrapper containing one or more `Tag` children.
       // Display-line trailing tags are handled inline by `lowerDisplay`;

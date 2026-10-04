@@ -14,6 +14,7 @@ import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { createLowerContextFromSource } from "../../compiler/lower/context";
 import { lowerExpressionFromContainer } from "../../compiler/lower/expression/lowerExpression";
+import { explicitRuleNames } from "../../compiler/utils/explicitRuleNames";
 import { parseSource } from "./grammarSnapshot";
 
 // Lowers a luau expression by wrapping it in `& __ = <expr>` and extracting
@@ -36,7 +37,7 @@ function findDescendentByName(
   parent: SyntaxNode,
   name: string,
 ): SyntaxNode | null {
-  return getDescendent(name, parent) ?? null;
+  return getDescendent(explicitRuleNames(name), parent) ?? null;
 }
 
 export function formatExpression(expr: Expression | null): string {

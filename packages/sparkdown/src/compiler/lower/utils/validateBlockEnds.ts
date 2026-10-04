@@ -64,8 +64,10 @@ const END_BLOCKS: Readonly<Record<string, string>> = {
   LuauFunctionTypeDeclaration: "type function",
   LuauIfBlock: "`if` block",
   LuauSparkdownIfBlock: "`if` block",
+  LuauSparkdownExplicitIfBlock: "`if` block",
   LuauDoBlock: "`do` block",
   LuauSparkdownDoBlock: "`do` block",
+  LuauSparkdownExplicitDoBlock: "`do` block",
 };
 
 const LOOPS: Readonly<Record<string, string>> = {
@@ -73,9 +75,16 @@ const LOOPS: Readonly<Record<string, string>> = {
   LuauSparkdownWhileLoop: "`while` loop",
   LuauForLoop: "`for` loop",
   LuauSparkdownForLoop: "`for` loop",
+  LuauSparkdownExplicitLoop: "`for` loop",
 };
 
-const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
+const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]);
+const BOUNDED_BLOCKS = nodeNameSet([
+  "LuauSparkdownExplicitDoBlock",
+  "LuauSparkdownExplicitIfBlock",
+  "LuauSparkdownExplicitLoop",
+  "LuauSparkdownExplicitRepeatLoop",
+]);
 
 interface Block {
   // The line the diagnostic is reported on: the loop's for a loop's `do`.
@@ -83,6 +92,7 @@ interface Block {
   label: string;
   // The keyword that closes the block: `until` for a `repeat`.
   closer: "end" | "until";
+  bounded?: boolean;
 }
 
 const MISSING_UNTIL =
@@ -97,11 +107,18 @@ function asBlock(node: SyntaxNode): Block | null {
     if (!loopKind) continue;
     const body = loopBodyBlock(up as GrammarSyntaxNode<SparkdownNodeName>);
     if (body?.from === node.from && body.name === node.name) {
-      return { header: up, label: loopKind, closer: "end" };
+      const begin = findChildByName(up, `${up.name}_begin`);
+      const label = up.name === "LuauSparkdownExplicitLoop" && begin && getDescendent("LuauWhileKeyword", begin)
+        ? "`while` loop" : loopKind;
+      return { header: up, label, closer: "end", bounded: BOUNDED_BLOCKS.has(up.name) };
     }
     break;
   }
-  return { header: node, label: kind, closer: "end" };
+  return { header: node, label: kind, closer: "end", bounded: BOUNDED_BLOCKS.has(node.name) };
+}
+
+function boundedMissingMessage(label: string, closer: "end" | "until"): string {
+  return `This ${label} is missing its closing \`${closer}\` keyword on this \`&\` line. The following line remains story text.`;
 }
 
 function missingEndMessage(label: string): string {
@@ -158,7 +175,7 @@ export function untilReadIntoStatement(repeat: SyntaxNode): boolean {
   if (untilsLeftInside(repeat) <= 0) return false;
   const inStatement = (node: SyntaxNode): boolean => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === "LuauUntilStatement") return true;
+      if (UNTIL.has(child.name)) return true;
       if (REPEAT_LOOPS.has(child.name)) continue;
       if (END_BLOCKS[child.name] && !endKeywordOf(child)) continue;
       if (inStatement(child)) return true;
@@ -175,7 +192,7 @@ export function untilReadIntoStatement(repeat: SyntaxNode): boolean {
 function hasUntil(repeat: SyntaxNode): boolean {
   let next = repeat.nextSibling;
   while (next && skippable(next)) next = next.nextSibling;
-  const following = next?.name === "LuauUntilStatement" ? 1 : 0;
+  const following = next && UNTIL.has(next.name) ? 1 : 0;
   return following + untilsLeftInside(repeat) > 0;
 }
 
@@ -208,8 +225,9 @@ export function validateBlockEnds(
     const block = asBlock(node);
     let openRepeat = insideOpenRepeat;
     if (block) {
-      if (findChildByName(node, `${node.name}_end`) && !endKeywordOf(node)) {
-        report(diagnostics, block.header, missingEndMessage(block.label), ctx);
+      if (!endKeywordOf(node) && (block.bounded || findChildByName(node, `${node.name}_end`))) {
+        report(diagnostics, block.header, block.bounded
+          ? boundedMissingMessage(block.label, "end") : missingEndMessage(block.label), ctx);
       }
     } else if (
       REPEAT_LOOPS.has(node.name) &&
@@ -218,7 +236,8 @@ export function validateBlockEnds(
       !hasUntil(node)
     ) {
       openRepeat = true;
-      report(diagnostics, node, MISSING_UNTIL, ctx);
+      report(diagnostics, node, BOUNDED_BLOCKS.has(node.name)
+        ? boundedMissingMessage("`repeat` loop", "until") : MISSING_UNTIL, ctx);
     }
     for (let child = node.firstChild; child; child = child.nextSibling) {
       visit(child, openRepeat);
@@ -237,7 +256,10 @@ function openChain(root: SyntaxNode): Block[] {
   const chain: Block[] = [];
   let node: SyntaxNode | null = root;
   while (node) {
-    if (END_BLOCKS[node.name]) {
+    if (BOUNDED_BLOCKS.has(node.name)) {
+      // Its missing closer belongs to this explicit line, never a later
+      // root-level end/until. Still descend to any real function body.
+    } else if (END_BLOCKS[node.name]) {
       if (findChildByName(node, `${node.name}_end`)) break;
       chain.push(asBlock(node)!);
     } else if (REPEAT_LOOPS.has(node.name) && !hasUntil(node)) {
@@ -337,7 +359,7 @@ export function validateOpenBlocks(
     } else if (node.name === "Branch") {
       closeAbove((entry) => entry.kind === "scene");
       open.push({ kind: "branch" });
-    } else if (node.name === "LuauUntilStatement") {
+    } else if (UNTIL.has(node.name)) {
       // An `until` closes the innermost `repeat` open since the last scene or
       // branch; the blocks opened inside that `repeat` and still open are
       // left without their `end`s.

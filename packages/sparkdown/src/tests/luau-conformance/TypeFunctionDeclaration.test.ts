@@ -274,7 +274,11 @@ function scriptDiagnostics(text: string): string[] {
 // library.
 describe("type function in the type checker", () => {
   const CANNOT_EVALUATE = "'F' type function: cannot be evaluated in this context";
-  const check = (source: string) => checkLuau(source, { fixture: "BuiltinsFixture" }).diagnostics.map(describeDiagnostic);
+  // These layout expectations use product source ordering, independently of
+  // the fixture API's fresh checker insertion order.
+  const check = (source: string) => checkLuau(source, { fixture: "BuiltinsFixture" })
+    .diagnostics.slice().sort((a, b) => a.line - b.line || a.column - b.column)
+    .map(describeDiagnostic);
 
   test("a type that uses one reports that it cannot be evaluated", () => {
     expect(

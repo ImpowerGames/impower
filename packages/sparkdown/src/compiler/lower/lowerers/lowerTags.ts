@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -31,9 +32,9 @@ export function lowerTags(
   const contentNode = findChild(nodeRef.node, "Tags_content") ?? nodeRef.node;
   let child = contentNode.firstChild;
   while (child) {
-    if (child.name === "Tag") {
+    if (isExplicitRuleName(child.name, "Tag")) {
       out.push(new Tag(true));
-      const tagContent = getDescendent("TagContent", child);
+      const tagContent = getDescendent(["TagContent", "SparkdownExplicitTagContent"], child);
       if (tagContent) {
         for (const obj of lowerTagContent(tagContent, ctx)) {
           out.push(obj);

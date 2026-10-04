@@ -9,9 +9,15 @@ const target = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../src/tests/luau-conformance/upstream",
 );
-const pin = readFileSync(join(target, "VENDORING.md"), "utf8").match(
-  /copied from: `([a-f0-9]+)`/,
-)[1];
+const typecheck = process.argv[3] === "--typecheck";
+if (process.argv[3] && !typecheck)
+  throw new Error("Expected --typecheck or no third argument");
+const artifactDir = join(target, typecheck ? "typecheck-ast" : "ast");
+const pin = typecheck
+  ? JSON.parse(readFileSync(join(target, "typecheck-cases.json"), "utf8")).pin
+  : readFileSync(join(target, "VENDORING.md"), "utf8").match(
+      /copied from: `([a-f0-9]+)`/,
+    )[1];
 const upstream = resolve(process.argv[2]);
 const head = execFileSync("git", ["-C", upstream, "rev-parse", "HEAD"], {
   encoding: "utf8",
@@ -55,7 +61,7 @@ execFileSync(
     ),
     `-I${join(upstream, "Analysis/src")}`,
     ...sources,
-    join(target, "ast/bridge.cpp"),
+    join(artifactDir, "bridge.cpp"),
     "-sMODULARIZE=1",
     "-sENVIRONMENT=node",
     "-sALLOW_MEMORY_GROWTH=1",
@@ -63,19 +69,24 @@ execFileSync(
     "-sEXPORTED_FUNCTIONS=_parse_ast,_parse_errors,_parse_error_json,_malloc,_free",
     "-sEXPORTED_RUNTIME_METHODS=ccall,HEAPU8",
     "-o",
-    join(target, "ast/luau-ast.cjs"),
+    join(artifactDir, "luau-ast.cjs"),
   ],
   { stdio: "inherit" },
 );
 // Match Git's LF checkout policy before hashing Emscripten's Windows output.
-const loader = join(target, "ast/luau-ast.cjs");
-writeFileSync(loader, readFileSync(loader, "utf8").replace(/\r\n/g, "\n").replace(/^[ \t]+$/gm, ""));
+const loader = join(artifactDir, "luau-ast.cjs");
+writeFileSync(
+  loader,
+  readFileSync(loader, "utf8")
+    .replace(/\r\n/g, "\n")
+    .replace(/^[ \t]+$/gm, ""),
+);
 const sha256 = (file) =>
   createHash("sha256")
-    .update(readFileSync(join(target, "ast", file)))
+    .update(readFileSync(join(artifactDir, file)))
     .digest("hex");
 writeFileSync(
-  join(target, "ast/build.json"),
+  join(artifactDir, "build.json"),
   JSON.stringify(
     {
       upstream: pin,

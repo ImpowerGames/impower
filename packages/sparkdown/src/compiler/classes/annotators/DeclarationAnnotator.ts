@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import {
@@ -56,7 +57,7 @@ function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
   if (soleVariableName(path)?.from !== node?.from) return false;
   for (let prev = path.prevSibling; prev; prev = prev.prevSibling) {
     if (!BEFORE_BARE_TARGET.has(prev.name)) return false;
-    if (prev.name === "LuauVariableAssignment" && ownAssignmentOperation(prev)) {
+    if (isExplicitRuleName(prev.name, "LuauVariableAssignment") && ownAssignmentOperation(prev)) {
       return false;
     }
   }

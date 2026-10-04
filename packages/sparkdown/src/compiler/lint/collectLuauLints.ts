@@ -81,6 +81,8 @@ import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
+import { isExplicitRuleName } from "../utils/explicitRuleNames";
+import { nodeNameSet } from "../utils/nodeNameSet";
 import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
@@ -180,7 +182,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
 // Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = new Set(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
 const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 
 /** Relevant nodes in Lezer's public packed representation. Avoid constructing
@@ -246,14 +248,14 @@ function expressionAround(node: SyntaxNode, text: string): SyntaxNode[] {
   // Table field names are keys, and the assignment-shaped value wrappers
   // cannot be read as a standalone expression. Read their table together.
   for (let parent = node.parent; parent && !isOpaque(parent); parent = parent.parent) {
-    if (parent.name === "LuauTable") {
+    if (isExplicitRuleName(parent.name, "LuauTable")) {
       node = parent;
       break;
     }
   }
   let part = node;
   let list = node.parent;
-  while (list && OPERATION.test(list.name) && !list.name.startsWith("LuauAssignmentOperation")) {
+  while (list && OPERATION.test(list.name) && !/^Luau(?:SparkdownExplicit)?AssignmentOperation/.test(list.name)) {
     part = list;
     list = list.parent;
   }
@@ -319,10 +321,10 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       } else if (node.name === "LuauSparkleHandlerClosure") {
         const content = node.getChild("LuauSparkleHandlerClosure_content");
         if (content) readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauStatements([content], text).expr, statements: true }) });
-      } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop") {
+      } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
         readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauStatements([node], text).expr, statements: true }) });
       } else {
-        const parts = node.name === "LuauLogicalOperator" || node.name === "LuauAccessPath" || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
+        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
         readings.push({ from: first.from, to: last.to, context, read: () => ({ expr: readLuauExpression(parts, text).expr, statements: false }) });
