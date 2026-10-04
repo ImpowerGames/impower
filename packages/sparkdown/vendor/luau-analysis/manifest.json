@@ -3,7 +3,7 @@
   "source": "7d5f73364fdbbaa984fa545071630eba73cfea98",
   "compiler": "Emscripten 4.0.10",
   "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.10 (b7dc6e5747465580df5984e723b9d1f10d8e804b)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
-  "bridgeSha256": "49828a414cbce9196adad59eeb2147c24cdb2c2bf0ebf4139713e2250e62d584",
+  "bridgeSha256": "11b5b4700d143f3bf00f9747b2f9e495f9175db780b27b18cafb9f85c99233c8",
   "sourceManifestSha256": "ec32f86bfd3ae5db6826d6e0f33c82400fa294e67e5291fdbe1fbb23f36c1df6",
   "compilerScriptSha256": "017f735c953318fdaaa4af68c8d4bf13936a787ddbd5dad804d532b0223b6c2f",
   "flags": [
@@ -22,7 +22,7 @@
     "-sDISABLE_EXCEPTION_CATCHING=0",
     "-sABORTING_MALLOC=0",
     "-sERROR_ON_UNDEFINED_SYMBOLS=1",
-    "-sEXPORTED_RUNTIME_METHODS=[\"ccall\"]"
+    "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"writeArrayToMemory\"]"
   ],
   "includeTargets": [
     "Common",
@@ -33,20 +33,21 @@
     "VM",
     "Analysis"
   ],
-  "buildMs": 507206.239,
+  "buildMs": 914883.3494,
   "memoryMaximumBytes": 268435456,
+  "textNormalization": "LF",
   "artifacts": {
     "backend.js": {
-      "sha256": "04a2b8b785c26b478213c094de2889f5f8ff415c1e9fdeacbf8eabdb8f5d834c",
-      "bytes": 28090
+      "sha256": "3887b97d3b5d1d13ddfa9069947da82864a6ca39f902cff94ce322f556c45feb",
+      "bytes": 28448
     },
     "backend.wasm": {
-      "sha256": "edeb1a0c752a13fa3c2d635340a8090cd2dd16a6fc42581fec1de7a6e2aacfb5",
-      "bytes": 3914493
+      "sha256": "dcc9729706117fc23a8fc0f01e155e922e058729761bf1f18def57c3d081a908",
+      "bytes": 3918851
     },
     "LICENSE.txt": {
-      "sha256": "1ceedfcc375343e3ec8e56861fa73ba3bd186ed178d5d000546447d358d38949",
-      "bytes": 1146
+      "sha256": "1597b423ca8f9c76225b498071f03b2b3609c4960b8dc30e63b230490fc82efd",
+      "bytes": 1124
     }
   }
 }

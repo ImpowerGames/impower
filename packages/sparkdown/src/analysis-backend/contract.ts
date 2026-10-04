@@ -23,6 +23,8 @@ export interface AnalysisUpdate {
   projectVersion: number;
   documents?: AnalysisDocument[];
   removeDocuments?: string[];
+  /** Applied as one batch. New definitions append in array order; replacements retain registration order.
+   * Definition types referenced by later files must be registered earlier. Removals follow additions. */
   definitions?: AnalysisDefinition[];
   removeDefinitions?: string[];
   configuration?: AnalysisConfiguration;

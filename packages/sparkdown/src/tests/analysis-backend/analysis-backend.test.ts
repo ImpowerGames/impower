@@ -138,6 +138,9 @@ test("cancellation terminates a busy worker and project deletion frees it", asyn
   setTimeout(() => controller.abort(), 30);
   expect((await checking).status).toBe("cancelled");
   expect((await p.reset()).status).toBe("ok");
+  expect((await p.check("main.luau", { signal: AbortSignal.abort() })).status).toBe("cancelled");
+  expect((await p.check("main.luau")).status).toBe("requires-reset");
+  expect((await p.reset()).status).toBe("ok");
   await p.dispose();
   expect((await p.check("main.luau")).status).toBe("error");
 });
@@ -209,11 +212,12 @@ test("queued updates snapshot caller inputs", async () => {
 
 test("definition failure is structured and reset restores committed state", async () => {
   const p = await project();
-  await p.update({ projectVersion: 1, definitions: [{ name: "host", version: 1, source: "declare hostNumber: number" }] });
+  await p.update({ projectVersion: 1, definitions: [{ name: "host", version: 1, source: "declare hostNumber: number" }], documents: [{ module: "host", version: 41, source: "return 1" }] });
   const r = await p.update({ projectVersion: 2, configuration: { mode: "nocheck" }, definitions: [{ name: "host", version: 2, source: "declare hostNumber: !!!" }] });
   expect(r.status).toBe("error");
   expect(r.projectVersion).toBe(1);
   expect(r.diagnostics?.some(d => d.module === "host" && d.documentVersion === 2 && Number.isInteger(d.code))).toBe(true);
+  expect(r.diagnostics?.some(d => d.range.start.line === 0 && d.range.start.column === 20)).toBe(true);
   expect((await p.reset()).status).toBe("ok");
   const checked = await source(p, "local x: number = hostNumber\nreturn x");
   expect(checked.diagnostics).toEqual([]);
@@ -224,12 +228,20 @@ test("definition failure is structured and reset restores committed state", asyn
 test("VM allocation limits fail explicitly and independent sessions recover", async () => {
   const limited = await project("strict", 1024 * 1024);
   const healthy = await project();
-  const r = await source(limited, 'type function Allocate() local huge = string.rep("x", 2^22) return types.number end\nlocal x: Allocate<>\nreturn x');
-  expect(r.status).toBe("memory-limit");
+  const allocation = 'type function Allocate() local huge = string.rep("x", 2^22) return types.number end\nlocal x: Allocate<>\nreturn x';
+  const r = await source(limited, allocation);
+  expect(r.status).toBe("error");
+  expect(r.diagnostics.some(d => d.message.includes("not enough memory"))).toBe(true);
   expect((await healthy.update({ projectVersion: 1, documents: [{ module: "main.luau", version: 1, source: "return 1" }] })).status).toBe("ok");
   expect((await healthy.check("main.luau")).diagnostics).toEqual([]);
+  const largerBudget = await source(healthy, allocation);
+  expect(largerBudget.status).toBe("ok");
+  expect(largerBudget.diagnostics).toEqual([]);
   expect((await limited.check("main.luau")).status).toBe("requires-reset");
   expect((await limited.reset()).status).toBe("ok");
+  const imitated = await source(limited, 'type function Imitate() error("not enough memory") end\nlocal x: Imitate<>\nreturn x');
+  expect(imitated.status).toBe("error");
+  expect(imitated.diagnostics.some(d => d.message.includes("not enough memory"))).toBe(true);
 });
 
 test("bounded queries map UTF-16 positions and reject initialization failure", async () => {
@@ -243,4 +255,17 @@ test("bounded queries map UTF-16 positions and reject initialization failure", a
   expect(p.initialization.initializationMs).toBeGreaterThan(0);
   expect(p.initialization.linearMemoryBytes).toBeGreaterThan(0);
   await expect(createNodeAnalysisBackend().createProject({ mode: "strict" }, { signal: AbortSignal.abort() })).rejects.toThrow("initialization failed");
+});
+
+test("query truncation is truthful and never splits Unicode", async () => {
+  const p = await project();
+  const r = await source(p, 'local x: "🌈🌈🌈🌈" = "🌈🌈🌈🌈"\nreturn x');
+  expect(r.diagnostics).toEqual([]);
+  const full = await p.queryType(r.documents[0]!, { line: 1, column: 7 });
+  expect(full.truncated).toBe(false);
+  expect(full.type).toContain("🌈🌈🌈🌈");
+  const small = await p.queryType(r.documents[0]!, { line: 1, column: 7 }, 4);
+  expect(small.truncated).toBe(true);
+  expect(small.type).not.toContain("�");
+  expect(new TextEncoder().encode(small.type!).length).toBeLessThanOrEqual(4);
 });

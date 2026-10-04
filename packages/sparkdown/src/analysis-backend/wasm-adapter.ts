@@ -74,7 +74,7 @@ class WasmProject implements AnalysisProject {
       return { ...d, documentVersion: source?.version ?? -1, range: { start: utf16Position(source ?? { source: "" }, d.range.start), end: utf16Position(source ?? { source: "" }, d.range.end) } };
     });
   }
-  private outcome(r: NativeResult): AnalysisOutcome { return { sessionId: this.sessionId, status: r.status, projectVersion: this.projectVersion, ...(r.message ? { message: r.message } : {}), ...(r.diagnostics ? { diagnostics: this.diagnostics(r) } : {}), timings: r.timings }; }
+  private outcome(r: NativeResult, documents = this.documents, definitions = this.definitions): AnalysisOutcome { return { sessionId: this.sessionId, status: r.status, projectVersion: this.projectVersion, ...(r.message ? { message: r.message } : {}), ...(r.diagnostics ? { diagnostics: this.diagnostics(r, documents, definitions) } : {}), timings: r.timings }; }
   private unavailable(): NativeResult | undefined {
     if (this.disposed) return { status: "error", message: "Project is disposed", timings: emptyTiming() };
     if (this.failed) return { status: "requires-reset", message: "Reset after interruption or native failure", timings: emptyTiming() };
@@ -94,8 +94,8 @@ class WasmProject implements AnalysisProject {
       message: this.terminationError ? `Worker termination failed: ${this.terminationError}` : message,
       timings: { ...emptyTiming(), totalMs: performance.now() - pending.start } });
   }
-  private request(operation: string, payload: unknown, options: AnalysisRequest = {}): Promise<NativeResult> {
-    if (options.signal?.aborted) return Promise.resolve({ status: "cancelled", timings: emptyTiming() });
+  private async request(operation: string, payload: unknown, options: AnalysisRequest = {}): Promise<NativeResult> {
+    if (options.signal?.aborted) { await this.stop("cancelled"); return { status: "cancelled", timings: emptyTiming() }; }
     const deadline = options.deadlineMs ?? (operation === "initialize" ? 10000 : 2000);
     if (!Number.isFinite(deadline) || deadline <= 0 || deadline > 60000) throw Error("Deadline must be greater than zero and at most 60 seconds");
     if (!this.transport) throw Error("Transport is not initialized");
@@ -132,8 +132,10 @@ class WasmProject implements AnalysisProject {
         this.failed = true;
         pending.resolve({ status: "error", message: String(error), timings: emptyTiming() });
       }
-    }, message => { if (this.transport === transport) void this.stop(/memory|alloc|oom/i.test(message) ? "memory-limit" : "error", message); });
-    const r = await this.request("initialize", { mode: mode[this.configuration.mode], heap: this.configuration.typeFunctionHeapBytes ?? DEFAULT_HEAP }, options);
+    }, message => { if (this.transport === transport) void this.stop(/ERR_WORKER_OUT_OF_MEMORY|Aborted\(OOM\)/i.test(message) ? "memory-limit" : "error", message); });
+    let r: NativeResult;
+    try { r = await this.request("initialize", { mode: mode[this.configuration.mode], heap: this.configuration.typeFunctionHeapBytes ?? DEFAULT_HEAP }, options); }
+    catch (error) { await this.stop("error", String(error)); throw error; }
     this.failed = r.status !== "ok";
     this.initialization = { ...r.timings };
     return r;
@@ -141,7 +143,10 @@ class WasmProject implements AnalysisProject {
   private async hydrate(options?: AnalysisRequest): Promise<NativeResult> {
     const r = await this.initialize(options);
     if (r.status !== "ok") return r;
-    const hydrated = await this.request("update", { documents: [...this.documents.values()], definitions: [...this.definitions.values()] }, options);
+    let hydrated: NativeResult;
+    try { hydrated = await this.request("update", { documents: [...this.documents.values()], definitions: [...this.definitions.values()] }, options); }
+    catch (error) { await this.stop("error", String(error)); throw error; }
+    if (hydrated.status !== "ok") { this.failed = true; this.checked.clear(); }
     hydrated.timings.initializationMs += r.timings.initializationMs;
     hydrated.timings.totalMs += r.timings.totalMs;
     hydrated.timings.transferMs += r.timings.transferMs;
@@ -169,23 +174,26 @@ class WasmProject implements AnalysisProject {
       if (update.configuration) {
         const previous = this.configuration;
         this.configuration = { ...update.configuration };
-        r = await this.hydrate(options);
-        if (r.status !== "ok") this.configuration = previous;
-        else {
-          const hydrated = r;
-          r = await this.request("update", update, options);
-          r.timings.initializationMs += hydrated.timings.initializationMs;
-          r.timings.transferMs += hydrated.timings.transferMs;
-          r.timings.encodingMs += hydrated.timings.encodingMs;
-          r.timings.inputBytes += hydrated.timings.inputBytes;
-          r.timings.outputBytes += hydrated.timings.outputBytes;
+        try {
+          r = await this.hydrate(options);
+          if (r.status === "ok") {
+            const hydrated = r;
+            r = await this.request("update", update, options);
+            r.timings.initializationMs += hydrated.timings.initializationMs;
+            r.timings.transferMs += hydrated.timings.transferMs;
+            r.timings.encodingMs += hydrated.timings.encodingMs;
+            r.timings.inputBytes += hydrated.timings.inputBytes;
+            r.timings.outputBytes += hydrated.timings.outputBytes;
+          }
           if (r.status !== "ok") this.configuration = previous;
-        }
+        } catch (error) { this.configuration = previous; throw error; }
       } else r = await this.request("update", update, options);
       if (r.status === "ok") { this.documents = documents; this.definitions = definitions; this.projectVersion = update.projectVersion; this.checked.clear(); }
       else { this.failed = true; this.checked.clear(); }
-      r.timings.totalMs = performance.now() - start;
-      return { ...this.outcome(r), ...(r.diagnostics ? { diagnostics: this.diagnostics(r, documents, definitions) } : {}) };
+      // Update diagnostics originate from definition loading, even when a document shares its ID.
+      const result = this.outcome(r, new Map(), definitions);
+      result.timings.totalMs = performance.now() - start;
+      return result;
     });
   }
   check(module: string, options?: AnalysisRequest): Promise<AnalysisCheckResult> {

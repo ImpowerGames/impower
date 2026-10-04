@@ -41,3 +41,41 @@ test("deadline result, reset and dispose await actual worker termination", async
   await disposal;
   expect(disposed).toBe(true);
 });
+
+test("aborted or invalid hydrate request cannot expose an empty usable session", async () => {
+  for (const invalidDeadline of [false, true]) {
+    const controller = new AbortController();
+    const options = { signal: controller.signal, deadlineMs: 1000 };
+    let created = 0;
+    let terminated = 0;
+    let hydratedModules: string[] = [];
+    const backend = createWasmAnalysisBackend((): AnalysisTransport => {
+      const instance = ++created;
+      let receive: (r: any) => void;
+      return {
+        listen(callback) { receive = callback; },
+        send(message: any) {
+          if (message.operation === "update") hydratedModules = (message.payload.documents ?? []).map((d: any) => d.module);
+          queueMicrotask(() => {
+            receive({ id: message.id, body: '{"status":"ok"}', initializationMs: 1, checkingMs: 0, encodingMs: 0, workerMs: 1, inputBytes: 1, outputBytes: 1, linearMemoryBytes: 1 });
+            if (instance === 2 && message.operation === "initialize") {
+              if (invalidDeadline) options.deadlineMs = 0;
+              else controller.abort();
+            }
+          });
+        },
+        async terminate() { terminated++; },
+      };
+    });
+    const p = await backend.createProject({ mode: "strict" });
+    try {
+      await p.update({ projectVersion: 1, documents: [{ module: "retained", version: 1, source: "return 1" }] });
+      if (invalidDeadline) await expect(p.reset(options)).rejects.toThrow("Deadline");
+      else expect((await p.reset(options)).status).toBe("cancelled");
+      expect((await p.check("retained")).status).toBe("requires-reset");
+      if (invalidDeadline) expect(terminated).toBe(2);
+      expect((await p.reset()).status).toBe("ok");
+      expect(hydratedModules).toEqual(["retained"]);
+    } finally { await p.dispose(); }
+  }
+});

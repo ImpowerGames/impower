@@ -11,6 +11,8 @@
 #include <map>
 #include <sstream>
 #include <set>
+#include <vector>
+#include <cstdlib>
 
 namespace {
 std::string quote(const std::string& s) {
@@ -59,6 +61,7 @@ struct Project {
     Files files;
     Config config;
     std::map<std::string, std::string> definitions;
+    std::vector<std::string> definitionOrder;
     std::unique_ptr<Luau::Frontend> frontend;
     size_t checked = 0;
     Project(int mode) { config.value.mode = Luau::Mode(mode); }
@@ -69,7 +72,8 @@ struct Project {
         frontend = std::make_unique<Luau::Frontend>(Luau::SolverMode::New, &files, &config, options);
         Luau::unfreeze(frontend->globals.globalTypes);
         Luau::registerBuiltinGlobals(*frontend, frontend->globals);
-        for (const auto& [name, source] : definitions) {
+        for (const auto& name : definitionOrder) {
+            const auto& source = definitions.at(name);
             auto r = frontend->loadDefinitionFile(frontend->globals, frontend->globals.globalScope, source, name, false);
             if (!r.success) {
                 std::string diagnostics = "[";
@@ -122,6 +126,11 @@ EMSCRIPTEN_KEEPALIVE const char* analysis_set(const char* name, const char* sour
         auto old = p.files.sources.find(name);
         bool changed = remove ? old != p.files.sources.end() : old == p.files.sources.end() || old->second != source;
         if (changed) {
+            // Missing source nodes have no reverse edges in Frontend. Retained importers
+            // still record the missing name and must be invalidated when it appears.
+            if (!remove && old == p.files.sources.end())
+                for (const auto& [module, node] : p.frontend->sourceNodes)
+                    if (node->requireSet.contains(name)) p.frontend->markDirty(module);
             p.frontend->markDirty(name);
             if (remove) p.files.sources.erase(name); else p.files.sources[name] = source;
         }
@@ -131,9 +140,18 @@ EMSCRIPTEN_KEEPALIVE const char* analysis_set(const char* name, const char* sour
 EMSCRIPTEN_KEEPALIVE const char* analysis_definition(const char* name, const char* source, int remove) {
     return guard([&] {
         auto& p = get();
-        if (remove) p.definitions.erase(name); else p.definitions[name] = source;
-        p.reset(); return std::string("{\"status\":\"ok\"}");
+        if (remove) {
+            p.definitions.erase(name);
+            p.definitionOrder.erase(std::remove(p.definitionOrder.begin(), p.definitionOrder.end(), name), p.definitionOrder.end());
+        } else {
+            if (!p.definitions.count(name)) p.definitionOrder.push_back(name);
+            p.definitions[name] = source;
+        }
+        return std::string("{\"status\":\"ok\"}");
     });
+}
+EMSCRIPTEN_KEEPALIVE const char* analysis_commit_definitions() {
+    return guard([&] { get().reset(); return std::string("{\"status\":\"ok\"}"); });
 }
 EMSCRIPTEN_KEEPALIVE const char* analysis_check(const char* name, double seconds) {
     return guard([&] {
@@ -167,12 +185,12 @@ EMSCRIPTEN_KEEPALIVE const char* analysis_check(const char* name, double seconds
             if (!p.files.sources.count(module)) continue;
             if (!first) json += ','; first = false; json += quote(module);
         }
-        // Heap allocator failures can be reported by the VM as a runtime diagnostic.
-        bool heapLimit = false;
+        // Upstream exposes only diagnostic text here, which user error() can imitate.
+        bool ambiguousMemoryError = false;
         for (const auto& e : r.errors) if (auto runtime = Luau::get<Luau::UserDefinedTypeFunctionError>(e))
-            if (runtime->message.find("not enough memory") != std::string::npos) heapLimit = true;
+            if (runtime->message.find("not enough memory") != std::string::npos) ambiguousMemoryError = true;
         json += "],\"nativeCheckingMs\":" + std::to_string(checkingMs) + ",\"nativeEncodingMs\":" + std::to_string(emscripten_get_now() - encodingStart) + "}";
-        if (heapLimit) { json.replace(json.find("\"ok\""), 4, "\"memory-limit\""); project.reset(); }
+        if (ambiguousMemoryError) { json.replace(json.find("\"ok\""), 4, "\"error\""); project.reset(); }
         return json;
     });
 }
@@ -185,13 +203,21 @@ EMSCRIPTEN_KEEPALIVE const char* analysis_query(const char* name, int line, int 
         auto ty = Luau::findTypeAtPosition(*module, *source, Luau::Position(line, column));
         if (!ty) if (auto binding = Luau::findBindingAtPosition(*module, *source, Luau::Position(line, column))) ty = binding->typeId;
         if (!ty) return std::string("{\"status\":\"ok\",\"type\":null}");
-        Luau::ToStringOptions options; options.maxTypeLength = maxLength; options.maxTableLength = maxLength;
-        auto text = Luau::toString(*ty, options);
-        bool truncated = text.size() > size_t(maxLength);
-        if (truncated) text.resize(maxLength);
+        Luau::ToStringOptions options; options.maxTypeLength = maxLength; options.maxTableLength = 0;
+        auto detailed = Luau::toStringDetailed(*ty, options);
+        auto text = std::move(detailed.name);
+        bool truncated = detailed.truncated || text.size() > size_t(maxLength);
+        if (text.size() > size_t(maxLength)) {
+            size_t boundary = maxLength;
+            // A byte limit must not split a UTF-8 code point in the JSON result.
+            while (boundary > 0 && (static_cast<unsigned char>(text[boundary]) & 0xc0) == 0x80) --boundary;
+            text.resize(boundary);
+        }
         return "{\"status\":\"ok\",\"type\":" + quote(text) + ",\"truncated\":" + (truncated ? "true}" : "false}");
     });
 }
 EMSCRIPTEN_KEEPALIVE void analysis_dispose() { project.reset(); result.clear(); }
 EMSCRIPTEN_KEEPALIVE unsigned analysis_memory_bytes() { return emscripten_get_heap_size(); }
+EMSCRIPTEN_KEEPALIVE void* analysis_allocate(unsigned bytes) { return std::malloc(bytes); }
+EMSCRIPTEN_KEEPALIVE void analysis_free(void* buffer) { std::free(buffer); }
 }
