@@ -270,6 +270,7 @@ export const liveDeps = {
   driverHome: () => driverHome(),
   readEntries: (p) => fs.readdirSync(p, { withFileTypes: true }),
   lstat: (p) => fs.lstatSync(p),
+  realpath: (p) => fs.realpathSync.native(p),
   // The record of every --apply run, one JSON object per line, in the main
   // checkout's .git so it is never committed.
   readLog: (p) => {
@@ -1313,12 +1314,33 @@ function registeredWorktrees(ctx, deps) {
   return { entries, reason };
 }
 
+// Registrations may name a missing checkout. Resolve its nearest existing
+// ancestor so ownership survives both missing markers and parent aliases.
+function physicalPath(value, deps) {
+  let current = path.resolve(value);
+  const suffix = [];
+  while (true) {
+    try { return path.join((deps.realpath ?? liveDeps.realpath)(current), ...suffix); }
+    catch (err) {
+      if (err.code !== "ENOENT" || path.dirname(current) === current) throw err;
+      suffix.unshift(path.basename(current));
+      current = path.dirname(current);
+    }
+  }
+}
+
 function jobProtection(dir, deps, ctx) {
   const reasons = [];
   const { entries, reason } = registeredWorktrees(ctx, deps);
   if (reason) reasons.push(reason);
+  let physicalDir;
+  try { physicalDir = physicalPath(dir, deps); }
+  catch (err) { reasons.push(`job ownership path could not be resolved at ${dir}: ${err.code ?? err.message}`); }
   for (const entry of entries) {
-    if (samePath(entry.path, dir) || isUnder(entry.path, dir)) reasons.push(`protected registered worktree ${path.resolve(entry.path)}`);
+    let physicalEntry;
+    try { physicalEntry = physicalPath(entry.path, deps); }
+    catch (err) { reasons.push(`registered ownership path could not be resolved at ${entry.path}: ${err.code ?? err.message}`); }
+    if (samePath(entry.path, dir) || isUnder(entry.path, dir) || (physicalDir && physicalEntry && (samePath(physicalEntry, physicalDir) || isUnder(physicalEntry, physicalDir)))) reasons.push(`protected registered worktree ${path.resolve(entry.path)}`);
   }
   const pending = [dir];
   while (pending.length) {

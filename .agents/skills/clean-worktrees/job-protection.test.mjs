@@ -165,6 +165,27 @@ try {
   const ordinary = job();
   cleanJobs(ctx, deps, true, () => {});
   assert.equal(fs.existsSync(ordinary.dir), false, 'ordinary closed job was retained');
+  const actualJobs = path.join(scratch, 'actual-jobs');
+  assert.ok(root.startsWith(scratch + path.sep) && actualJobs.startsWith(scratch + path.sep));
+  console.log(`Scratch job-root alias: ${root} -> ${actualJobs}`);
+  fs.renameSync(root, actualJobs);
+  fs.symlinkSync(actualJobs, root, 'junction');
+  fixtureLinks.push(root);
+  const alias = job();
+  const aliasCheckout = path.join(actualJobs, alias.name, 'checkout');
+  git('worktree', 'add', '-b', 'alias', aliasCheckout);
+  git('worktree', 'lock', aliasCheckout);
+  fs.writeFileSync(path.join(aliasCheckout, 'ignored.txt'), 'alias sentinel');
+  fs.unlinkSync(path.join(aliasCheckout, '.git'));
+  const aliasVerdict = classifyJob(alias.name, alias.dir, deps, ctx);
+  assert.equal(aliasVerdict.remove, false, 'physical registered descendant behind parent junction was removable');
+  assert.ok(aliasVerdict.reason.includes(aliasCheckout));
+  const unresolved = classifyJob(alias.name, alias.dir, { ...deps, realpath: () => { const error = new Error('fixture resolution denied'); error.code = 'EACCES'; throw error; } }, ctx);
+  assert.equal(unresolved.remove, false, 'uncertain physical ownership was removable');
+  assert.match(unresolved.reason, /ownership path could not be resolved/);
+  cleanJobs(ctx, deps, true, () => {});
+  assert.equal(fs.readFileSync(path.join(aliasCheckout, 'ignored.txt'), 'utf8'), 'alias sentinel');
+  assert.ok(isRegistered(aliasCheckout));
   console.log('PASS review-job ownership protection');
 } finally {
   // Only this printed scratch root is disposable; never touch live jobs.

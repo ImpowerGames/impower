@@ -24,7 +24,7 @@ The refusals are not to be overridden by hand for a tree with changes in it. Com
 
 ### Review-job ownership
 
-Review-job classification and removal retain any candidate that is or contains a registered worktree, naming each protected absolute path. Embedded Git repositories and unreadable or uncertain inventory/ownership also retain the candidate. Inventory is refreshed before link removal and deletion; closed PRs and clean or merged descendants do not override protection. Independently handle an explicitly authorized worktree through guarded targeted cleanup before its ancestor can qualify.
+Review-job classification and removal retain any candidate that is or contains a registered worktree, naming each protected absolute path. Ownership compares both named and physical paths, including parent junctions; a missing checkout resolves through its nearest existing ancestor, and resolution uncertainty retains the candidate. Embedded Git repositories and unreadable or uncertain inventory/ownership also retain the candidate. Inventory is refreshed before link removal and deletion; closed PRs and clean or merged descendants do not override protection. Independently handle an explicitly authorized worktree through guarded targeted cleanup before its ancestor can qualify.
 
 Pruning refreshes the registration inventory and waits if a prunable checkout path still exists, cannot be inspected, or has a sibling interrupted-removal probe. A missing Git marker does not establish that the checkout and its ownership are disposable. Repair that state before pruning; keep the registry evidence while it is uncertain. Only confirmed absent paths can be pruned.
 
