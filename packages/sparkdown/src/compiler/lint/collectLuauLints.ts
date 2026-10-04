@@ -89,6 +89,7 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "IntegerParsing",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -266,7 +267,13 @@ function expressionsOutsideUnits(tree: Tree, text: string, units: LuauAstUnit[])
   const readings: Reading[] = [];
   tree.iterate({
     enter(ref) {
-      if (!LINTED_NODES.has(ref.name)) return true;
+      if (!LINTED_NODES.has(ref.name)) {
+        if (!/^LuauNumeric\w+$/.test(ref.name)) return true;
+        // Only large integer literals can lose precision. Avoid constructing
+        // standalone AST readings for every ordinary embedded number.
+        const literal = text.slice(ref.from, ref.to).replaceAll("_", "");
+        if (!/^(?:[0-9]+|0[bB][01]+|0[xX][0-9a-fA-F]+)$/.test(literal) || Number(literal) < 2 ** 53) return true;
+      }
       const node = ref.node;
       if (statementNodes.has(key(node))) return true;
       const above = opaqueAbove(node);
@@ -723,6 +730,37 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 
 // ---------------------------------------------------------------------------
 
+/** Luau checks integer spellings; fractions and exponents intentionally stay silent. */
+function lintIntegerParsing(source: AstNode, text: string, offsets: Offsets, out: LuauLint[]): void {
+  visitAst(source, {
+    visit(node) {
+      if (!(node instanceof AstExprConstantNumber)) return true;
+      const range = offsets.range(node.location);
+      // Unsupported integer suffixes and malformed numbers can be read as
+      // a numeric prefix followed by a name; that prefix is not a literal.
+      if (/[A-Za-z0-9_.]/.test(text[range.to] ?? "")) return true;
+      const literal = text.slice(range.from, range.to).replaceAll("_", "");
+      const binary = /^0[bB][01]+$/.test(literal);
+      const hex = /^0[xX][0-9a-fA-F]+$/.test(literal);
+      const decimal = /^[0-9]+$/.test(literal);
+      if (!binary && !hex && !decimal) return true;
+      // Match lowerNumber's conversion of the spelling, rather than the AST's
+      // uint64-clamped value for binary and hexadecimal integers.
+      const value = binary ? parseInt(literal.slice(2), 2) : Number(literal);
+      // Avoid exact arithmetic for the overwhelmingly common small decimal literals.
+      if (decimal && value < 2 ** 53) return true;
+      const exact = BigInt(literal);
+      if (!Number.isFinite(value) || BigInt(value) !== exact) {
+        out.push({
+          code: "IntegerParsing", ...range,
+          message: "Number literal exceeded available precision and was truncated to closest representable number",
+        });
+      }
+      return true;
+    },
+  });
+}
+
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
   const starts = lineStarts(text);
@@ -743,6 +781,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
+      lintIntegerParsing(source.statement, text, offsets, out);
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
@@ -753,6 +792,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintFunctions(functions, documentOffsets);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
+    lintIntegerParsing(expr, text, documentOffsets, out);
   }
   return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to) };
 }
