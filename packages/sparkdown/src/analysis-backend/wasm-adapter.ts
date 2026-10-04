@@ -25,7 +25,7 @@ function metadata(d: { source: string }) {
 const mode = { nocheck: 0, nonstrict: 1, strict: 2 };
 const DEFAULT_HEAP = 16 * 1024 * 1024;
 function validateConfiguration(c: AnalysisConfiguration) {
-  if (!(c.mode in mode)) throw Error("Unsupported analysis mode");
+  if (c.mode !== "strict" && c.mode !== "nonstrict" && c.mode !== "nocheck") throw Error("Unsupported analysis mode");
   const heap = c.typeFunctionHeapBytes ?? DEFAULT_HEAP;
   if (!Number.isSafeInteger(heap) || heap < 1024 * 1024 || heap > 128 * 1024 * 1024) throw Error("Type-function heap must be 1 MiB to 128 MiB");
 }

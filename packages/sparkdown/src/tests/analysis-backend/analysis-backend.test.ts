@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "vitest";
 import { createNodeAnalysisBackend } from "../../analysis-backend/node-loader";
-import type { AnalysisProject } from "../../analysis-backend/contract";
+import type { AnalysisMode, AnalysisProject } from "../../analysis-backend/contract";
 
 const projects: AnalysisProject[] = [];
 async function project(mode: "strict" | "nonstrict" | "nocheck" = "strict", heap?: number) {
@@ -9,6 +9,20 @@ async function project(mode: "strict" | "nonstrict" | "nocheck" = "strict", heap
   return p;
 }
 afterEach(async () => { await Promise.all(projects.splice(0).map(p => p.dispose())); });
+test("inherited object properties are unsupported modes and leave valid projects unchanged", async () => {
+  const p = await project();
+  const checked = await source(p, "return 1");
+  for (const invalid of ["__proto__", "constructor", "toString"]) {
+    const configuration = { mode: invalid as AnalysisMode };
+    await expect(createNodeAnalysisBackend().createProject(configuration).then(created => {
+      projects.push(created); return "usable project";
+    })).rejects.toThrow("Unsupported analysis mode");
+    await expect(p.update({ projectVersion: 2, configuration })).rejects.toThrow("Unsupported analysis mode");
+    expect(p.projectVersion).toBe(1);
+    expect((await p.check("main.luau")).checkedModules).toBe(0);
+    expect((await p.queryType(checked.documents[0]!, { line: 0, column: 7 })).type).toBe("number");
+  }
+});
 async function source(p: AnalysisProject, text: string) {
   expect((await p.update({ projectVersion: p.projectVersion + 1, documents: [{ module: "main.luau", version: p.projectVersion + 1, source: text }] })).status).toBe("ok");
   return p.check("main.luau");
