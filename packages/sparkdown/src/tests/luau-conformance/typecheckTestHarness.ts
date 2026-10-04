@@ -16,26 +16,42 @@
 // looks at the syntax tree as well as at what the validator reports.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
+import { createHash } from "node:crypto";
 import { vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { findTypeAtPosition } from "../../compiler/typecheck/AstQuery";
-import { addGlobalBinding, registerBuiltinGlobals } from "../../compiler/typecheck/BuiltinDefinitions";
-import { errorFields, errorToString, type LuauTypeError } from "../../compiler/typecheck/Error";
-import { Frontend } from "../../compiler/typecheck/Frontend";
-import { Position } from "../../compiler/typecheck/Location";
-import { checkLuauUnit, modeFromName, runFileUnit } from "../../compiler/typecheck/LuauDocumentChecker";
-import type { Module, SourceModule } from "../../compiler/typecheck/Module";
-import { toString } from "../../compiler/typecheck/ToString";
 import {
-  flatten,
-  follow,
-  genericType,
-  get,
-  metatableType,
-  negationType,
-  Polarity,
-  TypeFun,
+  AstStatLocal,
+  AstStatLocalFunction,
+  visitAst,
+  type AstStatBlock,
+} from "../../compiler/typecheck/Ast";
+import {
+  copyErrors,
+  errorFields,
+  errorToString,
+  type LuauTypeError,
+} from "../../compiler/typecheck/Error";
+import { Frontend } from "../../compiler/typecheck/Frontend";
+import {
+  checkLuauUnit,
+  modeFromName,
+  runFileUnit,
+} from "../../compiler/typecheck/LuauDocumentChecker";
+import type { ModuleResolver } from "../../compiler/typecheck/Module";
+import { toString, toStringPack } from "../../compiler/typecheck/ToString";
+import {
+  fixtureFrontend as freshFixtureFrontend,
+  registerHiddenTypes as addHiddenTypes,
+} from "./typecheckFixtures";
+import { loadOfficialLuau } from "../compiler/officialLuau";
+import { decorateSource } from "./typecheckDecoration";
+import { queryType } from "./typecheckQueries";
+import { pinnedModuleDependencyOrder } from "./typecheckModuleOrder";
+import { traceFixtureRequires } from "./typecheckRequireTrace";
+import {
+  Type,
   type TypeId,
+  type TypePackId,
 } from "../../compiler/typecheck/Type";
 import type { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import type { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
@@ -52,6 +68,7 @@ export type LuauMode = "strict" | "nonstrict" | "nocheck";
  * location compares directly.
  */
 export interface LuauDiagnostic {
+  module?: string;
   line: number;
   column: number;
   endLine: number;
@@ -61,6 +78,10 @@ export interface LuauDiagnostic {
   code: string;
   /** The error's fields, named as its Luau struct names them, with types printed. */
   data?: Record<string, unknown>;
+  /** Reprints genuine error type fields with per-field options. */
+  fields?(
+    options: Record<string, LuauToStringOptions>,
+  ): Record<string, unknown>;
 }
 
 /** The `ToStringOptions` a type is printed with. */
@@ -74,6 +95,8 @@ export interface LuauToStringOptions {
   hideTableAliasExpansions?: boolean;
   useQuestionMarks?: boolean;
   ignoreSyntheticName?: boolean;
+  maxTableLength?: number;
+  maxTypeLength?: number;
 }
 
 /**
@@ -85,7 +108,11 @@ export type TypePathStep =
   | { argument: number }
   | { result: number }
   | { indexer: "key" | "result" }
-  | { typeParameter: number };
+  | { typeParameter: number }
+  | { generic: number }
+  | { genericPack: number }
+  | { instantiatedTypeParameter: number }
+  | { instantiatedTypePackParameter: number };
 
 /**
  * Which type a query is about: a module-level binding (Luau's
@@ -95,11 +122,37 @@ export type TypePathStep =
  */
 export type TypeSelector = (
   | { type: string }
+  | { global: string }
   | { alias: string }
+  | { exportedAlias: string }
+  | { importedAlias: [moduleAlias: string, name: string] }
+  | {
+      builtin:
+        | "error"
+        | "number"
+        | "string"
+        | "boolean"
+        | "nil"
+        | "any"
+        | "unknown"
+        | "never"
+        | "function"
+        | "table";
+    }
+  | { overloadAt: [line: number, column: number] }
+  | { diagnosticType: [index: number, field: string] }
   | { typeAt: [line: number, column: number] }
+  | { expectedTypeAt: [line: number, column: number] }
   /** The module's return pack; a first result path step selects an entry. */
   | { moduleReturn: true }
-) & { path?: TypePathStep[] };
+) & { path?: TypePathStep[]; module?: string; normalized?: true };
+
+export interface PackFacts {
+  length: number | undefined;
+  tail: boolean | undefined;
+  tailKind?: string;
+}
+export type LocationTuple = [number, number, number, number];
 
 /** A type the checker found. */
 export interface CheckedType {
@@ -117,6 +170,24 @@ export interface CheckedType {
   typeParameterCount?: number;
   /** For a table: how many properties it has. */
   propertyCount?: number;
+  arguments?: PackFacts;
+  returns?: PackFacts;
+  /** Facts after Luau flatten(), including the residual non-concrete tail. */
+  flattenedArguments?: PackFacts;
+  flattenedReturns?: PackFacts;
+  hasSelf?: boolean;
+  polarity?: string;
+  instantiatedTypeParameterCount?: number;
+  instantiatedTypePackParameterCount?: number;
+  genericCount?: number;
+  genericPackCount?: number;
+  name?: string;
+  definitionLocation?: LocationTuple;
+  propertyNames?: string[];
+  propertyLocations?: Record<
+    string,
+    { location: LocationTuple | null; typeLocation: LocationTuple | null }
+  >;
 }
 
 export interface LuauCheckResult {
@@ -142,6 +213,14 @@ export interface LuauCheckResult {
   decoratedSource(): string;
   /** The compiler's own diagnostics for the snippet, including ones it only logs; not asserted. */
   compilerMessages: string[];
+  moduleName?: string;
+  /** Parse diagnostics of every dependency/definition, in that source's own locations. */
+  setupSyntaxDiagnostics?: LuauDiagnostic[];
+  scopes?: {
+    aliases: Record<string, LocationTuple>;
+    imports: Record<string, string>;
+    location: LocationTuple;
+  }[];
 }
 
 export interface CheckLuauOptions {
@@ -153,6 +232,77 @@ export interface CheckLuauOptions {
   mode?: LuauMode;
   /** The upstream fixture, which decides the globals and types in scope. */
   fixture?: string;
+  module?: string;
+  moduleSources?: Record<string, string>;
+  definitions?: string[];
+  globals?: Record<string, string>;
+  hiddenTypes?: true;
+  retainFullTypeGraphs?: false;
+  flags?: Record<string, boolean>;
+  clearModules?: true;
+  /** Explicit intentional fixture sharing; the caller owns its case-local lifetime. */
+  session?: LuauCheckSession;
+}
+
+export interface LuauCheckSession {
+  frontend?: Frontend;
+  fixture?: string;
+  modules: Map<string, ReturnType<typeof checkLuauUnit>>;
+  sources?: Map<string, ReturnType<typeof compileSource>>;
+  traces?: Map<string, ReturnType<typeof traceFixtureRequires>>;
+}
+export function createLuauCheckSession(): LuauCheckSession {
+  return { modules: new Map() };
+}
+
+// Test-only parsing of declaration setup. Production loads prepared ASTs and never imports this oracle.
+const parseDefinitions = await loadOfficialLuau("typecheck");
+const upstreamPin = "7d5f73364fdbbaa984fa545071630eba73cfea98";
+
+/** Fixed settings are accepted only for explicitly audited equivalent code paths. */
+export function validateLuauFlags(
+  flags: Record<string, boolean> = {},
+  roots: AstStatBlock[] = [],
+): void {
+  const fixed: Record<string, boolean> = {
+    DebugLuauForceOldSolver: false, // Frontend.check only invokes the new solver.
+    DebugLuauMagicTypes: false, // No internal magic aliases are installed.
+    LuauAvoidTrivialPhis: true, // DataFlowGraph.joinScopes skips identical defs.
+    LuauStrictVisitInstantiatedType: true, // Generator records failed references; TypeChecker2 visits type arguments and checks them.
+    LuauNewTypePathErrorMessages: true, // TypeChecker2.explainReasonings traverses/render paths with metadata and enclosing negation.
+    LuauFixSuperNegationTypePaths: true, // Subtyping super-negation branches attach the Negated component at each leaf.
+  };
+  for (const [name, value] of Object.entries(flags)) {
+    if (name === "LuauExportValueSyntax" && value === true) {
+      let hasConst = false,
+        hasValueExport = false;
+      for (const root of roots)
+        visitAst(root, {
+          visit: (node) => {
+            if (node instanceof AstStatLocal) {
+              hasConst ||= node.isConst;
+              hasValueExport ||=
+                node.isExported || node.vars.some((v) => v.isExported);
+            } else if (node instanceof AstStatLocalFunction) {
+              hasConst ||= node.isConst;
+              hasValueExport ||= node.name.isExported;
+            }
+            return true;
+          },
+        });
+      // Pinned Parser.cpp's true branch reports const-lvalue errors through
+      // reportLValueError; readLuauAst does this unconditionally. This bounded
+      // equivalence does not authorize or claim value-export syntax support.
+      if (hasConst && !hasValueExport) continue;
+      throw new NotImplemented(
+        `flag ${name}=${value}; only const declarations without value exports have audited equivalent syntax`,
+      );
+    }
+    if (!(name in fixed) || fixed[name] !== value)
+      throw new NotImplemented(
+        `flag ${name}=${value}; no equivalent configured checker path`,
+      );
+  }
 }
 
 /** Thrown by a type query the harness cannot answer. */
@@ -169,7 +319,7 @@ const SNIPPET_URI = `inmemory:///${SNIPPET_NAME}.luau`;
 // The name Luau's test fixture gives the module it checks.
 const MAIN_MODULE_NAME = "MainModule";
 
-export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauCheckResult {
+function compileSource(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
@@ -196,7 +346,9 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
   // The compiler logs a diagnostic it cannot place instead of reporting it.
   const logged: string[] = [];
   const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
-    logged.push(args[0] === "HIDDEN" ? String(args[1]) : args.map(String).join(" "));
+    logged.push(
+      args[0] === "HIDDEN" ? String(args[1]) : args.map(String).join(" "),
+    );
   });
   let program;
   try {
@@ -208,30 +360,258 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
   const documents = compiler.documents;
   const wrapped = wrappedSnippet(documents, source);
   // The compiler checks the snippet's types under the file's own URI, in its own lines.
-  const syntaxDiagnostics = syntaxDiagnosticsOf(wrapped, documents, program.diagnostics?.[SNIPPET_URI] ?? []);
+  const syntaxDiagnostics = syntaxDiagnosticsOf(
+    wrapped,
+    documents,
+    program.diagnostics?.[SNIPPET_URI] ?? [],
+  );
 
   const compilerMessages = [...logged];
-  for (const d of program.diagnostics?.[wrapped.uri] ?? []) compilerMessages.push(diagnosticMessage(d));
+  for (const d of program.diagnostics?.[wrapped.uri] ?? [])
+    compilerMessages.push(diagnosticMessage(d));
 
   // The checker reads the snippet as the compiler hands it over, with the
   // globals of the upstream fixture the case names.
-  const unit = runFileUnit(wrapped.uri, wrapped.document.getText(), wrapped.tree);
-  if (!unit) throw new Error(`the checker does not read ${wrapped.uri} as a run file`);
-  const frontend = fixtureFrontend(options.fixture);
+  const unit = runFileUnit(
+    wrapped.uri,
+    wrapped.document.getText(),
+    wrapped.tree,
+  );
+  if (!unit)
+    throw new Error(`the checker does not read ${wrapped.uri} as a run file`);
+  return { unit, syntaxDiagnostics, compilerMessages };
+}
+
+export function checkLuau(
+  source: string,
+  options: CheckLuauOptions = {},
+): LuauCheckResult {
+  const prepared = compileSource(source);
+  validateLuauFlags(options.flags, [prepared.unit.root]);
+  const { syntaxDiagnostics, compilerMessages } = prepared;
+  const session = options.session ?? createLuauCheckSession();
+  const fixture = options.fixture ?? "Fixture";
+  if (session.frontend && session.fixture !== fixture)
+    throw new Error("shared fixture session cannot change fixture");
+  const frontend = session.frontend ?? freshFixtureFrontend(fixture);
   if (!frontend) {
     // Without the fixture's globals nothing is checked: the snippet's parse
     // still counts, and a type query says which fixture is missing.
     const missing = (): never => {
       throw new NotImplemented(`the globals of the fixture ${options.fixture}`);
     };
-    return { syntaxDiagnostics, checked: false, diagnostics: syntaxDiagnostics, typeOf: missing, find: missing, decoratedSource: missing, compilerMessages };
+    return {
+      syntaxDiagnostics,
+      checked: false,
+      diagnostics: syntaxDiagnostics,
+      typeOf: missing,
+      find: missing,
+      decoratedSource: missing,
+      compilerMessages,
+    };
   }
+  session.frontend = frontend;
+  session.fixture = fixture;
+  if (options.clearModules) {
+    session.modules.clear();
+    session.sources?.clear();
+    session.traces?.clear();
+  }
+  if (options.hiddenTypes) addHiddenTypes(frontend);
+  const setupSyntaxDiagnostics: LuauDiagnostic[] = [];
+  const definitions = [...(options.definitions ?? [])];
+  for (const [name, annotation] of Object.entries(options.globals ?? {})) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+      throw new Error(`invalid typed global name ${JSON.stringify(name)}`);
+    definitions.push(`declare ${name}: ${annotation}`);
+  }
+  definitions.forEach((definition, index) => {
+    const parsed = parseDefinitions(definition);
+    const module = `@definitions/${index}`;
+    for (const diagnostic of parsed.diagnostics)
+      setupSyntaxDiagnostics.push({
+        module,
+        code: "SyntaxError",
+        message: diagnostic.message,
+        line: diagnostic.location.begin.line,
+        column: diagnostic.location.begin.column,
+        endLine: diagnostic.location.end.line,
+        endColumn: diagnostic.location.end.column,
+      });
+    if (parsed.errors) return;
+    const loaded = frontend.loadDefinitionFile(
+      frontend.globals,
+      frontend.globals.globalScope,
+      {
+        version: 1,
+        parser: upstreamPin,
+        sourceSha256: createHash("sha256").update(definition).digest("hex"),
+        root: parsed.root,
+      },
+      module,
+    );
+    if (!loaded.success)
+      throw new Error(
+        `definition ${module} failed: ${loaded.module?.errors.map(errorToString).join("; ")}`,
+      );
+  });
   const mode = modeFromName(options.mode ?? "strict")!;
-  const checked = checkLuauUnit(frontend, MAIN_MODULE_NAME, unit, mode);
-  const diagnostics = checked.errors.map(toLuauDiagnostic);
+  const entry = options.module ?? MAIN_MODULE_NAME;
+  const suppliedSources = Object.entries(options.moduleSources ?? {});
+  if (suppliedSources.some(([name]) => name === entry))
+    throw new Error(`entry module ${entry} is duplicated in moduleSources`);
+  const sources = (session.sources ??=
+    new Map<string, ReturnType<typeof compileSource>>());
+  const traces = (session.traces ??=
+    new Map<string, ReturnType<typeof traceFixtureRequires>>());
+  // Fixture::check marks its entry dirty on every call. Frontend::markDirty
+  // traverses reverse dependencies; retain their sources so rechecks use the
+  // current dependency interfaces instead of resurrecting cached importers.
+  const markDirty = (name: string) => {
+    const pending = [name];
+    const dirty = new Set<string>();
+    while (pending.length) {
+      const next = pending.pop()!;
+      if (dirty.has(next)) continue;
+      dirty.add(next);
+      session.modules.delete(next);
+      for (const [importer, trace] of traces)
+        if (trace.dependencies.includes(next)) pending.push(importer);
+    }
+  };
+  markDirty(entry);
+  sources.set(entry, prepared);
+  traces.set(entry, traceFixtureRequires(prepared.unit.root, entry));
+  for (const [name, text] of suppliedSources) {
+    const dependency = compileSource(text);
+    validateLuauFlags(options.flags, [
+      prepared.unit.root,
+      dependency.unit.root,
+    ]);
+    markDirty(name);
+    sources.set(name, dependency);
+    traces.set(name, traceFixtureRequires(dependency.unit.root, name));
+    setupSyntaxDiagnostics.push(
+      ...dependency.syntaxDiagnostics.map((d) => ({ ...d, module: name })),
+    );
+    compilerMessages.push(...dependency.compilerMessages);
+  }
+  const visiting = new Set<string>();
+  const freshlyChecked = new Set<string>();
+  const requires = new Map(
+    [...traces].map(([name, trace]) => [name, new Set(trace.dependencies)]),
+  );
+  const checkModule = (
+    name: string,
+  ): ReturnType<typeof checkLuauUnit> | undefined => {
+    const cached = session.modules.get(name);
+    if (cached) return cached;
+    const input = sources.get(name);
+    if (!input) return undefined;
+    if (visiting.has(name))
+      throw new NotImplemented(`cyclic named module graph involving ${name}`);
+    visiting.add(name);
+    try {
+      // Frontend's parsed require graph checks dependencies even when a magic
+      // call later rejects its arguments. Unknown sources keep UnknownRequire.
+      for (const dependency of pinnedModuleDependencyOrder(
+        requires.get(name) ?? [],
+      ).reverse())
+        checkModule(dependency);
+      const result = checkLuauUnit(frontend, name, input.unit, mode);
+      session.modules.set(name, result);
+      freshlyChecked.add(name);
+      return result;
+    } finally {
+      visiting.delete(name);
+    }
+  };
+  const resolver: ModuleResolver = {
+    resolveModuleInfo: (current, expr) => {
+      const name = traces.get(current)?.expressions.get(expr);
+      return name !== undefined ? { name, optional: false } : undefined;
+    },
+    getModule: (name) => checkModule(name)?.module,
+    moduleExists: (name) => sources.has(name),
+    getHumanReadableModuleName: (name) => name.replaceAll("/", "."),
+  };
+  frontend.moduleResolver = resolver;
+  const checked = checkModule(entry)!;
+  // Fixture::check dirties the entry. Pinned Frontend::parseGraph uses LIFO
+  // dependency postorder; check appends only freshly checked module errors,
+  // without cached getCheckResult's source sorting.
+  const allErrors: LuauTypeError[] = [];
+  const reachable: ReturnType<typeof checkLuauUnit>[] = [];
+  const seen = new Set<string>();
+  const collect = (name: string) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    for (const dependency of pinnedModuleDependencyOrder(
+      requires.get(name) ?? [],
+    ).reverse())
+      collect(dependency);
+    const result = session.modules.get(name);
+    if (!result) return;
+    reachable.push(result);
+    if (freshlyChecked.has(name))
+      allErrors.push(
+        ...result.sourceModule.parseErrors,
+        ...result.module.errors,
+      );
+  };
+  collect(entry);
+  if (options.retainFullTypeGraphs === false) {
+    for (const checked of reachable) {
+      copyErrors(
+        checked.module.errors,
+        checked.module.interfaceTypes,
+        frontend.builtinTypes,
+      );
+      checked.module.internalTypes.types.length = 0;
+      checked.module.internalTypes.typePacks.length = 0;
+      for (const map of [
+        checked.module.astTypes,
+        checked.module.astTypePacks,
+        checked.module.astExpectedTypes,
+        checked.module.astOriginalCallTypes,
+        checked.module.astOverloadResolvedTypes,
+        checked.module.astForInNextTypes,
+        checked.module.astResolvedTypes,
+        checked.module.astResolvedTypePacks,
+        checked.module.astCompoundAssignResultTypes,
+        checked.module.upperBoundContributors,
+        checked.module.astScopes,
+      ])
+        map.clear();
+      checked.module.scopes.length = 0;
+      checked.module.astTypeReferenceLookupFailures.clear();
+      checked.module.astTypePackReferenceLookupFailures.clear();
+    }
+  }
+  const diagnostics = allErrors.map(toLuauDiagnostic);
 
   const find = (selector: TypeSelector): CheckedType => {
-    const ty = selectType(checked.module, checked.sourceModule, selector);
+    if (
+      options.retainFullTypeGraphs === false &&
+      !(
+        "moduleReturn" in selector ||
+        "exportedAlias" in selector ||
+        "diagnosticType" in selector ||
+        "builtin" in selector
+      )
+    )
+      throw new Error(
+        "type query unavailable: retainFullTypeGraphs=false discarded internal graphs",
+      );
+    const selected = selector.module ? checkModule(selector.module) : checked;
+    if (!selected) throw new Error(`no checked module ${selector.module}`);
+    const ty = queryType(
+      frontend,
+      selected.module,
+      selected.sourceModule,
+      selector,
+      selector.module ? undefined : allErrors,
+    );
     if (!ty) throw new Error(`no type for ${JSON.stringify(selector)}`);
     return ty;
   };
@@ -241,13 +621,30 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
     diagnostics,
     typeOf: (name, options) => find({ type: name }).print(options),
     find,
-    decoratedSource: () => { throw new NotImplemented("source decorated with inferred types"); },
+    decoratedSource: () => {
+      if (options.retainFullTypeGraphs === false)
+        throw new Error("decoration unavailable: internal graphs discarded");
+      return decorateSource(source, checked.module, checked.sourceModule);
+    },
     compilerMessages,
+    moduleName: entry,
+    setupSyntaxDiagnostics,
+    scopes: checked.module.scopes.map(([location, scope]) => ({
+      location: locationTuple(location),
+      imports: Object.fromEntries(scope.importedModules),
+      aliases: Object.fromEntries(
+        [...scope.typeAliasNameLocations].map(([name, loc]) => [
+          name,
+          locationTuple(loc),
+        ]),
+      ),
+    })),
   };
 }
 
 function toLuauDiagnostic(error: LuauTypeError): LuauDiagnostic {
   return {
+    module: error.moduleName,
     line: error.location.begin.line,
     column: error.location.begin.column,
     endLine: error.location.end.line,
@@ -255,129 +652,34 @@ function toLuauDiagnostic(error: LuauTypeError): LuauDiagnostic {
     message: errorToString(error),
     code: error.data.kind,
     data: errorFields(error),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// The fixtures' globals
-// ---------------------------------------------------------------------------
-
-// A fixture's globals never change once built, so each is built once.
-const fixtureFrontends = new Map<string, Frontend>();
-
-/**
- * The globals an upstream fixture checks with: `Fixture` has only Luau's
- * builtin type names and the string metatable, `BuiltinsFixture` adds
- * Luau's builtin globals and the test's own (`game`, `workspace`, `script`),
- * and `NegationFixture` adds the hidden types (`Not<T>` and the others). A
- * fixture the harness does not build yet has none.
- */
-function fixtureFrontend(fixture = "Fixture"): Frontend | undefined {
-  let frontend = fixtureFrontends.get(fixture);
-  if (frontend) return frontend;
-  frontend = new Frontend();
-  switch (fixture) {
-    case "Fixture":
-    // IsSubtypeFixture adds a query helper but inherits Fixture's globals.
-    case "IsSubtypeFixture":
-      break;
-    case "BuiltinsFixture":
-      // TypeStateFixture inherits BuiltinsFixture and only forces the new solver.
-    case "TypeStateFixture":
-      registerBuiltinGlobals(frontend, frontend.globals);
-      for (const name of ["game", "workspace", "script"]) addGlobalBinding(frontend.globals, name, frontend.builtinTypes.anyType, "@luau");
-      break;
-    case "NegationFixture":
-      registerHiddenTypes(frontend);
-      break;
-    default:
-      return undefined;
-  }
-  fixtureFrontends.set(fixture, frontend);
-  return frontend;
-}
-
-// Luau's `registerHiddenTypes`, from its test fixture.
-function registerHiddenTypes(frontend: Frontend): void {
-  const globals = frontend.globals;
-  const t = globals.globalTypes.addType(genericType({ name: "T", polarity: Polarity.Mixed }));
-  const u = globals.globalTypes.addType(genericType({ name: "U", polarity: Polarity.Mixed }));
-  const scope = globals.globalScope;
-  scope.exportedTypeBindings.set("Not", new TypeFun(globals.globalTypes.addType(negationType(t)), [{ ty: t }]));
-  scope.exportedTypeBindings.set("Mt", new TypeFun(globals.globalTypes.addType(metatableType(t, u)), [{ ty: t }, { ty: u }]));
-  scope.exportedTypeBindings.set("fun", new TypeFun(frontend.builtinTypes.functionType));
-  scope.exportedTypeBindings.set("cls", new TypeFun(frontend.builtinTypes.externType));
-  scope.exportedTypeBindings.set("err", new TypeFun(frontend.builtinTypes.errorType));
-  scope.exportedTypeBindings.set("tbl", new TypeFun(frontend.builtinTypes.tableType));
-}
-
-// ---------------------------------------------------------------------------
-// Answering type queries
-// ---------------------------------------------------------------------------
-
-function selectType(module: Module, sourceModule: SourceModule, selector: TypeSelector): CheckedType | undefined {
-  if ("moduleReturn" in selector) throw new NotImplemented("the module's return pack");
-  let ty: TypeId | undefined;
-  let alias: TypeFun | undefined;
-  if ("type" in selector) {
-    // Luau's `requireType`: the first binding of the name, searching the module scope.
-    const binding = module.getModuleScope().linearSearchForBinding(selector.type);
-    ty = binding ? follow(binding.typeId) : undefined;
-  } else if ("alias" in selector) {
-    alias = module.getModuleScope().lookupType(selector.alias);
-    ty = alias?.type;
-  } else {
-    const [line, column] = selector.typeAt;
-    ty = findTypeAtPosition(module, sourceModule, new Position(line, column));
-  }
-  for (const step of selector.path ?? []) {
-    if (!ty) return undefined;
-    ty = stepInto(ty, step, alias);
-    alias = undefined;
-  }
-  return ty ? checkedType(ty, alias) : undefined;
-}
-
-function stepInto(ty: TypeId, step: TypePathStep, alias: TypeFun | undefined): TypeId | undefined {
-  if ("typeParameter" in step) return alias?.typeParams[step.typeParameter]?.ty;
-  const t = follow(ty);
-  if ("property" in step) {
-    const readTy = get(t, "TableType")?.props.get(step.property)?.readTy;
-    return readTy ? follow(readTy) : undefined;
-  }
-  if ("indexer" in step) {
-    const indexer = get(t, "TableType")?.indexer;
-    if (!indexer) return undefined;
-    return follow(step.indexer === "key" ? indexer.indexType : indexer.indexResultType);
-  }
-  const fn = get(t, "FunctionType");
-  if (!fn) return undefined;
-  const head = flatten("argument" in step ? fn.argTypes : fn.retTypes).head;
-  const at = head["argument" in step ? step.argument : step.result];
-  return at ? follow(at) : undefined;
-}
-
-// The type behind each answer, for comparing two answers' identities.
-const typeOfAnswer = new WeakMap<CheckedType, TypeId>();
-
-function checkedType(ty: TypeId, alias?: TypeFun): CheckedType {
-  const followed = follow(ty);
-  const fn = get(followed, "FunctionType");
-  const table = get(followed, "TableType");
-  const answer: CheckedType = {
-    print: (options?: LuauToStringOptions) => toString(ty, options ?? {}),
-    kind: followed.ty.kind,
-    is: (other) => {
-      const otherTy = typeOfAnswer.get(other);
-      return otherTy !== undefined && follow(otherTy) === followed;
+    fields: (options) => {
+      const fields = errorFields(error);
+      for (const [name, printing] of Object.entries(options)) {
+        const value = (error.data as unknown as Record<string, unknown>)[name];
+        if (value && typeof value === "object" && "ty" in value) {
+          fields[name] =
+            value instanceof Type
+              ? toString(value as TypeId, printing)
+              : toStringPack(value as TypePackId, printing);
+        } else
+          throw new Error(
+            `diagnostic field ${name} is not a type or type pack`,
+          );
+      }
+      return fields;
     },
-    subtypeOf: () => { throw new NotImplemented("subtyping between selected types"); },
-    results: fn ? flatten(fn.retTypes).head.map((r) => checkedType(r)) : undefined,
-    typeParameterCount: alias?.typeParams.length,
-    propertyCount: table?.props.size,
   };
-  typeOfAnswer.set(answer, ty);
-  return answer;
+}
+
+function locationTuple(
+  location: import("../../compiler/typecheck/Location").Location,
+): LocationTuple {
+  return [
+    location.begin.line,
+    location.begin.column,
+    location.end.line,
+    location.end.column,
+  ];
 }
 
 export function describeDiagnostic(d: LuauDiagnostic): string {
@@ -402,10 +704,17 @@ interface WrappedSnippet {
 // the file's text, and `end`, in a document of its own. Find that document
 // and check the snippet sits in it unchanged, so that a change to how `run`
 // wraps a file fails here rather than skewing every position.
-function wrappedSnippet(documents: SparkdownDocumentRegistry, source: string): WrappedSnippet {
-  const uris = [...documents.keys()].filter((uri) => uri.startsWith(`${SNIPPET_URI}?run=`));
+function wrappedSnippet(
+  documents: SparkdownDocumentRegistry,
+  source: string,
+): WrappedSnippet {
+  const uris = [...documents.keys()].filter((uri) =>
+    uri.startsWith(`${SNIPPET_URI}?run=`),
+  );
   if (uris.length !== 1) {
-    throw new Error(`expected one document for the snippet run by main.sd, found ${JSON.stringify(uris)}`);
+    throw new Error(
+      `expected one document for the snippet run by main.sd, found ${JSON.stringify(uris)}`,
+    );
   }
   const uri = uris[0]!;
   const document = documents.get(uri);
@@ -415,8 +724,14 @@ function wrappedSnippet(documents: SparkdownDocumentRegistry, source: string): W
   const wrapper = uri.slice(uri.indexOf("?run=") + "?run=".length);
   const prefix = `& ${wrapper}()\nfunction ${wrapper}()\n`;
   const suffix = "\nend\n";
-  if (!text.startsWith(prefix) || !text.endsWith(suffix) || text.slice(prefix.length, text.length - suffix.length) !== source) {
-    throw new Error(`run no longer wraps a file as the harness expects: ${JSON.stringify(text.slice(0, 120))}`);
+  if (
+    !text.startsWith(prefix) ||
+    !text.endsWith(suffix) ||
+    text.slice(prefix.length, text.length - suffix.length) !== source
+  ) {
+    throw new Error(
+      `run no longer wraps a file as the harness expects: ${JSON.stringify(text.slice(0, 120))}`,
+    );
   }
   return {
     uri,
@@ -462,9 +777,12 @@ const LUAU_INTERPOLATION: SparkdownNodeName = "LuauBacktickStringInterpolation";
 // read them.
 const SPARKDOWN_STRING_EXPRESSIONS = new Map<string, string>(
   Object.entries({
-    LuauDoubleQuotedStringInterpolation: "an interpolation, where Luau reads string text",
-    LuauDoubleQuotedFunctionCallShorthand: "a function call, where Luau reads string text",
-    LuauBacktickFunctionCallShorthand: "a function call, where Luau rejects double braces in an interpolated string",
+    LuauDoubleQuotedStringInterpolation:
+      "an interpolation, where Luau reads string text",
+    LuauDoubleQuotedFunctionCallShorthand:
+      "a function call, where Luau reads string text",
+    LuauBacktickFunctionCallShorthand:
+      "a function call, where Luau rejects double braces in an interpolated string",
   } satisfies Partial<Record<SparkdownNodeName, string>>),
 );
 
@@ -477,9 +795,21 @@ function syntaxDiagnosticsOf(
   const text = wrapped.document.getText();
   const snippetEnd = wrapped.offset + wrapped.length;
   const report = (from: number, to: number, message: string) => {
-    const begin = snippetPosition(wrapped, Math.min(Math.max(from, wrapped.offset), snippetEnd));
-    const end = snippetPosition(wrapped, Math.min(Math.max(to, wrapped.offset), snippetEnd));
-    found.push({ ...begin, endLine: end.line, endColumn: end.column, message, code: "SyntaxError" });
+    const begin = snippetPosition(
+      wrapped,
+      Math.min(Math.max(from, wrapped.offset), snippetEnd),
+    );
+    const end = snippetPosition(
+      wrapped,
+      Math.min(Math.max(to, wrapped.offset), snippetEnd),
+    );
+    found.push({
+      ...begin,
+      endLine: end.line,
+      endColumn: end.column,
+      message,
+      code: "SyntaxError",
+    });
   };
   const quote = (from: number, to: number) => {
     const line = text.slice(from, to).split("\n")[0]!.trim();
@@ -487,61 +817,109 @@ function syntaxDiagnosticsOf(
     return JSON.stringify(line.length > 60 ? `${line.slice(0, 60)}...` : line);
   };
 
-  documents.annotations(wrapped.uri).validations.between(wrapped.offset, snippetEnd, (from, to, value) => {
-    if (value.type.message) report(from, to, value.type.message);
-  });
+  documents
+    .annotations(wrapped.uri)
+    .validations.between(wrapped.offset, snippetEnd, (from, to, value) => {
+      if (value.type.message) report(from, to, value.type.message);
+    });
   for (const d of compilerDiagnostics) {
     if (d.code !== "SyntaxError" || !d.range) continue;
     const { start, end } = d.range;
-    found.push({ line: start.line, column: start.character, endLine: end.line, endColumn: end.character, message: diagnosticMessage(d), code: "SyntaxError" });
+    found.push({
+      line: start.line,
+      column: start.character,
+      endLine: end.line,
+      endColumn: end.character,
+      message: diagnosticMessage(d),
+      code: "SyntaxError",
+    });
   }
 
   const top: SyntaxNode[] = [];
-  for (let node = wrapped.tree.topNode.firstChild; node; node = node.nextSibling) top.push(node);
+  for (
+    let node = wrapped.tree.topNode.firstChild;
+    node;
+    node = node.nextSibling
+  )
+    top.push(node);
   const fn = top.find((node) => node.name === "LuauFunctionDefinition");
   if (!fn) {
-    report(wrapped.offset, snippetEnd, "Sparkdown did not read the snippet as the body of the function run wraps it in");
+    report(
+      wrapped.offset,
+      snippetEnd,
+      "Sparkdown did not read the snippet as the body of the function run wraps it in",
+    );
     return found;
   }
   // The wrapper must end at its own `end`, after the whole snippet.
   if (fn.to !== text.length - "\n".length) {
-    const stray = top.find((node) => node.from >= fn.to && !NEUTRAL_NODES.has(node.name));
+    const stray = top.find(
+      (node) => node.from >= fn.to && !NEUTRAL_NODES.has(node.name),
+    );
     const at = stray?.from ?? fn.to;
-    report(at, snippetEnd, `Sparkdown ended the snippet's function before ${quote(at, snippetEnd)}`);
+    report(
+      at,
+      snippetEnd,
+      `Sparkdown ended the snippet's function before ${quote(at, snippetEnd)}`,
+    );
   }
 
   const visit = (node: SyntaxNode) => {
     if (node.type.isError) {
-      report(node.from, Math.max(node.to, node.from + 1), `Sparkdown could not finish reading the Luau before ${quote(node.from, snippetEnd)}`);
+      report(
+        node.from,
+        Math.max(node.to, node.from + 1),
+        `Sparkdown could not finish reading the Luau before ${quote(node.from, snippetEnd)}`,
+      );
       return;
     }
     if (!node.name.startsWith("Luau") && !NEUTRAL_NODES.has(node.name)) {
-      report(node.from, node.to, `Sparkdown read ${quote(node.from, node.to)} as ${node.name}, not Luau`);
+      report(
+        node.from,
+        node.to,
+        `Sparkdown read ${quote(node.from, node.to)} as ${node.name}, not Luau`,
+      );
       return;
     }
     if (TEXT_NODES.test(node.name)) {
       visitInterpolations(node);
       return;
     }
-    for (let child = node.firstChild; child; child = child.nextSibling) visit(child);
+    for (let child = node.firstChild; child; child = child.nextSibling)
+      visit(child);
   };
   // Within text, a backtick string's interpolation is read as Luau, and an
   // expression only Sparkdown reads there, or an unfinished node, is reported.
   const visitInterpolations = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
       const sparkdownReading = SPARKDOWN_STRING_EXPRESSIONS.get(child.name);
-      if (sparkdownReading) report(child.from, child.to, `Sparkdown read ${quote(child.from, child.to)} as ${sparkdownReading}`);
-      else if (child.type.isError || child.name === LUAU_INTERPOLATION) visit(child);
+      if (sparkdownReading)
+        report(
+          child.from,
+          child.to,
+          `Sparkdown read ${quote(child.from, child.to)} as ${sparkdownReading}`,
+        );
+      else if (child.type.isError || child.name === LUAU_INTERPOLATION)
+        visit(child);
       else visitInterpolations(child);
     }
   };
-  for (let child = fn.firstChild; child; child = child.nextSibling) visit(child);
+  for (let child = fn.firstChild; child; child = child.nextSibling)
+    visit(child);
   // The parser can leave several unfinished nodes at one place.
   const distinct = new Map(found.map((d) => [describeDiagnostic(d), d]));
-  return [...distinct.values()].sort((a, b) => a.line - b.line || a.column - b.column);
+  return [...distinct.values()].sort(
+    (a, b) => a.line - b.line || a.column - b.column,
+  );
 }
 
-function snippetPosition(wrapped: WrappedSnippet, offset: number): { line: number; column: number } {
+function snippetPosition(
+  wrapped: WrappedSnippet,
+  offset: number,
+): { line: number; column: number } {
   const position = wrapped.document.positionAt(offset);
-  return { line: position.line - wrapped.lineOffset, column: position.character };
+  return {
+    line: position.line - wrapped.lineOffset,
+    column: position.character,
+  };
 }

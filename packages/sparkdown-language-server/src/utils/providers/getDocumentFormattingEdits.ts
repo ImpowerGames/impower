@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
@@ -329,10 +330,10 @@ function isCommaContinuationLine(
   for (let i = 0; i < stack.length; i++) {
     const node = stack[i];
     if (!node) continue;
-    if (node.name === "LuauCommaLineBreak") return true;
+    if (isExplicitRuleName(node.name, "LuauCommaLineBreak")) return true;
     if (!COMMA_CONTINUED_CONTENT.has(stack[i + 1]?.name ?? "")) continue;
     for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
-      if (prev.name === "LuauCommaLineBreak" && spansLineBreak(prev)) {
+      if (isExplicitRuleName(prev.name, "LuauCommaLineBreak") && spansLineBreak(prev)) {
         return true;
       }
     }
@@ -1152,7 +1153,7 @@ export const getFormatting = (
       from: treeIterFrom,
       to: treeIterTo,
       enter: (nodeRef) => {
-        if (nodeRef.name !== "LuauTable") return;
+        if (!isExplicitRuleName(nodeRef.name, "LuauTable")) return;
         // Walk up the ancestor chain looking for an inline-alternator
         // wrapper. If found, this table represents the alternator's
         // arms and gets rewritten to pipe-form.
@@ -1175,14 +1176,14 @@ export const getFormatting = (
         const commaPositions: { from: number; to: number }[] = [];
         tableNode.cursor().iterate((inner) => {
           if (inner.node === tableNode) return true;
-          if (inner.name === "LuauTable_begin") {
+          if (isExplicitRuleName(inner.name, "LuauTable_begin")) {
             // Find the `{` character at the begin range start.
             if (document.read(inner.from, inner.from + 1) === "{") {
               openBracePos = inner.from;
             }
             return false;
           }
-          if (inner.name === "LuauTable_end") {
+          if (isExplicitRuleName(inner.name, "LuauTable_end")) {
             if (document.read(inner.from, inner.from + 1) === "}") {
               closeBracePos = inner.from;
             }
@@ -1199,7 +1200,7 @@ export const getFormatting = (
           }
           // Don't descend into nested tables / function calls — their
           // commas are unrelated to our alternator arms.
-          if (inner.name === "LuauTable" || inner.name === "LuauFunctionCall") {
+          if (isExplicitRuleName(inner.name, "LuauTable") || isExplicitRuleName(inner.name, "LuauFunctionCall")) {
             return false;
           }
           return true;
@@ -1792,7 +1793,7 @@ export const getFormatting = (
       from: treeIterFrom,
       to: treeIterTo,
       enter: (nodeRef) => {
-        if (nodeRef.name !== "LuauTable") return;
+        if (!isExplicitRuleName(nodeRef.name, "LuauTable")) return;
         const tableNode = nodeRef.node;
         // Find content range. If begin/end aren't `{` / `}` in the
         // source (e.g. inline alternator that we just rewrote),

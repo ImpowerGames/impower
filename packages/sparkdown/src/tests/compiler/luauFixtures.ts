@@ -72,11 +72,6 @@ export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
     issue: 1305,
     reason: "Sparkdown only: `@/x/githen` (line 23) is reported as missing its then",
   },
-  {
-    fixture: "grammar/luau-function/return-before-prose.sd",
-    issue: 1298,
-    reason: "Luau only: statements after `& return` in the scene follow a return in the flow's function",
-  },
   ...UNSUPPORTED_INTEGER_INPUTS,
   {
     fixture: "conformance/native_integer_spills.luau",

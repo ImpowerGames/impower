@@ -19,7 +19,7 @@ const SAME_LINE =
   "A new statement is on the same line; add semi-colon on previous statement to silence";
 
 // Luau: MultilineBlock
-describe.skip("several statements on one line of a block (not implemented: MultiLineStatement)", () => {
+describe("several statements on one line of a block", () => {
   test("if true then print(1) print(2) print(3) end", () => {
     expect(
       lintMessagesInFunction(`
@@ -41,7 +41,7 @@ print(1); print(2); print(3)
 });
 
 // Luau: MultilineBlockMissedSemicolon
-describe.skip("one missing semicolon among several (not implemented: MultiLineStatement)", () => {
+describe("one missing semicolon among several", () => {
   test("print(1); print(2) print(3)", () => {
     expect(
       lintMessagesInFunction(`
@@ -65,7 +65,7 @@ end
 });
 
 // Luau: ConfusingIndentation
-describe.skip("a continuation line that is not indented (not implemented: MultiLineStatement)", () => {
+describe("a continuation line that is not indented", () => {
   test("print(math.max(1,\\n2))", () => {
     expect(
       lintMessagesInFunction(`
@@ -254,6 +254,15 @@ return f1,f2,f3,f4
 
 describe("ImplicitReturn safety and diagnostic locations", () => {
   const implicit = (source: string) => diagnoseDetailed(source).filter((d) => d.code === "ImplicitReturn");
+
+  // The LocalUnused keyword-read fixture is intentionally a partial value
+  // return. Its exact LocalUnused mask must not suppress this separate rule.
+  test("the LocalUnused keyword-read control still warns about its implicit return", () => {
+    expect(lintInFunction("\nlocal match = true\nif match then return 1 end\n", "ImplicitReturn")).toEqual([{
+      line: 2,
+      message: "Function 'run' can implicitly return no values even though there's an explicit return at line 3; add explicit return to silence",
+    }]);
+  });
 
   test("the closing end is a warning and names the first value return", () => {
     expect(implicit("function f(a)\n if a then\n  return 1\n end\nend\n")).toEqual([{

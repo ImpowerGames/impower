@@ -105,12 +105,12 @@ describe("syntax diagnostics", () => {
 });
 
 describe("checkLuau", () => {
-  test("missing query capabilities remain explicit while existing type queries work", () => {
+  test("real subtyping, module return and decoration coexist with existing type queries", () => {
     const result = checkLuau("local a: number = 1\nlocal b: string = 'b'");
     expect(result.typeOf("a")).toBe("number");
-    expect(() => result.find({ type: "a" }).subtypeOf(result.find({ type: "b" }))).toThrow(/not implemented: subtyping/);
-    expect(() => result.find({ moduleReturn: true })).toThrow(/not implemented: the module's return pack/);
-    expect(() => result.decoratedSource()).toThrow(/not implemented: source decorated/);
+    expect(result.find({ type: "a" }).subtypeOf(result.find({ type: "b" }))).toBe(false);
+    expect(result.find({ moduleReturn: true }).kind).toBe("TypePack");
+    expect(result.decoratedSource()).toContain("local a: number = 1");
   });
 
   test("TypeStateFixture has the builtins and globals of its upstream parent", () => {
@@ -131,7 +131,7 @@ describe("checkLuau", () => {
     expect(child.diagnostics.map(describeDiagnostic)).toEqual(parent.diagnostics.map(describeDiagnostic));
     expect(child.diagnostics.map((d) => d.code)).toEqual(["UnknownSymbol"]);
     expect(child.typeOf("a")).toBe(parent.typeOf("a"));
-    expect(() => child.find({ type: "a" }).subtypeOf(child.find({ type: "b" }))).toThrow(/not implemented: subtyping/);
+    expect(child.find({ type: "a" }).subtypeOf(child.find({ type: "b" }))).toBe(false);
   });
   test("it checks the snippet in strict mode and reports what the checker finds in the snippet's own lines and columns", () => {
     const result = checkLuau("local x: number = 1\nlocal y: string = x");
@@ -176,10 +176,10 @@ describe("checkLuau", () => {
   });
 
   test("a fixture the harness does not build leaves the snippet unchecked, and a type query names the fixture", () => {
-    const result = checkLuau("local x = 1", { fixture: "ExternTypeFixture" });
+    const result = checkLuau("local x = 1", { fixture: "MissingFixture" });
     expect(result.checked).toBe(false);
     expect(result.diagnostics).toEqual(result.syntaxDiagnostics);
-    expect(() => result.typeOf("x")).toThrow(/^not implemented: the globals of the fixture ExternTypeFixture$/);
+    expect(() => result.typeOf("x")).toThrow(/^not implemented: the globals of the fixture MissingFixture$/);
   });
 
   test("a diagnostic the compiler only logs is kept with the result, not printed", () => {
@@ -649,7 +649,7 @@ describe("checking a port against the manifest", () => {
       "case a assertion 3 names Nope, which is not a Luau error kind",
       "case a assertion 4 names FunctionTyp, which is not a Luau type class",
       "case a assertion 5 names 2 of type, alias, typeAt and moduleReturn; it needs exactly one",
-      'case a assertion 6 has a path step {"field":"a"} that is not one of property, argument, result, indexer, typeParameter',
+      'case a assertion 6 has a path step {"field":"a"} that is not one of property, argument, result, indexer, typeParameter, generic, genericPack, instantiatedTypeParameter, instantiatedTypePackParameter',
       "case a assertion 7 has toString options exhaustiv that Luau does not have",
       "case a assertion 8 has toString options but nothing printed to compare",
       "case a assertion 9 sameAs names 0 of type, alias, typeAt and moduleReturn; it needs exactly one",

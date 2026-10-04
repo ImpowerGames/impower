@@ -47,6 +47,12 @@ export const BLOCK_NAMES = nodeNameSet([
   "LuauSparkdownRepeatLoop",
   "LuauRepeatLoop",
   "LuauSparkdownDoBlock",
+  "LuauSparkdownExplicitDoBlock",
+  "LuauSparkdownExplicitIfBlock",
+  "LuauSparkdownExplicitElseifBlock",
+  "LuauSparkdownExplicitElseBlock",
+  "LuauSparkdownExplicitLoop",
+  "LuauSparkdownExplicitRepeatLoop",
   "LuauDoBlock",
   "LuauSparkdownIfBlock",
   "LuauIfBlock",
@@ -88,7 +94,6 @@ export const NARRATIVE_STATEMENT_NAMES = nodeNameSet([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
-  "LuauSparkdownReturnStatement",
 ]);
 
 export const CALLEE_END_NAMES = nodeNameSet([

@@ -576,7 +576,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ).toEqual([]);
   });
 
-  it("reports nothing for a body of Luau statements", () => {
+  it("accepts a body of Luau statements and warns only on adjacent calls", () => {
     const source = `store count = 0
 
 function greet(name)
@@ -608,7 +608,14 @@ end
 
 {greet("Bob")}
 `;
-    expect(diagnostics(compile(source))).toEqual([]);
+    // Keep the adjacent string-argument calls as a parser control: both
+    // compile, with only the statement-layout warning for the second call.
+    expect(diagnostics(compile(source))).toEqual([{
+      message: "A new statement is on the same line; add semi-colon on previous statement to silence",
+      severity: 2,
+      start: { line: 24, character: 12 },
+      end: { line: 24, character: 21 },
+    }]);
   });
 });
 

@@ -1,0 +1,13 @@
+return
+return 5
+return 1, 2
+return to the village
+& return 5
+& do return 5 end
+& do if true then return 5 else return 2 end end
+& do for i = 1, 1 do return i end end
+function f()
+  & do
+    return 5
+  end
+end

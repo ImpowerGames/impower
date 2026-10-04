@@ -13,7 +13,12 @@ const wasm = new URL(
 );
 export const officialLuauAvailable = existsSync(artifact) && existsSync(wasm);
 export type Json =
-  null | boolean | number | string | Json[] | { [key: string]: Json };
+  | null
+  | boolean
+  | number
+  | string
+  | Json[]
+  | { [key: string]: Json };
 export interface OfficialResult {
   root: Json;
   errors: number;
@@ -35,30 +40,50 @@ interface Module {
 }
 
 /** Load once; each parse frees its arena. No native tools are used at test time. */
-export async function loadOfficialLuau(): Promise<
-  (source: string) => OfficialResult
-> {
+export async function loadOfficialLuau(
+  snapshot: "runtime" | "typecheck" = "runtime",
+): Promise<(source: string) => OfficialResult> {
+  const selectedArtifact =
+    snapshot === "runtime"
+      ? artifact
+      : new URL(
+          "../luau-conformance/upstream/typecheck-ast/luau-ast.cjs",
+          import.meta.url,
+        );
+  const selectedWasm = new URL("luau-ast.wasm", selectedArtifact);
   const manifest = JSON.parse(
-    readFileSync(new URL("build.json", artifact), "utf8"),
+    readFileSync(new URL("build.json", selectedArtifact), "utf8"),
   ) as { upstream: string; sha256: Record<string, string> };
-  const pin = readFileSync(new URL("../VENDORING.md", artifact), "utf8").match(
-    /copied from: `([a-f0-9]+)`/,
-  )?.[1];
+  const pin =
+    snapshot === "typecheck"
+      ? JSON.parse(
+          readFileSync(
+            new URL("../typecheck-cases.json", selectedArtifact),
+            "utf8",
+          ),
+        ).pin
+      : readFileSync(new URL("../VENDORING.md", artifact), "utf8").match(
+          /copied from: `([a-f0-9]+)`/,
+        )?.[1];
   if (manifest.upstream !== pin)
     throw new Error(
       "Official parser differs from the conformance pin; rebuild it (VENDORING.md)",
     );
   for (const file of ["bridge.cpp", "luau-ast.cjs", "luau-ast.wasm"]) {
     const hash = createHash("sha256")
-      .update(readFileSync(new URL(file, artifact)))
+      .update(readFileSync(new URL(file, selectedArtifact)))
       .digest("hex");
     if (manifest.sha256[file] !== hash)
       throw new Error(
         `Official parser artifact hash mismatch: ${file}; rebuild it (VENDORING.md)`,
       );
   }
-  const factory = createRequire(import.meta.url)(fileURLToPath(artifact));
-  const module: Module = await factory({ wasmBinary: readFileSync(wasm) });
+  const factory = createRequire(import.meta.url)(
+    fileURLToPath(selectedArtifact),
+  );
+  const module: Module = await factory({
+    wasmBinary: readFileSync(selectedWasm),
+  });
   const readString = (pointer: number) => {
     const end = module.HEAPU8.indexOf(0, pointer);
     return Buffer.from(module.HEAPU8.subarray(pointer, end)).toString("latin1");
@@ -76,7 +101,9 @@ export async function loadOfficialLuau(): Promise<
     return {
       root: JSON.parse(json) as Json,
       errors: module.ccall("parse_errors", "number", [], []),
-      diagnostics: JSON.parse(readString(module.ccall("parse_error_json", "number", [], []))) as OfficialSyntaxError[],
+      diagnostics: JSON.parse(
+        readString(module.ccall("parse_error_json", "number", [], [])),
+      ) as OfficialSyntaxError[],
     };
   };
 }

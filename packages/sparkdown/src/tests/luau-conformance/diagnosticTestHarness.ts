@@ -12,9 +12,10 @@
 //
 // Luau's parser and compiler tests never run its linter, and their snippets
 // declare locals only to hold the literal or annotation under test, so
-// `diagnose` and `diagnoseInFunction` leave out the unused-local lint. The
-// other lints stay in: on these malformed snippets any of them would be a
-// false warning, which the parser ports then catch. The linter ports use
+// `diagnose` and `diagnoseInFunction` leave out unused-local and statement
+// layout lints: valid parser controls can intentionally use unread locals
+// or adjacent statements. Other lints remain to catch false warnings in
+// malformed snippets. The linter ports use
 // `diagnoseWithLints`, `diagnoseWithLintsInFunction` or `lintInFunction`.
 //
 // None of those upstream tests runs Luau's type checker either, so no helper
@@ -90,13 +91,15 @@ function isLint(d: DetailedDiagnostic) {
   return LINT_CODES.has(String(d.code));
 }
 
-// The one lint the parser and compiler ports leave out.
-const UNUSED_LOCAL: LuauLintCode = "LocalUnused";
+// Exact rules unrelated to the parser/compiler assertions.
+const PARSER_EXCLUDED_LINTS = new Set<LuauLintCode>([
+  "LocalUnused", "SameLineStatement", "MultiLineStatement",
+]);
 
-/** The messages of every diagnostic except the unused-local lint. */
+/** Diagnostic messages except unused-local and statement-layout lints. */
 export function diagnose(source: string): string[] {
   return diagnoseDetailed(source)
-    .filter((d) => d.code !== UNUSED_LOCAL)
+    .filter((d) => !PARSER_EXCLUDED_LINTS.has(d.code as LuauLintCode))
     .map((d) => d.message);
 }
 
@@ -122,12 +125,12 @@ export interface Lint {
 /** The lint warnings for `body` placed in a function, in source order.
  *  Upstream snippets begin with a newline, so a line number here is the
  *  0-based line the upstream test checks. */
-export function lintInFunction(body: string): Lint[] {
+export function lintInFunction(body: string, code?: LuauLintCode): Lint[] {
   return diagnoseDetailed(`function run()${body}\nend\n`)
-    .filter(isLint)
+    .filter((d) => isLint(d) && (code === undefined || d.code === code))
     .map((d) => ({ line: d.range!.start.line, message: d.message }));
 }
 
-export function lintMessagesInFunction(body: string): string[] {
-  return lintInFunction(body).map((l) => l.message);
+export function lintMessagesInFunction(body: string, code?: LuauLintCode): string[] {
+  return lintInFunction(body, code).map((l) => l.message);
 }
