@@ -14,6 +14,8 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `ForRange` | A numeric `for` without a step that runs backwards, stops short of a fractional end, or starts or ends at 0 over a table's length (a bare `#t`, as in Luau). | Luau `for` loops |
 | `PlaceholderRead` | A read of the placeholder `_`, local or global, including a compound write (`_ += 1`). A plain write is not reported. | Inside functions |
 | `IntegerParsing` | An integer literal whose runtime conversion loses precision. Fraction and exponent spellings stay silent, as in Luau. | Luau number literals, including embedded expressions |
+| `SameLineStatement` | A second statement on the same line without a semicolon after the previous statement, once per line. A local followed by a `do` block is exempt. | Luau statement blocks |
+| `MultiLineStatement` | A continuation expression that begins no farther right than its statement, once per statement. Table contents and `repeat` conditions are exempt. | Luau statement blocks |
 
 The arms of Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions are not compared with each other; their conditions and the Luau inside them are checked like any other. The `if` and `for` control flow of Sparkle `layout` blocks is a separate construct in the grammar and is not checked.
 
@@ -39,6 +41,7 @@ The rules walk the Luau AST that `src/compiler/typecheck/readLuauAst.ts` reads f
 - The grammar reads some names as Sparkdown's structural words (`style`, `layout`, `match`) even where the author meant a name (`setStyle(style)`, `if match then`), and the reading has no name there. `LocalUnused` counts such a word, after a local's declaration in its function, as a use of the local it names, so a use is never missed (#984).
 - Unlike Luau's parser, the reading does not end a block at a `return`, `break` or `continue`: Sparkdown reads the statements after one as its block's, and `UnreachableCode` reports the first of them.
 - `DuplicateCondition` and `ForRange` read every Luau `if` statement and expression, `and`/`or` chain and numeric `for` in a script, in functions or not, Sparkdown's narrative blocks included (`if`, `while`, `for`): a narrative block's condition and the Luau inside it are read, but the conditions of a narrative `if` block's arms are not compared with each other.
+- `SameLineStatement` and `MultiLineStatement` use the statements and expression boundaries of the existing AST, including functions in interpolations and properties. `SameLineStatement` also checks narrative `&` logic lines, which are bounded to one line; multiline continuations belong in supported multiline Luau contexts, such as actual function bodies (see [why the grammar has paired rules](GRAMMAR.md#131-why-pairs-exist)). Narrative text is excluded. Syntax errors and incomplete blocks are left alone because recovery can change those boundaries. The two diagnostic names are distinct, as in Luau.
 
 The pass runs over whole scripts rather than inside the incremental annotators, since a lint depends on lines far from the one it reports. The compiler caches each script's diagnostics and name facts until its syntax tree changes. Structural extraction uses Lezer's public `Tree`/`TreeBuffer` representation to select Luau nodes without building a cursor for every narrative word and grammar capture; embedded expression ASTs and narrative-if offsets are read once per tree. The rules themselves still execute on each direct call to `collectLuauLints`.
 
@@ -79,7 +82,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 | Luau lint | Test file |
 | --- | --- |
 | `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
-| `MultiLineStatement`, `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence` | `LintCandidatesStyle.test.ts` |
+| `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence` | `LintCandidatesStyle.test.ts` |
 | `FormatString`, `TableLiteral`, `TableOperations`, `DeprecatedApi` for `getfenv`/`setfenv` | `LintCandidatesStdlib.test.ts` |
 
 ## Rules sparkdown omits

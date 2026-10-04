@@ -53,6 +53,7 @@ import {
   AstExprTypeAssertion,
   AstExprUnary,
   AstExprVarargs,
+  AstStat,
   AstStatAssign,
   AstStatBlock,
   AstStatBreak,
@@ -74,7 +75,6 @@ import {
   visitAst,
   type AstLocal,
   type AstNode,
-  type AstStat,
 } from "../typecheck/Ast";
 import { doesCallError } from "../typecheck/DataFlowGraph";
 import type { Location, Position } from "../typecheck/Location";
@@ -94,6 +94,8 @@ export const LUAU_LINT_CODES = [
   "ForRange",
   "PlaceholderRead",
   "IntegerParsing",
+  "SameLineStatement",
+  "MultiLineStatement",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -302,6 +304,7 @@ function expressionAround(node: SyntaxNode, text: string): SyntaxNode[] {
 /** One reading of Luau no unit reads: an expression, or statements read as a function's body. */
 interface OutsideReading {
   expr: AstExpr;
+  errors: readonly { location: Location }[];
   /** Whether `expr` is the function written around statements, not one the author wrote. */
   statements: boolean;
 }
@@ -344,17 +347,17 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       if (above === null) continue;
       const context = above ? above.from : -1;
       if (node.name === "LuauMethodDefinition") {
-        readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauMethod(node, text).expr, statements: false }) });
+        readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauMethod(node, text), statements: false }) });
       } else if (node.name === "LuauSparkleHandlerClosure") {
         const content = node.getChild("LuauSparkleHandlerClosure_content");
-        if (content) readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauStatements([content], text).expr, statements: true }) });
+        if (content) readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([content], text), statements: true }) });
       } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
-        readings.push({ from: node.from, to: node.to, context, read: () => ({ expr: readLuauStatements([node], text).expr, statements: true }) });
+        readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([node], text), statements: true }) });
       } else {
         const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
-        readings.push({ from: first.from, to: last.to, context, read: () => ({ expr: readLuauExpression(parts, text).expr, statements: false }) });
+        readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false }) });
       }
   }
   // Outermost first; a reading inside another is part of it, unless a node
@@ -823,6 +826,74 @@ function lintIntegerParsing(source: AstNode, text: string, offsets: NameRoot["of
   });
 }
 
+/** Luau's statement-layout rules, using the boundaries of the existing AST. */
+function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], sameLines: Set<number>): void {
+  const stack: { start: Position; lastLine: number; flagged: boolean }[] = [];
+  // Recovery does not necessarily preserve a statement's boundaries. Leave
+  // a statement containing a syntax error alone, including its nested blocks.
+  const complete = (stat: AstStat) => !errors.some((error) => stat.location.overlaps(error.location));
+  // This walk is separate because SameLineStatement also checks functions
+  // inside tables, whose contents MultiLineStatement deliberately skips.
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstStatError || node instanceof AstExprError) return false;
+      if (node instanceof AstExprFunction && !readToEnd(node)) return false;
+      if (node instanceof AstStat && !(node instanceof AstStatBlock) && !complete(node)) return false;
+      if (!(node instanceof AstStatBlock)) return true;
+      if (!node.hasEnd) return false;
+      for (let i = 1; i < node.body.length; i++) {
+        const stat = node.body[i]!;
+        const previous = node.body[i - 1]!;
+        const line = offsets.line(stat.location.begin);
+        if (!complete(stat) || !complete(previous) || previous instanceof AstStatError || stat instanceof AstStatError) continue;
+        if (offsets.line(previous.location.end) !== line || sameLines.has(line)) continue;
+        if (previous.hasSemicolon || (previous instanceof AstStatLocal && stat instanceof AstStatBlock)) continue;
+        out.push({ code: "SameLineStatement", ...offsets.range(stat.location), message: "A new statement is on the same line; add semi-colon on previous statement to silence" });
+        sameLines.add(line);
+      }
+      return true;
+    },
+  });
+  const visitor = {
+    visit(node: AstNode): boolean {
+      if (node instanceof AstStatError || node instanceof AstExprError) return false;
+      if (node instanceof AstExprFunction && !readToEnd(node)) return false;
+      if (node instanceof AstStatBlock) {
+        if (!node.hasEnd) return false;
+        for (const stat of node.body) {
+          if (!complete(stat)) continue;
+          const line = offsets.line(stat.location.begin);
+          stack.push({ start: stat.location.begin, lastLine: line, flagged: false });
+          visitAst(stat, visitor);
+          stack.pop();
+        }
+        return false;
+      }
+      // Luau deliberately ignores the contents of tables and the `until`
+      // condition: neither is a continuation of the enclosing statement.
+      if (node instanceof AstExprTable) return false;
+      if (node instanceof AstStatRepeat) {
+        visitAst(node.body, visitor);
+        return false;
+      }
+      const statement = stack[stack.length - 1];
+      if (node instanceof AstExpr && statement && !statement.flagged) {
+        const line = offsets.line(node.location.begin);
+        if (line > statement.lastLine) {
+          statement.lastLine = line;
+          if (node.location.begin.column <= statement.start.column) {
+            out.push({ code: "MultiLineStatement", ...offsets.range(node.location), message: "Statement spans multiple lines; use indentation to silence" });
+            statement.flagged = true;
+          }
+        }
+      }
+      return true;
+    },
+  };
+  visitAst(root, visitor);
+}
+
+// ---------------------------------------------------------------------------
 const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[] }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
@@ -848,6 +919,8 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   }
   const { narrativeIfs } = facts;
   const out: LuauLint[] = [];
+  // Separate AST readings can share a document line (two interpolations).
+  const sameLines = new Set<number>();
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
     for (const fn of functions) {
       lintUnusedLocals(fn, tree, text, offsets, out);
@@ -859,17 +932,19 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     const offsets = new Offsets(starts, unit.lines);
     const narrative = (stat: AstStatIf) => narrativeIfs.has(offsets.of(stat.location.begin));
     lintFunctions(definedFunctions(unit), offsets);
+    lintStatementLayout(unit.root, offsets, out, unit.errors, sameLines);
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
-  for (const { expr, statements } of facts.outside) {
+  for (const { expr, statements, errors } of facts.outside) {
     const functions: AstExprFunction[] = [];
     // The function written around statements is not the author's; those inside it are.
     completeFunctions(statements && expr instanceof AstExprFunction ? expr.body : expr, functions);
     lintFunctions(functions, documentOffsets);
+    lintStatementLayout(expr, documentOffsets, out, errors, sameLines);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
