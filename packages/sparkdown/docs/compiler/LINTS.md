@@ -13,7 +13,7 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `DuplicateCondition` | A condition repeated in one `if`/`elseif` chain, one `if` expression, or one `and`/`or` chain. `a and b or c` is exempt. | Luau `if` statements and expressions and Luau `and`/`or` |
 | `ForRange` | A numeric `for` without a step that runs backwards, stops short of a fractional end, or starts or ends at 0 over a table's length (a bare `#t`, as in Luau). | Luau `for` loops |
 | `PlaceholderRead` | A read of the placeholder `_`, local or global, including a compound write (`_ += 1`). A plain write is not reported. | Inside functions |
-| `BuiltinGlobalWrite` | An assignment, compound assignment or global function definition that replaces a built-in global. Local bindings and writes to table members are exempt. | Luau statements throughout the script |
+| `BuiltinGlobalWrite` | An assignment, compound assignment, `store`, `const` or global function definition that replaces a built-in global. Local bindings and writes to table members are exempt. | Luau statements throughout the script |
 
 The arms of Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions are not compared with each other; their conditions and the Luau inside them are checked like any other. The `if` and `for` control flow of Sparkle `layout` blocks is a separate construct in the grammar and is not checked.
 

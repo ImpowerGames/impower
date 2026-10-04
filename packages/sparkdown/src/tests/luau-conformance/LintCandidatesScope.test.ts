@@ -11,11 +11,34 @@ import { describe, expect, test } from "vitest";
 import {
   diagnoseWithLintsInFunction,
   diagnoseDetailed,
+  diagnoseFilesDetailed,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
 // Luau: BuiltinGlobalWrite
 describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
+  test("included scripts report their own writes without treating another script's local as a global binding", () => {
+    const ds = diagnoseFilesDetailed({
+      "main.sd": "include helper.sd\nfunction run() math = {} end\nReady.\n",
+      "helper.sd": "local math = {}\nfunction helper() math = {} end\nfunction assert(x) return x end\n",
+    }).filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds.sort((a, b) => a.file.localeCompare(b.file)).map((d) => [d.file, d.range?.start.line, d.message])).toEqual([
+      ["helper.sd", 2, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
+      ["main.sd", 1, "Built-in global 'math' is overwritten here; consider using a local or changing the name"],
+    ]);
+  });
+  test.each([
+    "store math = {}\nReady.\n",
+    "const math = 1\nReady.\n",
+    "function run() store math = {} end\nReady.\n",
+    "define hero as character with\n callback = function() store math = {}; return math end\nend\nReady.\n",
+  ])("explicit global declarations warn once: %s", (source) => {
+    const ds = diagnoseDetailed(source).filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds.map((d) => d.message)).toEqual(["Built-in global 'math' is overwritten here; consider using a local or changing the name"]);
+    const range = ds[0]!.range!;
+    const lines = source.split("\n");
+    expect(lines[range.start.line]!.slice(range.start.character, range.end.character)).toBe("math");
+  });
   test("compound writes and registry constants warn at the name", () => {
     const ds = diagnoseDetailed("function run()\n    _VERSION ..= 'x'\nend\n").filter((d) => d.code === "BuiltinGlobalWrite");
     expect(ds).toEqual([{ file: "main.sd", code: "BuiltinGlobalWrite", severity: 2, message: "Built-in global '_VERSION' is overwritten here; consider using a local or changing the name", range: { start: { line: 1, character: 4 }, end: { line: 1, character: 12 } } }]);

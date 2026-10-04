@@ -26,12 +26,10 @@
 // Sparkdown's narrative `if` block around dialogue, they read the conditions
 // and the Luau inside, but do not compare its arms' conditions.
 
-<<<<<<< HEAD
-import { type SyntaxNode, type Tree } from "@lezer/common";
-import { STDLIB, STDLIB_CONSTANTS } from "../../inkjs/engine/StdLib";
-=======
 import { Tree, TreeBuffer, type NodeSet, type SyntaxNode } from "@lezer/common";
->>>>>>> origin/main
+// StdLib reaches the engine's cyclic value/object modules; prime their entry point.
+import "../../inkjs/engine/Container";
+import { STDLIB, STDLIB_CONSTANTS } from "../../inkjs/engine/StdLib";
 import {
   AstExpr,
   AstExprBinary,
