@@ -3,7 +3,55 @@
   "source": "7d5f73364fdbbaa984fa545071630eba73cfea98",
   "compiler": "Emscripten 4.0.10",
   "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.10 (b7dc6e5747465580df5984e723b9d1f10d8e804b)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
-  "bridgeSha256": "7aa01716fe2e4b2637405bdf9073d1be0b7c4f8f23380be0ce096e312d93052f",
+  "bridgeSha256": "b16ba1e5cd139233a5e7416e70e0eca6026c2e535fa3124cb99df4c9ca786ab9",
+  "astInputSha256": "5c3b33b89db367c3ebcab4351240478aace0564135887bab4ef93745c9f2a376",
+  "astInputHeaderSha256": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1",
+  "incrementalScopesSha256": "a450d2662c01accf3909bdd106d743bd656b86796acbc6b554f6b1998c607b6d",
+  "incrementalScopesHeaderSha256": "d7c4b35a2918882226aacb9097225f0fb5a554abc1af65b3534a34b659305f5d",
+  "sourceMetadataHeaderSha256": "c9dfa5f2512aaa5e8ac97b1bdc37d7a51021d4ec4fcc528f150931cf71ec5d22",
+  "scopeOverlaySha256": "822c0e122a2bbe7638fdc4e2745c71dbb21195a4babd331731d9da0872962044",
+  "scopeOverlay": {
+    "pin": "7d5f73364fdbbaa984fa545071630eba73cfea98",
+    "definitionSha256": "684e8cf79857c061df50c30dc79017b29cd2ef81bf90c97cb96fa90af990931e",
+    "files": [
+      {
+        "path": "Analysis/src/AutocompleteCore.h",
+        "inputSha256": "fc6a215f210b2f117bf253bc61458cdaed8b81fba9913cfb62093241ca8c3ad1",
+        "canonicalInputSha256": "87efeccbf2ec22df328215b20ec36eda6345cbd7ca6318e761f9631c7080c985",
+        "outputSha256": "87efeccbf2ec22df328215b20ec36eda6345cbd7ca6318e761f9631c7080c985"
+      },
+      {
+        "path": "Analysis/include/Luau/ConstraintGenerator.h",
+        "inputSha256": "821f9af7eab0db49e5688f94c088d1d6ede8d2e8a1ffebe192b96b5ac46f52df",
+        "canonicalInputSha256": "1eddf5eb912c8fa9de6face403a1016fdce68a4c022c451a2f7616dc72b6b1c3",
+        "outputSha256": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383"
+      },
+      {
+        "path": "Analysis/include/Luau/Frontend.h",
+        "inputSha256": "050c2b8abda85a4ec50f1ede56d9e5a57de88f9e3e26e3715a18463ad5ec4ee7",
+        "canonicalInputSha256": "5b74050ad372ec22447e9b2e49064f119bd53af9dabe3b36568732544628df94",
+        "outputSha256": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+      },
+      {
+        "path": "Analysis/src/ConstraintGenerator.cpp",
+        "inputSha256": "3d5e66c06ef4d13cd2d09d0d4d8e6f4b12560c6a50efd9a62b90eeb4be752fe6",
+        "canonicalInputSha256": "75d488b84d53dec57465bd59e6ca0212c9bfd0ba474154f607010d173d1cfbfa",
+        "outputSha256": "7f0dc5ecf9d01ffc5c89fe4367f1d73cde2f30c878b4a8a29655a9adc403756a"
+      },
+      {
+        "path": "Analysis/src/Frontend.cpp",
+        "inputSha256": "df00db8d65b27efc9f5ae1af29c7209600e9e1a25f758db5d18b3ea6a6f7339d",
+        "canonicalInputSha256": "ec625dd3ba6739b9742d34dc4204c8517819c17b267bab337bf18c98b7c270d8",
+        "outputSha256": "a2b7584b08eb7d4218a9743e3af67317b45fe781fe0b6ba0fb72a675a6946e51"
+      },
+      {
+        "path": "Analysis/src/FragmentAutocomplete.cpp",
+        "inputSha256": "6edbcfa60bf6e5c6ea8c5be8b1099508651b8a4ffc40e1605fdc79eed63417e5",
+        "canonicalInputSha256": "5d8d462b95c36f2e5344cc92db52fa5a75ad4ce52569d38d9e38be850b9a72f7",
+        "outputSha256": "80e964d24cc1a56c12ec14d772785b947513b60773d2b71fe1e8a62af5e52cc2"
+      }
+    ]
+  },
   "sourceManifestSha256": "ec32f86bfd3ae5db6826d6e0f33c82400fa294e67e5291fdbe1fbb23f36c1df6",
   "compilerScriptSha256": "017f735c953318fdaaa4af68c8d4bf13936a787ddbd5dad804d532b0223b6c2f",
   "flags": [
@@ -11,6 +59,7 @@
     "-O2",
     "-fexceptions",
     "-DNDEBUG",
+    "-ffile-prefix-map=C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1387/scope-overlay=luau",
     "-sMODULARIZE=1",
     "-sEXPORT_ES6=1",
     "-sENVIRONMENT=web,worker,node",
@@ -33,17 +82,17 @@
     "VM",
     "Analysis"
   ],
-  "buildMs": 888952.4025,
+  "buildMs": 42993.210100000004,
   "memoryMaximumBytes": 268435456,
   "textNormalization": "LF",
   "artifacts": {
     "backend.js": {
-      "sha256": "8bbd47931f3d827203f20ec232402c186ea3b8128ad971585900ae6cefaf339c",
-      "bytes": 28448
+      "sha256": "3327f6b0a0927be17a0e5dbda0d54c29ca0b39a68ff8d9d12c2f3d27a817001a",
+      "bytes": 30407
     },
     "backend.wasm": {
-      "sha256": "bbe995782ea2014282fc089a02ab42ae7bedb21c45a6cfb0029c6c03421c6111",
-      "bytes": 3921919
+      "sha256": "58a14e28ac1325ace6c41eeea3e6bd7ef5e327e32432db970af2585b410a8f93",
+      "bytes": 4274948
     },
     "LICENSE.txt": {
       "sha256": "1597b423ca8f9c76225b498071f03b2b3609c4960b8dc30e63b230490fc82efd",

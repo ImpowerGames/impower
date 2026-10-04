@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { materializeScopeOverlay, SCOPE_OVERLAY_PIN } from "./scope-overlay.mjs";
 
 const PIN = "7d5f73364fdbbaa984fa545071630eba73cfea98";
 const root = dirname(fileURLToPath(import.meta.url));
@@ -18,6 +19,9 @@ function run(command, args, options = {}) {
 }
 if (run("git", ["-C", source, "rev-parse", "HEAD"]) !== PIN) throw Error("Incorrect Luau source pin");
 if (run("git", ["-C", source, "status", "--porcelain", "--untracked-files=no"])) throw Error("Source has tracked modifications");
+if (PIN !== SCOPE_OVERLAY_PIN) throw Error("Scope overlay pin differs from build pin");
+const overlayRoot = join(mkdtempSync(join(tmpdir(), "luau-analysis-overlay-")), "source");
+const scopeOverlay = materializeScopeOverlay(source, overlayRoot);
 const env = { ...process.env, EM_CONFIG: join(sdk, ".emscripten") };
 const windows = process.platform === "win32";
 const python = windows ? join(sdk, "python/3.13.3_64bit/python.exe") : "python3";
@@ -30,11 +34,13 @@ const sources = [];
 for (const target of targets) {
   const block = sourcesCmake.match(new RegExp(`target_sources\\(Luau\\.${target} PRIVATE([\\s\\S]*?)\\n\\)`));
   if (!block) throw Error(`Missing upstream target ${target}`);
-  sources.push(...block[1].trim().split(/\s+/).filter(p => p.endsWith(".cpp")).map(p => join(source, p)));
+  sources.push(...block[1].trim().split(/\s+/).filter(p => p.endsWith(".cpp"))
+    .map(p => join(scopeOverlay.files.some(file => file.path === p) ? overlayRoot : source, p)));
 }
 mkdirSync(output, { recursive: true });
-const args = ["-std=c++17", "-O2", "-fexceptions", "-DNDEBUG", ...targets.map(t => `-I${join(source, t, "include")}`),
-  `-I${join(source, "VM/src")}`, join(root, "bridge.cpp"), ...sources,
+const args = ["-std=c++17", "-O2", "-fexceptions", "-DNDEBUG", `-I${join(overlayRoot, "Analysis/include")}`,
+  `-ffile-prefix-map=${overlayRoot}=luau`, ...targets.map(t => `-I${join(source, t, "include")}`),
+  `-I${join(source, "VM/src")}`, join(root, "bridge.cpp"), join(root, "ast-input.cpp"), join(root, "incremental-scopes.cpp"), ...sources,
   "-sMODULARIZE=1", "-sEXPORT_ES6=1", "-sENVIRONMENT=web,worker,node", "-sEXPORT_NAME=createLuauAnalysis",
   "-sALLOW_MEMORY_GROWTH=1", "-sMAXIMUM_MEMORY=268435456", "-sINITIAL_MEMORY=16777216", "-sSTACK_SIZE=2097152",
   "-sDISABLE_EXCEPTION_CATCHING=0", "-sABORTING_MALLOC=0", "-sERROR_ON_UNDEFINED_SYMBOLS=1",
@@ -50,7 +56,11 @@ for (const file of ["backend.js", "LICENSE.txt"])
   writeFileSync(join(output, file), readFileSync(join(output, file), "utf8").replaceAll("\r\n", "\n"));
 const hash = p => createHash("sha256").update(readFileSync(p)).digest("hex");
 const manifest = { abi: 1, source: PIN, compiler: "Emscripten 4.0.10", compilerVersion: version,
-  bridgeSha256: hash(join(root, "bridge.cpp")), sourceManifestSha256: hash(join(source, "Sources.cmake")),
+  bridgeSha256: hash(join(root, "bridge.cpp")), astInputSha256: hash(join(root, "ast-input.cpp")),
+  astInputHeaderSha256: hash(join(root, "ast-input.h")), sourceManifestSha256: hash(join(source, "Sources.cmake")),
+  incrementalScopesSha256: hash(join(root, "incremental-scopes.cpp")), incrementalScopesHeaderSha256: hash(join(root, "incremental-scopes.h")),
+  sourceMetadataHeaderSha256: hash(join(root, "source-metadata.h")),
+  scopeOverlaySha256: hash(join(root, "scope-overlay.mjs")), scopeOverlay,
   compilerScriptSha256: hash(compiler), flags: args.filter(a => a.startsWith("-") && !a.startsWith("-I") && a !== "-o"),
   includeTargets: targets, buildMs: performance.now() - start, memoryMaximumBytes: 268435456, textNormalization: "LF",
   artifacts: Object.fromEntries(["backend.js", "backend.wasm", "LICENSE.txt"].map(p => [p, { sha256: hash(join(output, p)), bytes: readFileSync(join(output, p)).length }])) };
