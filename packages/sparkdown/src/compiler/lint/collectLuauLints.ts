@@ -27,6 +27,7 @@
 // and the Luau inside, but do not compare its arms' conditions.
 
 import { type SyntaxNode, type Tree } from "@lezer/common";
+import { STDLIB, STDLIB_CONSTANTS } from "../../inkjs/engine/StdLib";
 import {
   AstExpr,
   AstExprBinary,
@@ -57,6 +58,7 @@ import {
   AstStatBlock,
   AstStatBreak,
   AstStatContinue,
+  AstStatCompoundAssign,
   AstStatError,
   AstStatExpr,
   AstStatFor,
@@ -89,6 +91,7 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "BuiltinGlobalWrite",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -723,6 +726,25 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 
 // ---------------------------------------------------------------------------
 
+// Only own registry keys are built-ins; Object.prototype names are ordinary globals.
+const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_CONSTANTS)].map((name) => name.split(".")[0]!));
+
+/** Luau's BuiltinGlobalWrite, checking the binding being replaced rather than its members. */
+function lintBuiltinGlobalWrites(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
+  const write = (target: AstExpr) => {
+    if (!(target instanceof AstExprGlobal) || !BUILTIN_GLOBALS.has(target.name)) return;
+    out.push({ code: "BuiltinGlobalWrite", ...offsets.range(target.location), message: `Built-in global '${target.name}' is overwritten here; consider using a local or changing the name` });
+  };
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstStatAssign) node.vars.forEach(write);
+      else if (node instanceof AstStatCompoundAssign) write(node.variable);
+      else if (node instanceof AstStatFunction) write(node.name);
+      return true;
+    },
+  });
+}
+
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
   const starts = lineStarts(text);
@@ -741,12 +763,14 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     const narrative = (stat: AstStatIf) => narrativeIfs.has(offsets.of(stat.location.begin));
     lintFunctions(definedFunctions(unit), offsets);
     for (const source of unit.statements) {
+      lintBuiltinGlobalWrites(source.statement, offsets, out);
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
   for (const { expr, statements } of expressionsOutsideUnits(tree, text, [units.prelude, ...units.flows])) {
+    lintBuiltinGlobalWrites(expr, documentOffsets, out);
     const functions: AstExprFunction[] = [];
     // The function written around statements is not the author's; those inside it are.
     completeFunctions(statements && expr instanceof AstExprFunction ? expr.body : expr, functions);

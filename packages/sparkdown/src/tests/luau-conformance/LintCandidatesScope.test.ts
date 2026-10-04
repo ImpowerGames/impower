@@ -10,11 +10,30 @@
 import { describe, expect, test } from "vitest";
 import {
   diagnoseWithLintsInFunction,
+  diagnoseDetailed,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
 // Luau: BuiltinGlobalWrite
-describe.skip("overwriting a builtin global (not implemented: BuiltinGlobalWrite)", () => {
+describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
+  test("compound writes and registry constants warn at the name", () => {
+    const ds = diagnoseDetailed("function run()\n    _VERSION ..= 'x'\nend\n").filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds).toEqual([{ file: "main.sd", code: "BuiltinGlobalWrite", severity: 2, message: "Built-in global '_VERSION' is overwritten here; consider using a local or changing the name", range: { start: { line: 1, character: 4 }, end: { line: 1, character: 12 } } }]);
+  });
+  test("locals, parameters, member writes and user globals stay silent", () => {
+    expect(lintMessagesInFunction(`
+local math = {}
+math = {}
+local function assert(x) return x end
+function assert(x) return x end
+local function f(print) print = 1 return print end
+table.custom = 1
+function table.custom() end
+constructor = 1
+toString = 1
+return math, assert, f
+`)).toEqual([]);
+  });
   test("math = {} and function assert", () => {
     expect(
       lintMessagesInFunction(`
