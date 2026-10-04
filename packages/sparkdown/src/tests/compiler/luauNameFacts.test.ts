@@ -46,8 +46,8 @@ describe("shared AST name facts", () => {
     const value = script("function f()\n local a,\n type T = number\n local b,\n export type U = T\n local c,\n const d = 1\n local e,\n local g = 2\n return a\nend\n");
     expect(value.result.lints.map(lint => lint.message)).not.toContain("Variable '%error-id%' is never used; prefix with '_' to silence");
     expect(value.result.lints.some(lint => lint.message.includes("Variable 'g'"))).toBe(true);
-    expect(names(value).declarations.some((declaration: any) => declaration.name === "%error-id%")).toBe(false);
-    expect(names(value).references.some((reference: any) => reference.name === "%error-id%")).toBe(false);
+    expect(names(value).declarations.some((declaration: any) => declaration.name === "%error-id%")).toBe(false); // not a node name
+    expect(names(value).references.some((reference: any) => reference.name === "%error-id%")).toBe(false); // not a node name
     expect(value.result.roots[0]!.root).toBe(readDocumentUnits(value.tree, value.text).prelude.root);
   });
   test("keeps the checker's local binding identity through shadows, closures and repeat conditions", () => {
@@ -64,19 +64,19 @@ describe("shared AST name facts", () => {
     });
     for (const local of declarations) expect(facts.declarations.some((d: any) => d.local === local)).toBe(true);
     for (const use of uses) expect(facts.references.some((r: any) => r.node === use && r.local === use.local)).toBe(true);
-    const xs = facts.references.filter((r: any) => r.name === "x");
+    const xs = facts.references.filter((r: any) => r.name === "x"); // not a node name
     expect(new Set(xs.map((r: any) => r.local)).size).toBe(2);
     expect(xs.every((r: any) => r.enclosingFunction)).toBe(true);
-    const done = facts.references.find((r: any) => r.name === "done");
-    expect(done.local).toBe(facts.declarations.find((d: any) => d.name === "done").local);
+    const done = facts.references.find((r: any) => r.name === "done"); // not a node name
+    expect(done.local).toBe(facts.declarations.find((d: any) => d.name === "done").local); // not a node name
   });
 
   test("distinguishes reads, plain and compound writes, functions, stores and constants", () => {
     const facts = names(script("store saved = 1\nconst fixed = 2\nfunction f()\n local x = saved\n x = 3; x += fixed\n global = x\nend\n"));
-    expect(facts.globals.filter((g: any) => ["saved", "fixed", "f"].includes(g.name)).map((g: any) => [g.name, g.kind])).toEqual([["saved", "store"], ["fixed", "const"], ["f", "function"]]);
-    expect(facts.references.filter((r: any) => r.name === "x").map((r: any) => r.access)).toEqual(["write", "readwrite", "read"]);
-    expect(facts.references.find((r: any) => r.name === "global").access).toBe("write");
-    expect(facts.references.find((r: any) => r.name === "fixed").local).toBeUndefined();
+    expect(facts.globals.filter((g: any) => ["saved", "fixed", "f"].includes(g.name)).map((g: any) => [g.name, g.kind])).toEqual([["saved", "store"], ["fixed", "const"], ["f", "function"]]); // not a node name
+    expect(facts.references.filter((r: any) => r.name === "x").map((r: any) => r.access)).toEqual(["write", "readwrite", "read"]); // not a node name
+    expect(facts.references.find((r: any) => r.name === "global").access).toBe("write"); // not a node name
+    expect(facts.references.find((r: any) => r.name === "fixed").local).toBeUndefined(); // not a node name
   });
 
   test.each([
@@ -111,22 +111,22 @@ describe("shared AST name facts", () => {
 
   test("records qualified methods and separate branch scopes without writing their receivers", () => {
     const facts = names(script("function setup()\n local T = {}\n function T.x() end\n function T:x() end\n if flag then function conditional() end else function conditional() end end\nend\n"));
-    const methods = facts.functions.filter((f: any) => f.name === "T.x");
+    const methods = facts.functions.filter((f: any) => f.name === "T.x"); // not a node name
     expect(methods).toHaveLength(2);
     expect(methods.map((f: any) => f.method)).toEqual([false, true]);
     expect(methods[0].receiver.local).toBe(methods[1].receiver.local);
     expect(methods[0].scope).toBe(methods[1].scope);
-    expect(facts.references.filter((r: any) => r.name === "T").every((r: any) => r.access === "read")).toBe(true);
-    expect(facts.globals.some((g: any) => g.name === "T")).toBe(false);
-    const arms = facts.functions.filter((f: any) => f.name === "conditional");
+    expect(facts.references.filter((r: any) => r.name === "T").every((r: any) => r.access === "read")).toBe(true); // not a node name
+    expect(facts.globals.some((g: any) => g.name === "T")).toBe(false); // not a node name
+    const arms = facts.functions.filter((f: any) => f.name === "conditional"); // not a node name
     expect(arms).toHaveLength(2);
     expect(arms[0].scope).not.toBe(arms[1].scope);
   });
 
   test("handler uses stay outside authored functions while nested function values retain their enclosure", () => {
     const facts = names(script("layout main with\n button @click={ print(outside); local callback = function() print(inside) end }\nend\n"));
-    expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined();
-    expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction).toBeDefined();
+    expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined(); // not a node name
+    expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction).toBeDefined(); // not a node name
   });
 
   test("packed, expanded and moved reused fragments preserve candidates, findings and offsets", () => {
@@ -139,7 +139,7 @@ describe("shared AST name facts", () => {
     const text = prefix + original.text;
     const shifted = lint.collectLuauLints(moved, (from, to) => text.slice(from, to));
     expect(shifted.lints).toEqual(original.result.lints.map(l => ({ ...l, from: l.from + prefix.length, to: l.to + prefix.length })));
-    expect(shifted.names.references.find((r: any) => r.name === "target")!.from).toBe(names(original).references.find((r: any) => r.name === "target").from + prefix.length);
+    expect(shifted.names.references.find((r: any) => r.name === "target")!.from).toBe(names(original).references.find((r: any) => r.name === "target").from + prefix.length); // not a node name
   });
 
   test("compiler recombination uses current included scripts and cached untouched trees", () => {
