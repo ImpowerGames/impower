@@ -1289,7 +1289,7 @@ export function numberState(number, deps, cwd) {
 // holding it started then; one recorded bare, or whose start time cannot be
 // read now, is taken at its number's word, which keeps a directory rather than
 // removing one in use.
-export function jobProtection(dir, deps, ctx) {
+function jobProtection(dir, deps, ctx) {
   const reasons = [];
   let inventory;
   try { inventory = deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot); }
@@ -1308,9 +1308,14 @@ export function jobProtection(dir, deps, ctx) {
         if (samePath(current, dir)) reasons.push(`job root is a link: ${current}`);
         continue;
       }
-      for (const entry of (deps.readEntries ?? liveDeps.readEntries)(current)) {
+      const children = (deps.readEntries ?? liveDeps.readEntries)(current);
+      const names = new Set(children.map((entry) => entry.name.toLowerCase()));
+      // Bare repositories have metadata at their root. Retain even a partial
+      // marker layout rather than guessing that repository state is disposable.
+      if (names.has("head") && names.has("objects") && names.has("refs")) reasons.push(`protected embedded Git repository ${current}`);
+      for (const entry of children) {
         const child = path.join(current, entry.name);
-        if (entry.name === ".git") reasons.push(`protected embedded Git repository ${current}`);
+        if (entry.name.toLowerCase() === ".git") reasons.push(`protected embedded Git repository ${current}`);
         else if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(child);
       }
     } catch (err) {
