@@ -13,9 +13,12 @@ import {
   readLuauExpression, readLuauUnits, type LuauAstUnits,
 } from "@impower/sparkdown/src/compiler/typecheck/readLuauAst";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
+import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 import { type AnnotatedScript } from "../annotations/getDeclarationScopes";
+import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 // This is a syntax inventory, not inferred types. Only literal table keys,
 // assignments, aliases and declared functions contribute members. Calls,
@@ -39,6 +42,7 @@ interface Reading {
   stores: AstStatSparkdownStore[];
   sites: Site[];
   offset(line: number, column: number): number;
+  sectionAt(offset: number): string[];
 }
 const readings = new WeakMap<Tree, Reading>();
 const strings = new WeakMap<AstExprConstantString, string>();
@@ -57,9 +61,26 @@ function reading(tree: Tree, text: string): Reading {
   if (previous?.text === text) return previous;
   const lines = [0];
   for (let at = text.indexOf("\n"); at >= 0; at = text.indexOf("\n", at + 1)) lines.push(at + 1);
+  const sections = new Map<number, string[]>();
   const result: Reading = {
     text, units: readLuauUnits(tree, text), defines: new Map(), stores: [], sites: [],
     offset: (line, column) => (lines[line] ?? text.length) + column,
+    sectionAt(offset) {
+      const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+      const top = stack.at(-2);
+      if (!top) return [];
+      const previous = sections.get(top.from);
+      if (previous) return previous;
+      const path = getParentSectionPath(stack, (from, to) => text.slice(from, to));
+      // The shared path excludes the header itself. Synthetic flow and
+      // branch parameter declarations stand on their own header line.
+      const key = top.name === "Scene" ? getDescendent("SceneDeclarationName", top)
+        : top.name === "Branch" ? getDescendent("BranchDeclarationName", top) : undefined;
+      const own = key && text.slice(key.from, key.to);
+      const section = own ? top.name === "Scene" ? [own] : [...path, own] : path;
+      sections.set(top.from, section);
+      return section;
+    },
   };
   result.sites = memberSites(result);
   for (const unit of [result.units.prelude, ...result.units.flows]) {
@@ -198,13 +219,35 @@ function copyShape(shape: Shape, copies: Map<Shape, Shape>): Shape {
 
 class Inventory {
   readonly locals = new Map<AstLocal, Shape | undefined>();
-  constructor(readonly globals: Globals, readonly read: Reading, readonly cursor: number) {}
+  private inFlow = false;
+  private readonly section: string[];
+  constructor(readonly globals: Globals, readonly read: Reading, readonly cursor: number) {
+    this.section = cursor < 0 ? [] : read.sectionAt(cursor);
+  }
+  private activeSection(location: Location) {
+    const path = this.read.sectionAt(this.read.offset(location.begin.line, location.begin.column));
+    return path.every((name, index) => name === this.section[index]);
+  }
+  private visibleLocal(local: AstLocal): AstLocal | undefined {
+    // The checker reader flattens branch parameters into its scene unit.
+    // Follow its real shadow chain when a branch has closed at this cursor.
+    let visible: AstLocal | undefined = local;
+    while (visible && !this.activeSection(visible.location)) visible = visible.shadow;
+    return visible;
+  }
+  runFlow(root: AstStatBlock) {
+    this.inFlow = true;
+    try { this.run(root); } finally { this.inFlow = false; }
+  }
   contains(location: Location) {
     return this.read.offset(location.begin.line, location.begin.column) <= this.cursor &&
       this.read.offset(location.end.line, location.end.column) >= this.cursor;
   }
   value(expr: AstExpr): Shape | undefined {
-    if (expr instanceof AstExprLocal) return this.locals.get(expr.local);
+    if (expr instanceof AstExprLocal) {
+      const local = this.visibleLocal(expr.local);
+      return local ? this.locals.get(local) : this.globals.get(expr.local.name);
+    }
     if (expr instanceof AstExprGlobal) return this.globals.get(expr.name);
     if (expr instanceof AstExprIndexName) return this.value(expr.expr)?.members?.get(expr.index);
     if (expr instanceof AstExprIndexExpr && expr.index instanceof AstExprConstantString) {
@@ -217,7 +260,11 @@ class Inventory {
     return undefined;
   }
   assign(target: AstExpr, value: Shape | undefined) {
-    if (target instanceof AstExprLocal) this.locals.set(target.local, value);
+    if (target instanceof AstExprLocal) {
+      const local = this.visibleLocal(target.local);
+      if (local) this.locals.set(local, value);
+      else this.globals.set(target.local.name, value);
+    }
     else if (target instanceof AstExprGlobal) this.globals.set(target.name, value);
     else if (target instanceof AstExprIndexName) this.value(target.expr)?.members?.set(target.index, value);
     else if (target instanceof AstExprIndexExpr && target.index instanceof AstExprConstantString) {
@@ -237,7 +284,7 @@ class Inventory {
   run(stat: AstStat) {
     const start = this.read.offset(stat.location.begin.line, stat.location.begin.column);
     const end = this.read.offset(stat.location.end.line, stat.location.end.column);
-    if (start > this.cursor) return;
+    if (start > this.cursor || (this.inFlow && !this.activeSection(stat.location))) return;
     if (stat instanceof AstStatBlock) {
       for (const child of stat.body) this.run(child);
     } else if (stat instanceof AstStatSparkdownExplicit) this.run(stat.statement);
@@ -331,7 +378,8 @@ export function getStaticMemberCompletions(
   }
   initialize(current);
   const inventory = new Inventory(globals, current, cursor);
-  for (const unit of [current.units.prelude, ...current.units.flows]) inventory.run(unit.root);
+  inventory.run(current.units.prelude.root);
+  for (const unit of current.units.flows) inventory.runFlow(unit.root);
   const shape = inventory.value(site.receiver);
   const items: CompletionItem[] = [];
   for (const [name, value] of shape?.members ?? []) {

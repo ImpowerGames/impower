@@ -47,6 +47,41 @@ describe("static member completion while editing", () => {
     expect(labelsAt(source)).toEqual([]);
   });
 
+  test.each([
+    "scene play(t)\n  & local value = t.@1\nend\n",
+    "scene play\n  branch part(t)\n    & local value = t.@1\n  end\nend\n",
+  ])("a flow parameter hides a stored table without borrowing its fields: %s", (flow) => {
+    expect(labelsAt("store t = { globalField = 1 }\n" + flow)).toEqual([]);
+  });
+
+  test("an authored nested function captures its scene's local table", () => {
+    const source = "scene play\n  local t = { sceneField = 1 }\n  local nested = function()\n    return t.@1\n  end\nend\n";
+    expect(labelsAt(source)).toEqual(["sceneField"]);
+  });
+
+  test("a genuine nested function named __flow keeps its own parameter identity", () => {
+    const source = "scene play\n  local t = { sceneField = 1 }\n  local __flow = function(t)\n    return t.@1\n  end\nend\n";
+    expect(labelsAt(source)).toEqual([]);
+    expect(labelsAt(source.replace("function(t)", "function()"))).toEqual(["sceneField"]);
+  });
+
+  test("a branch parameter hides then restores its scene's local table", () => {
+    const source = "scene play\n  local t = { sceneField = 1 }\n  branch part(t)\n    & local value = t.@1\n  end\n  & local value = t.@2\nend\n";
+    expect(labelsAt(source, { at: "1" })).toEqual([]);
+    expect(labelsAt(source, { at: "2" })).toEqual(["sceneField"]);
+  });
+
+  test("a closed branch restores a stored table and its subsequent member assignments", () => {
+    const source = "store t = { globalField = 1 }\nscene play\n  branch part(t)\n    & local value = t.@1\n  end\n  & t.extra = 2\n  & local value = t.@2\nend\n";
+    expect(labelsAt(source, { at: "1" })).toEqual([]);
+    expect(labelsAt(source, { at: "2" }).sort()).toEqual(["extra", "globalField"]);
+  });
+
+  test("a sibling branch contributes neither its locals nor its member assignments", () => {
+    const source = "scene play\n  local t = { sceneField = 1 }\n  branch first\n    local t = { privateField = 1 }\n    & t.extra = 2\n  end\n  branch second\n    & local value = t.@1\n  end\nend\n";
+    expect(labelsAt(source)).toEqual(["sceneField"]);
+  });
+
   test("ordinary strings and comments never offer a table's members", () => {
     for (const line of ['local s = "t.@1"', "-- t.@1", "--[[ t.@1 ]]", "local n = 12.@1"]) {
       const source = `store t = { member = 1 }\nfunction main()\n  ${line}\nend\n`;
