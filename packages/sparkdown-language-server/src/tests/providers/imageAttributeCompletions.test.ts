@@ -1,8 +1,6 @@
-import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect, it } from "vitest";
-import { getCompletions } from "../../utils/providers/getCompletions";
+import { complete as completeAt } from "./completionHarness";
 
-const URI = "file:///complete.sd";
 const vocabulary = { layers: [], folders: {}, diagnostics: [], groups: {
   face: { options: ["happy", "sad"], switch: false },
   hat: { options: ["on", "off"], switch: true },
@@ -16,13 +14,8 @@ const program = { context: {
   filtered_image: { party: { $type: "filtered_image", $name: "party", image: { $name: "mia" }, attributes: ["happy"] } },
 } } as any;
 
-const completeItems = (source: string, contextProgram = program) => {
-  const offset = source.indexOf("|");
-  const text = source.replace("|", "");
-  const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
-  documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  return getCompletions(documents.get(URI), documents.tree(URI), new Map([[URI, { annotations: documents.annotations(URI), tree: documents.tree(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]), contextProgram, undefined, documents.get(URI)!.positionAt(offset), undefined) ?? [];
-};
+const completeItems = (source: string, contextProgram = program) =>
+  completeAt(source.replace("|", "@0"), { program: contextProgram }).items;
 const complete = (source: string, contextProgram = program) => completeItems(source, contextProgram).map((item) => item.label).sort();
 
 describe("image attribute completion", () => {

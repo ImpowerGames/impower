@@ -1,11 +1,8 @@
-import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type CompletionItem } from "vscode-languageserver";
-import { getCompletions } from "../../utils/providers/getCompletions";
+import { complete } from "./completionHarness";
 
 // Completion at a `|` cursor in a brace body, and the document an accepted
 // item leaves, for the brace-body completion tests (#1228).
-
-const URI = "file:///complete.sd";
 
 export function cursorAt(source: string) {
   const idx = source.indexOf("|");
@@ -23,36 +20,10 @@ export function completeAt(
   program: any,
   triggerCharacter?: string,
 ): CompletionItem[] {
-  const { text, position } = cursorAt(source);
-  const documents = new SparkdownDocumentRegistry([
-    "characters",
-    "declarations",
-    "references",
-  ]);
-  documents.set({
-    textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" },
-  });
-  const scripts = new Map([
-    [
-      URI,
-      {
-        annotations: documents.annotations(URI),
-        tree: documents.tree(URI),
-        read: (from: number, to: number) => documents.get(URI)!.read(from, to),
-      },
-    ],
-  ]);
-  return (
-    getCompletions(
-      documents.get(URI),
-      documents.tree(URI),
-      scripts,
-      program,
-      undefined,
-      position,
-      triggerCharacter ? { triggerKind: 2, triggerCharacter } : undefined,
-    ) ?? []
-  );
+  return complete(source.replace("|", "@0"), {
+    program,
+    trigger: triggerCharacter,
+  }).items;
 }
 
 /** The text an item inserts, with its snippet's final tab stop removed. */

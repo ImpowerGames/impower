@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range, type Text } from "@codemirror/state";
@@ -22,7 +23,8 @@ import {
   TRIVIA_BEFORE_STATEMENT,
 } from "../../lower/utils/statementBefore";
 import { luauStatementError } from "../../utils/luauStatementError";
-import { nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
+import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
+import { luauPositionOffset, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED } from "../../typecheck/LuauUnitNodes";
 import {
@@ -340,6 +342,9 @@ const IF_STATEMENT_WITHOUT_THEN = "Expected 'then' when parsing if statement";
 const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
   "LuauIfBlockCondition",
   "LuauElseifBlockCondition",
+  // The bounded if/elseif routes share this condition, rather than a
+  // one-to-one counterpart of either ordinary condition rule.
+  "LuauSparkdownExplicitIfCondition",
 ]);
 // The parts of an if statement's condition that are not its expression.
 const IF_CONDITION_TRIVIA = nodeNameSet([
@@ -358,6 +363,8 @@ const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
 const IF_CLAUSE_TRIVIA = new Set([
   "LuauThenOperator",
   "LuauElseOperator",
+  "LuauSparkdownExplicitThenOperator",
+  "LuauSparkdownExplicitElseOperator",
   "LuauComment",
   "LuauLineComment",
   "LuauDocLineComment",
@@ -380,14 +387,14 @@ const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
 
 function isInlineConditional(node: any): boolean {
   return (
-    node.parent?.name === "LuauInterpolatedStringExpression_content" &&
+    isExplicitRuleName(node.parent?.name, "LuauInterpolatedStringExpression_content") &&
     !ancestorMatching(node.parent.parent, LUAU_BINDING_INTERPOLATION_HOSTS)
   );
 }
 
 // The operations whose node begins with their operator. Only `-`, `not` and
 // `#` can begin a value, and then only with an operand after them.
-const OPERATOR_FIRST_OPERATIONS = new Set([
+const OPERATOR_FIRST_OPERATIONS = nodeNameSet([
   "LuauArithmeticOperation",
   "LuauCompareOperation",
   "LuauConcatOperation",
@@ -456,11 +463,11 @@ function missingIfExpressionPart(
     at,
   });
   for (let c = content?.firstChild; c; c = c.nextSibling) {
-    if (c.name === "LuauTernaryExpressionCondition") {
+    if (isExplicitRuleName(c.name, "LuauTernaryExpressionCondition")) {
       if (expecting !== "condition") return missing();
       if (!clauseHasValue(c, read)) return { message: IF_EXPRESSION_WITHOUT_VALUE, at };
       expecting = "then";
-    } else if (c.name === "LuauThenExpression") {
+    } else if (isExplicitRuleName(c.name, "LuauThenExpression")) {
       if (expecting !== "then") return missing();
       if (!clauseHasValue(c, read)) {
         return {
@@ -473,7 +480,7 @@ function missingIfExpressionPart(
       if (expecting !== "else") return missing();
       at = c;
       expecting = "condition";
-    } else if (c.name === "LuauElseExpression") {
+    } else if (isExplicitRuleName(c.name, "LuauElseExpression")) {
       if (expecting !== "else") return missing();
       if (!clauseHasValue(c, read)) {
         return {
@@ -493,7 +500,7 @@ const MAX_UNICODE_ESCAPE = 0x7fffffff;
 
 function childNamed(node: any, name: string): any {
   for (let c = node.firstChild; c; c = c.nextSibling) {
-    if (c.name === name) return c;
+    if (isExplicitRuleName(c.name, name)) return c;
   }
   return null;
 }
@@ -592,6 +599,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * grammar could not read into the expression (`flag` in `if flag print(1)`).
    */
   protected conditionExpressionEnd(condition: any): number {
+    if (condition.name === "LuauSparkdownExplicitIfCondition") {
+      // The highlighting expression may include an adjacent assignment.
+      // The parsed condition ends before that token, which is the missing
+      // `then` diagnostic's owner. Keep the read inside the authored header.
+      const text = this.statementDocumentText();
+      return luauPositionOffset(readLuauExpressionAfter(condition.from, text, condition.to).expr.location.end, text);
+    }
     const content = childNamed(condition, `${condition.name}_content`);
     let end = content?.from ?? condition.from;
     for (let c = content?.firstChild; c; c = c.nextSibling) {
@@ -804,8 +818,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * character. `""` at the end of the Luau, which for a `run` file is the
    * `end` its wrapper closes its function with.
    */
-  protected tokenAfterTrivia(pos: number): string {
+  protected tokenAfterTrivia(pos: number, to = this.text?.length ?? pos): string {
     for (;;) {
+      if (pos >= to) return "";
       const char = this.read(pos, pos + 1);
       if (!char || this.isRunWrapperEnd(pos)) {
         return "";
@@ -822,7 +837,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         if (!LUAU_NAME_START.test(char)) {
           return char;
         }
-        const lineTo = this.text?.lineAt(pos).to ?? pos + 1;
+        const lineTo = Math.min(to, this.text?.lineAt(pos).to ?? pos + 1);
         return this.read(pos, lineTo).match(LUAU_NAME)?.[0] ?? char;
       }
       pos = node.to;
@@ -869,23 +884,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    */
   protected isMethodColon(node: SyntaxNode): boolean {
     const part = node.parent;
-    if (part?.name !== "LuauAccessPart") {
+    if (!part || !isExplicitRuleName(part.name, "LuauAccessPart")) {
       return false;
     }
     let path: SyntaxNode | null = part.parent;
-    while (path && path.name !== "LuauAccessPath") {
+    while (path && !isExplicitRuleName(path.name, "LuauAccessPath")) {
       path = path.parent;
     }
     if (!path || path.parent?.name !== "LuauForCondition_content") {
       return true;
     }
-    if (part.prevSibling?.name !== "LuauAccessPart" || part.prevSibling.prevSibling) {
+    if (!part.prevSibling || !isExplicitRuleName(part.prevSibling.name, "LuauAccessPart") || part.prevSibling.prevSibling) {
       return true;
     }
     for (let before = path.prevSibling; before; before = before.prevSibling) {
       if (
         before.name === "LuauInKeyword" ||
-        before.name === "LuauAssignmentOperation"
+        isExplicitRuleName(before.name, "LuauAssignmentOperation")
       ) {
         return true;
       }
@@ -927,8 +942,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    *  length, read whole as Luau's lexer reads it (`123`, `..`, `::`), `null`
    *  at the end of the text, or `undefined` at a block comment that never
    *  closes. */
-  protected luauTokenAt(pos: number): { text: string; from: number } | null | undefined {
-    const rest = this.read(pos, this.text?.length ?? pos);
+  protected luauTokenAt(pos: number, to = this.text?.length ?? pos): { text: string; from: number } | null | undefined {
+    const rest = this.read(pos, to);
     let i = 0;
     for (;;) {
       LUAU_TRIVIA.lastIndex = i;
@@ -979,7 +994,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     for (let sibling = node.prevSibling; sibling; sibling = sibling.prevSibling) {
       if (
         DECLARATION_ASSIGNMENT.has(sibling.name) ||
-        (sibling.name === "LuauVariableAssignment" && ownAssignmentOperation(sibling))
+        (isExplicitRuleName(sibling.name, "LuauVariableAssignment") && ownAssignmentOperation(sibling))
       ) {
         return undefined;
       }
@@ -1078,10 +1093,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // starts a method call, which is missing its name.
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const isMethodColon = this.isMethodColon(nodeRef.node);
+      // An unfinished narrative method call owns its island's EOF. A genuine
+      // function still permits the method name on its next Luau line.
+      const authoredEnd = isMethodColon ? authoredIslandEnd(nodeRef.node) : undefined;
       // The checker reports a missing method name too, as it reports every
       // missing name after a member access (#1175), where it reads the token
       // found instead.
-      if (checkerReportsType && (!isMethodColon || this.checkerReadsOnTo(nodeRef.node, this.luauTokenAt(nodeRef.to)?.from))) {
+      if (checkerReportsType && (!isMethodColon || this.checkerReadsOnTo(nodeRef.node, this.luauTokenAt(nodeRef.to, authoredEnd)?.from))) {
         return annotations;
       }
       if (!isMethodColon) {
@@ -1100,8 +1118,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
       // Luau's range is the token it found instead of the name.
-      const token = this.tokenAfterTrivia(nodeRef.to);
-      const got = token ? this.luauTokenAt(nodeRef.to) : null;
+      const token = this.tokenAfterTrivia(nodeRef.to, authoredEnd);
+      const got = token ? this.luauTokenAt(nodeRef.to, authoredEnd) : null;
       this.error(
         annotations,
         `${MISSING_METHOD_NAME}, got ${token ? `'${token}'` : "<eof>"}`,
@@ -1122,12 +1140,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // `scene s(a, :: number)`), or a `::` after a name (`scene s(a :: number)`),
     // worded as Luau's parser words one among a function's parameters.
     if (
-      (nodeRef.name === "LuauTypeCastOperation" ||
-        nodeRef.name === "LuauTypeAnnotationOperation") &&
+      (isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ||
+        isExplicitRuleName(nodeRef.name, "LuauTypeAnnotationOperation")) &&
       nodeRef.node.parent?.name === "LuauFunctionParameters_content" &&
       !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))
     ) {
-      const operator = nodeRef.name === "LuauTypeCastOperation" ? "::" : ":";
+      const operator = isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ? "::" : ":";
       const from = nodeRef.from + this.read(nodeRef.from, nodeRef.to).indexOf(operator);
       let before = nodeRef.node.prevSibling;
       while (before && isTrivia(before)) {
@@ -1160,11 +1178,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // see (`local a,` then `b :: number`). The grammar reads each as an
     // annotation or cast in the declaration's own content.
     if (
-      (nodeRef.name === "LuauTypeCastOperation" ||
-        nodeRef.name === "LuauTypeAnnotationOperation") &&
+      (isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ||
+        isExplicitRuleName(nodeRef.name, "LuauTypeAnnotationOperation")) &&
       VARIABLE_DEFINITION_CONTENT_NAMES.has(nodeRef.node.parent?.name ?? "")
     ) {
-      const operator = nodeRef.name === "LuauTypeCastOperation" ? "::" : ":";
+      const operator = isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ? "::" : ":";
       const from = nodeRef.from + this.read(nodeRef.from, nodeRef.to).indexOf(operator);
       const before = this.declarationTargetBefore(nodeRef.node);
       if (before === null || (before && DECLARATION_COMMA.has(before.name))) {
@@ -1180,7 +1198,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (
         operator === "::" &&
         before &&
-        before.name === "LuauAccessPath" &&
+        isExplicitRuleName(before.name, "LuauAccessPath") &&
         soleVariableName(before) &&
         comma &&
         DECLARATION_COMMA.has(comma.name)
@@ -1304,8 +1322,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // A type name with more than one module prefix (`types.ui.Button`). Luau
     // reads at most `module.Type`, so the segments after it are a syntax
     // error; the grammar keeps them inside the type so this can report them.
-    if (nodeRef.name === "LuauTypeNameExtraQualifier" || nodeRef.name === "LuauTypeNameExtraQualifierContinuation") {
-      const to = nodeRef.name === "LuauTypeNameExtraQualifierContinuation"
+    if (nodeRef.name === "LuauTypeNameExtraQualifier" || isExplicitRuleName(nodeRef.name, "LuauTypeNameExtraQualifierContinuation")) {
+      const to = isExplicitRuleName(nodeRef.name, "LuauTypeNameExtraQualifierContinuation")
         ? nodeRef.from + this.read(nodeRef.from, nodeRef.to).trimEnd().length
         : nodeRef.to;
       this.error(
@@ -1323,7 +1341,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // display text is Sparkdown's inline conditional, which may leave out
     // its arms.
     if (
-      nodeRef.name === "LuauTernaryExpression" &&
+      isExplicitRuleName(nodeRef.name, "LuauTernaryExpression") &&
       !isInlineConditional(nodeRef.node)
     ) {
       const missing = missingIfExpressionPart(nodeRef.node, (from, to) =>
@@ -1352,13 +1370,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
+        const authoredEnd = nodeRef.name === "LuauSparkdownExplicitIfCondition"
+          ? authoredIslandEnd(nodeRef.node)
+          : undefined;
         const got = nextSignificantToken(
           nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
           (from, to) => this.read(from, to),
           this.statementDocumentText,
+          authoredEnd,
         );
-        const eof = this.tree?.length ?? nodeRef.to;
+        const eof = authoredEnd ?? this.tree?.length ?? nodeRef.to;
         this.error(
           annotations,
           `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
@@ -1459,10 +1481,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // Detected on the text rather than on an `_end` child: closing at the
     // string boundary still produces an `_end` node, just a zero-width one.
     if (
-      nodeRef.name === "LuauInterpolatedStringExpression" ||
+      isExplicitRuleName(nodeRef.name, "LuauInterpolatedStringExpression") ||
       nodeRef.name === "LuauDoubleQuotedStringInterpolation" ||
       nodeRef.name === "LuauBacktickStringInterpolation" ||
-      nodeRef.name === "LuauFunctionCallShorthand" ||
+      isExplicitRuleName(nodeRef.name, "LuauFunctionCallShorthand") ||
       nodeRef.name === "LuauDoubleQuotedFunctionCallShorthand" ||
       nodeRef.name === "LuauBacktickFunctionCallShorthand"
     ) {

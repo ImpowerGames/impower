@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
@@ -776,8 +777,8 @@ function collectTopLevelInjections(
       // the string itself, not the surrounding display body.
       if (node.name === "LuauInterpolatedString") return;
       if (
-        node.name === "LuauInterpolatedStringExpression" ||
-        node.name === "LuauFunctionCallShorthand"
+        isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
+        isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
       ) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "expr", node, from: node.from, to: node.to });
@@ -822,7 +823,7 @@ function collectTopLevelInjections(
       // we just need to splice them as a separate "tag" segment so the
       // surrounding text doesn't absorb the `#` and so `appendDisplayTags`
       // can emit a `BeginTag` / content / `EndTag` triplet per Tag child.
-      if (node.name === "Tags") {
+      if (isExplicitRuleName(node.name, "Tags")) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "tag", node, from: node.from, to: node.to });
         }
@@ -959,13 +960,13 @@ function appendDisplayTags(
     findChildByNameDirect(tagsNode, "Tags_content") ?? tagsNode;
   let child = contentNode.firstChild;
   while (child) {
-    if (child.name === "Tag") {
+    if (isExplicitRuleName(child.name, "Tag")) {
       out.push(new Tag(true));
       // `Tag`'s capture 3 wraps with the `TagContent` named rule
       // (§6.4: address by name, not by `_cN` index). `TagContent`
       // lives one level inside the auto-generated `_c3` capture
       // wrapper, so `getDescendent` is required to reach it.
-      const tagContent = getDescendent("TagContent", child);
+      const tagContent = getDescendent(["TagContent", "SparkdownExplicitTagContent"], child);
       if (tagContent) {
         for (const obj of lowerTagContent(tagContent, ctx)) {
           out.push(obj);
@@ -1071,8 +1072,8 @@ function lineEndMarks(
   while (prev && ADJACENT_WHITESPACE.has(prev.name)) prev = prev.prevSibling;
   if (
     !prev ||
-    (prev.name !== "LuauInterpolatedStringExpression" &&
-      prev.name !== "LuauFunctionCallShorthand") ||
+    (!isExplicitRuleName(prev.name, "LuauInterpolatedStringExpression") &&
+      !isExplicitRuleName(prev.name, "LuauFunctionCallShorthand")) ||
     startsItsLine(node, ctx)
   ) {
     return null;
@@ -1440,8 +1441,8 @@ function adjacentInterpolationSibling(
   while (cursor) {
     if (cursor.name === "Newline") return null;
     if (
-      cursor.name === "LuauInterpolatedStringExpression" ||
-      cursor.name === "LuauFunctionCallShorthand"
+      isExplicitRuleName(cursor.name, "LuauInterpolatedStringExpression") ||
+      isExplicitRuleName(cursor.name, "LuauFunctionCallShorthand")
     ) {
       return cursor;
     }
@@ -1746,8 +1747,8 @@ function tryLowerInlineConditional(
     let bodyChild = content.firstChild;
     while (bodyChild) {
       if (
-        bodyChild.name !== "LuauThenOperator" &&
-        bodyChild.name !== "LuauElseOperator" &&
+        !isExplicitRuleName(bodyChild.name, "LuauThenOperator") &&
+        !isExplicitRuleName(bodyChild.name, "LuauElseOperator") &&
         !isWhitespaceNode(bodyChild.name)
       ) {
         body.push(bodyChild);
@@ -1770,13 +1771,13 @@ function tryLowerInlineConditional(
   let elseifCondNode: SyntaxNode | null = null;
   let child = ifContent.firstChild;
   while (child) {
-    if (child.name === "LuauTernaryExpressionCondition") {
+    if (isExplicitRuleName(child.name, "LuauTernaryExpressionCondition")) {
       if (!seenFirstCond) {
         seenFirstCond = true;
       } else if (phase === "in-elseif-cond") {
         elseifCondNode = child;
       }
-    } else if (child.name === "LuauThenExpression") {
+    } else if (isExplicitRuleName(child.name, "LuauThenExpression")) {
       if (phase === "in-elseif-cond") {
         const cond = elseifCondNode
           ? lowerExpressionFromContainer(
@@ -1794,7 +1795,7 @@ function tryLowerInlineConditional(
         current.body.push(...collectClauseBody(child));
       }
       phase = "wait-next";
-    } else if (child.name === "LuauElseExpression") {
+    } else if (isExplicitRuleName(child.name, "LuauElseExpression")) {
       branches.push(current);
       current = { cond: null, body: collectClauseBody(child) };
       phase = "wait-next";
@@ -1849,7 +1850,7 @@ function findChildByNameDirect(
 ): SyntaxNode | null {
   let scan = parent.firstChild;
   while (scan) {
-    if (scan.name === name) return scan;
+    if (isExplicitRuleName(scan.name, name)) return scan;
     scan = scan.nextSibling;
   }
   return null;
@@ -1866,12 +1867,12 @@ function findFirstDirectChild(
     if (scan.name === contentName) {
       let c = scan.firstChild;
       while (c) {
-        if (c.name === name) return c;
+        if (isExplicitRuleName(c.name, name)) return c;
         c = c.nextSibling;
       }
       return null;
     }
-    if (scan.name === name) return scan;
+    if (isExplicitRuleName(scan.name, name)) return scan;
     scan = scan.nextSibling;
   }
   return null;

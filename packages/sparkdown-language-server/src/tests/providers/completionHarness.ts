@@ -23,6 +23,8 @@ const URI = "file:///proj/main.sd";
 const MARKER = /@(\d)/g;
 
 export interface CompletionAt {
+  /** The provider's items, including edits and preview data. */
+  items: CompletionItem[];
   /** The offered labels; none when the provider declined. */
   labels: string[];
   /** The highlighted item's detail: the description shown beside it. */
@@ -130,6 +132,7 @@ export function complete(
   const items = returned ?? [];
   const item = (label: string) => items.find((i) => i.label === label);
   return {
+    items,
     labels: items.map((i) => String(i.label)),
     detail: (label) => item(label)?.labelDetails?.description,
     resolve: async (label) => {

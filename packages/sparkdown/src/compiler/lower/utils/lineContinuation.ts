@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
@@ -123,7 +124,7 @@ export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
     if (SKIPPABLE.has(scan.name)) continue;
     if (scan.name !== "LuauTypeUnionLineContinuation") break;
     for (let part = firstContentChild(scan); part; part = part.nextSibling) {
-      if (part.name === "LuauAssignmentOperation") value = part;
+      if (isExplicitRuleName(part.name, "LuauAssignmentOperation")) value = part;
     }
   }
   return value;
@@ -132,7 +133,7 @@ export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
 // Whether the declaration `node` ends in its last target's type annotation,
 // with no value after it (`local v: number`).
 function endsInTypeAnnotation(node: SyntaxNode): boolean {
-  if (node.name !== "LuauVariableDefinition" && node.name !== "LuauSparkdownVariableDefinition") {
+  if (!isExplicitRuleName(node.name, "LuauVariableDefinition") && !isExplicitRuleName(node.name, "LuauSparkdownVariableDefinition")) {
     return false;
   }
   let content: SyntaxNode | null = null;
@@ -142,7 +143,7 @@ function endsInTypeAnnotation(node: SyntaxNode): boolean {
   let last: SyntaxNode | null = content?.lastChild ?? null;
   while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
   return (
-    last?.name === "LuauVariableAssignment" &&
+    last != null && isExplicitRuleName(last.name, "LuauVariableAssignment") &&
     hasDescendant(last, "LuauTypeAnnotationOperation") &&
     !ownAssignmentOperation(last)
   );
@@ -168,8 +169,8 @@ export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
     return !hasDescendant(prev, "LuauAssignmentOperation");
   }
   return (
-    prev.name === "LuauDataTypeDeclaration" ||
-    prev.name === "LuauTypeAnnotationOperation" ||
+    isExplicitRuleName(prev.name, "LuauDataTypeDeclaration") ||
+    isExplicitRuleName(prev.name, "LuauTypeAnnotationOperation") ||
     endsInTypeAnnotation(prev)
   );
 }
@@ -458,7 +459,7 @@ export function reportUntakenLineContinuation(
   advice = "Join it to the value it continues.",
 ): void {
   for (const node of nodes) {
-    if (!isLineContinuation(node) && node.name !== "LuauAccessPart") {
+    if (!isLineContinuation(node) && !isExplicitRuleName(node.name, "LuauAccessPart")) {
       continue;
     }
     const raw = ctx.read(node.from, node.to);
@@ -491,7 +492,7 @@ export function isTypeQualifierContinuation(nodes: SyntaxNode[]): boolean {
     for (let part = lineContinuationContent(node); part; part = part.nextSibling) {
       if (SKIPPABLE.has(part.name)) continue;
       if (
-        part.name !== "LuauAccessPart" ||
+        !isExplicitRuleName(part.name, "LuauAccessPart") ||
         part.firstChild?.name !== "LuauPropertyAccessor"
       ) {
         return false;
@@ -513,17 +514,17 @@ export const TYPE_NAME_EXTRA_QUALIFIER =
 // `LuauPrimitiveType` until its qualifier is on the same line.
 export function typeNameSegments(node: SyntaxNode): number {
   for (let n = lastSignificantLeaf(node); n && n !== node; n = n.parent) {
-    if (n.name === "LuauTypeNameExtraQualifier" || n.name === "LuauTypeNameExtraQualifierContinuation") return 3;
+    if (n.name === "LuauTypeNameExtraQualifier" || isExplicitRuleName(n.name, "LuauTypeNameExtraQualifierContinuation")) return 3;
     if (n.name === "LuauQualifiedTypeFinalName") return 2;
     if (n.name === "LuauPrimitiveType") return 1;
     if (n.name === "LuauTypeName") {
       if (hasDescendant(n, "LuauTypeNameExtraQualifier")) return 3;
       return hasDescendant(n, "LuauVariableName") ? 2 : 1;
     }
-    if (n.name === "LuauAccessPath") {
+    if (isExplicitRuleName(n.name, "LuauAccessPath")) {
       let segments = 0;
       for (let part = firstContentChild(n); part; part = part.nextSibling) {
-        if (part.name !== "LuauAccessPart") continue;
+        if (!isExplicitRuleName(part.name, "LuauAccessPart")) continue;
         const inner = part.firstChild?.name;
         if (inner !== "LuauVariable" && inner !== "LuauPropertyAccessor") {
           return 0;
@@ -545,10 +546,10 @@ export function endsInTypeName(node: SyntaxNode): boolean {
 export function continuationParts(nodes: SyntaxNode[]): SyntaxNode[] {
   const parts: SyntaxNode[] = [];
   for (const node of nodes) {
-    if (node.name === "LuauAccessPart") parts.push(node);
+    if (isExplicitRuleName(node.name, "LuauAccessPart")) parts.push(node);
     if (!isLineContinuation(node)) continue;
     for (let part = lineContinuationContent(node); part; part = part.nextSibling) {
-      if (part.name === "LuauAccessPart") parts.push(part);
+      if (isExplicitRuleName(part.name, "LuauAccessPart")) parts.push(part);
     }
   }
   return parts;
@@ -592,7 +593,7 @@ function reportExtraQualifiers(
 
 function hasDescendant(node: SyntaxNode, name: string): boolean {
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === name || hasDescendant(child, name)) return true;
+    if (isExplicitRuleName(child.name, name) || hasDescendant(child, name)) return true;
   }
   return false;
 }

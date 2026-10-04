@@ -1,28 +1,28 @@
 sparkdown [0..41]
- └─ LuauExplicitStatement [0..41]
-     ├─ LuauExplicitStatement_begin [0..2]
-     │   ├─ LuauExplicitStatement_begin_c1 0
+ └─ LuauSparkdownExplicitStatement [0..41]
+     ├─ LuauSparkdownExplicitStatement_begin [0..2]
+     │   ├─ LuauSparkdownExplicitStatement_begin_c1 0
      │   │   └─ OptionalWhitespace 0
-     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   ├─ LuauSparkdownExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
-     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
      │       └─ RequiredWhitespace [1..2]: " "
-     ├─ LuauExplicitStatement_content [2..41]
-     │   └─ LuauAccessPath [2..41]
-     │       ├─ LuauAccessPath_begin 2
-     │       ├─ LuauAccessPath_content [2..41]
-     │       │   └─ LuauAccessPart [2..41]
-     │       │       └─ LuauFunctionCall [2..41]
-     │       │           ├─ LuauFunctionCall_begin [2..5]
-     │       │           │   ├─ LuauFunctionCall_begin_c1 [2..5]
+     ├─ LuauSparkdownExplicitStatement_content [2..41]
+     │   └─ LuauSparkdownExplicitAccessPath [2..41]
+     │       ├─ LuauSparkdownExplicitAccessPath_begin 2
+     │       ├─ LuauSparkdownExplicitAccessPath_content [2..41]
+     │       │   └─ LuauSparkdownExplicitAccessPart [2..41]
+     │       │       └─ LuauSparkdownExplicitFunctionCall [2..41]
+     │       │           ├─ LuauSparkdownExplicitFunctionCall_begin [2..5]
+     │       │           │   ├─ LuauSparkdownExplicitFunctionCall_begin_c1 [2..5]
      │       │           │   │   └─ LuauFunctionName [2..5]: "log"
-     │       │           │   └─ LuauFunctionCall_begin_c2 5
-     │       │           ├─ LuauFunctionCall_content [5..41]
-     │       │           │   └─ LuauFunctionCallParameters [5..41]
-     │       │           │       ├─ LuauFunctionCallParameters_begin [5..6]
-     │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [5..6]
+     │       │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 5
+     │       │           ├─ LuauSparkdownExplicitFunctionCall_content [5..41]
+     │       │           │   └─ LuauSparkdownExplicitFunctionCallParameters [5..41]
+     │       │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_begin [5..6]
+     │       │           │       │   └─ LuauSparkdownExplicitFunctionCallParameters_begin_c1 [5..6]
      │       │           │       │       └─ PunctuationParenOpen [5..6]: "("
-     │       │           │       ├─ LuauFunctionCallParameters_content [6..40]
+     │       │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_content [6..40]
      │       │           │       │   └─ LuauInterpolatedString [6..40]
      │       │           │       │       ├─ LuauInterpolatedString_begin [6..7]
      │       │           │       │       │   └─ LuauInterpolatedString_begin_c1 [6..7]
@@ -81,10 +81,10 @@ sparkdown [0..41]
      │       │           │       │           ├─ LuauInterpolatedString_end_c1 [39..40]
      │       │           │       │           │   └─ PunctuationStringBacktickQuoteClose [39..40]: "`"
      │       │           │       │           └─ LuauInterpolatedString_end_c2 40
-     │       │           │       └─ LuauFunctionCallParameters_end [40..41]
-     │       │           │           └─ LuauFunctionCallParameters_end_c1 [40..41]
+     │       │           │       └─ LuauSparkdownExplicitFunctionCallParameters_end [40..41]
+     │       │           │           └─ LuauSparkdownExplicitFunctionCallParameters_end_c1 [40..41]
      │       │           │               └─ PunctuationParenClose [40..41]: ")"
-     │       │           └─ LuauFunctionCall_end 41
-     │       └─ LuauAccessPath_end 41
-     │           └─ LuauAccessPath_end_c1 41
-     └─ LuauExplicitStatement_end 41
+     │       │           └─ LuauSparkdownExplicitFunctionCall_end 41
+     │       └─ LuauSparkdownExplicitAccessPath_end 41
+     │           └─ LuauSparkdownExplicitAccessPath_end_c1 41
+     └─ LuauSparkdownExplicitStatement_end 41
