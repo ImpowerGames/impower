@@ -1,0 +1,51 @@
+name: Native Luau Conformance
+on:
+  pull_request:
+    paths:
+      - packages/sparkdown/native/luau-conformance/**
+      - packages/sparkdown/native/luau-analysis/**
+      - packages/sparkdown/vendor/luau-analysis/**
+      - packages/sparkdown/src/analysis-backend/**
+      - packages/sparkdown/src/compiler/typecheck/**
+      - packages/sparkdown/src/tests/analysis-backend/native-conformance/**
+      - packages/sparkdown/src/tests/luau-conformance/**
+      - .github/workflows/luau-conformance.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fixture-observations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Restore validated native object cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/luau-conformance-objects
+          key: ${{ runner.os }}-luau-conformance-7d5-emsdk4.0.10-${{ hashFiles('packages/sparkdown/native/luau-conformance/build.mjs') }}
+          restore-keys: ${{ runner.os }}-luau-conformance-7d5-emsdk4.0.10-
+      - name: Build test-only native fixture artifact
+        run: node packages/sparkdown/native/luau-conformance/prepare-ci.mjs
+      - name: Execute actual native observations
+        run: node scripts/test-suite.mjs run packages/sparkdown src/tests/analysis-backend/native-conformance/nativeFixtureSession.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureGraphs.test.ts src/tests/analysis-backend/native-conformance/nativeAreaRepresentatives.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureQueries.test.ts src/tests/analysis-backend/native-conformance/nativeCaseScope.test.ts src/tests/analysis-backend/native-conformance/nativeCaseDefaults.test.ts src/tests/analysis-backend/native-conformance/nativeHarnessParsing.test.ts --wait 600
+      - name: Execute native mapping and registered case lifecycle
+        run: node scripts/test-suite.mjs run packages/sparkdown src/tests/analysis-backend/native-conformance/nativeHarnessResults.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureInitialization.test.ts src/tests/analysis-backend/native-conformance/nativeFixturePresets.test.ts src/tests/analysis-backend/native-conformance/nativeCaseRegistration.test.ts src/tests/analysis-backend/native-conformance/nativeRegisteredRepresentatives.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureBoundaries.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureActions.test.ts src/tests/analysis-backend/native-conformance/nativeActionEligibility.test.ts --wait 600
+      - name: Execute finite synthetic, support and NonStrict action contracts
+        run: node scripts/test-suite.mjs run packages/sparkdown src/tests/analysis-backend/native-conformance/nativeSyntheticActions.test.ts src/tests/analysis-backend/native-conformance/nativeSupportActions.test.ts src/tests/analysis-backend/native-conformance/nativeNonStrictContracts.test.ts --wait 600
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-luau-conformance-evidence
+          path: |
+            packages/sparkdown/native/luau-conformance/generated/manifest.json
+            packages/sparkdown/native/luau-conformance/generated/backend.js
+            packages/sparkdown/native/luau-conformance/generated/backend.wasm
+            .git/test-suites/**
