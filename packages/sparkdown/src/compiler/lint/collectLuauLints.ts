@@ -818,10 +818,22 @@ function lintTables(root: AstNode, offsets: NameRoot["offsets"], starts: number[
   };
   const literal = (expr: AstExpr | undefined, value: number) => expr instanceof AstExprConstantNumber && expr.value === value;
   const length = (expr: AstExpr, table: AstExpr) => expr instanceof AstExprUnary && expr.op === UnaryOp.Len && similar(expr.expr, table);
-  const globalString = (expr: AstExpr) => globalStrings.has(expr);
-  const overridesFind = (expr: AstExpr) => globalString(expr)
-    || (expr instanceof AstExprIndexName && globalString(expr.expr) && expr.index === "find")
-    || (expr instanceof AstExprIndexExpr && globalString(expr.expr) && expr.index instanceof AstExprConstantString && expr.index.value === "find");
+  const transparent = (expr: AstExpr): AstExpr => {
+    while (expr instanceof AstExprGroup || expr instanceof AstExprTypeAssertion) expr = expr.expr;
+    return expr;
+  };
+  const globalString = (expr: AstExpr) => globalStrings.has(transparent(expr));
+  const overridesFind = (expr: AstExpr) => {
+    if (globalString(expr)) return true;
+    if (expr instanceof AstExprIndexName) return globalString(expr.expr) && expr.index === "find";
+    if (!(expr instanceof AstExprIndexExpr) || !globalString(expr.expr)) return false;
+    const index = transparent(expr.index);
+    if (index instanceof AstExprConstantString) return index.value === "find";
+    if (index instanceof AstExprConstantNumber || index instanceof AstExprConstantBool || index instanceof AstExprConstantNil) return false;
+    // A computed key can be "find"; no type or execution-order inference
+    // can establish that the builtin remains intact for this candidate.
+    return true;
+  };
   visitAst(root, {
     visit(node) {
       const writes = node instanceof AstStatAssign || node instanceof AstStatSparkdownStore ? node.vars

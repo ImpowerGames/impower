@@ -3,11 +3,56 @@ import { describe, expect, test } from "vitest";
 import { diagnoseDetailed, diagnoseFilesDetailed } from "./diagnosticTestHarness";
 import { testCompiler } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { collectLuauLints } from "../../compiler/lint/collectLuauLints";
+import { getParser } from "../compiler/grammarSnapshot";
+import { AstExprGroup, AstExprIndexExpr, AstStatAssign, visitAst } from "../../compiler/typecheck/Ast";
 
 const rules = new Set(["TableLiteral", "TableOperations", "DeprecatedApi"]);
 const lints = (source: string) => diagnoseDetailed(source).filter((d) => rules.has(String(d.code)));
 
 describe("table lints in Sparkdown", () => {
+  test.each([
+    "(string).find", "(string)[('find')]", "(string :: any).find",
+    "(string :: any)[('find' :: string)]",
+  ])("transparent global receiver/key wrappers: %s", (target) => {
+    const source = `function replace()\n${target} = function() return 1 end\nend\nfunction run()\nlocal t = {}\ntable.insert(t, string.find("hello", "h"))\ntable.insert(t, 0, 42)\ngetfenv(1)\nend\n`;
+    expect(diagnoseDetailed(source).filter((d) => d.severity === 1)).toEqual([]);
+    expect(lints(source).map((d) => d.code)).toEqual(["TableOperations", "DeprecatedApi"]);
+  });
+
+  test.each(["(string)[key]", "(string :: any)[('find' :: string)]"])("transparent local receiver stays local: %s", (target) => {
+    const source = `function replace(key)\nlocal string = {}\n${target} = function() return 1 end\nend\nfunction run()\nlocal t = {}\ntable.insert(t, string.find("hello", "h"))\nend\n`;
+    expect(diagnoseDetailed(source).filter((d) => d.severity === 1)).toEqual([]);
+    expect(lints(source).map((d) => d.code)).toEqual(["TableOperations"]);
+  });
+
+  test("transparent known-other key preserves builtin assumption", () => {
+    expect(lints('function replace()\n(string :: any)[("sub" :: string)] = function() return 1 end\nend\nfunction run()\nlocal t = {}\ntable.insert(t, string.find("hello", "h"))\nend\n').map((d) => d.code)).toEqual(["TableOperations"]);
+  });
+
+  test.each([
+    ["('find')", "ExprGroup"],
+    ["key", "ExprLocal"],
+  ])("possibly replaced builtin through index %s", (key, shape) => {
+    const source = `function replace(key)\nstring[${key}] = function() return 1 end\nend\nfunction run()\nlocal t = {}\ntable.insert(t, string.find("hello", "h"))\ntable.insert(t, 0, 42)\ngetfenv(1)\nend\n`;
+    const facts = collectLuauLints(getParser().parse(source), (from, to) => source.slice(from, to));
+    const indices: string[] = [];
+    for (const { root } of facts.roots) visitAst(root, { visit(node) {
+      if (node instanceof AstStatAssign && node.vars[0] instanceof AstExprIndexExpr) {
+        const index = node.vars[0].index;
+        indices.push(index.kind);
+        if (index instanceof AstExprGroup) expect(index.expr.kind).toBe("ExprConstantString");
+      }
+      return true;
+    } });
+    expect(indices).toEqual([shape]);
+    expect(lints(source).map((d) => d.code)).toEqual(["TableOperations", "DeprecatedApi"]);
+  });
+
+  test.each(["'sub'", "('sub')"])("known other member index %s preserves builtin assumption", (key) => {
+    expect(lints(`function replace()\nstring[${key}] = function() return 1 end\nend\nfunction run()\nlocal t = {}\ntable.insert(t, string.find("hello", "h"))\ntable.insert(t, 0, 42)\ngetfenv(1)\nend\n`).map((d) => d.code)).toEqual(["TableOperations", "TableOperations", "DeprecatedApi"]);
+  });
+
   test.each(["const", "store"])("%s string is a runtime global and suppresses another script's builtin assumption", (kind) => {
     const declaration = `${kind} string = { marker = 42 }\n`;
     const runtime = makeRuntimeStoryFromSource(`${declaration}Value {string.marker}.\n`);
