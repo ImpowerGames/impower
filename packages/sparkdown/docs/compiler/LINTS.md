@@ -13,6 +13,8 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `DuplicateCondition` | A condition repeated in one `if`/`elseif` chain, one `if` expression, or one `and`/`or` chain. `a and b or c` is exempt. | Luau `if` statements and expressions and Luau `and`/`or` |
 | `ForRange` | A numeric `for` without a step that runs backwards, stops short of a fractional end, or starts or ends at 0 over a table's length (a bare `#t`, as in Luau). | Luau `for` loops |
 | `PlaceholderRead` | A read of the placeholder `_`, local or global, including a compound write (`_ += 1`). A plain write is not reported. | Inside functions |
+| `MisleadingAndOr` | An `a and false or b` or `a and nil or b` expression whose first alternative is always falsy. Explicit parentheses silence it, as in Luau. | Luau expressions |
+| `ComparisonPrecedence` | A comparison beginning with unparenthesized `not`, or a chain of comparisons. Comparing two negated values is exempt; explicit parentheses silence the warning. | Luau expressions |
 
 The arms of Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions are not compared with each other; their conditions and the Luau inside them are checked like any other. The `if` and `for` control flow of Sparkle `layout` blocks is a separate construct in the grammar and is not checked.
 
@@ -56,7 +58,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 | Luau lint | Test file |
 | --- | --- |
 | `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
-| `MultiLineStatement`, `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
+| `MultiLineStatement`, `UnbalancedAssignment`, `ImplicitReturn`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
 | `FormatString`, `TableLiteral`, `TableOperations`, `DeprecatedApi` for `getfenv`/`setfenv` | `LintCandidatesStdlib.test.ts` |
 
 ## Rules sparkdown omits

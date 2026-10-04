@@ -252,7 +252,7 @@ return f1,f2,f3,f4
 });
 
 // Luau: MisleadingAndOr
-describe.skip("a and b or c where b is falsy (not implemented: MisleadingAndOr)", () => {
+describe("a and b or c where b is falsy", () => {
   test("false and nil as the middle operand", () => {
     expect(
       lintMessagesInFunction(`
@@ -270,7 +270,7 @@ _ = (math.random() < 0.5 and false) or 42 -- currently ignored
 });
 
 // Luau: ComparisonPrecedence
-describe.skip("not and chained comparisons without parentheses (not implemented: ComparisonPrecedence)", () => {
+describe("not and chained comparisons without parentheses", () => {
   test("five misleading forms, each silenced by parentheses", () => {
     expect(
       lintMessagesInFunction(`
