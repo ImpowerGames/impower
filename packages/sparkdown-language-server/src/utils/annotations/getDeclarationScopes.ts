@@ -160,8 +160,8 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
 /**
  * The span a Luau `local` is visible in. A named local function starts at
  * its name, making it visible recursively inside its own body. A variable
- * starts where its declaring
- * statement's text ends, so it is not offered in its own initializer,
+ * starts where its declaring statement's text ends, so it is not offered
+ * in its own initializer,
  * including a function value in it; a statement that follows on the same
  * line (`local a = 1 return a`) is the declaration's sibling and so comes
  * after that point. It
@@ -172,8 +172,8 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
  * visible up to that section's `end` (see `getSectionEnd`).
  *
  * Undefined for a `store` or `const`, which is global wherever it is
- * written. Null for a local outside the cursor's script, which is never
- * visible there, so its span is not worked out.
+ * written. Null for a define's function member or a local outside the
+ * cursor's script, neither of which is a visible bare binding there.
  */
 const getLocalScope = (
   tree: Tree,
@@ -189,6 +189,10 @@ const getLocalScope = (
   );
   if (!definition) {
     return undefined;
+  }
+  // A define's explicit function declarations belong to its method table.
+  if (type === "function" && definition.parent?.name === "LuauDefine_content") {
+    return null;
   }
   const modifierRoot = type === "function"
     ? definition.getChild("LuauFunctionDefinition_begin") as Node | null
@@ -248,12 +252,13 @@ const getLocalScope = (
   // declaration, whose later siblings include the `if` branches or
   // alternator arms after it.
   let to: number | undefined;
-  // A local function belongs to its enclosing block, including the part
-  // after the function's own end, rather than to its own body alone.
-  let block: Node | null = type === "function"
-    ? definition.parent as Node | null
-    : definition;
-  for (; block && !LUAU_BLOCKS.has(block.name); block = block.parent as Node | null) {
+  // Scan a function declaration's later siblings before finding its
+  // enclosing block, so the next conditional branch still ends its scope.
+  let block: Node | null = definition;
+  for (; block; block = block.parent as Node | null) {
+    if (LUAU_BLOCKS.has(block.name) && !(type === "function" && block === definition)) {
+      break;
+    }
     // Branches and alternator arms never sit at the root, so a root-level
     // statement's later siblings, the rest of the script, are not scanned.
     if (!block.parent?.parent) {
@@ -351,7 +356,7 @@ export const getDeclarationScopes = (
               ? getParameterScope(tree, cur.from, read, inCursorScript)
               : undefined;
         if (localScope !== undefined) {
-          // Local: visible only after its declaration and inside its block
+          // Scoped declaration: offer only inside its visible local span.
           if (
             localScope &&
             cursor.offset > localScope.from &&

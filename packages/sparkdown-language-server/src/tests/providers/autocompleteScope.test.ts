@@ -139,6 +139,34 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels.filter((label) => label === "abc")).toEqual(["abc"]);
   });
 
+  upstreamCase("local_functions_fall_out_of_scope", "local functions stay in their own conditional branch", () => {
+    const source = "function main()\n  if true then\n    local function abc() end\n    return a@1\n  elseif false then\n    local function def() end\n    return d@2\n  else\n    return a@3\n  end\n  return a@4\nend\n";
+    expect(labelsAt(source, { at: "1" })).toContain("abc");
+    const elseif = labelsAt(source, { at: "2" });
+    expect(elseif).toContain("def");
+    expect(elseif).not.toContain("abc");
+    for (const at of ["3", "4"]) {
+      const labels = labelsAt(source, { at });
+      expect(labels).not.toContain("abc");
+      expect(labels).not.toContain("def");
+    }
+  });
+
+  upstreamCase("local_functions_fall_out_of_scope", "a narrative branch's local function is hidden from sibling branches", () => {
+    for (const header of ["", "scene one\n"]) {
+      const source = `${header}if true then\n  local function abc() end\n  {a@1}\nelseif false then\n  {a@2}\nelse\n  {a@3}\nend\n${header ? "end\n" : ""}`;
+      expect(labelsAt(source, { at: "1" })).toContain("abc");
+      expect(labelsAt(source, { at: "2" })).not.toContain("abc");
+      expect(labelsAt(source, { at: "3" })).not.toContain("abc");
+    }
+  });
+
+  upstreamCase("local_functions_fall_out_of_scope", "a repeat's local function is visible in its condition and hidden after the loop", () => {
+    const source = "function main()\n  repeat\n    local function abc() return true end\n  until a@1\n  return a@2\nend\n";
+    expect(labelsAt(source, { at: "1" })).toContain("abc");
+    expect(labelsAt(source, { at: "2" })).not.toContain("abc");
+  });
+
   upstreamCase("function_parameters", "a parameter is offered for a typed word in its function's body", () => {
     const one = complete("function abc(test)\n  t@1\nend\n");
     expect(one.labels).toContain("test");
@@ -401,5 +429,29 @@ describe("autocomplete · scope and visibility", () => {
       "define Bar with\n  value = 0\n  function new()\n    return B@1\n  end\nend\n",
     );
     expect(labels).toContain("Bar");
+  });
+
+  upstreamCase("class_autocomplete_classname_inside_method", "define methods are not bare names inside or outside their define", () => {
+    for (const header of ["function fly()", "fly()"]) {
+      const source = `define Bird with\n  ${header}\n    return f@1\n  end\nend\nfunction main()\n  return f@2\nend\n`;
+      for (const at of ["1", "2"]) {
+        const labels = labelsAt(source, { at });
+        expect(labels).toContain("Bird");
+        expect(labels).not.toContain("fly");
+      }
+    }
+  });
+
+  upstreamCase("class_autocomplete_classname_inside_method", "functions nested in a define method retain their own scope", () => {
+    const source = "define Bird with\n  function fly()\n    function globalHelper() end\n    local function localHelper() end\n    return l@1\n  end\nend\nfunction main()\n  return l@2\nend\n";
+    const inside = labelsAt(source, { at: "1" });
+    expect(inside).toContain("localHelper");
+    expect(inside).toContain("globalHelper");
+    expect(inside).not.toContain("fly");
+    const outside = labelsAt(source, { at: "2" });
+    expect(outside).toContain("Bird");
+    expect(outside).toContain("globalHelper");
+    expect(outside).not.toContain("localHelper");
+    expect(outside).not.toContain("fly");
   });
 });
