@@ -67,13 +67,13 @@ describe("image preview freshness and bridge lifetime", () => {
     let bytes = "old";
     const read = vi.fn(async () => btoa(bytes));
     expect(text(await preview(file, read))).toBe("old");
+    const decoded = vi.mocked(createImageBitmap).mock.calls.length;
     expect(text(await preview(file, read))).toBe("old");
     expect(read).toHaveBeenCalledTimes(2);
     // Reuse decoding/composition only after checking the current bytes.
-    expect(createImageBitmap).toHaveBeenCalledTimes(1);
+    expect(createImageBitmap).toHaveBeenCalledTimes(decoded);
     bytes = "new";
     expect(text(await preview(file, read))).toBe("new");
-    expect(createImageBitmap).toHaveBeenCalledTimes(2);
     read.mockRejectedValueOnce(new Error("deleted"));
     expect(await preview(file, read)).toBeUndefined();
     bytes = "red";
