@@ -14,6 +14,8 @@ node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root <absolute
 
 The dry run fetches origin with prune and prints remove/keep reasons and sizes. Inspect every proposed removal, including ignored paths such as browser profiles and node_modules; move valuable ignored data out before applying. Apply requires the explicit absolute main root and removes eligible worktrees and local branches. It records outcomes in the main checkout's `.git/clean-worktrees.log`.
 
+Routine resolve-issue preflight uses the dry run only. For blocked disk headroom, follow [bounded recovery](references/classification.md#bounded-low-disk-recovery) with explicit authorization.
+
 ## Dead records and one named directory
 
 `--apply` first runs `git worktree prune`, so a record whose directory is gone never blocks a branch deletion or shows as a row that only says to run it. It waits, and says so, when a `<path>.removing` sits beside a dead record: the record that leftover points at must survive until it is renamed back. A dry run prunes nothing.
@@ -48,6 +50,8 @@ The same run lists two scratch locations the regression workflow writes, each ro
 
 Run apply only for authorized cleanup after inspecting the dry run. Review removed/kept/failed rows, exit status and the recorded leftovers. Do not claim success for a partial failure. Stop owned dev servers through their drivers and rerun classification; do not force a tree with changes.
 
-The resolve-issue preflight runs this workflow before the task's worktree exists, so that task is never among the removals. It is not a post-resolution step or archive hook: at that point the current task's PR may still be unmerged, and other sessions may use the directories.
+Resolve-issue preflight inspects candidates before creating its worktree. Cleanup is never an automatic post-resolution or archive step; unmerged work and other sessions remain protected.
+
+Review jobs containing registered worktrees, embedded Git repositories or uncertain ownership are protected, with inventory refreshed before destructive work; see [ownership protection](references/classification.md#review-job-ownership).
 
 When modifying cleanup behavior, run its Node test against printed scratch repositories; retain Windows-only and unavailable-filesystem skips as limitations. Put preventable traps into the script/check rather than warning prose.
