@@ -1,4 +1,4 @@
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ChangeDesc, MapMode, Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode, Tree } from "@lezer/common";
@@ -407,7 +407,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           return undefined;
         }
         if (
-          nodeRef.name === "LuauFunctionDefinition" &&
+          isExplicitRuleName(nodeRef.name, "LuauFunctionDefinition") &&
           this.pendingDeclKind === null
         ) {
           // Closed before the window: its name is already bound in the
@@ -488,7 +488,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     // in the PARENT scope as kind "function" so call-site references
     // to `foo` outside its body resolve correctly. The push happens
     // first so subsequent enters bind into the new frame.
-    if (nodeRef.name === "LuauFunctionDefinition") {
+    if (isExplicitRuleName(nodeRef.name, "LuauFunctionDefinition")) {
       // Bind the declared function name (if any) in the parent scope
       // before opening the new frame. Anonymous `function() … end`
       // expressions have no LuauFunctionDeclarationName; just push.
@@ -507,7 +507,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     }
     // A type function's parameters and locals are its own, as a function's
     // are. Its name is a type, so nothing binds in the enclosing scope.
-    if (nodeRef.name === "LuauFunctionTypeDeclaration") {
+    if (isExplicitRuleName(nodeRef.name, "LuauFunctionTypeDeclaration")) {
       this.scopeStack.push(new Map());
     }
     if (nodeRef.name === "LuauFunctionParameter") {
@@ -552,8 +552,8 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           // `LuauAssignmentOperation_content`); use a deep search.
           let kind: BindingKind = this.pendingDeclKind;
           const fnLiteral = getDescendent(
-            "LuauFunctionDefinition",
-            nodeRef.node,
+            explicitRuleNames("LuauFunctionDefinition"),
+            nodeRef.node as SyntaxNode,
           );
           if (fnLiteral) kind = "function";
           this.bindInCurrentScope(name, kind);
@@ -670,8 +670,8 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
     if (
-      (nodeRef.name === "LuauFunctionDefinition" ||
-        nodeRef.name === "LuauFunctionTypeDeclaration") &&
+      (isExplicitRuleName(nodeRef.name, "LuauFunctionDefinition") ||
+        isExplicitRuleName(nodeRef.name, "LuauFunctionTypeDeclaration")) &&
       this.scopeStack.length > 1
     ) {
       // Pop the function-body scope. Keep the outermost frame so

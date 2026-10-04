@@ -1,5 +1,6 @@
 import { ChangeDesc, MapMode } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 
 export type BindingKind = "function" | "variable" | "const-variable" | "namespace";
 export type Binding = { kind: BindingKind; fromStdlib: boolean };
@@ -15,8 +16,8 @@ function scopesAt(node: SyntaxNode): number[] {
   const scopes: number[] = [];
   for (let parent = node.parent; parent; parent = parent.parent) {
     if (
-      parent.name === "LuauFunctionDefinition" ||
-      parent.name === "LuauFunctionTypeDeclaration"
+      isExplicitRuleName(parent.name, "LuauFunctionDefinition") ||
+      isExplicitRuleName(parent.name, "LuauFunctionTypeDeclaration")
     ) {
       scopes.push(parent.from);
     }

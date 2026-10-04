@@ -379,9 +379,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // LuauTypeFunctionName.
       const definition = ancestorMatching(nodeRef.node, PARAMETER_OWNER);
       let functionNameNode = null;
-      if (definition?.name === "LuauFunctionTypeDeclaration") {
+      if (definition && isExplicitRuleName(definition.name, "LuauFunctionTypeDeclaration")) {
         functionNameNode = getDescendent("LuauTypeFunctionName", definition);
-      } else if (definition?.name === "LuauFunctionDefinition") {
+      } else if (definition && isExplicitRuleName(definition.name, "LuauFunctionDefinition")) {
         const declName = getDescendent("LuauFunctionDeclarationName", definition);
         functionNameNode = declName
           ? getDescendent("LuauFunctionName", declName)
