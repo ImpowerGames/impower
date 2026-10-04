@@ -2,11 +2,24 @@
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed, diagnoseFilesDetailed } from "./diagnosticTestHarness";
 import { testCompiler } from "../engineUnderTest";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 const rules = new Set(["TableLiteral", "TableOperations", "DeprecatedApi"]);
 const lints = (source: string) => diagnoseDetailed(source).filter((d) => rules.has(String(d.code)));
 
 describe("table lints in Sparkdown", () => {
+  test.each(["const", "store"])("%s string is a runtime global and suppresses another script's builtin assumption", (kind) => {
+    const declaration = `${kind} string = { marker = 42 }\n`;
+    const runtime = makeRuntimeStoryFromSource(`${declaration}Value {string.marker}.\n`);
+    expect(runtime.errorMessages).toEqual([]);
+    expect(runtime.story.ContinueMaximally()).toBe("Value 42.\n");
+    const warnings = diagnoseFilesDetailed({
+      "main.sd": 'include override.sd\nfunction run()\nlocal t = {}\ntable.insert(t, string.find("hello", "h"))\ntable.insert(t, 0, 42)\ngetfenv(1)\nend\n',
+      "override.sd": declaration,
+    }).filter((d) => rules.has(String(d.code)));
+    expect(warnings.map((d) => d.code)).toEqual(["TableOperations", "DeprecatedApi"]);
+  });
+
   test("lexical member writes do not replace the global builtin", () => {
     expect(lints('function replace()\nlocal string = {}\nstring.find = function() return 1 end\nend\nfunction run()\nlocal t = {}\ntable.insert(t, string.find("hello", "h"))\nend\n').map((d) => d.code)).toEqual(["TableOperations"]);
   });

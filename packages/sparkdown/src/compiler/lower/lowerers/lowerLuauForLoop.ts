@@ -80,7 +80,7 @@ const FOR_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
-const FOR_NODES = nodeNameSet(["LuauForLoop", "LuauSparkdownForLoop"]);
+const FOR_NODES = nodeNameSet(["LuauForLoop", "LuauSparkdownForLoop", "LuauSparkdownExplicitLoop"]);
 
 export function lowerLuauForLoop(
   stat: AstStatFor,

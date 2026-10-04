@@ -1,29 +1,29 @@
 sparkdown [0..8]
- └─ LuauExplicitStatement [0..8]
-     ├─ LuauExplicitStatement_begin [0..2]
-     │   ├─ LuauExplicitStatement_begin_c1 0
+ └─ LuauSparkdownExplicitStatement [0..8]
+     ├─ LuauSparkdownExplicitStatement_begin [0..2]
+     │   ├─ LuauSparkdownExplicitStatement_begin_c1 0
      │   │   └─ OptionalWhitespace 0
-     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   ├─ LuauSparkdownExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
-     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
      │       └─ RequiredWhitespace [1..2]: " "
-     ├─ LuauExplicitStatement_content [2..8]
-     │   ├─ LuauAccessPath [2..4]
-     │   │   ├─ LuauAccessPath_begin 2
-     │   │   ├─ LuauAccessPath_content [2..3]
-     │   │   │   └─ LuauAccessPart [2..3]
+     ├─ LuauSparkdownExplicitStatement_content [2..8]
+     │   ├─ LuauSparkdownExplicitAccessPath [2..4]
+     │   │   ├─ LuauSparkdownExplicitAccessPath_begin 2
+     │   │   ├─ LuauSparkdownExplicitAccessPath_content [2..3]
+     │   │   │   └─ LuauSparkdownExplicitAccessPart [2..3]
      │   │   │       └─ LuauVariable [2..3]
      │   │   │           └─ LuauVariable_c1 [2..3]
      │   │   │               └─ LuauVariableName [2..3]: "x"
-     │   │   └─ LuauAccessPath_end [3..4]
-     │   │       └─ LuauAccessPath_end_c1 [3..4]
-     │   │           └─ LuauAccessPath_end_c1 [3..4]
+     │   │   └─ LuauSparkdownExplicitAccessPath_end [3..4]
+     │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [3..4]
+     │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [3..4]
      │   │               └─ OptionalWhitespace [3..4]: " "
-     │   └─ LuauAssignmentOperation [4..8]
-     │       ├─ LuauAssignmentOperation_begin 4
-     │       │   └─ LuauAssignmentOperation_begin_c1 4
+     │   └─ LuauSparkdownExplicitAssignmentOperation [4..8]
+     │       ├─ LuauSparkdownExplicitAssignmentOperation_begin 4
+     │       │   └─ LuauSparkdownExplicitAssignmentOperation_begin_c1 4
      │       │       └─ OptionalWhitespace 4
-     │       ├─ LuauAssignmentOperation_content [4..8]
+     │       ├─ LuauSparkdownExplicitAssignmentOperation_content [4..8]
      │       │   ├─ LuauAssignmentOperator [4..6]
      │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
@@ -33,22 +33,22 @@ sparkdown [0..8]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
      │       │   │   │           └─ OptionalWhitespace [5..6]: " "
      │       │   │   └─ LuauAssignmentOperator_end 6
-     │       │   └─ LuauArithmeticOperation [6..8]
-     │       │       ├─ LuauArithmeticOperation_begin 6
-     │       │       │   └─ LuauArithmeticOperation_begin_c1 6
-     │       │       ├─ LuauArithmeticOperation_content [6..8]
-     │       │       │   ├─ LuauArithmeticOperator [6..7]
-     │       │       │   │   ├─ LuauArithmeticOperator_begin [6..7]
-     │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 6
+     │       │   └─ LuauSparkdownExplicitArithmeticOperation [6..8]
+     │       │       ├─ LuauSparkdownExplicitArithmeticOperation_begin 6
+     │       │       │   └─ LuauSparkdownExplicitArithmeticOperation_begin_c1 6
+     │       │       ├─ LuauSparkdownExplicitArithmeticOperation_content [6..8]
+     │       │       │   ├─ LuauSparkdownExplicitArithmeticOperator [6..7]
+     │       │       │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin [6..7]
+     │       │       │   │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin_c1 6
      │       │       │   │   │   │   └─ OptionalWhitespace 6
-     │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [6..7]: "-"
-     │       │       │   │   │   └─ LuauArithmeticOperator_begin_c3 7
-     │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 7
+     │       │       │   │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin_c2 [6..7]: "-"
+     │       │       │   │   │   └─ LuauSparkdownExplicitArithmeticOperator_begin_c3 7
+     │       │       │   │   │       └─ LuauSparkdownExplicitArithmeticOperator_begin_c3 7
      │       │       │   │   │           └─ OptionalWhitespace 7
-     │       │       │   │   └─ LuauArithmeticOperator_end 7
+     │       │       │   │   └─ LuauSparkdownExplicitArithmeticOperator_end 7
      │       │       │   └─ LuauNumericDecimal [7..8]
      │       │       │       ├─ LuauNumericDecimal_c1 [7..8]: "1"
      │       │       │       └─ LuauNumericDecimal_c2 8
-     │       │       └─ LuauArithmeticOperation_end 8
-     │       └─ LuauAssignmentOperation_end 8
-     └─ LuauExplicitStatement_end 8
+     │       │       └─ LuauSparkdownExplicitArithmeticOperation_end 8
+     │       └─ LuauSparkdownExplicitAssignmentOperation_end 8
+     └─ LuauSparkdownExplicitStatement_end 8

@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
@@ -652,8 +653,8 @@ function readContentParts(
     let child = inner?.firstChild ?? null;
     while (child) {
       if (
-        child.name === "LuauInterpolatedStringExpression" ||
-        child.name === "LuauFunctionCallShorthand"
+        isExplicitRuleName(child.name, "LuauInterpolatedStringExpression") ||
+        isExplicitRuleName(child.name, "LuauFunctionCallShorthand")
       ) {
         flush();
         parts.push({ kind: "binding", binding: lowerBinding(child, ctx) });
@@ -1245,12 +1246,12 @@ function collectForLoopTargetNames(
   const names: string[] = [];
   for (let child = condContent.firstChild; child; child = child.nextSibling) {
     if (
-      child.name === "LuauAssignmentOperation" ||
+      isExplicitRuleName(child.name, "LuauAssignmentOperation") ||
       child.name === "LuauInKeyword"
     ) {
       break;
     }
-    if (child.name === "LuauAccessPath") {
+    if (isExplicitRuleName(child.name, "LuauAccessPath")) {
       const nameNode = getDescendent("LuauVariableName", child);
       if (nameNode) names.push(ctx.read(nameNode.from, nameNode.to));
     }

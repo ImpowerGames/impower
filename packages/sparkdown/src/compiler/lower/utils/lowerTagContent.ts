@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -46,7 +47,7 @@ export function lowerTagContent(
     tagContent.firstChild;
   let cursor = tagContent.from;
   while (child) {
-    if (child.name === "LuauInterpolatedStringExpression") {
+    if (isExplicitRuleName(child.name, "LuauInterpolatedStringExpression")) {
       // Literal text between the previous cursor and this interpolation.
       if (child.from > cursor) {
         segs.push({ kind: "text", raw: ctx.read(cursor, child.from) });
@@ -127,11 +128,11 @@ function loneVariable(container: SyntaxNode): SyntaxNode | null {
   }
   if (!only) return null;
   if (only.name === "LuauVariable") return only;
-  if (only.name === "LuauAccessPath") {
+  if (isExplicitRuleName(only.name, "LuauAccessPath")) {
     const content = findWrapperChild(only, "LuauAccessPath_content");
     return content ? loneVariable(content) : null;
   }
-  return only.name === "LuauAccessPart" ? loneVariable(only) : null;
+  return isExplicitRuleName(only.name, "LuauAccessPart") ? loneVariable(only) : null;
 }
 
 // Return the FIRST child INSIDE the named generated wrapper (e.g.
@@ -150,7 +151,7 @@ function findWrapperChild(
 ): SyntaxNode | null {
   let child = parent.firstChild;
   while (child) {
-    if (child.name === wrapperName) return child;
+    if (isExplicitRuleName(child.name, wrapperName)) return child;
     child = child.nextSibling;
   }
   return null;

@@ -15,6 +15,7 @@ import {
 } from "../morph/collectMorphDiagnostics";
 import {
   collectLuauLints,
+  indexProgramNames,
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
@@ -6730,6 +6731,7 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
     let stringFindOverridden = false;
+    const scripts: { uri: string; names: LuauScriptLints["names"] }[] = [];
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
@@ -6739,6 +6741,7 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
+      scripts.push({ uri: scriptUri, names: script.names });
       stringFindOverridden ||= !!script.stringFindOverridden;
     }
     // Recombine current included scripts on every compile; a cached candidate
@@ -6760,7 +6763,9 @@ export class SparkdownCompiler {
         });
       }
     }
+    const names = indexProgramNames(scripts);
     profile("end", this._profilerId, "validateLints", uri);
+    return names;
   }
 
   /**
