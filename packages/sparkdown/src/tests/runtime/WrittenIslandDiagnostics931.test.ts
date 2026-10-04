@@ -61,7 +61,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
     "do local n = {1} end",
   ])("complete punctuation control %s has zero syntax diagnostics", body => {
     expect(parseOfficialTree(`  ${body}`).errors).toEqual([]);
-    expect(syntaxErrors(`& ${body}\nThe village waits.\n`)).toEqual([]);
+    expect(publishedErrors(`store t = {1}\n& ${body}\nThe village waits.\n`)).toEqual([]);
   });
 
   test.each([
@@ -95,7 +95,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
   ])("genuine function retains multiline method-name ownership: %s", source => {
     const native = source.startsWith("&") ? ` ${source.slice(1)}` : source;
     expect(parseOfficialTree(native).errors).toEqual([]);
-    expect(syntaxErrors(source)).toEqual([]);
+    expect(publishedErrors(source)).toEqual([]);
   });
 
   test.each([
