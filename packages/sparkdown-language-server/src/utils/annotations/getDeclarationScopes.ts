@@ -331,6 +331,10 @@ export const getDeclarationScopes = (
   cursor: { uri: string; offset: number },
 ): DeclarationScopes => {
   const scopes: DeclarationScopes = {};
+  const visibleLocals = new Map<
+    string,
+    { type: DeclarationType; from: number }
+  >();
   const file = (scopePath: string, type: DeclarationType, name: string) => {
     scopes[scopePath] ??= {};
     scopes[scopePath][type] ??= [];
@@ -362,7 +366,10 @@ export const getDeclarationScopes = (
             cursor.offset > localScope.from &&
             cursor.offset <= localScope.to
           ) {
-            file("", type, text);
+            const previous = visibleLocals.get(text);
+            if (!previous || localScope.from > previous.from) {
+              visibleLocals.set(text, { type, from: localScope.from });
+            }
           }
           cur.next();
           continue;
@@ -402,6 +409,26 @@ export const getDeclarationScopes = (
         cur.next();
       }
     }
+  }
+  // Resolve lexical bindings before completion providers deduplicate names.
+  // Section destinations have their own namespace and remain available.
+  const bindingTypes: DeclarationType[] = [
+    "var",
+    "param",
+    "const",
+    "function",
+    "define",
+  ];
+  for (const scope of Object.values(scopes)) {
+    for (const type of bindingTypes) {
+      const names = scope[type];
+      if (names) {
+        scope[type] = names.filter((name) => !visibleLocals.has(name));
+      }
+    }
+  }
+  for (const [name, { type }] of visibleLocals) {
+    file("", type, name);
   }
   return scopes;
 };

@@ -1,4 +1,7 @@
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect } from "vitest";
+import { CompletionItemKind } from "vscode-languageserver";
+import { getCompletions } from "../../utils/providers/getCompletions";
 import { BUG } from "./autocompleteBugs";
 import { complete, labelsAt, upstreamCase } from "./completionHarness";
 
@@ -137,6 +140,79 @@ describe("autocomplete · scope and visibility", () => {
   upstreamCase("bias_toward_inner_scope", "a local function shadowing a global function is offered once", () => {
     const labels = labelsAt("function abc() end\nfunction main()\n  local function abc()\n    a@1\n  end\nend\n");
     expect(labels.filter((label) => label === "abc")).toEqual(["abc"]);
+  });
+
+  for (const [header, parameters, outerType] of [
+    ["store abc = 1", "", "var"],
+    ["const abc = 1", "", "const"],
+    ["define abc with\n  value = 1\nend", "", "define"],
+    ["", "abc", "param"],
+  ]) {
+    upstreamCase("bias_toward_inner_scope", `a local function shadows an outer ${outerType} with function metadata`, async () => {
+      const source = `${header}\nfunction main(${parameters})\n  return a@1\n  local function abc()\n    return a@2\n  end\n  return a@3\nend\n`;
+      expect(complete(source, { at: "1" }).detail("abc")).toBe(outerType);
+      for (const at of ["2", "3"]) {
+        const result = complete(source, { at });
+        expect(result.labels.filter((label) => label === "abc")).toEqual(["abc"]);
+        expect(result.detail("abc")).toBe("function");
+        expect((await result.resolve("abc"))?.kind).toBe(CompletionItemKind.Function);
+      }
+    });
+  }
+
+  upstreamCase("bias_toward_inner_scope", "a local variable shadows a global function after its initializer", async () => {
+    const source = "function abc() end\nfunction main()\n  local abc = a@1\n  return a@2\nend\nfunction other()\n  return a@3\nend\n";
+    for (const at of ["1", "3"]) {
+      const result = complete(source, { at });
+      expect(result.detail("abc")).toBe("function");
+      expect((await result.resolve("abc"))?.kind).toBe(CompletionItemKind.Function);
+    }
+    const local = complete(source, { at: "2" });
+    expect(local.detail("abc")).toBe("var");
+    expect((await local.resolve("abc"))?.kind).toBe(CompletionItemKind.Class);
+  });
+
+  upstreamCase("bias_toward_inner_scope", "a function parameter shadows its own function and a stored variable", async () => {
+    for (const header of ["function abc(abc)", "store abc = 1\nfunction main(abc)"]) {
+      const result = complete(`${header}\n  return a@1\nend\n`);
+      expect(result.labels.filter((label) => label === "abc")).toEqual(["abc"]);
+      expect(result.detail("abc")).toBe("param");
+      expect((await result.resolve("abc"))?.kind).toBe(CompletionItemKind.Class);
+    }
+  });
+
+  upstreamCase("bias_toward_inner_scope", "nested locals select the visible binding and restore the outer parameter", () => {
+    const source = "function main(abc)\n  do\n    local function abc()\n      return a@1\n    end\n    do\n      local abc = 1\n      return a@2\n    end\n    return a@3\n  end\n  return a@4\nend\n";
+    for (const at of ["1", "3"]) {
+      expect(complete(source, { at }).detail("abc")).toBe("function");
+    }
+    expect(complete(source, { at: "2" }).detail("abc")).toBe("var");
+    expect(complete(source, { at: "4" }).detail("abc")).toBe("param");
+  });
+
+  upstreamCase("bias_toward_inner_scope", "a local function shadows a stored name from another script in either registry order", () => {
+    for (const reverse of [false, true]) {
+      const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+      const mainUri = "file:///main.sd";
+      const mainText = "function main()\n  local function abc() end\n  return a\nend\n";
+      const files = [["file:///other.sd", "store abc = 1\n"], [mainUri, mainText]];
+      if (reverse) files.reverse();
+      for (const [uri, text] of files) {
+        documents.set({ textDocument: { uri: uri!, text: text!, version: 1, languageId: "sparkdown" } });
+      }
+      const scripts = new Map(files.map(([uri]) => [uri!, {
+        annotations: documents.annotations(uri!),
+        tree: documents.tree(uri!),
+        read: (from: number, to: number) => documents.get(uri!)!.read(from, to),
+      }]));
+      const document = documents.get(mainUri)!;
+      const items = getCompletions(document, documents.tree(mainUri), scripts, undefined, undefined,
+        document.positionAt(mainText.indexOf("return a") + "return a".length), undefined) ?? [];
+      const matching = items.filter((item) => item.label === "abc");
+      expect(matching).toHaveLength(1);
+      expect(matching[0]?.labelDetails?.description).toBe("function");
+      expect(matching[0]?.kind).toBe(CompletionItemKind.Function);
+    }
   });
 
   upstreamCase("local_functions_fall_out_of_scope", "local functions stay in their own conditional branch", () => {
