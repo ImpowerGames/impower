@@ -1,22 +1,15 @@
-import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect, test } from "vitest";
-import { getCompletions } from "../../utils/providers/getCompletions";
 import { resolveCompletion } from "../../utils/providers/resolveCompletion";
+import { complete } from "./completionHarness";
 
-const URI = "file:///complete.sd";
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><g id="body"/><g id="phone" data-name="phone.on"/><g id="look-down" data-name="look.down"/><g id="look-up" data-name="look.up:default"/></svg>';
 const buildProgram = () => ({ context: {
   image: { bunny_bruh: { $type: "image", $name: "bunny_bruh", ext: "svg", data: SVG }, raffles: { $type: "image", $name: "raffles", ext: "svg", data: SVG } },
   audio: { bark: { $type: "audio", $name: "bark" } },
 } }) as any;
 
-const completionsAt = (source: string, program: any) => {
-  const offset = source.indexOf("|");
-  const text = source.replace("|", "");
-  const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
-  documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  return getCompletions(documents.get(URI), documents.tree(URI), new Map([[URI, { annotations: documents.annotations(URI), tree: documents.tree(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]), program, undefined, { line: 0, character: offset }, undefined);
-};
+const completionsAt = (source: string, program: any) =>
+  complete(source.replace("|", "@0"), { program }).items;
 const itemNamed = (source: string, program: any, label: string) => completionsAt(source, program)?.find((item) => item.label === label);
 const previewSrc = async (item: any, program: any) => {
   expect(item?.data, "candidate carries its ordered preview attributes").toBeTruthy();

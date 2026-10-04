@@ -1,40 +1,10 @@
-import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect, test } from "vitest";
-import { getCompletions } from "../../utils/providers/getCompletions";
+import { labelsAt as completionLabelsAt } from "./completionHarness";
 
 // A attribute candidate list leaves out the attributes the directive has already
 // applied (#478). The attributes of an asset command are not siblings of one
 // another in the tree — each sits inside its own `AssetCommandFilter` — so a
 // sibling walk finds none of them and excludes nothing.
-
-const URI = "file:///complete.sd";
-
-const setup = (source: string) => {
-  const documents = new SparkdownDocumentRegistry([
-    "characters",
-    "declarations",
-    "references",
-  ]);
-  documents.set({
-    textDocument: {
-      uri: URI,
-      text: source,
-      version: 1,
-      languageId: "sparkdown",
-    },
-  });
-  const scriptAnnotations = new Map([[URI, { annotations: documents.annotations(URI), tree: documents.tree(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]);
-  return { documents, scriptAnnotations };
-};
-
-const positionAt = (source: string, marker = "|") => {
-  const idx = source.indexOf(marker);
-  const text = source.replace(marker, "");
-  const before = source.slice(0, idx);
-  const line = before.split("\n").length - 1;
-  const character = idx - (before.lastIndexOf("\n") + 1);
-  return { text, position: { line, character } };
-};
 
 const vocabulary = { version: 1, layers: [], folders: {}, diagnostics: [], groups: {
   phone: { options: ["on", "off"], switch: true },
@@ -48,20 +18,8 @@ const program = { context: {
   },
   audio: { bark: { $type: "audio", $name: "bark" } },
 } } as any;
-const labelsAt = (source: string) => {
-  const { text, position } = positionAt(source);
-  const { documents, scriptAnnotations } = setup(text);
-  const items = getCompletions(
-    documents.get(URI),
-    documents.tree(URI),
-    scriptAnnotations,
-    program,
-    undefined,
-    position,
-    undefined,
-  );
-  return (items ?? []).map((i) => String(i.label));
-};
+const labelsAt = (source: string) =>
+  completionLabelsAt(source.replace("|", "@0"), { program });
 
 describe("provider · attribute completion exclusion (#478)", () => {
   test("an attribute already in the directive is not offered again", () => {
