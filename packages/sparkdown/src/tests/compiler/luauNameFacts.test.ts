@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { NodeType, Tree, TreeBuffer } from "@lezer/common";
 import * as lint from "../../compiler/lint/collectLuauLints";
-import { AstExprFunction, AstExprLocal, AstStatFor, AstStatForIn, AstStatLocal, visitAst } from "../../compiler/typecheck/Ast";
+import { AstExprFunction, AstExprLocal, AstStatFor, AstStatForIn, AstStatLocal, AstStatLocalFunction, visitAst } from "../../compiler/typecheck/Ast";
 import { readDocumentUnits } from "../../compiler/typecheck/LuauDocumentChecker";
 import { getParser } from "./grammarSnapshot";
 import { testCompiler } from "../engineUnderTest";
@@ -159,6 +159,68 @@ describe("shared AST name facts", () => {
     const facts = names(script("layout main with\n button @click={ print(outside); local callback = function() print(inside) end }\nend\n"));
     expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined(); // not a node name
     expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction).toBeDefined(); // not a node name
+  });
+
+  test.each(["scene", "branch"])("%s wrapper facts retain parameters and authored functions without a synthetic enclosure", (kind) => {
+    const value = script(`${kind} intro(parameter)\n & print(parameter, outside)\n & local callback = function() return inside end\n & local function __flow() return nested end\n & __flow()\nend\n`);
+    const facts = names(value);
+    const unit = readDocumentUnits(value.tree, value.text).flows[0]!;
+    const wrapper = unit.root.body[0] as AstStatLocalFunction;
+    expect(wrapper instanceof AstStatLocalFunction).toBe(true);
+    expect(facts.functions.map((f: any) => [f.name, f.node === wrapper])).toEqual([["__flow", false]]);
+    expect(facts.declarations.some((d: any) => d.local === wrapper.name)).toBe(false);
+    const parameter = facts.declarations.find((d: any) => d.local === wrapper.func.args[0]);
+    expect(parameter.kind).toBe("parameter");
+    expect(parameter.scope === wrapper.func.body).toBe(true);
+    expect(parameter.enclosingFunction).toBeUndefined();
+    expect(facts.references.find((r: any) => r.name === "parameter").local === parameter.local).toBe(true); // not a node name
+    expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined(); // not a node name
+    const callback = facts.declarations.find((d: any) => d.name === "callback"); // not a node name
+    expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction === callback.function).toBe(true); // not a node name
+    const authored = facts.functions[0];
+    expect(facts.references.find((r: any) => r.name === "nested").enclosingFunction === authored.function).toBe(true); // not a node name
+    expect(facts.references.find((r: any) => r.name === "__flow").local === authored.local).toBe(true); // not a node name
+    const index = (lint as any).indexProgramNames([{ uri: kind, names: facts }]);
+    expect(index.functions.map((f: any) => [f.name, f.uri, f.node === wrapper])).toEqual([["__flow", kind, false]]);
+    expect(value.result.roots.some(r => r.root === unit.root)).toBe(true);
+  });
+
+  test("nested branch parameters and prelude functions retain their actual identities across scene wrappers", () => {
+    const value = script("function __flow() return prelude end\nscene intro(outer)\n & print(outer, before)\n branch inner(parameter)\n  & print(parameter, after)\n  & function named() return parameter end\n end\nend\n");
+    const facts = names(value);
+    const unit = readDocumentUnits(value.tree, value.text).flows[0]!;
+    const wrapper = unit.root.body[0] as AstStatLocalFunction;
+    expect(facts.functions.map((f: any) => f.name)).toEqual(["__flow", "named"]);
+    expect(facts.declarations.some((d: any) => d.local === wrapper.name)).toBe(false);
+    for (const name of ["outer", "parameter", "before", "after"]) {
+      const reference = facts.references.find((r: any) => r.name === name);
+      expect(reference.enclosingFunction).toBeUndefined();
+      if (reference.local) expect(facts.declarations.some((d: any) => d.local === reference.local)).toBe(true);
+    }
+    const named = facts.functions.find((f: any) => f.name === "named"); // not a node name
+    const parameterUses = facts.references.filter((r: any) => r.name === "parameter"); // not a node name
+    expect(parameterUses).toHaveLength(2);
+    expect(parameterUses[0].local === parameterUses[1].local).toBe(true);
+    expect(parameterUses[1].enclosingFunction === named.function).toBe(true);
+    expect(facts.references.find((r: any) => r.name === "prelude").enclosingFunction === facts.functions[0].function).toBe(true); // not a node name
+  });
+
+  test.each(["scene", "branch"])("%s treats only the synthetic wrapper binding as global when authored names collide", (kind) => {
+    const value = script(`function __flow() return globalBody end\n${kind} intro(parameter)\n & __flow()\n & __flow = replacement\n & function __flow() return namedBody end\n & local function __flow() return localBody end\n & __flow()\nend\n`);
+    const facts = names(value);
+    const index = (lint as any).indexProgramNames([{ uri: kind, names: facts }]);
+    const global = index.globals.get("__flow");
+    expect(global.reads).toHaveLength(1);
+    expect(global.writes).toHaveLength(3);
+    expect(global.definitions.map((d: any) => d.kind)).toEqual(["function", "assignment", "function"]);
+    const unit = readDocumentUnits(value.tree, value.text).flows[0]!;
+    const wrapper = unit.root.body[0] as AstStatLocalFunction;
+    const uses = facts.references.filter((r: any) => r.name === "__flow"); // not a node name
+    expect(uses.map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false], ["write", false], ["write", false], ["read", true]]);
+    expect((uses[1].node as AstExprLocal).local === wrapper.name).toBe(true);
+    expect((uses[2].node as AstExprLocal).local === wrapper.name).toBe(true);
+    expect(facts.functions.map((f: any) => [f.name, !!f.local, f.node === wrapper])).toEqual([["__flow", false, false], ["__flow", false, false], ["__flow", true, false]]);
+    expect(uses[4].local === facts.functions[2].local).toBe(true);
   });
 
   test("packed, expanded and moved reused fragments preserve candidates, findings and offsets", () => {

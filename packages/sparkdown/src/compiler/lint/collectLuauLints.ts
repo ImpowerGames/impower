@@ -773,7 +773,13 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   if (!facts) {
     const nodes = lintSyntaxNodes(tree);
     const outside = expressionsOutsideUnits(nodes, text, [units.prelude, ...units.flows]);
-    const roots: NameRoot[] = [units.prelude, ...units.flows].map((unit) => ({ root: unit.root, offsets: new Offsets(starts, unit.lines) }));
+    const roots: NameRoot[] = [units.prelude, ...units.flows].map((unit) => ({
+      root: unit.root,
+      offsets: new Offsets(starts, unit.lines),
+      // readFlow's documented unit shape starts with its checking wrapper.
+      // Carry that exact node; an authored function with the same name is real.
+      syntheticFunction: unit.kind === "flow" && unit.root.body[0] instanceof AstStatLocalFunction ? unit.root.body[0] : undefined,
+    }));
     roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined) })));
     facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names: collectNameFacts(roots, text), roots };
     documentFacts.set(tree, facts);

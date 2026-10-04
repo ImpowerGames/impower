@@ -55,6 +55,8 @@ export interface LuauNameFacts {
 export interface NameRoot {
   root: AstNode;
   offsets: { range(location: Location): NameRange };
+  /** The converter's flow wrapper, identified by unit provenance, never by name. */
+  syntheticFunction?: AstStatLocalFunction;
 }
 
 /** Missing identifiers have this recovery name in the converter, never in authored code. */
@@ -69,9 +71,13 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
   const facts: LuauNameFacts = { declarations: [], references: [], globals: [], functions: [] };
   const seen = new Set<AstNode>();
   const locals = new Set<AstLocal>();
-  for (const { root, offsets } of roots) {
+  for (const { root, offsets, syntheticFunction } of roots) {
     let enclosingFunction: AstExprFunction | undefined;
     let scope: AstStatBlock | undefined;
+    // A flow's checking wrapper has no runtime binding. Keep the original
+    // expression node while classifying accesses to that exact binding as
+    // globals; a real authored local of the same spelling remains local.
+    const binding = (node: AstExprLocal | AstExprGlobal) => node instanceof AstExprLocal && !node.local.isConst && node.local !== syntheticFunction?.name ? node.local : undefined;
     const declaration = (local: AstLocal, kind: LuauNameDeclaration["kind"], fn?: AstExprFunction, stat?: AstNode, declarationScope = scope) => {
       if (!isAuthoredLuauName(local.name)) return;
       if (locals.has(local)) return;
@@ -80,7 +86,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
       else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope });
     };
     const reference = (node: AstExprGlobal | AstExprLocal, access: LuauNameReference["access"]) => {
-      const local = node instanceof AstExprLocal && !node.local.isConst ? node.local : undefined;
+      const local = binding(node);
       const name = node instanceof AstExprLocal ? node.local.name : node.name;
       if (!isAuthoredLuauName(name)) return;
       facts.references.push({ name, node, local, access, ...offsets.range(node.location), enclosingFunction });
@@ -90,7 +96,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
       if (expr instanceof AstExprLocal || expr instanceof AstExprGlobal) {
         if (!isAuthoredLuauName(expr instanceof AstExprLocal ? expr.local.name : expr.name)) return;
         reference(expr, access);
-        if (expr instanceof AstExprGlobal || expr.local.isConst) {
+        if (!binding(expr)) {
           const range = offsets.range(expr.location);
           // Store lowering retains the original statement location; the
           // store-function form likewise starts at its authored keyword.
@@ -113,7 +119,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         }
         if (node instanceof AstExprFunction) {
           const outer = enclosingFunction;
-          enclosingFunction = node;
+          if (node !== syntheticFunction?.func) enclosingFunction = node;
           if (node.self) declaration(node.self, "parameter", undefined, node, node.body);
           for (const local of node.args) declaration(local, "parameter", undefined, node, node.body);
           for (const local of node.args) if (local.annotation) visitAst(local.annotation, visitor);
@@ -124,7 +130,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
           return false;
         }
         if (node instanceof AstStatLocal) for (let i = 0; i < node.vars.length; i++) declaration(node.vars[i]!, "local", node.values[i] instanceof AstExprFunction ? node.values[i] as AstExprFunction : undefined, node);
-        else if (node instanceof AstStatLocalFunction) {
+        else if (node instanceof AstStatLocalFunction && node !== syntheticFunction) {
           declaration(node.name, "function", node.func, node);
           if (isAuthoredLuauName(node.name.name)) facts.functions.push({ name: node.name.name, target: node.name, local: node.name.isConst ? undefined : node.name, method: false, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
         }
@@ -140,7 +146,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
           return false;
         } else if (node instanceof AstStatFunction) {
           const name = getFunctionNameAsString(node.name);
-          if (name && isAuthoredLuauName(name)) facts.functions.push({ name, target: node.name, local: node.name instanceof AstExprLocal ? node.name.local : undefined, receiver: node.name instanceof AstExprIndexName ? node.name.expr : undefined, method: !!node.func.self, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
+          if (name && isAuthoredLuauName(name)) facts.functions.push({ name, target: node.name, local: node.name instanceof AstExprLocal ? binding(node.name) : undefined, receiver: node.name instanceof AstExprIndexName ? node.name.expr : undefined, method: !!node.func.self, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
           target(node.name, "write", node, node.func);
           visitAst(node.func, visitor);
           return false;
