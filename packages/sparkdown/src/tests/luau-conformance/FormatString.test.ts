@@ -4,9 +4,10 @@ import { diagnoseDetailed, lintMessagesInFunction } from "./diagnosticTestHarnes
 
 describe("FormatString runtime acceptance adaptations", () => {
   test("accepted formats execute and produce no FormatString warning", () => {
+    // UTC keeps the accepted %h result independent of the host timezone.
     const body = `
 host_record(string.format("%*", 42))
-host_record(os.date("%h", 0))
+host_record(os.date("!%h", 0))
 host_record(os.date("\\0", 0))
 host_record(string.match("q", "%q"))
 host_record(string.match(",", "%,"))
@@ -29,7 +30,7 @@ host_record(string.packsize("Xi"))
     story.BindExternalFunction("host_record", (v: unknown) => { recorded.push(v); return v; });
     story.ContinueMaximally();
     expect(errors).toEqual([]);
-    expect(recorded).toEqual(["42", "Dec", "\0", "q", ",", "q", ";", "b", "foo", 0]);
+    expect(recorded).toEqual(["42", "Jan", "\0", "q", ",", "q", ";", "b", "foo", 0]);
   });
 });
 
