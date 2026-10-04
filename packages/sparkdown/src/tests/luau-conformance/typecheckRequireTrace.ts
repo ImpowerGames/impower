@@ -120,8 +120,9 @@ export function traceFixtureRequires(root: AstStatBlock, current: string) {
 
 // AST strings contain bytes; moduleSources keys are Unicode JS text. Preserve
 // valid UTF-8 including NUL; reject invalid bytes rather than invent a path.
+// A leading BOM is path text, not an encoding signature (ignoreBOM preserves it).
 function stringPath(bytes: string): string {
-  return new TextDecoder("utf-8", { fatal: true }).decode(
+  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
     Uint8Array.from(bytes, (c) => c.charCodeAt(0)),
   );
 }

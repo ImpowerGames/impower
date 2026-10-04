@@ -248,6 +248,8 @@ export interface LuauCheckSession {
   frontend?: Frontend;
   fixture?: string;
   modules: Map<string, ReturnType<typeof checkLuauUnit>>;
+  sources?: Map<string, ReturnType<typeof compileSource>>;
+  traces?: Map<string, ReturnType<typeof traceFixtureRequires>>;
 }
 export function createLuauCheckSession(): LuauCheckSession {
   return { modules: new Map() };
@@ -410,7 +412,11 @@ export function checkLuau(
   }
   session.frontend = frontend;
   session.fixture = fixture;
-  if (options.clearModules) session.modules.clear();
+  if (options.clearModules) {
+    session.modules.clear();
+    session.sources?.clear();
+    session.traces?.clear();
+  }
   if (options.hiddenTypes) addHiddenTypes(frontend);
   const setupSyntaxDiagnostics: LuauDiagnostic[] = [];
   const definitions = [...(options.definitions ?? [])];
@@ -453,33 +459,46 @@ export function checkLuau(
   const entry = options.module ?? MAIN_MODULE_NAME;
   if (options.moduleSources && entry in options.moduleSources)
     throw new Error(`entry module ${entry} is duplicated in moduleSources`);
-  const sources = new Map<string, ReturnType<typeof compileSource>>([
-    [entry, prepared],
-  ]);
+  const sources = (session.sources ??=
+    new Map<string, ReturnType<typeof compileSource>>());
+  const traces = (session.traces ??=
+    new Map<string, ReturnType<typeof traceFixtureRequires>>());
+  // Fixture::check marks its entry dirty on every call. Frontend::markDirty
+  // traverses reverse dependencies; retain their sources so rechecks use the
+  // current dependency interfaces instead of resurrecting cached importers.
+  const markDirty = (name: string) => {
+    const pending = [name];
+    const dirty = new Set<string>();
+    while (pending.length) {
+      const next = pending.pop()!;
+      if (dirty.has(next)) continue;
+      dirty.add(next);
+      session.modules.delete(next);
+      for (const [importer, trace] of traces)
+        if (trace.dependencies.includes(next)) pending.push(importer);
+    }
+  };
+  markDirty(entry);
+  sources.set(entry, prepared);
+  traces.set(entry, traceFixtureRequires(prepared.unit.root, entry));
   for (const [name, text] of Object.entries(options.moduleSources ?? {})) {
     const dependency = compileSource(text);
     validateLuauFlags(options.flags, [
       prepared.unit.root,
       dependency.unit.root,
     ]);
+    markDirty(name);
     sources.set(name, dependency);
+    traces.set(name, traceFixtureRequires(dependency.unit.root, name));
     setupSyntaxDiagnostics.push(
       ...dependency.syntaxDiagnostics.map((d) => ({ ...d, module: name })),
     );
     compilerMessages.push(...dependency.compilerMessages);
-    // A changed source under the same name must never reuse a previous graph.
-    session.modules.delete(name);
   }
-  session.modules.delete(entry);
   const visiting = new Set<string>();
   const freshlyChecked = new Set<string>();
-  const requires = new Map<string, Set<string>>();
-  const traces = new Map(
-    [...sources].map(([name, input]) => {
-      const trace = traceFixtureRequires(input.unit.root, name);
-      requires.set(name, new Set(trace.dependencies));
-      return [name, trace] as const;
-    }),
+  const requires = new Map(
+    [...traces].map(([name, trace]) => [name, new Set(trace.dependencies)]),
   );
   const checkModule = (
     name: string,

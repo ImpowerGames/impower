@@ -18,6 +18,211 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  test.each(['game["\\u{feff}A"]', 'game:GetService("\\u{feff}A")'])(
+    "BOM-prefixed module names retain their exact dependency: %s",
+    async (argument) => {
+      const source = `local M=require(${argument})\nreturn M`;
+      expect((await loadOfficialLuau("typecheck"))(source).errors).toBe(0);
+      const name = "game/" + String.fromCharCode(0xfeff) + "A";
+      const result = checkLuau(source, {
+        fixture: "BuiltinsFixture",
+        module: "game/Main",
+        moduleSources: {
+          [name]: "local bad:number='bad'\nreturn 1",
+          "game/A": "return 'wrong module'",
+        },
+      });
+      expect(result.checked).toBe(true);
+      expect({
+        type: result.find({ type: "M" }).print(),
+        errors: result.diagnostics.map((d) => [d.module, d.code]),
+      }).toEqual({ type: "number", errors: [[name, "TypeMismatch"]] });
+    },
+  );
+  // Actual pinned native tracer byte controls preserve repeated/trailing BOM,
+  // distinct normalized spellings and non-BMP paths in both resolver branches.
+  test.each(
+    [
+      ["\\u{feff}\\u{feff}A", String.fromCharCode(0xfeff, 0xfeff) + "A"],
+      ["A\\u{feff}", "A" + String.fromCharCode(0xfeff)],
+      ["é", "é"],
+      ["e\\u{301}", "e" + String.fromCharCode(0x301)],
+      ["\\u{1f600}", String.fromCodePoint(0x1f600)],
+      ["A\\000B", "A" + String.fromCharCode(0) + "B"],
+    ].flatMap(([escaped, text]) =>
+      [`game["${escaped}"]`, `game:GetService("${escaped}")`].map(
+        (argument) => [argument, "game/" + text] as const,
+      ),
+    ),
+  )(
+    "valid UTF-8 path bytes select the exact module: %s",
+    async (argument, name) => {
+      const source = `local M=require(${argument})\nreturn M`;
+      expect((await loadOfficialLuau("typecheck"))(source).errors).toBe(0);
+      const result = checkLuau(source, {
+        fixture: "BuiltinsFixture",
+        module: "game/Main",
+        moduleSources: {
+          [name]: "local bad:number='bad'\nreturn 1",
+          "game/A": "return 'wrong module'",
+        },
+      });
+      expect(
+        result.find({ type: "M" }).is(result.find({ builtin: "number" })),
+      ).toBe(true);
+      expect(result.diagnostics.map((d) => [d.module, d.code])).toEqual([
+        [name, "TypeMismatch"],
+      ]);
+    },
+  );
+  test.each(["\\128", "\\255", "\\xFF", "\\192\\128"])(
+    "invalid UTF-8 path bytes remain an explicit boundary: %s",
+    (bytes) => {
+      expect(() =>
+        checkLuau(`local M=require(game["${bytes}"])\nreturn M`, {
+          fixture: "BuiltinsFixture",
+          module: "game/Main",
+        }),
+      ).toThrow(/encoded data/);
+    },
+  );
+  test("changing a shared entry invalidates its transitive cached importers", () => {
+    const session: LuauCheckSession = { modules: new Map() };
+    const options = { fixture: "BuiltinsFixture", session };
+    const source = "local A=require(game.A)\nreturn A";
+    const first = checkLuau(source, {
+      ...options,
+      module: "game/Main",
+      moduleSources: {
+        "game/A": "local B=require(game.B)\nreturn B",
+        "game/B": "return 1",
+      },
+    });
+    expect(first.find({ type: "A" }).print()).toBe("number");
+    const changed = checkLuau("return 'new'", {
+      ...options,
+      module: "game/B",
+    });
+    expect(
+      changed.find({ moduleReturn: true, path: [{ result: 0 }] }).print(),
+    ).toBe("string");
+    const last = checkLuau(source, { ...options, module: "game/Main" });
+    expect(last.find({ type: "A" }).print()).toBe("string");
+  });
+  test.each(["entry", "supplied"])(
+    "shared dependency changes refresh interfaces and fresh errors: %s",
+    (update) => {
+      const session: LuauCheckSession = { modules: new Map() };
+      const options = { fixture: "BuiltinsFixture", session };
+      const source = "local A=require(game.A)\nreturn A";
+      const a =
+        "local B=require(game.B)\nexport type T=B.T\nlocal bad:number='a'\nreturn B";
+      const first = checkLuau(source, {
+        ...options,
+        module: "game/Main",
+        moduleSources: {
+          "game/A": a,
+          "game/B": "export type T=number\nreturn 1",
+        },
+      });
+      expect(first.find({ importedAlias: ["A", "T"] }).print()).toBe("number");
+      const changed =
+        "export type T=string\nlocal bad:number='b'\nreturn 'new'";
+      if (update === "entry")
+        checkLuau(changed, { ...options, module: "game/B" });
+      const last = checkLuau(source, {
+        ...options,
+        module: "game/Main",
+        ...(update === "supplied"
+          ? { moduleSources: { "game/B": changed } }
+          : {}),
+      });
+      expect(last.find({ type: "A" }).print()).toBe("string");
+      expect(last.find({ importedAlias: ["A", "T"] }).print()).toBe("string");
+      expect(last.diagnostics.map((d) => [d.module, d.code])).toEqual(
+        update === "entry"
+          ? [["game/A", "TypeMismatch"]]
+          : [
+              ["game/B", "TypeMismatch"],
+              ["game/A", "TypeMismatch"],
+            ],
+      );
+      expect(
+        checkLuau(source, { ...options, module: "game/Main" }).diagnostics,
+      ).toEqual([]);
+    },
+  );
+  test("changed require edges stop invalidating former dependencies", () => {
+    const session: LuauCheckSession = { modules: new Map() };
+    const options = { fixture: "BuiltinsFixture", session };
+    const source = "local A=require(game.A)\nreturn A";
+    checkLuau(source, {
+      ...options,
+      module: "game/Main",
+      moduleSources: {
+        "game/A": "local B=require(game.B)\nreturn B",
+        "game/B": "return 1",
+        "game/C": "return 'new'",
+      },
+    });
+    const switched = checkLuau(source, {
+      ...options,
+      module: "game/Main",
+      moduleSources: { "game/A": "local C=require(game.C)\nreturn C" },
+    });
+    expect(switched.find({ type: "A" }).print()).toBe("string");
+    const retainedA = session.modules.get("game/A");
+    checkLuau("return false", { ...options, module: "game/B" });
+    expect(session.modules.get("game/A") === retainedA).toBe(true);
+    expect(
+      checkLuau(source, { ...options, module: "game/Main" })
+        .find({ type: "A" })
+        .print(),
+    ).toBe("string");
+  });
+  test("newly available dependencies refresh cached missing imports", () => {
+    const session: LuauCheckSession = { modules: new Map() };
+    const options = { fixture: "BuiltinsFixture", session };
+    const source = "local A=require(game.A)\nreturn A";
+    const first = checkLuau(source, {
+      ...options,
+      module: "game/Main",
+      moduleSources: { "game/A": "local B=require(game.B)\nreturn B" },
+    });
+    expect(first.diagnostics.some((d) => d.code === "UnknownRequire")).toBe(
+      true,
+    );
+    const last = checkLuau(source, {
+      ...options,
+      module: "game/Main",
+      moduleSources: { "game/B": "return 1" },
+    });
+    expect(last.find({ type: "A" }).print()).toBe("number");
+    expect(last.diagnostics).toEqual([]);
+  });
+  test("clearModules also drops retained source and dependency state", () => {
+    const session: LuauCheckSession = { modules: new Map() };
+    const options = {
+      fixture: "BuiltinsFixture",
+      session,
+      module: "game/Main",
+    };
+    const source = "local A=require(game.A)\nreturn A";
+    expect(
+      checkLuau(source, {
+        ...options,
+        moduleSources: { "game/A": "return 1" },
+      })
+        .find({ type: "A" })
+        .print(),
+    ).toBe("number");
+    const cleared = checkLuau(source, { ...options, clearModules: true });
+    expect(
+      cleared.find({ type: "A" }).is(cleared.find({ builtin: "error" })),
+    ).toBe(true);
+    expect(cleared.diagnostics.map((d) => d.code)).toEqual(["UnknownRequire"]);
+    expect(session.modules.has("game/A")).toBe(false);
+  });
   // Actual pinned Parser + RequireTracer.cpp output, with Fixture.cpp's
   // resolver model, compared with the actual compiled AST. Existing #879 parse
   // diagnostics remain in the checker result; no error-free parse is claimed.
