@@ -372,6 +372,15 @@ export function getStaticMemberCompletions(
   const current = reading(tree, text);
   const site = memberSite(current, cursor);
   if (!site) return undefined;
+  // A lazy foreign owner may be needed while initializing a current store's
+  // alias. Its other declarations must not replace any current stored global,
+  // including one whose source declaration lies after the request cursor.
+  const currentStores = new Set<string>();
+  for (const store of current.stores) {
+    for (const variable of store.vars) {
+      if (variable instanceof AstExprGlobal) currentStores.add(variable.name);
+    }
+  }
   const copies = new Map<Shape, Shape>();
   const foreign = new Map<string, Set<AnnotatedScript>>();
   const indexed: { script?: AnnotatedScript; index: DefineIndex }[] = [];
@@ -451,7 +460,7 @@ export function getStaticMemberCompletions(
         shape.members?.forEach((value, key) => target.members!.set(key, value));
         shape = target;
         copies.set(definition.shape, shape);
-        globals.set(definition.name, shape);
+        if (read === current || !currentStores.has(definition.name)) globals.set(definition.name, shape);
       }
       return { ...definition, shape };
     });
@@ -468,7 +477,10 @@ export function getStaticMemberCompletions(
     // Stores initialize at story start, including those after the cursor.
     const inventory = new Inventory(globals, read, -1);
     for (const store of read.stores) {
-      store.vars.forEach((variable, index) => inventory.assign(variable, store.values[index] ? inventory.value(store.values[index]!) : undefined));
+      store.vars.forEach((variable, index) => {
+        if (read !== current && variable instanceof AstExprGlobal && currentStores.has(variable.name)) return;
+        inventory.assign(variable, store.values[index] ? inventory.value(store.values[index]!) : undefined);
+      });
     }
   }
   initialize(current);

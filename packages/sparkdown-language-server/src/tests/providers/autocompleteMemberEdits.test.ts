@@ -90,6 +90,22 @@ describe("static member completion while editing", () => {
     expect(request(outside)).toEqual(["initial"]);
   });
 
+  test.each([[false, "store"], [true, "store"], [false, "define"], [true, "define"]])("loading a foreign namespace cannot replace a current store initialized after the cursor (reverse=%s, declaration=%s)", (reverse, declaration) => {
+    const main = "file:///proj/main.sd";
+    const library = "file:///proj/shapes.sd";
+    const source = "function inspect()\n  return tbl.\nend\nstore tbl = { currentField = 1 }\nstore ref = config.ui\n";
+    const foreign = "define ui as config with\n  ownField = 1\nend\n" + (declaration === "store" ? "store tbl = { foreignField = 1 }\n" : "define tbl with\n  foreignField = 1\nend\n");
+    const documents = new SparkdownDocumentRegistry(["declarations", "references"]);
+    documents.set({ textDocument: { uri: main, text: source, version: 1, languageId: "sparkdown" } });
+    documents.set({ textDocument: { uri: library, text: foreign, version: 1, languageId: "sparkdown" } });
+    const workspace = { document: (uri: string) => documents.get(uri), tree: (uri: string) => documents.tree(uri), annotations: (uri: string) => documents.annotations(uri) };
+    const document = documents.get(main)!;
+    const uris = reverse ? [library, main] : [main, library];
+    const request = () => (getCompletions(document, documents.tree(main), getAnnotatedScripts(main, Object.fromEntries(uris.map((uri) => [uri, 1])), workspace), undefined, undefined, document.positionAt(source.indexOf("tbl.") + "tbl.".length), undefined) ?? []).map((item) => item.label);
+    expect(request()).toEqual(["currentField"]);
+    expect(request()).toEqual(["currentField"]);
+  });
+
   test.each([false, true])("cross-script parent chains expose the same own instance fields (reverse=%s)", (reverse) => {
     const main = "file:///proj/main.sd";
     const library = "file:///proj/shapes.sd";
