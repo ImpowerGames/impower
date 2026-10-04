@@ -16,6 +16,47 @@ function publishedErrors(text: string) {
 const syntaxErrors = (text: string) => publishedErrors(text).filter(d => d.code === syntaxErrorCode);
 
 describe("written island syntax diagnostics own authored tokens", () => {
+  for (const scope of ["file", "scene", "branch"]) {
+    test.each(["(2", "math.abs(2", "{2", "t[2"])(`nonempty semicolon expression owns ${scope} EOF: %s`, async value => {
+      const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
+      const suffix = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";
+      const body = `local n = 1; local x = ${value}`;
+      const native = parseOfficialTree(`  ${body}`).errors[0]!;
+      const source = `${prefix}& ${body}\nThe village waits.\n${suffix}function f()\n return 5\nend\n`;
+      const errors = syntaxErrors(source);
+      expect(errors.map(message)).toEqual([native.message]);
+      const line = prefix.split("\n").length - 1;
+      expect(errors[0]!.range).toEqual({ start: { line, character: body.length + 2 }, end: { line: line + 1, character: 0 } });
+      expect(treeScopeStackAt(parseSource(source), source.indexOf("The village"))).toContain("string.display.text.chunk.sd");
+      expect((await compareEnginesFull(source)).divergences).toEqual([]);
+    });
+  }
+
+  test.each(["do local x = (2 end", "do local x = math.abs(2 end", "do local x = {2 end", "do local x = t[2 end", "do if true then print(1) else else end end", "do if true then print(1) else elseif true then end end"])("semicolon follower owns its unexpected written closer: %s", body => {
+    const authored = `local n = 1; ${body}`;
+    const native = parseOfficialTree(`  ${authored}`).errors[0]!;
+    const errors = syntaxErrors(`& ${authored}\nThe village waits.\n`);
+    expect(errors.map(message)).toContain(native.message);
+    expect(errors.find(d => message(d) === native.message)!.range.start).toEqual({ line: native.location.begin.line, character: native.location.begin.column });
+  });
+
+  test("closed semicolon expression and genuine following function execute", () => {
+    const ctx = makeRuntimeStoryFromSource("store x = 0\n& local n = 1; x = math.abs(2)\nThe village waits.\nValue {x} and {f()}.\ndone\nfunction f()\n return 5\nend\n");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("The village waits.\nValue 2 and 5.\n");
+  });
+
+  test("third marked statement still owns its missing closer", () => {
+    const body = "local n = 1; local m = 2; local x = math.abs(2";
+    const native = parseOfficialTree(`  ${body}`).errors[0]!;
+    expect(syntaxErrors(`& ${body}\nThe village waits.\n`).map(message)).toEqual([native.message]);
+  });
+
+  test("return after a marked semicolon remains a misplaced function return", () => {
+    const source = "& local n = 1; return 5\nThe village waits.\n";
+    expect(publishedErrors(source).map(message).join("\n")).toContain("function body");
+  });
+
   test.each(["file", "scene", "branch"])("missing method name owns %s EOF before prose and another mark", scope => {
     const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
     const suffix = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";

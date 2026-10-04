@@ -383,6 +383,8 @@ interface Token {
   story?: true;
   /** The grammar-owned EOF of a marked narrative island. */
   authoredEnd?: true;
+  /** End offset of the grammar-owned marked narrative island containing this token. */
+  authoredIsland?: number;
 }
 
 const KEYWORDS = new Set([
@@ -579,7 +581,9 @@ class Tokenizer {
       return;
     }
     if (name === "LuauSparkdownExplicitStatement") {
+      const first = this.tokens.length;
       this.readChildren(node);
+      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.authoredIsland ??= node.to;
       // Only the narrative island wrapper owns this EOF. Nested marked
       // statements still yield to their written block's closer; genuine
       // functions and opaque constructs extend this wrapper's own span.
@@ -1177,7 +1181,6 @@ class Parser {
   private readonly declaredExportBindings = new Map<string, Location>();
   private hasModuleReturn = false;
   private returnFunction?: FunctionState;
-  private explicitLine?: number;
   // Not part of Luau: how many of Sparkdown's own constructs whose syntax
   // Sparkdown reports are being read (a `store` declaration, a double-quoted
   // string's interpolation; see `report`), the index of the token the last error was reported at, and
@@ -1463,7 +1466,7 @@ class Parser {
     // Not part of Luau: a `::` where the closer was expected is an annotation written with it.
     // A written expression delimiter cannot be repaired by the next story
     // line. Keyword closers retain their separate diagnostic ownership.
-    const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && this.explicitLine !== undefined && !this.currentFunction().luau;
+    const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && begin.authoredIsland !== undefined && !this.currentFunction().luau;
     const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
     if (location.begin.line === begin.location.begin.line)
       this.report(location, `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`, malformed);
@@ -1479,7 +1482,7 @@ class Parser {
     // repair this Luau island. Its grammar has a written outer end, so only
     // the converter owns the native misplaced-branch diagnostic. Keep EOF
     // and other keyword-closer diagnostics under their existing ownership.
-    const misplacedElseBranch = this.explicitLine !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
+    const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
     this.expectMatchAndConsumeFail(text, begin, "", misplacedElseBranch ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
@@ -1662,7 +1665,7 @@ class Parser {
         if (!this.blockFollow(this.current())) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
         this.pos = following;
       } else if (returned instanceof AstStatReturn && this.reports === reportsBefore &&
-        (stat instanceof AstStatSparkdownExplicit || this.explicitLine === returned.location.begin.line)) {
+        (stat instanceof AstStatSparkdownExplicit || start.authoredIsland !== undefined)) {
         // A story discard line is its own Luau island; later prose or a
         // new marked line is outside it, but a same-line follower is not.
         // The grammar can leave the optional semicolon and its follower
@@ -1688,6 +1691,10 @@ class Parser {
             if (nested) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
             else this.report(follower.location, `Expected <eof>, got ${describe(follower)}`, "statement");
           });
+          // Native Luau ends this island at its first invalid return suffix.
+          // Consume its recovery tokens so chunk recovery does not report a
+          // second error for an unfinished comment after that same suffix.
+          if (!nested) while (this.current().kind !== "eof" && this.current().from < to) this.next();
         }
       }
       // Not part of Luau, whose parser ends a block at a `return`, `break` or
@@ -1781,14 +1788,7 @@ class Parser {
     if (this.blockFollow(this.current())) {
       return this.reportStatError(mark, [], [], `Expected a statement after '&', got ${describe(this.current())}`);
     }
-    const outerLine = this.explicitLine;
-    this.explicitLine = mark.begin.line;
-    let statement: AstStat;
-    try {
-      statement = this.parseStat();
-    } finally {
-      this.explicitLine = outerLine;
-    }
+    const statement = this.parseStat();
     return new AstStatSparkdownExplicit(Location.span(mark, statement.location), statement, mark);
   }
 

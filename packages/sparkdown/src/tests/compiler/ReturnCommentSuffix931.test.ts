@@ -36,6 +36,8 @@ describe("return suffix comments retain native diagnostics and incremental posit
     "return 5 --[[ unfinished\n",
     "return 5 --[=[ unfinished\n",
     "return 5; ; --[[ unfinished\n",
+    "return 5; ; ; --[=[ unfinished\n",
+    "local n = 1; return 5; ; --[[ unfinished\n",
     "do return 5 --[[ unfinished\n",
     "do if true then return 5 --[=[ unfinished\n",
     "repeat return 5 --[[ unfinished\n",
