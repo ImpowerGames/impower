@@ -108,50 +108,50 @@ sparkdown [0..116]
  │   │   │   │       │       │       │   │   │   │   │       └─ LuauAssignmentOperator_begin_c3 [35..36]
  │   │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace [35..36]: " "
  │   │   │   │       │       │       │   │   │   │   └─ LuauAssignmentOperator_end 36
- │   │   │   │       │       │       │   │   │   └─ LuauFunctionDefinition [36..63]
- │   │   │   │       │       │       │   │   │       ├─ LuauFunctionDefinition_begin [36..44]
- │   │   │   │       │       │       │   │   │       │   ├─ LuauFunctionDefinition_begin_c1 36
+ │   │   │   │       │       │       │   │   │   └─ LuauSparkdownExplicitFunctionDefinition [36..63]
+ │   │   │   │       │       │       │   │   │       ├─ LuauSparkdownExplicitFunctionDefinition_begin [36..44]
+ │   │   │   │       │       │       │   │   │       │   ├─ LuauSparkdownExplicitFunctionDefinition_begin_c1 36
  │   │   │   │       │       │       │   │   │       │   │   └─ OptionalWhitespace 36
- │   │   │   │       │       │       │   │   │       │   ├─ LuauFunctionDefinition_begin_c2 36
- │   │   │   │       │       │       │   │   │       │   ├─ LuauFunctionDefinition_begin_c3 36
- │   │   │   │       │       │       │   │   │       │   ├─ LuauFunctionDefinition_begin_c4 [36..44]
+ │   │   │   │       │       │       │   │   │       │   ├─ LuauSparkdownExplicitFunctionDefinition_begin_c2 36
+ │   │   │   │       │       │       │   │   │       │   ├─ LuauSparkdownExplicitFunctionDefinition_begin_c3 36
+ │   │   │   │       │       │       │   │   │       │   ├─ LuauSparkdownExplicitFunctionDefinition_begin_c4 [36..44]
  │   │   │   │       │       │       │   │   │       │   │   └─ LuauFunctionKeyword [36..44]: "function"
- │   │   │   │       │       │       │   │   │       │   └─ LuauFunctionDefinition_begin_c5 44
- │   │   │   │       │       │       │   │   │       │       └─ LuauFunctionDefinition_begin_c5 44
+ │   │   │   │       │       │       │   │   │       │   └─ LuauSparkdownExplicitFunctionDefinition_begin_c5 44
+ │   │   │   │       │       │       │   │   │       │       └─ LuauSparkdownExplicitFunctionDefinition_begin_c5 44
  │   │   │   │       │       │       │   │   │       │           └─ OptionalWhitespace 44
- │   │   │   │       │       │       │   │   │       ├─ LuauFunctionDefinition_content [44..59]
- │   │   │   │       │       │       │   │   │       │   ├─ LuauFunctionParameters [44..50]
- │   │   │   │       │       │       │   │   │       │   │   ├─ LuauFunctionParameters_begin [44..45]
- │   │   │   │       │       │       │   │   │       │   │   │   └─ LuauFunctionParameters_begin_c1 [44..45]
+ │   │   │   │       │       │       │   │   │       ├─ LuauSparkdownExplicitFunctionDefinition_content [44..59]
+ │   │   │   │       │       │       │   │   │       │   ├─ LuauSparkdownExplicitFunctionParameters [44..50]
+ │   │   │   │       │       │       │   │   │       │   │   ├─ LuauSparkdownExplicitFunctionParameters_begin [44..45]
+ │   │   │   │       │       │       │   │   │       │   │   │   └─ LuauSparkdownExplicitFunctionParameters_begin_c1 [44..45]
  │   │   │   │       │       │       │   │   │       │   │   │       └─ PunctuationParenOpen [44..45]: "("
- │   │   │   │       │       │       │   │   │       │   │   ├─ LuauFunctionParameters_content [45..49]
+ │   │   │   │       │       │       │   │   │       │   │   ├─ LuauSparkdownExplicitFunctionParameters_content [45..49]
  │   │   │   │       │       │       │   │   │       │   │   │   └─ LuauFunctionParameter [45..49]: "self"
- │   │   │   │       │       │       │   │   │       │   │   └─ LuauFunctionParameters_end [49..50]
- │   │   │   │       │       │       │   │   │       │   │       └─ LuauFunctionParameters_end_c1 [49..50]
+ │   │   │   │       │       │       │   │   │       │   │   └─ LuauSparkdownExplicitFunctionParameters_end [49..50]
+ │   │   │   │       │       │       │   │   │       │   │       └─ LuauSparkdownExplicitFunctionParameters_end_c1 [49..50]
  │   │   │   │       │       │       │   │   │       │   │           └─ PunctuationParenClose [49..50]: ")"
- │   │   │   │       │       │       │   │   │       │   └─ LuauFunctionBody [50..59]
- │   │   │   │       │       │       │   │   │       │       ├─ LuauFunctionBody_begin 50
- │   │   │   │       │       │       │   │   │       │       ├─ LuauFunctionBody_content [50..59]
- │   │   │   │       │       │       │   │   │       │       │   └─ LuauReturnStatement [50..59]
- │   │   │   │       │       │       │   │   │       │       │       ├─ LuauReturnStatement_begin [50..58]
- │   │   │   │       │       │       │   │   │       │       │       │   ├─ LuauReturnStatement_begin_c1 [50..51]
+ │   │   │   │       │       │       │   │   │       │   └─ LuauSparkdownExplicitFunctionBody [50..59]
+ │   │   │   │       │       │       │   │   │       │       ├─ LuauSparkdownExplicitFunctionBody_begin 50
+ │   │   │   │       │       │       │   │   │       │       ├─ LuauSparkdownExplicitFunctionBody_content [50..59]
+ │   │   │   │       │       │       │   │   │       │       │   └─ LuauSparkdownExplicitReturnStatement [50..59]
+ │   │   │   │       │       │       │   │   │       │       │       ├─ LuauSparkdownExplicitReturnStatement_begin [50..58]
+ │   │   │   │       │       │       │   │   │       │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [50..51]
  │   │   │   │       │       │       │   │   │       │       │       │   │   └─ OptionalWhitespace [50..51]: " "
- │   │   │   │       │       │       │   │   │       │       │       │   ├─ LuauReturnStatement_begin_c2 [51..57]
+ │   │   │   │       │       │       │   │   │       │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [51..57]
  │   │   │   │       │       │       │   │   │       │       │       │   │   └─ LuauControlKeyword [51..57]: "return"
- │   │   │   │       │       │       │   │   │       │       │       │   └─ LuauReturnStatement_begin_c3 [57..58]
- │   │   │   │       │       │       │   │   │       │       │       │       └─ LuauReturnStatement_begin_c3 [57..58]
+ │   │   │   │       │       │       │   │   │       │       │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [57..58]
+ │   │   │   │       │       │       │   │   │       │       │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [57..58]
  │   │   │   │       │       │       │   │   │       │       │       │           └─ OptionalWhitespace [57..58]: " "
- │   │   │   │       │       │       │   │   │       │       │       ├─ LuauReturnStatement_content [58..59]
+ │   │   │   │       │       │       │   │   │       │       │       ├─ LuauSparkdownExplicitReturnStatement_content [58..59]
  │   │   │   │       │       │       │   │   │       │       │       │   └─ LuauNumericDecimal [58..59]
  │   │   │   │       │       │       │   │   │       │       │       │       ├─ LuauNumericDecimal_c1 [58..59]: "5"
  │   │   │   │       │       │       │   │   │       │       │       │       └─ LuauNumericDecimal_c2 59
- │   │   │   │       │       │       │   │   │       │       │       └─ LuauReturnStatement_end 59
- │   │   │   │       │       │       │   │   │       │       └─ LuauFunctionBody_end 59
- │   │   │   │       │       │       │   │   │       └─ LuauFunctionDefinition_end [59..63]
- │   │   │   │       │       │       │   │   │           ├─ LuauFunctionDefinition_end_c1 [59..60]
- │   │   │   │       │       │       │   │   │           │   └─ LuauFunctionDefinition_end_c1 [59..60]
+ │   │   │   │       │       │       │   │   │       │       │       └─ LuauSparkdownExplicitReturnStatement_end 59
+ │   │   │   │       │       │       │   │   │       │       └─ LuauSparkdownExplicitFunctionBody_end 59
+ │   │   │   │       │       │       │   │   │       └─ LuauSparkdownExplicitFunctionDefinition_end [59..63]
+ │   │   │   │       │       │       │   │   │           ├─ LuauSparkdownExplicitFunctionDefinition_end_c1 [59..60]
+ │   │   │   │       │       │       │   │   │           │   └─ LuauSparkdownExplicitFunctionDefinition_end_c1 [59..60]
  │   │   │   │       │       │       │   │   │           │       └─ OptionalWhitespace [59..60]: " "
- │   │   │   │       │       │       │   │   │           └─ LuauFunctionDefinition_end_c2 [60..63]
+ │   │   │   │       │       │       │   │   │           └─ LuauSparkdownExplicitFunctionDefinition_end_c2 [60..63]
  │   │   │   │       │       │       │   │   │               └─ LuauEndKeyword [60..63]: "end"
  │   │   │   │       │       │       │   │   └─ LuauSparkdownExplicitAssignmentOperation_end 63
  │   │   │   │       │       │       │   └─ ExtraWhitespace [63..64]: " "

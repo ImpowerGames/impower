@@ -97,7 +97,7 @@ end
 {t.value}
 -> DONE
 function mutate(x)
-  & x.value = 99
+  x.value = 99
 end
 `);
     expect(ctx.errorMessages).toEqual([]);

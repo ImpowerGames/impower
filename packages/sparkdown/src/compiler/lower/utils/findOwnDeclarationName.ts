@@ -21,7 +21,7 @@ export function findOwnDeclarationName(
 ): SyntaxNode | null {
   let content: SyntaxNode | null = fnDefNode.firstChild;
   while (content) {
-    if (content.name === "LuauFunctionDefinition_content") break;
+    if (content.name === `${fnDefNode.name}_content`) break;
     content = content.nextSibling;
   }
   const scanRoot = content ?? fnDefNode;

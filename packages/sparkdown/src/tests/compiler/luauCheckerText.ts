@@ -472,7 +472,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     if (oracleName(cursor.name) !== "LuauReturnStatement") continue;
     let inFunction = false;
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
-      if (parent.name === "LuauFunctionBody") { inFunction = true; break; }
+      if (oracleName(parent.name) === "LuauFunctionBody") { inFunction = true; break; }
     }
     if (inFunction) continue;
     const text = documentText.slice(cursor.from, cursor.to);

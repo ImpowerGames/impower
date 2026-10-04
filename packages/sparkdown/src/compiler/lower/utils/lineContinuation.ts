@@ -59,6 +59,11 @@ export function isLineContinuation(node: { name: string }): boolean {
   return LINE_CONTINUATION.has(node.name);
 }
 
+export function isTypeLineContinuation(node: { name: string }): boolean {
+  return node.name === "LuauTypeUnionLineContinuation" ||
+    node.name === "LuauTypeIntersectionLineContinuation";
+}
+
 const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
   "Newline",
   "ExtraWhitespace",
@@ -114,7 +119,7 @@ export function leadingReturnTypeQualifier(
   return { returnType, lines };
 }
 
-// The `= value` that ends the union member lines after the declaration
+// The `= value` that ends the union or intersection lines after the declaration
 // `node`, across blank and comment lines, which the declaration ended
 // before (`local v: number` then `-- note` then `| string = 1`).
 export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
@@ -122,7 +127,7 @@ export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
   let value: SyntaxNode | null = null;
   for (let scan = node.nextSibling; scan; scan = scan.nextSibling) {
     if (SKIPPABLE.has(scan.name)) continue;
-    if (scan.name !== "LuauTypeUnionLineContinuation") break;
+    if (!isTypeLineContinuation(scan)) break;
     for (let part = firstContentChild(scan); part; part = part.nextSibling) {
       if (isExplicitRuleName(part.name, "LuauAssignmentOperation")) value = part;
     }
@@ -149,7 +154,7 @@ function endsInTypeAnnotation(node: SyntaxNode): boolean {
   );
 }
 
-// Whether the union member line `line` (a `LuauTypeUnionLineContinuation`)
+// Whether the union or intersection member line `line`
 // continues a type: the nearest node before it, across blank and comment
 // lines, is a declaration that ends in its type, a type alias, an annotated
 // parameter, or another such line with no value; or it starts a function
@@ -165,7 +170,7 @@ export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
     }
     return false;
   }
-  if (prev.name === "LuauTypeUnionLineContinuation") {
+  if (isTypeLineContinuation(prev)) {
     return !hasDescendant(prev, "LuauAssignmentOperation");
   }
   return (
@@ -175,7 +180,7 @@ export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
   );
 }
 
-// Report a union member line that continues no type (`print(1)` then
+// Report a union or intersection line that continues no type (`print(1)` then
 // `-- note` then `| string`), which Luau rejects.
 export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext): void {
   const raw = ctx.read(line.from, line.to);

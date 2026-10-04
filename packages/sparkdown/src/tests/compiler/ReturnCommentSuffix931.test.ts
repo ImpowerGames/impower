@@ -1,4 +1,5 @@
 import "../../inkjs/engine/Container";
+import { Buffer } from "node:buffer";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
@@ -25,9 +26,11 @@ function converted(text: string) {
   } })));
 }
 function native(text: string) {
+  const lines = text.split("\n");
+  const column = (line: number, bytes: number) => Buffer.from(lines[line] ?? "", "utf8").subarray(0, bytes).toString("utf8").length;
   return officialSyntaxErrors(text).map(d => ({ message: d.message, range: {
-    start: { line: d.location.begin.line, character: d.location.begin.column },
-    end: { line: d.location.end.line, character: d.location.end.column },
+    start: { line: d.location.begin.line, character: column(d.location.begin.line, d.location.begin.column) },
+    end: { line: d.location.end.line, character: column(d.location.end.line, d.location.end.column) },
   } }));
 }
 
@@ -45,17 +48,16 @@ describe("return suffix comments retain native diagnostics and incremental posit
     "return 5 --[=[ é😀\nb ]=] f()\n",
   ])("pins raw native message and document range: %s", (body) => {
     const source = `& ${body}`;
-    const expected = native(`  ${body}`);
+    // Only the first physical line is Luau; even a later comment closer is prose.
+    const expected = native(`  ${body.split("\n")[0]!}`);
     expect(expected.length).toBeGreaterThan(0);
     expect(converted(source)).toEqual(expected);
-    if (!body.includes("unfinished") || body.includes("; ;")) expect(compile(source)).toEqual(expected);
+    if (body.includes("; ;")) expect(compile(source)).toEqual(expected);
     else {
-      // The existing literal validator publishes expression-position wording
-      // and suppresses overlapping checker errors. Keep that contract distinct
-      // from the native converter's statement/block-context messages.
+      // The literal validator publishes its expression-context error and
+      // suppresses overlapping checker errors. Its range ends on this line.
       const comment = published(source).find(d => messageOf(d.message) === "Expected identifier when parsing expression, got unfinished comment");
-      const opening = source.indexOf("--[");
-      expect(comment?.range).toEqual({ start: { line: 0, character: opening }, end: { line: 1, character: 0 } });
+      expect(comment?.range).toEqual({ start: { line: 0, character: source.indexOf("--[") }, end: { line: 0, character: source.split("\n")[0]!.length } });
     }
   });
   test.each(["do", "if true then", "repeat"])("a genuine function's unfinished comment retains native %s ownership", (block) => {
@@ -91,26 +93,27 @@ describe("return suffix comments retain native diagnostics and incremental posit
         end: { line: compressed.lines![error.location.end.line], column: error.location.end.column },
       }))).toEqual(units.flows[0]!.errors.map(error => ({ begin: error.location.begin, end: error.location.end })));
       const first = units.flows[0]!.errors[0];
-      if (first && suffix.endsWith("()")) expect(warm[0]!.range.start).toEqual({ line: first.location.begin.line, character: first.location.begin.column });
+      if (first && warm.length && suffix.endsWith("()")) expect(warm[0]!.range.start).toEqual({ line: first.location.begin.line, character: first.location.begin.column });
     });
   });
   test("unrelated following prose still reuses the checked unit", () => {
     const compiler = new SparkdownCompiler();
     const source = (prose: string) => `-> a\nscene a\n  & return 5; --[[ é😀\nb ]] -- ok\n  ${prose}\nend\n`;
-    expect(compile(source("First."), compiler, 1)).toEqual([]);
-    expect(compile(source("Different prose."), compiler, 2)).toEqual([]);
+    const first = compile(source("First."), compiler, 1);
+    expect(published(source("First.")).some(d => d.severity === 1 && messageOf(d.message).includes("unfinished comment"))).toBe(true);
+    expect(compile(source("Different prose."), compiler, 2)).toEqual(first);
     expect(compiler.typecheckStats.checked).toBe(0);
     expect(compiler.typecheckStats.reused).toBeGreaterThan(0);
   });
-  test("retained comment trivia locates the prelude EOF in cold and cached units", () => {
+  test("bounded comment trivia locates physical EOL in cold and cached units", () => {
     const cache = new Map<string, unknown>();
     const compiler = new SparkdownCompiler();
     for (const [i, suffix] of ["--[[ é😀\nb ]]", "--[=[ é😀\nb ]=]", "--[[ é😀\nb\n]]"].entries()) {
       const source = `store value = 5\n& return value ${suffix}\nUnrelated prose.\n`;
       const units = readLuauUnits(parseSource(source), source);
       const compressed = readLuauUnits(parseSource(source), source, { unitLines: true }).prelude;
-      const endLine = suffix.split("\n").length;
-      const endColumn = suffix.split("\n").at(-1)!.length;
+      const endLine = 1;
+      const endColumn = "& return value ".length + suffix.split("\n")[0]!.length;
       expect(units.prelude.root.location.end).toEqual({ line: endLine, column: endColumn });
       expect({ line: compressed.lines![compressed.root.location.end.line], column: compressed.root.location.end.column }).toEqual({ line: endLine, column: endColumn });
       const cold = printOfficialAst(compressed.root, checkerView(source, "_G"));

@@ -1,0 +1,7 @@
+function f()
+  & g()
+  if false then
+    & x = 1
+    h()
+  end
+end

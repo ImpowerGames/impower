@@ -51,7 +51,7 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     const tree = parseSource(source);
     expect(treeScopeStackAt(tree, source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
   });
-  test.each(["do\n    return 5\n  end", "& do\n    return 5\n  end", "& do\n    -- comment\n\n    return 5\n  end"])("a real function keeps its multiline do block: %s", (body) => {
+  test.each(["do\n    return 5\n  end", "do\n    -- comment\n\n    return 5\n  end"])("a real function keeps its multiline do block: %s", (body) => {
     const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  ${body}\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
@@ -60,8 +60,8 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     const source = `${island}\nreturn to the village\n`;
     expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
   });
-  test.each(["", "& "])("a %sfunction expression keeps its multiline code body", (mark) => {
-    const ctx = makeRuntimeStoryFromSource(`${mark}local f = function()\n  & do\n    return 5\n  end\nend\nValue {f()}.\ndone\n`);
+  test("an ordinary function expression keeps its multiline code body", () => {
+    const ctx = makeRuntimeStoryFromSource(`local f = function()\n  do\n    return 5\n  end\nend\nValue {f()}.\ndone\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });

@@ -14,6 +14,7 @@ import {
   continuationParts,
   continuesInVain,
   isLineContinuation,
+  isTypeLineContinuation,
   leadingReturnTypeQualifier,
   reportExtraTypeQualifiers,
   reportUntakenContinuation,
@@ -383,7 +384,7 @@ export function lowerStatements(
       const at = nodeIndex(ref);
       if (at === undefined || at <= i) continue;
       const node = nodes[at]!;
-      if (isLineContinuation(node) || node.name === "LuauTypeUnionLineContinuation") {
+      if (isLineContinuation(node) || isTypeLineContinuation(node)) {
         continue;
       }
       const text = ctx.read(node.from, node.to);
@@ -421,7 +422,7 @@ export function lowerStatements(
           )
         : [];
     if (taken.has(i) && statements.length === 0) continue;
-    if (child.name === "LuauTypeUnionLineContinuation") {
+    if (isTypeLineContinuation(child)) {
       // A union member line after a comment line: types do not reach the
       // runtime, and the declaration before it took it. One that continues
       // no type is Luau's error.

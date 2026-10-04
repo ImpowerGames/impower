@@ -62,6 +62,12 @@ const BRACKET_CONTROL_KEYWORDS = [
 // instruction.
 const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
 const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
+const MARKED_STRUCTURED_CAPTURE = nodeNameSet(["LuauSparkdownExplicitStructuredStatement"]);
+const STRUCTURED_DEFINITION = nodeNameSet([
+  "LuauDefine", "LuauStyle", "LuauLayout", "LuauScreen", "LuauComponent",
+  "LuauAnimation", "LuauTheme", "LuauMorph",
+]);
+const STRUCTURED_END = nodeNameSet(["LuauEndKeyword"]);
 
 // The closed set of `@event` names a Sparkle element line can bind. Source of
 // truth: the runtime's `EventMap` (packages/spark-engine/src/game/core/types/
@@ -695,14 +701,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const node = nodeRef.node as any;
       // `[[...]]` holds raw text: no escapes, and newlines are content.
       if (!LUAU_QUOTED_STRING.has(name)) {
-        if (!childNamed(node, `${name}_end`)) {
+        const closer = childNamed(node, `${name}_end`);
+        if (!closer || closer.to === closer.from) {
           this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
           return true;
         }
         return false;
       }
       const escapeMessage =
-        name === "LuauInterpolatedString"
+        isExplicitRuleName(name, "LuauInterpolatedString")
           ? "Interpolated string literal contains malformed escape sequence"
           : "String literal contains malformed escape sequence";
       const content = childNamed(node, `${name}_content`);
@@ -753,7 +760,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // No newline and no closing quote: the string runs to the end of the
       // file (a quoted string is always the last thing on its line, so the
       // newline check above reports every other unfinished one).
-      if (!childNamed(node, `${name}_end`)) {
+      const closer = childNamed(node, `${name}_end`);
+      if (!closer || closer.to === closer.from) {
         this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
         return true;
       }
@@ -792,7 +800,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return false;
     }
     if (LUAU_BLOCK_COMMENT_OPENING.has(name)) {
-      if (!childNamed(nodeRef.node, `${name}_end`)) {
+      const closer = childNamed(nodeRef.node, `${name}_end`);
+      if (!closer || closer.to === closer.from) {
         this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
         return true;
       }
@@ -1031,6 +1040,32 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
     if (this.validateLuauLiteral(annotations, nodeRef)) {
       return annotations;
+    }
+    // A bounded shorthand header without a body still owns its missing end.
+    // The physical stop is a highlighting boundary, not a written closer.
+    if (nodeRef.name !== "LuauFunctionDefinition" &&
+      isExplicitRuleName(nodeRef.name, "LuauFunctionDefinition")) {
+      const content = childNamed(nodeRef.node, "LuauFunctionDefinition_content");
+      const closer = childNamed(nodeRef.node, "LuauFunctionDefinition_end");
+      if (content && (!closer || closer.from === closer.to) &&
+        !childNamed(content, "LuauFunctionParameters") &&
+        !childNamed(content, "LuauFunctionBody")) {
+        this.error(annotations,
+          "This function is missing its closing `end` keyword on this `&` line. The following line remains story text.",
+          nodeRef.from, nodeRef.to);
+      }
+    }
+    // The finite marked capture cannot borrow a closer from another line.
+    // Its physical stop closes highlighting only; an authored `end` still
+    // has to close the definition. Ordinary multiline definitions are intact.
+    if (STRUCTURED_DEFINITION.has(nodeRef.name) &&
+      ancestorMatching(nodeRef.node, MARKED_STRUCTURED_CAPTURE)) {
+      const closer = childNamed(nodeRef.node, `${nodeRef.name}_end`);
+      if (!closer || !firstDescendant(closer, STRUCTURED_END)) {
+        this.error(annotations,
+          "This marked definition is missing its closing `end` on this physical line.",
+          nodeRef.from, nodeRef.to);
+      }
     }
     if (this.validateStructBlock(annotations, nodeRef)) {
       return annotations;
@@ -1303,12 +1338,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // first error for it is reported; the errors Luau's recovery finds in the
     // rest of the line are not, nor is a line whose error the statement
     // before it reports already (`reportedBefore`).
-    if (nodeRef.name === "LuauInvalidStatement") {
+    if (nodeRef.name === "LuauInvalidStatement" || nodeRef.name === "LuauRemovedExplicitStatementMark") {
       const read = (from: number, to: number) => this.read(from, to);
       if (reportedBefore(nodeRef.node, read, this.statementDocumentText)) {
         return annotations;
       }
-      const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
+      const line = childNamed(nodeRef.node, `${nodeRef.name}_c2`);
       const error = invalidStatementError(
         nodeRef.node,
         line?.from ?? nodeRef.from,
@@ -1482,11 +1517,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // string boundary still produces an `_end` node, just a zero-width one.
     if (
       isExplicitRuleName(nodeRef.name, "LuauInterpolatedStringExpression") ||
-      nodeRef.name === "LuauDoubleQuotedStringInterpolation" ||
-      nodeRef.name === "LuauBacktickStringInterpolation" ||
+      isExplicitRuleName(nodeRef.name, "LuauDoubleQuotedStringInterpolation") ||
+      isExplicitRuleName(nodeRef.name, "LuauBacktickStringInterpolation") ||
       isExplicitRuleName(nodeRef.name, "LuauFunctionCallShorthand") ||
-      nodeRef.name === "LuauDoubleQuotedFunctionCallShorthand" ||
-      nodeRef.name === "LuauBacktickFunctionCallShorthand"
+      isExplicitRuleName(nodeRef.name, "LuauDoubleQuotedFunctionCallShorthand") ||
+      isExplicitRuleName(nodeRef.name, "LuauBacktickFunctionCallShorthand")
     ) {
       const raw = this.read(nodeRef.from, nodeRef.to);
       // Empty `{}` — Luau: "Malformed interpolated string, expected expression

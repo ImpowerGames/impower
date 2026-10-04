@@ -1,0 +1,8 @@
+& local f = function()
+Following function story.
+& local x = [[
+Following string story.
+& local y = 1 --[[
+Following comment story.
+& define Example with
+Following definition story.

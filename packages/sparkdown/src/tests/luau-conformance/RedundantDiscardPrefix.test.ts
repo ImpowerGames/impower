@@ -1,16 +1,18 @@
-// Verifies that the `&` discard prefix on a Luau statement inside a
-// function body produces an Information-severity diagnostic tagged
-// `Unnecessary`. Outside a function (at top-level main flow), the
-// same `&` is required and should produce NO diagnostic.
+// Function bodies use ordinary Luau statements. A removed `&` marker is
+// a syntax error; story statements retain their marker.
 
 import { describe, expect, test } from "vitest";
 import { testCompiler } from "../engineUnderTest";
+import { loadOfficialLuau } from "../compiler/officialLuau";
 
 interface CapturedDiagnostic {
   message: string;
   severity: number | undefined;
   tags: number[] | undefined;
   startLine: number | undefined;
+  startCharacter: number | undefined;
+  endLine: number | undefined;
+  endCharacter: number | undefined;
 }
 
 function compileAndCollectDiagnostics(source: string): CapturedDiagnostic[] {
@@ -41,13 +43,40 @@ function compileAndCollectDiagnostics(source: string): CapturedDiagnostic[] {
         severity: (d as any).severity,
         tags: (d as any).tags,
         startLine: (d as any).range?.start?.line,
+        startCharacter: (d as any).range?.start?.character,
+        endLine: (d as any).range?.end?.line,
+        endCharacter: (d as any).range?.end?.character,
       });
     }
   }
   return all;
 }
 
-describe("redundant `&` prefix diagnostic", () => {
+describe("removed function `&` prefix diagnostic", () => {
+  test.each([
+    "function f()\n  & g()\n  h()\nend\n",
+    "function f()\n  local function nested()\n    & g()\n  end\nend\n",
+    "function f()\n  local nested = function()\n    & g()\n  end\nend\n",
+    "function object:method()\n  & g()\nend\n",
+    "type function f()\n  & g()\n  return types.number\nend\n",
+    "define Hero with\n  method()\n    & g()\n    return 1\n  end\nend\n",
+  ])("keeps the native marker diagnostic and authored range in %s", async source => {
+    const nativeSource = source.startsWith("define")
+      ? source.replace("define Hero with\n  method()", "\nfunction method()")
+      : source;
+    const official = await loadOfficialLuau("typecheck");
+    const expected = official(nativeSource).diagnostics.find(error => error.message.includes("'&'"));
+    expect(expected).toBeDefined();
+    const actual = compileAndCollectDiagnostics(source).find(d => d.severity === 1 && d.message === expected!.message);
+    expect(actual && {
+      start: { line: actual.startLine, character: actual.startCharacter },
+      end: { line: actual.endLine, character: actual.endCharacter },
+    }).toEqual({
+      start: { line: expected!.location.begin.line, character: expected!.location.begin.column },
+      end: { line: expected!.location.end.line, character: expected!.location.end.column },
+    });
+  });
+
   test("fires on `& foo()` inside a function body", () => {
     const src = `external host_record(v)
 & run()
@@ -58,12 +87,8 @@ function run()
 end
 `;
     const diagnostics = compileAndCollectDiagnostics(src);
-    const redundant = diagnostics.filter((d) =>
-      d.message.includes("`&` discard prefix is unnecessary"),
-    );
-    expect(redundant).toHaveLength(1);
-    expect(redundant[0]!.severity).toBe(3); // Information
-    expect(redundant[0]!.tags).toEqual([1]); // Unnecessary
+    expect(diagnostics.some((d) => d.severity === 1 && d.startLine === 5)).toBe(true);
+    expect(diagnostics.some((d) => d.message.includes("discard prefix is unnecessary"))).toBe(false);
   });
 
   test("fires on `& table.insert(...)` inside a function body", () => {
@@ -78,10 +103,7 @@ host_record(table.concat(t, ","))
 end
 `;
     const diagnostics = compileAndCollectDiagnostics(src);
-    const redundant = diagnostics.filter((d) =>
-      d.message.includes("`&` discard prefix is unnecessary"),
-    );
-    expect(redundant).toHaveLength(1);
+    expect(diagnostics.some((d) => d.severity === 1 && d.startLine === 6)).toBe(true);
   });
 
   test("fires on `& store x = 5` (declaration) inside a function body", () => {
@@ -93,10 +115,7 @@ function run()
 end
 `;
     const diagnostics = compileAndCollectDiagnostics(src);
-    const redundant = diagnostics.filter((d) =>
-      d.message.includes("`&` discard prefix is unnecessary"),
-    );
-    expect(redundant).toHaveLength(1);
+    expect(diagnostics.some((d) => d.severity === 1 && d.startLine === 4)).toBe(true);
   });
 
   test("does NOT fire on `& foo()` at top-level (the prefix is required there)", () => {
@@ -109,13 +128,10 @@ host_record(1)
 end
 `;
     const diagnostics = compileAndCollectDiagnostics(src);
-    const redundant = diagnostics.filter((d) =>
-      d.message.includes("`&` discard prefix is unnecessary"),
-    );
-    expect(redundant).toHaveLength(0);
+    expect(diagnostics.filter((d) => d.severity === 1)).toEqual([]);
   });
 
-  test("multiple redundant `&`s in one function each get their own diagnostic", () => {
+  test("each removed marker remains an error at its authored line", () => {
     const src = `external host_record(v)
 & run()
 done
@@ -127,9 +143,8 @@ function run()
 end
 `;
     const diagnostics = compileAndCollectDiagnostics(src);
-    const redundant = diagnostics.filter((d) =>
-      d.message.includes("`&` discard prefix is unnecessary"),
-    );
-    expect(redundant).toHaveLength(3);
+    for (const startLine of [5, 6, 7]) {
+      expect(diagnostics.some((d) => d.severity === 1 && d.startLine === startLine)).toBe(true);
+    }
   });
 });
