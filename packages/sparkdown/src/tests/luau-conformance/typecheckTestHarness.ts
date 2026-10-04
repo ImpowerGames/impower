@@ -457,7 +457,8 @@ export function checkLuau(
   });
   const mode = modeFromName(options.mode ?? "strict")!;
   const entry = options.module ?? MAIN_MODULE_NAME;
-  if (options.moduleSources && entry in options.moduleSources)
+  const suppliedSources = Object.entries(options.moduleSources ?? {});
+  if (suppliedSources.some(([name]) => name === entry))
     throw new Error(`entry module ${entry} is duplicated in moduleSources`);
   const sources = (session.sources ??=
     new Map<string, ReturnType<typeof compileSource>>());
@@ -481,7 +482,7 @@ export function checkLuau(
   markDirty(entry);
   sources.set(entry, prepared);
   traces.set(entry, traceFixtureRequires(prepared.unit.root, entry));
-  for (const [name, text] of Object.entries(options.moduleSources ?? {})) {
+  for (const [name, text] of suppliedSources) {
     const dependency = compileSource(text);
     validateLuauFlags(options.flags, [
       prepared.unit.root,

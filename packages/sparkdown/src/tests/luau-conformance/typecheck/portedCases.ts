@@ -857,7 +857,9 @@ function checkProblems(
   if (
     check.moduleSources &&
     object(check.moduleSources) &&
-    (check.module ?? "MainModule") in check.moduleSources
+    Object.entries(check.moduleSources).some(
+      ([name]) => name === (check.module ?? "MainModule"),
+    )
   )
     problems.push(`${where} moduleSources duplicates its entry module`);
   if (check.hiddenTypes !== undefined && check.hiddenTypes !== true)

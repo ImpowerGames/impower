@@ -18,6 +18,118 @@ import {
 } from "./typecheck/portedCases";
 
 describe("faithful fixture and query execution", () => {
+  const namedEntryMaps = ["toString", "constructor", "__proto__"].flatMap(
+    (entry) => [
+      { entry, shape: "ordinary empty", sources: {} },
+      {
+        entry,
+        shape: "inherited enumerable",
+        sources: Object.create({ [entry]: "local bad = )" }) as Record<
+          string,
+          string
+        >,
+      },
+      {
+        entry,
+        shape: "null prototype empty",
+        sources: Object.create(null) as Record<string, string>,
+      },
+      {
+        entry,
+        shape: "non-enumerable own",
+        sources: Object.defineProperty({}, entry, { value: "local bad = )" }),
+      },
+    ],
+  );
+  const moduleCase = (
+    module: string,
+    moduleSources: Record<string, string>,
+  ): PortedCase => ({
+    name: "named entry",
+    source: "return 1",
+    module,
+    moduleSources,
+    expect: [{ errors: 0 }],
+  });
+  const namedEntryManifest = {
+    pin: "test",
+    errorKinds: ["TypeMismatch"],
+    files: { "X.test.cpp": [{ name: "named entry" }] },
+  };
+  test.each(namedEntryMaps)(
+    "checker accepts $entry with $shape sources outside enumeration",
+    ({ entry, sources }) => {
+      const result = checkLuau("return 1", {
+        module: entry,
+        moduleSources: sources,
+      });
+      expect(result.checked).toBe(true);
+      expect(result.diagnostics).toEqual([]);
+      expect(
+        result
+          .find({ moduleReturn: true, path: [{ result: 0 }] })
+          .is(result.find({ builtin: "number" })),
+      ).toBe(true);
+    },
+  );
+  test.each(namedEntryMaps)(
+    "port validation accepts $entry with $shape sources outside enumeration",
+    ({ entry, sources }) => {
+      expect(
+        portProblems(
+          "X.test.cpp",
+          [moduleCase(entry, sources)],
+          namedEntryManifest,
+        ),
+      ).toEqual([]);
+    },
+  );
+  const ownModuleMaps = ["toString", "constructor", "__proto__"].flatMap(
+    (entry) => [false, true].map((nullPrototype) => ({
+      entry,
+      nullPrototype,
+      sources: Object.defineProperty(
+        nullPrototype ? Object.create(null) : {},
+        entry,
+        { value: "return 1", enumerable: true },
+      ) as Record<string, string>,
+    })),
+  );
+  test.each(ownModuleMaps)(
+    "checker rejects real own enumerable duplicate $entry (null prototype: $nullPrototype)",
+    ({ entry, sources }) => {
+      expect(() =>
+        checkLuau("return 1", { module: entry, moduleSources: sources }),
+      ).toThrow(/duplicated in moduleSources/);
+    },
+  );
+  test.each(ownModuleMaps)(
+    "port validation rejects real own enumerable duplicate $entry (null prototype: $nullPrototype)",
+    ({ entry, sources }) => {
+      expect(
+        portProblems(
+          "X.test.cpp",
+          [moduleCase(entry, sources)],
+          namedEntryManifest,
+        ),
+      ).toEqual(["case named entry moduleSources duplicates its entry module"]);
+    },
+  );
+  test.each(ownModuleMaps)(
+    "own enumerable dependency $entry is loaded (null prototype: $nullPrototype)",
+    ({ entry, sources }) => {
+      const result = checkLuau("local M=require(script.Parent)\nreturn M", {
+        fixture: "BuiltinsFixture",
+        module: entry + "/Main",
+        moduleSources: sources,
+      });
+      expect(result.checked).toBe(true);
+      expect(result.diagnostics).toEqual([]);
+      expect(
+        result.find({ type: "M" }).is(result.find({ builtin: "number" })),
+      ).toBe(true);
+    },
+  );
   test.each(['game["\\u{feff}A"]', 'game:GetService("\\u{feff}A")'])(
     "BOM-prefixed module names retain their exact dependency: %s",
     async (argument) => {
