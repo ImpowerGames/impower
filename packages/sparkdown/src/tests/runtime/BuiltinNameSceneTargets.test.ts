@@ -732,7 +732,7 @@ end
     // global all the same.
     const ctx = makeRuntimeStoryFromSource(`-> s
 scene s
-  & local f = function()
+  local f = function()
       game = -> there
     end
   & f()
@@ -811,7 +811,7 @@ end
     // report stays an error.
     const source = `-> s
 scene s
-  & local f = function()
+  local f = function()
       local q = game
       return q
     end

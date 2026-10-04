@@ -128,6 +128,61 @@ describe("function Luau and physical story lines (#1374)", () => {
     expect(collectDiagnostics(source).errorMessages).toEqual([]);
   });
 
+  test.each(["\n", "\r\n"])("trailing comment closers stay on their marked physical line with %j", async newline => {
+    const official = await loadOfficialLuau("typecheck");
+    for (const level of ["", "==", "===="]) {
+      for (const head of ["local x: number", "local x = 1"]) {
+        const opener = `--[${level}[`;
+        const closer = `]${level}]`;
+        const closed = `& ${head} ${opener}ok${closer}print(1)`;
+        expect(official(closed.slice(2)).diagnostics).toEqual([]);
+        for (const line of [closed, `& do ${closed.slice(2)} end`, `& local f = function() ${closed.slice(2)} end`]) {
+          expect(collectDiagnostics(line + newline).errorMessages).toEqual([]);
+          expect((await compareEnginesFull(line + newline)).divergences).toEqual([]);
+        }
+        const wrongLevel = level === "" ? "]=]" : "]]";
+        const repaired = `& ${head} ${opener}wrong${wrongLevel}still opaque${closer}print(1)`;
+        expect(official(repaired.slice(2)).diagnostics).toEqual([]);
+        expect(collectDiagnostics(repaired + newline).errorMessages).toEqual([]);
+        expect((await compareEnginesFull(repaired + newline)).divergences).toEqual([]);
+        for (const first of [`& ${head} ${opener}unfinished`, `& ${head} ${opener}unfinished${wrongLevel}`]) {
+          const source = first + newline + closer + "print(1)" + newline + "Following story." + newline;
+          expect(collectDiagnostics(source).errorMessages).toContain("Expected identifier when parsing expression, got unfinished comment");
+          const tree = parseSource(source);
+          const cursor = tree.cursor();
+          let markedEnd = -1;
+          do { if (cursor.name === "LuauSparkdownExplicitStatement") markedEnd = cursor.to; } while (cursor.next());
+          expect(markedEnd).toBe(first.length);
+          expect((await compareEnginesFull(source)).divergences).toEqual([]);
+        }
+      }
+    }
+    for (const closer of ["]]", "]==]", "]====]"]) {
+      const stray = `& ${closer}print(1)${newline}Following story.${newline}`;
+      expect(official(stray.slice(2, stray.indexOf(newline))).diagnostics.length).toBeGreaterThan(0);
+      expect(collectDiagnostics(stray).errorMessages.length).toBeGreaterThan(0);
+      expect((await compareEnginesFull(stray)).divergences).toEqual([]);
+    }
+    const runtime = makeRuntimeStoryFromSource(["store count = 0", "& local n: number --[====[ok]====]count = 5", "First {count}.", "& local x = 1 --[====[ok]====]count += x", "Second {count}."].join(newline));
+    expect(runtime.errorMessages).toEqual([]);
+    expect(runtime.story.ContinueMaximally()).toBe("First 5.\nSecond 6.\n");
+  });
+
+  test.each(["\n", "\r\n"])("doubled intersection punctuation diagnoses without losing function ownership with %j", async newline => {
+    const source = ["function f()", "  type F = { x: number }", "    && { y: string }", "  local n = 1", "  return n", "end", "Following story."].join(newline);
+    const reading = readLuauUnits(parseSource(source), source).prelude;
+    expect(reading.errors.length).toBeGreaterThan(0);
+    expect(collectDiagnostics(source).errorMessages.length).toBeGreaterThan(0);
+    expect(reading.root.body).toHaveLength(1);
+    const fn = reading.root.body[0] as AstStatFunction;
+    expect(fn).toBeInstanceOf(AstStatFunction);
+    expect(fn.func.body.hasEnd).toBe(true);
+    expect(fn.func.body.body.at(-1)?.kind).toBe("StatReturn");
+    expect(fn.func.location.end.line).toBe(5);
+    expect(stripAnsi(dumpTree(source))).toContain("ImplicitAction");
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
+
   test.each([
     "function f()\n  & g()\nend\n",
     "function f()\n  if false then\n    & g()\n  end\nend\n",

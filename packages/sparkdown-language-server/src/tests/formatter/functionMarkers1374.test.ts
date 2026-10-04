@@ -30,3 +30,18 @@ test("formatting preserves recovery and indentation after invalid function marke
   for (const line of formatted.trimEnd().split("\n").slice(1, -1)) expect(line.startsWith("  ")).toBe(true);
   expect(formatSource(formatted)).toBe(formatted);
 });
+
+test("formatting retains code after marked level-four comments", () => {
+  const source = "& local x: number --[====[ok]====]print(1)\n& local y = 1 --[====[ok]====]print(2)\n";
+  const formatted = formatSource(source);
+  expect(formatted.match(/\]====\]/g)).toHaveLength(2);
+  const reading = readLuauUnits(parseSource(formatted), formatted).prelude;
+  expect(reading.errors).toEqual([]);
+  const calls: number[] = [];
+  visitAst(reading.root, { visit(node) {
+    if (node instanceof AstExprCall) calls.push(node.args.length);
+    return true;
+  } });
+  expect(calls).toEqual([1, 1]);
+  expect(formatSource(formatted)).toBe(formatted);
+});

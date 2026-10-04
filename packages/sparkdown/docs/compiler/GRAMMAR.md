@@ -195,7 +195,7 @@ LuauSparkdownIfBlock:
   # Tried in declaration order against the body.
   patterns:
     - { include: "#LuauIfBlockCondition" }
-    - { include: "#LuauExplicitStatement" }
+    - { include: "#LuauSparkdownExplicitStatement" }
     - { include: "#LuauImplicitStatement" }
     - { include: "#LuauSparkdownControlBlock" }
     - { include: "#SparkdownStatement" }
@@ -989,7 +989,7 @@ Three `Switch` rules cover the different statement shapes a body might need to a
 
 Bounded if/loop conditions use `LuauSparkdownExplicitParenthetical`: an unfinished parenthetical yields the narrative line or next beat. Unmarked function expressions keep `LuauParenthetical`, including multiline values and identifier expressions. The bounded block validator reports a missing `end`/`until` on its explicit line; a later narrative closer cannot repair it.
 
-When wiring up a parent block's `patterns:`, you typically want all three included. The `LuauControlBlock` Switch rule pulls in `LuauDeclarations` and `LuauExplicitStatement` for you; `LuauReassignment` is a separate include because of grammar-precedence concerns.
+Choose statement bundles for the parent's context. `LuauControlBlock` includes `LuauDeclarations` and `LuauReassignment` for pure Luau bodies, which accept ordinary calls and assignments without story markers. `LuauSparkdownBlockBody` includes `LuauSparkdownExplicitStatement` for story code islands alongside narrative statements and declarations. Keep the story marker bundle out of pure function bodies.
 
 ---
 

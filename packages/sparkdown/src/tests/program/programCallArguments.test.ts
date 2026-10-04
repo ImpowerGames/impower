@@ -30,8 +30,20 @@ import { describe, expect, it } from "vitest";
 import { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";
+import { jsonNodes, parseOfficialTree } from "../compiler/officialAstTestUtils";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+it("a parenthesized method statement needs a separator after a call chain", () => {
+  const statements = "local o = {}\nfunction o:bump() return self end\no:bump():bump():bump()";
+  for (const [separator, count] of [["", 1], [";", 2]] as const) {
+    const parsed = parseOfficialTree(`${statements}${separator}\n(o):bump()\n`);
+    expect(parsed.errors.map(error => error.message)).toEqual(separator ? [] : ["Ambiguous syntax: this looks like an argument list for a function call, but could also be a start of new statement; use ';' to separate statements"]);
+    if (!separator) expect(parsed.errors[0]!.location).toEqual({ begin: { line: 3, column: 0 }, end: { line: 3, column: 1 } });
+    if (separator) expect(jsonNodes(parsed.root).filter(node => node["type"] === "AstStatExpr")).toHaveLength(count);
+    else expect(parsed.root).toBeNull();
+  }
+});
 
 // Functions the cases call: of one parameter, of two, a `__call` handler,
 // variadic (`vf` counts the values of the first value its `...` holds), with
@@ -413,7 +425,7 @@ describe("a call, an index or a method chained on a call", () => {
     // Function statements store and call through every link after a call;
     // the call counts are 3 and 2. Story scope retains its explicit marker.
     ["stores and compounds through what a call returns in a function", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5, 10 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "o.get().a.x += 2", "o:me().a.x *= 10", "o.get().a[key()] -= 1", "o:me().s ..= \"b\"", "o.get().y = 7", "(t)[key()] = 4", "o:me()[1] += 5"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. t.x .. \"/\" .. t[1] .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/7/4/15/3/2."],
-    ["calls through the links after a call in a function", inRun(["local n = 0", "local o = {}", "function o:bump() n = n + 1 return self end", "function o:me() return self end", "local box = { o = o }", "o:me():bump()", "o:bump():bump():bump()", "(o):bump()", "box.o:me():bump()"], "n"), "Got 6."],
+    ["calls through the links after a call in a function", inRun(["local n = 0", "local o = {}", "function o:bump() n = n + 1 return self end", "function o:me() return self end", "local box = { o = o }", "o:me():bump()", "o:bump():bump():bump();", "(o):bump()", "box.o:me():bump()"], "n"), "Got 6."],
     ["stores and calls through what a call returns in an explicit statement at the top level", topLevel(["store t = { a = { x = 1 }, n = 0, y = 5, k = 10, s = \"a\" }", "function mko()", "  local o = {}", "  function o.get() return t end", "  function o:me() return t end", "  function o:bump() t.n = t.n + 1 return self end", "  return o", "end", "local o = mko()", "& o.get().a.x += 2", "& o:me().a.x *= 10", "& o:bump():bump()", "& (t).y //= 2", "& o:me()[\"k\"] += 5", "& o.get().s = \"b\""], "t.a.x .. \"/\" .. t.n .. \"/\" .. t.y .. \"/\" .. t.k .. \"/\" .. t.s"), "Got 30/2/2/15/b."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);

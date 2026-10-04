@@ -5334,6 +5334,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauTypeTrailingBlockCommentClose"
+        },
+        {
           "include": "#LuauSparkdownExplicitFunctionDefinition"
         },
         {
@@ -11484,6 +11487,9 @@
     "LuauSparkdownExplicitBlockBody": {
       "patterns": [
         {
+          "include": "#LuauTypeTrailingBlockCommentClose"
+        },
+        {
           "include": "#LuauSparkdownExplicitBlockStatement"
         },
         {
@@ -12699,6 +12705,9 @@
     },
     "LuauSparkdownExplicitFunctionBlockBody": {
       "patterns": [
+        {
+          "include": "#LuauTypeTrailingBlockCommentClose"
+        },
         {
           "include": "#LuauSparkdownExplicitDoBlock"
         },

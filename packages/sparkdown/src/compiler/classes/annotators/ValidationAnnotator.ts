@@ -68,6 +68,7 @@ const STRUCTURED_DEFINITION = nodeNameSet([
   "LuauAnimation", "LuauTheme", "LuauMorph",
 ]);
 const STRUCTURED_END = nodeNameSet(["LuauEndKeyword"]);
+const LUAU_INVALID_STATEMENT_CHARACTER = nodeNameSet(["LuauInvalidStatementCharacter"]);
 
 // The closed set of `@event` names a Sparkle element line can bind. Source of
 // truth: the runtime's `EventMap` (packages/spark-engine/src/game/core/types/
@@ -107,7 +108,7 @@ const SPARKLE_EVENT_HANDLER = nodeNameSet([
 ]);
 
 // Luau string literals. Every form parses as `<name>_begin`, `<name>_content`
-// and `<name>_end`; an unfinished literal has no `_end` child.
+// and `<name>_end`; a missing closer has no end or a zero-width physical stop.
 const LUAU_QUOTED_STRING = nodeNameSet([
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
@@ -801,7 +802,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (LUAU_BLOCK_COMMENT_OPENING.has(name)) {
       const closer = childNamed(nodeRef.node, `${name}_end`);
-      if (!closer || closer.to === closer.from) {
+      let bodyCloser = this.tree?.resolveInner(nodeRef.to, 1) ?? null;
+      while (bodyCloser && !isExplicitRuleName(bodyCloser.name, "LuauTypeTrailingBlockCommentClose")) {
+        bodyCloser = bodyCloser.parent;
+      }
+      // Trailing comments can leave their written brackets to the body.
+      // A physical-line stop has no named closer at that exact boundary.
+      const closesInBody = LUAU_TRAILING_BLOCK_COMMENT.has(name) &&
+        bodyCloser?.from === nodeRef.to && bodyCloser.to > bodyCloser.from;
+      if (!closer || (closer.to === closer.from && !closesInBody)) {
         this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
         return true;
       }
@@ -1343,7 +1352,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (reportedBefore(nodeRef.node, read, this.statementDocumentText)) {
         return annotations;
       }
-      const line = childNamed(nodeRef.node, `${nodeRef.name}_c2`);
+      const line = nodeRef.name === "LuauRemovedExplicitStatementMark"
+        ? firstDescendant(nodeRef.node, LUAU_INVALID_STATEMENT_CHARACTER)
+        : childNamed(nodeRef.node, "LuauInvalidStatement_c2");
       const error = invalidStatementError(
         nodeRef.node,
         line?.from ?? nodeRef.from,

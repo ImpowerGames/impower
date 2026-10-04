@@ -487,10 +487,10 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     };
     lastToken(cursor.node);
     const line = index.lineAt(Math.max(from, to - 1));
-    // Comments after a semicolon may also be classified as prose. Scan
-    // only suffix trivia so a line comment cannot swallow our closer;
-    // a block comment followed by a statement remains inside the scope.
-    let lineEnd = index.lineEnd(line);
+    // Comments after a semicolon may also be classified as prose. Keep
+    // suffix trivia on this physical story line; a later comment closer
+    // cannot repair the marked statement or move its synthetic boundary.
+    const lineEnd = index.lineEnd(line);
     let suffix = to;
     let semicolon = false;
     while (suffix < lineEnd) {
@@ -500,9 +500,8 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       const long = documentText.slice(suffix + 2, lineEnd).match(/^\[(=*)\[/);
       if (!long) { lineComment = suffix; break; }
       const end = documentText.indexOf(`]${long[1]}]`, suffix + 2 + long[0].length);
-      if (end < 0) break;
+      if (end < 0 || end + long[1]!.length + 2 > lineEnd) break;
       suffix = end + long[1]!.length + 2;
-      lineEnd = index.lineEnd(index.lineAt(Math.max(suffix - 1, 0)));
     }
     let writtenCloser = false;
     // A direct explicit repeat currently has keyword/return/until siblings,

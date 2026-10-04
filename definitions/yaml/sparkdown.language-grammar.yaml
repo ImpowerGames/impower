@@ -4029,6 +4029,9 @@ repository:
         patterns:
           - { include: "#RequiredWhitespace" }
     patterns:
+      # Trailing comments leave a closer immediately before code to the body.
+      # The validator rejects this token unless an actual comment ends here.
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauSparkdownExplicitFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitStoryVariableDefinition" }
@@ -8062,6 +8065,7 @@ repository:
 
   LuauSparkdownExplicitBlockBody:
     patterns:
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauSparkdownExplicitBlockStatement" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitIfBlock" }
@@ -8729,6 +8733,7 @@ repository:
   # A genuine multiline function has its ordinary, unmarked definition.
   LuauSparkdownExplicitFunctionBlockBody:
     patterns:
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitIfBlock" }
       - { include: "#LuauSparkdownExplicitLoop" }

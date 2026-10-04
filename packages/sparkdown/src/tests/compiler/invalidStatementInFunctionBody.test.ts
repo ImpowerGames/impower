@@ -361,11 +361,22 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("reports a line that begins with a character no Luau statement begins with and closes the function at its own `end`", () => {
-    for (const line of ["!Hello", "?Who", "$5 a day", "&Hello", "\\Hello", "~Hello"]) {
+    for (const line of ["!Hello", "?Who", "$5 a day", "\\Hello", "~Hello"]) {
       const source = `function f()\n  ${line}\nend\nAfter it.\n`;
       expect(errorsOf(source), line).toEqual([luauFirstError(source.replace("After it.\n", ""))]);
       expect(playedLines(source), line).toEqual(["After it.\n"]);
     }
+  });
+
+  it.each(["\n", "\r\n"])("reports an intersection operand with no preceding type and retains story recovery with %j", newline => {
+    const source = ["function f()", "  &Hello", "end", "After it.", ""].join(newline);
+    expect(errorsOf(source)).toEqual([{
+      message: "`&Hello` continues a type, but the line before it does not end in one.",
+      severity: 1,
+      start: { line: 1, character: 2 },
+      end: { line: 2, character: 0 },
+    }]);
+    expect(playedLines(source)).toEqual(["After it.\n"]);
   });
 
   it("calls the result of a call with the argument on the next line", () => {

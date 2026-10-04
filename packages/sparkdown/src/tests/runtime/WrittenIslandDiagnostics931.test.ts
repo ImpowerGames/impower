@@ -179,7 +179,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
 
   test.each([
     "function f(t)\n return t:\n method()\nend\n",
-    "& local f = function(t)\n return t:\n method()\nend\n",
+    "local f = function(t)\n return t:\n method()\nend\n",
   ])("genuine function retains multiline method-name ownership: %s", source => {
     const native = source.startsWith("&") ? ` ${source.slice(1)}` : source;
     expect(parseOfficialTree(native).errors).toEqual([]);
