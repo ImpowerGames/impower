@@ -9,7 +9,9 @@ import { VARIABLE_DEFINITION_NAMES } from "@impower/sparkdown/src/compiler/utils
 import { findOwnDeclarationName } from "@impower/sparkdown/src/compiler/lower/utils/findOwnDeclarationName";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type Tree } from "@lezer/common";
+import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 type Node = GrammarSyntaxNode<SparkdownNodeName>;
 
@@ -113,6 +115,7 @@ const UNION_LINE_BRIDGE: ReadonlySet<string> = new Set([
 // before it records a `var` or `param`, so an annotated declaration always
 // finds its declaring construct here.
 const FUNCTION_PARAMETERS = nodeNameSet(["LuauFunctionParameters"]);
+const FUNCTION_DEFINITIONS = nodeNameSet(["LuauFunctionDefinition"]);
 
 /**
  * Where a local written in no block stops being visible. `Scene` and
@@ -166,8 +169,10 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
 };
 
 /**
- * The span a Luau `local` is visible in. It starts where its declaring
- * statement's text ends, so it is not offered in its own initializer,
+ * The span a Luau `local` is visible in. A named local function starts at
+ * its name, making it visible recursively inside its own body. A variable
+ * starts where its declaring statement's text ends, so it is not offered
+ * in its own initializer,
  * including a function value in it; a statement that follows on the same
  * line (`local a = 1 return a`) is the declaration's sibling and so comes
  * after that point. It
@@ -178,21 +183,32 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
  * visible up to that section's `end` (see `getSectionEnd`).
  *
  * Undefined for a `store` or `const`, which is global wherever it is
- * written. Null for a local outside the cursor's script, which is never
- * visible there, so its span is not worked out.
+ * written. Null for a define's function member or a local outside the
+ * cursor's script, neither of which is a visible bare binding there.
  */
-const getVariableScope = (
+const getLocalScope = (
   tree: Tree,
   from: number,
   read: (from: number, to: number) => string,
   inCursorScript: boolean,
+  type: "var" | "function",
 ): LocalScope | null | undefined => {
   const name = tree.resolveInner(from, 1) as Node;
-  const definition: Node | null = ancestorMatching(name, VARIABLE_DEFINITION_NAMES);
+  const definition: Node | null = ancestorMatching(
+    name,
+    type === "function" ? FUNCTION_DEFINITIONS : VARIABLE_DEFINITION_NAMES,
+  );
   if (!definition) {
     return undefined;
   }
-  const modifier = getDescendent("LuauScopeModifier", definition);
+  // A define's explicit function declarations belong to its method table.
+  if (type === "function" && definition.parent?.name === "LuauDefine_content") {
+    return null;
+  }
+  const modifierRoot = type === "function"
+    ? definition.getChild("LuauFunctionDefinition_begin") as Node | null
+    : definition;
+  const modifier = modifierRoot && getDescendent("LuauScopeModifier", modifierRoot);
   if (!modifier || read(modifier.from, modifier.to).trim() !== "local") {
     return undefined;
   }
@@ -205,13 +221,19 @@ const getVariableScope = (
   // `local a = ` is in the initializer.
   const text = read(definition.from, definition.to);
   const trimmed = text.trimEnd();
-  let start = text.slice(trimmed.length).includes("\n")
-    ? definition.from + trimmed.length
-    : definition.to;
+  let start = type === "function"
+    ? name.to
+    : text.slice(trimmed.length).includes("\n")
+      ? definition.from + trimmed.length
+      : definition.to;
   // A union member line after a comment line continues the declaration's
   // type (`local v: number` then `-- note` then `| string = 5`) and can hold
   // its value, so the names are visible only after the last such line.
-  for (let next = definition.nextSibling; next; next = next.nextSibling) {
+  for (
+    let next = type === "var" ? definition.nextSibling : null;
+    next;
+    next = next.nextSibling
+  ) {
     if (next.name === "LuauTypeUnionLineContinuation") {
       const lineText = read(next.from, next.to);
       const lineTrimmed = lineText.trimEnd();
@@ -225,7 +247,9 @@ const getVariableScope = (
   // A statement the definition's content holds after a comma comes after
   // the declaration, so the names are visible from it. An anonymous
   // function there is a value, in which they are not.
-  const content = definition.getChild(`${definition.name}_content`);
+  const content = type === "var"
+    ? definition.getChild(`${definition.name}_content`)
+    : null;
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (
       TRAILING_STATEMENT_NAMES.has(child.name) &&
@@ -239,8 +263,13 @@ const getVariableScope = (
   // declaration, whose later siblings include the `if` branches or
   // alternator arms after it.
   let to: number | undefined;
+  // Scan a function declaration's later siblings before finding its
+  // enclosing block, so the next conditional branch still ends its scope.
   let block: Node | null = definition;
-  for (; block && !LUAU_BLOCKS.has(block.name); block = block.parent as Node | null) {
+  for (; block; block = block.parent as Node | null) {
+    if (LUAU_BLOCKS.has(block.name) && !(type === "function" && block === definition)) {
+      break;
+    }
     // Branches and alternator arms never sit at the root, so a root-level
     // statement's later siblings, the rest of the script, are not scanned.
     if (!block.parent?.parent) {
@@ -313,6 +342,11 @@ export const getDeclarationScopes = (
   cursor: { uri: string; offset: number },
 ): DeclarationScopes => {
   const scopes: DeclarationScopes = {};
+  const visibleLocals = new Map<
+    string,
+    { type: DeclarationType; from: number; scopePath: string }
+  >();
+  const visibleSectionParameters = new Map<string, Set<string>>();
   const file = (scopePath: string, type: DeclarationType, name: string) => {
     scopes[scopePath] ??= {};
     scopes[scopePath][type] ??= [];
@@ -326,25 +360,31 @@ export const getDeclarationScopes = (
       name: string;
     }[] = [];
     const inCursorScript = uri === cursor.uri;
+    const cursorSection = inCursorScript && tree
+      ? getParentSectionPath(getStack<SparkdownNodeName>(tree, cursor.offset, -1), read)
+      : [];
     const cur = annotations.declarations?.iter();
     if (cur) {
       while (cur.value) {
         const text = read(cur.from, cur.to);
         const type = cur.value.type;
         const localScope =
-          tree && type === "var"
-            ? getVariableScope(tree, cur.from, read, inCursorScript)
+          tree && (type === "var" || type === "function")
+            ? getLocalScope(tree, cur.from, read, inCursorScript, type)
             : tree && type === "param"
               ? getParameterScope(tree, cur.from, read, inCursorScript)
               : undefined;
         if (localScope !== undefined) {
-          // Local: visible only after its declaration and inside its block
+          // Scoped declaration: offer only inside its visible local span.
           if (
             localScope &&
             cursor.offset > localScope.from &&
             cursor.offset <= localScope.to
           ) {
-            file("", type, text);
+            const previous = visibleLocals.get(text);
+            if (!previous || localScope.from > previous.from) {
+              visibleLocals.set(text, { type, from: localScope.from, scopePath: "" });
+            }
           }
           cur.next();
           continue;
@@ -379,11 +419,50 @@ export const getDeclarationScopes = (
         }
         if (type === "label" || type === "param") {
           // Section
-          file(scopePathParts.map((p) => p.name).join("."), type, text);
+          const sectionParts = scopePathParts.map((p) => p.name);
+          const scopePath = sectionParts.join(".");
+          if (type === "param" && inCursorScript && sectionParts.length > 0 &&
+              cur.to < cursor.offset &&
+              sectionParts.every((part, index) => part === cursorSection[index])) {
+            // Section parameters compete with locals in their actual enclosing
+            // scene/branch, but retain their public section bucket.
+            const parameters = visibleSectionParameters.get(scopePath) ?? new Set<string>();
+            parameters.add(text);
+            visibleSectionParameters.set(scopePath, parameters);
+            const previous = visibleLocals.get(text);
+            if (!previous || cur.to > previous.from) {
+              visibleLocals.set(text, { type, from: cur.to, scopePath });
+            }
+          }
+          file(scopePath, type, text);
         }
         cur.next();
       }
     }
+  }
+  // Resolve lexical bindings before completion providers deduplicate names.
+  // Section destinations have their own namespace and remain available.
+  const bindingTypes: DeclarationType[] = [
+    "var",
+    "param",
+    "const",
+    "function",
+    "define",
+  ];
+  for (const [scopePath, scope] of Object.entries(scopes)) {
+    for (const type of bindingTypes) {
+      const names = scope[type];
+      if (names) {
+        scope[type] = names.filter((name) =>
+          !visibleLocals.has(name) ||
+          (type === "param" && scopePath !== "" &&
+            !visibleSectionParameters.get(scopePath)?.has(name)),
+        );
+      }
+    }
+  }
+  for (const [name, { type, scopePath }] of visibleLocals) {
+    file(scopePath, type, name);
   }
   return scopes;
 };
