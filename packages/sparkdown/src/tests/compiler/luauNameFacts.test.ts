@@ -69,7 +69,7 @@ describe("shared AST name facts", () => {
     const cached = lint.collectLuauLints(value.tree, (from, to) => source.slice(from, to));
     expect(cached.roots === value.result.roots).toBe(true);
     expect(cached.names === facts).toBe(true);
-    expect(cached.names.references[0].node === facts.references[0].node).toBe(true);
+    expect(cached.names.references[0]!.node === facts.references[0].node).toBe(true);
     const expanded = lint.collectLuauLints(unpack(value.tree), (from, to) => source.slice(from, to));
     expect(expanded.names.references.map(({ name, from, to }) => ({ name, from, to }))).toEqual(facts.references.map(({ name, from, to }: any) => ({ name, from, to })));
   });
