@@ -20,7 +20,7 @@ PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 PASS  node_modules  — esbuild and vitest both run
 ```
 
-Whatever the disk line says, the resolve-issue preflight then removes the worktrees whose work is already on `main` through the clean-worktrees skill (`node .agents/skills/clean-worktrees/clean-worktrees.mjs`, from the main checkout, dry run first, then `--apply --root <absolute-main-checkout>`), before this task's worktree exists. If disk headroom still fails after that cleanup, free space some other way before creating the worktree; the script keeps every worktree with uncommitted, unpushed or unmerged work and never removes them for you.
+Resolve-issue preflight inspects candidates through the clean-worktrees skill (`node .agents/skills/clean-worktrees/clean-worktrees.mjs`, from the main checkout, dry run only), before this task's worktree exists. Routine preflight does not require or authorize broad apply. Failed disk headroom blocks a new-worktree start; seek explicit authorization for the skill's bounded recovery procedure, then rerun the disk gate. Preserve active agents and their review/testing gates; do not perform automatic cache or machine-wide cleanup.
 
 ---
 

@@ -22,6 +22,14 @@ Directories under `../impower.worktrees/` that are not worktrees are listed too,
 
 The refusals are not to be overridden by hand for a tree with changes in it. Commit or discard the changes so the next run judges the tree, and stop the servers so the next run sees them down. The session's own worktree goes only if its pull request has merged by the time the script runs; otherwise it stays for the next run, which is the reason this is not a step of `resolve-issue`.
 
+### Review-job ownership
+
+Review-job classification and removal retain any candidate that is or contains a registered worktree, naming each protected absolute path. Embedded Git repositories and unreadable or uncertain inventory/ownership also retain the candidate. Inventory is refreshed before link removal and deletion; closed PRs and clean or merged descendants do not override protection. Independently handle an explicitly authorized worktree through guarded targeted cleanup before its ancestor can qualify.
+
+### Bounded low-disk recovery
+
+Routine ticket preflight inspects a dry run without broad apply. Failed disk headroom blocks a new worktree. Obtain explicit authorization for bounded recovery: select one exact target, confirm with its owner that it is idle and no other session needs it, inspect `git status --ignored`, and preserve needed ignored files and review/reproduction artifacts outside the target. Use targeted `--remove` only when eligible, then rerun preflight. A refusal or partial failure remains a recovery blocker; preserve the log and leftovers. Leave already-running agents and review/testing gates alone. No automatic cache or machine-wide cleanup.
+
 ## Gotchas
 
 Three facts the script cannot decide for you; every refusal it can make is in the script and its check instead.

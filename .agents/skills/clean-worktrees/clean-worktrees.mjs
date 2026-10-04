@@ -1289,11 +1289,44 @@ export function numberState(number, deps, cwd) {
 // holding it started then; one recorded bare, or whose start time cannot be
 // read now, is taken at its number's word, which keeps a directory rather than
 // removing one in use.
+export function jobProtection(dir, deps, ctx) {
+  const reasons = [];
+  let inventory;
+  try { inventory = deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot); }
+  catch (err) { inventory = { status: 1, err: err.message }; }
+  const entries = inventory.status === 0 ? parseWorktreeList(inventory.out) : [];
+  if (!entries.length || entries.some((entry) => !path.isAbsolute(entry.path)) || !entries.some((entry) => samePath(entry.path, ctx.mainRoot))) reasons.push(`registered worktree inventory could not be read (${inventory.err || "incomplete inventory"})`);
+  for (const entry of entries) {
+    if (samePath(entry.path, dir) || isUnder(entry.path, dir)) reasons.push(`protected registered worktree ${path.resolve(entry.path)}`);
+  }
+  const pending = [dir];
+  while (pending.length) {
+    const current = pending.pop();
+    try {
+      const stat = (deps.lstat ?? liveDeps.lstat)(current);
+      if (stat.isSymbolicLink()) {
+        if (samePath(current, dir)) reasons.push(`job root is a link: ${current}`);
+        continue;
+      }
+      for (const entry of (deps.readEntries ?? liveDeps.readEntries)(current)) {
+        const child = path.join(current, entry.name);
+        if (entry.name === ".git") reasons.push(`protected embedded Git repository ${current}`);
+        else if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(child);
+      }
+    } catch (err) {
+      reasons.push(`repository ownership could not be inspected at ${current}: ${err.code ?? err.message}`);
+    }
+  }
+  return reasons.join("; ");
+}
+
 export function classifyJob(name, dir, deps, ctx) {
   const m = /^pr-(\d+)$/.exec(name);
   const test = /^test-/.test(name);
   if (!m && !test) return { remove: false, reason: "not a pr-<N> or test-* job directory; left for a person" };
   const keep = [];
+  const protection = jobProtection(dir, deps, ctx);
+  if (protection) keep.push(protection);
   let github = null;
   if (m) {
     github = numberState(Number(m[1]), deps, ctx.mainRoot);
@@ -1338,9 +1371,21 @@ export function classifyJob(name, dir, deps, ctx) {
 // junctions into live worktrees), the tree is walked again to confirm none is
 // left, and only then is the rest deleted, which then holds plain files and
 // directories only.
-export function removeJobDir(dir) {
-  const unlinked = unlinkLinksIn(dir);
-  if (unlinkLinksIn(dir) !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
+export function removeJobDir(dir, guard = () => {}) {
+  let changed = 0;
+  const check = () => {
+    try { guard(); }
+    catch (err) {
+      if (changed) throw new Error(`${err.message}; ${n(changed, "link")} already unlinked, targets untouched; preserve remaining artifacts for recovery`);
+      throw err;
+    }
+  };
+  const removedLink = () => { changed++; };
+  check();
+  const unlinked = unlinkLinksIn(dir, check, removedLink);
+  check();
+  if (unlinkLinksIn(dir, check, removedLink) !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
+  check();
   fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
   return unlinked;
 }
@@ -1348,7 +1393,7 @@ export function removeJobDir(dir) {
 // Unlinks every symlink and junction under a directory and returns how many,
 // never following one: a directory junction or symlink on Windows is removed
 // with rmdir, which deletes the reparse point and never its target.
-function unlinkLinksIn(dir) {
+function unlinkLinksIn(dir, guard = () => {}, removedLink = () => {}) {
   let found = 0;
   const pending = [dir];
   while (pending.length) {
@@ -1356,12 +1401,14 @@ function unlinkLinksIn(dir) {
     for (const it of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, it.name);
       if (it.isSymbolicLink()) {
+        guard();
         found++;
         try {
           fs.unlinkSync(p);
         } catch {
           fs.rmdirSync(p);
         }
+        removedLink();
       } else if (it.isDirectory()) pending.push(p);
     }
   }
@@ -1389,12 +1436,15 @@ export function cleanJobs(ctx, deps, apply, record) {
       else {
         record({ decision: "removing", path: dir, why });
         try {
-          const unlinked = removeJobDir(dir);
+          const unlinked = removeJobDir(dir, () => {
+            const protection = jobProtection(dir, deps, ctx);
+            if (protection) throw new Refusal(protection);
+          });
           decision = "removed";
           if (unlinked) why += `; ${n(unlinked, "link")} unlinked first, targets untouched`;
         } catch (err) {
-          failed++;
-          decision = "failed";
+          if (err instanceof Refusal) decision = "kept";
+          else { failed++; decision = "failed"; }
           why = `${err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
         }
       }
