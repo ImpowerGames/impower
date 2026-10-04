@@ -37,7 +37,21 @@ The rules walk the Luau AST that `src/compiler/typecheck/readLuauAst.ts` reads f
 - Unlike Luau's parser, the reading does not end a block at a `return`, `break` or `continue`: Sparkdown reads the statements after one as its block's, and `UnreachableCode` reports the first of them.
 - `DuplicateCondition` and `ForRange` read every Luau `if` statement and expression, `and`/`or` chain and numeric `for` in a script, in functions or not, Sparkdown's narrative blocks included (`if`, `while`, `for`): a narrative block's condition and the Luau inside it are read, but the conditions of a narrative `if` block's arms are not compared with each other.
 
-The pass runs over whole scripts on every compile rather than inside the incremental annotators, since a lint depends on lines far from the one it reports, and the compiler caches each script's result until its syntax tree changes.
+The pass runs over whole scripts rather than inside the incremental annotators, since a lint depends on lines far from the one it reports. The compiler caches each script's diagnostics and name facts until its syntax tree changes. Structural extraction uses Lezer's public `Tree`/`TreeBuffer` representation to select Luau nodes without building a cursor for every narrative word and grammar capture; embedded expression ASTs and narrative-if offsets are read once per tree. The rules themselves still execute on each direct call to `collectLuauLints`.
+
+## Shared name facts and program index
+
+`src/compiler/lint/luauNames.ts` collects names from the converter AST that the type checker reads, with the same `AstLocal` objects for declarations and references. `LuauScriptLints.names` distinguishes local declarations and parameters, global definitions, reads, plain writes and compound writes. It retains each reference's authored enclosing function and each declaration's AST block identity. A `store` or `const` remains an explicit global definition; a property write reads its receiver and index rather than writing the receiver's name.
+
+Authored function statements also retain their qualified paths and receivers, the local binding identity where applicable, and whether they are methods. Separate `if` arms keep distinct AST block identities. Synthetic wrappers used to read Sparkle handler statements are not authored enclosing functions; actual function values inside those handlers retain their own identity.
+
+Declaration `scope` is the owning AST block: parameters and loop variables use their function or loop body, and ordinary locals use the block containing their declaration. Binding identity remains the converter's authority for visibility, including a `repeat` body's locals in its `until` condition. Parser recovery identifiers such as `%error-id%` are excluded from name facts and unused-local warnings.
+
+The facts include all document units and embedded Luau access paths and expressions in narrative text, interpolations, call shorthand, define values and Sparkle handlers. Standalone embedded expressions use the converter's existing reading, which classifies their names as globals; this pass does not add a second parser or scope resolver.
+
+`LuauScriptLints.roots` exposes those same cached AST roots and their `offsets.range(location)` mapping for expression-based rules. Handler statement roots omit their synthetic function wrapper. Consumers can visit these roots without discovering or parsing embedded candidates again.
+
+`SparkdownCompiler.validateLints` combines the current scripts with `indexProgramNames` on every validation. The returned index holds definitions, reads and writes by global name, with script URIs, plus authored function definitions and the per-script facts. Recombining the current script set removes deleted scripts and uses immediately, while unchanged trees retain their fact and local identities. These are shared prerequisites for name-based warning rules; this index introduces no new warning rule by itself.
 
 ## Checking for false positives
 
