@@ -81,6 +81,26 @@ the script invokes it through Python without a shell. Review and commit both
 artifacts and `build.json` together after rebuilding. The test validates hashes
 and pin, and visibly skips only when either runtime artifact is absent.
 
+`typecheck-ast/` is a separate test-only parser for declaration setup at the
+type-checker pin in `typecheck-cases.json`. It does not replace the runtime
+oracle or any production parser. Rebuild from a clean checkout at that exact
+pin using the same Emscripten 4.0.10 SDK:
+
+```sh
+node packages/sparkdown/scripts/buildOfficialAst.mjs /tmp/luau-typecheck-source --typecheck
+node scripts/test-suite.mjs run packages/sparkdown src/tests/luau-conformance/fixtureQuerySupport.test.ts --wait 600
+```
+
+Commit its bridge, loader, WASM and build manifest together. The explicit
+`loadOfficialLuau("typecheck")` route verifies the type-checker pin and all
+three artifact hashes before parsing. Its bridge follows the same CLI parser
+options and enables only the `Luau`-prefixed flags; Debug/Test flags retain
+their defaults. It supplies the encoder's analysis-owned
+`DebugLuauIfLocalAnalysis` flag at its false default, without enabling the
+experimental syntax or analysis. Per-case parser flag overrides are not
+supported; unsupported requests are diagnosed by the harness, not inferred
+from this oracle's defaults.
+
 The adapter follows `CLI/src/Ast.cpp`: it enables boolean flags prefixed `Luau`
 and uses `captureComments` and `allowDeclarationSyntax`. All parsing and node
 positions come from the unmodified upstream parser. It reuses the upstream

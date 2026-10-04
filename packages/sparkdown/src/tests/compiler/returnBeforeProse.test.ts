@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { parseSource } from "./grammarSnapshot";
 
-// In narrative code a `return` ends at its line: the next line is prose,
-// never the returned value (only a Luau function body reads a value from
-// the line after a `return` that is the whole of its line).
+// Bare narrative `return` is prose. An explicitly marked return ends at its
+// line: the next line stays prose, never its returned value. Only a real
+// Luau function body reads a value after a whole-line bare return.
 
 function returnEnd(source: string): number | undefined {
   const tree = parseSource(source);
@@ -26,7 +26,7 @@ function nodeNamesFor(source: string, key: string): string[] {
   return names;
 }
 
-describe("the line after a return in narrative code stays prose", () => {
+describe("bare return and its following line are narrative prose", () => {
   test.each([
     ["a scene", `scene a\n  return\n  Hello there.\n`],
     ["an if block in a scene", `scene a\n  if x then\n    return\n    Hello there.\n  end\n`],
@@ -35,6 +35,15 @@ describe("the line after a return in narrative code stays prose", () => {
     ["if x then return in a scene", `scene a\n  if x then return\n  Hello there.\n  end\n`],
     ["while x do return in a scene", `scene a\n  while x do return\n  Hello there.\n  end\n`],
     ["the top level", `return\nHello there.\n`],
+  ])("%s", (_name, source) => {
+    expect(returnEnd(source)).toBeUndefined();
+    expect(nodeNamesFor(source, "return")).toContain("Word");
+    expect(nodeNamesFor(source, "Hello")).toContain("Word");
+  });
+});
+
+describe("the line after an explicit narrative return stays prose", () => {
+  test.each([
     ["& return in a scene", `scene a\n  & return\n  Hello there.\n`],
     ["& return at the top level", `& return\nHello there.\n`],
     ["& return in an if block in a scene", `scene a\n  if x then\n    & return\n    Hello there.\n  end\n`],

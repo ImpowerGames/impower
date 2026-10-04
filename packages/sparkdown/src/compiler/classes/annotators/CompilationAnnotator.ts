@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 // Side-effect import to stabilize the inkjs engine module load order.
 // `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
 // dependency cycle; if `Object.ts` is the first to load, `Value.ts`
@@ -365,7 +366,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           let inner = cur.firstChild;
           while (inner) {
             // A value in the list (`x` in `store a, b = 1, x`) declares nothing.
-            if (inner.name === "LuauVariableAssignment" && !valueListAssignmentName(inner)) {
+            if (isExplicitRuleName(inner.name, "LuauVariableAssignment") && !valueListAssignmentName(inner)) {
               const nameNode = this.findDescendant(inner, "LuauVariableName");
               if (nameNode) set.add(this.read(nameNode.from, nameNode.to).trim());
             }
@@ -580,7 +581,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         // `SparkdownCompiler.canonicalizeSyntheticFlowNames` numbers the
         // containers in document order on every compile, so the value set
         // here only marks the chunk.
-        if (nodeRef.name === "Tags") {
+        if (isExplicitRuleName(nodeRef.name, "Tags")) {
           lowered.uuid = "tags";
         }
         annotations.push(

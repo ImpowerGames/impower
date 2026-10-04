@@ -86,9 +86,12 @@ const MAX_BYTES = 512 * 1024;
 
 /** Per-session cache. Keyed by content, so nothing needs to invalidate it. */
 const MAX_CACHE_ENTRIES = 64;
-const cache = new Map<string, string>();
+const sharedCache = new Map<string, string>();
+// A bridge belongs to one workspace session. The same URI/revision in a
+// different session must not reuse bytes supplied by the previous host.
+const bridgeCaches = new WeakMap<ReadFileBytes, Map<string, string>>();
 
-const cacheGet = (key: string) => {
+const cacheGet = (cache: Map<string, string>, key: string) => {
   const hit = cache.get(key);
   if (hit !== undefined) {
     // Refresh recency so the working set survives eviction.
@@ -98,7 +101,7 @@ const cacheGet = (key: string) => {
   return hit;
 };
 
-const cacheSet = (key: string, value: string) => {
+const cacheSet = (cache: Map<string, string>, key: string, value: string) => {
   cache.set(key, value);
   while (cache.size > MAX_CACHE_ENTRIES) {
     const oldest = cache.keys().next();
@@ -200,11 +203,17 @@ export const getImageCompositeSrc = async (
     // returns the right thing.
     return undefined;
   }
+  const bridge = options?.readFileBytes;
+  let cache = sharedCache;
+  if (bridge) {
+    cache = bridgeCaches.get(bridge) ?? new Map<string, string>();
+    bridgeCaches.set(bridge, cache);
+  }
   // Skip reads only with an explicit host revision or immutable inline source.
   const provisionalKey = layers.every(layer => layer.version !== undefined || layer.src.startsWith("data:"))
     ? JSON.stringify(layers.map(layer => [layer.src, layer.uri, layer.version]))
     : undefined;
-  const provisional = provisionalKey === undefined ? undefined : cacheGet(provisionalKey);
+  const provisional = provisionalKey === undefined ? undefined : cacheGet(cache, provisionalKey);
   if (provisional !== undefined) {
     return provisional || undefined;
   }
@@ -213,30 +222,32 @@ export const getImageCompositeSrc = async (
     layers.map((layer) => loadLayer(layer, options?.readFileBytes)),
   );
   if (sources.some((s) => !s)) {
-    // Cache the failure: retrying a fetch that can't work in this host on
-    // every resolve would be worse than one stale miss.
-    if (provisionalKey !== undefined) cacheSet(provisionalKey, "");
+    // A failed bridge read may be temporary even when the file's revision
+    // is unchanged. Only memoize an unreachable source without a bridge.
+    if (!bridge && provisionalKey !== undefined) cacheSet(cache, provisionalKey, "");
     return undefined;
   }
   const loaded = sources as ThumbnailSource[];
 
   const key = thumbnailCacheKey(loaded, PREVIEW_WIDTH);
-  const cached = cacheGet(key);
+  const cached = cacheGet(cache, key);
   if (cached !== undefined) {
-    if (provisionalKey !== undefined) cacheSet(provisionalKey, cached);
+    if (provisionalKey !== undefined) cacheSet(cache, provisionalKey, cached);
     return cached || undefined;
   }
 
   const blob = await composeThumbnailBlob(loaded, PREVIEW_WIDTH);
   if (!blob) {
-    cacheSet(key, "");
-    if (provisionalKey !== undefined) cacheSet(provisionalKey, "");
+    if (!bridge) {
+      cacheSet(cache, key, "");
+      if (provisionalKey !== undefined) cacheSet(cache, provisionalKey, "");
+    }
     return undefined;
   }
   const uri = toDataUri(new Uint8Array(await blob.arrayBuffer()), blob.type);
   const value = uri.length > MAX_BYTES ? "" : uri;
-  cacheSet(key, value);
-  if (provisionalKey !== undefined) cacheSet(provisionalKey, value);
+  cacheSet(cache, key, value);
+  if (provisionalKey !== undefined) cacheSet(cache, provisionalKey, value);
   return value || undefined;
 };
 

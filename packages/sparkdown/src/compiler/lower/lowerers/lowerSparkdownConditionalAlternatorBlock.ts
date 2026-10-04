@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -111,7 +112,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
   // inline content with no per-arm newline, so we set `isInline = true`
   // to suppress that leading newline.
   const isInline =
-    prefix === "LuauConditionalAlternatorBlock" ||
+    isExplicitRuleName(prefix, "LuauConditionalAlternatorBlock") ||
     prefix === "LuauSparkdownInlineGluedConditionalAlternatorBlock" ||
     prefix === "LuauSparkdownSingleLineConditionalAlternatorBlock";
 

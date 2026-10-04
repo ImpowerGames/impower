@@ -1,3 +1,4 @@
+import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { resolveAttributes, type AttributeVocabulary } from "@impower/sparkdown/src/attributes";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
@@ -1059,7 +1060,7 @@ const addImmutableAccessPathCompletions = (
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
     if (scopes) {
-      const types: DeclarationType[] = ["const"];
+      const types: DeclarationType[] = ["const", "function", "define"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (parts.length <= 1 && isWithinSection(scopePath, path)) {
           for (const type of types) {
@@ -1067,7 +1068,9 @@ const addImmutableAccessPathCompletions = (
               for (const name of declarations[type]) {
                 if (name) {
                   const description = type;
-                  const kind = CompletionItemKind.Class;
+                  const kind = type === "function"
+                    ? CompletionItemKind.Function
+                    : CompletionItemKind.Class;
                   const completion: CompletionItem = {
                     label: name,
                     insertText: insertTextPrefix + name,
@@ -1340,15 +1343,15 @@ export const getCompletions = (
   const quotedAttribute = leftStack.find((node) =>
     node.name === "LuauDoubleQuotedString" || node.name === "LuauSingleQuotedString",
   );
-  const attributeTable = leftStack.find((node) => node.name === "LuauTable");
+  const attributeTable = leftStack.find((node) => isExplicitRuleName(node.name, "LuauTable"));
   const attributeProperty = leftStack.find((node) => node.name === "LuauPropertyDefinition");
   const attributeDefine = getDefineContext(leftStack, read);
   if (program?.context && quotedAttribute && attributeTable && attributeProperty &&
       attributeDefine?.type === "filtered_image" &&
-      leftStack.filter((node) => node.name === "LuauTable").length === 1 &&
+      leftStack.filter((node) => isExplicitRuleName(node.name, "LuauTable")).length === 1 &&
       getNodeText(getDescendent("LuauVariableName", attributeProperty)) === "attributes" &&
-      getDescendent("LuauTable", attributeProperty)?.from === attributeTable.from) {
-    const content = attributeTable.getChild("LuauTable_content");
+      getDescendent(["LuauTable", "LuauSparkdownExplicitTable"], attributeProperty)?.from === attributeTable.from) {
+    const content = (attributeTable.getChild("LuauTable_content") ?? attributeTable.getChild("LuauSparkdownExplicitTable_content"));
     const entries: SyntaxNode[] = [];
     let literalList = !!content;
     for (let node = content?.firstChild; node; node = node.nextSibling) {
@@ -1970,7 +1973,7 @@ export const getCompletions = (
       )) &&
     !leftStack.some(
       (n) =>
-        n.type.name === "LuauAccessPath" || n.type.name === "StylingAccessPath",
+        isExplicitRuleName(n.type.name, "LuauAccessPath") || n.type.name === "StylingAccessPath",
     )
   ) {
     const defineContext = getDefineContext(leftStack, read);
@@ -2026,7 +2029,7 @@ export const getCompletions = (
   // completions — no `ViewStructField` wrapper lookup needed.
   const accessPathNode = leftStack.find(
     (n) =>
-      n.type.name === "LuauAccessPath" || n.type.name === "StylingAccessPath",
+      isExplicitRuleName(n.type.name, "LuauAccessPath") || n.type.name === "StylingAccessPath",
   );
   if (accessPathNode) {
     const valueText = getNodeText(accessPathNode);
@@ -2107,7 +2110,7 @@ export const getCompletions = (
     }
     return buildCompletions();
   }
-  if (leftStack[0]?.name === "DivertPath") {
+  if (isExplicitRuleName(leftStack[0]?.name, "DivertPath")) {
     if (isCursorAfterNodeText(leftStack[0])) {
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
@@ -2123,7 +2126,7 @@ export const getCompletions = (
     }
     return buildCompletions();
   }
-  const divertPathNode = leftStack.find((n) => n.type.name === "DivertPath");
+  const divertPathNode = leftStack.find((n) => isExplicitRuleName(n.type.name, "DivertPath"));
   if (
     divertPathNode &&
     (leftStack[0]?.name === "PunctuationAccessor" ||

@@ -1,3 +1,5 @@
+import { isExplicitRuleName } from "../utils/explicitRuleNames";
+import { nodeNameSet } from "../utils/nodeNameSet";
 import {
   ChangeDesc,
   ChangeSet,
@@ -62,11 +64,12 @@ function annotationValueKey(value: SparkdownAnnotation<any>): string {
 
 // Values whose delimiters close them off: an edit strictly inside one leaves
 // everything outside it as it was.
-const DELIMITED_VALUE_NAMES = new Set([
+const DELIMITED_VALUE_NAMES = nodeNameSet([
   "LuauTable",
   "LuauFunctionDefinition",
   "LuauFunctionBody",
   "LuauParenthetical",
+  "LuauSparkdownExplicitParenthetical",
   "LuauFunctionCallParameters",
 ]);
 
@@ -74,7 +77,7 @@ const DELIMITED_VALUE_NAMES = new Set([
 // bare access path (`DeclarationAnnotator`'s bare targets). Null for anything
 // else.
 function listNameEnd(child: SyntaxNode): number | null {
-  if (child.name === "LuauAccessPath") return child.to;
+  if (isExplicitRuleName(child.name, "LuauAccessPath")) return child.to;
   return assignmentListName(child)?.to ?? null;
 }
 
