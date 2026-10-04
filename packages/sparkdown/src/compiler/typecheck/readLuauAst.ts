@@ -3683,7 +3683,11 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
   const preludeNodes: SyntaxNode[] = [];
   const flows: Flow[] = [];
   const open: Flow[] = [];
-  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+  const cursor = tree.cursor();
+  if (cursor.firstChild()) do {
+    const name = cursor.name;
+    if (!FLOW_HEADERS.has(name) && name !== "LuauEndKeyword" && name !== "LuauFunctionDefinition" && !LUAU_STATEMENTS.has(name)) continue;
+    const node = cursor.node;
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
       if (enclosing && node.name === "Branch") {
@@ -3710,7 +3714,7 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
       if (flow) flow.body.push({ node });
       else preludeNodes.push(node);
     }
-  }
+  } while (cursor.nextSibling());
 
   // The prelude: its statements, as written.
   const preludeTokenizer = new Tokenizer(documentText, index);
