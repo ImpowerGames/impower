@@ -18,7 +18,6 @@ import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
 import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeUnionLineValue } from "./lineContinuation";
-import { validateExplicitStatement } from "./validateExplicitStatement";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
 // declaration: a value missing after `=` or after a comma, a second `=`, a
@@ -80,10 +79,6 @@ export function validateStatementNode(
     return;
   }
   if (node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
-    // Stylistic diagnostic: inside a function body, the `&` prefix is
-    // redundant.
-    const diagnostics = validateExplicitStatement(node, ctx);
-    if (diagnostics.length > 0) ctx.diagnostics?.push(...diagnostics);
     const declaration = getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node);
     if (declaration) {
       validateVariableDefinition(declaration, continuation, ctx);
