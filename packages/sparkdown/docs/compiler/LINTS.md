@@ -63,7 +63,7 @@ Rules drawing conclusions from absent uses, enclosing-function exclusivity or in
 
 `SparkdownCompiler.validateLints` combines the current scripts with `indexProgramNames` on every validation. The returned index holds definitions, reads and writes by global name, with script URIs, plus authored function definitions and the per-script facts. Recombining the current script set removes deleted scripts and uses immediately, while unchanged trees retain their fact and local identities. These are shared prerequisites for name-based warning rules; this index introduces no new warning rule by itself.
 
-`ImplicitReturn` checks complete Luau functions, including function values and `define` methods. It leaves bodies containing AST errors alone, and it does not infer function returns from Sparkdown's narrative flows. A nested function's return belongs only to that function. As in Luau, loop breaks count only for the loop they leave.
+`ImplicitReturn` checks complete Luau functions, including function values and `define` methods. It leaves bodies containing AST errors alone, and it does not infer function returns from Sparkdown's narrative flows. A nested function's return belongs only to that function. As in Luau, loop breaks count only for the loop they leave. Sparkdown conservatively adapts Luau's analysis to recognize numeric and string literal `while` guards as always truthy, including `0` and `""`; without a break in that loop, they cannot fall through. Other expressions are not assumed constant.
 
 ## Checking for false positives
 

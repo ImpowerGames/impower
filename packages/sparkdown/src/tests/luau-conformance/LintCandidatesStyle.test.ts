@@ -255,6 +255,45 @@ return f1,f2,f3,f4
 describe("ImplicitReturn safety and diagnostic locations", () => {
   const implicit = (source: string) => diagnoseDetailed(source).filter((d) => d.code === "ImplicitReturn");
 
+  // Sparkdown adaptation: Luau runtime truthiness makes 0 and even an empty
+  // string true. These literal guards cannot leave a while without a break.
+  test.each(["1", "0", '""', '"x"'])("a truthy constant while %s cannot fall through", (guard) => {
+    expect(implicit(`function f(a)
+ while ${guard} do
+  if a then return 1 end
+ end
+end`)).toEqual([]);
+  });
+
+  test.each(["1", "0", '""', '"x"'])("a same-loop break allows while %s to fall through", (guard) => {
+    const warnings = implicit(`function f(a)
+ while ${guard} do
+  if a then return 1 end
+  break
+ end
+end`);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.message).toBe("Function 'f' can implicitly return no values even though there's an explicit return at line 3; add explicit return to silence");
+  });
+
+  test.each(["1", "0", '""', '"x"'])("a nested-loop break does not exit while %s", (guard) => {
+    expect(implicit(`function f(a)
+ while ${guard} do
+  while a do break end
+  if a then return 1 end
+ end
+end`)).toEqual([]);
+  });
+
+  test.each(["nil", "false", "a"])("an unproven truthy while %s can fall through", (guard) => {
+    const warnings = implicit(`function f(a)
+ while ${guard} do
+  if a then return 1 end
+ end
+end`);
+    expect(warnings).toHaveLength(1);
+  });
+
   // The LocalUnused keyword-read fixture is intentionally a partial value
   // return. Its exact LocalUnused mask must not suppress this separate rule.
   test("the LocalUnused keyword-read control still warns about its implicit return", () => {

@@ -475,7 +475,7 @@ function fallthrough(stat: AstStat): AstStat | undefined {
   }
   if (stat instanceof AstStatReturn) return undefined;
   if (stat instanceof AstStatExpr && stat.expr instanceof AstExprCall && doesCallError(stat.expr)) return undefined;
-  if (stat instanceof AstStatWhile && stat.condition instanceof AstExprConstantBool && stat.condition.value && !hasLoopBreak(stat.body)) return undefined;
+  if (stat instanceof AstStatWhile && ((stat.condition instanceof AstExprConstantBool && stat.condition.value) || stat.condition instanceof AstExprConstantNumber || stat.condition instanceof AstExprConstantString) && !hasLoopBreak(stat.body)) return undefined;
   if (stat instanceof AstStatRepeat) {
     if (stat.condition instanceof AstExprConstantBool && !stat.condition.value && !hasLoopBreak(stat.body)) return undefined;
     if (!fallthrough(stat.body)) return undefined;
