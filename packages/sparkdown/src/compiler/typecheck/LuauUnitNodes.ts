@@ -80,6 +80,10 @@ export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauRegexLiteral",
 ].flatMap(explicitRuleNames));
 
+// A comment, or a part of one the tree reads apart from it (the `]]` that
+// closes a block comment after a value or type); a cast after a comment is not one.
+export const COMMENT = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)\w*Comment(Close|Content|Mark|Tags)?$/;
+
 // Nodes that may sit anywhere in Luau: trivia and punctuation.
 export const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
 
@@ -225,13 +229,13 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   return true;
 }
 
-/** A node's text with each comment the tree holds in it replaced by spaces. */
+/** A node's text with each comment the tree holds in it (`COMMENT`, as the checker's reading skips them) replaced by spaces. */
 function textWithoutComments(node: SyntaxNode, read: (from: number, to: number) => string): string {
   let text = "";
   let at = node.from;
   const walk = (parent: SyntaxNode): void => {
     for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (!child.name.includes("Comment")) {
+      if (!COMMENT.test(child.name)) {
         walk(child);
         continue;
       }
