@@ -3,6 +3,7 @@ import type { ProgramFallback } from "../../program/ChunkStore";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { type File } from "./File";
 import type { ProgramChangeSummary } from "./ProgramChangeSummary";
+import type { LocatedDefinitionPropertyMetadata } from "./DefinitionPropertyMetadata";
 import { type SceneAssets } from "./SceneAssets";
 import type { Range,SparkDiagnostic } from "./SparkDiagnostic";
 import {
@@ -116,6 +117,8 @@ export interface SparkProgram {
    * and whenever this compile's own implicit definitions differ.
    */
   contextRevision?: string;
+  /** Source declarations used by definition validation and property completion. */
+  definitionProperties?: LocatedDefinitionPropertyMetadata[];
   // Dedicated engine-facing channel for the static UI structs the UIModule
   // consumes: `layouts` (element trees keyed by name), `screens` (navigation
   // group defs), `components`. Derived from `context` after full assembly

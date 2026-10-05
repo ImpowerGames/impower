@@ -22,6 +22,7 @@ import { modeFromName } from "../typecheck/LuauDocumentChecker";
 import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
+import { getKnownDefinitionProperties } from "../utils/knownDefinitionProperties";
 import { STDLIB } from "../../inkjs/engine/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
@@ -2589,6 +2590,7 @@ export class SparkdownCompiler {
       this.validateSyntax(program);
       this.validateReferences(program);
       this.validateImageAttributes(program);
+      this.validateDefinitionProperties(program);
       this.validateMorphs(program);
       this.validateLints(program);
       this.validateTypes(program);
@@ -3184,6 +3186,14 @@ export class SparkdownCompiler {
         hoistedKnots,
       } = rec.block;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
+      if (rec.block.definitionProperties && !this._injectingPrelude) {
+        program.definitionProperties ??= [];
+        for (const metadata of rec.block.definitionProperties) {
+          // Place immutable chunk-relative spans afresh. Carried chunks can
+          // move after an edit without mutating metadata retained by a program.
+          program.definitionProperties.push({ ...metadata, uri, from: rec.from });
+        }
+      }
       // Track chunk identity for the incremental location cache. A chunk whose
       // CompiledBlock object is carried forward from the previous compile (same
       // identity) is unchanged; a new identity means it was re-lowered. Record
@@ -6464,6 +6474,63 @@ export class SparkdownCompiler {
       }
     }
     return result;
+  }
+
+  validateDefinitionProperties(program: SparkProgram) {
+    const registry = {
+      context: program.context,
+      definitions: program.definitionProperties,
+      optionals: this._config.definitions?.optionals,
+    };
+    const distance = (a: string, b: string) => {
+      let row = Array.from({ length: b.length + 1 }, (_, i) => i);
+      for (let i = 0; i < a.length; i++) {
+        const next = [i + 1];
+        for (let j = 0; j < b.length; j++) {
+          next.push(Math.min(next[j]! + 1, row[j + 1]! + 1, row[j]! + (a[i] === b[j] ? 0 : 1)));
+        }
+        row = next;
+      }
+      return row[b.length]!;
+    };
+    for (const definition of program.definitionProperties ?? []) {
+      if (definition.root) continue;
+      const doc = this.documents.get(definition.uri);
+      if (!doc) continue;
+      for (const property of definition.properties) {
+        const key = property.path[property.path.length - 1];
+        if (typeof key !== "string" || key.startsWith("$") || property.declaredByBlock) continue;
+        const known = getKnownDefinitionProperties(registry, definition.type, definition.name,
+          property.path.slice(0, -1), { includeOwnDeclarations: false });
+        if (known.recursive || !known.described) continue;
+        const existing = known.properties.get(key);
+        let message: string;
+        if (property.declared && existing) {
+          message = `Property \`${key}\` is already declared by ${existing.declaredBy}; remove \`declare\` to override it.`;
+        } else if (property.declared || known.open || existing) continue;
+        else {
+          message = `Cannot add property \`${key}\` to ${definition.type} \`${definition.name}\`.`;
+          let closest: string | undefined;
+          let best = Math.min(2, Math.floor(key.length / 3));
+          for (const candidate of known.properties.keys()) {
+            const score = distance(key, candidate);
+            if (score <= best && (score < best || closest === undefined || candidate < closest)) {
+              closest = candidate;
+              best = score;
+            }
+          }
+          if (closest) message += ` Did you mean \`${closest}\`?`;
+          message += ` Use \`declare ${key}\` to add it on purpose.`;
+        }
+        const range = doc.range(definition.from + property.key.from, definition.from + property.key.to);
+        program.diagnostics ??= {};
+        (program.diagnostics[definition.uri] ??= []).push({
+          range, severity: DiagnosticSeverity.Warning, source: LANGUAGE_NAME,
+          message: { value: message, kind: "markdown" },
+          relatedInformation: [{ location: { uri: definition.uri, range }, message: "" }],
+        });
+      }
+    }
   }
 
   getPropertyPath(

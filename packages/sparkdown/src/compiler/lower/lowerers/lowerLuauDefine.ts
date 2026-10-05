@@ -66,6 +66,7 @@ import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
+import type { DefinitionPropertyEntry } from "../../types/DefinitionPropertyMetadata";
 import {
   closeFunctionBody,
   openFunctionBody,
@@ -109,6 +110,7 @@ import {
 
 interface DefineProperty {
   name: string;
+  key: { from: number; to: number };
   expr: Expression;
   // "store" | "local" | "const" | "" — from LuauScopeModifier.
   scope: string;
@@ -614,6 +616,39 @@ export function lowerLuauDefine(
     }
   }
 
+  const definitionProperties: DefinitionPropertyEntry[] = [];
+  const relative = (span: { from: number; to: number }) => ({
+    from: span.from - (ctx.chunkFrom ?? nodeRef.from),
+    to: span.to - (ctx.chunkFrom ?? nodeRef.from),
+  });
+  const collectTable = (expr: AstExpr, path: (string | number)[]) => {
+    if (!(expr instanceof AstExprTable)) return;
+    let index = 0;
+    for (const item of expr.items) {
+      if (!item.key) {
+        collectTable(item.value, [...path, index++]);
+      } else if (item.key instanceof AstExprConstantString) {
+        const nestedPath = [...path, item.key.value];
+        definitionProperties.push({
+          path: nestedPath, key: relative(rangeOf(item.key.location, ctx)), declared: false,
+        });
+        collectTable(item.value, nestedPath);
+      }
+    }
+  };
+  for (const prop of properties) {
+    definitionProperties.push({ path: [prop.name], key: relative(prop.key), declared: false });
+    collectTable(prop.value.expr, [prop.name]);
+  }
+  block.definitionProperties = [{
+    type: parentIdentifier?.name ?? nameIdentifier.name ?? "",
+    name: parentIdentifier ? nameIdentifier.name ?? "" : "$default",
+    root: !parentIdentifier,
+    definesType: true,
+    ...(parentIdentifier ? { parent: { type: parentIdentifier.name ?? "", name: "$default" } } : {}),
+    properties: definitionProperties,
+    openPaths: [],
+  }];
   return block;
 }
 
@@ -736,6 +771,7 @@ function readPropertyDefinition(
   // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
   // plain identifier (`name = …`).
   let name: string | null = null;
+  let keySpan: { from: number; to: number } | undefined;
   const bracketAssignment = getDescendent("LuauBracketKeyAssignment", propNode);
   if (bracketAssignment) {
     const indexNode = getDescendent(
@@ -752,6 +788,7 @@ function readPropertyDefinition(
       key.expr.quoteStyle !== QuoteStyle.QuotedRaw
     ) {
       const range = rangeOf(key.expr.location, ctx);
+      keySpan = range;
       name = processLuauEscapes(stripQuotes(ctx.read(range.from, range.to)));
     }
     if (name == null) return null;
@@ -764,6 +801,7 @@ function readPropertyDefinition(
     const nameNode = getDescendent("LuauVariableName", variableAssignment);
     if (!nameNode) return null;
     name = ctx.read(nameNode.from, nameNode.to);
+    keySpan = nameNode;
   }
 
   const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
@@ -819,5 +857,5 @@ function readPropertyDefinition(
     ? ctx.read(accessNode.from, accessNode.to).trim()
     : "";
 
-  return { name, expr, scope, access, node: propNode, value };
+  return { name, key: keySpan!, expr, scope, access, node: propNode, value };
 }

@@ -1,0 +1,17 @@
+{
+  "source": [
+    "packages/spark-engine/src/game/modules/ui/constructors/optional_color.ts",
+    "packages/sparkdown-language-server/src/tests/completion/DeclaredProperties580.test.ts",
+    "packages/sparkdown-language-server/src/utils/providers/getCompletions.ts",
+    "packages/sparkdown/src/compiler/classes/SparkdownCompiler.ts",
+    "packages/sparkdown/src/compiler/classes/annotators/CompilationAnnotator.ts",
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerLuauDefine.ts",
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerLuauStructDefine.ts",
+    "packages/sparkdown/src/compiler/types/DefinitionPropertyMetadata.ts",
+    "packages/sparkdown/src/compiler/types/SparkProgram.ts",
+    "packages/sparkdown/src/compiler/utils/knownDefinitionProperties.ts",
+    "packages/sparkdown/src/tests/compiler/DefinitionPropertyValidation580.test.ts",
+    "packages/sparkdown/src/tests/compiler/KnownDefinitionProperties580.test.ts"
+  ],
+  "archivedNativeProbes": []
+}
