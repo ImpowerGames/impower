@@ -7,8 +7,7 @@ import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
 
-function readings(expression: string) {
-  const text = `function f(c)\n  local s = ${expression}\n  return s\nend\n`;
+function readings(expression: string, text = `function f(c)\n  local s = ${expression}\n  return s\nend\n`) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -42,6 +41,15 @@ describe("regex flags glued to an if expression's then (#1305)", () => {
     expect(result.official, "official Luau parser of projected checker text").toEqual([]);
     expect(result.errors).toEqual([]);
   });
+
+  test.each(["if @/x/githen 1 else 2", "if if c then false else @/x/githen 1 else 2"])(
+    "accepts %s in a bounded `&` statement",
+    (expression) => {
+      const result = readings(expression, `& local c = true\n& local s = ${expression}\n`);
+      expect(result.official, "official Luau parser of projected checker text").toEqual([]);
+      expect(result.errors).toEqual([]);
+    },
+  );
 
   test("still rejects an if expression missing then", () => {
     const result = readings("if @/x/gi 1 else 2");
