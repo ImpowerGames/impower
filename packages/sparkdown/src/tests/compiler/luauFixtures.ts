@@ -62,11 +62,6 @@ export const UNSUPPORTED_INTEGER_INPUTS: KnownDisagreement[] = [
 ];
 
 export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
-  {
-    fixture: "grammar/luau-declaration/repeat-local-before-until.sd",
-    issue: 1304,
-    reason: "Luau only: the prelude unit drops a top-level repeat loop's until clause, so the parser expects until",
-  },
   ...UNSUPPORTED_INTEGER_INPUTS,
   {
     fixture: "conformance/native_integer_spills.luau",
