@@ -35,8 +35,8 @@ function removeEntry(target,counts) {
 
 // `preserve` holds the top-level names that existed before the reviewer ran;
 // `keep` the files to keep even though they are new (the final report). A kept
-// file inside the directory must be a regular file, matched by the name the
-// directory lists (another case on Windows still matches): a link would need
+// file inside the directory must be a regular file, matched by its real path
+// (another case or a Windows 8.3 short name still matches): a link would need
 // every link component and target kept to stay readable, so one refuses the
 // whole cleanup before anything is removed. A kept file elsewhere needs no
 // protection here. Returns the counts of removed files and links. Throws when
@@ -45,16 +45,13 @@ function removeEntry(target,counts) {
 export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[]}={}) {
   if(!fs.lstatSync(directory).isDirectory())throw new Error(`Reviewer directory ${directory} is not a directory`);
   const root=fs.realpathSync.native(directory);
-  const keptPath=(file)=>{
-    const parent=fs.realpathSync.native(path.dirname(file)),base=path.basename(file),names=fs.readdirSync(parent);
-    const entry=names.find(name=>name===base)??(process.platform==='win32'?names.find(name=>name.toLowerCase()===base.toLowerCase()):undefined);
-    return path.join(parent,entry??base);
-  };
   const kept=new Set();
   for(const file of keep){
-    const target=keptPath(file);
+    // lstat of the path as given sees a link or a directory; the real path is the
+    // name the directory lists (another case, or a Windows 8.3 short name, resolves to it).
+    const stat=fs.lstatSync(file),target=fs.realpathSync.native(file);
     if(!isInside(root,target))continue;
-    if(!fs.lstatSync(target).isFile())throw new Error(`Kept file ${target} is not a regular file; nothing was removed`);
+    if(!stat.isFile())throw new Error(`Kept file ${file} is not a regular file; nothing was removed`);
     kept.add(target);
   }
   const counts={files:0,links:0};

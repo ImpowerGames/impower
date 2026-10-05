@@ -255,6 +255,18 @@ try {
       assert.equal(fs.readFileSync(path.join(linkedDir,'report.md'),'utf8'),'the report','the chain is still readable');
     } catch(error){if(error.code!=='EPERM')throw error;console.log('SKIP: a report linked through a chain of file symlinks (creating a file symlink needs a privilege this account lacks)');}
     fs.rmSync(linkedDir,{recursive:true});
+    // On a Windows volume with 8.3 short names, the report named by its short alias is the same file as the long entry the directory lists.
+    {
+      const aliasDir=fs.mkdtempSync(path.join(scratch,'cleanup-alias-')),aliasHad=snapshotReviewerDirectory(aliasDir),longName=path.join(aliasDir,'Report long filename.md');
+      fs.writeFileSync(longName,'the report');
+      let short;
+      if(process.platform==='win32')try{short=execFileSync('cmd',['/d','/s','/c',`for %I in ("${longName}") do @echo %~sI`],{encoding:'utf8',windowsHide:true}).trim();}catch{}
+      if(short&&short.toLowerCase()!==longName.toLowerCase()&&fs.existsSync(short)){
+        removeProbeCheckouts(aliasDir,{preserve:aliasHad,keep:[short]});
+        assert.equal(fs.readFileSync(longName,'utf8'),'the report','a report named by its 8.3 alias is kept');
+      } else console.log('SKIP: a report named by its 8.3 short alias (this volume has no short names, or this is not Windows)');
+      fs.rmSync(aliasDir,{recursive:true});
+    }
     assert.throws(()=>removeProbeCheckouts(path.join(dir,'missing')),/ENOENT/);
     const linked=path.join(scratch,'cleanup-link');fs.symlinkSync(outside,linked,'junction');
     assert.throws(()=>removeProbeCheckouts(linked),/not a directory/,'a linked reviewer directory is refused');
