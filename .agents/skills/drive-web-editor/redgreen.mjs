@@ -159,10 +159,20 @@ export function testShell() {
 
 // scripts/test-suite.mjs prints this line (and exits 75) when it could not take
 // the machine-wide Vitest reservation: no test ran, so the run is neither red
-// nor green and the same command can be run again.
+// nor green and the same command can be run again. Unterminated text from the
+// runner's process probe (`Starting the CLR failed with HRESULT 80004005.`) can
+// precede the marker on its line, so the marker is also accepted mid-line when
+// the exit status is the runner's 75; a test that merely quotes the text fails
+// with an ordinary status.
+const NOT_RUN_EXIT = 75;
 const NOT_RUN_RE = /^test-suite: not run: .*/m;
-const notStarted = (output) => NOT_RUN_RE.test(output.replace(ANSI_ESCAPE_RE, ""));
-const notRunLine = (output) => output.replace(ANSI_ESCAPE_RE, "").match(NOT_RUN_RE)[0];
+const NOT_RUN_MIDLINE_RE = /test-suite: not run: .*/;
+const notRunMatch = (output, exit) => {
+  const text = output.replace(ANSI_ESCAPE_RE, "");
+  return text.match(NOT_RUN_RE) ?? (exit === NOT_RUN_EXIT ? text.match(NOT_RUN_MIDLINE_RE) : null);
+};
+const notStarted = (output, exit) => notRunMatch(output, exit) != null;
+const notRunLine = (output, exit) => notRunMatch(output, exit)[0];
 
 export function runTest(cmd, cwd, shell = testShell(), { maxBuffer = 64 * 1024 * 1024 } = {}) {
   const r = spawnSync(cmd, {
@@ -204,7 +214,7 @@ export function runTest(cmd, cwd, shell = testShell(), { maxBuffer = 64 * 1024 *
  */
 export function classifyRedFailure(output, { removed = [], launchError = null, exit = null, posixShell = false } = {}) {
   output = output.replace(ANSI_ESCAPE_RE, "");
-  if (notStarted(output)) return "notrun";
+  if (notStarted(output, exit)) return "notrun";
   if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
   if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
@@ -266,7 +276,11 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   ) {
     return "import";
   }
-  if (/\bSyntaxError\b|Unexpected token|\bTS\d{4}:/i.test(output)) {
+  // Only a runner-level line decides this: a Node or Vitest error banner, or a
+  // compiler error, at the start of its line. The same words inside an
+  // assertion diff (a Luau test compares diagnostics whose code is SyntaxError)
+  // are the test's own data and never reach this pattern.
+  if (/^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b|(?:[^\s:]+(?:\(\d+,\d+\)|:\d+:\d+)[:-] )?error TS\d{4}:)/im.test(output)) {
     return "syntax";
   }
   // Anchored to how a runner reports its own death, at the start of a line:
@@ -319,7 +333,8 @@ function failureEvidence(output, logPath) {
   const excerpt = matches.slice(0, 40);
   return { logPath: logError ? null : logPath, unverifiedLogPath: logError ? logPath : null, logError, failures: excerpt.map((line) => line.slice(0, 2000)), failuresOmitted: Math.max(0, matches.length - 40), failureLinesTruncated: excerpt.filter((line) => line.length > 2000).length };
 }
-const VITEST_COUNT_RE = /\d+\s+(?:passed|failed|skipped|todo)/;
+const GREEN_ASSERTION_RE = new RegExp(`${FAILURE_GLYPH_RE.source}|\\bAssertionError\\b|^\\s*(?:FAIL|not ok)\\b|\\bexpect\\(`, "im");
+const VITEST_COUNT_RE =/\d+\s+(?:passed|failed|skipped|todo)/;
 const VITEST_NO_TESTS_RE = /\bno tests\b/;
 const isTestFilesLine = (l) => /^\s*Test Files\s/.test(l) && VITEST_COUNT_RE.test(l);
 const isTestsLine = (l) => /^\s*Tests\s/.test(l) && (VITEST_COUNT_RE.test(l) || VITEST_NO_TESTS_RE.test(l));
@@ -567,7 +582,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         );
       } else if (redReason === "notrun") {
         report.problems.push(
-          `The red run never started (${notRunLine(red.output)}), so it says nothing about the defect. Wait for the other run to finish and run redgreen again.`,
+          `The red run never started (${notRunLine(red.output, red.exit)}), so it says nothing about the defect. Wait for the other run to finish and run redgreen again.`,
         );
       } else if (redReason === "shell") {
         report.problems.push(
@@ -646,14 +661,21 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       const green = runTest(test, repoRoot);
       report.green = {
         exit: green.exit,
-        outcome: green.exit === 0 ? "passed" : notStarted(green.output) ? "not run" : "failed",
+        outcome: green.exit === 0 ? "passed" : notStarted(green.output, green.exit) ? "not run" : "failed",
         tail: green.tail,
         ...failureEvidence(green.output, path.join(dir, "green.log")),
         summary: parseVitestSummary(green.output),
       };
       if (report.green.logError) report.problems.push(`The green output could not be saved: ${report.green.logError}. The exit status and excerpts remain in this report.`);
       if (report.green.outcome === "not run") {
-        report.problems.push(`The green run never started (${notRunLine(green.output)}), so it says nothing about the fix. Wait for the other run to finish and run redgreen again.`);
+        report.problems.push(`The green run never started (${notRunLine(green.output, green.exit)}), so it says nothing about the fix. Wait for the other run to finish and run redgreen again.`);
+      } else if (green.exit !== 0 && report.green.summary == null && !GREEN_ASSERTION_RE.test(green.output.replace(ANSI_ESCAPE_RE, ""))) {
+        // Nothing here says a test ran and failed: a runner that could not
+        // start (a probe or launcher failure) looks like this, and blaming the
+        // fix would send the writer after a defect that is not there.
+        report.problems.push(
+          `The green run produced no test result (exit ${green.exit}, no \`Test Files\`/\`Tests\` summary and no assertion failure in the output), so it says nothing about the fix. Read green.tail and the log at green.logPath, then run redgreen again.`,
+        );
       } else if (green.exit !== 0) {
         report.problems.push("The test failed against the fix. The restore is verified by hash, so this is the fix itself, not a stale copy.");
       }

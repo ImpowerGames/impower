@@ -1147,6 +1147,122 @@ check("a red run the test-suite runner never started is not run, never a red", (
   assert.match(r.problems.join("\n"), /red run never started.*run redgreen again/s);
 });
 
+// A Luau conformance test compares the checker's diagnostics, whose text and
+// code are `SyntaxError`, so a genuine red prints the word inside its diff
+// (#1439). The word decides nothing there; only a runner-level line does.
+check("SyntaxError text inside an assertion diff is an assertion, not a syntax failure", () => {
+  const runnerSummary = "\n Test Files  1 failed (1)\n      Tests  5 failed | 17 passed (22)";
+  const diffs = [
+    ' FAIL  a.test.ts > x\nAssertionError: expected [] to deeply equal [ \'4:8-4:9 SyntaxError: Type function cannot reference\' ]\n- Expected\n+ Received\n\n-   "4:8-4:9 SyntaxError: Type function cannot reference outer local \'var\'",\n+   [],',
+    ' FAIL  a.test.ts > x\nAssertionError: expected [ { code: \'SyntaxError\' } ] to deeply equal []\n-   "code": "SyntaxError",\n+   "code": "Other",',
+    ' FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n  Expected: "0:8-0:10 SyntaxError: Expected identifier"\n  Received: "Unexpected token"',
+    ' FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n+   "1 SyntaxError Expected identifier when parsing expression, got \'+\'",\n+   "src/a.ts:1:1 error TS2304: Cannot find name"',
+  ];
+  for (const diff of diffs) assert.equal(classifyRedFailure(diff + runnerSummary), "assertion", diff);
+});
+
+check("a runner-level syntax failure is still a syntax failure", () => {
+  assert.equal(classifyRedFailure("SyntaxError: Unexpected token"), "syntax");
+  assert.equal(classifyRedFailure("file:///C:/x/check.mjs:3\n  foo bar\n      ^^^\nSyntaxError: Unexpected identifier 'bar'"), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts [ a.test.ts ]\nError: Transform failed with 1 error:\nC:/x/a.ts:1:2: ERROR: Unexpected \"}\""), "syntax");
+  assert.equal(classifyRedFailure("src/a.ts(3,5): error TS2304: Cannot find name 'x'."), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts\n    SyntaxError: Unexpected token '}'\n"), "syntax");
+});
+
+check("a red run whose assertion diff prints SyntaxError is accepted end to end", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") {',
+      '  console.error(" FAIL  a.test.ts > x");',
+      '  console.error("AssertionError: expected [] to deeply equal [ 0:8-0:10 SyntaxError: Expected type ]");',
+      '  console.error("-   \\"0:8-0:10 SyntaxError: Expected type, got \'=\'\\",");',
+      '  console.error(" Tests  1 failed | 1 passed (2)");',
+      "  process.exit(1);",
+      "}",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "diff check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+});
+
+// The runner's marker can follow unterminated text from the process-identity
+// probe on the same line, so it is not at a line start; its exit status (75) and
+// the marker together say no test ran (#1439).
+check("a not-run marker after other output on its line is still not run", () => {
+  for (const half of ["green", "red"]) {
+    const dir = makeRepo();
+    const condition = half === "red" ? "true" : 'value === "new"';
+    fs.writeFileSync(
+      path.join(dir, "check.mjs"),
+      [
+        'import { value } from "./lib.mjs";',
+        `if (${condition}) {`,
+        '  process.stderr.write("Starting the CLR failed with HRESULT 80004005.");',
+        `  console.error(${JSON.stringify(NOT_RUN)});`,
+        "  process.exit(75);",
+        "}",
+        'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+        'console.log("ok");',
+      ].join("\n") + "\n",
+    );
+    git(dir, "commit", "-q", "-am", "clr");
+    applyFix(dir);
+    const r = run(dir);
+    assert.equal(r.ok, false, half);
+    assert.equal(r[half].outcome, "not run", half);
+    assert.doesNotMatch(r.problems.join("\n"), /failed against the fix/, half);
+    assert.match(r.problems.join("\n"), new RegExp(`${half} run never started`), half);
+  }
+});
+
+check("a test that only quotes the not-run marker, with an ordinary failing exit, stays a red", () => {
+  assert.equal(
+    classifyRedFailure(`AssertionError: expected '${NOT_RUN}' to be ''\nTests  1 failed (1)`, { exit: 1 }),
+    "assertion",
+  );
+});
+
+check("a failed green run with no test result and no assertion is not blamed on the fix", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value === "new") { console.error("Starting the CLR failed with HRESULT 80004005."); process.exit(1); }',
+      'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "no-result green");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  const problems = r.problems.join("\n");
+  assert.doesNotMatch(problems, /failed against the fix/);
+  assert.match(problems, /green run produced no test result/);
+});
+
+check("a genuinely failing green run is still reported as failing against the fix", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'console.error("AssertionError: expected never, got " + value); process.exit(1);',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "always fails");
+  applyFix(dir);
+  const r = run(dir);
+  assert.match(r.problems.join("\n"), /failed against the fix/);
+});
+
 if (failures > 0) {
   console.log(`\n${failures} failing`);
   process.exit(1);
