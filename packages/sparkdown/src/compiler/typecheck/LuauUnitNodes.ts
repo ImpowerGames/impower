@@ -196,6 +196,21 @@ export function breaksStatement(text: string): boolean {
 }
 
 /**
+ * Whether the type checker's reading ends the statement before a node the
+ * tree begins (`STATEMENT_BREAKS`), given the last Luau token before it,
+ * comments aside. The reading carries a statement on into an assignment
+ * (`local a, b =` before a line `f(1),`, which the tree reads as an
+ * assignment's targets), except after an empty if-expression arm, whose
+ * last token is the arm's `then` or `else`: that arm's missing value must
+ * not take the next assignment's target. Whether the node's first word
+ * breaks the statement in Luau is `breaksStatement`'s to decide.
+ */
+export function endsStatementBefore(name: string, previousToken: string | undefined): boolean {
+  if (!STATEMENT_BREAKS.has(name)) return false;
+  return !isExplicitRuleName(name, "LuauReassignment") || previousToken === "then" || previousToken === "else";
+}
+
+/**
  * Whether the type checker reads a construct and the token after it as one
  * statement, and so reports what the construct is missing at that token,
  * with Luau's wording and range (#1175): the construct is Luau it reads
@@ -215,14 +230,10 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   if (!isCheckedLuau(token, read)) return false;
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
-    // The reading carries a construct on into an assignment in Luau code
-    // (`local a, b =` before a line `f(1),`, which the tree reads as an
-    // assignment's targets), except after an empty if-expression arm,
-    // as `readLuauAst.ts` does: its last token, comments aside, is the
-    // arm's `then` or `else`.
-    if (isExplicitRuleName(n.name, "LuauReassignment") && !/(?:^|[^A-Za-z0-9_])(?:then|else)$/.test(textWithoutComments(node, read).trimEnd())) {
-      return true;
-    }
+    // The construct's last word, comments aside, is the token the reading
+    // holds before this one.
+    const lastWord = /(?:^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)$/.exec(textWithoutComments(node, read).trimEnd())?.[1];
+    if (!endsStatementBefore(n.name, lastWord)) return true;
     const text = read(n.from, n.to);
     return !(n.from + text.length - text.trimStart().length === tokenFrom && breaksStatement(text));
   }
