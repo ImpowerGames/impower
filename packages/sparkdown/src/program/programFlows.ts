@@ -370,6 +370,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
           syntax:
             run === 0 ? record.syntax : () => `${record.syntax()}\u0000${run}`,
           reads: record.reads,
+          text: record.text,
           uri: record.uri,
           globals: [],
         },
@@ -430,6 +431,7 @@ const evaluatorFlow = (
     syntax: () =>
       (syntax ??= `${name}\u0000${record.columnAt?.(own.from) ?? 0}\u0000${sourceOf()}`),
     reads: "",
+    text,
     bodies: [bodyOf(own.body, statements, lineAt, firstLine, text)],
     lineEnd: record.lineEnd,
     defines: name,
@@ -517,6 +519,7 @@ const topLevelStatement = (
       source: record.source,
       syntax: record.syntax,
       reads: shape ? readsKey(shape.reads) : record.reads,
+      text: record.text,
     };
   }
   return statementOf(block, objects, record.range, record.line, shape, record);
@@ -569,6 +572,7 @@ const statementOf = (
     syntax: () =>
       (syntax ??= `${shape.node}\u0000${record.columnAt?.(shape.from) ?? 0}\u0000${ownSource()}`),
     reads: readsKey(shape.reads),
+    text: record.text,
     bodies,
     lineEnd: record.lineEnd,
   };
@@ -611,6 +615,7 @@ const nestedStatement = (
     syntax: () =>
       (syntax ??= `${shape.node}\u0000${record.columnAt!(shape.from)}\u0000${sourceOf()}`),
     reads: readsKey(shape.reads),
+    text: record.text,
   };
 };
 

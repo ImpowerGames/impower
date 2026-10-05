@@ -77,11 +77,13 @@ export const blockStackOf = (
   return stack;
 };
 
-/** Where a thread a fork suspended resumes, and the blocks it is inside
- *  there. */
+/** Where a thread a fork suspended resumes, the blocks it is inside there,
+ *  and the flow its last instruction ran in (`previousFlow`), which each
+ *  thread of the current engine keeps as its own previous pointer. */
 interface SuspendedThread {
   position: ProgramPosition | null;
   blocks: BlockEntry[];
+  previousFlow: number;
 }
 
 /** The turn a count id that was never visited holds. */
@@ -156,9 +158,11 @@ export class ProgramStoryState {
   currentTurnIndex = -1;
   storySeed: number;
   previousRandom = 0;
-  /** The symbol of the flow the last instruction ran in, or -1: what a path
-   *  chosen without resetting the call stack is entered from, as the current
-   *  engine's thread keeps its `previousPointer`. A save writes it by name. */
+  /** The symbol of the flow the current thread's last instruction ran in, or
+   *  -1: what a path chosen without resetting the call stack is entered
+   *  from, as the current engine's thread keeps its `previousPointer`. A fork
+   *  suspends it with the thread it forks, a forced end clears it, and a
+   *  save writes it by name, for each thread. */
   previousFlow = -1;
 
   protected _currentErrors: string[] | null = null;
@@ -241,6 +245,7 @@ export class ProgramStoryState {
     this._suspended.set(original, {
       position: resumeAt,
       blocks: this.blockStack.slice(),
+      previousFlow: this.previousFlow,
     });
     this.callStack.PushThread();
     const fork = this.callStack.currentThread;
@@ -269,6 +274,7 @@ export class ProgramStoryState {
       ? { ...resumed.position }
       : null;
     this.blockStack = resumed?.blocks.slice() ?? [];
+    this.previousFlow = resumed?.previousFlow ?? -1;
   }
 
   // -------------------------------------------------------------- counts
@@ -711,6 +717,7 @@ export class ProgramStoryState {
     this.DiscardLineEnd();
     this.position = null;
     this.blockStack = [];
+    this.previousFlow = -1;
     this.didSafeExit = true;
   }
 
@@ -958,10 +965,7 @@ export class ProgramStoryState {
     writer.WriteIntProperty("turnIdx", this.currentTurnIndex);
     writer.WriteIntProperty("storySeed", this.storySeed);
     writer.WriteIntProperty("previousRandom", this.previousRandom);
-    const previousFlow = this._root.table.symbols[this.previousFlow];
-    if (this.previousFlow >= 0 && previousFlow !== undefined) {
-      writer.WriteProperty("previousFlow", previousFlow);
-    }
+    this.writePreviousFlow(writer, this.previousFlow);
     writer.WriteProperty("didSafeExit", this.didSafeExit);
     writer.WriteProperty("variablesState", (w) =>
       this.variablesState.WriteJson(w),
@@ -980,6 +984,7 @@ export class ProgramStoryState {
           w.WritePropertyStart("position");
           writePosition(w, this._suspended.get(thread)?.position ?? null);
           w.WritePropertyEnd();
+          this.writePreviousFlow(w, this._suspended.get(thread)?.previousFlow ?? -1);
           w.WriteProperty("frames", (fw) =>
             this.writeFrames(fw, thread.callstack),
           );
@@ -1000,6 +1005,23 @@ export class ProgramStoryState {
     );
     writer.WriteObjectEnd();
     return writer.toString();
+  }
+
+  /** Writes a thread's `previousFlow` by its qualified name, or nothing for
+   *  none. */
+  protected writePreviousFlow(w: SimpleJson.Writer, flow: number): void {
+    const name = flow >= 0 ? this._root.table.symbols[flow] : undefined;
+    if (name !== undefined) {
+      w.WriteProperty("previousFlow", name);
+    }
+  }
+
+  /** The `previousFlow` a saved thread names, or -1. */
+  protected readPreviousFlow(saved: Record<string, any>): number {
+    const name = saved["previousFlow"];
+    return typeof name === "string"
+      ? (this._root.table.symbolIds.get(name) ?? -1)
+      : -1;
   }
 
   /** The state with both count slots empty, which a checkpoint fills with
@@ -1115,10 +1137,7 @@ export class ProgramStoryState {
     this.currentTurnIndex = obj["turnIdx"];
     this.storySeed = obj["storySeed"];
     this.previousRandom = obj["previousRandom"];
-    this.previousFlow =
-      typeof obj["previousFlow"] === "string"
-        ? (this._root.table.symbolIds.get(obj["previousFlow"]) ?? -1)
-        : -1;
+    this.previousFlow = this.readPreviousFlow(obj);
     this.didSafeExit = obj["didSafeExit"] === true;
     this.variablesState.SetJsonToken(obj["variablesState"]);
     const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];
@@ -1136,6 +1155,7 @@ export class ProgramStoryState {
       this._suspended.set(this.callStack.currentThread, {
         position: resume,
         blocks: this.blocksOf(resume),
+        previousFlow: this.readPreviousFlow(saved),
       });
     });
     if (threads.length > 0) {

@@ -7,6 +7,7 @@ import {
   type ProgramTable,
 } from "../binary/ProgramBinaryWriter";
 import {
+  alternatorSourceOf,
   functionShapeOf,
   isLoopInternal,
 } from "../compiler/lower/utils/statementShape";
@@ -96,6 +97,10 @@ export interface StatementSource {
   syntax: () => string;
   /** The lowering inputs the statement recorded, with the answers they got. */
   reads: string;
+  /** The text between two offsets relative to the start of the top-level
+   *  node the statement was lowered in, from which an alternator's own
+   *  source is read (`alternatorSourceOf`). */
+  text?: (from: number, to: number) => string;
   /** The bodies of a block statement, in the order it runs them, and the
    *  bodies of the functions the statement writes. */
   bodies?: readonly BodySource[];
@@ -1068,7 +1073,9 @@ export class ChunkStore {
     // chunk's that they align with by their own source (section 2), and any
     // other takes a new anonymous symbol when the writer first asks for it.
     const alternators = alternatorsOf(statement);
-    const fingerprints = alternators.map(alternatorFingerprint);
+    const fingerprints = alternators.map((sequence) =>
+      alternatorFingerprint(sequence, statement.text),
+    );
     const alternatorPlan = new Map<object, number>();
     if (inherited) {
       const old = this._info.get(inherited)?.alternators ?? [];
@@ -1665,14 +1672,33 @@ const alternatorsOf = (statement: StatementSource): Sequence[] => {
   return out;
 };
 
-/** What an alternator is aligned by when its statement is emitted again: its
+/** What an alternator is aligned by when its statement is emitted again,
+ *  and its shuffle seeded from: its own source, normalized, as a function
+ *  part's is (docs/engine/binary-program.md, section 2), read through the
+ *  statement's `text` from the range its lowering recorded. Without one, its
  *  kind and its arms, read as their text, each object's kind and what each
  *  object prints as (a name, a number, a string, a call, an operation), with
- *  the objects it holds. */
-const alternatorFingerprint = (sequence: Sequence): string => {
+ *  the objects it holds, and a nested alternator by its own kind and arms. A
+ *  name the compiler generated is read by the order it first appears in,
+ *  since the compiler numbers those names by document order
+ *  (`SparkdownCompiler.canonicalizeSyntheticFlowNames`) and an edit above
+ *  the statement renumbers them. */
+const alternatorFingerprint = (
+  sequence: Sequence,
+  source?: (from: number, to: number) => string,
+): string => {
+  const range = alternatorSourceOf.get(sequence);
+  if (range && source) {
+    return `${sequence.sequenceType}|${normalizeSource(source(range.from, range.to))}`;
+  }
+  const arms = (seq: Sequence): string =>
+    `${seq.sequenceType}|${seq.sequenceElements.map(text).join("|")}`;
   const text = (obj: ParsedObject): string => {
     if (obj instanceof Text) {
       return obj.text;
+    }
+    if (obj instanceof Sequence) {
+      return `Sequence(${arms(obj)})`;
     }
     // Each node's own value too, for one with children as for a leaf: a
     // call's name and an expression's operator tell apart two alternators
@@ -1681,10 +1707,18 @@ const alternatorFingerprint = (sequence: Sequence): string => {
     const own = `${obj.typeName}:${String(obj)}`;
     return children.length > 0 ? `${own}(${children.map(text).join("")})` : own;
   };
-  return normalizeSource(
-    `${sequence.sequenceType}|${sequence.sequenceElements.map(text).join("|")}`,
-  );
+  const generated = new Map<string, number>();
+  return normalizeSource(arms(sequence)).replace(GENERATED_NAMES, (name) => {
+    if (!generated.has(name)) {
+      generated.set(name, generated.size);
+    }
+    return `__synth#${generated.get(name)}`;
+  });
 };
+
+// A name the compiler generates, numbered by document order
+// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`).
+const GENERATED_NAMES = /__synth_\d+/g;
 
 /** The hash a function part is aligned by: its own source, normalized. */
 const fingerprintOf = (body: BodySource): string =>

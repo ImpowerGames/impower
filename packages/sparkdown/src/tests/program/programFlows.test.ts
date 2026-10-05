@@ -911,11 +911,30 @@ describe("flows on the program engine", () => {
     expect(resumed.Continue()).toBe("Selection two.\n");
   });
 
-  // Round 3 of the review of #1431: two alternators whose arms call different
-  // functions with the same arguments are told apart, so when the arms that
-  // hold them swap, each keeps its own count.
-  it("keeps each alternator's count when arms that differ only by the function they call swap", () => {
-    const arms = ["    | Pick {cycle|a(1)|a(2)}.", "    | Pick {cycle|b(1)|b(2)}."];
+  // Rounds 3 and 4 of the review of #1431: two alternators whose arms call
+  // different functions with the same arguments, or that differ only by the
+  // kind of an alternator nested in them, are told apart, so when the arms
+  // that hold them swap, each keeps its own count.
+  it.each([
+    [
+      "the function they call",
+      ["    | Pick {cycle|a(1)|a(2)}.", "    | Pick {cycle|b(1)|b(2)}."],
+      ["Pick A1.", "Pick B1.", "Pick A2."],
+      // The outer cycle's fourth pass takes its second arm, now A's, whose
+      // inner cycle ran twice.
+      "Pick A1.",
+    ],
+    [
+      "the kind of an alternator nested in them",
+      // A string's alternator shows nothing on either engine; the cycle that
+      // holds it counts all the same.
+      ['    | Pick {cycle|"{cycle|1|2}"|"X"}.', '    | Pick {cycle|"{queue|1|2}"|"X"}.'],
+      ["Pick .", "Pick .", "Pick X."],
+      // The fourth pass takes the arm now second, whose middle cycle ran
+      // twice and so shows its first arm again.
+      "Pick .",
+    ],
+  ])("keeps each alternator's count when arms that differ only by %s swap", (_what, arms, before, after) => {
     const text = (order: string[]) =>
       [
         "store passes = 0",
@@ -941,15 +960,45 @@ describe("flows on the program engine", () => {
     while (game.canContinue) {
       shown.push(game.Continue()!.trim());
     }
-    expect(shown.filter(Boolean)).toEqual(["Pick A1.", "Pick B1.", "Pick A2."]);
+    expect(shown.filter(Boolean)).toEqual(before);
     const saved = game.state.toJson();
     const swapped = s.edit(arms.join("\n"), [arms[1], arms[0]].join("\n")).chunks!;
     const resumed = new ProgramStory(swapped);
     resumed.state.LoadJson(saved);
     resumed.ChoosePathString("main");
-    // The outer cycle's fourth pass takes its second arm, now A's, whose
-    // inner cycle ran twice.
-    expect(resumed.Continue()).toBe("Pick A1.\n");
+    expect(resumed.Continue()).toBe(`${after}\n`);
+  });
+
+  // Round 4 of the review of #1431: an alternator's shuffle seed and the
+  // fingerprint it is aligned by are its own source (section 2), which reads
+  // none of the numbers the compiler gives its generated names and an edit
+  // above the statement renumbers.
+  it("seeds an alternator's shuffle from its own source, which an edit above leaves as it was", () => {
+    const s = session(
+      [
+        "scene first",
+        "  Start.",
+        "  done",
+        "end",
+        "scene main",
+        "  Pick {shuffle|{f():upper()}|b|c}.",
+        "  done",
+        "end",
+        'function f() return "p" end',
+        "",
+      ].join("\n"),
+    );
+    const seedOf = (root: ProgramRoot) => {
+      const [chunk] = chunksWith(root, Op.ShuffleIndex);
+      const symbol = [...new BinaryProgramReader(root).instructions(chunk!)].find(
+        (i) => i.op === Op.ShuffleIndex,
+      )!.arg;
+      return root.labelOf(symbol);
+    };
+    const before = seedOf(s.first.chunks!);
+    expect(before).toBe("main:6|shuffle|{f():upper()}|b|c");
+    const edited = s.edit("  Start.", "  Up {f():upper()}.\n  Start.").chunks!;
+    expect(seedOf(edited)).toBe(before);
   });
 
   // Round 3 of the review of #1431: a path chosen without resetting the call
@@ -980,15 +1029,63 @@ describe("flows on the program engine", () => {
         const afterLoad = lines(loaded);
         game.ChoosePathString("main", false);
         const inSession = lines(game);
+        // A forced end clears it, as `StoryState.ForceEnd` clears the
+        // previous pointer.
+        game.ResetCallstack();
+        game.ChoosePathString("main", false);
+        const afterForcedEnd = lines(game);
         game.ResetState();
         game.ChoosePathString("main", false);
         const afterReset = lines(game);
-        return [first, afterLoad, inSession, afterReset];
+        return [first, afterLoad, inSession, afterForcedEnd, afterReset];
       };
       const current = runs(() => compileScript(text).story);
       const actual = runs(() => new ProgramStory(program.chunks!));
       expect(actual).toEqual(current);
-      expect(actual).toEqual(["Visits 1.", "Visits 1.", "Visits 1.", "Visits 1."]);
+      expect(actual).toEqual(["Visits 1.", "Visits 1.", "Visits 1.", "Visits 2.", "Visits 1."]);
+    });
+  });
+
+  // Round 4 of the review of #1431: each thread keeps the flow it last ran
+  // in, so the thread a fork suspended resumes with its own, in session and
+  // through a save made while the fork runs. It shows only where the resumed
+  // thread runs no instruction of its own before its flow runs out, which the
+  // current engine refuses ("ran out of content"), so this asserts the
+  // program engine alone: `main` is not entered again from itself.
+  it("counts a path chosen without a reset from the flow of the thread a fork resumed", () => {
+    const text = [
+      "scene main",
+      "  <- side",
+      "end",
+      "scene side",
+      "  Main {main}.",
+      "  Side.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    silence(() => {
+      const { program } = compileScript(text, { programChunks: true });
+      expect(program.fallback).toBeUndefined();
+      const lines = (game: ProgramStory) => {
+        const out: string[] = [];
+        while (game.canContinue) {
+          out.push(game.Continue()!.trim());
+        }
+        return out.filter(Boolean).join(" ");
+      };
+      const game = new ProgramStory(program.chunks!);
+      game.ChoosePathString("main");
+      expect(game.Continue()).toBe("Main 1.\n");
+      const saved = game.state.toJson();
+      expect(lines(game)).toBe("Side.");
+      game.ChoosePathString("main", false);
+      expect(lines(game)).toBe("Main 1. Side.");
+      const loaded = new ProgramStory(program.chunks!);
+      loaded.state.LoadJson(saved);
+      expect(lines(loaded)).toBe("Side.");
+      loaded.ChoosePathString("main", false);
+      expect(lines(loaded)).toBe("Main 1. Side.");
     });
   });
 

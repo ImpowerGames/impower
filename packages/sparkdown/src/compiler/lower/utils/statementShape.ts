@@ -290,6 +290,29 @@ export const closeFunctionBody = (
   });
 };
 
+/** Where each alternator's own source starts and ends, relative to the
+ *  start of the top-level node it was lowered in, as a function's is
+ *  (`FunctionShape`): the source its count symbol is aligned by when its
+ *  statement is emitted again (docs/engine/binary-program.md, section 2). */
+export const alternatorSourceOf = new WeakMap<
+  ParsedObject,
+  { from: number; to: number }
+>();
+
+/** Records the source of `alternator`, the syntax node `node` spans, when
+ *  shapes are recorded. */
+export const recordAlternatorSource = (
+  ctx: LowerContext,
+  alternator: ParsedObject,
+  node: { from: number; to: number },
+): void => {
+  if (!currentStatement(ctx)) {
+    return;
+  }
+  const base = ctx.chunkFrom ?? 0;
+  alternatorSourceOf.set(alternator, { from: node.from - base, to: node.to - base });
+};
+
 /** The single statement of an evaluator's body, `return <expr>`, recorded
  *  on `body` as the statement the syntax nodes `first` to `last` lower to:
  *  `lower` lowers it while the statement is open, so the reads of its
