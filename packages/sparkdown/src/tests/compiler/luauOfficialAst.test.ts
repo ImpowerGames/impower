@@ -48,8 +48,8 @@ const EXEMPTIONS = [
   "Lexical commentLocations are not part of the converter's AST",
 ] as const;
 const KNOWN: { input: string; issue: number }[] = [
-  // This is the official-parser list. Port-only #1304/#1305/#1306 no longer
-  // disagree here, so inheriting that oracle's list would hide passing inputs.
+  // This is the official-parser list. It stays separate from the port's
+  // KNOWN_DISAGREEMENTS, whose entries would otherwise hide passing inputs here.
 ];
 if (!officialLuauAvailable)
   console.warn(
