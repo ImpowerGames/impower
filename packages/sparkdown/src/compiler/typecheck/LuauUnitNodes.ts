@@ -25,6 +25,7 @@ export const LUAU_STATEMENTS = new Set([
   "LuauWhileLoop",
   "LuauForLoop",
   "LuauRepeatLoop",
+  "LuauUntilStatement",
   "LuauDoBlock",
   "LuauSparkdownIfBlock",
   "LuauSparkdownWhileLoop",
