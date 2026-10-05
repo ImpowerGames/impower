@@ -162,14 +162,18 @@ export function testShell() {
 // nor green and the same command can be run again. Unterminated text from the
 // runner's process probe (`Starting the CLR failed with HRESULT 80004005.`) can
 // precede the marker on its line, so the marker is also accepted mid-line when
-// the exit status is the runner's 75; a test that merely quotes the text fails
-// with an ordinary status.
+// the exit status is the runner's 75 and nothing else in the output is assertion
+// evidence. Any command may choose status 75, so a test that prints a failing
+// assertion quoting the marker stays an assertion.
 const NOT_RUN_EXIT = 75;
 const NOT_RUN_RE = /^test-suite: not run: .*/m;
 const NOT_RUN_MIDLINE_RE = /test-suite: not run: .*/;
 const notRunMatch = (output, exit) => {
   const text = output.replace(ANSI_ESCAPE_RE, "");
-  return text.match(NOT_RUN_RE) ?? (exit === NOT_RUN_EXIT ? text.match(NOT_RUN_MIDLINE_RE) : null);
+  const atLineStart = text.match(NOT_RUN_RE);
+  if (atLineStart || exit !== NOT_RUN_EXIT) return atLineStart;
+  const midLine = text.match(NOT_RUN_MIDLINE_RE);
+  return midLine && !hasAssertionEvidence(text.replace(midLine[0], "")) ? midLine : null;
 };
 const notStarted = (output, exit) => notRunMatch(output, exit) != null;
 const notRunLine = (output, exit) => notRunMatch(output, exit)[0];
@@ -219,7 +223,7 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
   if (exit === -1) return "crash";
-  const testedDiagnostic = FAILURE_GLYPH_RE.test(output) || /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
+  const testedDiagnostic = hasAssertionEvidence(output);
   // POSIX shells reserve these for execution failure, but also forward a
   // program's chosen status. Assertion evidence therefore makes them ambiguous.
   // cmd does not use this convention; do not infer it from the host platform.
@@ -280,7 +284,7 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   // compiler error, at the start of its line. The same words inside an
   // assertion diff (a Luau test compares diagnostics whose code is SyntaxError)
   // are the test's own data and never reach this pattern.
-  if (/^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b|(?:[^\s:]+(?:\(\d+,\d+\)|:\d+:\d+)[:-] )?error TS\d{4}:)/im.test(output)) {
+  if (/^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b|(?:[^\s:]+(?:\(\d+,\d+\)|:\d+:\d+)(?::| -) )?error TS\d{4}:)/im.test(output)) {
     return "syntax";
   }
   // Anchored to how a runner reports its own death, at the start of a line:
@@ -324,6 +328,13 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
  */
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
 const FAILURE_GLYPH_RE = /^\s*[✕✗×✖]\s/m;
+// What a red or green classification counts as a test having run and asserted.
+// One predicate, so a run is never an assertion on one half and "no result" on
+// the other. Expects output with ANSI escapes already stripped.
+const ASSERTION_EVIDENCE_RE = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i;
+function hasAssertionEvidence(output) {
+  return FAILURE_GLYPH_RE.test(output) || ASSERTION_EVIDENCE_RE.test(output);
+}
 function failureEvidence(output, logPath) {
   let logError = null;
   try { fs.writeFileSync(logPath, output); }
@@ -333,7 +344,6 @@ function failureEvidence(output, logPath) {
   const excerpt = matches.slice(0, 40);
   return { logPath: logError ? null : logPath, unverifiedLogPath: logError ? logPath : null, logError, failures: excerpt.map((line) => line.slice(0, 2000)), failuresOmitted: Math.max(0, matches.length - 40), failureLinesTruncated: excerpt.filter((line) => line.length > 2000).length };
 }
-const GREEN_ASSERTION_RE = new RegExp(`${FAILURE_GLYPH_RE.source}|\\bAssertionError\\b|^\\s*(?:FAIL|not ok)\\b|\\bexpect\\(`, "im");
 const VITEST_COUNT_RE =/\d+\s+(?:passed|failed|skipped|todo)/;
 const VITEST_NO_TESTS_RE = /\bno tests\b/;
 const isTestFilesLine = (l) => /^\s*Test Files\s/.test(l) && VITEST_COUNT_RE.test(l);
@@ -669,7 +679,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       if (report.green.logError) report.problems.push(`The green output could not be saved: ${report.green.logError}. The exit status and excerpts remain in this report.`);
       if (report.green.outcome === "not run") {
         report.problems.push(`The green run never started (${notRunLine(green.output, green.exit)}), so it says nothing about the fix. Wait for the other run to finish and run redgreen again.`);
-      } else if (green.exit !== 0 && report.green.summary == null && !GREEN_ASSERTION_RE.test(green.output.replace(ANSI_ESCAPE_RE, ""))) {
+      } else if (green.exit !== 0 && report.green.summary == null && !hasAssertionEvidence(green.output.replace(ANSI_ESCAPE_RE, ""))) {
         // Nothing here says a test ran and failed: a runner that could not
         // start (a probe or launcher failure) looks like this, and blaming the
         // fix would send the writer after a defect that is not there.

@@ -1263,6 +1263,56 @@ check("a genuinely failing green run is still reported as failing against the fi
   assert.match(r.problems.join("\n"), /failed against the fix/);
 });
 
+// Round 1 review: the real tsc --pretty shape, the shared assertion predicate
+// and an exit-75 assertion that quotes the marker (#1439).
+check("a pretty tsc compile error is a syntax failure even when its source frame holds assertion words", () => {
+  const pretty = "lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n\nFound 1 error in lib.ts:1\n";
+  assert.equal(classifyRedFailure(pretty, { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure(pretty.replace(/(lib\.ts)(:1:21)/, "\x1b[96m$1\x1b[0m$2"), { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
+});
+
+check("a plain Node console.assert failure is assertion evidence on the green half too", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'const passes = value === "never";',
+      'console.assert(passes, "expected never to equal " + value);',
+      "process.exit(passes ? 0 : 1);",
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "console.assert check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  const problems = r.problems.join("\n");
+  assert.match(problems, /failed against the fix/);
+  assert.doesNotMatch(problems, /produced no test result/);
+});
+
+check("an assertion that quotes the not-run marker and exits 75 is a red, not a run that never started", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import assert from "node:assert/strict";',
+      'import { value } from "./lib.mjs";',
+      `const quoted = ${JSON.stringify(NOT_RUN)};`,
+      'try { assert.equal(value === "new" ? "" : quoted, "", "expected no marker, got " + quoted); }',
+      "catch (error) { console.error(error.stack); process.exit(75); }",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "exit 75 assertion");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+});
+
 if (failures > 0) {
   console.log(`\n${failures} failing`);
   process.exit(1);
