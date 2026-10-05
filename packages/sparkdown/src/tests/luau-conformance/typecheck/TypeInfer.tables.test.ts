@@ -1138,6 +1138,9 @@ end
     // TypeInfer.tables.test.cpp:1457 TEST_CASE_FIXTURE(Fixture, "pass_incompatible_union_to_a_generic_table_without_crashing")
     name: "pass_incompatible_union_to_a_generic_table_without_crashing",
     fixture: "Fixture",
+    // Upstream line 1459 forces the old solver before Fixture first builds
+    // its frontend (Fixture.cpp:718–730); these are old-solver assertions.
+    skip: { newSolver: "explicitly forces DebugLuauForceOldSolver=true upstream at line 1459" },
     source: `
         -- must be in this specific order, and with (roughly) those exact properties!
         type A = {x: number, [any]: any} | {}
@@ -1172,8 +1175,7 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:1497 TEST_CASE_FIXTURE(Fixture, "found_like_key_in_table_function_call")
-    // Upstream also checks that the error's table prints as t's type does, and
-    // that its only candidate is Foo.
+    // The diagnostic-table printed comparison awaits the shared selector.
     name: "found_like_key_in_table_function_call",
     fixture: "Fixture",
     source: `
@@ -1184,14 +1186,13 @@ end
     `,
     expect: [
       { errors: 1 },
-      { error: 0, code: "UnknownPropButFoundLikeProp", fields: { key: "fOo" } },
+      { error: 0, code: "UnknownPropButFoundLikeProp", fields: { key: "fOo", candidates: ["Foo"] } },
       { error: 0, message: "Key 'fOo' not found in table 't'.  Did you mean 'Foo'?" },
     ],
   },
   {
     // TypeInfer.tables.test.cpp:1523 TEST_CASE_FIXTURE(BuiltinsFixture, "found_like_key_in_table_property_access")
-    // Upstream also checks that the error's table prints as t's type does, and
-    // that its only candidate is X.
+    // The diagnostic-table printed comparison awaits the shared selector.
     name: "found_like_key_in_table_property_access",
     fixture: "BuiltinsFixture",
     source: `
@@ -1201,14 +1202,13 @@ end
     `,
     expect: [
       { errors: 1 },
-      { error: 0, code: "UnknownPropButFoundLikeProp", fields: { key: "x" } },
+      { error: 0, code: "UnknownPropButFoundLikeProp", fields: { key: "x", candidates: ["X"] } },
       { error: 0, message: "Key 'x' not found in table 't'.  Did you mean 'X'?" },
     ],
   },
   {
     // TypeInfer.tables.test.cpp:1548 TEST_CASE_FIXTURE(BuiltinsFixture, "found_multiple_like_keys")
-    // Upstream also checks that the error's table prints as t's type does, and
-    // that its candidates are exactly Foo and foO.
+    // The diagnostic-table printed comparison awaits the shared selector.
     name: "found_multiple_like_keys",
     fixture: "BuiltinsFixture",
     source: `
@@ -1218,7 +1218,7 @@ end
     `,
     expect: [
       { errors: 1 },
-      { error: 0, code: "UnknownPropButFoundLikeProp", fields: { key: "foo" } },
+      { error: 0, code: "UnknownPropButFoundLikeProp", fields: { key: "foo", candidates: ["Foo", "foO"] } },
       { error: 0, message: "Key 'foo' not found in table 't'.  Did you mean one of 'Foo', 'foO'?" },
     ],
   },
