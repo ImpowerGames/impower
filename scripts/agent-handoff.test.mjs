@@ -755,10 +755,36 @@ console.log("PASS: real already-exited children have no false termination warnin
   assert.equal(routeFailure("TypeError: cannot read properties of undefined"), undefined, "an ordinary crash is not a route failure");
   for (const benign of ["GitHub authentication configured", "processed 401 files", "listening on port 429", "authentication succeeded"]) assert.equal(routeFailure(`crash\n${benign}`), undefined, `a benign line is not a route failure: ${benign}`);
   for (const failing of ["HTTP 429 from the API", "error: status 401", "Failed to authenticate: OAuth session expired and could not be refreshed", "authentication failed for this account"]) assert.equal(routeFailure(`working\n${failing}\n`), failing, `a route failure is named: ${failing}`);
+  // Native Claude JSON output puts long metadata before the result, so the
+  // semantic message is classified and named whole, not the line's first 400
+  // characters.
+  {
+    const metadata = { type: "result", subtype: "success", is_error: true, terminal_reason: "api_error", session_id: "e7c82e28", modelUsage: { filler: "x".repeat(900) } };
+    const limit = "You've hit your weekly limit · resets Oct 5, 1am (America/New_York)";
+    const version = "API Error: 400 claude-opus-5-5 requires Claude Code 2.1.280 or later";
+    assert.equal(routeFailure(JSON.stringify({ ...metadata, result: limit })), limit, "a long JSON metadata prefix does not hide the weekly-limit result");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: version }) + "\n" + JSON.stringify({ ...metadata, result: limit })), /weekly limit/, "the last failing result is named");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: version })), /2\.1\.280/, "a minimum-version result is named");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, error: { message: limit } })), /weekly limit/, "a nested error message is named");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: limit }).slice(300)), /weekly limit/, "a line cut mid-metadata still names the limit");
+    assert.equal(routeFailure(JSON.stringify({ ...metadata, is_error: false, result: "OK" })), undefined, "an answered probe is not a route failure");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: "x".repeat(600) + " rate limit reached" })), /rate limit/, "a match beyond the display length stays in the excerpt");
+    const retried = "Authentication failed; " + "retry context ".repeat(40) + "You've hit your weekly limit";
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: retried })), /weekly limit/, "a usage limit after an earlier failure in one long message stays in the excerpt");
+    assert.match(routeFailure(retried), /weekly limit/, "the same holds for a text line");
+    for (const spanning of ["You have exceeded " + "allocation details; ".repeat(30) + "quota", "You've hit your " + "plan detail ".repeat(40) + "limit"]) {
+      for (const input of [spanning, JSON.stringify({ ...metadata, result: spanning })]) {
+        const excerpt = routeFailure(input);
+        assert.ok(excerpt.length <= 400, "the excerpt stays capped");
+        assert.match(excerpt, /exceeded .*quota|hit your .*limit/, "a usage-limit match longer than the cap keeps its classification");
+      }
+    }
+  }
   const routeChild = path.join(scratch, "route-child.mjs");
-  const launchedMarker = path.join(scratch, "route-child-launched");
+  const launchedMarker =path.join(scratch, "route-child-launched");
   fs.writeFileSync(routeChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; const mode=process.argv[2]; const probe=p.startsWith("Reviewer route probe");
 if(probe&&mode==="limited"){console.error("You've hit your weekly limit - resets Sep 28");process.exit(1);}
+if(probe&&mode==="jsonlimited"){console.log(JSON.stringify({type:"result",is_error:true,terminal_reason:"api_error",modelUsage:{filler:"x".repeat(900)},result:"Authentication failed; "+"retry context ".repeat(40)+"You've hit your weekly limit - resets Oct 5"}));process.exit(1);}
 if(probe&&mode==="silent"){setInterval(()=>{},1000);}
 else if(probe&&mode==="mute"){process.exit(0);}
 else if(probe){console.log("OK");process.exit(0);}
@@ -773,6 +799,9 @@ else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log(
   assert.equal(rows.some((row) => row.event === "reserved"), false, "a failed probe reserves no slot");
   assert.equal(fs.existsSync(launchedMarker), false, "a failed probe launches no reviewer");
   assert.match(rows.at(-1).reason, /weekly limit/, "the blocked row names the route's own error");
+
+  await assert.rejects(run("jsonlimited"), /unavailable before slot reservation: .*weekly limit - resets Oct 5.*wait for the limit to reset/s, "a native JSON limit behind long metadata is named and classified as a usage limit");
+  assert.match(journalRows("jsonlimited").at(-1).reason, /weekly limit - resets Oct 5.*wait for the limit to reset/s, "the blocked row keeps the limit classification");
 
   await assert.rejects(run("silent"), /unavailable before slot reservation: no answer within 2 seconds/);
   assert.equal(journalRows("silent").some((row) => row.event === "reserved"), false, "a probe timeout reserves no slot");
