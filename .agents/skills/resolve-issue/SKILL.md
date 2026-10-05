@@ -11,7 +11,7 @@ Run the steps below in order in a dedicated worktree. Commands are relative to t
 
 Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must pass. Tooling/docs-only work with an intentionally absent install uses `preflight --tooling-only`.
 
-Then always remove merged tickets' worktrees with [clean-worktrees](../clean-worktrees/SKILL.md) from the main checkout: dry run, inspect every proposed removal, then apply with the absolute main root. The script keeps every worktree with uncommitted, unpushed or unmerged work. A failed removal is a recovery task to record before step 2, never grounds for recursive deletion. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
+Then inspect [clean-worktrees](../clean-worktrees/SKILL.md) candidates from the main checkout: dry run only; routine preflight never authorizes broad apply. Blocked disk headroom requires separate, explicitly authorized bounded recovery; preserve active agents. Refusals and failures remain recovery blockers. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
 
 ## 1. Read the ticket
 

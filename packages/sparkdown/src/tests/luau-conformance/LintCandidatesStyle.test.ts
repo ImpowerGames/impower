@@ -18,7 +18,7 @@ const SAME_LINE =
   "A new statement is on the same line; add semi-colon on previous statement to silence";
 
 // Luau: MultilineBlock
-describe.skip("several statements on one line of a block (not implemented: MultiLineStatement)", () => {
+describe("several statements on one line of a block", () => {
   test("if true then print(1) print(2) print(3) end", () => {
     expect(
       lintMessagesInFunction(`
@@ -40,7 +40,7 @@ print(1); print(2); print(3)
 });
 
 // Luau: MultilineBlockMissedSemicolon
-describe.skip("one missing semicolon among several (not implemented: MultiLineStatement)", () => {
+describe("one missing semicolon among several", () => {
   test("print(1); print(2) print(3)", () => {
     expect(
       lintMessagesInFunction(`
@@ -64,7 +64,7 @@ end
 });
 
 // Luau: ConfusingIndentation
-describe.skip("a continuation line that is not indented (not implemented: MultiLineStatement)", () => {
+describe("a continuation line that is not indented", () => {
   test("print(math.max(1,\\n2))", () => {
     expect(
       lintMessagesInFunction(`

@@ -97,7 +97,7 @@ const norm = (p) => {
 const samePath = (a, b) => norm(a) === norm(b);
 const isUnder = (child, parent) => {
   const rel = path.relative(norm(parent), norm(child));
-  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+  return rel !== "" && rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
 };
 const n = (count, noun, plural = `${noun}s`) => `${count} ${count === 1 ? noun : plural}`;
 
@@ -270,6 +270,7 @@ export const liveDeps = {
   driverHome: () => driverHome(),
   readEntries: (p) => fs.readdirSync(p, { withFileTypes: true }),
   lstat: (p) => fs.lstatSync(p),
+  realpath: (p) => fs.realpathSync.native(p),
   // The record of every --apply run, one JSON object per line, in the main
   // checkout's .git so it is never committed.
   readLog: (p) => {
@@ -886,10 +887,25 @@ export async function removeWorktree(entry, ctx, deps) {
 // and the record it points at must survive until it is renamed back. Returns
 // the paths pruned, or why nothing was.
 function pruneDeadRecords(entries, ctx, deps) {
-  const dead = entries.filter((e) => e.prunable);
+  if (!entries.some((e) => e.prunable)) return { pruned: [] };
+  const inventory = registeredWorktrees(ctx, deps);
+  if (inventory.reason) return { pruned: [], waiting: inventory.reason };
+  const dead = inventory.entries.filter((e) => e.prunable);
   if (!dead.length) return { pruned: [] };
   const probe = dead.find((e) => deps.exists(`${path.resolve(e.path)}${PROBE_SUFFIX}`));
   if (probe) return { pruned: [], waiting: `${path.resolve(probe.path)}${PROBE_SUFFIX} is beside a dead record, which is what an interrupted run's probe leaves; rename it back by hand first, since pruning would drop the record it points at` };
+  const uncertain = [];
+  const extant = dead.filter((e) => {
+    const abs = path.resolve(e.path);
+    if (!deps.lstat) return deps.exists(abs);
+    try { deps.lstat(abs); return true; }
+    catch (err) {
+      if (err.code !== "ENOENT") uncertain.push(`${abs}: ${err.code ?? err.message}`);
+      return false;
+    }
+  });
+  if (uncertain.length) return { pruned: [], waiting: `worktree ownership could not be inspected: ${uncertain.join(", ")}` };
+  if (extant.length) return { pruned: [], waiting: `protected extant worktree ownership: ${extant.map((e) => path.resolve(e.path)).join(", ")}; repair the missing Git marker before pruning` };
   const r = deps.exec("git", ["worktree", "prune"], ctx.mainRoot);
   if (r.status !== 0) return { pruned: [], waiting: `git worktree prune failed (${r.err || r.out})` };
   return { pruned: dead.map((e) => path.resolve(e.path)) };
@@ -1289,11 +1305,76 @@ export function numberState(number, deps, cwd) {
 // holding it started then; one recorded bare, or whose start time cannot be
 // read now, is taken at its number's word, which keeps a directory rather than
 // removing one in use.
+function registeredWorktrees(ctx, deps) {
+  let inventory;
+  try { inventory = deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot); }
+  catch (err) { inventory = { status: 1, err: err.message }; }
+  const entries = inventory.status === 0 ? parseWorktreeList(inventory.out) : [];
+  const reason = !entries.length || entries.some((entry) => !path.isAbsolute(entry.path)) || !entries.some((entry) => samePath(entry.path, ctx.mainRoot)) ? `registered worktree inventory could not be read (${inventory.err || "incomplete inventory"})` : null;
+  return { entries, reason };
+}
+
+// Registrations may name a missing checkout. Resolve its nearest existing
+// ancestor so ownership survives both missing markers and parent aliases.
+function physicalPath(value, deps) {
+  let current = path.resolve(value);
+  const suffix = [];
+  while (true) {
+    try { return path.join((deps.realpath ?? liveDeps.realpath)(current), ...suffix); }
+    catch (err) {
+      if (err.code !== "ENOENT" || path.dirname(current) === current) throw err;
+      suffix.unshift(path.basename(current));
+      current = path.dirname(current);
+    }
+  }
+}
+
+function jobProtection(dir, deps, ctx) {
+  const reasons = [];
+  const { entries, reason } = registeredWorktrees(ctx, deps);
+  if (reason) reasons.push(reason);
+  let physicalDir;
+  try { physicalDir = physicalPath(dir, deps); }
+  catch (err) { reasons.push(`job ownership path could not be resolved at ${dir}: ${err.code ?? err.message}`); }
+  for (const entry of entries) {
+    let physicalEntry;
+    try { physicalEntry = physicalPath(entry.path, deps); }
+    catch (err) { reasons.push(`registered ownership path could not be resolved at ${entry.path}: ${err.code ?? err.message}`); }
+    if (samePath(entry.path, dir) || isUnder(entry.path, dir) || (physicalDir && physicalEntry && (samePath(physicalEntry, physicalDir) || isUnder(physicalEntry, physicalDir)))) reasons.push(`protected registered worktree ${path.resolve(entry.path)}`);
+  }
+  const pending = [dir];
+  while (pending.length) {
+    const current = pending.pop();
+    try {
+      const stat = (deps.lstat ?? liveDeps.lstat)(current);
+      if (stat.isSymbolicLink()) {
+        if (samePath(current, dir)) reasons.push(`job root is a link: ${current}`);
+        continue;
+      }
+      const children = (deps.readEntries ?? liveDeps.readEntries)(current);
+      const names = new Set(children.map((entry) => entry.name.toLowerCase()));
+      // Bare repositories have metadata at their root. Retain even a partial
+      // marker layout rather than guessing that repository state is disposable.
+      if (names.has("head") && names.has("objects") && names.has("refs")) reasons.push(`protected embedded Git repository ${current}`);
+      for (const entry of children) {
+        const child = path.join(current, entry.name);
+        if (entry.name.toLowerCase() === ".git") reasons.push(`protected embedded Git repository ${current}`);
+        else if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(child);
+      }
+    } catch (err) {
+      reasons.push(`repository ownership could not be inspected at ${current}: ${err.code ?? err.message}`);
+    }
+  }
+  return reasons.join("; ");
+}
+
 export function classifyJob(name, dir, deps, ctx) {
   const m = /^pr-(\d+)$/.exec(name);
   const test = /^test-/.test(name);
   if (!m && !test) return { remove: false, reason: "not a pr-<N> or test-* job directory; left for a person" };
   const keep = [];
+  const protection = jobProtection(dir, deps, ctx);
+  if (protection) keep.push(protection);
   let github = null;
   if (m) {
     github = numberState(Number(m[1]), deps, ctx.mainRoot);
@@ -1338,9 +1419,21 @@ export function classifyJob(name, dir, deps, ctx) {
 // junctions into live worktrees), the tree is walked again to confirm none is
 // left, and only then is the rest deleted, which then holds plain files and
 // directories only.
-export function removeJobDir(dir) {
-  const unlinked = unlinkLinksIn(dir);
-  if (unlinkLinksIn(dir) !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
+export function removeJobDir(dir, guard = () => {}) {
+  let changed = 0;
+  const check = () => {
+    try { guard(); }
+    catch (err) {
+      if (changed) throw new Error(`${err.message}; ${n(changed, "link")} already unlinked, targets untouched; preserve remaining artifacts for recovery`);
+      throw err;
+    }
+  };
+  const removedLink = () => { changed++; };
+  check();
+  const unlinked = unlinkLinksIn(dir, check, removedLink);
+  check();
+  if (unlinkLinksIn(dir, check, removedLink) !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
+  check();
   fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
   return unlinked;
 }
@@ -1348,7 +1441,7 @@ export function removeJobDir(dir) {
 // Unlinks every symlink and junction under a directory and returns how many,
 // never following one: a directory junction or symlink on Windows is removed
 // with rmdir, which deletes the reparse point and never its target.
-function unlinkLinksIn(dir) {
+function unlinkLinksIn(dir, guard = () => {}, removedLink = () => {}) {
   let found = 0;
   const pending = [dir];
   while (pending.length) {
@@ -1356,12 +1449,14 @@ function unlinkLinksIn(dir) {
     for (const it of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, it.name);
       if (it.isSymbolicLink()) {
+        guard();
         found++;
         try {
           fs.unlinkSync(p);
         } catch {
           fs.rmdirSync(p);
         }
+        removedLink();
       } else if (it.isDirectory()) pending.push(p);
     }
   }
@@ -1389,12 +1484,15 @@ export function cleanJobs(ctx, deps, apply, record) {
       else {
         record({ decision: "removing", path: dir, why });
         try {
-          const unlinked = removeJobDir(dir);
+          const unlinked = removeJobDir(dir, () => {
+            const protection = jobProtection(dir, deps, ctx);
+            if (protection) throw new Refusal(protection);
+          });
           decision = "removed";
           if (unlinked) why += `; ${n(unlinked, "link")} unlinked first, targets untouched`;
         } catch (err) {
-          failed++;
-          decision = "failed";
+          if (err instanceof Refusal) decision = "kept";
+          else { failed++; decision = "failed"; }
           why = `${err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
         }
       }
