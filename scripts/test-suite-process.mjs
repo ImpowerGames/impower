@@ -68,9 +68,11 @@ export function reservationState(record, identify = processIdentity) {
 
 // Serialize acquisition, recovery and release, including the reservation's
 // creation window. A transaction holds the guard only for a few synchronous
-// file operations, so a held guard is retried until `waitMs` passes. An
-// abandoned guard requires inspection; it is never guessed away.
-function guarded(root, action, waitMs = guardWaitMs) {
+// file operations, so a held guard is retried until `waitMs` passes. A guard
+// whose recorded owner is no longer running was abandoned inside its transaction
+// and is renamed aside; any other guard, including one whose owner identity
+// cannot be read, is never guessed away.
+function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity) {
   const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
     ? new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`)
     : null;
@@ -82,6 +84,7 @@ function guarded(root, action, waitMs = guardWaitMs) {
   for (;;) {
     try { fd = fs.openSync(guard, "wx"); break; }
     catch (error) {
+      if (error.code === "EEXIST" && recoverAbandonedGuard(root, guard, identify)) continue;
       if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
       const refusal = denied(error);
       if (refusal) throw refusal;
@@ -93,6 +96,20 @@ function guarded(root, action, waitMs = guardWaitMs) {
     fs.fsyncSync(fd);
     return action(path.join(root, "reservation.json"));
   } finally { fs.closeSync(fd); fs.unlinkSync(guard); }
+}
+
+// Rename a guard whose recorded owner (pid and start time, the identity
+// `reservationState` compares) names no live process, keeping it as
+// `recovered-guard-<time>.json`. Returns whether it did.
+function recoverAbandonedGuard(root, guard, identify) {
+  let owner;
+  try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
+  catch { return false; }
+  if (!owner?.pid || !owner.start || same(owner, identify(owner.pid))) return false;
+  const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
+  try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
+  catch (error) { if (error.code !== "ENOENT") return false; }
+  return true;
 }
 
 const guardWaitMs = 5000;
@@ -126,9 +143,9 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
         if (read(target).token !== record.token) throw new Error("Reservation ownership changed");
         if (!["reserved", "exited"].includes(record.phase)) throw new Error("Child exit unconfirmed; preserve reservation");
         fs.unlinkSync(target);
-      }, waitMs);
+      }, waitMs, identify);
     } };
-  }, admitWaitMs);
+  }, admitWaitMs, identify);
 }
 
 // Release on an error path: the error being handled stays the one thrown, and

@@ -391,6 +391,33 @@ assert.match(printed.join("\n"), /^test-suite: not run: Reservation transaction 
 assert.equal(notRunExit(new Error("other"), line => printed.push(line)), 1, "other failures keep exit 1");
 console.log("PASS: a held guard is retried within --wait and an unstarted run is reported as not run");
 
+// A guard whose recorded owner is no longer running was abandoned inside its
+// transaction. It is renamed aside, preserving the evidence, like an interrupted
+// reservation. A live owner or an unreadable identity keeps it held.
+const deadOwner = { pid: 2147483000, start: "1" };
+const abandoned = JSON.stringify({ owner: deadOwner });
+fs.writeFileSync(guardFile, abandoned);
+const recoveredGuards = () => fs.readdirSync(lockRoot).filter(name => /^recovered-guard-.*\.json$/.test(name));
+const recoveredBefore = recoveredGuards().length;
+const afterAbandoned = acquire("abandoned guard", { root: lockRoot, census: () => [], identify: pid => pid === deadOwner.pid ? null : processIdentity(pid), guardWaitMs: 100 });
+assert.equal(fs.existsSync(guardFile), false, "the abandoned guard is not left in place");
+assert.equal(recoveredGuards().length, recoveredBefore + 1, "the abandoned guard is renamed to recovered-guard-<time>.json");
+assert.equal(fs.readFileSync(path.join(lockRoot, recoveredGuards().at(-1)), "utf8"), abandoned, "the recovered guard keeps the recorded owner");
+afterAbandoned.release();
+for (const [label, identify, record] of [
+  ["a live owner", () => deadOwner, abandoned],
+  ["an unreadable record", () => null, ""],
+  ["a record without an owner start", () => null, JSON.stringify({ owner: { pid: deadOwner.pid } })],
+  ["malformed JSON", () => null, "{"],
+]) {
+  fs.writeFileSync(guardFile, record);
+  assert.throws(() => acquire(label, { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }), error => error.guardHeld === true && /Reservation transaction unavailable/.test(error.message), `${label} keeps the guard held`);
+  assert.equal(fs.readFileSync(guardFile, "utf8"), record, `${label}: the guard is untouched`);
+  fs.unlinkSync(guardFile);
+}
+assert.equal(recoveredGuards().length, recoveredBefore + 1, "no held guard was recovered");
+console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
+
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
 await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, census:()=>[], fingerprint:()=>"unchanged"});`);
