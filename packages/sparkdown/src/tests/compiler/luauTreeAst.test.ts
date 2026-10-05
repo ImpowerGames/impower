@@ -67,7 +67,7 @@ const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
 
 // Fixtures excluded from the extracted-syntax agreement suite are excluded here
 // too; every other fixture's full tree AST is compared with C++.
-const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.issue === 1298 || entry.limitation).map((entry) => entry.fixture));
+const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.limitation).map((entry) => entry.fixture));
 const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
 
 /** The first line at which two printed trees differ, with a few lines around it from each. */
