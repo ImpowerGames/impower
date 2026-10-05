@@ -122,7 +122,7 @@ import {
   type SparkdownSource,
 } from "./Ast";
 import { Location, Position } from "./Location";
-import { breaksStatement, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY, STATEMENT_BREAKS } from "./LuauUnitNodes";
+import { breaksStatement, COMMENT, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY, STATEMENT_BREAKS } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 
@@ -465,9 +465,6 @@ const QUOTED_STRING = /^Luau(DoubleQuoted|SingleQuoted)String$/;
 const RAW_STRING = "LuauMultilineString";
 const INTERPOLATED_STRING = "LuauInterpolatedString";
 const NUMBER = /^LuauNumeric\w+$/;
-// A comment, or a part of one the tree reads apart from it (the `]]` that
-// closes a block comment after a value or type); a cast after a comment is not one.
-const COMMENT = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)\w*Comment(Close|Content|Mark|Tags)?$/;
 const LINE_COMMENT = /^Luau(Doc)?LineComment$/;
 
 /**

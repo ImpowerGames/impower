@@ -3,7 +3,7 @@
 // that the validator can ask the same question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
-import { explicitRuleNames } from "../utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
@@ -79,6 +79,10 @@ export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauDivertTargetLiteral",
   "LuauRegexLiteral",
 ].flatMap(explicitRuleNames));
+
+// A comment, or a part of one the tree reads apart from it (the `]]` that
+// closes a block comment after a value or type); a cast after a comment is not one.
+export const COMMENT = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)\w*Comment(Close|Content|Mark|Tags)?$/;
 
 // Nodes that may sit anywhere in Luau: trivia and punctuation.
 export const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
@@ -211,10 +215,36 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   if (!isCheckedLuau(token, read)) return false;
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
+    // The reading carries a construct on into an assignment in Luau code
+    // (`local a, b =` before a line `f(1),`, which the tree reads as an
+    // assignment's targets), except after an empty if-expression arm,
+    // as `readLuauAst.ts` does: its last token, comments aside, is the
+    // arm's `then` or `else`.
+    if (isExplicitRuleName(n.name, "LuauReassignment") && !/(?:^|[^A-Za-z0-9_])(?:then|else)$/.test(textWithoutComments(node, read).trimEnd())) {
+      return true;
+    }
     const text = read(n.from, n.to);
     return !(n.from + text.length - text.trimStart().length === tokenFrom && breaksStatement(text));
   }
   return true;
+}
+
+/** A node's text with each comment the tree holds in it (`COMMENT`, as the checker's reading skips them) replaced by spaces. */
+function textWithoutComments(node: SyntaxNode, read: (from: number, to: number) => string): string {
+  let text = "";
+  let at = node.from;
+  const walk = (parent: SyntaxNode): void => {
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (!COMMENT.test(child.name)) {
+        walk(child);
+        continue;
+      }
+      text += read(at, child.from) + " ".repeat(child.to - child.from);
+      at = child.to;
+    }
+  };
+  walk(node);
+  return text + read(at, node.to);
 }
 
 /** The first node of a name among a node and its later siblings, and under them, depth first. */

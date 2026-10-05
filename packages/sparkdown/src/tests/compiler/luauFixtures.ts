@@ -63,11 +63,6 @@ export const UNSUPPORTED_INTEGER_INPUTS: KnownDisagreement[] = [
 
 export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
   ...UNSUPPORTED_INTEGER_INPUTS,
-  {
-    fixture: "conformance/native_integer_spills.luau",
-    issue: 1306,
-    reason: "Sparkdown only: `local x0, ..., x7 =` with its values on the next line",
-  },
 ];
 
 export interface LuauInput {
