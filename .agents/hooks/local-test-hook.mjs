@@ -61,8 +61,8 @@ export const START_REASON =
 // MAX_RUN_FILES is the same bound, enforced by the runner itself.
 export const MAX_FILES = 8;
 
-export const wideReason = (count) =>
-  `This run names ${count} test files, more than the ${MAX_FILES} a local run may take: a long list of existing files is a ` +
+export const wideReason = (count, names = []) =>
+  `This run names ${count} test files${names.length ? ` (counted: ${names.join(" ")})` : ""}, more than the ${MAX_FILES} a local run may take: a long list of existing files is a ` +
   "package run spelled out, and the suite runner refuses it at the same bound with no override. " + TEST_REASON;
 
 export const TYPECHECK_REASON =
@@ -75,6 +75,16 @@ const GLOB = /[*?[\]{}]/;
 // Text a static reading cannot resolve: a variable, a substitution, a home
 // directory or a PowerShell drive other than a filesystem path.
 const DYNAMIC = /[$%`~]/;
+// Redirections, in bash and PowerShell spellings (`*>` is PowerShell's
+// all-streams redirect): a descriptor duplication that takes no target
+// (`2>&1`, `*>&1`), a bare operator whose target is the next token (`>`,
+// `2>`, `*>`, `&>`), and an operator glued to its target (`>log`, `2>err`).
+// None of these tokens is an argument of the program they follow.
+const REDIRECT_DUP = /^(?:\d+|\*|&)?[<>]{1,2}&[\d-]+$/;
+const REDIRECT_OP = /^(?:\d+|\*|&)?[<>]{1,2}$|^>&$/;
+const REDIRECT_GLUED = /^(?:\d+|\*|&)?[<>]{1,2}&?[^<>&]/;
+// A PowerShell assignment target before its value: `$p =`, `$p +=`, `=`.
+const PS_ASSIGN_TARGET = /^(?:\$\S*)?[+-]?=$|^\$[^=\s]+[+-]?=/;
 
 // Vitest 2.1.9's options that take no value, as its own CLI declares them
 // (options whose cac name has no `<value>` or `[value]`); a `--no-` negation
@@ -210,7 +220,7 @@ function vitestReason(args, dir) {
     files.push(t);
   }
   if (files.length === 0) return TEST_REASON;
-  if (files.length > MAX_FILES) return wideReason(files.length);
+  if (files.length > MAX_FILES) return wideReason(files.length, files);
   for (const f of files) {
     if (GLOB.test(f) || !TEST_FILE.test(f)) return TEST_REASON;
     if (isDynamic(f)) continue;
@@ -227,14 +237,19 @@ function vitestReason(args, dir) {
  * wideReason past MAX_FILES; a shorter list, or one the runner itself
  * will refuse as empty, is left to the runner.
  */
-function suiteRunReason(texts) {
-  let files = 0;
-  for (let i = 0; i < texts.length; i++) {
-    const t = texts[i];
-    if (t === "--wait") { i++; continue; }
-    files++;
+function suiteRunReason(args) {
+  const files = [];
+  for (let i = 0; i < args.length; i++) {
+    const { text, quoted } = args[i];
+    if (text === "--wait") { i++; continue; }
+    if (!quoted) {
+      if (REDIRECT_DUP.test(text)) continue;
+      if (REDIRECT_OP.test(text)) { i++; continue; }
+      if (REDIRECT_GLUED.test(text)) continue;
+    }
+    files.push(text);
   }
-  return files > MAX_FILES ? wideReason(files) : null;
+  return files.length > MAX_FILES ? wideReason(files.length, files) : null;
 }
 
 /**
@@ -329,6 +344,10 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         if (inner) return inner;
       }
       if (!positions.has(i)) continue;
+      // A quoted string after an assignment (`$p = '...\vitest.cmd'`) is the
+      // variable's value, not a program, so a path that mentions a binary
+      // does not run it.
+      if (tok.quoted && i > 0 && !seg[i - 1].quoted && PS_ASSIGN_TARGET.test(seg[i - 1].text)) continue;
       // `npm.cmd`, `vitest.cmd` and `npx.ps1` are the same programs as
       // their bare names on Windows.
       const name = baseName(tok).replace(/\.(?:cmd|bat|ps1)$/i, "");
@@ -384,7 +403,7 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         // The suite runner's first argument is its command; only `start`
         // runs a whole package, and `run` is bounded by how many files it names.
         else if (/test-suite\.mjs$/i.test(target) && /^start$/i.test(scriptArgs[0]?.text ?? "")) reason = START_REASON;
-        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2).map((a) => a.text));
+        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2));
       }
       if (reason) return reason;
     }

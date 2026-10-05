@@ -158,6 +158,10 @@ const denies = [
   ["the suite runner run past the bound with --wait first", `node scripts/test-suite.mjs run packages/sparkdown --wait 600 ${PAST_BOUND}`],
   ["the suite runner run past the bound through cmd /c", `cmd /c "node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}"`],
   ["the suite runner run past the bound inside bash -c", `bash -c 'node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}'`],
+  // A genuine extra file is still counted past a redirect or a pipe.
+  ["the suite runner past the bound with a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 > run.log 2>&1`],
+  ["the suite runner past the bound with a PowerShell redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 *> run.log`],
+  ["the suite runner with a file after the redirect pushing it past the bound", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > run.log ${MANY[0]} --wait 600`],
 ];
 
 const allows = [
@@ -216,6 +220,20 @@ const allows = [
   ["the phrase in a comment", "git status # then npm test"],
   ["a grep for vitest", "grep -rn 'vitest run' .agents"],
   ["a process listing that names vitest", "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*vitest*' }"],
+  // Redirections after a bounded run are not test files.
+  ["the suite runner at the bound with a redirect and merged stderr", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > run.log 2>&1`],
+  ["the suite runner at the bound with a redirect, a chained echo and a grep", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > run.log 2>&1; echo exit $?; grep -E "Tests" run.log`],
+  ["the suite runner at the bound with separate stdout and stderr redirects", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 1> out.log 2> err.log`],
+  ["the suite runner at the bound with glued redirect targets", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 >out.log 2>err.log`],
+  ["the suite runner at the bound with a merged-stderr pipe", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 2>&1 | grep -E "Tests"`],
+  ["the suite runner at the bound with a quoted redirect target", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > "my run.log" 2>&1`],
+  ["the suite runner at the bound with a PowerShell all-streams redirect and chained filter", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 900 *> run.log; "exit $LASTEXITCODE"; Select-String -Path run.log -Pattern "Tests"`],
+  ["the suite runner at the bound with a redirect before the files", `node scripts/test-suite.mjs run packages/sparkdown > run.log ${AT_BOUND} --wait 600`],
+  // A command that only mentions the vitest binary's path is not a Vitest call.
+  ["a PowerShell wait on the installed vitest.cmd", "$p = 'C:/w/node_modules/.bin/vitest.cmd'; $i=0; while (-not (Test-Path $p) -and $i -lt 110) { Start-Sleep 5; $i++ }; Test-Path $p"],
+  ["a PowerShell assignment of a double-quoted vitest path", '$p = "C:/w/node_modules/.bin/vitest.cmd"; Test-Path $p'],
+  ["Test-Path on the vitest.cmd path", "Test-Path 'C:/w/node_modules/.bin/vitest.cmd'"],
+  ["Get-Item on the vitest.cmd path", "Get-Item C:/w/node_modules/.bin/vitest.cmd"],
   ["an empty command", ""],
   ["a non-string command", null],
 ];
