@@ -1,0 +1,8 @@
+include override.sd
+function inspect()
+  local t = {}
+  table.insert(t, string.find("hello", "h"))
+  table.insert(t, 0, 42)
+  getfenv(1)
+end
+Ready.

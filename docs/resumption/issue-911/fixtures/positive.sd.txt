@@ -1,0 +1,6 @@
+function inspect()
+  local t = { first = 1, first = 2 }
+  table.insert(t, 0, 42)
+  getfenv(1)
+end
+Ready.

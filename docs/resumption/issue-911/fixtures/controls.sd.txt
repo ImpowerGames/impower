@@ -1,0 +1,13 @@
+function inspect()
+  local t = { first = 1, second = 2 }
+  table.insert(t, (string.find("hello", "h")))
+  getfenv()
+  getfenv((1))
+  table.insert(t, 0, 42)
+end
+function shadows()
+  local string = { find = function() return 1 end }
+  local table = { insert = function() end }
+  table.insert({}, string.find())
+end
+Ready.
