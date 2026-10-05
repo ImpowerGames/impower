@@ -39,6 +39,13 @@ for (const [pkg, list] of byPackage) {
 }
 const matrix = [...byPackage.keys()];
 
+// The matrix fields only shard the work if the Run vitest step hands them to
+// vitest; without --shard every shard would run the whole package.
+const runVitest = workflow.slice(workflow.indexOf("- name: Run vitest"), workflow.indexOf("- name: Require summary lines"));
+assert.ok(runVitest.includes("- name: Run vitest"), "test-suite.yml has a Run vitest step");
+assert.ok(runVitest.includes("SHARD: ${{ matrix.shard }}/${{ matrix.shards }}"), "the Run vitest step binds SHARD to the matrix shard and shards");
+assert.match(runVitest, /npx vitest run [^\n]*--shard="\$SHARD"/, "the Run vitest step passes --shard=$SHARD to vitest");
+
 const tracked = execFileSync("git", ["ls-files", "-z", "--", "*vitest.config.ts", "**/vitest.config.ts"], { cwd: root, encoding: "utf8", windowsHide: true })
   .split("\0").filter(Boolean)
   .filter((file) => !file.includes("node_modules/"))
