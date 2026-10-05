@@ -99,6 +99,35 @@ export const Op = {
   /** Pops the function frame, leaving the value on top as the result, and
    *  resumes the caller after its call. */
   Return: 38,
+  /** Jumps to where the symbol `arg` names is defined, rebuilding the
+   *  frame's block stack and scope depth for the target and counting the
+   *  flows the jump enters (docs/engine/binary-program.md, section 5). */
+  JumpSym: 39,
+  /** As `JumpSym`, to the symbol value the variable `arg` names holds. */
+  JumpVar: 40,
+  /** Pops a symbol value or void and the tunnel frame, and resumes the
+   *  caller after its tunnel call, or jumps to the symbol the value names. */
+  TunnelReturn: 41,
+  /** Forks the current thread: the fork runs on from the next instruction,
+   *  and the original resumes `arg` words after the next instruction when the
+   *  fork ends. */
+  Thread: 42,
+  /** Raises the visits of the symbol `arg` names and records the turn. */
+  Visit: 43,
+  /** Pushes the visits of the symbol `arg` names. */
+  GetCount: 44,
+  /** Pops a symbol value and pushes its visits, or with the turns flag the
+   *  turns since its last visit. */
+  CountOf: 45,
+  /** Pushes the visits of the symbol `arg` names, less one. */
+  VisitIndex: 46,
+  /** Pops the element count and the sequence's index, and pushes the next
+   *  shuffled index of the alternator the symbol `arg` names. */
+  ShuffleIndex: 47,
+  /** Writes a tag holding the string `arg` names to the output, which a
+   *  capture's `EndString` moves out to the line's tags: the legacy tag an
+   *  inline alternator's arm writes inside the string of its line. */
+  Tag: 48,
 } as const;
 
 export type Opcode = (typeof Op)[keyof typeof Op];
@@ -150,6 +179,14 @@ export const CALL_ARGS_UNKNOWN = 0xffff;
 
 /** `Leave`'s flag: resume the loop's owner where its next pass starts. */
 export const LEAVE_CONTINUE = 1;
+
+/** `Call`'s and `CallVar`'s flag: the call enters a tunnel, a flow that
+ *  returns with `TunnelReturn`, rather than a function. */
+export const CALL_TUNNEL = 1;
+
+/** `CountOf`'s flag: push the turns since the last visit, or -1 for none,
+ *  rather than the visits. */
+export const COUNT_TURNS = 1;
 
 export const AUX_MAX = 0xffff;
 

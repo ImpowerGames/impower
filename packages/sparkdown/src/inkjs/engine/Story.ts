@@ -1002,6 +1002,57 @@ function callThroughHandler(
  * `callSiteArgCount` is the number of arguments the call site pushed, or -1
  * when the story does not record it.
  */
+/**
+ * The draws a shuffle takes in place of its seeded generator, when set: the
+ * differential run of the binary program injects one stream into both
+ * engines, which seed their shuffles from different names (a container's path
+ * here, an alternator's symbol there), so that both pick the same arms
+ * (docs/engine/binary-program.md, section 3).
+ */
+export const shuffleDraws: { next: (() => number) | null } = { next: null };
+
+/**
+ * The index a shuffling sequence picks on its `seqCount`th pass over
+ * `numElements` arms, as both engines pick it: the arms are drawn without
+ * replacement from a generator seeded by `seedText`, the loop over the
+ * sequence and the story seed, or from `shuffleDraws` when one is injected.
+ */
+export function sequenceShuffleIndex(
+  seedText: string,
+  seqCount: number,
+  numElements: number,
+  storySeed: number,
+): number {
+  const loopIndex = seqCount / numElements;
+  const iterationIndex = seqCount % numElements;
+
+  let sequenceHash = 0;
+  for (let i = 0, l = seedText.length; i < l; i++) {
+    sequenceHash += seedText.charCodeAt(i) || 0;
+  }
+  const randomSeed = sequenceHash + loopIndex + storySeed;
+  const random = new PRNG(Math.floor(randomSeed));
+  const injected = shuffleDraws.next;
+  const draw = injected ?? (() => random.next());
+
+  const unpickedIndices: number[] = [];
+  for (let i = 0; i < numElements; ++i) {
+    unpickedIndices.push(i);
+  }
+
+  for (let i = 0; i <= iterationIndex; ++i) {
+    const chosen = draw() % unpickedIndices.length;
+    const chosenIndex = unpickedIndices[chosen]!;
+    unpickedIndices.splice(chosen, 1);
+
+    if (i == iterationIndex) {
+      return chosenIndex;
+    }
+  }
+
+  throw new Error("Should never reach here");
+}
+
 export function callVariableTarget(
   story: any,
   varName: string | null,
@@ -5234,33 +5285,12 @@ export class Story extends InkObject {
       return throwNullException("seqCount");
     }
 
-    let loopIndex = seqCount / numElements;
-    let iterationIndex = seqCount % numElements;
-
-    let seqPathStr = seqContainer.path.toString();
-    let sequenceHash = 0;
-    for (let i = 0, l = seqPathStr.length; i < l; i++) {
-      sequenceHash += seqPathStr.charCodeAt(i) || 0;
-    }
-    let randomSeed = sequenceHash + loopIndex + this.state.storySeed;
-    let random = new PRNG(Math.floor(randomSeed));
-
-    let unpickedIndices = [];
-    for (let i = 0; i < numElements; ++i) {
-      unpickedIndices.push(i);
-    }
-
-    for (let i = 0; i <= iterationIndex; ++i) {
-      let chosen = random.next() % unpickedIndices.length;
-      let chosenIndex = unpickedIndices[chosen];
-      unpickedIndices.splice(chosen, 1);
-
-      if (i == iterationIndex) {
-        return chosenIndex;
-      }
-    }
-
-    throw new Error("Should never reach here");
+    return sequenceShuffleIndex(
+      seqContainer.path.toString(),
+      seqCount,
+      numElements,
+      this.state.storySeed,
+    );
   }
 
   public Error(message: string, useEndLineNumber = false): never {

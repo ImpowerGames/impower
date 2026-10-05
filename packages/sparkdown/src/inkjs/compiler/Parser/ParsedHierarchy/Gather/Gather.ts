@@ -6,6 +6,9 @@ import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";
+import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
   get name(): string | null {
@@ -34,6 +37,47 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
 
   override get typeName(): string {
     return "Gather";
+  }
+
+  /** A label's symbol: its flow's name and its own, joined by a dot, or its
+   *  own alone at the story's top level. An unnamed gather, and a label
+   *  inside a function, have none. */
+  public override get programSymbolName(): string | null {
+    const name = this.name;
+    if (!name) {
+      return null;
+    }
+    const flow = ClosestFlowBase(this) as ParsedObject | null;
+    if (!flow) {
+      return null;
+    }
+    if (!flow.parent) {
+      return name;
+    }
+    const flowName = flow.programSymbolName;
+    return flowName === null ? null : `${flowName}.${name}`;
+  }
+
+  /** What a label's chunk records of how its name resolved: the qualified
+   *  name of the symbol it exports. */
+  get programResolutionKey(): string {
+    return `label:${this.programSymbolName ?? ""}`;
+  }
+
+  // A label is a chunk of its own that exports its symbol at the `Visit`
+  // that counts it, so a jump to it and a pass through it both count it
+  // (docs/engine/binary-program.md, sections 4 and 5). An unnamed gather is
+  // no position anything names, and emits only what it holds.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (this.name) {
+      // The label's symbol is its flow's name and its own, so a chunk is
+      // kept only while the label belongs to the flow it was emitted in.
+      emitter.recordResolution(this.programResolutionKey);
+      const symbol = emitter.labelSymbol(this);
+      emitter.exportHere(symbol);
+      emitter.emit(Op.Visit, symbol);
+    }
+    emitter.emitObjects(this.content);
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

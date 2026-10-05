@@ -202,17 +202,18 @@ describe("the engine", () => {
 });
 
 describe("the fallback", () => {
+  // A scene's parameters are not bound yet, and its header names them.
   it("names a construct at the top level, and emits the current program", () => {
     const { program } = compileScript(
-      "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\nend\n",
+      "One.\nTwo.\n-> MAIN(1)\n\nscene MAIN(n)\n  Three {n}.\nend\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.compiled).toBeTruthy();
     expect(program.fallback).toEqual({
-      construct: "Divert",
+      construct: "Argument",
       uri: MAIN_URI,
-      line: 2,
+      line: 4,
     });
   });
 
@@ -229,16 +230,16 @@ describe("the fallback", () => {
     });
   });
 
-  // The read count stands in the text of the table the display call is
+  // The list builtin stands in the text of the table the display call is
   // given, in a statement of a scene's body.
   it("names a construct nested in a block, with the line of its statement", () => {
     const { program } = compileScript(
-      "scene MAIN\n  One.\n  BOB: You were here {MAIN} times.\nend\n",
+      "scene MAIN\n  One.\n  BOB: You were here {LIST_RANDOM(MAIN)} times.\nend\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
-      construct: "read count",
+      construct: "list",
       uri: MAIN_URI,
       line: 2,
     });
@@ -257,7 +258,7 @@ describe("the fallback", () => {
   });
 
   it("runs a program that fell back on the current engine", () => {
-    const text = "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\nend\n";
+    const text = "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\n  choose\n    + [A]\n      Took A.\n  end\nend\n";
     const { program } = compileScript(text, { programChunks: true });
     const current = compileScript(text);
     expect(program.compiled).toEqual(current.program.compiled);

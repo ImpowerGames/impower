@@ -19,8 +19,15 @@ import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
 import { DivertTarget } from "./DivertTarget";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { LEAVE_CONTINUE, Op } from "../../../../../program/ProgramInstructions";
-import { loopExitOf } from "../../../../../compiler/lower/utils/statementShape";
+import {
+  CALL_TUNNEL,
+  LEAVE_CONTINUE,
+  Op,
+} from "../../../../../program/ProgramInstructions";
+import {
+  isLoopLabel,
+  loopExitOf,
+} from "../../../../../compiler/lower/utils/statementShape";
 
 export class Divert extends ParsedObject {
   public readonly args: Expression[] = [];
@@ -106,18 +113,103 @@ export class Divert extends ParsedObject {
   // The two built-in targets are instructions of their own, as they are
   // control commands of the runtime tree. A `break` or `continue`, which the
   // lowering writes as a divert to a label of its loop, leaves the blocks up
-  // to the loop's body. A divert anywhere else is not emitted yet.
+  // to the loop's body. Any other divert is a jump to its target's symbol, or
+  // to the symbol value a variable holds (`JumpSym`, `JumpVar`); a tunnel
+  // calls its target (`Call`, `CallVar` with the tunnel flag); and a thread
+  // forks around its jump, the original resuming after it when the fork
+  // ends (docs/engine/binary-program.md, section 3).
   public override EmitProgram(emitter: ProgramEmitter): void {
     const exit = loopExitOf.get(this);
     if (this.isEnd) {
       emitter.emit(Op.End);
-    } else if (this.isDone) {
+      return;
+    }
+    if (this.isDone) {
       emitter.emit(Op.Done);
-    } else if (exit) {
+      return;
+    }
+    if (exit) {
       emitter.emit(Op.Leave, 0, 0, exit === "continue" ? LEAVE_CONTINUE : 0);
-    } else {
+      return;
+    }
+    if (this._runtimeDivert?.isExternal) {
+      emitter.unsupported("external");
+    }
+    if (this.args.length > 0) {
+      // A flow's parameters are not bound yet (`Argument`).
+      emitter.unsupported("Argument");
+    }
+    const thread = this.isThread ? emitter.jump(Op.Thread) : null;
+    this.EmitJump(emitter, this.isTunnel ? CALL_TUNNEL : -1);
+    if (thread) {
+      emitter.bind(thread);
+    }
+  }
+
+  /** The jump of a divert to its target, or with `tunnelFlags` set, the call
+   *  of its target as a tunnel. The chunk records the jump's resolution
+   *  (`programJumpKey`), and refers to the target's symbol by no fact about
+   *  it: a jump's code is the same whatever the program defines the symbol
+   *  as, or whether it defines it at all, so the chunk is kept while the
+   *  target disappears and comes back (section 2, A symbol that
+   *  disappears). */
+  public EmitJump(emitter: ProgramEmitter, tunnelFlags = -1): void {
+    const key = this.programJumpKey;
+    if (key !== null) {
+      emitter.recordResolution(key);
+    }
+    const variable = this._runtimeDivert?.variableDivertName;
+    if (variable != null) {
+      if (tunnelFlags >= 0) {
+        emitter.emit(Op.CallVar, emitter.string(variable), 0, tunnelFlags);
+      } else {
+        emitter.emit(Op.JumpVar, emitter.string(variable));
+      }
+      return;
+    }
+    const target = this.targetContent;
+    if (target instanceof FlowBase && target.isFunction) {
       emitter.unsupported(this.typeName);
     }
+    const symbol = emitter.targetSymbol(target, this.writtenTargetName);
+    emitter.referenceTarget(symbol);
+    if (tunnelFlags >= 0) {
+      emitter.emit(Op.Call, symbol, 0, tunnelFlags);
+    } else {
+      emitter.emit(Op.JumpSym, symbol);
+    }
+  }
+
+  /** The target as the divert writes it, dots joining its parts. */
+  get writtenTargetName(): string {
+    return this.target?.dotSeparatedComponents ?? "";
+  }
+
+  /** How the divert's target resolved, as the chunk of its statement records
+   *  it: the symbol its jump names, which is the qualified name of the
+   *  target it found or, for a target it found none of, the name as written,
+   *  or the variable whose value it jumps to. A divert the program does not
+   *  emit as a jump has none: a call, `done`, `fin`, a loop's own diverts,
+   *  and a function held as a value, whose symbol the chunk records apart. */
+  get programJumpKey(): string | null {
+    if (
+      this.isFunctionCall ||
+      this.isEnd ||
+      this.isDone ||
+      loopExitOf.has(this) ||
+      isLoopLabel(this.writtenTargetName)
+    ) {
+      return null;
+    }
+    const variable = this._runtimeDivert?.variableDivertName;
+    if (variable != null) {
+      return `jump:${variable}:variable`;
+    }
+    const target = this.targetContent;
+    if (target instanceof FlowBase && target.isFunction) {
+      return null;
+    }
+    return `jump:${target?.programSymbolName ?? this.writtenTargetName}`;
   }
 
   /** A function call's code: its arguments, then the call. A function the

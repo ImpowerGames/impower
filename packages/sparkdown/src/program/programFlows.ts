@@ -265,6 +265,17 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       fail("Argument", record.uri, record.line);
     }
     headerLines.push({ uri: record.uri, line: record.line });
+    // A scene whose content starts with a branch enters that branch, as the
+    // current engine's knot diverts to its first stitch
+    // (`FlowBase.GenerateRuntimeObject`).
+    const first = flow.content?.[0];
+    const startsWith =
+      flow instanceof Knot &&
+      first instanceof FlowBase &&
+      !first.isFunction &&
+      !first.hasParameters
+        ? `${name}.${first.identifier?.name ?? ""}`
+        : undefined;
     flows.push({
       name,
       kind: flow instanceof Stitch ? SymbolKind.Branch : SymbolKind.Scene,
@@ -276,6 +287,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
         record.uri,
         record.line,
       ),
+      ...(startsWith === undefined ? {} : { startsWith }),
     });
     for (const sub of flow.subFlowsByName.values()) {
       visitFlow(sub, `${name}.`);

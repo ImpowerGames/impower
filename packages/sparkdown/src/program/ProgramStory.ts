@@ -32,6 +32,7 @@ import {
   popLuauCondition,
   pushStdLibResult,
   readVariable,
+  sequenceShuffleIndex,
   shortCircuitDecides,
   spreadCallArgs,
   storeIndex,
@@ -45,6 +46,7 @@ import {
   StoryException,
 } from "../inkjs/engine/StoryException";
 import { StringBuilder } from "../inkjs/engine/StringBuilder";
+import { Tag } from "../inkjs/engine/Tag";
 import { asOrThrows } from "../inkjs/engine/TypeAssertion";
 import {
   AbstractValue,
@@ -68,6 +70,8 @@ import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
   CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
+  CALL_TUNNEL,
+  COUNT_TURNS,
   ConstValue,
   JUMP_DECISION,
   JUMP_LUAU,
@@ -83,7 +87,13 @@ import {
   opOf,
 } from "./ProgramInstructions";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
-import { ROOT_FLOW_NAME, SymbolKind, isAnonymousSymbol } from "./ProgramSymbols";
+import {
+  ROOT_FLOW_NAME,
+  SymbolKind,
+  UNDEFINED_KIND,
+  countIdOf,
+  isAnonymousSymbol,
+} from "./ProgramSymbols";
 import {
   ProgramStoryState,
   blockStackOf,
@@ -160,13 +170,16 @@ interface SuspendedStep {
 
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
- * (docs/engine/binary-program.md, sections 3, 6, 9 and 10): an eval stack, the
- * value operations of the current engine (`Story`'s shared handlers), native
- * functions and operators through `NativeFunctionCall`, variables through
- * `VariablesState`, block statements whose bodies it enters and leaves
- * through a block stack, calls of functions in frames that return to the
- * instruction after the call, decisions the route simulator can force, and a
- * continue that returns at its line's newline.
+ * (docs/engine/binary-program.md, sections 3, 5, 6, 9 and 10): an eval stack,
+ * the value operations of the current engine (`Story`'s shared handlers),
+ * native functions and operators through `NativeFunctionCall`, variables
+ * through `VariablesState`, block statements whose bodies it enters and
+ * leaves through a block stack, calls of functions in frames that return to
+ * the instruction after the call, jumps to symbols that rebuild the block
+ * stack where they land and count the flows they enter, tunnels in frames
+ * that return onward, threads that fork the call stack, the visits and turns
+ * of every counted symbol in typed arrays, decisions the route simulator can
+ * force, and a continue that returns at its line's newline.
  *
  * It presents the members of the current engine's `Story` that a `Game` uses
  * to create a game from a compile, continue, read a beat's display
@@ -174,8 +187,8 @@ interface SuspendedStep {
  * (`HasFunction`, `EvaluateFunction`), and the members the builtins read
  * (`CallLuauFunction`, `CallLuauFunctionProtected`, `CallStackTrace`, ...),
  * under the same names. What it does not present yet belongs to later slices
- * of #692: diverts and counts (#696), choices (#697), images and saves across
- * compiles (#699), addresses (#700) and the debugger (#702).
+ * of #692: choices (#697), images and saves across compiles (#699), addresses
+ * (#700) and the debugger (#702).
  *
  * Each engine keeps its own copy of the current engine's story of the same
  * compile (`ProgramRoot.runtimeStory`, `Story.CopyWithOwnState`), which runs
@@ -405,14 +418,22 @@ export class ProgramStory {
     if (!target) {
       throw new StoryException(`Path not found: '${path}'`);
     }
+    // The flows the choice enters are counted from the position it leaves,
+    // or from none when the call stack is reset, as the current engine's
+    // `ChoosePath` counts them after the turn it starts.
+    const left = resetCallstack ? null : (this._running?.sequence ?? null);
     if (resetCallstack) {
       this.ResetCallstack();
     }
     this._state.DiscardLineEnd();
     this._stateIsPristine = false;
-    this.moveTo(target);
-    this._state.didSafeExit = false;
     this._state.currentTurnIndex += 1;
+    this.land(target.position);
+    this.countEntered(target.position.sequence, left);
+    if (target.symbol !== undefined) {
+      this.enterStart(target.symbol, target.position.sequence);
+    }
+    this._state.didSafeExit = false;
   }
 
   ChooseChoiceIndex(choiceIdx: number): void {
@@ -1254,6 +1275,10 @@ export class ProgramStory {
         this.leave((flags & LEAVE_CONTINUE) !== 0);
         break;
       case Op.Call: {
+        if (flags & CALL_TUNNEL) {
+          this.callTunnel(arg);
+          break;
+        }
         const target = this.targetOf(arg);
         if (!target) {
           this.Error("Divert target not found.");
@@ -1265,6 +1290,12 @@ export class ProgramStory {
         break;
       }
       case Op.CallVar: {
+        if (flags & CALL_TUNNEL) {
+          this.callTunnel(
+            this.symbolOfVariable(this.root.table.strings[arg]!),
+          );
+          break;
+        }
         const target = callVariableTarget(
           this,
           this.root.table.strings[arg]!,
@@ -1295,6 +1326,46 @@ export class ProgramStory {
         break;
       case Op.End:
         state.ForceEnd();
+        break;
+      case Op.JumpSym:
+        this.jumpTo(arg);
+        break;
+      case Op.JumpVar:
+        this.jumpTo(this.symbolOfVariable(this.root.table.strings[arg]!));
+        break;
+      case Op.TunnelReturn:
+        this.tunnelReturn();
+        break;
+      case Op.Thread:
+        // The fork runs on from here, and the original resumes past the
+        // fork's jump when the fork ends.
+        state.ForkThread({
+          sequence: position.sequence,
+          entry: position.entry,
+          offset: position.offset + arg,
+        });
+        break;
+      case Op.Visit:
+        state.Visit(this.countId(arg));
+        break;
+      case Op.GetCount:
+        state.PushEvaluationStack(
+          new IntValue(state.VisitCount(this.countId(arg))),
+        );
+        break;
+      case Op.CountOf:
+        this.countOf((flags & COUNT_TURNS) !== 0);
+        break;
+      case Op.VisitIndex:
+        state.PushEvaluationStack(
+          new IntValue(state.VisitCount(this.countId(arg)) - 1),
+        );
+        break;
+      case Op.ShuffleIndex:
+        this.shuffleIndex(arg);
+        break;
+      case Op.Tag:
+        state.PushToOutputStream(new Tag(this.root.table.strings[arg]!));
         break;
       default:
         this.Error(`unknown instruction ${opOf(w0)}`);
@@ -1450,9 +1521,21 @@ export class ProgramStory {
    *  `symbol` names no scene. A scene binds no parameters. */
   protected sceneTargetOf(symbol: number): SymbolTarget | null {
     const flow = this.root.flow(symbol);
-    return flow?.kind === SymbolKind.Scene
-      ? new SymbolTarget(symbol, { sequence: flow, entry: 0, offset: 0 }, false, 0)
-      : null;
+    if (flow?.kind !== SymbolKind.Scene) {
+      return null;
+    }
+    // A scene with no content of its own runs its first branch.
+    const start = this.root.startOf(symbol);
+    const branch =
+      start >= 0 && flow.arrays.chunks.length === 0
+        ? this.root.place(start)
+        : undefined;
+    return new SymbolTarget(
+      symbol,
+      branch ?? { sequence: flow, entry: 0, offset: 0 },
+      false,
+      0,
+    );
   }
 
   /** Pushes a call frame of `type` that returns to the position, inside the
@@ -1460,6 +1543,14 @@ export class ProgramStory {
    *  frame is inside no block yet. */
   protected enter(target: SymbolTarget, type: PushPopType, evalHeight = 0): void {
     const state = this._state;
+    // A call counts the function it enters, unless it is made from inside
+    // that function, as a jump counts a flow (section 5).
+    if (type == PushPopType.Function) {
+      const caller = state.frame ? state.frameOf(state.frame) : undefined;
+      if (caller?.symbol !== target.symbol) {
+        state.Visit(this.countId(target.symbol));
+      }
+    }
     state.PushFrame(
       type,
       { returnTo: state.position, blocks: state.blockStack, symbol: target.symbol },
@@ -1636,31 +1727,263 @@ export class ProgramStory {
     return func;
   }
 
+  /** `Done`, or a flow that runs out: ends a forked thread, whose original
+   *  resumes where the fork left it, or with no thread to end, stops the
+   *  flow with a safe exit (`Story.StopFlowInThread`). */
   protected done(): void {
-    this._state.position = null;
-    this._state.blockStack = [];
-    this._state.didSafeExit = true;
+    const state = this._state;
+    if (state.canPopThread) {
+      state.PopThread();
+      return;
+    }
+    state.position = null;
+    state.blockStack = [];
+    state.didSafeExit = true;
   }
 
-  /** Moves to `target`, inside the blocks that hold it, with the scopes its
-   *  owners have open there. */
-  protected moveTo(target: ProgramPosition): void {
+  /** Moves to `target` in the current frame (docs/engine/binary-program.md,
+   *  section 5): the frame's block stack is rebuilt from the root's sequence
+   *  and chunk tables, and its scopes are cut to the frame's own and opened
+   *  again for the blocks the target stands in, as many as each owner has
+   *  open where it enters its block, and as many as the target's chunk has
+   *  opened before the target. */
+  protected land(target: ProgramPosition): void {
     const state = this._state;
     const blocks = blockStackOf(this.root, target.sequence);
     if (!blocks) {
-      throw new StoryException("The position is in a block the program no longer has.");
+      this.Error("The position is in a block the program no longer has.");
     }
-    state.position = target;
+    state.position = {
+      sequence: target.sequence,
+      entry: target.entry,
+      offset: target.offset,
+    };
     state.blockStack = blocks;
     const frame = state.frame;
     if (frame) {
+      while (frame.temporaryScopes.length > 1) {
+        frame.PopScope();
+      }
+      let scopes = 0;
       for (const block of blocks) {
         const owner = block.sequence.arrays.chunks[block.entry]!;
-        for (let s = 0; s < blockScopes(owner, block.block); s += 1) {
-          frame.PushScope();
-        }
+        scopes += blockScopes(owner, block.block);
+      }
+      const chunk = target.sequence.arrays.chunks[target.entry];
+      if (chunk) {
+        scopes += scopesBefore(chunk, target.offset);
+      }
+      for (let s = 0; s < scopes; s += 1) {
+        frame.PushScope();
       }
     }
+  }
+
+  /** `JumpSym`: moves to where `symbol` is defined, counting the flows the
+   *  jump enters from the position it left, or raises the current engine's
+   *  error for a target the program does not define, with the jump's line. */
+  protected jumpTo(symbol: number): void {
+    const left = this._running?.sequence ?? null;
+    const place = this.root.place(symbol);
+    if (!place) {
+      this.Error("Divert target not found.");
+    }
+    this.land(place);
+    this.countEntered(place.sequence, left);
+    this.enterStart(symbol, place.sequence);
+  }
+
+  /** A scene with no content of its own before its first branch enters that
+   *  branch when it is entered, as the current engine's knot diverts to its
+   *  first stitch; the branch is entered from the scene. */
+  protected enterStart(symbol: number, at: SequenceRow): void {
+    const start = this.root.startOf(symbol);
+    if (start < 0 || at.arrays.chunks.length > 0) {
+      return;
+    }
+    const branch = this.root.place(start);
+    if (branch) {
+      this.land(branch);
+      this.countEntered(branch.sequence, at);
+    }
+  }
+
+  /** The flow entry rule (docs/engine/binary-program.md, section 5): a flow
+   *  counts when it is entered from outside it, wherever the jump lands, and
+   *  a jump from inside a flow does not count it again. The flows a position
+   *  is in are its sequence's flow and, for a branch, its scene; each one the
+   *  target is in and `left` is not gets a visit. */
+  protected countEntered(target: SequenceRow, left: SequenceRow | null): void {
+    const was = left ? this.flowsOf(left.flow) : [];
+    for (const flow of this.flowsOf(target.flow)) {
+      if (!was.includes(flow)) {
+        this._state.Visit(this.countId(flow));
+      }
+    }
+  }
+
+  // A flow and, for a branch, its scene.
+  protected flowsOf(flow: number): number[] {
+    if (flow < 0) {
+      return [];
+    }
+    const parent = this.root.parentOf(flow);
+    return parent >= 0 ? [flow, parent] : [flow];
+  }
+
+  /** The count id of `symbol` in the root's table, or -1. */
+  protected countId(symbol: number): number {
+    return countIdOf(this.root.table, symbol);
+  }
+
+  /** A tunnel call (`Call` or `CallVar` with the tunnel flag): pushes a
+   *  tunnel frame that returns after the call, inside the blocks the call
+   *  stands in, and moves to where `symbol` is defined, counting the flows
+   *  it enters. */
+  protected callTunnel(symbol: number): void {
+    const state = this._state;
+    const left = this._running?.sequence ?? null;
+    const place = this.root.place(symbol);
+    if (!place) {
+      this.Error("Divert target not found.");
+    }
+    state.PushFrame(PushPopType.Tunnel, {
+      returnTo: state.position,
+      blocks: state.blockStack,
+      symbol,
+    });
+    this.land(place);
+    this.countEntered(place.sequence, left);
+    this.enterStart(symbol, place.sequence);
+  }
+
+  /** `TunnelReturn`: pops a tunnel frame and resumes its caller after the
+   *  tunnel call, or with a symbol value on the stack, jumps to it from the
+   *  tunnel; a frame that is no tunnel's raises the current engine's error
+   *  (`PopTunnel`). */
+  protected tunnelReturn(): void {
+    const state = this._state;
+    const value = state.PopEvaluationStack();
+    const override = value instanceof SymbolValue ? value : null;
+    if (!override && !(value instanceof Void)) {
+      this.Error("Expected void if ->-> doesn't override target");
+    }
+    const callStack = state.callStack;
+    const element = callStack.currentElement!;
+    if (element.type == PushPopType.FunctionEvaluationFromGame) {
+      state.position = null;
+      state.didSafeExit = true;
+      return;
+    }
+    if (element.type != PushPopType.Tunnel || !callStack.canPop) {
+      let expected =
+        element.type == PushPopType.Function
+          ? "function return statement (return)"
+          : "tunnel onwards statement (->->)";
+      if (!callStack.canPop) {
+        expected = "end of flow (-> END or choice)";
+      }
+      this.Error(
+        "Found tunnel onwards statement (->->), when expected " + expected,
+      );
+    }
+    const frame = state.PopCallStack();
+    state.position = frame?.returnTo ?? null;
+    state.blockStack = frame?.blocks ?? [];
+    if (override) {
+      const symbol = this.symbolIn(override.ref);
+      if (symbol === undefined) {
+        this.Error("Divert target not found.");
+      }
+      this.jumpTo(symbol);
+    }
+  }
+
+  /** The symbol the variable `name` holds as a symbol value, for a jump or a
+   *  tunnel to it, or the current engine's error for anything else. */
+  protected symbolOfVariable(name: string): number {
+    const value = this._state.variablesState.GetVariableWithName(name);
+    if (value == null) {
+      this.Error(
+        "Tried to divert using a target from a variable that could not be found (" +
+          name +
+          ")",
+      );
+    }
+    if (value instanceof SymbolValue) {
+      const symbol = this.symbolIn(value.ref);
+      if (symbol === undefined) {
+        this.Error("Divert target not found.");
+      }
+      return symbol;
+    }
+    let message =
+      "Tried to divert to a target from a variable, but the variable (" +
+      name +
+      ") didn't contain a divert target, it ";
+    if (value instanceof IntValue && value.value == 0) {
+      message += "was empty/null (the value 0).";
+    } else {
+      message += "contained '" + value + "'.";
+    }
+    this.Error(message);
+  }
+
+  /** `CountOf`: pops a symbol value and pushes its visits, or the turns
+   *  since its last visit, as the current engine's `ReadCount` and
+   *  `TurnsSince` do. */
+  protected countOf(turns: boolean): void {
+    const state = this._state;
+    const target = state.PopEvaluationStack();
+    if (!(target instanceof SymbolValue)) {
+      const note =
+        target instanceof IntValue
+          ? ". Did you accidentally pass a read count ('knot_name') instead of a target ('-> knot_name')?"
+          : "";
+      this.Error(
+        "TURNS_SINCE / READ_COUNT expected a divert target (knot, stitch, label name), but saw " +
+          target +
+          note,
+      );
+    }
+    const symbol = this.symbolIn(target.ref);
+    let count: number;
+    if (symbol !== undefined && this.root.kindOf(symbol) !== UNDEFINED_KIND) {
+      const id = this.countId(symbol);
+      count = turns ? state.TurnsSince(id) : state.VisitCount(id);
+    } else {
+      count = turns ? -1 : 0;
+      this.Warning(
+        "Failed to find container for " +
+          (turns ? "TURNS_SINCE" : "READ_COUNT") +
+          " lookup at " +
+          target.ref.label,
+      );
+    }
+    state.PushEvaluationStack(new IntValue(count));
+  }
+
+  /** `ShuffleIndex`: pops the element count and the sequence's index and
+   *  pushes the arm the alternator `symbol` shuffles to, seeded from its
+   *  symbol's name and the story seed (`sequenceShuffleIndex`). */
+  protected shuffleIndex(symbol: number): void {
+    const state = this._state;
+    const elements = state.PopEvaluationStack();
+    if (!(elements instanceof IntValue) || elements.value === null) {
+      this.Error("expected number of elements in sequence for shuffle index");
+    }
+    const index = state.PopEvaluationStack();
+    const count = index instanceof IntValue ? (index.value ?? 0) : 0;
+    state.PushEvaluationStack(
+      new IntValue(
+        sequenceShuffleIndex(
+          this.root.labelOf(symbol),
+          count,
+          elements.value,
+          state.storySeed,
+        ),
+      ),
+    );
   }
 
   /** Runs the program's declaration chunks, in the order the root gives,
@@ -1789,12 +2112,29 @@ export class ProgramStory {
    *  location, and in it the last `LineStart` at or before the location, or
    *  the statement's start when none is (a continuation, which joins the beat
    *  before it, or tags). */
-  protected placePath(path: string): ProgramPosition | undefined {
-    const flow =
-      path === "0" ? this.root.flowNamed(ROOT_FLOW_NAME) : this.root.flowNamed(path);
-    if (flow) {
-      return { sequence: flow, entry: 0, offset: 0 };
+  protected placePath(
+    path: string,
+  ): { position: ProgramPosition; symbol?: number } | undefined {
+    const name = path === "0" ? ROOT_FLOW_NAME : path;
+    const symbol = this.root.table.symbolIds.get(name);
+    const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
+    // A flow, or a label, by its qualified name.
+    if (
+      symbol !== undefined &&
+      kind !== UNDEFINED_KIND &&
+      kind !== SymbolKind.Alternator
+    ) {
+      const place = this.root.place(symbol);
+      if (place) {
+        return { position: place, symbol };
+      }
     }
+    const position = this.placeLocation(path);
+    return position ? { position } : undefined;
+  }
+
+  /** The position the content a path's location starts at. */
+  protected placeLocation(path: string): ProgramPosition | undefined {
     const location = this._paths?.locate(path);
     if (!location) {
       return undefined;
@@ -1834,6 +2174,22 @@ export class ProgramStory {
     return { sequence, entry, offset };
   }
 }
+
+/** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
+ *  its `EndScope`s, read once in order (docs/engine/binary-program.md,
+ *  section 1). */
+const scopesBefore = (chunk: StatementChunk, offset: number): number => {
+  let scopes = 0;
+  for (let at = 0; at < offset && at < codeWords(chunk); at += 2) {
+    const op = opOf(chunk[HEADER_WORDS + at]!);
+    if (op === Op.BeginScope) {
+      scopes += 1;
+    } else if (op === Op.EndScope) {
+      scopes -= 1;
+    }
+  }
+  return Math.max(0, scopes);
+};
 
 const constValue = (aux: number): InkObject => {
   switch (aux) {

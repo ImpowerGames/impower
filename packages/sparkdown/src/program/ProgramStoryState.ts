@@ -19,6 +19,7 @@ import {
   splitHeadTailWhitespace,
 } from "../inkjs/engine/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
+import { countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
 import { BLOCK_FUNCTION, blockFlags, chunkId } from "./StatementChunk";
 
 /** Where the engine stands: an entry of a sequence and an offset into that
@@ -75,6 +76,24 @@ export const blockStackOf = (
   }
   return stack;
 };
+
+/** Where a thread a fork suspended resumes, and the blocks it is inside
+ *  there. */
+interface SuspendedThread {
+  position: ProgramPosition | null;
+  blocks: BlockEntry[];
+}
+
+/** The turn a count id that was never visited holds. */
+const NEVER_VISITED = -0x80000000;
+
+/** A frame of a thread's copy: the original's, with a position and blocks of
+ *  its own, since the engine moves a position in place. */
+const copyFrame = (frame: ProgramFrame): ProgramFrame => ({
+  returnTo: frame.returnTo ? { ...frame.returnTo } : null,
+  blocks: frame.blocks.slice(),
+  symbol: frame.symbol,
+});
 
 /** The output a cut carried to the next continue, and whether its own line
  *  waits for its newline (`StoryState.CarryOutputPastCut`). */
@@ -151,6 +170,18 @@ export class ProgramStoryState {
   protected _openStringsStream: InkObject[] | null = null;
   /** The program frame of each call stack element a call pushed. */
   protected _frames = new WeakMap<CallStack.Element, ProgramFrame>();
+  /** Where each thread below the current one resumes when the threads
+   *  above it end, and the blocks it is inside there (`ForkThread`). */
+  protected _suspended = new WeakMap<CallStack.Thread, SuspendedThread>();
+
+  /** The visits of each counted symbol, by count id
+   *  (docs/engine/binary-program.md, section 5). */
+  visits = new Uint32Array(0);
+  /** The turn of each counted symbol's last visit, by count id, or
+   *  `NEVER_VISITED`. */
+  turns = new Int32Array(0);
+  /** The count ids visited since the counts were last drained. */
+  protected _changedCounts = new Set<number>();
 
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
@@ -189,6 +220,88 @@ export class ProgramStoryState {
     const element = this.callStack.currentElement!;
     this._frames.set(element, frame);
     return element;
+  }
+
+  // ------------------------------------------------------------- threads
+
+  /** Forks the current thread (`Thread`): the current thread is suspended,
+   *  to resume at `resumeAt` inside the blocks it is in now, and a copy of
+   *  it, frames and temporaries included, becomes the current thread and
+   *  runs on from the position. The copy's frames are the original's, with
+   *  positions of their own. */
+  ForkThread(resumeAt: ProgramPosition): void {
+    const original = this.callStack.currentThread;
+    this._suspended.set(original, {
+      position: resumeAt,
+      blocks: this.blockStack.slice(),
+    });
+    this.callStack.PushThread();
+    const fork = this.callStack.currentThread;
+    original.callstack.forEach((element, i) => {
+      const frame = this._frames.get(element);
+      const copy = fork.callstack[i];
+      if (frame && copy) {
+        this._frames.set(copy, copyFrame(frame));
+      }
+    });
+    this.blockStack = this.blockStack.slice();
+  }
+
+  /** Whether a `Done`, or a flow that runs out, ends a forked thread rather
+   *  than the flow. */
+  get canPopThread(): boolean {
+    return this.callStack.canPopThread;
+  }
+
+  /** Ends the current thread and resumes the one below it where its fork
+   *  left it (`StoryState`'s `PopThread`). */
+  PopThread(): void {
+    this.callStack.PopThread();
+    const resumed = this._suspended.get(this.callStack.currentThread);
+    this.position = resumed?.position
+      ? { ...resumed.position }
+      : null;
+    this.blockStack = resumed?.blocks.slice() ?? [];
+  }
+
+  // -------------------------------------------------------------- counts
+
+  /** Raises the visits of count id `id` and records the turn
+   *  (`Visit`). */
+  Visit(id: number): void {
+    if (id < 0) {
+      return;
+    }
+    this.growCounts(id);
+    this.visits[id] = this.visits[id]! + 1;
+    this.turns[id] = this.currentTurnIndex;
+    this._changedCounts.add(id);
+  }
+
+  /** The visits of count id `id`. */
+  VisitCount(id: number): number {
+    return id >= 0 ? (this.visits[id] ?? 0) : 0;
+  }
+
+  /** The turns since count id `id` was last visited, or -1 for never. A
+   *  visit before the first turn records turn -1, as the current engine's
+   *  does, so "never" is a turn of its own (`NEVER_VISITED`). */
+  TurnsSince(id: number): number {
+    const turn = id >= 0 ? (this.turns[id] ?? NEVER_VISITED) : NEVER_VISITED;
+    return turn === NEVER_VISITED ? -1 : this.currentTurnIndex - turn;
+  }
+
+  protected growCounts(id: number): void {
+    if (id < this.visits.length) {
+      return;
+    }
+    const size = Math.max(id + 1, this.visits.length * 2, 16);
+    const visits = new Uint32Array(size);
+    visits.set(this.visits);
+    const turns = new Int32Array(size).fill(NEVER_VISITED);
+    turns.set(this.turns);
+    this.visits = visits;
+    this.turns = turns;
   }
 
   get canContinue(): boolean {
@@ -693,37 +806,110 @@ export class ProgramStoryState {
 
   // ------------------------------------------------------------------- saving
 
-  // Visits and turns are not counted yet, so a save writes the two maps empty
-  // and the checkpoint store's delta readers see no change.
+  // The counts are keyed outside the engine by their symbol's qualified name,
+  // or `#<id>` for an anonymous symbol of this root's table generation, as
+  // the current engine keys them by path (the checkpoint store's readers).
+
+  /** Each counted symbol that was visited, by its key, with its visits. */
   GetVisitCountEntries(): [string, number][] {
-    return [];
+    return this.countEntries(this.visits, (v) => v > 0);
   }
 
+  /** Each counted symbol that was visited, by its key, with the turn of its
+   *  last visit. */
   GetTurnIndexEntries(): [string, number][] {
-    return [];
+    return this.countEntries(this.turns, (t) => t !== NEVER_VISITED);
   }
 
   DrainVisitCountDeltas(): [string, number][] {
-    return [];
+    const out = this.changedEntries(this.visits);
+    this._changedCounts.clear();
+    return out;
   }
 
   DrainTurnIndexDeltas(): [string, number][] {
-    return [];
+    return this.changedEntries(this.turns);
   }
 
-  ResetCountDeltaTracking(): void {}
+  ResetCountDeltaTracking(): void {
+    this._changedCounts.clear();
+  }
+
+  // The key of each count id of the root's table.
+  protected _countKeys: string[] | null = null;
+
+  protected countKeys(): string[] {
+    if (!this._countKeys) {
+      const table = this._root.table;
+      const keys: string[] = [];
+      table.countIds.forEach((id, symbol) => {
+        if (id >= 0) {
+          keys[id] = isAnonymousSymbol(table, symbol)
+            ? `#${symbol}`
+            : table.symbols[symbol]!;
+        }
+      });
+      this._countKeys = keys;
+    }
+    return this._countKeys;
+  }
+
+  protected countEntries(
+    values: Uint32Array | Int32Array,
+    held: (value: number) => boolean,
+  ): [string, number][] {
+    const keys = this.countKeys();
+    const out: [string, number][] = [];
+    values.forEach((value, id) => {
+      if (held(value) && keys[id] !== undefined) {
+        out.push([keys[id]!, value]);
+      }
+    });
+    return out;
+  }
+
+  protected changedEntries(values: Uint32Array | Int32Array): [string, number][] {
+    const keys = this.countKeys();
+    return [...this._changedCounts]
+      .filter((id) => keys[id] !== undefined)
+      .map((id) => [keys[id]!, values[id]!]);
+  }
+
+  /** The count id a saved key names in this root, or -1: a qualified name,
+   *  or an anonymous symbol of `generation`, taken through the reseeds since
+   *  it (`ProgramRoot.symbolFrom`). */
+  protected countIdOfKey(key: string, generation: number): number {
+    const table = this._root.table;
+    let symbol: number | undefined;
+    if (key.startsWith("#")) {
+      const saved = Number(key.slice(1));
+      symbol = Number.isInteger(saved)
+        ? this._root.symbolFrom(saved, generation)
+        : undefined;
+      if (symbol !== undefined && !isAnonymousSymbol(table, symbol)) {
+        symbol = undefined;
+      }
+    } else {
+      symbol = table.symbolIds.get(key);
+    }
+    return symbol === undefined ? -1 : countIdOf(table, symbol);
+  }
 
   /** The state as JSON: the position as a chunk id, its entry and offset and
    *  its sequence's id, the output and eval stack, the line end, the globals,
    *  and the call frames, each with its temporaries scope by scope, the
    *  upvalue cells still open on it and, for a frame a call pushed, the
-   *  position its caller resumes at and the symbol of its function. A position past the last statement of its sequence,
-   *  where a flow rests after its last beat, has no chunk: it is written with
-   *  chunk id -1 and named by its sequence alone. The blocks a position is
-   *  inside are not written: they follow from its sequence. A position holds
-   *  within a session, for as long as a root holds its chunk or, past the
-   *  last statement, its sequence. */
-  toJson(): string {
+   *  position its caller resumes at and the symbol of its function; the
+   *  threads a fork suspended, each with where it resumes and its frames; and
+   *  unless `withCounts` is false, the visits and turns of the counted
+   *  symbols, keyed by their names (`GetVisitCountEntries`). A position past
+   *  the last statement of its sequence, where a flow rests after its last
+   *  beat, has no chunk: it is written with chunk id -1 and named by its
+   *  sequence alone. The blocks a position is inside are not written: they
+   *  follow from its sequence. A position holds within a session, for as
+   *  long as a root holds its chunk or, past the last statement, its
+   *  sequence. */
+  toJson(withCounts = true): string {
     const writer = new SimpleJson.Writer();
     JsonSerialisation.SetWriterAnchors(
       writer,
@@ -757,48 +943,112 @@ export class ProgramStoryState {
     writer.WriteProperty("variablesState", (w) =>
       this.variablesState.WriteJson(w),
     );
-    writer.WriteProperty("frames", (w) => {
-      w.WriteArrayStart();
-      for (const element of this.callStack.elements) {
-        const frame = this._frames.get(element);
-        w.WriteObjectStart();
-        w.WriteIntProperty("type", element.type);
-        w.WriteIntProperty("start", element.functionStartInOutputStream);
-        w.WriteIntProperty("height", element.evaluationStackHeightWhenPushed);
-        if (frame) {
-          w.WriteIntProperty("symbol", frame.symbol);
-          w.WritePropertyStart("returnTo");
-          writePosition(w, frame.returnTo);
-          w.WritePropertyEnd();
-        }
-        w.WritePropertyStart("temps");
+    writer.WriteProperty("frames", (w) =>
+      this.writeFrames(w, this.callStack.elements),
+    );
+    // The threads a fork suspended, from the outermost: each with the
+    // position it resumes at and its frames.
+    const threads = this.callStack._threads;
+    if (threads.length > 1) {
+      writer.WriteProperty("threads", (w) => {
         w.WriteArrayStart();
-        for (const scope of element.temporaryScopes) {
-          JsonSerialisation.WriteDictionaryRuntimeObjs(w, scope);
+        for (const thread of threads.slice(0, -1)) {
+          w.WriteObjectStart();
+          w.WritePropertyStart("position");
+          writePosition(w, this._suspended.get(thread)?.position ?? null);
+          w.WritePropertyEnd();
+          w.WriteProperty("frames", (fw) =>
+            this.writeFrames(fw, thread.callstack),
+          );
+          w.WriteObjectEnd();
         }
         w.WriteArrayEnd();
-        w.WritePropertyEnd();
-        // The cells still open on the frame, by the ids the closures holding
-        // them are written with, as the current engine's frames write them.
-        CallStack.Thread.WriteUpvalueCells(w, "upvalues", element.openUpvalues);
-        w.WriteObjectEnd();
-      }
-      w.WriteArrayEnd();
-    });
-    writer.WriteProperty("visitCounts", (w) => {
-      w.WriteObjectStart();
-      w.WriteObjectEnd();
-    });
-    writer.WriteProperty("turnIndices", (w) => {
-      w.WriteObjectStart();
-      w.WriteObjectEnd();
-    });
+      });
+    }
+    if (withCounts) {
+      writer.WriteIntProperty("countGeneration", this._root.generation);
+      writer.WriteProperty("visitCounts", (w) =>
+        writeCounts(w, this.GetVisitCountEntries()),
+      );
+      writer.WriteProperty("turnIndices", (w) =>
+        writeCounts(w, this.GetTurnIndexEntries()),
+      );
+    }
     writer.WriteObjectEnd();
     return writer.toString();
   }
 
+  /** The state without its counts, which a checkpoint keeps apart
+   *  (`GetVisitCountEntries`). */
   ToJsonWithoutCounts(): string {
-    return this.toJson();
+    return this.toJson(false);
+  }
+
+  // Each element of a thread's call stack: its type, where its function
+  // started writing, the eval stack's height it was pushed at, for a frame a
+  // call pushed its function's symbol and the position its caller resumes
+  // at, its temporaries scope by scope and the upvalue cells still open on
+  // it.
+  protected writeFrames(
+    w: SimpleJson.Writer,
+    elements: readonly CallStack.Element[],
+  ): void {
+    w.WriteArrayStart();
+    for (const element of elements) {
+      const frame = this._frames.get(element);
+      w.WriteObjectStart();
+      w.WriteIntProperty("type", element.type);
+      w.WriteIntProperty("start", element.functionStartInOutputStream);
+      w.WriteIntProperty("height", element.evaluationStackHeightWhenPushed);
+      if (frame) {
+        w.WriteIntProperty("symbol", frame.symbol);
+        w.WritePropertyStart("returnTo");
+        writePosition(w, frame.returnTo);
+        w.WritePropertyEnd();
+      }
+      w.WritePropertyStart("temps");
+      w.WriteArrayStart();
+      for (const scope of element.temporaryScopes) {
+        JsonSerialisation.WriteDictionaryRuntimeObjs(w, scope);
+      }
+      w.WriteArrayEnd();
+      w.WritePropertyEnd();
+      // The cells still open on the frame, by the ids the closures holding
+      // them are written with, as the current engine's frames write them.
+      CallStack.Thread.WriteUpvalueCells(w, "upvalues", element.openUpvalues);
+      w.WriteObjectEnd();
+    }
+    w.WriteArrayEnd();
+  }
+
+  // Fills the current thread's call stack from saved frames.
+  protected readFrames(frames: readonly Record<string, any>[]): void {
+    frames.forEach((saved, i) => {
+      if (i > 0) {
+        const returnTo = this.placePosition(saved["returnTo"]);
+        this.PushFrame(
+          Number(saved["type"]) as PushPopType,
+          {
+            returnTo,
+            blocks: this.blocksOf(returnTo),
+            symbol: Number(saved["symbol"] ?? -1),
+          },
+          Number(saved["height"] ?? 0),
+        );
+      }
+      const element = this.callStack.currentElement!;
+      element.functionStartInOutputStream = Number(saved["start"] ?? 0);
+      const temps = saved["temps"];
+      element.temporaryScopes = Array.isArray(temps)
+        ? temps.map((scope: any) =>
+            JsonSerialisation.JObjectToDictionaryRuntimeObjs(scope),
+          )
+        : [];
+      if (element.temporaryScopes.length === 0) {
+        element.temporaryScopes = [new Map()];
+      }
+      element.openUpvalues = CallStack.Thread.ReadUpvalueCells(saved["upvalues"]);
+    });
   }
 
   /** Restores a state `toJson` wrote. Each position is placed through the
@@ -844,33 +1094,45 @@ export class ProgramStoryState {
     this.didSafeExit = obj["didSafeExit"] === true;
     this.variablesState.SetJsonToken(obj["variablesState"]);
     const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];
+    const threads = Array.isArray(obj["threads"]) ? obj["threads"] : [];
     this.callStack.Reset();
-    frames.forEach((saved: Record<string, any>, i: number) => {
+    // The suspended threads from the outermost, each with where it resumes,
+    // then the current one.
+    threads.forEach((saved: Record<string, any>, i: number) => {
       if (i > 0) {
-        const returnTo = this.placePosition(saved["returnTo"]);
-        this.PushFrame(
-          Number(saved["type"]) as PushPopType,
-          {
-            returnTo,
-            blocks: this.blocksOf(returnTo),
-            symbol: Number(saved["symbol"] ?? -1),
-          },
-          Number(saved["height"] ?? 0),
-        );
+        this.callStack.PushThread();
+        this.callStack.currentThread.callstack.length = 1;
       }
-      const element = this.callStack.currentElement!;
-      element.functionStartInOutputStream = Number(saved["start"] ?? 0);
-      const temps = saved["temps"];
-      element.temporaryScopes = Array.isArray(temps)
-        ? temps.map((scope: any) =>
-            JsonSerialisation.JObjectToDictionaryRuntimeObjs(scope),
-          )
-        : [];
-      if (element.temporaryScopes.length === 0) {
-        element.temporaryScopes = [new Map()];
-      }
-      element.openUpvalues = CallStack.Thread.ReadUpvalueCells(saved["upvalues"]);
+      this.readFrames(Array.isArray(saved["frames"]) ? saved["frames"] : []);
+      const resume = this.placePosition(saved["position"]);
+      this._suspended.set(this.callStack.currentThread, {
+        position: resume,
+        blocks: this.blocksOf(resume),
+      });
     });
+    if (threads.length > 0) {
+      this.callStack.PushThread();
+      this.callStack.currentThread.callstack.length = 1;
+    }
+    this.readFrames(frames);
+    this.visits = new Uint32Array(0);
+    this.turns = new Int32Array(0);
+    this._changedCounts.clear();
+    const generation = Number(obj["countGeneration"] ?? this._root.generation);
+    for (const [key, visits] of Object.entries(obj["visitCounts"] ?? {})) {
+      const id = this.countIdOfKey(key, generation);
+      if (id >= 0) {
+        this.growCounts(id);
+        this.visits[id] = Number(visits);
+      }
+    }
+    for (const [key, turn] of Object.entries(obj["turnIndices"] ?? {})) {
+      const id = this.countIdOfKey(key, generation);
+      if (id >= 0) {
+        this.growCounts(id);
+        this.turns[id] = Number(turn);
+      }
+    }
     // A `new`-instance table saved with its class's name links again to the
     // live class global, now that the globals are loaded.
     JsonSerialisation.RelinkPendingDefineRefs((className) => {
@@ -924,6 +1186,18 @@ export class ProgramStoryState {
     return blocks;
   }
 }
+
+// Writes counts by their keys.
+const writeCounts = (
+  writer: SimpleJson.Writer,
+  entries: readonly [string, number][],
+): void => {
+  writer.WriteObjectStart();
+  for (const [key, value] of entries) {
+    writer.WriteIntProperty(key, value);
+  }
+  writer.WriteObjectEnd();
+};
 
 // Writes a position as `[chunk id, entry, offset, sequence id]`, with chunk
 // id -1 for a position past the last statement of its sequence, or null.

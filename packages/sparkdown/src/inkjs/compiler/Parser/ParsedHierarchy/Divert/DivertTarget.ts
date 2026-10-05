@@ -55,16 +55,30 @@ export class DivertTarget extends Expression {
     return "DivertTarget";
   }
 
-  // A function held as a value, or a flow's: `Sym` of its symbol. The
-  // symbol's facts (its kind, and a function's parameters) are recorded, so
-  // the chunk is emitted again when the target changes what it is.
+  // A function held as a value: `Sym` of its symbol, whose facts (its kind,
+  // and a function's parameters) are recorded, so the chunk is emitted again
+  // when the target changes what it is. A scene, a branch or a label held as
+  // a value, or a target the compile found nothing for: `Sym` of the symbol
+  // its divert would jump to, as a jump names it (`Divert.EmitJump`). A
+  // variable written after `->`, which the compile reports, is not emitted.
   public override EmitExpression(emitter: ProgramEmitter): void {
-    const target = asOrNull(this.divert.targetContent, FlowBase);
-    if (!target) {
+    const target = this.divert.targetContent;
+    const flow = asOrNull(target, FlowBase);
+    if (flow?.isFunction) {
+      const symbol = emitter.functionSymbol(flow);
+      emitter.reference(symbol);
+      emitter.emit(Op.Sym, symbol);
+      return;
+    }
+    if (this._runtimeDivert?.variableDivertName != null) {
       emitter.unsupported(this.typeName);
     }
-    const symbol = emitter.functionSymbol(target);
-    emitter.reference(symbol);
+    const key = this.divert.programJumpKey;
+    if (key !== null) {
+      emitter.recordResolution(key);
+    }
+    const symbol = emitter.targetSymbol(target, this.divert.writtenTargetName);
+    emitter.referenceTarget(symbol);
     emitter.emit(Op.Sym, symbol);
   }
 

@@ -131,18 +131,13 @@ export function testCompiler(): SparkdownCompiler {
 /**
  * The constructs a test's program may fall back for, which then runs on the
  * current engine: those other slices of the binary program emit (#692), a
- * divert, a divert target, a read count and a sequence (#696) and a `choose`
- * block, a choice and a gather (#697); an included script's top-level
- * content, a `run` statement's call among it, which the design leaves to the
- * current engine (docs/engine/binary-program.md, What is built); and an
- * assignment the parser left without its value, which the writer never
- * emits.
+ * `choose` block, a choice and a gather of one (#697); an included script's
+ * top-level content, a `run` statement's call among it, which the design
+ * leaves to the current engine (docs/engine/binary-program.md, What is
+ * built); and an assignment the parser left without its value, which the
+ * writer never emits.
  */
 const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
-  "Divert",
-  "DivertTarget",
-  "read count",
-  "Sequence",
   "choose",
   "Choice",
   "Gather",

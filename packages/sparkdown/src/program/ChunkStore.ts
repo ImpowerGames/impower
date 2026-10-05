@@ -6,14 +6,20 @@ import {
   reseedProgramTable,
   type ProgramTable,
 } from "../binary/ProgramBinaryWriter";
-import { functionShapeOf } from "../compiler/lower/utils/statementShape";
+import {
+  functionShapeOf,
+  isLoopLabel,
+} from "../compiler/lower/utils/statementShape";
 import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import type { Story } from "../inkjs/engine/Story";
+import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
+import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Story as ParsedStory } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { Sequence } from "../inkjs/compiler/Parser/ParsedHierarchy/Sequence/Sequence";
 import { Text } from "../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { ConstantDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
@@ -21,6 +27,7 @@ import { VariableReference } from "../inkjs/compiler/Parser/ParsedHierarchy/Vari
 import {
   BinaryProgramWriter,
   factHash,
+  NO_FACTS,
   normalizeSource,
   type BlockInput,
   type FunctionInput,
@@ -30,26 +37,32 @@ import { UnsupportedConstruct } from "./ProgramEmitter";
 import { ProgramStory } from "./ProgramStory";
 import {
   ChunkTable,
+  emptyDefinitions,
   ProgramRoot,
+  type DefinitionArrays,
   type SequenceArrays,
   type SequenceRow,
-  type SymbolDefinition,
 } from "./ProgramRoot";
+import { Op, opOf } from "./ProgramInstructions";
 import {
   anonymousSymbol,
   internSymbol,
   isAnonymousSymbol,
   renumberAnonymousSymbols,
+  snapshotTable,
   SymbolKind,
+  UNDEFINED_KIND,
   type SymbolKindValue,
 } from "./ProgramSymbols";
 import {
   BLOCK_FUNCTION,
   B_SEQUENCE,
+  HEADER_WORDS,
   blockCount,
   blockField,
   blockFlags,
   chunkId,
+  codeWords,
   exportCount,
   exportOffset,
   exportSymbol,
@@ -144,6 +157,10 @@ export interface FlowSource {
   /** The lines the body spans. */
   span: number;
   statements: readonly StatementSource[];
+  /** For a scene whose content starts with a branch that takes no
+   *  parameters, that branch's qualified name: entering the scene enters it,
+   *  as the current engine's knot diverts to its first stitch. */
+  startsWith?: string;
 }
 
 /** What a compile hands the store to build a root from. */
@@ -196,6 +213,13 @@ interface FunctionPart {
   block: number;
 }
 
+// One alternator a chunk writes: what it is aligned by, and its anonymous
+// symbol, which counts it.
+interface AlternatorPart {
+  fingerprint: string;
+  symbol: number;
+}
+
 // What the store knows of a chunk it emitted or reused: the syntax of the
 // statement it was emitted for, the lowering inputs that statement recorded,
 // the values its emission recorded, for a declaration chunk the names of the
@@ -211,6 +235,7 @@ interface ChunkInfo {
   globals?: string;
   defines?: string;
   parts: readonly FunctionPart[];
+  alternators: readonly AlternatorPart[];
   anonymousReferences: readonly number[];
   /** The locals each function the statement writes declares at its entry
    *  (`hoistedOf`). */
@@ -304,12 +329,16 @@ export class ChunkStore {
    *  chunks that write functions and the chunks inside functions' bodies. */
   protected _functionChunks: ReadonlySet<StatementChunk> = new Set();
 
+  /** `table` is the compiler's persistent `ProgramTable`, which the store
+   *  interns into and keeps no table of its own (#696); a reseed of it goes
+   *  through `reseed`. */
   constructor(table: ProgramTable = createProgramTable()) {
     this.table = table;
     this._writer = new BinaryProgramWriter(
       table,
       (symbol) => this.factsOf(symbol),
       (fn) => this.symbolOf(fn),
+      (sequence) => this.alternatorOf(sequence),
     );
   }
 
@@ -428,7 +457,9 @@ export class ChunkStore {
     const functionChunks = new Set<StatementChunk>();
     flows.forEach((flow, f) => {
       const symbol = symbols[f]!;
-      const before = previous?.flow(symbol);
+      // By name: the previous root may hold the ids of an older table
+      // generation, which a reseed renumbered.
+      const before = previous?.flowNamed(flow.name);
       const id = before?.id ?? this._nextSequenceId++;
       const failFlow = (construct: string, line: number) => {
         fallback ??= { construct, uri: flow.uri, line };
@@ -582,7 +613,12 @@ export class ChunkStore {
       declarationsEmitted ||
       !sameChunks(oldDeclarations, declarationChunks) ||
       functionsChanged;
-    if (fallback) {
+    const definitions = fallback
+      ? undefined
+      : this.definitionArrays(flows, symbols, sequences, (construct) => {
+          fallback ??= { construct, uri: flows[0]?.uri ?? "", line: 0 };
+        });
+    if (fallback || !definitions) {
       return { fallback, coverage, declarationsChanged };
     }
     for (const ids of scriptFlows.values()) {
@@ -591,7 +627,7 @@ export class ChunkStore {
       );
     }
     const root = new ProgramRoot(
-      this.table,
+      snapshotTable(this.table),
       this._nextRootId++,
       previous?.id ?? -1,
       sequences,
@@ -602,7 +638,7 @@ export class ChunkStore {
       runtimeStory,
       declarationIds,
       declarationChunks,
-      definitionsOf(sequences),
+      definitions,
       new Map(this._labels),
       this._symbolRemaps,
     );
@@ -633,6 +669,85 @@ export class ChunkStore {
     return { root, coverage, declarationsChanged };
   }
 
+  /**
+   * The root's definition arrays (docs/engine/binary-program.md, section 2,
+   * Resolution): each flow at the start of its sequence, with its kind, a
+   * branch's scene and the branch a scene with no content of its own enters;
+   * each symbol a chunk exports at the chunk and the offset that defines it,
+   * a label where its `Visit` stands and a function at its entry; and the
+   * kind of each alternator. A label whose qualified name another label or a
+   * flow of the program has makes the program fall back, naming
+   * `a label named as another`, since a jump to the name could reach either.
+   */
+  protected definitionArrays(
+    flows: readonly FlowSource[],
+    symbols: readonly number[],
+    sequences: ReadonlyMap<number, SequenceRow>,
+    fail: (construct: string) => void,
+  ): DefinitionArrays | undefined {
+    const defs = emptyDefinitions(this.table.symbols.length);
+    for (const row of sequences.values()) {
+      if (row.owner < 0 && row.flow >= 0) {
+        defs.sequence[row.flow] = row.id;
+        defs.kind[row.flow] = row.kind;
+      }
+    }
+    flows.forEach((flow, f) => {
+      const symbol = symbols[f]!;
+      if (flow.kind === SymbolKind.Branch) {
+        const scene = this.table.symbolIds.get(
+          flow.name.slice(0, flow.name.lastIndexOf(".")),
+        );
+        if (scene !== undefined && defs.kind[scene] === SymbolKind.Scene) {
+          defs.parent[symbol] = scene;
+        }
+      }
+      if (flow.startsWith !== undefined) {
+        const start = this.table.symbolIds.get(flow.startsWith);
+        if (start !== undefined && defs.kind[start] === SymbolKind.Branch) {
+          defs.start[symbol] = start;
+        }
+      }
+    });
+    let failed = false;
+    for (const row of sequences.values()) {
+      for (const chunk of row.arrays.chunks) {
+        for (let r = 0; r < exportCount(chunk); r += 1) {
+          const symbol = exportSymbol(chunk, r);
+          const offset = exportOffset(chunk, r);
+          const label =
+            offset < codeWords(chunk) &&
+            opOf(chunk[HEADER_WORDS + offset]!) === Op.Visit &&
+            chunk[HEADER_WORDS + offset + 1] === symbol;
+          const before = defs.kind[symbol]!;
+          if (
+            before !== UNDEFINED_KIND &&
+            (label || before === SymbolKind.Label)
+          ) {
+            failed = true;
+          }
+          defs.chunk[symbol] = chunkId(chunk);
+          defs.offset[symbol] = offset;
+          defs.kind[symbol] = label ? SymbolKind.Label : SymbolKind.Function;
+        }
+        for (const part of this._info.get(chunk)?.alternators ?? []) {
+          if (part.symbol < defs.kind.length) {
+            defs.kind[part.symbol] = SymbolKind.Alternator;
+            // What its shuffle is seeded from: its flow's name and its own
+            // source, which no compile renumbers.
+            const flow = row.flow >= 0 ? this.table.symbols[row.flow] : "";
+            this._labels.set(part.symbol, `${flow}:${part.fingerprint}`);
+          }
+        }
+      }
+    }
+    if (failed) {
+      fail("a label named as another");
+      return undefined;
+    }
+    return defs;
+  }
+
   // Whether the last declarations run raised an error, which runs them again
   // on the next compile.
   protected _declarationsFailed = false;
@@ -643,13 +758,17 @@ export class ChunkStore {
 
   /**
    * Starts a new generation of the table (docs/engine/binary-program.md,
-   * section 2, Reseed). The symbols the current root holds, its flows' and
-   * those of the functions its statements write, are interned again, and
-   * every other entry is dropped, so the next compile emits every chunk
-   * again. The record of the anonymous symbol each part of a statement owns
-   * is remapped with them, so that compile hands every part the symbol it
-   * had, and a symbol value made before the reseed takes its id through the
-   * remap the store keeps.
+   * section 2, Reseed). The symbols the current root holds, its flows', the
+   * labels and functions its chunks export and the alternators its
+   * statements write, are interned again, and every other entry is dropped,
+   * so the next compile emits every chunk again. The record of the anonymous
+   * symbol each part of a statement owns is remapped with them, so that
+   * compile hands every part the symbol it had, and a symbol value made
+   * before the reseed takes its id through the remap the store keeps. The
+   * table's arrays are replaced, not cleared, so every root built before the
+   * reseed goes on reading the generation it was built in
+   * (`ProgramRoot.table`). The compiler reseeds through here
+   * (`SparkdownCompiler.maybeReseedBinaryTable`).
    */
   reseed(): void {
     const root = this.current;
@@ -664,6 +783,12 @@ export class ChunkStore {
       for (const part of this._info.get(chunk)?.parts ?? []) {
         live.add(part.symbol);
       }
+      for (const part of this._info.get(chunk)?.alternators ?? []) {
+        live.add(part.symbol);
+      }
+      for (let r = 0; r < exportCount(chunk); r += 1) {
+        live.add(exportSymbol(chunk, r));
+      }
     }
     const remap = reseedProgramTable(this.table, { symbols: live });
     renumberAnonymousSymbols(this.table);
@@ -674,6 +799,10 @@ export class ChunkStore {
         this._info.set(chunk, {
           ...info,
           parts: info.parts.map((part) => ({
+            ...part,
+            symbol: remap.symbols[part.symbol]!,
+          })),
+          alternators: info.alternators.map((part) => ({
             ...part,
             symbol: remap.symbols[part.symbol]!,
           })),
@@ -715,6 +844,20 @@ export class ChunkStore {
   // The anonymous symbols of other statements' functions that the chunk
   // being emitted refers to.
   protected _referenced: Set<number> | null = null;
+  // The symbol of each alternator of the statement being emitted.
+  protected _alternatorPlan: Map<object, number> | null = null;
+
+  /** The anonymous symbol of an alternator of the statement being emitted:
+   *  the one its alignment with the old chunk's alternators gave it, or a
+   *  new one. */
+  protected alternatorOf(sequence: object): number {
+    let symbol = this._alternatorPlan?.get(sequence);
+    if (symbol === undefined) {
+      symbol = anonymousSymbol(this.table);
+      this._alternatorPlan?.set(sequence, symbol);
+    }
+    return symbol;
+  }
 
   /** What a chunk that refers to `symbol` depends on: the kind the program
    *  being built defines it as (and a function's parameters), or that the
@@ -924,6 +1067,26 @@ export class ChunkStore {
         fn: body.fn ? functionInput(body.fn, plan!.symbols[k]!) : undefined,
       };
     });
+    // The alternators the statement writes keep the symbols of the old
+    // chunk's that they align with by their own source (section 2), and any
+    // other takes a new anonymous symbol when the writer first asks for it.
+    const alternators = alternatorsOf(statement);
+    const fingerprints = alternators.map(alternatorFingerprint);
+    const alternatorPlan = new Map<object, number>();
+    if (inherited) {
+      const old = this._info.get(inherited)?.alternators ?? [];
+      const pairs = alignParts(
+        fingerprints,
+        old.map((part) => part.fingerprint),
+      );
+      alternators.forEach((sequence, i) => {
+        const part = pairs[i] === undefined ? undefined : old[pairs[i]!];
+        if (part) {
+          alternatorPlan.set(sequence, part.symbol);
+        }
+      });
+    }
+    this._alternatorPlan = alternatorPlan;
     const referenced = new Set<number>();
     this._referenced = referenced;
     let emitted;
@@ -940,6 +1103,7 @@ export class ChunkStore {
       });
     } finally {
       this._referenced = null;
+      this._alternatorPlan = null;
     }
     const own = new Set(plan?.symbols ?? []);
     const chunk = emitted.chunk;
@@ -955,6 +1119,12 @@ export class ChunkStore {
           ? [{ fingerprint: fingerprintOf(body), symbol: plan!.symbols[k]!, block: k }]
           : [],
       ),
+      alternators: alternators.flatMap((sequence, i) => {
+        const symbol = alternatorPlan.get(sequence);
+        return symbol === undefined
+          ? []
+          : [{ fingerprint: fingerprints[i]!, symbol }];
+      }),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
       hoisted: hoistedOf(statement),
       params: paramsOf(statement),
@@ -1281,6 +1451,11 @@ export class ChunkStore {
     const start = referenceTableStart(chunk);
     for (let r = 0; r < chunk[H_REFERENCE_ROWS]!; r += 1) {
       const at = start + r * REFERENCE_ROW_WORDS;
+      // A jump, a count or a symbol value of a scene, a branch or a label
+      // depends on no fact about its symbol (`referenceTarget`).
+      if (chunk[at + 1] === NO_FACTS) {
+        continue;
+      }
       if (factHash(this.factsOf(chunk[at]!)) !== chunk[at + 1]) {
         return false;
       }
@@ -1442,6 +1617,40 @@ const functionInput = (fn: ParsedObject, symbol: number): FunctionInput => {
   };
 };
 
+/** The alternators (`Sequence`s) a statement's own code writes, in the order
+ *  the writer meets them: none of its bodies' statements, and none of a
+ *  function's body, which are other chunks' code. */
+const alternatorsOf = (statement: StatementSource): Sequence[] => {
+  const out: Sequence[] = [];
+  const exclude = bodyObjects(statement);
+  const visit = (obj: ParsedObject) => {
+    if (exclude?.has(obj) || obj instanceof FlowBase) {
+      return;
+    }
+    if (obj instanceof Sequence) {
+      out.push(obj);
+    }
+    const children = obj instanceof FunctionCall ? obj.args : obj.content;
+    for (const child of children ?? []) {
+      visit(child);
+    }
+  };
+  statement.objects.forEach(visit);
+  return out;
+};
+
+/** What an alternator is aligned by when its statement is emitted again: its
+ *  kind and the text of its arms. */
+const alternatorFingerprint = (sequence: Sequence): string => {
+  const text = (obj: ParsedObject): string =>
+    obj instanceof Text
+      ? obj.text
+      : `${obj.typeName}(${(obj instanceof FunctionCall ? obj.args : obj.content ?? []).map(text).join("")})`;
+  return normalizeSource(
+    `${sequence.sequenceType}|${sequence.sequenceElements.map(text).join("|")}`,
+  );
+};
+
 /** The hash a function part is aligned by: its own source, normalized. */
 const fingerprintOf = (body: BodySource): string =>
   normalizeSource(body.partSource?.() ?? "");
@@ -1536,25 +1745,6 @@ const functionLabel = (fn: ParsedObject): string => {
   return names.join(".");
 };
 
-/** Where each symbol the root's chunks export is defined: the chunk and the
- *  offset of its entry. */
-const definitionsOf = (
-  sequences: ReadonlyMap<number, SequenceRow>,
-): Map<number, SymbolDefinition> => {
-  const out = new Map<number, SymbolDefinition>();
-  for (const row of sequences.values()) {
-    for (const chunk of row.arrays.chunks) {
-      for (let r = 0; r < exportCount(chunk); r += 1) {
-        out.set(exportSymbol(chunk, r), {
-          chunk: chunkId(chunk),
-          offset: exportOffset(chunk, r),
-        });
-      }
-    }
-  }
-  return out;
-};
-
 /** The texts the compiler rewrites in place in a statement's parsed objects,
  *  in the order the writer reads them (`StringExpression.EmitProgram`),
  *  leaving out the objects in `exclude` (a block statement's bodies, whose
@@ -1612,6 +1802,17 @@ export const resolutionsOf = (
     }
     if (obj instanceof FunctionCall && obj.isUserCall) {
       out.push(obj.proxyDivert.callResolutionKey);
+    }
+    // The symbol a jump, a tunnel, a thread or a divert target names, and
+    // the symbol a label exports (#696).
+    if (obj instanceof Divert) {
+      const key = obj.programJumpKey;
+      if (key !== null) {
+        out.push(key);
+      }
+    }
+    if (obj instanceof Gather && obj.name && !isLoopLabel(obj.name)) {
+      out.push(obj.programResolutionKey);
     }
     const children = obj instanceof FunctionCall ? obj.args : obj.content;
     for (const child of children ?? []) {

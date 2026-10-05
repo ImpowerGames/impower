@@ -65,11 +65,29 @@ export interface ProgramEmitter {
    *  keeps a hash of them, and the chunk is reused only while the program
    *  it is reused in gives the same facts. */
   reference(symbol: number): void;
+  /** Records that the chunk's code refers to `symbol` and depends on no fact
+   *  about it: a jump, a count or a symbol value of a scene, a branch or a
+   *  label, whose code is the same whatever the program defines the symbol
+   *  as, or whether it defines it. */
+  referenceTarget(symbol: number): void;
   /** The symbol of a function of the program (a `FlowBase`): its qualified
    *  name's for a function declared at the top level, and the anonymous one
    *  of the statement that writes it otherwise. A function the program does
    *  not define stops the statement's emission. */
   functionSymbol(fn: object): number;
+  /** The symbol a divert, a count or a divert target names: the symbol of
+   *  the scene, branch or label `target` is (`programSymbolName`), or for a
+   *  target the compile found nothing for, the symbol of the name as
+   *  `written`. A target that has no symbol stops the emission. */
+  targetSymbol(target: object | null, written: string): number;
+  /** The symbol of a `label` (a named `Gather`). */
+  labelSymbol(gather: object): number;
+  /** The anonymous symbol of an alternator (a `Sequence`) of the statement,
+   *  which counts it and seeds its shuffle. */
+  alternatorSymbol(sequence: object): number;
+  /** Exports `symbol` at the next instruction: the chunk defines it
+   *  there. */
+  exportHere(symbol: number): void;
   /** Stops the statement's emission: the program falls back to the current
    *  engine as a whole and names `construct` (the parsed class's `typeName`,
    *  or the builtin's name). */

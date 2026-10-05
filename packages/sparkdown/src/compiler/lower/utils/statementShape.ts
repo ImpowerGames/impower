@@ -134,6 +134,20 @@ export const loopOf = new WeakMap<ParsedObject, LoopShape>();
 /** Whether a divert is a `break` or a `continue` of the innermost loop. */
 export const loopExitOf = new WeakMap<ParsedObject, "break" | "continue">();
 
+// The labels a loop's lowering gives its own head, step and exits
+// (`lowerLuauWhileLoop.ts` and its siblings), numbered by the loop's
+// document and offset (`syntheticId`), which the compiler renames by document
+// order (`__synth_<n>`, `SparkdownCompiler.canonicalizeSyntheticFlowNames`).
+const LOOP_LABEL =
+  /^(__(while|for|forIn|repeat)_.+_(loop|step|break|continue)|__synth_\d+)$/;
+
+/** Whether `name` is a label a loop's lowering made for itself, which the
+ *  binary program's writer emits as the loop's chunk and never as a label or
+ *  a jump. The other names the compiler generates name functions, which no
+ *  label or jump names. */
+export const isLoopLabel = (name: string | null | undefined): boolean =>
+  !!name && LOOP_LABEL.test(name);
+
 const emptyReads = (context: string): StatementReads => ({
   callable: new Map(),
   defineType: new Map(),

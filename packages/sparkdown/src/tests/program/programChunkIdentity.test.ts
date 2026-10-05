@@ -677,10 +677,17 @@ describe("a name a chunk reads", () => {
         { range: { start: posAt(text, text.length), end: posAt(text, text.length) }, text: added },
       ],
     });
+    const before = c.compiler.chunkStore!.current!;
     const { program } = c.compile();
     const cold = programCompiler({ [MAIN]: text + added }, { programChunks: true }).compile().program;
-    expect(cold.fallback?.construct).toBe("read count");
-    expect(program.fallback).toEqual(cold.fallback);
+    // The name now reads the scene's count (#696).
+    expect(cold.fallback).toBeUndefined();
+    expect(program.fallback).toBeUndefined();
+    expect(describeRoot(program.chunks!)).toEqual(describeRoot(cold.chunks!));
+    const reads = (root: ProgramRoot) =>
+      describeRoot(root).filter((line) => /GetCount|GetVar extra/.test(line));
+    expect(reads(before).join("\n")).toMatch(/GetVar extra/);
+    expect(reads(program.chunks!).join("\n")).toMatch(/GetCount "extra"/);
   });
 });
 

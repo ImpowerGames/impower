@@ -46,8 +46,10 @@ import {
   opOf,
 } from "./ProgramInstructions";
 import {
+  anonymousSymbol,
   internNumber,
   internString,
+  internSymbol,
   isAnonymousSymbol,
 } from "./ProgramSymbols";
 import {
@@ -202,16 +204,23 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _ranges: (DebugMetadata | null)[] = [];
   protected _exports: number[] = [];
   protected _definesOnly = false;
+  /** The alternators' symbols, in the order the chunk writes them. */
+  protected _alternators: number[] = [];
 
   /** `facts` gives, for a symbol, what the code that refers to it depends on
    *  (its kind and whether the program defines it); the chunk store reads the
    *  same function when it decides whether a chunk can be reused.
    *  `symbolOf` gives the symbol of a function (a `FlowBase`) of the program
-   *  being built, or nothing for one it does not define. */
+   *  being built, or nothing for one it does not define. `alternatorOf`
+   *  gives the anonymous symbol of an alternator of the statement being
+   *  written, which the store hands on when the statement is emitted
+   *  again. */
   constructor(
     public readonly table: ProgramTable,
     public facts: (symbol: number) => string = () => "",
     public symbolOf: (fn: object) => number | undefined = () => undefined,
+    public alternatorOf: (sequence: object) => number = () =>
+      anonymousSymbol(table),
   ) {}
 
   write(input: StatementInput): EmittedStatement {
@@ -255,6 +264,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._ranges = [input.range];
     this._exports = [];
     this._definesOnly = input.definesOnly ?? false;
+    this._alternators = [];
     this.row(input.range);
   }
 
@@ -373,6 +383,46 @@ export class BinaryProgramWriter implements ProgramEmitter {
       }
     }
     this._references.push(symbol, factHash(this.facts(symbol)));
+  }
+
+  referenceTarget(symbol: number): void {
+    for (let i = 0; i < this._references.length; i += REFERENCE_ROW_WORDS) {
+      if (this._references[i] === symbol) {
+        return;
+      }
+    }
+    this._references.push(symbol, NO_FACTS);
+  }
+
+  targetSymbol(target: object | null, written: string): number {
+    if (target) {
+      const name = (target as ParsedObject).programSymbolName;
+      if (name === null) {
+        this.unsupported((target as ParsedObject).typeName);
+      }
+      return internSymbol(this.table, name);
+    }
+    return internSymbol(this.table, written);
+  }
+
+  labelSymbol(gather: object): number {
+    const name = (gather as ParsedObject).programSymbolName;
+    if (name === null) {
+      this.unsupported("a label inside a function");
+    }
+    return internSymbol(this.table, name);
+  }
+
+  alternatorSymbol(sequence: object): number {
+    const symbol = this.alternatorOf(sequence);
+    if (!this._alternators.includes(symbol)) {
+      this._alternators.push(symbol);
+    }
+    return symbol;
+  }
+
+  exportHere(symbol: number): void {
+    this._exports.push(symbol, this._code.length);
   }
 
   /** Emits `EnterBlock` for the body `body` of the statement, as block
@@ -891,11 +941,18 @@ export class BinaryProgramWriter implements ProgramEmitter {
       case Op.SetVar:
       case Op.VarPtr:
       case Op.CallVar:
+      case Op.JumpVar:
+      case Op.Tag:
         return JSON.stringify(this.table.strings[arg]);
       case Op.Num:
         return numberText(this.table.numbers[arg]!);
       case Op.Sym:
       case Op.Call:
+      case Op.JumpSym:
+      case Op.Visit:
+      case Op.GetCount:
+      case Op.VisitIndex:
+      case Op.ShuffleIndex:
         return this.describeSymbol(arg);
       default:
         return String(arg);
@@ -903,12 +960,17 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   /** A symbol as the layout hash reads it: its qualified name, or for an
-   *  anonymous symbol of one of this statement's functions, the ordinal of
-   *  that function among the statement's (section 1). An anonymous symbol of
-   *  another statement's function reads as such. */
+   *  anonymous symbol of one of this statement's functions or alternators,
+   *  the ordinal of that part among the statement's parts of its kind
+   *  (section 1). An anonymous symbol of another statement's function reads
+   *  as such. */
   protected describeSymbol(symbol: number): string {
     if (!isAnonymousSymbol(this.table, symbol)) {
       return JSON.stringify(this.table.symbols[symbol]);
+    }
+    const alternator = this._alternators.indexOf(symbol);
+    if (alternator >= 0) {
+      return `alternator#${alternator}`;
     }
     const part = this._blocks
       .filter((block) => block.fn)
@@ -1038,6 +1100,11 @@ const isConditionalOf = (
 /** The hash a reference table row keeps of the facts about its symbol. */
 export const factHash = (facts: string): number => hash64(facts)[1];
 
+/** The hash of a reference whose code depends on no fact about its symbol
+ *  (`referenceTarget`): the hash of no facts, which no symbol's facts read
+ *  as. */
+export const NO_FACTS = factHash("");
+
 /** A number of the table as text, negative zero as `-0`, which `String`
  *  writes as `0`. */
 const numberText = (value: number): string =>
@@ -1083,6 +1150,7 @@ export const describeInstruction = (
   switch (op) {
     case Op.Text:
     case Op.Str:
+    case Op.Tag:
       return `${name} ${JSON.stringify(table.strings[arg])}`;
     case Op.CallStd:
     case Op.Native:
@@ -1093,8 +1161,19 @@ export const describeInstruction = (
       return `${name} ${table.strings[arg]}${flagText}`;
     case Op.CallVar:
       return `${name} ${table.strings[arg]}/${aux}${flagText}`;
+    case Op.JumpVar:
+      return `${name} ${table.strings[arg]}`;
     case Op.Sym:
+    case Op.JumpSym:
+    case Op.Visit:
+    case Op.GetCount:
+    case Op.VisitIndex:
+    case Op.ShuffleIndex:
       return `${name} ${symbol(arg)}`;
+    case Op.CountOf:
+      return `${name}${flagText}`;
+    case Op.Thread:
+      return `${name} ${offset + 2 + arg}`;
     case Op.Call:
       return `${name} ${symbol(arg)}/${aux}${flagText}`;
     case Op.Num:

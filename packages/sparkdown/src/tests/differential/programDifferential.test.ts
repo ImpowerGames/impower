@@ -1,19 +1,21 @@
-// The differential run of the binary program (#692, #694, #695, #698). It compiles
-// shared fixtures once per engine and compares what they show under the
-// parity contract of #692: each beat's text, tags and display tables, and the
-// errors and warnings with their source lines. A program that falls back runs
-// on the current engine as a whole, so only the programs that have their
+// The differential run of the binary program (#692, #694, #695, #698, #696). It
+// compiles shared fixtures once per engine and compares what they show under
+// the parity contract of #692: each beat's text, tags and display tables, and
+// the errors and warnings with their source lines. A program that falls back
+// runs on the current engine as a whole, so only the programs that have their
 // chunks are compared, and the run reports the constructs the others fall
-// back for.
+// back for. Both engines take their shuffles' draws from one injected stream
+// per run (`shuffleDraws`), so a shuffle picks the same arms on both.
 //
 // It also runs randomized incremental edits on the statement chunks, as
 // `incrementalEquivalence` and `incrementalCumulativeEquivalence` run them on
-// the current compile, over four screenplays made of the constructs the
-// writer emits, one of display lines, one of logic, one of functions and one
-// of functions that capture the locals around them: after each edit, the
-// chunks compared by content, the flows and the diagnostics equal a cold
-// compile's, and every chunk of a statement the edit did not touch is the
-// chunk it was before.
+// the current compile, over five screenplays made of the constructs the
+// writer emits, one of display lines, one of logic, one of functions, one of
+// functions that capture the locals around them and one of flow (scenes,
+// branches, labels, diverts, tunnels, threads, counts and alternators): after
+// each edit, the chunks compared by content, the flows and the diagnostics
+// equal a cold compile's, and every chunk of a statement the edit did not
+// touch is the chunk it was before.
 //
 // It is kept out of the ordinary suite (`vitest.config.ts`) and runs alone:
 //   SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
@@ -26,6 +28,9 @@ import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
+import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
+import { shuffleDraws } from "../../inkjs/engine/Story";
+import { FLOW_INSERTS, flowScreenplay } from "../program/flowScreenplay";
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -70,6 +75,32 @@ const fixtureFiles = (dir: string, out: string[] = []): string[] => {
   return out;
 };
 
+/** The shuffle draws each engine takes in a run, one seeded stream per run,
+ *  so that a shuffle picks the same arms on both (`shuffleDraws`, #696). */
+const injectDraws = () => {
+  let s = 0x696;
+  shuffleDraws.next = () => (s = (s * 1103515245 + 12345) & 0x7fffffff);
+};
+
+/** A run's errors, with the source of the one runtime error the two engines
+ *  place differently left out: a jump to a target the program does not
+ *  define names the jump's line on the program engine, as the design of
+ *  record has it (section 2, A symbol that disappears), where the current
+ *  engine names the scene's header, or no line, since the divert the
+ *  lowering makes carries no range of its own. `programFlows.test.ts`
+ *  asserts the program engine's line. */
+const comparable = (shown: unknown): unknown => {
+  const run = shown as { errors?: string[] };
+  return Array.isArray(run?.errors)
+    ? {
+        ...run,
+        errors: run.errors.map((e) =>
+          e.replace(/RUNTIME ERROR: .*: Divert target not found\.$/, "RUNTIME ERROR: Divert target not found."),
+        ),
+      }
+    : shown;
+};
+
 /** What a script shows on each engine from its top, or the construct its
  *  program falls back for. */
 function differential(text: string): {
@@ -92,14 +123,19 @@ function differential(text: string): {
       return { fallback: program.fallback?.construct ?? "no story" };
     }
     const current = compileScript(text);
+    injectDraws();
+    const currentShown = shown(() => {
+      current.story.ResetState();
+      return storyBeats(current.story);
+    });
+    injectDraws();
+    const programShown = shown(() => storyBeats(new ProgramStory(program.chunks!)));
     return {
-      current: shown(() => {
-        current.story.ResetState();
-        return storyBeats(current.story);
-      }),
-      program: shown(() => storyBeats(new ProgramStory(program.chunks!))),
+      current: comparable(currentShown),
+      program: comparable(programShown),
     };
   } finally {
+    shuffleDraws.next = null;
     quiet();
   }
 }
@@ -226,6 +262,7 @@ const SCREENPLAYS = [
   { name: "the logic screenplay", text: () => logicScreenplay(3), inserts: LOGIC_INSERTS },
   { name: "the function screenplay", text: () => functionScreenplay(3), inserts: FUNCTION_INSERTS },
   { name: "the capture screenplay", text: () => captureScreenplay(3), inserts: CAPTURE_INSERTS },
+  { name: "the flow screenplay", text: () => flowScreenplay(3), inserts: FLOW_INSERTS },
 ];
 
 describe("the differential run", () => {
@@ -255,7 +292,7 @@ describe("the differential run", () => {
   it("shows the beats fixture and the screenplays as the current engine does", () => {
     const { files } = buildBeatsFixture({ lines: 300 });
     const beats = files.get("main.sd")!.replace("include scripts/characters\n", "");
-    for (const text of [beats, displayScreenplay(), logicScreenplay(3), functionScreenplay(3), captureScreenplay(3)]) {
+    for (const text of [beats, displayScreenplay(), logicScreenplay(3), functionScreenplay(3), captureScreenplay(3), flowScreenplay(3)]) {
       const quiet = silence();
       try {
         const scenes = [...text.matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);
@@ -263,13 +300,16 @@ describe("the differential run", () => {
         expect(program.fallback).toBeUndefined();
         const current = compileScript(text);
         for (const scene of scenes) {
+          injectDraws();
           current.story.ResetState();
           const expected = storyBeats(current.story, scene);
+          injectDraws();
           const actual = storyBeats(new ProgramStory(program.chunks!), scene);
           expect(actual).toEqual(expected);
           expect(expected.beats.length).toBeGreaterThan(0);
         }
       } finally {
+        shuffleDraws.next = null;
         quiet();
       }
     }
@@ -300,6 +340,37 @@ describe("the differential run", () => {
       );
     } finally {
       ObjectExpression.prototype.EmitExpression = emit;
+    }
+  });
+
+  // The flow writer broken on purpose: a label emits no `Visit`, so a label
+  // a jump or a pass reaches is never counted.
+  it("fails when the flow writer is broken", () => {
+    const emit = Gather.prototype.EmitProgram;
+    Gather.prototype.EmitProgram = function (this: Gather, emitter: ProgramEmitter) {
+      if (this.name) {
+        emitter.recordResolution(this.programResolutionKey);
+        emitter.exportHere(emitter.labelSymbol(this));
+      }
+      emitter.emitObjects(this.content);
+    };
+    const quiet = silence();
+    try {
+      const text = flowScreenplay(1);
+      const { program } = compileScript(text, { programChunks: true });
+      expect(program.fallback).toBeUndefined();
+      const current = compileScript(text);
+      injectDraws();
+      current.story.ResetState();
+      const expected = storyBeats(current.story, "FLOW_0");
+      injectDraws();
+      expect(stable(storyBeats(new ProgramStory(program.chunks!), "FLOW_0"))).not.toBe(
+        stable(expected),
+      );
+    } finally {
+      shuffleDraws.next = null;
+      quiet();
+      Gather.prototype.EmitProgram = emit;
     }
   });
 });

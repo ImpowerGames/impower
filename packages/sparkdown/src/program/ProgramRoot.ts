@@ -1,6 +1,10 @@
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
 import type { Story } from "../inkjs/engine/Story";
-import type { SymbolKindValue } from "./ProgramSymbols";
+import {
+  SymbolKind,
+  UNDEFINED_KIND,
+  type SymbolKindValue,
+} from "./ProgramSymbols";
 import {
   B_HEAD_LINES,
   B_SEQUENCE,
@@ -101,14 +105,42 @@ export interface ChunkPosition {
   entry: number;
 }
 
-/** Where a symbol a chunk exports is defined: the chunk's id and the offset
- *  of the code that defines it. The chunk's entry in its sequence is found
- *  through the chunk table, so an insertion that shifts the entry changes no
- *  definition. */
-export interface SymbolDefinition {
-  chunk: number;
-  offset: number;
+/**
+ * A root's definition arrays (docs/engine/binary-program.md, section 2,
+ * Resolution), indexed by symbol id, each the length of the table's symbols
+ * when the root was built; a symbol interned later is one the root does not
+ * define. A symbol a chunk exports (a function, a label) is defined at the
+ * chunk's id and the offset of the code that defines it, and the chunk's
+ * entry in its sequence is found through the chunk table, so an insertion
+ * that shifts the entry changes no definition row; a flow is defined at the
+ * start of its sequence.
+ */
+export interface DefinitionArrays {
+  /** The id of the chunk that exports the symbol, or -1. */
+  chunk: Int32Array;
+  /** The offset in that chunk's code. */
+  offset: Int32Array;
+  /** For a flow, the id of its sequence; -1 otherwise. */
+  sequence: Int32Array;
+  /** What the program defines the symbol as (`SymbolKind`), or
+   *  `UNDEFINED_KIND`. */
+  kind: Int8Array;
+  /** For a branch, its scene's symbol; -1 otherwise. */
+  parent: Int32Array;
+  /** For a scene whose content starts with a branch, which it enters when
+   *  it is entered, as the current engine's knot diverts to its first stitch,
+   *  that branch's symbol; -1 otherwise. */
+  start: Int32Array;
 }
+
+export const emptyDefinitions = (size = 0): DefinitionArrays => ({
+  chunk: new Int32Array(size).fill(-1),
+  offset: new Int32Array(size).fill(-1),
+  sequence: new Int32Array(size).fill(-1),
+  kind: new Int8Array(size).fill(UNDEFINED_KIND),
+  parent: new Int32Array(size).fill(-1),
+  start: new Int32Array(size).fill(-1),
+});
 
 // The entry of each chunk in a sequence's arrays, built on first use. The
 // arrays never change, so neither does the index.
@@ -135,7 +167,11 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
  */
 export class ProgramRoot {
   constructor(
-    /** The `ProgramTable` the chunks' ids are interned in. */
+    /** The `ProgramTable` the chunks' ids are interned in, as the generation
+     *  the root was built in holds it: a reseed installs new arrays on the
+     *  compiler's table and leaves these as they were, so a root still in use
+     *  reads the strings, numbers and symbols its chunks were minted with
+     *  (`snapshotTable`). */
     readonly table: ProgramTable,
     /** The root's identity, and its predecessor's (-1 for none). */
     readonly id: number,
@@ -157,8 +193,8 @@ export class ProgramRoot {
      *  the globals in: constants first, then the others as the story
      *  declares them. */
     readonly initialization: readonly StatementChunk[] = [],
-    /** Where each symbol the chunks export is defined: every function. */
-    protected _definitions: ReadonlyMap<number, SymbolDefinition> = new Map(),
+    /** Where each symbol is defined, and what as. */
+    protected _definitions: DefinitionArrays = emptyDefinitions(),
     /** The name each function is shown by in a stack trace or a printed
      *  value: a function declared at the top level its qualified name, and
      *  one a statement writes the name the current engine gives its
@@ -260,20 +296,53 @@ export class ProgramRoot {
   }
 
   /** Where a symbol is defined: its sequence, entry and offset. A function
-   *  is defined where a chunk exports it, and another flow at the start of
-   *  its sequence. */
+   *  and a label are defined where a chunk exports them, and a flow at the
+   *  start of its sequence. */
   definition(
     symbol: number,
   ): { sequence: number; entry: number; offset: number } | undefined {
-    const exported = this._definitions.get(symbol);
-    if (exported) {
-      const at = this.position(exported.chunk);
+    const at = this.place(symbol);
+    return at
+      ? { sequence: at.sequence.id, entry: at.entry, offset: at.offset }
+      : undefined;
+  }
+
+  /** Where a symbol is defined, as a position the engine can stand at, or
+   *  nothing when the program does not define it (section 2, A symbol that
+   *  disappears). */
+  place(
+    symbol: number,
+  ): { sequence: SequenceRow; entry: number; offset: number } | undefined {
+    const defs = this._definitions;
+    if (symbol < 0 || symbol >= defs.kind.length) {
+      return undefined;
+    }
+    const chunk = defs.chunk[symbol]!;
+    if (chunk >= 0) {
+      const at = this.position(chunk);
       return at
-        ? { sequence: at.sequence.id, entry: at.entry, offset: exported.offset }
+        ? { sequence: at.sequence, entry: at.entry, offset: defs.offset[symbol]! }
         : undefined;
     }
-    const row = this.flow(symbol);
-    return row ? { sequence: row.id, entry: 0, offset: 0 } : undefined;
+    const sequence = this._sequences.get(defs.sequence[symbol]!);
+    return sequence ? { sequence, entry: 0, offset: 0 } : undefined;
+  }
+
+  /** What this root's program defines `symbol` as (`SymbolKind`), or
+   *  `UNDEFINED_KIND`. */
+  kindOf(symbol: number): number {
+    return this._definitions.kind[symbol] ?? UNDEFINED_KIND;
+  }
+
+  /** The scene a branch belongs to, or -1 for any other symbol. */
+  parentOf(symbol: number): number {
+    return this._definitions.parent[symbol] ?? -1;
+  }
+
+  /** The branch a scene enters when it has no content of its own before
+   *  it, or -1. */
+  startOf(symbol: number): number {
+    return this._definitions.start[symbol] ?? -1;
   }
 
   /** Where the code of the function `symbol` names starts, or nothing when
@@ -281,11 +350,10 @@ export class ProgramRoot {
   functionEntry(
     symbol: number,
   ): { sequence: SequenceRow; entry: number; offset: number } | undefined {
-    const exported = this._definitions.get(symbol);
-    const at = exported ? this.position(exported.chunk) : undefined;
-    return at && exported
-      ? { sequence: at.sequence, entry: at.entry, offset: exported.offset }
-      : undefined;
+    if (this.kindOf(symbol) !== SymbolKind.Function) {
+      return undefined;
+    }
+    return this._definitions.chunk[symbol]! >= 0 ? this.place(symbol) : undefined;
   }
 
   /** The name a symbol is shown by: a function's, as `_labels` holds it, or
