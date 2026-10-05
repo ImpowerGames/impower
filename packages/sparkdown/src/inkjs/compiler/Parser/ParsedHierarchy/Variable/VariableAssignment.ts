@@ -169,12 +169,11 @@ export class VariableAssignment extends ParsedObject {
     if (this.isGlobalDeclaration) {
       return;
     }
-    if (!this.expression) {
-      // A statement the parser reported, whose value is missing.
-      emitter.unsupported("an assignment without a value");
-    }
     emitter.recordResolution(this.resolutionKey);
-    emitter.emitObject(this.expression);
+    // Every assignment that is not a global declaration has its value: the
+    // lowerers leave out an assignment whose value the parser could not
+    // read, and declare such a local nil.
+    emitter.emitObject(this.expression!);
     emitter.emit(
       Op.SetVar,
       emitter.variable(this.variableName),
