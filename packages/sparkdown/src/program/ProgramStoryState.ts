@@ -19,7 +19,7 @@ import {
   splitHeadTailWhitespace,
 } from "../inkjs/engine/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
-import { countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
+import { UNDEFINED_KIND, countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
 import { BLOCK_FUNCTION, blockFlags, chunkId } from "./StatementChunk";
 
 /** Where the engine stands: an entry of a sequence and an offset into that
@@ -156,6 +156,10 @@ export class ProgramStoryState {
   currentTurnIndex = -1;
   storySeed: number;
   previousRandom = 0;
+  /** The symbol of the flow the last instruction ran in, or -1: what a path
+   *  chosen without resetting the call stack is entered from, as the current
+   *  engine's thread keeps its `previousPointer`. A save writes it by name. */
+  previousFlow = -1;
 
   protected _currentErrors: string[] | null = null;
   protected _currentWarnings: string[] | null = null;
@@ -887,7 +891,10 @@ export class ProgramStoryState {
 
   /** The count id a saved key names in this root, or -1: a qualified name,
    *  or an anonymous symbol of `generation`, taken through the reseeds since
-   *  it (`ProgramRoot.symbolFrom`). */
+   *  it (`ProgramRoot.symbolFrom`). A symbol this root does not define has
+   *  none, though the compiler's table may keep its name until a reseed: a
+   *  count saved under a name the program no longer has is dropped
+   *  (docs/engine/binary-program.md, section 2). */
   protected countIdOfKey(key: string, generation: number): number {
     const table = this._root.table;
     let symbol: number | undefined;
@@ -902,7 +909,9 @@ export class ProgramStoryState {
     } else {
       symbol = table.symbolIds.get(key);
     }
-    return symbol === undefined ? -1 : countIdOf(table, symbol);
+    return symbol === undefined || this._root.kindOf(symbol) === UNDEFINED_KIND
+      ? -1
+      : countIdOf(table, symbol);
   }
 
   /** The state as JSON: the position as a chunk id, its entry and offset and
@@ -949,6 +958,10 @@ export class ProgramStoryState {
     writer.WriteIntProperty("turnIdx", this.currentTurnIndex);
     writer.WriteIntProperty("storySeed", this.storySeed);
     writer.WriteIntProperty("previousRandom", this.previousRandom);
+    const previousFlow = this._root.table.symbols[this.previousFlow];
+    if (this.previousFlow >= 0 && previousFlow !== undefined) {
+      writer.WriteProperty("previousFlow", previousFlow);
+    }
     writer.WriteProperty("didSafeExit", this.didSafeExit);
     writer.WriteProperty("variablesState", (w) =>
       this.variablesState.WriteJson(w),
@@ -1102,6 +1115,10 @@ export class ProgramStoryState {
     this.currentTurnIndex = obj["turnIdx"];
     this.storySeed = obj["storySeed"];
     this.previousRandom = obj["previousRandom"];
+    this.previousFlow =
+      typeof obj["previousFlow"] === "string"
+        ? (this._root.table.symbolIds.get(obj["previousFlow"]) ?? -1)
+        : -1;
     this.didSafeExit = obj["didSafeExit"] === true;
     this.variablesState.SetJsonToken(obj["variablesState"]);
     const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];

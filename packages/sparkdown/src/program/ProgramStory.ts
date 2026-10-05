@@ -420,10 +420,11 @@ export class ProgramStory {
     if (!target) {
       throw new StoryException(`Path not found: '${path}'`);
     }
-    // The flows the choice enters are counted from the position it leaves,
-    // or from none when the call stack is reset, as the current engine's
-    // `ChoosePath` counts them after the turn it starts.
-    const left = resetCallstack ? null : (this._running?.sequence ?? null);
+    // The flows the choice enters are counted from the flow the last
+    // instruction ran in, which a save keeps, or from none when the call
+    // stack is reset, as the current engine's `ChoosePath` counts them from
+    // its thread's previous pointer after the turn it starts.
+    const left = resetCallstack ? -1 : this._state.previousFlow;
     if (resetCallstack) {
       this.ResetCallstack();
     }
@@ -493,7 +494,7 @@ export class ProgramStory {
     // counts no container a host's evaluation starts in.
     const scene = found ? this.root.flow(found.ref.symbol) : undefined;
     if (scene && target.entry.sequence !== scene) {
-      this.countEntered(target.entry.sequence, scene);
+      this.countEntered(target.entry.sequence, scene.flow);
     }
     this.passArguments(args);
     // A function takes the host's arguments as a call gives them
@@ -1131,6 +1132,7 @@ export class ProgramStory {
       entry: position.entry,
       offset: position.offset,
     };
+    state.previousFlow = position.sequence.flow;
     const at = HEADER_WORDS + position.offset;
     const w0 = chunk[at]!;
     const arg = chunk[at + 1]!;
@@ -1816,7 +1818,7 @@ export class ProgramStory {
       this.Error("Divert target not found.");
     }
     this.land(place, this._state.blockStack);
-    this.countEntered(place.sequence, left);
+    this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
   }
@@ -1857,7 +1859,7 @@ export class ProgramStory {
     const branch = this.root.place(start);
     if (branch) {
       this.land(branch, this._state.blockStack);
-      this.countEntered(branch.sequence, at);
+      this.countEntered(branch.sequence, at.flow);
     }
   }
 
@@ -1865,9 +1867,10 @@ export class ProgramStory {
    *  counts when it is entered from outside it, wherever the jump lands, and
    *  a jump from inside a flow does not count it again. The flows a position
    *  is in are its sequence's flow and, for a branch, its scene; each one the
-   *  target is in and `left` is not gets a visit. */
-  protected countEntered(target: SequenceRow, left: SequenceRow | null): void {
-    const was = left ? this.flowsOf(left.flow) : [];
+   *  target is in and the flow `left` (a symbol, or -1 for none) is not gets
+   *  a visit. */
+  protected countEntered(target: SequenceRow, left: number): void {
+    const was = this.flowsOf(left);
     for (const flow of this.flowsOf(target.flow)) {
       if (!was.includes(flow)) {
         this._state.Visit(this.countId(flow));
@@ -1906,7 +1909,7 @@ export class ProgramStory {
       symbol,
     });
     this.land(place, []);
-    this.countEntered(place.sequence, left);
+    this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
   }

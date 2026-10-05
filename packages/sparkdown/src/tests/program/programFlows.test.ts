@@ -911,6 +911,111 @@ describe("flows on the program engine", () => {
     expect(resumed.Continue()).toBe("Selection two.\n");
   });
 
+  // Round 3 of the review of #1431: two alternators whose arms call different
+  // functions with the same arguments are told apart, so when the arms that
+  // hold them swap, each keeps its own count.
+  it("keeps each alternator's count when arms that differ only by the function they call swap", () => {
+    const arms = ["    | Pick {cycle|a(1)|a(2)}.", "    | Pick {cycle|b(1)|b(2)}."];
+    const text = (order: string[]) =>
+      [
+        "store passes = 0",
+        "scene main",
+        "  label top",
+        "  & passes = passes + 1",
+        "  cycle",
+        ...order,
+        "  end",
+        "  if passes < 3 then",
+        "    -> top",
+        "  end",
+        "  done",
+        "end",
+        'function a(x) return "A" .. x end',
+        'function b(x) return "B" .. x end',
+        "",
+      ].join("\n");
+    const s = session(text(arms));
+    const game = new ProgramStory(s.first.chunks!);
+    game.ChoosePathString("main");
+    const shown: string[] = [];
+    while (game.canContinue) {
+      shown.push(game.Continue()!.trim());
+    }
+    expect(shown.filter(Boolean)).toEqual(["Pick A1.", "Pick B1.", "Pick A2."]);
+    const saved = game.state.toJson();
+    const swapped = s.edit(arms.join("\n"), [arms[1], arms[0]].join("\n")).chunks!;
+    const resumed = new ProgramStory(swapped);
+    resumed.state.LoadJson(saved);
+    resumed.ChoosePathString("main");
+    // The outer cycle's fourth pass takes its second arm, now A's, whose
+    // inner cycle ran twice.
+    expect(resumed.Continue()).toBe("Pick A1.\n");
+  });
+
+  // Round 3 of the review of #1431: a path chosen without resetting the call
+  // stack is entered from the flow the story last ran in, which a save keeps
+  // and a reset clears, as the current engine's previous pointer is. (The
+  // current engine refuses such a choice in the middle of a line, with
+  // "Already in expression evaluation?", so each run ends its flow first.)
+  it("counts a path chosen without a reset from the flow a loaded or reset story last ran in", () => {
+    const text = ["scene main", "  Visits {main}.", "  done", "end", ""].join("\n");
+    silence(() => {
+      const { program } = compileScript(text, { programChunks: true });
+      expect(program.fallback).toBeUndefined();
+      const lines = (game: any) => {
+        const out: string[] = [];
+        while (game.canContinue) {
+          out.push(game.Continue().trim());
+        }
+        return out.filter(Boolean).join(" ");
+      };
+      const runs = (make: () => any) => {
+        const game = make();
+        game.ChoosePathString("main");
+        const first = lines(game);
+        const saved = game.state.toJson();
+        const loaded = make();
+        loaded.state.LoadJson(saved);
+        loaded.ChoosePathString("main", false);
+        const afterLoad = lines(loaded);
+        game.ChoosePathString("main", false);
+        const inSession = lines(game);
+        game.ResetState();
+        game.ChoosePathString("main", false);
+        const afterReset = lines(game);
+        return [first, afterLoad, inSession, afterReset];
+      };
+      const current = runs(() => compileScript(text).story);
+      const actual = runs(() => new ProgramStory(program.chunks!));
+      expect(actual).toEqual(current);
+      expect(actual).toEqual(["Visits 1.", "Visits 1.", "Visits 1.", "Visits 1."]);
+    });
+  });
+
+  // Round 3 of the review of #1431: a count saved under a name the program no
+  // longer has is dropped when the save loads (section 2), though the
+  // compiler's table keeps the name until its next reseed, so the label
+  // written again starts from no visits.
+  it("drops a saved count whose symbol the loading root does not define", () => {
+    const s = session(
+      ["scene main", "  label extra", "  Extra {extra}.", "  done", "end", ""].join("\n"),
+    );
+    const game = new ProgramStory(s.first.chunks!);
+    game.ChoosePathString("main");
+    expect(game.Continue()).toBe("Extra 1.\n");
+    const saved = game.state.toJson();
+    const without = s.edit("  label extra\n  Extra {extra}.", "  Plain.").chunks!;
+    const loaded = new ProgramStory(without);
+    loaded.state.LoadJson(saved);
+    expect(loaded.state.GetVisitCountEntries().map(([key]) => key)).toEqual(["main"]);
+    const resaved = loaded.state.toJson();
+    const again = s.edit("  Plain.", "  Plain {extra}.\n  label extra").chunks!;
+    const resumed = new ProgramStory(again);
+    resumed.state.LoadJson(resaved);
+    resumed.ChoosePathString("main", false);
+    expect(resumed.Continue()).toBe("Plain 0.\n");
+  });
+
   it("re-emits, for a renamed scene, the chunks that refer to it and no other", () => {
     const text = [
       "-> place",

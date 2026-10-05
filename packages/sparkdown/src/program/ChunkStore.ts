@@ -1667,16 +1667,19 @@ const alternatorsOf = (statement: StatementSource): Sequence[] => {
 
 /** What an alternator is aligned by when its statement is emitted again: its
  *  kind and its arms, read as their text, each object's kind and what each
- *  object that holds no other prints as (a name, a number, a string). */
+ *  object prints as (a name, a number, a string, a call, an operation), with
+ *  the objects it holds. */
 const alternatorFingerprint = (sequence: Sequence): string => {
   const text = (obj: ParsedObject): string => {
     if (obj instanceof Text) {
       return obj.text;
     }
+    // Each node's own value too, for one with children as for a leaf: a
+    // call's name and an expression's operator tell apart two alternators
+    // whose arguments and operands read the same (`a(1)` and `b(1)`).
     const children = obj instanceof FunctionCall ? obj.args : (obj.content ?? []);
-    return children.length > 0
-      ? `${obj.typeName}(${children.map(text).join("")})`
-      : `${obj.typeName}:${String(obj)}`;
+    const own = `${obj.typeName}:${String(obj)}`;
+    return children.length > 0 ? `${own}(${children.map(text).join("")})` : own;
   };
   return normalizeSource(
     `${sequence.sequenceType}|${sequence.sequenceElements.map(text).join("|")}`,
