@@ -334,6 +334,16 @@ console.log("PASS: a held reservation guard delays release and never replaces th
 const busy = acquire("busy", { root: lockRoot, census: () => [] });
 await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }), /Existing suite running/);
 busy.release();
+{
+  // The reviewer execution service starts a delegated run's timeout from this line.
+  const { reservationAcquiredLine } = await import("./test-suite.mjs");
+  const lines = [], log = console.log;
+  console.log = (...args) => { lines.push(args.join(" ")); };
+  try { await runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }); }
+  finally { console.log = log; }
+  assert.ok(lines.includes(reservationAcquiredLine), "an acquired reservation is announced");
+  assert.equal(reservationAcquiredLine, '{"status":"acquired"}');
+}
 console.log("PASS: run composes the one-worker flags, caps the heap and holds the reservation");
 
 // The command line parses --wait and dispatches run, start and resume through

@@ -96,6 +96,10 @@ export function vitestNotRun(result) {
   try { return /^test-suite: not run:/m.test(fs.readFileSync(result.log, "utf8")); } catch { return false; }
 }
 
+// The line test-suite.mjs prints once it holds the reservation.
+const reservationAcquired = /^\{"status":"acquired"\}$/m;
+const queueStartupGraceSeconds = 30;
+
 function execute(command, root, directory) {
   const log = path.join(directory, `${command.id}.log`);
   const started = path.join(directory, `${command.id}.started.json`);
@@ -105,7 +109,7 @@ function execute(command, root, directory) {
   fs.closeSync(fd);
   return new Promise(resolve => {
     let timedOut = false, launchError, stopError;
-    const timer = setTimeout(() => {
+    const stop = () => {
       timedOut = true;
       try {
         if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
@@ -114,10 +118,28 @@ function execute(command, root, directory) {
       } catch (error) { stopError = error.message; }
       // Keep awaiting actual close. Unconfirmed exit cannot release the review
       // freeze or start another operation, even if termination was requested.
-    }, (command.timeoutSeconds + (command.waitSeconds ?? 0)) * 1000);
+    };
+    // A command that queues for the machine-wide reservation has two budgets:
+    // the wait, which the runner enforces itself with exit 75 (the grace only
+    // covers its startup), and the run, which starts when the runner reports
+    // that it holds the reservation. Unused wait never extends the run.
+    let timer, poll;
+    if (command.waitSeconds === undefined) timer = setTimeout(stop, command.timeoutSeconds * 1000);
+    else {
+      timer = setTimeout(stop, (command.waitSeconds + queueStartupGraceSeconds) * 1000);
+      poll = setInterval(() => {
+        let text = "";
+        try { text = fs.readFileSync(log, "utf8"); } catch { return; }
+        if (!reservationAcquired.test(text)) return;
+        clearInterval(poll);
+        clearTimeout(timer);
+        timer = setTimeout(stop, command.timeoutSeconds * 1000);
+      }, 100);
+    }
     child.once("error", error => { launchError = error.message; });
     child.once("close", (exit, signal) => {
       clearTimeout(timer);
+      clearInterval(poll);
       const result = { id: command.id, exit, signal, timedOut, launchError, stopError, log };
       resolve(result);
     });

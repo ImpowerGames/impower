@@ -281,17 +281,23 @@ try {
 
 // A Vitest child queued behind another suite for longer than timeoutSeconds
 // still starts and finishes: the reservation wait is added to the kill budget.
-write("scripts/test-suite.mjs", `setTimeout(() => { console.log("Test Files  1 passed (1)"); }, 1500);`);
-git("add", "."); git("commit", "-m", "queued suite fixture");
-const queuedDirectory = path.join(scratch, "queued"); fs.mkdirSync(queuedDirectory);
-const queued = await startExecutionService({ operations: [{ ...operations[0], timeoutSeconds: 1, waitSeconds: 5 }], root, directory: queuedDirectory, head: git("rev-parse", "HEAD") });
-try {
-  const queuedHeaders = { authorization: `Bearer ${queued.environment.IMPOWER_REVIEW_EXECUTION_TOKEN}` };
-  await fetch(queued.environment.IMPOWER_REVIEW_EXECUTION_URL + "/operations/tests", { method: "POST", headers: queuedHeaders });
-  const result = await requestExecution("tests", { env: queued.environment, pollMs: 10 });
-  assert.equal(result.timedOut, false, "queueing past timeoutSeconds does not consume the run's budget");
-  assert.equal(result.passed, true);
-} finally { await queued.close(); }
+// The runner prints its acquired line once it holds the reservation; the run's
+// timeout starts there, so a run that starts at once cannot spend the wait.
+const acquired = JSON.stringify({ status: "acquired" });
+const queueFixture = (queueMs, runMs) => `setTimeout(() => { console.log(${JSON.stringify(acquired)}); setTimeout(() => { console.log("Test Files  1 passed (1)"); }, ${runMs}); }, ${queueMs});`;
+for (const [label, queueMs, runMs, timedOut] of [["queued past timeoutSeconds, then a short run", 1500, 300, false], ["started at once, then a run past timeoutSeconds", 0, 2500, true]]) {
+  write("scripts/test-suite.mjs", queueFixture(queueMs, runMs));
+  git("add", "."); git("commit", "-m", `queued suite fixture: ${label}`);
+  const queuedDirectory = fs.mkdtempSync(path.join(scratch, "queued-"));
+  const queued = await startExecutionService({ operations: [{ ...operations[0], timeoutSeconds: 1, waitSeconds: 8 }], root, directory: queuedDirectory, head: git("rev-parse", "HEAD") });
+  try {
+    const queuedHeaders = { authorization: `Bearer ${queued.environment.IMPOWER_REVIEW_EXECUTION_TOKEN}` };
+    await fetch(queued.environment.IMPOWER_REVIEW_EXECUTION_URL + "/operations/tests", { method: "POST", headers: queuedHeaders });
+    const result = await requestExecution("tests", { env: queued.environment, pollMs: 10 });
+    assert.equal(result.timedOut, timedOut, label);
+    assert.equal(result.passed, !timedOut, label);
+  } finally { await queued.close(); }
+}
 console.log("PASS: delegated tests and benchmarks, authentication, fixed inputs, retained failures, freeze, serial execution and drained shutdown");
 
 // The client must be told when returned output is incomplete, while the
