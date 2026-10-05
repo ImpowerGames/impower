@@ -1825,7 +1825,10 @@ export class ProgramStory {
    *  nothing between, as the current engine's does: its weave nests a label
    *  as the first content of the label before it, and a divert counts each
    *  label container it enters at its start
-   *  (`Story.VisitChangedContainersDueToDivert`). */
+   *  (`Story.VisitChangedContainersDueToDivert`). A statement with no code
+   *  and no export (`const`, `store`) is nothing between: the current engine
+   *  makes no runtime object of it, so its weave nests the labels around it
+   *  all the same. */
   protected countLabelsAbove(place: ProgramPosition): void {
     const chunks = place.sequence.arrays.chunks;
     if (place.offset !== 0 || !isLabelChunk(chunks[place.entry])) {
@@ -1833,6 +1836,9 @@ export class ProgramStory {
     }
     for (let entry = place.entry - 1; entry >= 0; entry -= 1) {
       const chunk = chunks[entry];
+      if (isEmptyChunk(chunk)) {
+        continue;
+      }
       if (!isLabelChunk(chunk)) {
         return;
       }
@@ -2233,6 +2239,11 @@ const isLabelChunk = (chunk: StatementChunk | undefined): boolean =>
   opOf(chunk[HEADER_WORDS]!) === Op.Visit &&
   exportCount(chunk) === 1 &&
   exportSymbol(chunk, 0) === chunk[HEADER_WORDS + 1];
+
+/** Whether `chunk` runs nothing and defines nothing: a declaration whose
+ *  value the declaration sequence sets (`const`, `store`). */
+const isEmptyChunk = (chunk: StatementChunk | undefined): boolean =>
+  !!chunk && codeWords(chunk) === 0 && exportCount(chunk) === 0;
 
 /** Whether two block stack entries name one block of one owner. */
 const sameBlock = (a: BlockEntry, b: BlockEntry): boolean =>

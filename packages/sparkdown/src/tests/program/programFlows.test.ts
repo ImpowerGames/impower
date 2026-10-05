@@ -731,6 +731,49 @@ describe("flows on the program engine", () => {
     expect(texts(actual)).toEqual(["Counts 1 1.", "Then 1 1 1 1.", "Then 1 1 2 2."]);
   });
 
+  // Round 2 of the review of #1431: a declaration with no code between two
+  // labels is nothing between them, since the current engine makes no runtime
+  // object of it; a line of text, a local or a function is something.
+  it("counts the label above across declarations that run no code, as the current engine does", () => {
+    const { expected, actual } = bothEngines(
+      [
+        "-> main.beta",
+        "scene main",
+        "  if true then",
+        "    label alpha",
+        "    const X = 1",
+        "    store z = 4",
+        "    label beta",
+        "    Counts {alpha} {beta}.",
+        "  end",
+        "  label gamma",
+        "  const Y = 2",
+        "  label delta",
+        "  local y = 3",
+        "  label epsilon",
+        "  & n = n + 1",
+        "  Then {gamma} {delta} {epsilon}.",
+        "  if n < 2 then",
+        "    -> epsilon",
+        "  end",
+        "  if n < 3 then",
+        "    -> delta",
+        "  end",
+        "  done",
+        "end",
+        "store n = 0",
+        "",
+      ].join("\n"),
+    );
+    expect(actual).toEqual(expected);
+    expect(texts(actual)).toEqual([
+      "Counts 1 1.",
+      "Then 1 1 1.",
+      "Then 1 1 2.",
+      "Then 2 2 3.",
+    ]);
+  });
+
   // Round 1 of the review of #1431: a host's evaluation of a scene that
   // starts with a branch runs the branch and counts it, as the current
   // engine does.
