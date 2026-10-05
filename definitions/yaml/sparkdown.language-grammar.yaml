@@ -184,7 +184,7 @@ variables:
   LUAU_JUMP_KEYWORDS: ["goto"]
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
-  LUAU_MODULE_KEYWORDS: ["require", "export"]
+  LUAU_MODULE_KEYWORDS: ["export"]
   LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
   LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]

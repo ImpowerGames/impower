@@ -1,0 +1,7 @@
+Value {f()}.
+After the function call.
+function f()
+  local require = function(x) return x end
+  local m = require(1)
+  return m
+end
