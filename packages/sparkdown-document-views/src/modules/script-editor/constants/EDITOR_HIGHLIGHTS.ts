@@ -93,8 +93,6 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.lineComment, color: c.comment },
   { tag: tags.blockComment, color: c.comment },
   { tag: tags.docComment, color: c.comment },
-
-  { tag: tags.special(tags.comment), color: c.parenthetical },
 ]);
 
 export default EDITOR_HIGHLIGHTS;

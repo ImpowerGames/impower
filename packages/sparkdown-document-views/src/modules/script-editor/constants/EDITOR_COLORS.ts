@@ -43,7 +43,6 @@ const EDITOR_COLORS = {
   heading: "#FF8080",
   transitional: "#BEA3A3",
   escape: "#D7BA7D",
-  parenthetical: "#D7BA7D",
   break: "#606080",
   formatting: "#79ABFF",
   controlKeyword: "#D197D9",

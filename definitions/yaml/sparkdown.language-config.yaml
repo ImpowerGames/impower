@@ -10,10 +10,9 @@ brackets:
 colorizedBracketPairs: []
 
 autoClosingPairs:
-  - { open: "{", close: "}", notIn: ["comment"] }
-  - { open: "[", close: "]", notIn: ["comment"] }
-  - { open: "(", close: ")", notIn: ["comment"] }
-  - { open: "<", close: ">", notIn: ["comment"] }
+  - { open: "{", close: "}" }
+  - { open: "[", close: "]" }
+  - { open: "(", close: ")" }
   - { open: '"', close: '"' }
   - { open: "`", close: "`" }
   - { open: "~~", close: "~~" }
@@ -31,9 +30,14 @@ surroundingPairs:
   - ["<", ">"]
   - ['"', '"']
   - ["`", "`"]
+  - ["*", "*"]
+  - ["_", "_"]
+  - ["~", "~"]
+  - [":", ":"]
+  - ["^", "^"]
   - ["--[[", "]]"]
 
-wordChars: _-'
+wordChars: _'
 
 wordPattern:
   pattern: (\p{L}|\p{N}|\p{Mn})(((\p{L}|\p{N}|\p{Mn})|[_]|['])?(\p{L}|\p{N}|\p{Mn}))*
