@@ -216,9 +216,8 @@ export function lowerLuauGenericForLoop(
     new NullExpression(),
     "==",
   );
-  const breakBranch = new ConditionalSingleBranch([
-    new Divert([new Identifier(breakLabel)]),
-  ]);
+  const toBreak = new Divert([new Identifier(breakLabel)]);
+  const breakBranch = new ConditionalSingleBranch([toBreak]);
   breakBranch.ownExpression = isNilCheck;
   breakBranch.isElse = false;
   const nilCheckConditional = new Conditional(null as never, [breakBranch]);
@@ -256,7 +255,7 @@ export function lowerLuauGenericForLoop(
       init: [initTuple, adjustTuple],
       call: callAndUnpack,
       update: ctrlUpdate,
-    });
+    }, [loopGather, breakGather, toBreak, tailDivert]);
   }
   return wrapInWeave(scoped);
 }

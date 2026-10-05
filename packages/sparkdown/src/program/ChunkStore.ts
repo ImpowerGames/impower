@@ -715,10 +715,7 @@ export class ChunkStore {
         for (let r = 0; r < exportCount(chunk); r += 1) {
           const symbol = exportSymbol(chunk, r);
           const offset = exportOffset(chunk, r);
-          const label =
-            offset < codeWords(chunk) &&
-            opOf(chunk[HEADER_WORDS + offset]!) === Op.Visit &&
-            chunk[HEADER_WORDS + offset + 1] === symbol;
+          const label = exportsLabel(chunk, r);
           const before = defs.kind[symbol]!;
           if (
             before !== UNDEFINED_KIND &&
@@ -1623,19 +1620,23 @@ const functionInput = (fn: ParsedObject, symbol: number): FunctionInput => {
   };
 };
 
-/** Whether a chunk exports a function: an export that is no label's, which
- *  a chunk exports at the `Visit` of its own symbol. A label's chunk holds no
- *  function's code, so adding, removing or renaming one runs no declaration
- *  again. */
+/** Whether a chunk's export row `r` is a label's: a label is exported at
+ *  the `Visit` of its own symbol, and any other export is a function's. */
+const exportsLabel = (chunk: StatementChunk, r: number): boolean => {
+  const offset = exportOffset(chunk, r);
+  return (
+    offset < codeWords(chunk) &&
+    opOf(chunk[HEADER_WORDS + offset]!) === Op.Visit &&
+    chunk[HEADER_WORDS + offset + 1] === exportSymbol(chunk, r)
+  );
+};
+
+/** Whether a chunk exports a function: an export that is no label's
+ *  (`exportsLabel`). A label's chunk holds no function's code, so adding,
+ *  removing or renaming one runs no declaration again. */
 const exportsFunction = (chunk: StatementChunk): boolean => {
   for (let r = 0; r < exportCount(chunk); r += 1) {
-    const symbol = exportSymbol(chunk, r);
-    const offset = exportOffset(chunk, r);
-    const label =
-      offset < codeWords(chunk) &&
-      opOf(chunk[HEADER_WORDS + offset]!) === Op.Visit &&
-      chunk[HEADER_WORDS + offset + 1] === symbol;
-    if (!label) {
+    if (!exportsLabel(chunk, r)) {
       return true;
     }
   }

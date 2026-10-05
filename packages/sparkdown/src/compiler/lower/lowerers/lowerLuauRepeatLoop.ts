@@ -147,15 +147,15 @@ export function lowerLuauRepeatLoop(
   // diverts to the respective labels.
   const loopGather = new Gather(new Identifier(loopLabel), 1);
   for (const stmt of bodyStatements) loopGather.AddContent(stmt);
-  loopGather.AddContent(new Divert([new Identifier(continueLabel)]));
+  const toContinue = new Divert([new Identifier(continueLabel)]);
+  loopGather.AddContent(toContinue);
 
   // Continue gather: where the until-condition runs. If cond is
   // false, jump back to the loop head. If true, fall through to the
   // break gather (loop exit).
   const continueGather = new Gather(new Identifier(continueLabel), 1);
-  const loopBackBranch = new ConditionalSingleBranch([
-    new Divert([new Identifier(loopLabel)]),
-  ]);
+  const toLoop = new Divert([new Identifier(loopLabel)]);
+  const loopBackBranch = new ConditionalSingleBranch([toLoop]);
   loopBackBranch.ownExpression = notCond;
   loopBackBranch.isElse = false;
   continueGather.AddContent(
@@ -173,7 +173,7 @@ export function lowerLuauRepeatLoop(
       objects: scoped,
       test: loopBackBranch,
       init: [],
-    });
+    }, [loopGather, continueGather, breakGather, toContinue, toLoop]);
   }
   // A chunk's content reaches the enclosing scene or top-level flow only
   // as a Weave; inside a body, `lowerStatements` unwraps it again.

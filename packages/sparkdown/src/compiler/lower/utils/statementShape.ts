@@ -139,24 +139,20 @@ export const loopExitOf = new WeakMap<ParsedObject, "break" | "continue">();
 // chunk and never as a label or a jump.
 const loopInternals = new WeakSet<ParsedObject>();
 
-/** Records `loop`, whose objects start with `first`, and marks the labels
- *  and diverts its lowering made for itself: every `Gather` and `Divert`
- *  among its objects outside the statements of its body. */
-export const recordLoop = (first: ParsedObject, loop: LoopShape): void => {
+/** Records `loop`, whose objects start with `first`, and marks `internals`,
+ *  the labels and diverts its lowering made for itself. The lowering names
+ *  them: a divert an author wrote in the loop's header (`-> top` as a value,
+ *  or the proxy divert of `READ_COUNT(-> top)`) sits among the loop's
+ *  objects too, and stays an author's jump target. */
+export const recordLoop = (
+  first: ParsedObject,
+  loop: LoopShape,
+  internals: readonly ParsedObject[],
+): void => {
   loopOf.set(first, loop);
-  const body = new Set(loop.body.statements.flatMap((s) => s.objects));
-  const visit = (obj: ParsedObject) => {
-    if (body.has(obj)) {
-      return;
-    }
-    if (obj.typeName === "Gather" || obj.typeName === "Divert") {
-      loopInternals.add(obj);
-    }
-    for (const child of obj.content ?? []) {
-      visit(child);
-    }
-  };
-  loop.objects.forEach(visit);
+  for (const obj of internals) {
+    loopInternals.add(obj);
+  }
 };
 
 /** Whether `obj` is a label, or a divert to one, that a loop's lowering made

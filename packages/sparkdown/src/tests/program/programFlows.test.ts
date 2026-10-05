@@ -806,6 +806,40 @@ describe("flows on the program engine", () => {
     expect(texts(storyBeats(new ProgramStory(next.chunks!)))).toEqual(["Pass 1!", "Pass 2!"]);
   });
 
+  // Round 2 of the review of #1431: a divert target an author writes in a
+  // loop's header is the author's, though it sits among the loop's own
+  // objects, so a chunk that reads its count records the symbol it names and
+  // a rename of the scene emits it again.
+  it("keeps a target written in a loop's header as the author's through a rename", () => {
+    const text = [
+      "-> A",
+      "scene A",
+      "  label top",
+      "  while READ_COUNT(-> top) > 0 do",
+      "    Entered.",
+      "    break",
+      "  end",
+      "  & n = 0",
+      "  repeat",
+      "    & n = n + 1",
+      "  until READ_COUNT(-> top) < n",
+      "  Left {n}.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    const { expected, actual } = bothEngines(text);
+    expect(actual).toEqual(expected);
+    expect(texts(actual)).toEqual(["Entered.", "Left 2."]);
+    const s = session(text);
+    const renamed = s.edit("-> A\nscene A", "-> B\nscene B");
+    const cold = silence(
+      () => programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+    );
+    expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(cold.chunks!));
+    expect(texts(storyBeats(new ProgramStory(renamed.chunks!)))).toEqual(["Entered.", "Left 2."]);
+  });
+
   // Round 1 of the review of #1431: an alternator keeps its count symbol
   // when the line that writes it is edited, so a saved count reads on.
   it("keeps an alternator's count when the statement that writes it is edited", () => {

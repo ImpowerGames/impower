@@ -170,7 +170,7 @@ export function lowerLuauWhileLoop(
       objects: [gather, breakGather],
       test: branch,
       init: [],
-    });
+    }, [gather, breakGather, tailDivert]);
   }
 
   // A chunk's content reaches the enclosing scene or top-level flow only
