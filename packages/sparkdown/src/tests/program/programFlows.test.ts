@@ -703,6 +703,73 @@ describe("flows on the program engine", () => {
     expect(loaded.state.TurnsSince(top)).toBe(story.state.TurnsSince(top));
   });
 
+  // Round 1 of the review of #1431: the current engine's weave nests a label
+  // as the first content of the label written right before it, and a jump
+  // to the second counts the first as it enters its container at its start.
+  it("counts the labels written right before the label a jump lands on, as the current engine does", () => {
+    const { expected, actual } = bothEngines(
+      [
+        "-> main.beta",
+        "scene main",
+        "  label alpha",
+        "  label beta",
+        "  Counts {alpha} {beta}.",
+        "  label gamma",
+        "  label delta",
+        "  & n = n + 1",
+        "  Then {alpha} {beta} {gamma} {delta}.",
+        "  if n < 2 then",
+        "    -> delta",
+        "  end",
+        "  done",
+        "end",
+        "store n = 0",
+        "",
+      ].join("\n"),
+    );
+    expect(actual).toEqual(expected);
+    expect(texts(actual)).toEqual(["Counts 1 1.", "Then 1 1 1 1.", "Then 1 1 2 2."]);
+  });
+
+  // Round 1 of the review of #1431: a host's evaluation of a scene that
+  // starts with a branch runs the branch and counts it, as the current
+  // engine does.
+  it("counts the first branch a host's evaluation of its scene runs", () => {
+    const text = [
+      "scene hall",
+      "  branch lobby",
+      "    Lobby {hall.lobby} {hall}.",
+      "    ->->",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    silence(() => {
+      const { program } = compileScript(text, { programChunks: true });
+      expect(program.fallback).toBeUndefined();
+      const current = compileScript(text).story;
+      current.ResetState();
+      const expected = current.EvaluateFunction("hall", [], true);
+      const actual = new ProgramStory(program.chunks!).EvaluateFunction("hall", [], true);
+      expect(actual).toEqual(expected);
+      expect(actual.output).toBe("Lobby 1 0.\n");
+    });
+  });
+
+  // Round 1 of the review of #1431: a label's chunk holds no function's code,
+  // so an edit that adds a label runs no declaration again.
+  it("runs no declaration again for an edit that adds a label", () => {
+    const s = session(
+      ["store x = 1", "-> main", "scene main", "  Line {x}.", "  done", "end", ""].join("\n"),
+    );
+    const store = s.compiler.chunkStore!;
+    const before = store.initializerRuns;
+    const edited = s.edit("  Line {x}.", "  label extra\n  Line {x}.");
+    expect(edited.fallback).toBeUndefined();
+    expect(chunksWith(edited.chunks!, Op.Visit)).toHaveLength(1);
+    expect(store.initializerRuns).toBe(before);
+  });
+
   // Round 1 of the review of #1431: a label an author names as a loop's
   // lowering names its own labels is the author's label, and a jump to it
   // records the symbol it names, so renaming the scene emits the jump again.
@@ -920,6 +987,41 @@ describe("the chunk store's table", () => {
     // A game on the second root runs the edit.
     expect(texts(storyBeats(new ProgramStory(second)))).toEqual(["Here 1.", "Still here!", "There 1."]);
     expect(chunkId(rootChunks(second)[0]!)).toBeGreaterThan(Math.max(...rootChunks(first).map(chunkId)));
+  });
+
+  // Round 1 of the review of #1431: a reseed that drops a symbol moves the
+  // ids after it, and a state saved before the reseed loads its counts
+  // through the remap, an alternator's anonymous count among them.
+  it("moves the ids a reseed renumbers, and loads the counts a state saved before it holds", () => {
+    const early = "scene early\n  Early.\n  done\nend\n";
+    const s = session(
+      ["-> here", early + "scene here", "  label top", '  Pick {cycle|"a"|"b"} {top}.', "  done", "end", ""].join("\n"),
+    );
+    const compiler = s.compiler as any;
+    const store = s.compiler.chunkStore!;
+    const before = s.edit(early, "").chunks!;
+    const generation = before.generation;
+    const top = symbolOf(before, "here.top");
+    const game = new ProgramStory(before);
+    expect(texts(storyBeats(game))).toEqual(["Pick a 1."]);
+    const saved = game.state.toJson();
+    const grown = store.table.strings.length * 2 + 600;
+    for (let i = 0; i < grown; i += 1) {
+      store.table.strings.push(`unused ${i}`);
+    }
+    compiler.maybeReseedBinaryTable();
+    expect(store.table.generation).toBe(generation + 1);
+    const after = s.edit("  Pick", "  Picked").chunks!;
+    expect(after.generation).toBe(generation + 1);
+    // `early` is gone, so the ids after it move.
+    const moved = symbolOf(after, "here.top");
+    expect(moved).not.toBe(top);
+    expect(after.symbolFrom(top, generation)).toBe(moved);
+    const resumed = new ProgramStory(after);
+    resumed.state.LoadJson(saved);
+    expect(resumed.state.VisitCount(countIdOf(after.table, moved))).toBe(1);
+    resumed.ChoosePathString("here");
+    expect(resumed.Continue()).toBe("Picked b 2.\n");
   });
 });
 

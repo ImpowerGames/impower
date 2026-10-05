@@ -114,6 +114,8 @@ import {
   blockScopes,
   chunkId,
   codeWords,
+  exportCount,
+  exportSymbol,
   lineRowAt,
   lineRowField,
   type StatementChunk,
@@ -430,6 +432,7 @@ export class ProgramStory {
     this._state.currentTurnIndex += 1;
     this.land(target.position, this._state.blockStack);
     this.countEntered(target.position.sequence, left);
+    this.countLabelsAbove(target.position);
     if (target.symbol !== undefined) {
       this.enterStart(target.symbol, target.position.sequence);
     }
@@ -484,6 +487,14 @@ export class ProgramStory {
       PushPopType.FunctionEvaluationFromGame,
       state.evaluationStack.length,
     );
+    // A scene with no content of its own runs its first branch, which it
+    // enters from the scene, as the current engine's knot diverts to its
+    // first stitch; the scene itself is not counted, as the current engine
+    // counts no container a host's evaluation starts in.
+    const scene = found ? this.root.flow(found.ref.symbol) : undefined;
+    if (scene && target.entry.sequence !== scene) {
+      this.countEntered(target.entry.sequence, scene);
+    }
     this.passArguments(args);
     // A function takes the host's arguments as a call gives them
     // (`arrangeArgsFor`); a scene, which binds nothing, takes them as they
@@ -1806,7 +1817,27 @@ export class ProgramStory {
     }
     this.land(place, this._state.blockStack);
     this.countEntered(place.sequence, left);
+    this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
+  }
+
+  /** A jump to a label counts too the labels written right before it with
+   *  nothing between, as the current engine's does: its weave nests a label
+   *  as the first content of the label before it, and a divert counts each
+   *  label container it enters at its start
+   *  (`Story.VisitChangedContainersDueToDivert`). */
+  protected countLabelsAbove(place: ProgramPosition): void {
+    const chunks = place.sequence.arrays.chunks;
+    if (place.offset !== 0 || !isLabelChunk(chunks[place.entry])) {
+      return;
+    }
+    for (let entry = place.entry - 1; entry >= 0; entry -= 1) {
+      const chunk = chunks[entry];
+      if (!isLabelChunk(chunk)) {
+        return;
+      }
+      this._state.Visit(this.countId(exportSymbol(chunk!, 0)));
+    }
   }
 
   /** A scene with no content of its own before its first branch enters that
@@ -1870,6 +1901,7 @@ export class ProgramStory {
     });
     this.land(place, []);
     this.countEntered(place.sequence, left);
+    this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
   }
 
@@ -2192,6 +2224,15 @@ export class ProgramStory {
     return { sequence, entry, offset };
   }
 }
+
+/** Whether `chunk` is a `label` statement's: its code the one `Visit` of the
+ *  symbol it exports. */
+const isLabelChunk = (chunk: StatementChunk | undefined): boolean =>
+  !!chunk &&
+  codeWords(chunk) === 2 &&
+  opOf(chunk[HEADER_WORDS]!) === Op.Visit &&
+  exportCount(chunk) === 1 &&
+  exportSymbol(chunk, 0) === chunk[HEADER_WORDS + 1];
 
 /** Whether two block stack entries name one block of one owner. */
 const sameBlock = (a: BlockEntry, b: BlockEntry): boolean =>

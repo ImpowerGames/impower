@@ -1171,7 +1171,7 @@ export class ChunkStore {
       this._byBlock.set(statement.block, chunk);
       chunks.push(chunk);
       lineStarts.push(statement.firstLine - firstLine);
-      if (inFunction || exportCount(chunk) > 0) {
+      if (inFunction || exportsFunction(chunk)) {
         functionChunks.add(chunk);
       }
       this.buildBodies(
@@ -1621,6 +1621,25 @@ const functionInput = (fn: ParsedObject, symbol: number): FunctionInput => {
     hoisted: functionShapeOf.get(fn)?.hoisted ?? [],
     range: flow.ownDebugMetadata,
   };
+};
+
+/** Whether a chunk exports a function: an export that is no label's, which
+ *  a chunk exports at the `Visit` of its own symbol. A label's chunk holds no
+ *  function's code, so adding, removing or renaming one runs no declaration
+ *  again. */
+const exportsFunction = (chunk: StatementChunk): boolean => {
+  for (let r = 0; r < exportCount(chunk); r += 1) {
+    const symbol = exportSymbol(chunk, r);
+    const offset = exportOffset(chunk, r);
+    const label =
+      offset < codeWords(chunk) &&
+      opOf(chunk[HEADER_WORDS + offset]!) === Op.Visit &&
+      chunk[HEADER_WORDS + offset + 1] === symbol;
+    if (!label) {
+      return true;
+    }
+  }
+  return false;
 };
 
 /** The alternators (`Sequence`s) a statement's own code writes, in the order
