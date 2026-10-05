@@ -1,0 +1,111 @@
+import { createHash } from "node:crypto";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { runNativePortedCase, sourceChecksOf, type PortedCase } from "./typecheck/portedCases";
+
+// Exact original cases from pinned Luau 7d5f73364fdbbaa984fa545071630eba73cfea98.
+beforeEach(() => vi.stubEnv("LUAU_TYPECHECK_AREAS", "all"));
+afterEach(() => vi.unstubAllEnvs());
+const required = () => { throw Error("required original #1381 fixture/configuration case skipped"); };
+const sha = (source: string) => createHash("sha256").update(source, "utf8").digest("hex");
+
+// NonStrictTypeChecker.test.cpp:654; Fixture::loadDefinition requires success itself.
+// The additive declaration precedes the standard declarations in checkNonStrict.
+const bufferDefinition = `
+declare buffer: {
+    create: @checked (size: number) -> buffer,
+    readi8: @checked (b: buffer, offset: number) -> number,
+    writef64: @checked (b: buffer, offset: number, value: number) -> (),
+}
+`;
+const bufferSource = `
+local b = buffer.create(100)
+buffer.writef64(b, 0, 5)
+buffer.readi8(b, 0)
+`;
+const buffer: PortedCase = {
+  name: "nonstrict_shouldnt_warn_on_valid_buffer_use",
+  fixture: "NonStrictTypeCheckerFixture",
+  definitions: [bufferDefinition],
+  source: bufferSource,
+  expect: [{ errors: 0 }],
+};
+
+// NonStrictTypeChecker.test.cpp:866; exact rep("do ",250)+"local a = 1"+rep(" end",250).
+const blockSource = "do ".repeat(250) + "local a = 1" + " end".repeat(250);
+const blockLimit: PortedCase = {
+  name: "nonstrict_check_block_recursion_limit",
+  fixture: "NonStrictTypeCheckerFixture",
+  flags: { LuauAddRecursionCounterToNonStrictTypeChecker: true },
+  limits: {
+    LuauNonStrictTypeCheckerRecursionLimit: 150,
+    LuauConstraintGeneratorRecursionLimit: 750,
+    // Preserve original FInt even though its pinned new-solver execution has no read.
+    LuauCheckRecursionLimit: 750,
+  },
+  source: blockSource,
+  expect: [{ errors: 0 }],
+};
+
+// NonstrictMode.test.cpp:319; trailing four spaces and source directive are original.
+const standaloneSource = `
+        --!nonstrict
+        local function _f(_x: _luau_force_constraint_solving_incomplete) end
+    `;
+const standalone: PortedCase = {
+  name: "standalone_constraint_solving_incomplete_is_hidden_nonstrict",
+  fixture: "Fixture",
+  flags: {
+    DebugLuauForceOldSolver: false,
+    DebugLuauMagicTypes: true,
+    DebugLuauAlwaysShowConstraintSolvingIncomplete: false,
+  },
+  source: standaloneSource,
+  expect: [{ errors: 0 }],
+};
+
+// NonstrictMode.test.cpp:337; no AlwaysShow case-body flag appears in this original.
+const nonStandaloneSource = `
+        --!nonstrict
+        local function _f(_x: _luau_force_constraint_solving_incomplete) end
+        math.abs("pls")
+    `;
+const nonStandalone: PortedCase = {
+  name: "non_standalone_constraint_solving_incomplete_is_hidden_nonstrict",
+  fixture: "BuiltinsFixture",
+  flags: { DebugLuauForceOldSolver: false, DebugLuauMagicTypes: true },
+  source: nonStandaloneSource,
+  expect: [
+    { errors: 2 },
+    { error: 0, code: "CheckedFunctionCallError" },
+    { error: 1, code: "ConstraintSolvingIncompleteError" },
+  ],
+};
+
+// NonstrictMode.test.cpp:66; default Fixture::check mode is strict, no added mode override.
+const returnAnnotationSource = `
+        function foo(x): number return 'hello' end
+    `;
+const returnAnnotation: PortedCase = {
+  name: "return_annotation_is_still_checked",
+  fixture: "Fixture",
+  source: returnAnnotationSource,
+  ignoreMissingAnnotations: true,
+  expect: [{ errors: 1 }, { type: "foo", notEquals: "any" }],
+};
+
+for (const [upstream, record, sourceHash] of [
+  ["NonStrictTypeChecker.test.cpp", buffer, "0019a7442b9d5770ac1cc6ee9e891c86dded56ca3b1043bebff0484716c0ea9d"],
+  ["NonStrictTypeChecker.test.cpp", blockLimit, "c975c606c246524d5db13bca53f7e283cb33799b5941b9f29ed413f0ca507b20"],
+  ["NonstrictMode.test.cpp", standalone, "7a2e35405d0967e5ad47e7ba28b902a15ac0469f32803fb2510821ecbe4c0b60"],
+  ["NonstrictMode.test.cpp", nonStandalone, "d266a37ac99674886e62cccacb3c7ee15c86b3f4e279536caa1ea784aee1f7e5"],
+  ["NonstrictMode.test.cpp", returnAnnotation, "100f368995fe6960ad8286fb5f20e9392a12459bc7969cd0e7a6a455f3db355a"],
+] as const) {
+  it(record.name, async () => {
+    const sources = sourceChecksOf(record);
+    expect(sources).toHaveLength(1);
+    expect(sha(sources[0]!.check.source)).toBe(sourceHash);
+    if (record === buffer)
+      expect(sha(bufferDefinition)).toBe("020549b4f6d1830ef53190e57561bcce262238b5f87a9d7ae6c4f77ae766c142");
+    await runNativePortedCase(upstream, record, required);
+  });
+}
