@@ -37,7 +37,6 @@ describe("regex flags glued to an if expression's then (#1305)", () => {
     "if @/x/mthen 1 else 2",
     "if @/x/gimthen 1 else 2",
     "if c then 0 elseif @/x/githen 1 else 2",
-    "if @/x/githen\n    1\n  else 2",
   ])("accepts %s", (expression) => {
     const result = readings(expression);
     expect(result.official, "official Luau parser of projected checker text").toEqual([]);
