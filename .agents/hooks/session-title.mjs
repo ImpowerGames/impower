@@ -126,10 +126,42 @@ function pending(sessionId) {
   }
 }
 
-function save(sessionId, entries) {
-  if (!entries.length) return fs.rmSync(statePath(sessionId), { force: true });
-  fs.mkdirSync(stateDir(), { recursive: true });
-  fs.writeFileSync(statePath(sessionId), JSON.stringify({ sessionId, entries }));
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+// Sibling writers' hooks are separate processes that update one record, so each
+// read-modify-write holds an exclusive lock file beside it. A lock older than
+// STALE_LOCK_MS belongs to a hook that died and is taken over. The record is
+// replaced by renaming a complete file, so an unlocked reader never sees a
+// partial write. `change` receives the session's entries and returns
+// { entries, value }.
+const STALE_LOCK_MS = 10000;
+function modify(file, sessionId, change) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const lock = file + ".lock";
+  for (const giveUp = Date.now() + 3 * STALE_LOCK_MS; ;) {
+    try { fs.closeSync(fs.openSync(lock, "wx")); break; }
+    catch (error) {
+      if (!["EEXIST", "EPERM", "EACCES"].includes(error.code)) throw error;
+      try { if (Date.now() - fs.statSync(lock).mtimeMs > STALE_LOCK_MS) fs.rmSync(lock, { force: true }); } catch { /* released meanwhile */ }
+      if (Date.now() > giveUp) throw new Error(`Session title record is locked: ${lock}`);
+      pause(20);
+    }
+  }
+  try {
+    let state = null;
+    try { state = JSON.parse(fs.readFileSync(file, "utf8")); } catch (error) { if (error.code !== "ENOENT") throw error; }
+    const owner = sessionId ?? state?.sessionId;
+    const { entries, value } = change(state?.sessionId === owner && Array.isArray(state.entries) ? state.entries : [], owner);
+    if (!entries.length) fs.rmSync(file, { force: true });
+    else {
+      const next = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(next, JSON.stringify({ sessionId: owner, entries }));
+      fs.renameSync(next, file);
+    }
+    return value;
+  } finally {
+    fs.rmSync(lock, { force: true });
+  }
 }
 
 export const ackCommand = (sessionId, worktree) => `node "${self.replaceAll("\\", "/")}" confirm ${sessionKey(sessionId)} ${worktreeId(worktree)}`;
@@ -152,20 +184,21 @@ export function afterTool(payload, harness) {
     if (!created || !worktreeCreated(cwd, created)) return null;
     const worktree = path.resolve(cwd, created.target);
     const entry = { id: worktreeId(worktree), title: created.title, worktree };
-    save(sessionId, [...pending(sessionId).filter((other) => other.id !== entry.id), entry]);
+    modify(statePath(sessionId), sessionId, (entries) => ({ entries: [...entries.filter((other) => other.id !== entry.id), entry] }));
     return instruction(entry, sessionId, harness);
   }
   if (RENAME.test(tool)) {
-    const entries = pending(sessionId);
-    if (!entries.length) return null;
-    const match = entries.find((entry) => entry.title === payload.tool_input?.title);
-    // A rename aimed at another session does not rename this one.
-    const target = payload.tool_input?.session_id;
-    if (!match || (target !== undefined && target !== "self" && target !== sessionId)) {
-      const entry = match ?? entries[0];
-      return `The session title must be exactly "${entry.title}". ${instruction(entry, sessionId, harness)}`;
-    }
-    save(sessionId, entries.filter((entry) => entry !== match));
+    return modify(statePath(sessionId), sessionId, (entries) => {
+      if (!entries.length) return { entries };
+      const match = entries.find((entry) => entry.title === payload.tool_input?.title);
+      // A rename aimed at another session does not rename this one.
+      const target = payload.tool_input?.session_id;
+      if (!match || (target !== undefined && target !== "self" && target !== sessionId)) {
+        const entry = match ?? entries[0];
+        return { entries, value: `The session title must be exactly "${entry.title}". ${instruction(entry, sessionId, harness)}` };
+      }
+      return { entries: entries.filter((entry) => entry !== match) };
+    }) ?? null;
   }
   return null;
 }
@@ -173,10 +206,17 @@ export function afterTool(payload, harness) {
 // Whether the command runs in, or names, the entry's worktree.
 function touches(entry, payload) {
   const worktree = canonical(entry.worktree);
-  if (payload.cwd) {
-    const cwd = canonical(payload.cwd);
-    if (cwd === worktree || cwd.startsWith(worktree + "/")) return true;
-  }
+  const within = (p) => { const c = canonical(p); return c === worktree || c.startsWith(worktree + "/"); };
+  if (payload.cwd && within(payload.cwd)) return true;
+  // A path operand may spell the worktree differently (relative, with parent
+  // segments, or by its Windows 8.3 name), so each word is resolved from the
+  // working directory and compared by real path.
+  const base = payload.cwd || process.cwd();
+  for (const words of simpleCommands(String(payload.tool_input?.command ?? "")))
+    for (const word of words.slice(0, 64)) {
+      if (!word || word.length > 1024 || /[\0\r\n]/.test(word) || realPath(path.resolve(base, word)) === null) continue;
+      if (within(path.resolve(base, word))) return true;
+    }
   let command = String(payload.tool_input?.command ?? "").replaceAll("\\", "/");
   if (process.platform === "win32") command = command.toLowerCase();
   for (let at = command.indexOf(worktree); at >= 0; at = command.indexOf(worktree, at + 1)) {
@@ -226,16 +266,14 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href.toLowerCase() === imp
     console.error("Usage: node session-title.mjs confirm <session key> <worktree id, both from the hook message>");
     process.exitCode = 2;
   } else {
-    let state = null;
-    try { state = JSON.parse(fs.readFileSync(keyPath(key), "utf8")); } catch { /* no record */ }
-    const entries = Array.isArray(state?.entries) ? state.entries : [];
-    const match = entries.find((entry) => entry.id === id);
+    const file = keyPath(key);
+    const match = fs.existsSync(file) ? modify(file, null, (entries) => {
+      const found = entries.find((entry) => entry.id === id);
+      return { entries: found ? entries.filter((entry) => entry !== found) : entries, value: found };
+    }) : undefined;
     if (!match) {
       console.error(`No pending session title for ${key} ${id}.`);
       process.exitCode = 1;
-    } else {
-      save(state.sessionId, entries.filter((entry) => entry !== match));
-      console.log(`Session title "${match.title}" acknowledged.`);
-    }
+    } else console.log(`Session title "${match.title}" acknowledged.`);
   }
 }

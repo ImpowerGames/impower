@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -196,6 +196,54 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(gate(at(wt9, "git status"), "claude"), null);
   assert.match(gate(at(wt302, "git status"), "claude"), /FIX #302/, "confirming one worktree leaves the sibling pending");
   afterTool(rename("shared", "FIX #302: filterimage layers"), "claude");
+}
+
+// Sibling writers' hooks are separate processes: updates to one session's record are serialised, so none is lost.
+{
+  const post = path.join(root, ".agents/hooks/post-tool-use.mjs");
+  const runPost = (payload) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [post, "claude"], { env: process.env, windowsHide: true, stdio: ["pipe", "ignore", "pipe"] });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`post hook exited ${code}: ${stderr}`))));
+    child.stdin.end(JSON.stringify({ ...payload, hook_event_name: "PostToolUse" }));
+  });
+  const creation = (i) => {
+    const branch = `fix/${600 + i}-race-${i}`;
+    const target = path.join(fixture, "race", String(i));
+    ok(git("worktree", "add", "-q", "-b", branch, target));
+    return { target, title: `FIX #${600 + i}: race ${i}`, payload: shell("race", `git worktree add -b ${branch} ../race/${i} origin/main`) };
+  };
+  const [first, second, ...rest] = [0, 1, 2, 3, 4, 5, 6, 7].map(creation);
+  // While another hook holds the session's lock, an update waits for it rather than overwriting the record.
+  const lock = statePath("race") + ".lock";
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(lock, "held");
+  const waiting = runPost(first.payload);
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  assert.equal(fs.existsSync(statePath("race")), false, "an update does not write while the session's lock is held");
+  fs.rmSync(lock);
+  await waiting;
+  assert.match(gate(inWt("race", "ls", "Bash", first.target), "claude"), new RegExp(first.title));
+  // Concurrent hook processes each keep their own entry.
+  await Promise.all([second, ...rest].map((created) => runPost(created.payload)));
+  for (const created of [first, second, ...rest]) assert.match(gate(inWt("race", "ls", "Bash", created.target), "claude"), new RegExp(created.title), created.title);
+}
+
+// A command that names the worktree through a different spelling of its path is still gated.
+{
+  const wt = path.join(fixture, "spelling");
+  ok(git("worktree", "add", "-q", "-b", "docs/700-spelled-path", wt));
+  afterTool(shell("spelling", "git worktree add -b docs/700-spelled-path ../spelling origin/main"), "claude");
+  const cwdElsewhere = (command) => ({ ...shell("spelling", command), cwd: repo });
+  assert.match(gate(cwdElsewhere("cd ../spelling && git status"), "claude"), /DOCS #700/, "a relative operand resolves against the working directory");
+  assert.match(gate(cwdElsewhere(`git -C "${path.join(wt, "..", "spelling").replaceAll("\\", "/")}" status`), "claude"), /DOCS #700/, "a path with a parent segment resolves to the worktree");
+  assert.equal(gate(cwdElsewhere("git -C ../spelling-other status"), "claude"), null);
+  if (process.platform === "win32") {
+    const short = spawnSync("cmd.exe", ["/d", "/c", `for %I in ("${wt}") do @echo %~sI`], { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true }).stdout.trim();
+    if (short && short.toLowerCase() !== wt.toLowerCase()) assert.match(gate(cwdElsewhere(`cd ${short.replaceAll("\\", "/")} && git status`), "claude"), /DOCS #700/, "the 8.3 spelling names the same worktree");
+  }
 }
 
 // Native hook configuration reaches the shared source on both runners.
