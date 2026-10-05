@@ -67,6 +67,8 @@ describe.each([false, true])("next-line values on the program engine: %s", (prog
     ["a table at column zero", "function f()\nlocal t =\n{\n  1\n}\nreturn t[1]\nend\n\n{f()}\n", "1\n"],
     ["names on comma-ended lines", "function f()\n  local x, y = 1, 2\n  local a, b =\n    y,\n    x\n  return a .. b\nend\n\n{f()}\n", "21\n"],
     ["a reassignment of comma-ended lines", "function f()\n  local a, b = 0, 0\n  a, b =\n    tostring(3),\n    tostring(4)\n  return a .. b\nend\n\n{f()}\n", "34\n"],
+    ["comma-ended lines after a comment ending in then", "function f()\n  local x, y = -- then\n    tostring(1),\n    tostring(2)\n  return x .. y\nend\n\n{f()}\n", "12\n"],
+    ["comma-ended lines after a comment ending in else", "function f()\n  local x, y = -- else\n    tostring(1),\n    tostring(2)\n  return x .. y\nend\n\n{f()}\n", "12\n"],
   ])("reads %s", (_name, source, output) => {
     for (const text of [source, crlf(source)]) {
       expect(execute(text, programEngine)).toEqual({ errors: [], runtimeErrors: [], output });
@@ -99,6 +101,15 @@ describe.each(["LF", "CRLF"])("Luau's errors after a line-ending operator (%s)",
     const source = "function f()\n  local x =\n";
     expect(officialSyntaxErrors(source).length).toBeGreaterThan(0);
     expect(compile(lines(source)).errors.map((e) => e.message)).toContain("Expected identifier when parsing expression, got <eof>");
+  });
+
+  // A comment after the arm leaves it empty: the next line's assignment is
+  // still not read as its value. Only the error's line is compared; its
+  // wording there differs from Luau's for a reason this change does not touch.
+  test("keeps an empty else arm with a comment after it apart from the next assignment", () => {
+    const source = "function f()\n  local a = if true then 1 else -- note\n  b = 2\n  return a\nend\n";
+    expect(officialSyntaxErrors(source)).toHaveLength(1);
+    expect(compile(lines(source)).errors.map((e) => e.line)).toEqual([1]);
   });
 
   test("keeps the missing else of an empty then arm before an assignment", () => {

@@ -213,14 +213,33 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
     // The reading carries a construct on into an assignment in Luau code
     // (`local a, b =` before a line `f(1),`, which the tree reads as an
     // assignment's targets), except after an empty if-expression arm,
-    // as `readLuauAst.ts` does.
-    if (isExplicitRuleName(n.name, "LuauReassignment") && !/(?:^|[^A-Za-z0-9_])(?:then|else)$/.test(read(node.from, node.to).trimEnd())) {
+    // as `readLuauAst.ts` does: its last token, comments aside, is the
+    // arm's `then` or `else`.
+    if (isExplicitRuleName(n.name, "LuauReassignment") && !/(?:^|[^A-Za-z0-9_])(?:then|else)$/.test(textWithoutComments(node, read).trimEnd())) {
       return true;
     }
     const text = read(n.from, n.to);
     return !(n.from + text.length - text.trimStart().length === tokenFrom && breaksStatement(text));
   }
   return true;
+}
+
+/** A node's text with each comment the tree holds in it replaced by spaces. */
+function textWithoutComments(node: SyntaxNode, read: (from: number, to: number) => string): string {
+  let text = "";
+  let at = node.from;
+  const walk = (parent: SyntaxNode): void => {
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (!child.name.includes("Comment")) {
+        walk(child);
+        continue;
+      }
+      text += read(at, child.from) + " ".repeat(child.to - child.from);
+      at = child.to;
+    }
+  };
+  walk(node);
+  return text + read(at, node.to);
 }
 
 /** The first node of a name among a node and its later siblings, and under them, depth first. */
