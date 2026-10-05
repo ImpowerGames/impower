@@ -414,7 +414,7 @@ describe("calling a missing stdlib member with a colon", () => {
 
   test("spans the call below earlier statements", () => {
     expect(
-      spans("store n = 0\n\nfunction count()\n  n = table:nogetn()\nend\n"),
+      spans("store n = 0\n\nfunction tally()\n  n = table:nogetn()\nend\n"),
     ).toEqual([
       [
         "Cannot find item or path named `table.nogetn`",

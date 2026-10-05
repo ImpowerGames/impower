@@ -2209,6 +2209,7 @@ export class SparkdownCompiler {
     carriedRuntime.record = recording ? this._recordCarried : null;
     activation.reparent = recording ? this._recordParent : null;
     let producedStory: RuntimeStory | undefined;
+    let lintStory: Story | undefined;
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
@@ -2220,6 +2221,7 @@ export class SparkdownCompiler {
         program,
         onDiagnostic,
       );
+      lintStory = parsedStory;
       profile("end", this._profilerId, "ink/parse", uri);
       // Plumb `countAllVisits` through to the parsed Story before
       // `ExportRuntime` runs — `FlowBase.GenerateRuntimeObject` reads
@@ -2590,7 +2592,7 @@ export class SparkdownCompiler {
       this.validateReferences(program);
       this.validateImageAttributes(program);
       this.validateMorphs(program);
-      this.validateLints(program);
+      this.validateLints(program, compileThrew ? undefined : lintStory);
       this.validateTypes(program);
     }
     if (this._config.workspace !== undefined) {
@@ -6727,7 +6729,7 @@ export class SparkdownCompiler {
   /** Luau lints (unused locals, unreachable code, repeated conditions,
    *  suspicious numeric `for` ranges, reads of the placeholder `_`); see
    *  `collectLuauLints`. */
-  validateLints(program: SparkProgram) {
+  validateLints(program: SparkProgram, story?: Story) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
     const scripts: { uri: string; names: LuauScriptLints["names"] }[] = [];
@@ -6742,6 +6744,24 @@ export class SparkdownCompiler {
       }
       scripts.push({ uri: scriptUri, names: script.names });
       for (const lint of script.lints) {
+        if (lint.code === "BuiltinGlobalWrite" && story) {
+          const candidate = script.names.globals.find((name) => name.from === lint.from && name.to === lint.to);
+          // Explicit declarations write globals even when a local is visible.
+          if (candidate && candidate.kind !== "store" && candidate.kind !== "const") {
+            const range = doc.range(lint.from, lint.to);
+            const matches = (node: ParsedVariableAssignment | FlowBase) => {
+              const identifier = node.identifier;
+              const dm = identifier?.debugMetadata;
+              return identifier?.name === candidate.name && dm?.filePath === scriptUri &&
+                dm.startLineNumber - 1 === range.start.line && dm.startCharacterNumber - 1 === range.start.character &&
+                dm.endLineNumber - 1 === range.end.line && dm.endCharacterNumber - 1 === range.end.character;
+            };
+            const node = candidate.kind === "function"
+              ? story.Find(FlowBase)(matches)
+              : story.Find(ParsedVariableAssignment)(matches);
+            if (node && story.IsLexicalLocalInScope(candidate.name, node)) continue;
+          }
+        }
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
           range: doc.range(lint.from, lint.to),
           code: lint.code,

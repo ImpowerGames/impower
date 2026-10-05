@@ -27,6 +27,9 @@
 // and the Luau inside, but do not compare its arms' conditions.
 
 import { Tree, TreeBuffer, type NodeSet, type SyntaxNode } from "@lezer/common";
+// StdLib reaches the engine's cyclic value/object modules; prime their entry point.
+import "../../inkjs/engine/Container";
+import { STDLIB, STDLIB_CONSTANTS } from "../../inkjs/engine/StdLib";
 import {
   AstExpr,
   AstExprBinary,
@@ -93,6 +96,7 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "BuiltinGlobalWrite",
   "SameLineStatement",
   "MultiLineStatement",
 ] as const;
@@ -794,6 +798,19 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 
 // ---------------------------------------------------------------------------
 
+// Only own registry keys are built-ins; Object.prototype names are ordinary globals.
+const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_CONSTANTS)].map((name) => name.split(".")[0]!));
+
+/** Luau's BuiltinGlobalWrite, checking the binding being replaced rather than its members. */
+function lintBuiltinGlobalWrites(names: LuauNameFacts, out: LuauLint[]): void {
+  for (const { name, from, to } of names.globals) {
+    if (!BUILTIN_GLOBALS.has(name)) continue;
+    out.push({ code: "BuiltinGlobalWrite", from, to, message: `Built-in global '${name}' is overwritten here; consider using a local or changing the name` });
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 /** Luau's statement-layout rules, using the boundaries of the existing AST. */
 function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], sameLines: Set<number>): void {
   const stack: { start: Position; lastLine: number; flagged: boolean }[] = [];
@@ -887,6 +904,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   }
   const { narrativeIfs } = facts;
   const out: LuauLint[] = [];
+  lintBuiltinGlobalWrites(facts.names, out);
   // Separate AST readings can share a document line (two interpolations).
   const sameLines = new Set<number>();
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {

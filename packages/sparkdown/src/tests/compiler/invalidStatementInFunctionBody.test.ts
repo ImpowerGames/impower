@@ -577,14 +577,14 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("accepts a body of Luau statements and warns only on adjacent calls", () => {
-    const source = `store count = 0
+    const source = `store tally = 0
 
 function greet(name)
   local greeting = "Hello, " .. name .. "."
   display(greeting)
   print("greeted", name)
-  count = count + 1
-  if count > 1 then
+  tally = tally + 1
+  if tally > 1 then
     display("Again.")
   end
   for i = 1, 2 do

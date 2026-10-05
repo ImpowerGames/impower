@@ -8,13 +8,128 @@
 // future rule cannot start warning on them.
 
 import { describe, expect, test } from "vitest";
+import { testCompiler } from "../engineUnderTest";
 import {
   diagnoseWithLintsInFunction,
+  diagnoseDetailed,
+  diagnoseFilesDetailed,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
 // Luau: BuiltinGlobalWrite
-describe.skip("overwriting a builtin global (not implemented: BuiltinGlobalWrite)", () => {
+describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
+  test("a future flow local does not hide a preceding write to an explicit global", () => {
+    const diagnostics = diagnoseDetailed("store math = {}\nfunction run()\n math = {}\n local math = {}\n math = {}\nend\nReady.\n");
+    expect(diagnostics.filter((d) => d.code === "BuiltinGlobalWrite").map((d) => [d.severity, d.range])).toEqual([
+      [2, { start: { line: 0, character: 6 }, end: { line: 0, character: 10 } }],
+      [2, { start: { line: 2, character: 1 }, end: { line: 2, character: 5 } }],
+    ]);
+  });
+  test.each(([
+    ["callback", "define hero as character with\n callback = function() math = {}; return math end\nend\n", 1, 23],
+    ["method", "local T = {}\nfunction T:update()\n math = {}\nend\n", 2, 1],
+    ["scene", "scene intro()\n & math = {}\nend\n", 1, 3],
+  ] as const).flatMap(([kind, body, line, character]) => [true, false].map((local) => ({ kind, body, line, character, local }))))("$kind surrounding local=$local", ({ body, line, character, local }) => {
+    const prefix = local ? "local math = {}\n" : "";
+    const diagnostics = diagnoseDetailed(`${prefix}${body}Ready.\n`);
+    const writes = diagnostics.filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(writes).toEqual(local ? [] : [{
+      code: "BuiltinGlobalWrite", file: "main.sd", severity: 2,
+      message: "Built-in global 'math' is overwritten here; consider using a local or changing the name",
+      range: { start: { line, character }, end: { line, character: character + 4 } },
+    }]);
+  });
+  test("incremental include removal and restoration match cold binding diagnostics", () => {
+    const included = "include helper.sd\n& math = {}\nReady.\n";
+    const detached = "& math = {}\nReady.\n";
+    const uri = "inmemory:///main.sd";
+    const configured = (text: string) => {
+      const compiler = testCompiler();
+      compiler.configure({ files: [
+        { uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
+        { uri: "inmemory:///helper.sd", type: "script", name: "helper", ext: "sd", text: "local math = {}\n", version: 1, languageId: "sparkdown" },
+      ] });
+      return compiler;
+    };
+    const diagnostics = (compiler: ReturnType<typeof testCompiler>) => compiler.compile({ textDocument: { uri } }).program.diagnostics ?? {};
+    const warm = configured(included);
+    let previous = included;
+    for (const [index, source] of [included, detached, included].entries()) {
+      if (index) warm.updateDocument({ textDocument: { uri, version: index + 1 }, contentChanges: [{
+        range: { start: { line: 0, character: 0 }, end: { line: previous.split("\n").length - 1, character: 0 } }, text: source,
+      }] });
+      const actual = diagnostics(warm);
+      expect(actual).toEqual(diagnostics(configured(source)));
+      expect((actual[uri] ?? []).filter((d) => d.code === "BuiltinGlobalWrite")).toHaveLength(index === 1 ? 1 : 0);
+      previous = source;
+    }
+  });
+  test("an included local shadows the builtin in the including script and its later function", () => {
+    const ds = diagnoseFilesDetailed({
+      "main.sd": "include helper.sd\nfunction run() math = {} end\nReady.\n",
+      "helper.sd": "local math = {}\nfunction helper() math = {} end\nfunction assert(x) return x end\n",
+    }).filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds.sort((a, b) => a.file.localeCompare(b.file)).map((d) => [d.file, d.range?.start.line, d.message])).toEqual([
+      ["helper.sd", 2, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
+    ]);
+  });
+  test("a local in the including script does not shadow an earlier included script", () => {
+    const ds = diagnoseFilesDetailed({
+      "main.sd": "include helper.sd\nlocal math = {}\nReady.\n",
+      "helper.sd": "& math = {}\n",
+    }).filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["helper.sd", 0]]);
+  });
+  test("a genuinely global write in the including script still warns", () => {
+    const ds = diagnoseFilesDetailed({
+      "main.sd": "include helper.sd\n& math = {}\nReady.\n",
+      "helper.sd": "local ordinary = {}\n",
+    }).filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["main.sd", 1]]);
+  });
+  test.each(["& math = {}", "function late()\n math = {}\nend"])("included local binding silences %s", (write) => {
+    expect(diagnoseFilesDetailed({
+      "main.sd": `include helper.sd\n${write}\nReady.\n`,
+      "helper.sd": "local math = {}\n",
+    }).filter((d) => d.code === "BuiltinGlobalWrite")).toEqual([]);
+  });
+  test.each(["store", "const"])("explicit %s remains global despite an included local", (keyword) => {
+    const ds = diagnoseFilesDetailed({
+      "main.sd": `include helper.sd\n& ${keyword} math = {}\nReady.\n`,
+      "helper.sd": "local math = {}\n",
+    }).filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["main.sd", 1]]);
+  });
+  test.each([
+    "store math = {}\nReady.\n",
+    "const math = 1\nReady.\n",
+    "function run() store math = {} end\nReady.\n",
+    "define hero as character with\n callback = function() store math = {}; return math end\nend\nReady.\n",
+  ])("explicit global declarations warn once: %s", (source) => {
+    const ds = diagnoseDetailed(source).filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds.map((d) => d.message)).toEqual(["Built-in global 'math' is overwritten here; consider using a local or changing the name"]);
+    const range = ds[0]!.range!;
+    const lines = source.split("\n");
+    expect(lines[range.start.line]!.slice(range.start.character, range.end.character)).toBe("math");
+  });
+  test("compound writes and registry constants warn at the name", () => {
+    const ds = diagnoseDetailed("function run()\n    _VERSION ..= 'x'\nend\n").filter((d) => d.code === "BuiltinGlobalWrite");
+    expect(ds).toEqual([{ file: "main.sd", code: "BuiltinGlobalWrite", severity: 2, message: "Built-in global '_VERSION' is overwritten here; consider using a local or changing the name", range: { start: { line: 1, character: 4 }, end: { line: 1, character: 12 } } }]);
+  });
+  test("locals, parameters, member writes and user globals stay silent", () => {
+    expect(lintMessagesInFunction(`
+local math = {}
+math = {}
+local function assert(x) return x end
+function assert(x) return x end
+local function f(print) print = 1; return print end
+table.custom = 1
+function table.custom() end
+constructor = 1
+toString = 1
+return math, assert, f
+`)).toEqual([]);
+  });
   test("math = {} and function assert", () => {
     expect(
       lintMessagesInFunction(`
