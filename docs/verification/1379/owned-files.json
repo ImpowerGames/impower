@@ -1,0 +1,11 @@
+{
+  "source": [
+    "packages/sparkdown/src/compiler/typecheck/DefinitionFile.ts",
+    "packages/sparkdown/src/compiler/typecheck/Frontend.ts",
+    "packages/sparkdown/src/tests/luau-conformance/definitionLoadObservations.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/definitionLoadObservations.ts",
+    "packages/sparkdown/src/tests/luau-conformance/definitionNativeActionProbe.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/definitionNativeDispatchAcceptance.test.ts"
+  ],
+  "archivedNativeProbes": []
+}

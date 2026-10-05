@@ -49,164 +49,209 @@ function access(value: unknown): A.AstTableAccess {
   return value;
 }
 
-function type(value: unknown): A.AstType {
-  const result = node(value);
-  if (!(result instanceof A.AstType)) throw new Error("Expected a definition AST type");
-  return result;
-}
-
-function pack(value: unknown): A.AstTypePack {
-  const result = node(value);
-  if (!(result instanceof A.AstTypePack)) throw new Error("Expected a definition AST type pack");
-  return result;
-}
-
-function expr(value: unknown): A.AstExpr {
-  const result = node(value);
-  if (!(result instanceof A.AstExpr)) throw new Error("Expected a definition AST expression");
-  return result;
-}
-
-function stat(value: unknown): A.AstStat {
-  const result = node(value);
-  if (!(result instanceof A.AstStat)) throw new Error("Expected a definition AST statement");
-  return result;
-}
-
-function typeList(value: unknown): A.AstTypeList {
-  const n = object(value);
-  return { types: array(n["types"]).map(type), tailType: n["tailType"] == null ? undefined : pack(n["tailType"]) };
-}
-
 function argument(value: unknown): A.AstArgumentName {
   const n = object(value);
   return { name: string(n["name"]), location: location(n["location"]) };
 }
 
-function indexer(value: unknown): A.AstTableIndexer | undefined {
-  if (value == null) return undefined;
-  const n = object(value);
-  return {
-    indexType: type(n["indexType"]), resultType: type(n["resultType"]),
-    location: location(n["location"]), access: access(n["access"]), accessLocation: optionalLocation(n["accessLocation"]),
-  };
-}
-
-function genericTypes(value: unknown): A.AstGenericType[] {
-  return array(value).map((value) => {
+function createDecoder() {
+  // Official JSON repeats AstLocal records. Recover identity per load using
+  // declaration name/location, never a process-global cache or name alone.
+  const locals = new Map<string, { local: A.AstLocal; signature: string }>();
+  const names = new Map<string, A.AstLocal>();
+  let blockDepth = 0;
+  const localKey = (n: ObjectNode) => JSON.stringify([string(n["name"]), string(n["location"])]);
+  function declareLocal(value: unknown): A.AstLocal {
     const n = object(value);
-    // The official JSON format does not emit generic-name locations.
-    return new A.AstGenericType(new Location(), string(n["name"]), n["luauType"] == null ? undefined : type(n["luauType"]));
-  });
-}
-
-function genericPacks(value: unknown): A.AstGenericTypePack[] {
-  return array(value).map((value) => {
-    const n = object(value);
-    return new A.AstGenericTypePack(new Location(), string(n["name"]), n["luauType"] == null ? undefined : pack(n["luauType"]));
-  });
-}
-
-function attributes(value: unknown): A.AstAttr[] {
-  return array(value).map((value) => {
-    const n = object(value);
-    const name = string(n["name"]);
-    const kinds: Record<string, A.AstAttrType> = {
-      checked: A.AstAttrType.Checked, native: A.AstAttrType.Native,
-      deprecated: A.AstAttrType.Deprecated, debug_noinline: A.AstAttrType.DebugNoinline,
-    };
-    const kind = Object.hasOwn(kinds, name) ? kinds[name]! : A.AstAttrType.Unknown;
-    return new A.AstAttr(location(n["location"]), kind, array(n["args"]).map(expr), name);
-  });
-}
-
-function node(value: unknown): A.AstNode {
-  const n = object(value);
-  const loc = location(n["location"]);
-  switch (n["type"]) {
-    case "AstStatBlock": return new A.AstStatBlock(loc, array(n["body"]).map(stat), boolean(n["hasEnd"]));
-    case "AstStatDeclareGlobal": return new A.AstStatDeclareGlobal(loc, string(n["name"]), location(n["nameLocation"]), type(n["luauType"]));
-    case "AstStatDeclareFunction": return new A.AstStatDeclareFunction(
-      loc, attributes(n["attributes"]), string(n["name"]), location(n["nameLocation"]),
-      genericTypes(n["generics"]), genericPacks(n["genericPacks"]), typeList(n["params"]),
-      array(n["paramNames"]).map(argument), boolean(n["vararg"]), location(n["varargLocation"]), pack(n["retTypes"]),
+    if (n["type"] !== "AstLocal" || boolean(n["isConst"]) || n["isExported"] === true)
+      throw new Error("Unsupported prepared definition local declaration");
+    const key = localKey(n), name = string(n["name"]);
+    if (locals.has(key)) throw new Error("Duplicate prepared definition local declaration");
+    const local = new A.AstLocal(
+      name, location(n["location"]), names.get(name), 0, 0,
+      n["luauType"] == null ? undefined : type(n["luauType"]), false,
     );
-    case "AstStatDeclareClass": return new A.AstStatDeclareExternType(
-      loc, string(n["name"]), n["superName"] == null ? undefined : string(n["superName"]),
-      array(n["props"]).map((value) => {
-        const p = object(value);
-        return {
-          name: string(p["name"]), nameLocation: location(p["nameLocation"]), ty: type(p["luauType"]),
-          location: location(p["location"]), isMethod: boolean(p["isMethod"]), access: access(p["access"]),
-        };
-      }), indexer(n["indexer"]),
-    );
-    case "AstStatTypeAlias": return new A.AstStatTypeAlias(
-      loc, string(n["name"]), location(n["nameLocation"]), genericTypes(n["generics"]),
-      genericPacks(n["genericPacks"]), type(n["value"]), boolean(n["exported"]),
-    );
-    case "AstTypeReference": return new A.AstTypeReference(
-      loc, n["prefix"] == null ? undefined : string(n["prefix"]), string(n["name"]),
-      optionalLocation(n["prefixLocation"]), location(n["nameLocation"]), boolean(n["hasParameterList"]),
-      array(n["parameters"]).map((value) => {
-        const result = node(value);
-        if (result instanceof A.AstTypePack) return { typePack: result };
-        if (result instanceof A.AstType) return { type: result };
-        throw new Error("Invalid definition AST type argument");
-      }),
-    );
-    case "AstTypeTable": return new A.AstTypeTable(loc, array(n["props"]).map((value) => {
-      const p = object(value);
-      return { name: string(p["name"]), location: location(p["location"]), type: type(p["propType"]), access: access(p["access"]), accessLocation: optionalLocation(p["accessLocation"]) };
-    }), indexer(n["indexer"]));
-    case "AstTypeFunction": return new A.AstTypeFunction(
-      loc, attributes(n["attributes"]), genericTypes(n["generics"]), genericPacks(n["genericPacks"]),
-      typeList(n["argTypes"]), array(n["argNames"]).map((v) => v == null ? undefined : argument(v)), pack(n["returnTypes"]),
-    );
-    case "AstTypeGroup": return new A.AstTypeGroup(loc, type(n["inner"]));
-    case "AstTypeOptional": return new A.AstTypeOptional(loc);
-    case "AstTypeUnion": return new A.AstTypeUnion(loc, array(n["types"]).map(type));
-    case "AstTypeIntersection": return new A.AstTypeIntersection(loc, array(n["types"]).map(type));
-    case "AstTypeSingletonBool": return new A.AstTypeSingletonBool(loc, boolean(n["value"]));
-    case "AstTypeSingletonString": return new A.AstTypeSingletonString(loc, string(n["value"]));
-    case "AstTypeTypeof": return new A.AstTypeTypeof(loc, expr(n["expr"]));
-    case "AstTypePackExplicit": return new A.AstTypePackExplicit(loc, typeList(n["typeList"]));
-    case "AstTypePackGeneric": return new A.AstTypePackGeneric(loc, string(n["genericName"]));
-    case "AstTypePackVariadic": return new A.AstTypePackVariadic(loc, type(n["variadicType"]));
-    case "AstExprConstantNil": return new A.AstExprConstantNil(loc);
-    case "AstExprConstantBool": return new A.AstExprConstantBool(loc, boolean(n["value"]));
-    case "AstExprConstantNumber": {
-      const value = n["value"];
-      if (typeof value !== "number" && value !== "Infinity" && value !== "-Infinity" && value !== "NaN") throw new Error("Invalid definition AST number");
-      return new A.AstExprConstantNumber(loc, Number(value));
-    }
-    case "AstExprConstantString": return new A.AstExprConstantString(loc, string(n["value"]), A.QuoteStyle.QuotedSimple);
-    case "AstExprGlobal": return new A.AstExprGlobal(loc, string(n["global"]));
-    case "AstExprGroup": return new A.AstExprGroup(loc, expr(n["expr"]));
-    case "AstExprCall": return new A.AstExprCall(loc, expr(n["func"]), array(n["args"]).map(expr), boolean(n["self"]), [], location(n["argLocation"]));
-    case "AstExprIndexName": {
-      const op = n["op"];
-      if (op !== "." && op !== ":") throw new Error("Invalid definition AST member operator");
-      const indexLocation = location(n["indexLocation"]);
-      return new A.AstExprIndexName(loc, expr(n["expr"]), string(n["index"]), indexLocation, indexLocation.begin, op);
-    }
-    case "AstExprIndexExpr": return new A.AstExprIndexExpr(loc, expr(n["expr"]), expr(n["index"]));
-    case "AstExprTable": return new A.AstExprTable(loc, array(n["items"]).map((value) => {
-      const item = object(value);
-      const kinds: Record<string, A.TableItemKind> = { item: A.TableItemKind.List, record: A.TableItemKind.Record, general: A.TableItemKind.General };
-      const kind = string(item["kind"]);
-      if (!Object.hasOwn(kinds, kind)) throw new Error("Invalid definition AST table item");
-      return { kind: kinds[kind]!, key: item["key"] == null ? undefined : expr(item["key"]), value: expr(item["value"]) };
-    }));
-    default: throw new Error(`Unsupported definition AST node: ${String(n["type"])}`);
+    locals.set(key, { local, signature: JSON.stringify(n) });
+    names.set(name, local);
+    return local;
   }
+
+  function type(value: unknown): A.AstType {
+    const result = node(value);
+    if (!(result instanceof A.AstType)) throw new Error("Expected a definition AST type");
+    return result;
+  }
+
+  function pack(value: unknown): A.AstTypePack {
+    const result = node(value);
+    if (!(result instanceof A.AstTypePack)) throw new Error("Expected a definition AST type pack");
+    return result;
+  }
+
+  function expr(value: unknown): A.AstExpr {
+    const result = node(value);
+    if (!(result instanceof A.AstExpr)) throw new Error("Expected a definition AST expression");
+    return result;
+  }
+
+  function stat(value: unknown): A.AstStat {
+    const result = node(value);
+    if (!(result instanceof A.AstStat)) throw new Error("Expected a definition AST statement");
+    return result;
+  }
+
+  function typeList(value: unknown): A.AstTypeList {
+    const n = object(value);
+    return { types: array(n["types"]).map(type), tailType: n["tailType"] == null ? undefined : pack(n["tailType"]) };
+  }
+
+  function indexer(value: unknown): A.AstTableIndexer | undefined {
+    if (value == null) return undefined;
+    const n = object(value);
+    return {
+      indexType: type(n["indexType"]), resultType: type(n["resultType"]),
+      location: location(n["location"]), access: access(n["access"]), accessLocation: optionalLocation(n["accessLocation"]),
+    };
+  }
+
+  function genericTypes(value: unknown): A.AstGenericType[] {
+    return array(value).map((value) => {
+      const n = object(value);
+      // The official JSON format does not emit generic-name locations.
+      return new A.AstGenericType(new Location(), string(n["name"]), n["luauType"] == null ? undefined : type(n["luauType"]));
+    });
+  }
+
+  function genericPacks(value: unknown): A.AstGenericTypePack[] {
+    return array(value).map((value) => {
+      const n = object(value);
+      return new A.AstGenericTypePack(new Location(), string(n["name"]), n["luauType"] == null ? undefined : pack(n["luauType"]));
+    });
+  }
+
+  function attributes(value: unknown): A.AstAttr[] {
+    return array(value).map((value) => {
+      const n = object(value);
+      const name = string(n["name"]);
+      const kinds: Record<string, A.AstAttrType> = {
+        checked: A.AstAttrType.Checked, native: A.AstAttrType.Native,
+        deprecated: A.AstAttrType.Deprecated, debug_noinline: A.AstAttrType.DebugNoinline,
+      };
+      const kind = Object.hasOwn(kinds, name) ? kinds[name]! : A.AstAttrType.Unknown;
+      return new A.AstAttr(location(n["location"]), kind, array(n["args"]).map(expr), name);
+    });
+  }
+
+  function node(value: unknown): A.AstNode {
+    const n = object(value);
+    const loc = location(n["location"]);
+    switch (n["type"]) {
+      case "AstStatBlock": {
+        ++blockDepth;
+        try {
+          return new A.AstStatBlock(loc, array(n["body"]).map(stat), boolean(n["hasEnd"]));
+        } finally {
+          --blockDepth;
+        }
+      }
+      case "AstStatLocal": {
+        if (blockDepth !== 1) throw new Error("Unsupported prepared definition local scope");
+        // Initializers resolve before these locals enter the top-level scope.
+        const values = array(n["values"]).map(expr);
+        return new A.AstStatLocal(loc, array(n["vars"]).map(declareLocal), values, undefined);
+      }
+      case "AstStatDeclareGlobal": return new A.AstStatDeclareGlobal(loc, string(n["name"]), location(n["nameLocation"]), type(n["luauType"]));
+      case "AstStatDeclareFunction": return new A.AstStatDeclareFunction(
+        loc, attributes(n["attributes"]), string(n["name"]), location(n["nameLocation"]),
+        genericTypes(n["generics"]), genericPacks(n["genericPacks"]), typeList(n["params"]),
+        array(n["paramNames"]).map(argument), boolean(n["vararg"]), location(n["varargLocation"]), pack(n["retTypes"]),
+      );
+      case "AstStatDeclareClass": return new A.AstStatDeclareExternType(
+        loc, string(n["name"]), n["superName"] == null ? undefined : string(n["superName"]),
+        array(n["props"]).map((value) => {
+          const p = object(value);
+          return {
+            name: string(p["name"]), nameLocation: location(p["nameLocation"]), ty: type(p["luauType"]),
+            location: location(p["location"]), isMethod: boolean(p["isMethod"]), access: access(p["access"]),
+          };
+        }), indexer(n["indexer"]),
+      );
+      case "AstStatTypeAlias": return new A.AstStatTypeAlias(
+        loc, string(n["name"]), location(n["nameLocation"]), genericTypes(n["generics"]),
+        genericPacks(n["genericPacks"]), type(n["value"]), boolean(n["exported"]),
+      );
+      case "AstTypeReference": return new A.AstTypeReference(
+        loc, n["prefix"] == null ? undefined : string(n["prefix"]), string(n["name"]),
+        optionalLocation(n["prefixLocation"]), location(n["nameLocation"]), boolean(n["hasParameterList"]),
+        array(n["parameters"]).map((value) => {
+          const result = node(value);
+          if (result instanceof A.AstTypePack) return { typePack: result };
+          if (result instanceof A.AstType) return { type: result };
+          throw new Error("Invalid definition AST type argument");
+        }),
+      );
+      case "AstTypeTable": return new A.AstTypeTable(loc, array(n["props"]).map((value) => {
+        const p = object(value);
+        return { name: string(p["name"]), location: location(p["location"]), type: type(p["propType"]), access: access(p["access"]), accessLocation: optionalLocation(p["accessLocation"]) };
+      }), indexer(n["indexer"]));
+      case "AstTypeFunction": return new A.AstTypeFunction(
+        loc, attributes(n["attributes"]), genericTypes(n["generics"]), genericPacks(n["genericPacks"]),
+        typeList(n["argTypes"]), array(n["argNames"]).map((v) => v == null ? undefined : argument(v)), pack(n["returnTypes"]),
+      );
+      case "AstTypeGroup": return new A.AstTypeGroup(loc, type(n["inner"]));
+      case "AstTypeOptional": return new A.AstTypeOptional(loc);
+      case "AstTypeUnion": return new A.AstTypeUnion(loc, array(n["types"]).map(type));
+      case "AstTypeIntersection": return new A.AstTypeIntersection(loc, array(n["types"]).map(type));
+      case "AstTypeSingletonBool": return new A.AstTypeSingletonBool(loc, boolean(n["value"]));
+      case "AstTypeSingletonString": return new A.AstTypeSingletonString(loc, string(n["value"]));
+      case "AstTypeTypeof": return new A.AstTypeTypeof(loc, expr(n["expr"]));
+      case "AstTypePackExplicit": return new A.AstTypePackExplicit(loc, typeList(n["typeList"]));
+      case "AstTypePackGeneric": return new A.AstTypePackGeneric(loc, string(n["genericName"]));
+      case "AstTypePackVariadic": return new A.AstTypePackVariadic(loc, type(n["variadicType"]));
+      case "AstExprConstantNil": return new A.AstExprConstantNil(loc);
+      case "AstExprConstantBool": return new A.AstExprConstantBool(loc, boolean(n["value"]));
+      case "AstExprConstantNumber": {
+        const value = n["value"];
+        if (typeof value !== "number" && value !== "Infinity" && value !== "-Infinity" && value !== "NaN") throw new Error("Invalid definition AST number");
+        return new A.AstExprConstantNumber(loc, Number(value));
+      }
+      case "AstExprConstantString": return new A.AstExprConstantString(loc, string(n["value"]), A.QuoteStyle.QuotedSimple);
+      case "AstExprLocal": {
+        if (blockDepth !== 1) throw new Error("Unsupported prepared definition local scope");
+        const record = object(n["local"]);
+        const entry = locals.get(localKey(record));
+        if (!entry || names.get(entry.local.name) !== entry.local || entry.signature !== JSON.stringify(record))
+          throw new Error("Unknown or inconsistent prepared definition local reference");
+        return new A.AstExprLocal(loc, entry.local, false);
+      }
+      case "AstExprGlobal": return new A.AstExprGlobal(loc, string(n["global"]));
+      case "AstExprGroup": return new A.AstExprGroup(loc, expr(n["expr"]));
+      case "AstExprCall": return new A.AstExprCall(loc, expr(n["func"]), array(n["args"]).map(expr), boolean(n["self"]), [], location(n["argLocation"]));
+      case "AstExprIndexName": {
+        const op = n["op"];
+        if (op !== "." && op !== ":") throw new Error("Invalid definition AST member operator");
+        const indexLocation = location(n["indexLocation"]);
+        return new A.AstExprIndexName(loc, expr(n["expr"]), string(n["index"]), indexLocation, indexLocation.begin, op);
+      }
+      case "AstExprIndexExpr": return new A.AstExprIndexExpr(loc, expr(n["expr"]), expr(n["index"]));
+      case "AstExprTable": return new A.AstExprTable(loc, array(n["items"]).map((value) => {
+        const item = object(value);
+        const kinds: Record<string, A.TableItemKind> = { item: A.TableItemKind.List, record: A.TableItemKind.Record, general: A.TableItemKind.General };
+        const kind = string(item["kind"]);
+        if (!Object.hasOwn(kinds, kind)) throw new Error("Invalid definition AST table item");
+        return { kind: kinds[kind]!, key: item["key"] == null ? undefined : expr(item["key"]), value: expr(item["value"]) };
+      }));
+      default: throw new Error(`Unsupported definition AST node: ${String(n["type"])}`);
+    }
+  }
+  return node;
 }
 
 /** Each load creates fresh nodes, since checking a definition may mutate them. */
 export function loadDefinitionAst(file: DefinitionFile): A.AstStatBlock {
   if (file.version !== 1 || !/^[a-f0-9]{40}$/.test(file.parser) || !/^[a-f0-9]{64}$/.test(file.sourceSha256))
     throw new Error("Unsupported definition AST artifact; regenerate with buildDefinitionAst.mjs");
-  const root = node(file.root);
+  const root = createDecoder()(file.root);
   if (!(root instanceof A.AstStatBlock)) throw new Error("Definition AST root must be a block");
   return root;
 }

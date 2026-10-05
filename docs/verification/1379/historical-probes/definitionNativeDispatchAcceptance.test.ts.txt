@@ -1,0 +1,299 @@
+/** Independent #1379 support acceptance against a frozen instrumented API, not a corpus activation. */
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { loadNativeFixture, type NativeFixture } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/analysis-backend/native-conformance/nativeFixture.ts";
+import { runNativePortedCase, type PortedCase, type PortedAction } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/luau-conformance/typecheck/portedCases.ts";
+import { checkSyntaxOnly } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/luau-conformance/typecheckNativeRunner.ts";
+import { validateClassDependencySource } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/analysis-backend/native-conformance/classDependencyExclusions.ts";
+import type { DefinitionAssertion } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/luau-conformance/typecheckNativeActions.ts";
+
+const frozen = "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/";
+const owned = "C:/Users/Lovelle/.codex/worktrees/1379-definition-observations/impower/";
+const evidence = "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1379/";
+const originals = "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/";
+const pin = "7d5f73364fdbbaa984fa545071630eba73cfea98";
+const sha = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+let sourceRows: { area: string; name: string; index: number; source: string; sourceSha256: string }[];
+let paths: string[];
+let before: Record<string, string>;
+const receipt: Record<string, unknown> = {};
+const hashFiles = async () => Object.fromEntries(await Promise.all(paths.map(async path => [path, sha(await readFile(path))])));
+const bytes = (area: string, name: string, index = 0) => {
+  const row = sourceRows.find(row => row.area === area && row.name === name && row.index === index);
+  expect(row).toBeDefined();
+  return row!.source;
+};
+
+beforeAll(async () => {
+  const audit = JSON.parse(await readFile(evidence + "parser-audit.json", "utf8"));
+  expect(audit.pin).toBe(pin); sourceRows = audit.results; expect(sourceRows).toHaveLength(18);
+  const frozenPaths: string[] = JSON.parse(await readFile(evidence + "native-order-frozen-owned-paths.json", "utf8"));
+  expect(frozenPaths).toHaveLength(37);
+  paths = [...frozenPaths.map(path => frozen + path),
+    ...["backend.wasm", "backend.js", "manifest.json", "LICENSE.txt"].map(path => frozen + "packages/sparkdown/native/luau-conformance/generated/" + path),
+    ...["DefinitionFile.ts", "Frontend.ts"].map(path => owned + "packages/sparkdown/src/compiler/typecheck/" + path),
+    ...["definitionLoadObservations.ts", "definitionLoadObservations.test.ts", "definitionNativeActionProbe.test.ts", "definitionNativeDispatchAcceptance.test.ts"]
+      .map(path => owned + "packages/sparkdown/src/tests/luau-conformance/" + path),
+    ...["definitions", "metatableOOP", "externTypes", "classes", "modules"].map(area => originals + `TypeInfer.${area}.test.cpp`)];
+  before = await hashFiles();
+  expect(before[frozen + "packages/sparkdown/native/luau-conformance/generated/backend.wasm"])
+    .toBe("e5ec766df7893236afd7d971eea0e80e1764da1a7c2b0888308bf2b5a57d0c42");
+  expect(before[frozen + "packages/sparkdown/native/luau-conformance/generated/backend.js"])
+    .toBe("066dd999cae081d7552354a16b30833494d9b4e5c86f399cc17a1183b4720c74");
+  expect(before[frozen + "packages/sparkdown/src/tests/luau-conformance/typecheckNativeActions.ts"])
+    .toBe("c57b30b031d0ec05c88d09bb3984eef8767eea926dfbc534e97b88b3a65c9cc1");
+  expect(before[frozen + "packages/sparkdown/src/tests/luau-conformance/typecheck/README.md"])
+    .toBe("07ed827df0ccc072c37553daa8a5292d3eddec0166e5e65bd9eea78fd53c4ade");
+  for (const area of ["definitions", "metatableOOP", "externTypes", "classes", "modules"]) {
+    const file = (await readFile(originals + `TypeInfer.${area}.test.cpp`, "utf8")).replaceAll("\r\n", "\n");
+    const markers = [...file.matchAll(/TEST_CASE_FIXTURE\((\w+), "([^"]+)"\)/g)];
+    for (const row of sourceRows.filter(row => row.area === area)) {
+      const at = markers.findIndex(marker => marker[2] === row.name); expect(at).toBeGreaterThanOrEqual(0);
+      const body = file.slice(markers[at]!.index!, markers[at + 1]?.index);
+      const raw = [...body.matchAll(/R"\((.*?)\)"/gs)][row.index]![1]!;
+      expect(raw).toBe(row.source); expect(sha(raw)).toBe(row.sourceSha256);
+      receipt[`source:${area}:${row.name}:${row.index}`] = { sha256: sha(raw), fixture: markers[at]![1] };
+    }
+  }
+});
+beforeEach(() => vi.stubEnv("LUAU_TYPECHECK_AREAS", "all"));
+afterEach(() => vi.unstubAllEnvs());
+afterAll(async () => {
+  const after = await hashFiles();
+  await writeFile(evidence + "native-dispatch-order-acceptance-c57b30.json", JSON.stringify({
+    pin, before, after, preserved: JSON.stringify(before) === JSON.stringify(after), receipt,
+    unresolved: ["#879 exact game/B require parsing in all three class dependency originals", "original #597 port ownership/integration", "production integration/CI/live/review"],
+  }, null, 2) + "\n");
+  expect(after).toEqual(before);
+});
+
+async function tracked(file: string, record: PortedCase, definitionOnly = false) {
+  const events: unknown[] = [], skip = vi.fn();
+  let native: NativeFixture | undefined;
+  const load = vi.fn(async () => {
+    native = await loadNativeFixture();
+    const fixture = native, observe = fixture.observe.bind(fixture);
+    vi.spyOn(fixture, "observe").mockImplementation((operation, ...args) => {
+      const actual = observe(operation, ...args);
+      if (["create", "flag", "definition", "select_new_solver", "source", "check", "dispose"].includes(operation))
+        events.push({ operation, args: args.map(arg => typeof arg === "string" && arg.length > 100 ? { sha256: sha(arg) } : arg), actual });
+      return actual;
+    });
+    const check = fixture.check.bind(fixture);
+    vi.spyOn(fixture, "check").mockImplementation((...args) => {
+      if (definitionOnly) throw Error("Unexpected source check in original definition-only case");
+      const actual = check(...args);
+      events.push({ checked: args[0], diagnostics: actual.diagnostics, flags: actual.effectiveFlags, graph: fixture.moduleFacts(actual, args[0]) });
+      return actual;
+    });
+    return fixture;
+  });
+  try {
+    await runNativePortedCase(file, record, skip, load);
+  } finally {
+    receipt[`dispatch:${file}:${record.name}`] = events;
+    if (native) expect(() => native!.heapBytes()).toThrow("Disposed native fixture host");
+  }
+  expect(load).toHaveBeenCalledTimes(1); expect(skip).not.toHaveBeenCalled();
+  expect(events.filter(event => (event as { operation?: string }).operation === "create")).toHaveLength(1);
+  expect(events.filter(event => (event as { operation?: string }).operation === "dispose")).toHaveLength(1);
+  return events;
+}
+
+const definition = (name: string, expect: DefinitionAssertion[], mandatory = false, index = 0): PortedAction => ({
+  definition: bytes("definitions", name, index), ...(mandatory ? { mandatory: true } : {}), expect,
+});
+const definitionCases: [string, () => PortedAction[]][] = [
+  ["load_definition_file_errors_do_not_pollute_global_scope", () => [
+    definition("load_definition_file_errors_do_not_pollute_global_scope", [{ success: false }, { binding: { name: "foo", present: false } }]),
+    definition("load_definition_file_errors_do_not_pollute_global_scope", [{ success: false }, { binding: { name: "bar", present: false } }], false, 1),
+  ]],
+  ["class_definitions_cannot_overload_non_function", () => [definition("class_definitions_cannot_overload_non_function", [
+    { success: false }, { parseErrors: 0 }, { modulePresent: true }, { definitionErrors: 2 },
+    { definitionError: 0, kind: "GenericError" },
+    { definitionError: 0, message: "Cannot overload read type of non-function extern type member 'X'" },
+    { definitionError: 1, kind: "GenericError" },
+    { definitionError: 1, message: "Cannot overload write type of non-function extern type member 'X'" },
+  ])]],
+  ["class_definitions_cannot_extend_non_class", () => [definition("class_definitions_cannot_extend_non_class", [
+    { success: false }, { parseErrors: 0 }, { modulePresent: true }, { definitionErrors: 1 },
+    { definitionError: 0, kind: "GenericError" },
+    { definitionError: 0, message: "Cannot use non-class type 'NotAClass' as a superclass of class 'Foo'" },
+  ])]],
+  ["no_cyclic_defined_extern_types", () => [definition("no_cyclic_defined_extern_types", [{ success: false }])]],
+  ["definitions_documentation_symbols", () => [definition("definitions_documentation_symbols", [
+    { binding: { name: "x", present: true, documentation: "@test/global/x" } },
+    { alias: { name: "Foo", present: true, type: { documentation: "@test/globaltype/Foo" } } },
+    { alias: { name: "Bar", present: true, type: { documentation: "@test/globaltype/Bar" } } },
+    { alias: { name: "Bar", present: true, type: { rawKind: "extern", properties: { prop: { count: 1, documentation: "@test/globaltype/Bar.prop" } } } } },
+    { binding: { name: "y", present: true, documentation: "@test/global/y" } },
+    { binding: { name: "y", present: true, type: { rawKind: "table", properties: { x: { count: 1, documentation: "@test/global/y.x" } } } } },
+  ], true)]],
+  ["definitions_symbols_are_generated_for_recursively_referenced_types", () => [definition("definitions_symbols_are_generated_for_recursively_referenced_types", [
+    { alias: { name: "MyClass", present: true, type: { documentation: "@test/globaltype/MyClass" } } },
+    { alias: { name: "MyClass", present: true, type: { rawKind: "extern", properties: {
+      myMethod: { count: 1, documentation: "@test/globaltype/MyClass.myMethod", readable: true, read: { rawKind: "function", definition: {
+        module: "@test", location: [2, 12, 2, 35], originalName: [2, 21, 2, 29], varargPresent: false,
+      } } },
+    } } } },
+  ], true)]],
+  ["documentation_symbols_dont_attach_to_persistent_types", () => [definition("documentation_symbols_dont_attach_to_persistent_types", [
+    { alias: { name: "Evil", present: true, type: { documentation: null } } },
+  ], true)]],
+  ["class_definition_malformed_string", () => [definition("class_definition_malformed_string", [
+    { success: false }, { parseErrors: 1 }, { parseError: 0, message: "String literal contains malformed escape sequence or " + String.fromCharCode(92) + "0" },
+  ])]],
+  ["definition_file_has_source_module_name_set", () => [definition("definition_file_has_source_module_name_set", [
+    { success: true }, { sourceModuleName: "@test", sourceHumanReadableName: "@test" },
+    { alias: { name: "Foo", present: true, type: { rawKind: "extern", definitionModuleName: "@test" } } },
+  ], true)]],
+];
+
+it.each(definitionCases)("dispatches every original action/assertion: %s", async (name, actions) => {
+  const actual = actions();
+  const events = await tracked("TypeInfer.definitions.test.cpp", { name, fixture: "Fixture", actions: actual }, true);
+  const loads = events.filter(event => (event as { operation?: string }).operation === "definition") as { actual: { success: boolean } }[];
+  expect(loads).toHaveLength(actual.length);
+});
+
+it("rejects wrong documentation, source locations and error categories with actual teardown", async () => {
+  const controls: [string, PortedAction[]][] = [
+    ["wrong-doc", [definition("definitions_documentation_symbols", [{ binding: { name: "x", present: true, documentation: "@test/globaltype/x" } }], true)]],
+    ["wrong-category", [definition("class_definitions_cannot_overload_non_function", [{ definitionError: 0, kind: "TypeMismatch" }])]],
+    ["wrong-location", [definition("definitions_symbols_are_generated_for_recursively_referenced_types", [{ alias: { name: "MyClass", present: true, type: { properties: {
+      myMethod: { count: 1, read: { definition: { module: "@test", location: [2, 13, 2, 35], originalName: [2, 21, 2, 29], varargPresent: false } } },
+    } } } }], true)]],
+    ["wrong-earlier-presence", [definition("definitions_documentation_symbols", [{ alias: { name: "MyClass", present: true } }], true),
+      definition("definitions_symbols_are_generated_for_recursively_referenced_types", [{ success: true }], true)]],
+  ];
+  for (const [name, actions] of controls) await expect(tracked("TypeInfer.definitions.test.cpp", { name: `CONTROL-${name}`, fixture: "Fixture", actions }, true)).rejects.toThrow();
+});
+
+it("observes the original first failure when vararg/name, docs/kind and category/message compete", async () => {
+  const controls: { name: string; actions: PortedAction[]; actual: unknown; expected: unknown }[] = [
+    { name: "vararg-before-name", actual: false, expected: true, actions: [
+      definition("definitions_symbols_are_generated_for_recursively_referenced_types", [{ alias: { name: "MyClass", present: true, type: { properties: {
+        myMethod: { count: 1, readable: true, read: { rawKind: "function", definition: {
+          module: "@test", location: [2, 12, 2, 35], varargPresent: true, originalName: [777, 0, 777, 1],
+        } } },
+      } } } }], true),
+    ] },
+    { name: "documentation-before-kind", actual: "@test/globaltype/MyClass", expected: "CONTROL/competing-doc", actions: [
+      definition("definitions_symbols_are_generated_for_recursively_referenced_types", [
+        { alias: { name: "MyClass", present: true, type: { documentation: "CONTROL/competing-doc" } } },
+        { alias: { name: "MyClass", present: true, type: { rawKind: "table" } } },
+      ], true),
+    ] },
+    { name: "category-before-message", actual: "GenericError", expected: "TypeMismatch", actions: [
+      definition("class_definitions_cannot_extend_non_class", [
+        { definitionError: 0, kind: "TypeMismatch" },
+        { definitionError: 0, message: "CONTROL/competing-message" },
+      ]),
+    ] },
+  ];
+  for (const control of controls) {
+    let failure: unknown;
+    try {
+      await tracked("TypeInfer.definitions.test.cpp", { name: `CONTROL-order-${control.name}`, fixture: "Fixture", actions: control.actions }, true);
+    } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure, "real first assertion failure data").toMatchObject({ actual: control.actual, expected: control.expected });
+    const first = failure as Error & { actual: unknown; expected: unknown };
+    receipt[`competing-order:${control.name}`] = { actual: first.actual, expected: first.expected, message: first.message };
+  }
+});
+
+it("preserves exact original old-flag → body-New → source/check ordering", async () => {
+  const name = "ice_while_checking_script_due_to_scopes_not_being_solver_agnostic";
+  const events = await tracked("TypeInfer.externTypes.test.cpp", { name, fixture: "ExternTypeFixture", flags: { DebugLuauForceOldSolver: true },
+    solverOverride: "New", source: bytes("externTypes", name), expect: [{ errors: "some" }] });
+  const operations = events.filter(event => (event as { operation?: string }).operation) as { operation: string; args: unknown[] }[];
+  expect(operations.map(event => event.operation)).toEqual(["create", "flag", "select_new_solver", "source", "check", "dispose"]);
+  expect(operations[0]!.args).toEqual([3]);
+  const checked = events.find(event => "checked" in (event as object)) as { flags: unknown[]; graph: unknown };
+  expect(checked.flags).toContainEqual({ name: "DebugLuauForceOldSolver", value: true });
+  expect(checked.graph).toMatchObject({ checkedInNewSolver: true, effectiveNewSolver: true });
+});
+
+it("rejects ordinary old selection and unsupported override, restoring allowance on reset", async () => {
+  const fixture = await loadNativeFixture();
+  try {
+    const source = bytes("externTypes", "ice_while_checking_script_due_to_scopes_not_being_solver_agnostic");
+    fixture.create("ExternTypeFixture"); fixture.flag("DebugLuauForceOldSolver", true);
+    expect(fixture.observe("select_new_solver", "Old").message).toBe("Unsupported case-body solver override");
+    fixture.source("MainModule", source); expect(() => fixture.check("MainModule")).toThrow("requires selected new solver");
+    fixture.selectNewSolver("New");
+    expect(fixture.scopedFlagValue("DebugLuauForceOldSolver")).toBe(true);
+    expect(fixture.flagValue("DebugLuauForceOldSolver")).toBe(false);
+    const actual = fixture.check("MainModule");
+    receipt["override:guard"] = { flags: actual.effectiveFlags, graph: fixture.moduleFacts(actual, "MainModule"), errors: actual.diagnostics };
+    fixture.reset(); fixture.source("MainModule", source); expect(() => fixture.check("MainModule")).toThrow("requires selected new solver");
+    fixture.create("ExternTypeFixture"); fixture.source("MainModule", source); expect(() => fixture.check("MainModule")).toThrow("requires selected new solver");
+  } finally { fixture.dispose(); }
+});
+
+it("dispatches the exact 18-call bound and detects an incorrect bound without asserting errors", async () => {
+  const name = "inferring_hundreds_of_self_calls_should_not_suffocate_memory", source = bytes("metatableOOP", name);
+  expect(source.match(/:lower\(\)/g)).toHaveLength(18);
+  await tracked("TypeInfer.metatableOOP.test.cpp", { name, fixture: "Fixture", source,
+    expect: [{ moduleGraph: { module: "MainModule", maximumInternalTypes: 80 } }] });
+  await expect(tracked("TypeInfer.metatableOOP.test.cpp", { name: "CONTROL-wrong-bound", fixture: "Fixture", source,
+    expect: [{ moduleGraph: { module: "MainModule", maximumInternalTypes: 75 } }] })).rejects.toThrow();
+});
+
+const classCases = [
+  { area: "classes", name: "isinstance_refines_imported_class", fixture: "ClassesFixture", flags: { LuauExportValueSyntax: true, LuauExportValueTypecheck: true },
+    expect: [{ errors: 0 }, { typeAt: [5, 22], module: "game/B", equals: "Point" }] },
+  { area: "modules", name: "export_class", fixture: "BuiltinsFixture", flags: { LuauExportValueSyntax: true, LuauExportValueTypecheck: true, DebugLuauForceOldSolver: false, DebugLuauUserDefinedClasses: true },
+    expect: [{ errors: 0 }, { type: "x", equals: "number" }, { type: "y", equals: "number" }] },
+  { area: "modules", name: "non_exported_class", fixture: "BuiltinsFixture", flags: { DebugLuauForceOldSolver: false, DebugLuauUserDefinedClasses: true },
+    expect: [{ errors: 1 }, { error: 0, code: "UnknownSymbol", fields: { name: "A.Point", context: "Type" } }] },
+] as const;
+function classRecord(original: typeof classCases[number]): PortedCase {
+  return { name: original.name, fixture: original.fixture, flags: original.flags, module: "game/B", source: bytes(original.area, original.name, 1),
+    moduleSources: { "game/A": bytes(original.area, original.name, 0) }, moduleDivergences: { "game/A": { divergence: "No `class` declarations" } },
+    expect: [...original.expect] } as PortedCase;
+}
+
+it.each(classCases)("preserves independent original game/B parser blockers for $name", async original => {
+  const record = classRecord(original) as Extract<PortedCase, { source: string }>;
+  validateClassDependencySource(`TypeInfer.${original.area}.test.cpp`, record.name, "game/A", record.moduleSources!["game/A"]!);
+  const parsed = checkSyntaxOnly(record.source, { module: "game/B", moduleSources: record.moduleSources });
+  expect(parsed.syntaxDiagnostics.length).toBeGreaterThan(0);
+  expect(parsed.syntaxDiagnostics.every(error => error.module === "game/B")).toBe(true);
+  expect(parsed.setupSyntaxDiagnostics!.length).toBeGreaterThan(0);
+  expect(parsed.setupSyntaxDiagnostics!.every(error => error.module === "game/A")).toBe(true);
+  receipt[`class-original:${original.name}`] = { source: sha(record.source), entry: parsed.syntaxDiagnostics, dependencies: parsed.setupSyntaxDiagnostics, flags: record.flags, fixture: record.fixture };
+  const load = vi.fn(loadNativeFixture), skip = vi.fn();
+  await expect(runNativePortedCase(`TypeInfer.${original.area}.test.cpp`, record, skip, load)).rejects.toThrow("Sparkdown did not read the snippet as Luau");
+  expect(load).not.toHaveBeenCalled(); expect(skip).not.toHaveBeenCalled();
+});
+
+it("verifies labelled clean-entry controls select class parse-only before native setup for all three associations", async () => {
+  for (const original of classCases) {
+    const record = classRecord(original) as Extract<PortedCase, { source: string }>;
+    // Separate eligibility mechanism control. The exact original B remains recorded above and blocked by #879.
+    const control = { ...record, source: "return 1" }, load = vi.fn(loadNativeFixture), skip = vi.fn();
+    await runNativePortedCase(`TypeInfer.${original.area}.test.cpp`, control, skip, load);
+    expect(load).not.toHaveBeenCalled(); expect(skip).toHaveBeenCalledTimes(1);
+    expect(record.source).toBe(bytes(original.area, original.name, 1));
+  }
+});
+
+it("rejects wrong, removed, clean and unrelated dependency classifications without native setup", async () => {
+  const original = classCases[0], base = classRecord(original) as Extract<PortedCase, { source: string }>;
+  const controls = [
+    { ...base, source: "return 1", moduleDivergences: { "game/C": { divergence: "No `class` declarations" } } },
+    { ...base, source: "return 1", moduleDivergences: { "game/A": { divergence: "Unknown heading" } } },
+    { ...base, source: "return 1", moduleSources: { "game/A": "return 1" } },
+    { ...base, source: "return 1", moduleSources: { ...base.moduleSources, "game/C": "local missing =" } },
+    { ...base, source: "return 1", moduleDivergences: undefined },
+    { ...base, source: "return 1", name: "export_class" },
+  ];
+  for (const control of controls) {
+    const load = vi.fn(loadNativeFixture);
+    await expect(runNativePortedCase("TypeInfer.classes.test.cpp", control as PortedCase, vi.fn(), load)).rejects.toThrow();
+    expect(load).not.toHaveBeenCalled();
+  }
+});
