@@ -992,17 +992,6 @@ function callThroughHandler(
 }
 
 /**
- * A call through what the variable `varName` holds, as a divert whose target
- * is a variable runs it on either engine: a builtin iterator steps, a builtin
- * runs, and a table whose metatable has `__call` calls its handler, each
- * pushing what the call returns; a closure or a function value gives the
- * function to enter, with its arguments arranged for its entry
- * (`arrangeClosureArgs`, `arrangeArgsFor`). Returns that function, or null
- * when the call is done.
- * `callSiteArgCount` is the number of arguments the call site pushed, or -1
- * when the story does not record it.
- */
-/**
  * The draws a shuffle takes in place of its seeded generator, when set: the
  * differential run of the binary program injects one stream into both
  * engines, which seed their shuffles from different names (a container's path
@@ -1053,6 +1042,17 @@ export function sequenceShuffleIndex(
   throw new Error("Should never reach here");
 }
 
+/**
+ * A call through what the variable `varName` holds, as a divert whose target
+ * is a variable runs it on either engine: a builtin iterator steps, a builtin
+ * runs, and a table whose metatable has `__call` calls its handler, each
+ * pushing what the call returns; a closure or a function value gives the
+ * function to enter, with its arguments arranged for its entry
+ * (`arrangeClosureArgs`, `arrangeArgsFor`). Returns that function, or null
+ * when the call is done.
+ * `callSiteArgCount` is the number of arguments the call site pushed, or -1
+ * when the story does not record it.
+ */
 export function callVariableTarget(
   story: any,
   varName: string | null,
