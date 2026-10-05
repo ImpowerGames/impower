@@ -5,21 +5,17 @@
  * Released under the MIT license.
  */
 
-import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import {
   commands,
   ExtensionContext,
   Position,
   Range,
   Selection,
-  SnippetString,
   TextEditor,
   window,
   workspace,
   WorkspaceEdit,
 } from "vscode";
-import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
-import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 
 enum EmphasisType {
   ITALIC = "*",
@@ -65,11 +61,6 @@ export const activateAutoFormatting = (context: ExtensionContext) => {
       toggleEmphasis(EmphasisType.SHAKY),
     ),
   );
-
-  const config = workspace.getConfiguration("sparkdown");
-  if (config["editor"].autoCloseAngleBrackets) {
-    context.subscriptions.push(commands.registerCommand("type", onType));
-  }
 };
 
 const getIndent = (editor: TextEditor, indentLevel: number) => {
@@ -156,86 +147,6 @@ const onBackspaceKey = async () => {
     }
   }
   return asNormal(editor, "backspace");
-};
-
-const onType = async (
-  e: { source: "keyboard"; text: string },
-  ...args: any[]
-) => {
-  const editor = window.activeTextEditor!;
-
-  if (e.text === "<") {
-    if (await onOpenAngleBracket(editor)) {
-      return true;
-    }
-  }
-
-  return commands.executeCommand("default:type", e, ...args);
-};
-
-const onOpenAngleBracket = async (editor: TextEditor) => {
-  const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  const textAfterCursor = currentLineText.substring(cursor.character);
-  if (editor.selections.length === 1 && editor.selection.isEmpty) {
-    if (!textAfterCursor?.trim()) {
-      if (
-        workspace.getConfiguration("sparkdown")["editor"].autoCloseAngleBrackets
-      ) {
-        if (await closeAngleBracket(editor)) {
-          return true;
-        }
-      }
-    }
-  }
-
-  return false;
-};
-
-const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
-  const cursor = editor.selection.active;
-  const parsedDoc = SparkdownDocumentManager.instance.get(editor.document.uri);
-  const tree = SparkdownDocumentManager.instance.tree(editor.document.uri);
-
-  if (!parsedDoc || !tree) {
-    [];
-    return false;
-  }
-
-  const stack = getStack<SparkdownNodeName>(
-    tree,
-    parsedDoc.offsetAt(cursor),
-    -1,
-  );
-
-  if (
-    !stack.some(
-      (n) =>
-        n.name === "TextChunk" ||
-        n.name === "BlockTitle" ||
-        n.name === "InlineTitle" ||
-        n.name === "BlockHeading" ||
-        n.name === "InlineHeading" ||
-        n.name === "BlockTransitional" ||
-        n.name === "InlineTransitional" ||
-        n.name === "BlockAction" ||
-        n.name === "InlineAction" ||
-        n.name === "ImplicitAction" ||
-        n.name === "BlockWrite" ||
-        n.name === "InlineWrite" ||
-        n.name === "BlockDialogue" ||
-        n.name === "InlineDialogue",
-    )
-  ) {
-    return false;
-  }
-
-  await editor.insertSnippet(new SnippetString("<$0>"), cursor, {
-    undoStopBefore: true,
-    undoStopAfter: true,
-  });
-
-  return true;
 };
 
 const completeKnotEndMarker = async (editor: TextEditor): Promise<boolean> => {

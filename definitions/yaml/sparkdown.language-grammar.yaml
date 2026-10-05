@@ -92,7 +92,8 @@ variables:
   LUAU_INVALID_STATEMENT_PREFIX_KEYWORDS: (?:{{LUAU_RESERVED_WORDS}}|{{LUAU_SCOPE_MODIFIERS}})
   # lookaround: LuauLogicalOperation and LuauControlBlock own these continuations.
   LUAU_INVALID_STATEMENT_NOT_CONTINUATION_KEYWORD: (?!{{LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS}}\b)
-  LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS: ["and", "or", "not", "then", "do", "in", "end", "else", "elseif", "until"]
+  LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS:
+    ["and", "or", "not", "then", "do", "in", "end", "else", "elseif", "until"]
   # lookaround: LuauLineComment may follow a dangling dot; a later name instead belongs to LuauAccessPath.
   LUAU_INVALID_STATEMENT_BEFORE_LINE_END: (?={{WS}}*(?:$|--))
   # lookaround: LuauCompareOperation owns ~=; the other characters cannot start a Luau expression.
@@ -161,7 +162,8 @@ variables:
   LUAU_MODULE_KEYWORDS: ["require", "export"]
   LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
-  LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]
+  LUAU_TERNARY_PRECEDING_KEYWORDS:
+    ["return", "and", "or", "not", "then", "else"]
   # Statement-boundary keywords that end an `until` condition
   # (`LuauUntilStatement`); `until` itself is left out.
   LUAU_UNTIL_CONDITION_END_KEYWORDS:
@@ -622,7 +624,7 @@ variables:
   # A literal followed by a `--` comment, taking the comment to the line end.
   STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT: '{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*'
   # A literal followed by a `//` comment, ending before the comment.
-  STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT: '{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])'
+  STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT: "{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])"
   # One unit of an unquoted property value: a quoted run, a bracket, or a character.
   STRUCT_BLOCK_VALUE_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{}"\n\[])
   # One unit of a bare list value, which a comma also ends.
@@ -837,7 +839,7 @@ variables:
   LUAU_EXPRESSION_LINE_CONTINUATION: (?:{{LUAU_LINE_CONTINUATION}}|{{LUAU_INDEXER_LINE_CONTINUATION}}|{{WS}}*{{LUAU_MINUS_LINE_START}})
   # The `.` after a type's module name, with the whitespace Luau allows before
   # it. Every type rule that reads or yields to a qualified name uses this.
-  LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
+  LUAU_TYPE_QUALIFIER_DOT: "{{WS}}*[.]"
   # `?` is a postfix suffix (`number?`) that takes no right operand, so it
   # is not one of the binary type operators.
   LUAU_TYPE_OPTIONAL_OPERATOR: (?:[?])
@@ -951,7 +953,7 @@ variables:
   # Not `end`, a comment, a return type's `:` or generics' `<`.
   LUAU_NOT_END_COMMENT_OR_RETURN_TYPE_AHEAD: (?!end\b|{{LUAU_COMMENT_START}}|{{LUAU_SINGLE_COLON}}|[<])
   # A `:` that is not the start of `::`.
-  LUAU_SINGLE_COLON: '[:](?![:])'
+  LUAU_SINGLE_COLON: "[:](?![:])"
   # Just after a token an inline `if` expression can follow: a line start,
   # an operator, an opening bracket, a comma, `..` or a keyword.
   AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*)
@@ -966,7 +968,7 @@ variables:
   # Just after a braced alternator's `|`, with any `name =` of a match arm.
   AFTER_ALTERNATOR_ARM_SEPARATOR: (?<=[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?)
   # A `-> end` that the alternator's `}` directly follows.
-  END_DIVERT_CLOSING_ALTERNATOR: '{{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}]'
+  END_DIVERT_CLOSING_ALTERNATOR: "{{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}]"
   # A block comment between `.` and a member; captures the comment's level,
   # which its close matches with `\3`, so it must follow exactly two groups.
   _LUAU_DANGLING_ACCESSOR_COMMENT_: (?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)
@@ -979,7 +981,7 @@ variables:
   LUAU_VALUE_OPERATOR_AFTER_TYPE: (?![-][>]|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_COMMENT_START}}){{LUAU_VALUE_BINARY_OPERATORS}}
   # lookaround: LuauCompareOperation owns `<=`, which cannot open arguments.
   # Splitting the reference wrapper cannot distinguish the shared `<` token.
-  LUAU_TYPE_GENERIC_OPEN: '[<](?![=])'
+  LUAU_TYPE_GENERIC_OPEN: "[<](?![=])"
   # lookaround: LuauConcatOperation owns `..`; only a single dot qualifies.
   LUAU_TYPE_QUALIFICATION_OPEN: "[.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}"
   LUAU_TYPE_QUALIFICATION_END: '[,;)\]}>=?&|<]'
@@ -2921,8 +2923,8 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   DialogueCharacterPosition:
-    tag: definition(escape)
-    name: constant.character.escape.dialogue.character.position.sd
+    tag: special(comment)
+    name: comment.dialogue.character.position.sd
     match: ({{WS}})(\[)({{WS}}*)(.*?)({{WS}}*)(\])
     captures:
       1:
@@ -4508,8 +4510,6 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-
-
   # Name + optional `as PARENT`, ending at the `with` block opener.
   # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)
   # so the lowerer reads names through the same node names as `define`.
@@ -4607,7 +4607,6 @@ repository:
     tag: string
     name: string.unquoted.style.luau
     match: ([^\n]*)
-
 
   # A struct value the literal rules alone do not take: an unquoted value, or a
   # literal followed by a comment. The value ends where a trailing
@@ -5578,11 +5577,6 @@ repository:
         patterns:
           - { include: "#DivertTarget" }
 
-
-
-
-
-
   # `from` / `to` / a percentage standing alone as a container header key: the
   # CSS `@keyframes` selector spelling for one keyframe's position inside a
   # `keyframes { … }` block. The lookarounds keep it to a key that is ENTIRELY a
@@ -5592,8 +5586,6 @@ repository:
     tag: constant(variableName)
     name: constant.other.keyframe-selector.sd
     match: (?<![\w.%-])(?:from|to|[-+]?(?:\d*[.])?\d+%)(?![\w.%-])
-
-
 
   # Inline element attributes (spec §4.5): trailing `@event=handler` bindings on
   # an element line. `#prop=value` follows in a later increment. Each event's
@@ -5783,8 +5775,6 @@ repository:
       3:
         patterns:
           - { include: "#PunctuationStringClose" }
-
-
 
   LuauStructBlockLine:
     # lookaround: LuauEndKeyword and BEAT must remain outside this line wrapper;
@@ -6253,7 +6243,6 @@ repository:
     tag: className
     name: entity.name.type.class.view.sd
     match: (.+)
-
 
   # A character no part of an element reads.
   LuauSparkleElementInvalid:
@@ -6732,8 +6721,6 @@ repository:
     # In a brace block a `;`, a `}` or the match's `end` on the same line ends
     # the value too.
     end: (?=$|[;}]|{{WS}}*end{{SPARKLE_KEYWORD_END}})
-
-
 
   LuauLayout:
     tag: meta
@@ -8044,7 +8031,11 @@ repository:
     begin: ({{WS}}*)(for|while)\b({{WS}}*)
     beginCaptures:
       1: { patterns: [{ include: "#OptionalWhitespace" }] }
-      2: { patterns: [{ include: "#LuauForKeyword" }, { include: "#LuauWhileKeyword" }] }
+      2:
+        {
+          patterns:
+            [{ include: "#LuauForKeyword" }, { include: "#LuauWhileKeyword" }],
+        }
       3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
     patterns:
       - { include: "#LuauSparkdownExplicitDoBlock" }
@@ -8317,7 +8308,7 @@ repository:
   LuauSparkdownExplicitTypeLiteral:
     # lookaround: LuauExpression owns non-type keywords and values; this type scope opens only at a valid type introducer.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
+    begin: '(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|['']|[`]|[-][>]|[:])'
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -8481,7 +8472,7 @@ repository:
   LuauSparkdownExplicitTypeNameExtraQualifierContinuation:
     tag: invalid
     name: invalid.illegal.type-name-qualifier.luau
-    begin: '{{LUAU_TYPE_QUALIFICATION_OPEN}}'
+    begin: "{{LUAU_TYPE_QUALIFICATION_OPEN}}"
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
@@ -12484,7 +12475,7 @@ repository:
   LuauTargetTypeCastOperator:
     tag: invalid
     name: invalid.illegal.luau
-    match: {{LUAU_TYPECAST_OPERATOR}}
+    match: { { LUAU_TYPECAST_OPERATOR } }
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
@@ -13031,7 +13022,7 @@ repository:
   # type-name variable used only here would hold the lookahead without
   # replacing it.
   LuauTypeLiteral:
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
+    begin: '(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|['']|[`]|[-][>]|[:])'
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -13585,7 +13576,7 @@ repository:
   LuauTypeNameExtraQualifierContinuation:
     tag: invalid
     name: invalid.illegal.type-name-qualifier.luau
-    begin: '{{LUAU_TYPE_QUALIFICATION_OPEN}}'
+    begin: "{{LUAU_TYPE_QUALIFICATION_OPEN}}"
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }

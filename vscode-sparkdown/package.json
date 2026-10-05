@@ -298,6 +298,12 @@
             "settings": {
               "foreground": "#ffa8d1"
             }
+          },
+          {
+            "scope": "comment.dialogue.character.position",
+            "settings": {
+              "foreground": "#D7BA7D"
+            }
           }
         ],
         "[*Light*]": {
@@ -360,6 +366,12 @@
               "scope": "keyword.other.component.custom",
               "settings": {
                 "foreground": "#e04392"
+              }
+            },
+            {
+              "scope": "comment.dialogue.character.position",
+              "settings": {
+                "foreground": "#EE0000"
               }
             }
           ]
@@ -663,11 +675,6 @@
             "type": "boolean",
             "default": true,
             "markdownDescription": "When renaming a reference to a file in the editor, also rename the asset file it refers to."
-          },
-          "sparkdown.editor.autoCloseAngleBrackets": {
-            "type": "boolean",
-            "default": true,
-            "markdownDescription": "Automatically closes <> inside of text.\n\n*[If you are using a vim emulator, you should disable this setting.]*"
           },
           "sparkdown.formatter.convertInkSyntaxToSparkdownSyntax": {
             "type": "boolean",
