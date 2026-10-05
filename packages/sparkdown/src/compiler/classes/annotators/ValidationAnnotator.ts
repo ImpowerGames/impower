@@ -446,16 +446,19 @@ function isValue(
 // `then` and its value, then either `elseif` and another condition or
 // `else` and its value. The node it returns is the keyword to report on:
 // the `if`, or the `elseif`, `then` or `else` of the clause that is short.
+// A `then` glued to its condition (`if (c)then`) belongs to the condition's
+// end, so after such a condition the `then` is present and its value is
+// what comes next, whether or not a then arm follows.
 function missingIfExpressionPart(
   node: any,
   read: (from: number, to: number) => string,
 ): { message: string; at: any } | null {
   const content = childNamed(node, "LuauTernaryExpression_content");
   let at = firstDescendant(node, LUAU_IF_KEYWORD);
-  let expecting: "condition" | "then" | "else" = "condition";
+  let expecting: "condition" | "then" | "then value" | "else" = "condition";
   const missing = () => ({
     message:
-      expecting === "condition"
+      expecting === "condition" || expecting === "then value"
         ? IF_EXPRESSION_WITHOUT_VALUE
         : expecting === "then"
           ? IF_EXPRESSION_WITHOUT_THEN
@@ -466,9 +469,12 @@ function missingIfExpressionPart(
     if (isExplicitRuleName(c.name, "LuauTernaryExpressionCondition")) {
       if (expecting !== "condition") return missing();
       if (!clauseHasValue(c, read)) return { message: IF_EXPRESSION_WITHOUT_VALUE, at };
-      expecting = "then";
+      const end = childNamed(c, `${c.name}_end`);
+      const gluedThen = end && firstDescendant(end, LUAU_THEN_KEYWORD);
+      if (gluedThen) at = gluedThen;
+      expecting = gluedThen ? "then value" : "then";
     } else if (isExplicitRuleName(c.name, "LuauThenExpression")) {
-      if (expecting !== "then") return missing();
+      if (expecting !== "then" && expecting !== "then value") return missing();
       if (!clauseHasValue(c, read)) {
         return {
           message: IF_EXPRESSION_WITHOUT_VALUE,

@@ -1,0 +1,861 @@
+sparkdown [0..308]
+ ├─ LuauFunctionDefinition [0..273]
+ │   ├─ LuauFunctionDefinition_begin [0..9]
+ │   │   ├─ LuauFunctionDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauFunctionDefinition_begin_c2 0
+ │   │   ├─ LuauFunctionDefinition_begin_c3 0
+ │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
+ │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
+ │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │           └─ OptionalWhitespace [8..9]: " "
+ │   ├─ LuauFunctionDefinition_content [9..270]
+ │   │   ├─ LuauFunctionDeclarationName [9..10]
+ │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..10]
+ │   │   │   │   └─ LuauFunctionName [9..10]: "f"
+ │   │   │   └─ LuauFunctionDeclarationName_c2 10
+ │   │   ├─ LuauFunctionParameters [10..18]
+ │   │   │   ├─ LuauFunctionParameters_begin [10..11]
+ │   │   │   │   └─ LuauFunctionParameters_begin_c1 [10..11]
+ │   │   │   │       └─ PunctuationParenOpen [10..11]: "("
+ │   │   │   ├─ LuauFunctionParameters_content [11..17]
+ │   │   │   │   ├─ LuauFunctionParameter [11..12]: "c"
+ │   │   │   │   ├─ LuauCommaSeparator [12..14]
+ │   │   │   │   │   ├─ LuauCommaSeparator_c1 12
+ │   │   │   │   │   ├─ LuauCommaSeparator_c2 [12..13]: ","
+ │   │   │   │   │   └─ LuauCommaSeparator_c3 [13..14]
+ │   │   │   │   │       └─ LuauCommaSeparator_c3 [13..14]
+ │   │   │   │   │           └─ OptionalWhitespace [13..14]: " "
+ │   │   │   │   └─ LuauVariadicParameter [14..17]: "..."
+ │   │   │   └─ LuauFunctionParameters_end [17..18]
+ │   │   │       └─ LuauFunctionParameters_end_c1 [17..18]
+ │   │   │           └─ PunctuationParenClose [17..18]: ")"
+ │   │   └─ LuauFunctionBody [18..270]
+ │   │       ├─ LuauFunctionBody_begin [18..19]: "\n"
+ │   │       ├─ LuauFunctionBody_content [19..270]
+ │   │       │   ├─ LuauVariableDefinition [19..56]
+ │   │       │   │   ├─ LuauVariableDefinition_begin [19..27]
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [19..21]
+ │   │       │   │   │   │   └─ OptionalWhitespace [19..21]: "  "
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [21..26]
+ │   │       │   │   │   │   └─ LuauScopeModifier [21..26]: "local"
+ │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [26..27]
+ │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [26..27]
+ │   │       │   │   │           └─ OptionalWhitespace [26..27]: " "
+ │   │       │   │   ├─ LuauVariableDefinition_content [27..56]
+ │   │       │   │   │   └─ LuauVariableAssignment [27..56]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [27..29]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [27..28]
+ │   │       │   │   │       │   │   └─ LuauVariableName [27..28]: "a"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [28..29]
+ │   │       │   │   │       │       └─ OptionalWhitespace [28..29]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [29..56]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [29..56]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 29
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 29
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 29
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [29..56]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [29..31]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [29..31]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 29
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 29
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [29..30]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [30..31]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [30..31]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [30..31]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 31
+ │   │       │   │   │       │       │   └─ LuauTernaryExpression [31..56]
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_begin [31..34]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c1 31
+ │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace 31
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c2 [31..33]
+ │   │       │   │   │       │       │       │   │   └─ LuauIfKeyword [31..33]: "if"
+ │   │       │   │   │       │       │       │   └─ LuauTernaryExpression_begin_c3 [33..34]
+ │   │       │   │   │       │       │       │       └─ LuauTernaryExpression_begin_c3 [33..34]
+ │   │       │   │   │       │       │       │           └─ OptionalWhitespace [33..34]: " "
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_content [34..56]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpressionCondition [34..41]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_begin 34
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 34
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 34
+ │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace 34
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_content [34..37]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauParenthetical [34..37]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauParenthetical_begin [34..35]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauParenthetical_begin_c1 [34..35]
+ │   │       │   │   │       │       │       │   │   │       │       └─ PunctuationParenOpen [34..35]: "("
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauParenthetical_content [35..36]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauAccessPath [35..36]
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_begin 35
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_content [35..36]
+ │   │       │   │   │       │       │       │   │   │       │       │   └─ LuauAccessPart [35..36]
+ │   │       │   │   │       │       │       │   │   │       │       │       └─ LuauVariable [35..36]
+ │   │       │   │   │       │       │       │   │   │       │       │           └─ LuauVariable_c1 [35..36]
+ │   │       │   │   │       │       │       │   │   │       │       │               └─ LuauVariableName [35..36]: "c"
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauAccessPath_end 36
+ │   │       │   │   │       │       │       │   │   │       │           └─ LuauAccessPath_end_c1 36
+ │   │       │   │   │       │       │       │   │   │       └─ LuauParenthetical_end [36..37]
+ │   │       │   │   │       │       │       │   │   │           ├─ LuauParenthetical_end_c1 [36..37]
+ │   │       │   │   │       │       │       │   │   │           │   └─ PunctuationParenClose [36..37]: ")"
+ │   │       │   │   │       │       │       │   │   │           └─ LuauParenthetical_end_c2 37
+ │   │       │   │   │       │       │       │   │   └─ LuauTernaryExpressionCondition_end [37..41]
+ │   │       │   │   │       │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 37
+ │   │       │   │   │       │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 [37..41]
+ │   │       │   │   │       │       │       │   │           └─ LuauThenKeyword [37..41]: "then"
+ │   │       │   │   │       │       │       │   ├─ LuauThenExpression [41..48]
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 41
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [41..48]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [41..46]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 41
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 41
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 41
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 41
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 41
+ │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 41
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [41..46]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [41..42]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [42..46]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 46
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [46..47]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [46..47]: "1"
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 47
+ │   │       │   │   │       │       │       │   │   │   └─ Newline [47..48]: "\n"
+ │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 48
+ │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [48..50]: "  "
+ │   │       │   │   │       │       │       │   └─ LuauElseExpression [50..56]
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_begin 50
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_content [50..56]
+ │   │       │   │   │       │       │       │       │   ├─ LuauElseOperator [50..55]
+ │   │       │   │   │       │       │       │       │   │   ├─ LuauElseOperator_begin [50..55]
+ │   │       │   │   │       │       │       │       │   │   │   ├─ LuauElseOperator_begin_c1 [50..54]
+ │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauElseKeyword [50..54]: "else"
+ │   │       │   │   │       │       │       │       │   │   │   └─ LuauElseOperator_begin_c2 [54..55]
+ │   │       │   │   │       │       │       │       │   │   │       └─ LuauElseOperator_begin_c2 [54..55]
+ │   │       │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace [54..55]: " "
+ │   │       │   │   │       │       │       │       │   │   └─ LuauElseOperator_end 55
+ │   │       │   │   │       │       │       │       │   └─ LuauNumericDecimal [55..56]
+ │   │       │   │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [55..56]: "2"
+ │   │       │   │   │       │       │       │       │       └─ LuauNumericDecimal_c2 56
+ │   │       │   │   │       │       │       │       └─ LuauElseExpression_end 56
+ │   │       │   │   │       │       │       └─ LuauTernaryExpression_end 56
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 56
+ │   │       │   │   │       └─ LuauVariableAssignment_end 56
+ │   │       │   │   └─ LuauVariableDefinition_end 56
+ │   │       │   ├─ Newline [56..57]: "\n"
+ │   │       │   ├─ LuauVariableDefinition [57..94]
+ │   │       │   │   ├─ LuauVariableDefinition_begin [57..65]
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [57..59]
+ │   │       │   │   │   │   └─ OptionalWhitespace [57..59]: "  "
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [59..64]
+ │   │       │   │   │   │   └─ LuauScopeModifier [59..64]: "local"
+ │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [64..65]
+ │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [64..65]
+ │   │       │   │   │           └─ OptionalWhitespace [64..65]: " "
+ │   │       │   │   ├─ LuauVariableDefinition_content [65..94]
+ │   │       │   │   │   └─ LuauVariableAssignment [65..94]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [65..67]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [65..66]
+ │   │       │   │   │       │   │   └─ LuauVariableName [65..66]: "b"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [66..67]
+ │   │       │   │   │       │       └─ OptionalWhitespace [66..67]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [67..94]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [67..94]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 67
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 67
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 67
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [67..94]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [67..69]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [67..69]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 67
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 67
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [67..68]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [68..69]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [68..69]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [68..69]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 69
+ │   │       │   │   │       │       │   └─ LuauTernaryExpression [69..94]
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_begin [69..72]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c1 69
+ │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace 69
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c2 [69..71]
+ │   │       │   │   │       │       │       │   │   └─ LuauIfKeyword [69..71]: "if"
+ │   │       │   │   │       │       │       │   └─ LuauTernaryExpression_begin_c3 [71..72]
+ │   │       │   │   │       │       │       │       └─ LuauTernaryExpression_begin_c3 [71..72]
+ │   │       │   │   │       │       │       │           └─ OptionalWhitespace [71..72]: " "
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_content [72..94]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpressionCondition [72..79]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_begin 72
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 72
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 72
+ │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace 72
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_content [72..75]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauDoubleQuotedString [72..75]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_begin [72..73]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [72..73]
+ │   │       │   │   │       │       │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [72..73]: "\""
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_content [73..74]
+ │   │       │   │   │       │       │       │   │   │       │   └─ Word [73..74]: "a"
+ │   │       │   │   │       │       │       │   │   │       └─ LuauDoubleQuotedString_end [74..75]
+ │   │       │   │   │       │       │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [74..75]
+ │   │       │   │   │       │       │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [74..75]: "\""
+ │   │       │   │   │       │       │       │   │   │           └─ LuauDoubleQuotedString_end_c2 75
+ │   │       │   │   │       │       │       │   │   └─ LuauTernaryExpressionCondition_end [75..79]
+ │   │       │   │   │       │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 75
+ │   │       │   │   │       │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 [75..79]
+ │   │       │   │   │       │       │       │   │           └─ LuauThenKeyword [75..79]: "then"
+ │   │       │   │   │       │       │       │   ├─ LuauThenExpression [79..86]
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 79
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [79..86]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [79..84]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 79
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 79
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 79
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 79
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 79
+ │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 79
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [79..84]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [79..80]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [80..84]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 84
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [84..85]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [84..85]: "2"
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 85
+ │   │       │   │   │       │       │       │   │   │   └─ Newline [85..86]: "\n"
+ │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 86
+ │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [86..88]: "  "
+ │   │       │   │   │       │       │       │   └─ LuauElseExpression [88..94]
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_begin 88
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_content [88..94]
+ │   │       │   │   │       │       │       │       │   ├─ LuauElseOperator [88..93]
+ │   │       │   │   │       │       │       │       │   │   ├─ LuauElseOperator_begin [88..93]
+ │   │       │   │   │       │       │       │       │   │   │   ├─ LuauElseOperator_begin_c1 [88..92]
+ │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauElseKeyword [88..92]: "else"
+ │   │       │   │   │       │       │       │       │   │   │   └─ LuauElseOperator_begin_c2 [92..93]
+ │   │       │   │   │       │       │       │       │   │   │       └─ LuauElseOperator_begin_c2 [92..93]
+ │   │       │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace [92..93]: " "
+ │   │       │   │   │       │       │       │       │   │   └─ LuauElseOperator_end 93
+ │   │       │   │   │       │       │       │       │   └─ LuauNumericDecimal [93..94]
+ │   │       │   │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [93..94]: "3"
+ │   │       │   │   │       │       │       │       │       └─ LuauNumericDecimal_c2 94
+ │   │       │   │   │       │       │       │       └─ LuauElseExpression_end 94
+ │   │       │   │   │       │       │       └─ LuauTernaryExpression_end 94
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 94
+ │   │       │   │   │       └─ LuauVariableAssignment_end 94
+ │   │       │   │   └─ LuauVariableDefinition_end 94
+ │   │       │   ├─ Newline [94..95]: "\n"
+ │   │       │   ├─ LuauVariableDefinition [95..136]
+ │   │       │   │   ├─ LuauVariableDefinition_begin [95..103]
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [95..97]
+ │   │       │   │   │   │   └─ OptionalWhitespace [95..97]: "  "
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [97..102]
+ │   │       │   │   │   │   └─ LuauScopeModifier [97..102]: "local"
+ │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [102..103]
+ │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [102..103]
+ │   │       │   │   │           └─ OptionalWhitespace [102..103]: " "
+ │   │       │   │   ├─ LuauVariableDefinition_content [103..136]
+ │   │       │   │   │   └─ LuauVariableAssignment [103..136]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [103..105]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [103..104]
+ │   │       │   │   │       │   │   └─ LuauVariableName [103..104]: "d"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [104..105]
+ │   │       │   │   │       │       └─ OptionalWhitespace [104..105]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [105..136]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [105..136]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 105
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 105
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 105
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [105..136]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [105..107]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [105..107]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 105
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 105
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [105..106]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [106..107]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [106..107]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [106..107]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 107
+ │   │       │   │   │       │       │   └─ LuauTernaryExpression [107..136]
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_begin [107..110]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c1 107
+ │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace 107
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c2 [107..109]
+ │   │       │   │   │       │       │       │   │   └─ LuauIfKeyword [107..109]: "if"
+ │   │       │   │   │       │       │       │   └─ LuauTernaryExpression_begin_c3 [109..110]
+ │   │       │   │   │       │       │       │       └─ LuauTernaryExpression_begin_c3 [109..110]
+ │   │       │   │   │       │       │       │           └─ OptionalWhitespace [109..110]: " "
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_content [110..136]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpressionCondition [110..117]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_begin 110
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 110
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 110
+ │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace 110
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_content [110..113]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauUnitKeywords [110..113]: "..."
+ │   │       │   │   │       │       │       │   │   └─ LuauTernaryExpressionCondition_end [113..117]
+ │   │       │   │   │       │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 113
+ │   │       │   │   │       │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 [113..117]
+ │   │       │   │   │       │       │       │   │           └─ LuauThenKeyword [113..117]: "then"
+ │   │       │   │   │       │       │       │   ├─ LuauThenExpression [117..124]
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 117
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [117..124]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [117..122]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 117
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 117
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 117
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 117
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 117
+ │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 117
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [117..122]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [117..118]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [118..122]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 122
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [122..123]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [122..123]: "3"
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 123
+ │   │       │   │   │       │       │       │   │   │   └─ Newline [123..124]: "\n"
+ │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 124
+ │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [124..126]: "  "
+ │   │       │   │   │       │       │       │   └─ LuauElseExpression [126..136]
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_begin 126
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_content [126..136]
+ │   │       │   │   │       │       │       │       │   ├─ LuauElseOperator [126..135]
+ │   │       │   │   │       │       │       │       │   │   ├─ LuauElseOperator_begin [126..130]
+ │   │       │   │   │       │       │       │       │   │   │   ├─ LuauElseOperator_begin_c1 [126..130]
+ │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauElseKeyword [126..130]: "else"
+ │   │       │   │   │       │       │       │       │   │   │   └─ LuauElseOperator_begin_c2 130
+ │   │       │   │   │       │       │       │       │   │   │       └─ LuauElseOperator_begin_c2 130
+ │   │       │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace 130
+ │   │       │   │   │       │       │       │       │   │   ├─ LuauElseOperator_content [130..135]
+ │   │       │   │   │       │       │       │       │   │   │   ├─ Newline [130..131]: "\n"
+ │   │       │   │   │       │       │       │       │   │   │   └─ ExtraWhitespace [131..135]: "    "
+ │   │       │   │   │       │       │       │       │   │   └─ LuauElseOperator_end 135
+ │   │       │   │   │       │       │       │       │   └─ LuauNumericDecimal [135..136]
+ │   │       │   │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [135..136]: "4"
+ │   │       │   │   │       │       │       │       │       └─ LuauNumericDecimal_c2 136
+ │   │       │   │   │       │       │       │       └─ LuauElseExpression_end 136
+ │   │       │   │   │       │       │       └─ LuauTernaryExpression_end 136
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 136
+ │   │       │   │   │       └─ LuauVariableAssignment_end 136
+ │   │       │   │   └─ LuauVariableDefinition_end 136
+ │   │       │   ├─ Newline [136..137]: "\n"
+ │   │       │   ├─ LuauVariableDefinition [137..200]
+ │   │       │   │   ├─ LuauVariableDefinition_begin [137..145]
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [137..139]
+ │   │       │   │   │   │   └─ OptionalWhitespace [137..139]: "  "
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [139..144]
+ │   │       │   │   │   │   └─ LuauScopeModifier [139..144]: "local"
+ │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [144..145]
+ │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [144..145]
+ │   │       │   │   │           └─ OptionalWhitespace [144..145]: " "
+ │   │       │   │   ├─ LuauVariableDefinition_content [145..200]
+ │   │       │   │   │   └─ LuauVariableAssignment [145..200]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [145..147]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [145..146]
+ │   │       │   │   │       │   │   └─ LuauVariableName [145..146]: "e"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [146..147]
+ │   │       │   │   │       │       └─ OptionalWhitespace [146..147]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [147..200]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [147..200]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 147
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 147
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 147
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [147..200]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [147..149]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [147..149]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 147
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 147
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [147..148]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [148..149]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [148..149]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [148..149]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 149
+ │   │       │   │   │       │       │   └─ LuauTernaryExpression [149..200]
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_begin [149..152]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c1 149
+ │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace 149
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c2 [149..151]
+ │   │       │   │   │       │       │       │   │   └─ LuauIfKeyword [149..151]: "if"
+ │   │       │   │   │       │       │       │   └─ LuauTernaryExpression_begin_c3 [151..152]
+ │   │       │   │   │       │       │       │       └─ LuauTernaryExpression_begin_c3 [151..152]
+ │   │       │   │   │       │       │       │           └─ OptionalWhitespace [151..152]: " "
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_content [152..200]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpressionCondition [152..162]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_begin 152
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 152
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 152
+ │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace 152
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_content [152..158]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauRegexLiteral [152..158]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauRegexLiteral_c1 [152..153]: "@"
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauRegexLiteral_c2 [153..154]: "/"
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauRegexLiteral_c3 [154..155]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauRegexText [154..155]: "x"
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauRegexLiteral_c4 [155..156]: "/"
+ │   │       │   │   │       │       │       │   │   │       └─ LuauRegexLiteral_c5 [156..158]: "gi"
+ │   │       │   │   │       │       │       │   │   └─ LuauTernaryExpressionCondition_end [158..162]
+ │   │       │   │   │       │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 158
+ │   │       │   │   │       │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 [158..162]
+ │   │       │   │   │       │       │       │   │           └─ LuauThenKeyword [158..162]: "then"
+ │   │       │   │   │       │       │       │   ├─ LuauThenExpression [162..169]
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 162
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [162..169]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [162..167]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 162
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 162
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 162
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 162
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 162
+ │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 162
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [162..167]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [162..163]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [163..167]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 167
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [167..168]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [167..168]: "5"
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 168
+ │   │       │   │   │       │       │       │   │   │   └─ Newline [168..169]: "\n"
+ │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 169
+ │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [169..171]: "  "
+ │   │       │   │   │       │       │       │   ├─ LuauElseifKeyword [171..177]: "elseif"
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpressionCondition [177..185]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_begin [177..178]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 [177..178]
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 [177..178]
+ │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace [177..178]: " "
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_content [178..181]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauParenthetical [178..181]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauParenthetical_begin [178..179]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauParenthetical_begin_c1 [178..179]
+ │   │       │   │   │       │       │       │   │   │       │       └─ PunctuationParenOpen [178..179]: "("
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauParenthetical_content [179..180]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauAccessPath [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_begin 179
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_content [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │   └─ LuauAccessPart [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │       └─ LuauVariable [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │           └─ LuauVariable_c1 [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │               └─ LuauVariableName [179..180]: "c"
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauAccessPath_end 180
+ │   │       │   │   │       │       │       │   │   │       │           └─ LuauAccessPath_end_c1 180
+ │   │       │   │   │       │       │       │   │   │       └─ LuauParenthetical_end [180..181]
+ │   │       │   │   │       │       │       │   │   │           ├─ LuauParenthetical_end_c1 [180..181]
+ │   │       │   │   │       │       │       │   │   │           │   └─ PunctuationParenClose [180..181]: ")"
+ │   │       │   │   │       │       │       │   │   │           └─ LuauParenthetical_end_c2 181
+ │   │       │   │   │       │       │       │   │   └─ LuauTernaryExpressionCondition_end [181..185]
+ │   │       │   │   │       │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 181
+ │   │       │   │   │       │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 [181..185]
+ │   │       │   │   │       │       │       │   │           └─ LuauThenKeyword [181..185]: "then"
+ │   │       │   │   │       │       │       │   ├─ LuauThenExpression [185..192]
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 185
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [185..192]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [185..190]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 185
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 185
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 185
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 185
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 185
+ │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 185
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [185..190]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [185..186]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [186..190]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 190
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [190..191]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [190..191]: "6"
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 191
+ │   │       │   │   │       │       │       │   │   │   └─ Newline [191..192]: "\n"
+ │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 192
+ │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [192..194]: "  "
+ │   │       │   │   │       │       │       │   └─ LuauElseExpression [194..200]
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_begin 194
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_content [194..200]
+ │   │       │   │   │       │       │       │       │   ├─ LuauElseOperator [194..199]
+ │   │       │   │   │       │       │       │       │   │   ├─ LuauElseOperator_begin [194..199]
+ │   │       │   │   │       │       │       │       │   │   │   ├─ LuauElseOperator_begin_c1 [194..198]
+ │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauElseKeyword [194..198]: "else"
+ │   │       │   │   │       │       │       │       │   │   │   └─ LuauElseOperator_begin_c2 [198..199]
+ │   │       │   │   │       │       │       │       │   │   │       └─ LuauElseOperator_begin_c2 [198..199]
+ │   │       │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace [198..199]: " "
+ │   │       │   │   │       │       │       │       │   │   └─ LuauElseOperator_end 199
+ │   │       │   │   │       │       │       │       │   └─ LuauNumericDecimal [199..200]
+ │   │       │   │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [199..200]: "7"
+ │   │       │   │   │       │       │       │       │       └─ LuauNumericDecimal_c2 200
+ │   │       │   │   │       │       │       │       └─ LuauElseExpression_end 200
+ │   │       │   │   │       │       │       └─ LuauTernaryExpression_end 200
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 200
+ │   │       │   │   │       └─ LuauVariableAssignment_end 200
+ │   │       │   │   └─ LuauVariableDefinition_end 200
+ │   │       │   ├─ Newline [200..201]: "\n"
+ │   │       │   ├─ LuauVariableDefinition [201..235]
+ │   │       │   │   ├─ LuauVariableDefinition_begin [201..209]
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [201..203]
+ │   │       │   │   │   │   └─ OptionalWhitespace [201..203]: "  "
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [203..208]
+ │   │       │   │   │   │   └─ LuauScopeModifier [203..208]: "local"
+ │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [208..209]
+ │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [208..209]
+ │   │       │   │   │           └─ OptionalWhitespace [208..209]: " "
+ │   │       │   │   ├─ LuauVariableDefinition_content [209..235]
+ │   │       │   │   │   └─ LuauVariableAssignment [209..235]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [209..211]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [209..210]
+ │   │       │   │   │       │   │   └─ LuauVariableName [209..210]: "g"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [210..211]
+ │   │       │   │   │       │       └─ OptionalWhitespace [210..211]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [211..235]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [211..235]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 211
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 211
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 211
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [211..235]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [211..213]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [211..213]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 211
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 211
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [211..212]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [212..213]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [212..213]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [212..213]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 213
+ │   │       │   │   │       │       │   └─ LuauTernaryExpression [213..235]
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_begin [213..216]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c1 213
+ │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace 213
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c2 [213..215]
+ │   │       │   │   │       │       │       │   │   └─ LuauIfKeyword [213..215]: "if"
+ │   │       │   │   │       │       │       │   └─ LuauTernaryExpression_begin_c3 [215..216]
+ │   │       │   │   │       │       │       │       └─ LuauTernaryExpression_begin_c3 [215..216]
+ │   │       │   │   │       │       │       │           └─ OptionalWhitespace [215..216]: " "
+ │   │       │   │   │       │       │       ├─ LuauTernaryExpression_content [216..235]
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryExpressionCondition [216..224]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_begin 216
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 216
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 216
+ │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace 216
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_content [216..220]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauAccessPath [216..220]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauAccessPath_begin 216
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauAccessPath_content [216..220]
+ │   │       │   │   │       │       │       │   │   │       │   ├─ LuauAccessPart [216..217]
+ │   │       │   │   │       │       │       │   │   │       │   │   └─ LuauVariable [216..217]
+ │   │       │   │   │       │       │       │   │   │       │   │       └─ LuauVariable_c1 [216..217]
+ │   │       │   │   │       │       │       │   │   │       │   │           └─ LuauVariableName [216..217]: "c"
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauAccessPart [217..220]
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauPropertyIndexer [217..220]
+ │   │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyIndexer_begin [217..218]
+ │   │       │   │   │       │       │       │   │   │       │           │   ├─ LuauPropertyIndexer_begin_c1 217
+ │   │       │   │   │       │       │       │   │   │       │           │   └─ LuauPropertyIndexer_begin_c2 [217..218]
+ │   │       │   │   │       │       │       │   │   │       │           │       └─ PunctuationBracketOpen [217..218]: "["
+ │   │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyIndexer_content [218..219]
+ │   │       │   │   │       │       │       │   │   │       │           │   └─ LuauNumericDecimal [218..219]
+ │   │       │   │   │       │       │       │   │   │       │           │       ├─ LuauNumericDecimal_c1 [218..219]: "1"
+ │   │       │   │   │       │       │       │   │   │       │           │       └─ LuauNumericDecimal_c2 219
+ │   │       │   │   │       │       │       │   │   │       │           └─ LuauPropertyIndexer_end [219..220]
+ │   │       │   │   │       │       │       │   │   │       │               └─ LuauPropertyIndexer_end_c1 [219..220]
+ │   │       │   │   │       │       │       │   │   │       │                   └─ PunctuationBracketClose [219..220]: "]"
+ │   │       │   │   │       │       │       │   │   │       └─ LuauAccessPath_end 220
+ │   │       │   │   │       │       │       │   │   │           └─ LuauAccessPath_end_c1 220
+ │   │       │   │   │       │       │       │   │   └─ LuauTernaryExpressionCondition_end [220..224]
+ │   │       │   │   │       │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 220
+ │   │       │   │   │       │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 [220..224]
+ │   │       │   │   │       │       │       │   │           └─ LuauThenKeyword [220..224]: "then"
+ │   │       │   │   │       │       │       │   ├─ LuauThenExpression [224..227]
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 224
+ │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [224..227]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [224..225]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin [224..225]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 224
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 224
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 [224..225]
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 [224..225]
+ │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace [224..225]: " "
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 225
+ │   │       │   │   │       │       │       │   │   │   └─ LuauArithmeticOperation [225..227]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauArithmeticOperation_begin 225
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauArithmeticOperation_begin_c1 225
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauArithmeticOperation_content [225..227]
+ │   │       │   │   │       │       │       │   │   │       │   ├─ LuauArithmeticOperator [225..226]
+ │   │       │   │   │       │       │       │   │   │       │   │   ├─ LuauArithmeticOperator_begin [225..226]
+ │   │       │   │   │       │       │       │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 225
+ │   │       │   │   │       │       │       │   │   │       │   │   │   │   └─ OptionalWhitespace 225
+ │   │       │   │   │       │       │       │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [225..226]: "-"
+ │   │       │   │   │       │       │       │   │   │       │   │   │   └─ LuauArithmeticOperator_begin_c3 226
+ │   │       │   │   │       │       │       │   │   │       │   │   │       └─ LuauArithmeticOperator_begin_c3 226
+ │   │       │   │   │       │       │       │   │   │       │   │   │           └─ OptionalWhitespace 226
+ │   │       │   │   │       │       │       │   │   │       │   │   └─ LuauArithmeticOperator_end 226
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauAccessPath [226..227]
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_begin 226
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_content [226..227]
+ │   │       │   │   │       │       │       │   │   │       │       │   └─ LuauAccessPart [226..227]
+ │   │       │   │   │       │       │       │   │   │       │       │       └─ LuauVariable [226..227]
+ │   │       │   │   │       │       │       │   │   │       │       │           └─ LuauVariable_c1 [226..227]
+ │   │       │   │   │       │       │       │   │   │       │       │               └─ LuauVariableName [226..227]: "x"
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauAccessPath_end 227
+ │   │       │   │   │       │       │       │   │   │       │           └─ LuauAccessPath_end_c1 227
+ │   │       │   │   │       │       │       │   │   │       └─ LuauArithmeticOperation_end 227
+ │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 227
+ │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [227..228]: " "
+ │   │       │   │   │       │       │       │   └─ LuauElseExpression [228..235]
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_begin 228
+ │   │       │   │   │       │       │       │       ├─ LuauElseExpression_content [228..235]
+ │   │       │   │   │       │       │       │       │   ├─ LuauElseOperator [228..233]
+ │   │       │   │   │       │       │       │       │   │   ├─ LuauElseOperator_begin [228..233]
+ │   │       │   │   │       │       │       │       │   │   │   ├─ LuauElseOperator_begin_c1 [228..232]
+ │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauElseKeyword [228..232]: "else"
+ │   │       │   │   │       │       │       │       │   │   │   └─ LuauElseOperator_begin_c2 [232..233]
+ │   │       │   │   │       │       │       │       │   │   │       └─ LuauElseOperator_begin_c2 [232..233]
+ │   │       │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace [232..233]: " "
+ │   │       │   │   │       │       │       │       │   │   └─ LuauElseOperator_end 233
+ │   │       │   │   │       │       │       │       │   └─ LuauArithmeticOperation [233..235]
+ │   │       │   │   │       │       │       │       │       ├─ LuauArithmeticOperation_begin 233
+ │   │       │   │   │       │       │       │       │       │   └─ LuauArithmeticOperation_begin_c1 233
+ │   │       │   │   │       │       │       │       │       ├─ LuauArithmeticOperation_content [233..235]
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauArithmeticOperator [233..234]
+ │   │       │   │   │       │       │       │       │       │   │   ├─ LuauArithmeticOperator_begin [233..234]
+ │   │       │   │   │       │       │       │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 233
+ │   │       │   │   │       │       │       │       │       │   │   │   │   └─ OptionalWhitespace 233
+ │   │       │   │   │       │       │       │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [233..234]: "-"
+ │   │       │   │   │       │       │       │       │       │   │   │   └─ LuauArithmeticOperator_begin_c3 234
+ │   │       │   │   │       │       │       │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 234
+ │   │       │   │   │       │       │       │       │       │   │   │           └─ OptionalWhitespace 234
+ │   │       │   │   │       │       │       │       │       │   │   └─ LuauArithmeticOperator_end 234
+ │   │       │   │   │       │       │       │       │       │   └─ LuauNumericDecimal [234..235]
+ │   │       │   │   │       │       │       │       │       │       ├─ LuauNumericDecimal_c1 [234..235]: "1"
+ │   │       │   │   │       │       │       │       │       │       └─ LuauNumericDecimal_c2 235
+ │   │       │   │   │       │       │       │       │       └─ LuauArithmeticOperation_end 235
+ │   │       │   │   │       │       │       │       └─ LuauElseExpression_end 235
+ │   │       │   │   │       │       │       └─ LuauTernaryExpression_end 235
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 235
+ │   │       │   │   │       └─ LuauVariableAssignment_end 235
+ │   │       │   │   └─ LuauVariableDefinition_end 235
+ │   │       │   ├─ Newline [235..236]: "\n"
+ │   │       │   ├─ LuauVariableDefinition [236..269]
+ │   │       │   │   ├─ LuauVariableDefinition_begin [236..244]
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [236..238]
+ │   │       │   │   │   │   └─ OptionalWhitespace [236..238]: "  "
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [238..243]
+ │   │       │   │   │   │   └─ LuauScopeModifier [238..243]: "local"
+ │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [243..244]
+ │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [243..244]
+ │   │       │   │   │           └─ OptionalWhitespace [243..244]: " "
+ │   │       │   │   ├─ LuauVariableDefinition_content [244..269]
+ │   │       │   │   │   └─ LuauVariableAssignment [244..269]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [244..246]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [244..245]
+ │   │       │   │   │       │   │   └─ LuauVariableName [244..245]: "h"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [245..246]
+ │   │       │   │   │       │       └─ OptionalWhitespace [245..246]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [246..269]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [246..269]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 246
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 246
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 246
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [246..269]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [246..248]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [246..248]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 246
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 246
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [246..247]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [247..248]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [247..248]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [247..248]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 248
+ │   │       │   │   │       │       │   ├─ LuauTernaryExpression [248..261]
+ │   │       │   │   │       │       │   │   ├─ LuauTernaryExpression_begin [248..251]
+ │   │       │   │   │       │       │   │   │   ├─ LuauTernaryExpression_begin_c1 248
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 248
+ │   │       │   │   │       │       │   │   │   ├─ LuauTernaryExpression_begin_c2 [248..250]
+ │   │       │   │   │       │       │   │   │   │   └─ LuauIfKeyword [248..250]: "if"
+ │   │       │   │   │       │       │   │   │   └─ LuauTernaryExpression_begin_c3 [250..251]
+ │   │       │   │   │       │       │   │   │       └─ LuauTernaryExpression_begin_c3 [250..251]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [250..251]: " "
+ │   │       │   │   │       │       │   │   ├─ LuauTernaryExpression_content [251..261]
+ │   │       │   │   │       │       │   │   │   ├─ LuauTernaryExpressionCondition [251..258]
+ │   │       │   │   │       │       │   │   │   │   ├─ LuauTernaryExpressionCondition_begin 251
+ │   │       │   │   │       │       │   │   │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 251
+ │   │       │   │   │       │       │   │   │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 251
+ │   │       │   │   │       │       │   │   │   │   │           └─ OptionalWhitespace 251
+ │   │       │   │   │       │       │   │   │   │   ├─ LuauTernaryExpressionCondition_content [251..254]
+ │   │       │   │   │       │       │   │   │   │   │   └─ LuauParenthetical [251..254]
+ │   │       │   │   │       │       │   │   │   │   │       ├─ LuauParenthetical_begin [251..252]
+ │   │       │   │   │       │       │   │   │   │   │       │   └─ LuauParenthetical_begin_c1 [251..252]
+ │   │       │   │   │       │       │   │   │   │   │       │       └─ PunctuationParenOpen [251..252]: "("
+ │   │       │   │   │       │       │   │   │   │   │       ├─ LuauParenthetical_content [252..253]
+ │   │       │   │   │       │       │   │   │   │   │       │   └─ LuauAccessPath [252..253]
+ │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauAccessPath_begin 252
+ │   │       │   │   │       │       │   │   │   │   │       │       ├─ LuauAccessPath_content [252..253]
+ │   │       │   │   │       │       │   │   │   │   │       │       │   └─ LuauAccessPart [252..253]
+ │   │       │   │   │       │       │   │   │   │   │       │       │       └─ LuauVariable [252..253]
+ │   │       │   │   │       │       │   │   │   │   │       │       │           └─ LuauVariable_c1 [252..253]
+ │   │       │   │   │       │       │   │   │   │   │       │       │               └─ LuauVariableName [252..253]: "c"
+ │   │       │   │   │       │       │   │   │   │   │       │       └─ LuauAccessPath_end 253
+ │   │       │   │   │       │       │   │   │   │   │       │           └─ LuauAccessPath_end_c1 253
+ │   │       │   │   │       │       │   │   │   │   │       └─ LuauParenthetical_end [253..254]
+ │   │       │   │   │       │       │   │   │   │   │           ├─ LuauParenthetical_end_c1 [253..254]
+ │   │       │   │   │       │       │   │   │   │   │           │   └─ PunctuationParenClose [253..254]: ")"
+ │   │       │   │   │       │       │   │   │   │   │           └─ LuauParenthetical_end_c2 254
+ │   │       │   │   │       │       │   │   │   │   └─ LuauTernaryExpressionCondition_end [254..258]
+ │   │       │   │   │       │       │   │   │   │       ├─ LuauTernaryExpressionCondition_end_c1 254
+ │   │       │   │   │       │       │   │   │   │       └─ LuauTernaryExpressionCondition_end_c2 [254..258]
+ │   │       │   │   │       │       │   │   │   │           └─ LuauThenKeyword [254..258]: "then"
+ │   │       │   │   │       │       │   │   │   └─ LuauThenExpression [258..261]
+ │   │       │   │   │       │       │   │   │       ├─ LuauThenExpression_begin 258
+ │   │       │   │   │       │       │   │   │       ├─ LuauThenExpression_content [258..261]
+ │   │       │   │   │       │       │   │   │       │   └─ LuauThenOperator [258..261]
+ │   │       │   │   │       │       │   │   │       │       ├─ LuauThenOperator_begin 258
+ │   │       │   │   │       │       │   │   │       │       │   ├─ LuauThenOperator_begin_c1 258
+ │   │       │   │   │       │       │   │   │       │       │   ├─ LuauThenOperator_begin_c2 258
+ │   │       │   │   │       │       │   │   │       │       │   └─ LuauThenOperator_begin_c3 258
+ │   │       │   │   │       │       │   │   │       │       │       └─ LuauThenOperator_begin_c3 258
+ │   │       │   │   │       │       │   │   │       │       │           └─ OptionalWhitespace 258
+ │   │       │   │   │       │       │   │   │       │       ├─ LuauThenOperator_content [258..261]
+ │   │       │   │   │       │       │   │   │       │       │   ├─ Newline [258..259]: "\n"
+ │   │       │   │   │       │       │   │   │       │       │   └─ ExtraWhitespace [259..261]: "  "
+ │   │       │   │   │       │       │   │   │       │       └─ LuauThenOperator_end 261
+ │   │       │   │   │       │       │   │   │       └─ LuauThenExpression_end 261
+ │   │       │   │   │       │       │   │   └─ LuauTernaryExpression_end 261
+ │   │       │   │   │       │       │   └─ LuauReturnStatement [261..269]
+ │   │       │   │   │       │       │       ├─ LuauReturnStatement_begin [261..268]
+ │   │       │   │   │       │       │       │   ├─ LuauReturnStatement_begin_c1 261
+ │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace 261
+ │   │       │   │   │       │       │       │   ├─ LuauReturnStatement_begin_c2 [261..267]
+ │   │       │   │   │       │       │       │   │   └─ LuauControlKeyword [261..267]: "return"
+ │   │       │   │   │       │       │       │   └─ LuauReturnStatement_begin_c3 [267..268]
+ │   │       │   │   │       │       │       │       └─ LuauReturnStatement_begin_c3 [267..268]
+ │   │       │   │   │       │       │       │           └─ OptionalWhitespace [267..268]: " "
+ │   │       │   │   │       │       │       ├─ LuauReturnStatement_content [268..269]
+ │   │       │   │   │       │       │       │   └─ LuauAccessPath [268..269]
+ │   │       │   │   │       │       │       │       ├─ LuauAccessPath_begin 268
+ │   │       │   │   │       │       │       │       ├─ LuauAccessPath_content [268..269]
+ │   │       │   │   │       │       │       │       │   └─ LuauAccessPart [268..269]
+ │   │       │   │   │       │       │       │       │       └─ LuauVariable [268..269]
+ │   │       │   │   │       │       │       │       │           └─ LuauVariable_c1 [268..269]
+ │   │       │   │   │       │       │       │       │               └─ LuauVariableName [268..269]: "a"
+ │   │       │   │   │       │       │       │       └─ LuauAccessPath_end 269
+ │   │       │   │   │       │       │       │           └─ LuauAccessPath_end_c1 269
+ │   │       │   │   │       │       │       └─ LuauReturnStatement_end 269
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 269
+ │   │       │   │   │       └─ LuauVariableAssignment_end 269
+ │   │       │   │   └─ LuauVariableDefinition_end 269
+ │   │       │   └─ Newline [269..270]: "\n"
+ │   │       └─ LuauFunctionBody_end 270
+ │   └─ LuauFunctionDefinition_end [270..273]
+ │       ├─ LuauFunctionDefinition_end_c1 270
+ │       │   └─ LuauFunctionDefinition_end_c1 270
+ │       │       └─ OptionalWhitespace 270
+ │       └─ LuauFunctionDefinition_end_c2 [270..273]
+ │           └─ LuauEndKeyword [270..273]: "end"
+ ├─ Newline [273..274]: "\n"
+ ├─ Newline [274..275]: "\n"
+ ├─ LuauSparkdownVariableDefinition [275..295]
+ │   ├─ LuauSparkdownVariableDefinition_begin [275..281]
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 275
+ │   │   │   └─ OptionalWhitespace 275
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [275..280]
+ │   │   │   └─ LuauScopeModifier [275..280]: "local"
+ │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [280..281]
+ │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [280..281]
+ │   │           └─ OptionalWhitespace [280..281]: " "
+ │   ├─ LuauSparkdownVariableDefinition_content [281..295]
+ │   │   └─ LuauVariableAssignment [281..295]
+ │   │       ├─ LuauVariableAssignment_begin [281..283]
+ │   │       │   ├─ LuauVariableAssignment_begin_c1 [281..282]
+ │   │       │   │   └─ LuauVariableName [281..282]: "s"
+ │   │       │   └─ LuauVariableAssignment_begin_c2 [282..283]
+ │   │       │       └─ OptionalWhitespace [282..283]: " "
+ │   │       ├─ LuauVariableAssignment_content [283..295]
+ │   │       │   └─ LuauAssignmentOperation [283..295]
+ │   │       │       ├─ LuauAssignmentOperation_begin 283
+ │   │       │       │   └─ LuauAssignmentOperation_begin_c1 283
+ │   │       │       │       └─ OptionalWhitespace 283
+ │   │       │       ├─ LuauAssignmentOperation_content [283..295]
+ │   │       │       │   ├─ LuauAssignmentOperator [283..285]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [283..285]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 283
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 283
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [283..284]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [284..285]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [284..285]
+ │   │       │       │   │   │           └─ OptionalWhitespace [284..285]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 285
+ │   │       │       │   └─ LuauTernaryExpression [285..295]
+ │   │       │       │       ├─ LuauTernaryExpression_begin [285..288]
+ │   │       │       │       │   ├─ LuauTernaryExpression_begin_c1 285
+ │   │       │       │       │   │   └─ OptionalWhitespace 285
+ │   │       │       │       │   ├─ LuauTernaryExpression_begin_c2 [285..287]
+ │   │       │       │       │   │   └─ LuauIfKeyword [285..287]: "if"
+ │   │       │       │       │   └─ LuauTernaryExpression_begin_c3 [287..288]
+ │   │       │       │       │       └─ LuauTernaryExpression_begin_c3 [287..288]
+ │   │       │       │       │           └─ OptionalWhitespace [287..288]: " "
+ │   │       │       │       ├─ LuauTernaryExpression_content [288..295]
+ │   │       │       │       │   └─ LuauTernaryExpressionCondition [288..295]
+ │   │       │       │       │       ├─ LuauTernaryExpressionCondition_begin 288
+ │   │       │       │       │       │   └─ LuauTernaryExpressionCondition_begin_c1 288
+ │   │       │       │       │       │       └─ LuauTernaryExpressionCondition_begin_c1 288
+ │   │       │       │       │       │           └─ OptionalWhitespace 288
+ │   │       │       │       │       ├─ LuauTernaryExpressionCondition_content [288..291]
+ │   │       │       │       │       │   └─ LuauParenthetical [288..291]
+ │   │       │       │       │       │       ├─ LuauParenthetical_begin [288..289]
+ │   │       │       │       │       │       │   └─ LuauParenthetical_begin_c1 [288..289]
+ │   │       │       │       │       │       │       └─ PunctuationParenOpen [288..289]: "("
+ │   │       │       │       │       │       ├─ LuauParenthetical_content [289..290]
+ │   │       │       │       │       │       │   └─ LuauAccessPath [289..290]
+ │   │       │       │       │       │       │       ├─ LuauAccessPath_begin 289
+ │   │       │       │       │       │       │       ├─ LuauAccessPath_content [289..290]
+ │   │       │       │       │       │       │       │   └─ LuauAccessPart [289..290]
+ │   │       │       │       │       │       │       │       └─ LuauVariable [289..290]
+ │   │       │       │       │       │       │       │           └─ LuauVariable_c1 [289..290]
+ │   │       │       │       │       │       │       │               └─ LuauVariableName [289..290]: "c"
+ │   │       │       │       │       │       │       └─ LuauAccessPath_end 290
+ │   │       │       │       │       │       │           └─ LuauAccessPath_end_c1 290
+ │   │       │       │       │       │       └─ LuauParenthetical_end [290..291]
+ │   │       │       │       │       │           ├─ LuauParenthetical_end_c1 [290..291]
+ │   │       │       │       │       │           │   └─ PunctuationParenClose [290..291]: ")"
+ │   │       │       │       │       │           └─ LuauParenthetical_end_c2 291
+ │   │       │       │       │       └─ LuauTernaryExpressionCondition_end [291..295]
+ │   │       │       │       │           ├─ LuauTernaryExpressionCondition_end_c1 291
+ │   │       │       │       │           └─ LuauTernaryExpressionCondition_end_c2 [291..295]
+ │   │       │       │       │               └─ LuauThenKeyword [291..295]: "then"
+ │   │       │       │       └─ LuauTernaryExpression_end 295
+ │   │       │       └─ LuauAssignmentOperation_end 295
+ │   │       └─ LuauVariableAssignment_end 295
+ │   └─ LuauSparkdownVariableDefinition_end 295
+ ├─ Newline [295..296]: "\n"
+ ├─ LuauSparkdownVariableDefinition [296..307]
+ │   ├─ LuauSparkdownVariableDefinition_begin [296..302]
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 296
+ │   │   │   └─ OptionalWhitespace 296
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [296..301]
+ │   │   │   └─ LuauScopeModifier [296..301]: "local"
+ │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [301..302]
+ │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [301..302]
+ │   │           └─ OptionalWhitespace [301..302]: " "
+ │   ├─ LuauSparkdownVariableDefinition_content [302..307]
+ │   │   └─ LuauVariableAssignment [302..307]
+ │   │       ├─ LuauVariableAssignment_begin [302..304]
+ │   │       │   ├─ LuauVariableAssignment_begin_c1 [302..303]
+ │   │       │   │   └─ LuauVariableName [302..303]: "t"
+ │   │       │   └─ LuauVariableAssignment_begin_c2 [303..304]
+ │   │       │       └─ OptionalWhitespace [303..304]: " "
+ │   │       ├─ LuauVariableAssignment_content [304..307]
+ │   │       │   └─ LuauAssignmentOperation [304..307]
+ │   │       │       ├─ LuauAssignmentOperation_begin 304
+ │   │       │       │   └─ LuauAssignmentOperation_begin_c1 304
+ │   │       │       │       └─ OptionalWhitespace 304
+ │   │       │       ├─ LuauAssignmentOperation_content [304..307]
+ │   │       │       │   ├─ LuauAssignmentOperator [304..306]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [304..306]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 304
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 304
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [304..305]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [305..306]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [305..306]
+ │   │       │       │   │   │           └─ OptionalWhitespace [305..306]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 306
+ │   │       │       │   └─ LuauNumericDecimal [306..307]
+ │   │       │       │       ├─ LuauNumericDecimal_c1 [306..307]: "1"
+ │   │       │       │       └─ LuauNumericDecimal_c2 307
+ │   │       │       └─ LuauAssignmentOperation_end 307
+ │   │       └─ LuauVariableAssignment_end 307
+ │   └─ LuauSparkdownVariableDefinition_end 307
+ └─ Newline [307..308]: "\n"

@@ -398,15 +398,15 @@ sparkdown [0..228]
  │   │       │       │   │       └─ LuauSparkdownExplicitTernaryExpressionCondition_end_c2 198
  │   │       │       │   ├─ LuauSparkdownExplicitThenExpression [198..204]
  │   │       │       │   │   ├─ LuauSparkdownExplicitThenExpression_begin 198
- │   │       │       │   │   │   └─ LuauSparkdownExplicitThenExpression_begin_c1 198
  │   │       │       │   │   ├─ LuauSparkdownExplicitThenExpression_content [198..204]
  │   │       │       │   │   │   ├─ LuauSparkdownExplicitThenOperator [198..203]
  │   │       │       │   │   │   │   ├─ LuauSparkdownExplicitThenOperator_begin [198..203]
  │   │       │       │   │   │   │   │   ├─ LuauSparkdownExplicitThenOperator_begin_c1 [198..202]
  │   │       │       │   │   │   │   │   │   └─ LuauThenKeyword [198..202]: "then"
- │   │       │       │   │   │   │   │   └─ LuauSparkdownExplicitThenOperator_begin_c2 [202..203]
- │   │       │       │   │   │   │   │       └─ LuauSparkdownExplicitThenOperator_begin_c2 [202..203]
- │   │       │       │   │   │   │   │           └─ OptionalWhitespace [202..203]: " "
+ │   │       │       │   │   │   │   │   ├─ LuauSparkdownExplicitThenOperator_begin_c2 [202..203]
+ │   │       │       │   │   │   │   │   │   └─ LuauSparkdownExplicitThenOperator_begin_c2 [202..203]
+ │   │       │       │   │   │   │   │   │       └─ OptionalWhitespace [202..203]: " "
+ │   │       │       │   │   │   │   │   └─ LuauSparkdownExplicitThenOperator_begin_c3 203
  │   │       │       │   │   │   │   └─ LuauSparkdownExplicitThenOperator_end 203
  │   │       │       │   │   │   └─ LuauNumericDecimal [203..204]
  │   │       │       │   │   │       ├─ LuauNumericDecimal_c1 [203..204]: "1"
