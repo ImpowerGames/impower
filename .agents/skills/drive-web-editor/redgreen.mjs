@@ -273,18 +273,26 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
     if (testedDiagnostic) return "unknown";
     return "notests";
   }
+  // The import and syntax verdicts read the runner's own lines only. An
+  // assertion's expected/received diff is the test's data (a Luau test compares
+  // diagnostics whose code is SyntaxError), and that includes its unchanged
+  // context lines, which carry no +/- prefix.
+  const runnerOutput = withoutDiffBlocks(output);
   if (
     /ERR_MODULE_NOT_FOUND|Cannot find module|Cannot find package|Failed to resolve import|Failed to load url|does not provide an export named|has no exported member/i.test(
-      output,
+      runnerOutput,
     )
   ) {
     return "import";
   }
-  // Only a runner-level line decides this: a Node or Vitest error banner, or a
-  // compiler error, at the start of its line. The same words inside an
-  // assertion diff (a Luau test compares diagnostics whose code is SyntaxError)
-  // are the test's own data and never reach this pattern.
-  if (/^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b|(?:[^\s:]+(?:\(\d+,\d+\)|:\d+:\d+)(?::| -) )?error TS\d{4}:)/im.test(output)) {
+  // A Vitest run that collected tests, failed some and printed an
+  // AssertionError ran the test: a syntax-looking line elsewhere in its output
+  // is that test's own output, not a failure to load it.
+  const assertedFailure = /^\s*Tests\s.*\b[1-9]\d* failed\b/m.test(output) && /\bAssertionError\b/.test(output);
+  // A Node or Vitest error banner, or a compiler error (`file(1,2): error TS…`
+  // or the pretty `file:1:2 - error TS…`, whose path may hold spaces but not a
+  // quote), at the start of its line.
+  if (!assertedFailure && /^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b|(?:(?:[A-Za-z]:)?[^:'"\r\n]+?(?:\(\d+,\d+\)|:\d+:\d+)(?::| -) )?error TS\d{4}:)/im.test(runnerOutput)) {
     return "syntax";
   }
   // Anchored to how a runner reports its own death, at the start of a line:
@@ -332,6 +340,25 @@ const FAILURE_GLYPH_RE = /^\s*[✕✗×✖]\s/m;
 // One predicate, so a run is never an assertion on one half and "no result" on
 // the other. Expects output with ANSI escapes already stripped.
 const ASSERTION_EVIDENCE_RE = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i;
+// The output with each expected/received diff block removed. A block opens at
+// Vitest's `- Expected` / `+ Received` header (or Node's `+ actual - expected`)
+// and holds every following blank line and line prefixed, at the header's
+// indent, by `- `, `+ ` or two spaces (unchanged context).
+function withoutDiffBlocks(output) {
+  const kept = [];
+  let indent = null;
+  for (const line of output.split(/\r?\n/)) {
+    const header = line.match(/^(\s*)(?:[-+] (?:Expected|Received)\b|\+ actual - expected\b)/);
+    if (header) {
+      indent = header[1];
+      continue;
+    }
+    if (indent !== null && (line.trim() === "" || (line.startsWith(indent) && /^(?:[-+] |  )/.test(line.slice(indent.length))))) continue;
+    indent = null;
+    kept.push(line);
+  }
+  return kept.join("\n");
+}
 function hasAssertionEvidence(output) {
   return FAILURE_GLYPH_RE.test(output) || ASSERTION_EVIDENCE_RE.test(output);
 }

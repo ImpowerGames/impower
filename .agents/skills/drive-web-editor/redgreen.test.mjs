@@ -1313,6 +1313,47 @@ check("an assertion that quotes the not-run marker and exits 75 is a red, not a 
   assert.equal(r.ok, true, JSON.stringify(r.problems));
 });
 
+// Round 1, second reviewer: a compiler path with spaces, and the unchanged
+// context lines of a multiline diff, which carry no +/- prefix (#1439).
+check("a compiler error in a path with spaces is a syntax failure", () => {
+  const output = "folder space/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n";
+  assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("C:\\repo with space\\lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
+});
+
+check("unchanged context lines of a multiline assertion diff never decide a syntax verdict", () => {
+  const vitest = [
+    " FAIL  a.test.ts > x",
+    "AssertionError: expected 'header\\nSyntaxError: diagnostic\\nnew' to be 'header\\nSyntaxError: diagnostic\\nold' // Object.is equality",
+    "",
+    "- Expected",
+    "+ Received",
+    "",
+    "  header",
+    "  SyntaxError: diagnostic",
+    "- old",
+    "+ new",
+    "",
+    " ❯ a.test.ts:3:41",
+    "",
+    " Test Files  1 failed (1)",
+    "      Tests  1 failed (1)",
+  ].join("\n");
+  assert.equal(classifyRedFailure(vitest, { exit: 1 }), "assertion");
+  // The same diff, indented as a nested reporter prints it, and Node's own assert diff.
+  assert.equal(classifyRedFailure(vitest.replace(/^(  header|  SyntaxError.*|- old|\+ new|- Expected|\+ Received)$/gm, "    $1"), { exit: 1 }), "assertion");
+  const node = "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n  header\n  SyntaxError: diagnostic\n+ new\n- old\n";
+  assert.equal(classifyRedFailure(node, { exit: 1 }), "assertion");
+  // A runner line after the block still decides.
+  assert.equal(classifyRedFailure(node + "SyntaxError: Unexpected token '}'\n", { exit: 1 }), "syntax");
+});
+
+check("a Vitest run that ran and failed an assertion is not a syntax failure because a passing test printed one", () => {
+  const output = "stdout | a.test.ts > prints\nSyntaxError: Unexpected token } in JSON\n\n FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)";
+  assert.equal(classifyRedFailure(output, { exit: 1 }), "assertion");
+  assert.equal(classifyRedFailure("SyntaxError: Unexpected token } in JSON\n Test Files  1 failed (1)\n      Tests  no tests", { exit: 1 }), "syntax");
+});
+
 if (failures > 0) {
   console.log(`\n${failures} failing`);
   process.exit(1);
