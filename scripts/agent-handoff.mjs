@@ -11,6 +11,7 @@ import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-
 import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
+import { removeProbeCheckouts } from "./reviewer-probe-cleanup.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -563,6 +564,16 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         usedReports.add(id);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
+      // The report is validated and the exit confirmed: the reviewer's probe
+      // clones and installs are no longer evidence, and concurrent rounds fill
+      // a shared disk with them. A failure here never voids the validated review.
+      if (step.role === "review" && step.nativeResult === "codex-jsonl") {
+        try {
+          const kept = args[args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg)) + 1];
+          const { files, links } = removeProbeCheckouts(step.permissions.cwd, [kept, step.prompt]);
+          append({ event: "probe-checkouts-removed", index, step: current, directory: step.permissions.cwd, files, links });
+        } catch (error) { append({ event: "probe-cleanup-failed", index, step: current, directory: step.permissions.cwd, reason: error.message }); }
+      }
       if (step.role === "review") {
         completedRoundReviews = step.round > completedRound ? 1 : completedRoundReviews === null ? null : completedRoundReviews + 1;
         if (step.round > completedRound || head !== reviewedHead) finalCorrections = false;

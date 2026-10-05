@@ -17,6 +17,7 @@ import {validateReviewPlan} from './review-supervisor.mjs';
 import {proxyAuthTemplate,checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
 import {testScratch} from './review-job-root.mjs';
 import {removeScratch} from './remove-scratch.mjs';
+import {removeProbeCheckouts} from './reviewer-probe-cleanup.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const scratch=testScratch('cloud-codex',here);
@@ -223,6 +224,28 @@ try {
     console.log('PASS: the proxied route takes a template holding no usable token, refuses a real login without echoing it, and renews its refresh time');
   }
 
+  // The cleanup keeps what it is told to keep, unlinks links without entering
+  // them, and refuses a directory that is not a real one.
+  {
+    const dir=fs.mkdtempSync(path.join(scratch,'cleanup-')),outside=fs.mkdtempSync(path.join(scratch,'cleanup-outside-'));
+    fs.writeFileSync(path.join(outside,'keep.txt'),'survives');
+    fs.mkdirSync(path.join(dir,'clone','deep'),{recursive:true});fs.writeFileSync(path.join(dir,'clone','deep','a.js'),'a');
+    fs.symlinkSync(outside,path.join(dir,'clone','link'),'junction');fs.symlinkSync(outside,path.join(dir,'top-link'),'junction');
+    fs.writeFileSync(path.join(dir,'report.md'),'report');fs.writeFileSync(path.join(dir,'notes.txt'),'n');
+    const counts=removeProbeCheckouts(dir,[path.join(dir,'report.md')]);
+    assert.deepEqual(fs.readdirSync(dir),['report.md'],'only the kept file remains');
+    assert.deepEqual([counts.files,counts.links],[2,2]);
+    assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives','links are not followed');
+    assert.deepEqual(removeProbeCheckouts(dir,[path.join(dir,'report.md')]).files,0,'a second run removes nothing');
+    assert.throws(()=>removeProbeCheckouts(path.join(dir,'missing')),/ENOENT/);
+    const linked=path.join(scratch,'cleanup-link');fs.symlinkSync(outside,linked,'junction');
+    assert.throws(()=>removeProbeCheckouts(linked),/not a directory/,'a linked reviewer directory is refused');
+    assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives');
+    // Later scans of the scratch folder read every entry as a file.
+    fs.rmdirSync(linked);fs.rmSync(dir,{recursive:true});fs.rmSync(outside,{recursive:true});
+    console.log('PASS: probe cleanup removes everything but the kept report, unlinks links without following them and refuses a linked directory');
+  }
+
   // The real launcher, with a stand-in for the Codex CLI: the reviewer gets
   // the secret only in its private home and no GitHub access, its slot is held
   // while it runs, and the journal awaits the coordinator's post.
@@ -235,11 +258,16 @@ const argv=JSON.parse(process.env.FIXTURE_ARGV),slots=process.env.FIXTURE_SLOTS,
 const start=text.indexOf('handoff-report-'),token=text.slice(start,text.indexOf(String.fromCharCode(96),start)),head=/reviewed head=([a-f0-9]+)/.exec(text)[1];
 const reservations=fs.readdirSync(slots).filter(name=>name.endsWith('.jsonl')).map(name=>fs.readFileSync(path.join(slots,name),'utf8').trim().split('\\n').map(line=>JSON.parse(line).phase));
 fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv,home,reservations,authSha256:createHash('sha256').update(fs.readFileSync(auth)).digest('hex'),authMode:process.platform==='win32'?null:(fs.statSync(auth).mode&0o777),homeFiles:fs.readdirSync(home).sort(),secretVisible:Object.hasOwn(process.env,${JSON.stringify(secretName)}),github:Object.keys(process.env).filter(key=>/^GH_|^GITHUB_TOKEN$/i.test(key))}));
+const reviewDir=path.dirname(argv[argv.indexOf('--output-last-message')+1]);
+fs.mkdirSync(path.join(reviewDir,'probe-head','node_modules','pkg'),{recursive:true});fs.writeFileSync(path.join(reviewDir,'probe-head','node_modules','pkg','index.js'),'x');
+fs.mkdirSync(path.join(reviewDir,'probe-base'));fs.writeFileSync(path.join(reviewDir,'probe-base','package.json'),'{}');fs.symlinkSync(process.env.FIXTURE_EXTERNAL,path.join(reviewDir,'probe-base','linked'),'junction');
 fs.writeFileSync(argv[argv.indexOf('--output-last-message')+1],'### Adversarial review — undirected (gpt-test)\\n\\nRound 1, reviewed head '+head+'.\\n\\nNo findings through this lens.\\n\\n'+token+'\\n');
 fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head,next:null,commentIds:[],summary:'Report returned for the coordinator to post'}));
 for(const row of [{type:'thread.started',thread_id:'fixture-thread'},{type:'turn.started'},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Report returned.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}])console.log(JSON.stringify(row));
 console.error('diagnostic after terminal result');
 `);
+    // A directory outside the reviewer's that a probe links to; cleanup must never enter it.
+    const external=path.join(scratch,'external');fs.mkdirSync(external);fs.writeFileSync(path.join(external,'keep.txt'),'survives');
     const journal=path.join(handoff,'handoff.jsonl'),planFile=path.join(job,'plan.json');
     const plan={worktree:repo,journal,pr:1281,writer:'claude-opus-5',writerEffort:'high',reviewer:'gpt-test',completedReviewRound:0,maxSteps:1,first:'check',reportPosting:'coordinator',steps:{check:{role:'review',round:1,model:'gpt-test',nativeResult:'codex-jsonl',executable:process.execPath,args:fullArgs,effort:'high',permissions,prompt,next:[null]}}};
     // A partial grammar is refused before the lock, journal or a slot exists.
@@ -259,7 +287,7 @@ console.error('diagnostic after terminal result');
       assert.equal(JSON.stringify(args).includes(credential),false,'the secret is not in argv');
       assert.equal(Object.hasOwn(options.env,secretName),false,'neither the route probe nor the reviewer inherits the secret');
       assert.equal(Object.hasOwn(process.env,secretName),false,'the launcher withholds the secret from its own environment while it runs');
-      return originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots}});
+      return originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots,FIXTURE_EXTERNAL:external}});
     };
     syncBuiltinESMExports();
     let outcome;
@@ -282,6 +310,13 @@ console.error('diagnostic after terminal result');
     assert.equal(at('blocked'),-1);
     assert.equal(rows.at(-1).event,'report-awaiting-post');assert.equal(rows.at(-1).report,report);assert.equal(outcome.pendingReport.reportSha256,rows.at(-1).reportSha256);
     assert.equal(rows.find(row=>row.event==='launching').reportPosting,'coordinator');
+    // The validated review's probe clones, installs and links are removed (#1451); the report stays.
+    assert.deepEqual(fs.readdirSync(privateDir),['report.md'],'only the report remains in the reviewer directory');
+    assert.equal(fs.readFileSync(path.join(external,'keep.txt'),'utf8'),'survives','a link inside a probe is unlinked, never followed');
+    const removedRow=rows.find(row=>row.event==='probe-checkouts-removed');
+    assert.ok(removedRow&&at('exited')<rows.indexOf(removedRow)&&rows.indexOf(removedRow)<at('completed'),'cleanup is journalled after exit and before completion');
+    assert.deepEqual([removedRow.files,removedRow.links],[2,1]);
+    assert.equal(at('probe-cleanup-failed'),-1);
     // On Windows, a home on another drive than the scratch folder has no relative
     // path; path.relative then returns the absolute target.
     const homeFromScratch=path.relative(scratch,observed.home);
