@@ -134,19 +134,35 @@ export const loopOf = new WeakMap<ParsedObject, LoopShape>();
 /** Whether a divert is a `break` or a `continue` of the innermost loop. */
 export const loopExitOf = new WeakMap<ParsedObject, "break" | "continue">();
 
-// The labels a loop's lowering gives its own head, step and exits
-// (`lowerLuauWhileLoop.ts` and its siblings), numbered by the loop's
-// document and offset (`syntheticId`), which the compiler renames by document
-// order (`__synth_<n>`, `SparkdownCompiler.canonicalizeSyntheticFlowNames`).
-const LOOP_LABEL =
-  /^(__(while|for|forIn|repeat)_.+_(loop|step|break|continue)|__synth_\d+)$/;
+// The labels a loop's lowering made for its own head, step and exits, and the
+// diverts to them, which the binary program's writer emits as the loop's
+// chunk and never as a label or a jump.
+const loopInternals = new WeakSet<ParsedObject>();
 
-/** Whether `name` is a label a loop's lowering made for itself, which the
- *  binary program's writer emits as the loop's chunk and never as a label or
- *  a jump. The other names the compiler generates name functions, which no
- *  label or jump names. */
-export const isLoopLabel = (name: string | null | undefined): boolean =>
-  !!name && LOOP_LABEL.test(name);
+/** Records `loop`, whose objects start with `first`, and marks the labels
+ *  and diverts its lowering made for itself: every `Gather` and `Divert`
+ *  among its objects outside the statements of its body. */
+export const recordLoop = (first: ParsedObject, loop: LoopShape): void => {
+  loopOf.set(first, loop);
+  const body = new Set(loop.body.statements.flatMap((s) => s.objects));
+  const visit = (obj: ParsedObject) => {
+    if (body.has(obj)) {
+      return;
+    }
+    if (obj.typeName === "Gather" || obj.typeName === "Divert") {
+      loopInternals.add(obj);
+    }
+    for (const child of obj.content ?? []) {
+      visit(child);
+    }
+  };
+  loop.objects.forEach(visit);
+};
+
+/** Whether `obj` is a label, or a divert to one, that a loop's lowering made
+ *  for itself (`recordLoop`), as opposed to one an author wrote. */
+export const isLoopInternal = (obj: ParsedObject): boolean =>
+  loopInternals.has(obj);
 
 const emptyReads = (context: string): StatementReads => ({
   callable: new Map(),

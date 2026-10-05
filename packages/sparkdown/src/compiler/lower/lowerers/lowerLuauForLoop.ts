@@ -23,7 +23,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
-import { loopOf, openBody } from "../utils/statementShape";
+import { openBody, recordLoop } from "../utils/statementShape";
 
 // `for i = start, stop [, step] do BODY end` — Luau numeric-for.
 //
@@ -236,7 +236,7 @@ export function lowerLuauForLoop(
     breakGather,
   ]);
   if (body) {
-    loopOf.set(scoped[0]!, {
+    recordLoop(scoped[0]!, {
       kind: "for",
       body,
       objects: scoped,

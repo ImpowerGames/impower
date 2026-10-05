@@ -24,7 +24,7 @@ import { ErrorType } from "../../../inkjs/engine/Error";
 import { syntheticId } from "../utils/documentTag";
 import {
   extendStatement,
-  loopOf,
+  recordLoop,
   openBody,
 } from "../utils/statementShape";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
@@ -167,7 +167,7 @@ export function lowerLuauRepeatLoop(
 
   const scoped = wrapInScope([loopGather, continueGather, breakGather]);
   if (body) {
-    loopOf.set(scoped[0]!, {
+    recordLoop(scoped[0]!, {
       kind: "repeat",
       body,
       objects: scoped,

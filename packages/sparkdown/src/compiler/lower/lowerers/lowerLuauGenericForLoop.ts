@@ -24,7 +24,7 @@ import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
-import { loopOf, openBody } from "../utils/statementShape";
+import { openBody, recordLoop } from "../utils/statementShape";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
 // `for v1, v2, ... in iter_expr do BODY end` — Luau's generic-for.
@@ -248,7 +248,7 @@ export function lowerLuauGenericForLoop(
 
   const scoped = wrapInScope([initTuple, adjustTuple, loopGather, breakGather]);
   if (body) {
-    loopOf.set(scoped[0]!, {
+    recordLoop(scoped[0]!, {
       kind: "forIn",
       body,
       objects: scoped,

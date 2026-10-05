@@ -608,6 +608,70 @@ describe("flows on the program engine", () => {
     expect(texts(storyBeats(new ProgramStory(back.chunks!)))).toEqual(["Before.", "Other."]);
   });
 
+  // Round 1 of the review of #1431: a label an author names as a loop's
+  // lowering names its own labels is the author's label, and a jump to it
+  // records the symbol it names, so renaming the scene emits the jump again.
+  it("keeps an authored label named like a loop's own as a label of its flow through a rename", () => {
+    const text = [
+      "-> A",
+      "scene A",
+      "  label __while_user_loop",
+      "  & n = n + 1",
+      "  Pass {n}.",
+      "  if n < 2 then",
+      "    -> __while_user_loop",
+      "  end",
+      "  done",
+      "end",
+      "store n = 0",
+      "",
+    ].join("\n");
+    const s = session(text);
+    expect(texts(storyBeats(new ProgramStory(s.first.chunks!)))).toEqual(["Pass 1.", "Pass 2."]);
+    const coldOf = () =>
+      silence(() =>
+        programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+      );
+    const renamed = s.edit("-> A\nscene A", "-> B\nscene B");
+    expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(coldOf().chunks!));
+    expect(texts(storyBeats(new ProgramStory(renamed.chunks!)))).toEqual(["Pass 1.", "Pass 2."]);
+    // The label's chunk is kept by the next compile, which edits another
+    // line.
+    const label = chunksWith(renamed.chunks!, Op.Visit)[0];
+    const next = s.edit("Pass {n}.", "Pass {n}!");
+    expect(chunksWith(next.chunks!, Op.Visit)[0]).toBe(label);
+    expect(describeRoot(next.chunks!)).toEqual(describeRoot(coldOf().chunks!));
+    expect(texts(storyBeats(new ProgramStory(next.chunks!)))).toEqual(["Pass 1!", "Pass 2!"]);
+  });
+
+  // Round 1 of the review of #1431: an alternator keeps its count symbol
+  // when the line that writes it is edited, so a saved count reads on.
+  it("keeps an alternator's count when the statement that writes it is edited", () => {
+    const s = session(['scene main', '  Pick {queue|"one"|"two"}.', "  done", "end", ""].join("\n"));
+    const first = s.first.chunks!;
+    const game = new ProgramStory(first);
+    game.ChoosePathString("main");
+    expect(game.Continue()).toBe("Pick one.\n");
+    while (game.canContinue) {
+      game.Continue();
+    }
+    const saved = game.state.toJson();
+    const alternatorOf = (root: ProgramRoot) =>
+      chunksWith(root, Op.VisitIndex).map(
+        (chunk) =>
+          [...new BinaryProgramReader(root).instructions(chunk)].find(
+            (i) => i.op === Op.VisitIndex,
+          )!.arg,
+      );
+    const before = alternatorOf(first);
+    const edited = s.edit("  Pick", "  Selection").chunks!;
+    expect(alternatorOf(edited)).toEqual(before);
+    const resumed = new ProgramStory(edited);
+    resumed.state.LoadJson(saved);
+    resumed.ChoosePathString("main");
+    expect(resumed.Continue()).toBe("Selection two.\n");
+  });
+
   it("re-emits, for a renamed scene, the chunks that refer to it and no other", () => {
     const text = [
       "-> place",

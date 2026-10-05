@@ -8,7 +8,7 @@ import {
 } from "../binary/ProgramBinaryWriter";
 import {
   functionShapeOf,
-  isLoopLabel,
+  isLoopInternal,
 } from "../compiler/lower/utils/statementShape";
 import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import type { Story } from "../inkjs/engine/Story";
@@ -1360,11 +1360,17 @@ export class ChunkStore {
         (k) => old[k]!,
         nesting?.oldOwner,
       );
+      // A block statement keeps its bodies' sequence ids that way, and a
+      // statement that writes alternators keeps their count symbols, which
+      // its alternators align with by their own source.
+      const ownsParts = (statement: StatementSource, chunk: StatementChunk) =>
+        ((statement.bodies?.length ?? 0) > 0 && blockCount(chunk) > 0) ||
+        (alternatorsOf(statement).length > 0 &&
+          (this._info.get(chunk)?.alternators.length ?? 0) > 0);
       if (
         leftNew.length === 1 &&
         leftOld.length === 1 &&
-        (statements[leftNew[0]!]!.bodies?.length ?? 0) > 0 &&
-        blockCount(old[leftOld[0]!]!) > 0
+        ownsParts(statements[leftNew[0]!]!, old[leftOld[0]!]!)
       ) {
         used.add(old[leftOld[0]!]!);
         this._inherit.set(statements[leftNew[0]!]!, old[leftOld[0]!]!);
@@ -1640,12 +1646,18 @@ const alternatorsOf = (statement: StatementSource): Sequence[] => {
 };
 
 /** What an alternator is aligned by when its statement is emitted again: its
- *  kind and the text of its arms. */
+ *  kind and its arms, read as their text, each object's kind and what each
+ *  object that holds no other prints as (a name, a number, a string). */
 const alternatorFingerprint = (sequence: Sequence): string => {
-  const text = (obj: ParsedObject): string =>
-    obj instanceof Text
-      ? obj.text
-      : `${obj.typeName}(${(obj instanceof FunctionCall ? obj.args : obj.content ?? []).map(text).join("")})`;
+  const text = (obj: ParsedObject): string => {
+    if (obj instanceof Text) {
+      return obj.text;
+    }
+    const children = obj instanceof FunctionCall ? obj.args : (obj.content ?? []);
+    return children.length > 0
+      ? `${obj.typeName}(${children.map(text).join("")})`
+      : `${obj.typeName}:${String(obj)}`;
+  };
   return normalizeSource(
     `${sequence.sequenceType}|${sequence.sequenceElements.map(text).join("|")}`,
   );
@@ -1811,7 +1823,7 @@ export const resolutionsOf = (
         out.push(key);
       }
     }
-    if (obj instanceof Gather && obj.name && !isLoopLabel(obj.name)) {
+    if (obj instanceof Gather && obj.name && !isLoopInternal(obj)) {
       out.push(obj.programResolutionKey);
     }
     const children = obj instanceof FunctionCall ? obj.args : obj.content;

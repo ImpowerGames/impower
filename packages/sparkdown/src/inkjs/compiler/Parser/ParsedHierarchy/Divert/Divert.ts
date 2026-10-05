@@ -25,7 +25,7 @@ import {
   Op,
 } from "../../../../../program/ProgramInstructions";
 import {
-  isLoopLabel,
+  isLoopInternal,
   loopExitOf,
 } from "../../../../../compiler/lower/utils/statementShape";
 
@@ -197,7 +197,7 @@ export class Divert extends ParsedObject {
       this.isEnd ||
       this.isDone ||
       loopExitOf.has(this) ||
-      isLoopLabel(this.writtenTargetName)
+      isLoopInternal(this)
     ) {
       return null;
     }

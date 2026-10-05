@@ -14,7 +14,7 @@ import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
-import { loopOf, openBody } from "../utils/statementShape";
+import { openBody, recordLoop } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
@@ -164,7 +164,7 @@ export function lowerLuauWhileLoop(
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
   if (body) {
-    loopOf.set(gather, {
+    recordLoop(gather, {
       kind: "while",
       body,
       objects: [gather, breakGather],
