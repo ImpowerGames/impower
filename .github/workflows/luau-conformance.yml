@@ -30,12 +30,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/luau-conformance-objects
-          key: ${{ runner.os }}-luau-conformance-7d5-emsdk4.0.10-${{ hashFiles('packages/sparkdown/native/luau-conformance/build.mjs') }}
-          restore-keys: ${{ runner.os }}-luau-conformance-7d5-emsdk4.0.10-
+          key: ${{ runner.os }}-luau-conformance-assert-v1-7d5-emsdk4.0.10-${{ hashFiles('packages/sparkdown/native/luau-conformance/build.mjs', 'packages/sparkdown/native/luau-conformance/compile-profile.mjs') }}
+          restore-keys: ${{ runner.os }}-luau-conformance-assert-v1-7d5-emsdk4.0.10-
       - name: Build test-only native fixture artifact
         run: node packages/sparkdown/native/luau-conformance/prepare-ci.mjs
       - name: Execute actual native observations
         run: node scripts/test-suite.mjs run packages/sparkdown src/tests/analysis-backend/native-conformance/nativeFixtureSession.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureGraphs.test.ts src/tests/analysis-backend/native-conformance/nativeAreaRepresentatives.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureQueries.test.ts src/tests/analysis-backend/native-conformance/nativeCaseScope.test.ts src/tests/analysis-backend/native-conformance/nativeCaseDefaults.test.ts src/tests/analysis-backend/native-conformance/nativeHarnessParsing.test.ts --wait 600
+      - name: Execute native review fidelity and assertion profile controls
+        run: node scripts/test-suite.mjs run packages/sparkdown src/tests/analysis-backend/native-conformance/nativeReviewFidelity.test.ts src/tests/analysis-backend/native-conformance/nativeAssertionProfile.test.ts --wait 600
       - name: Execute native mapping and registered case lifecycle
         run: node scripts/test-suite.mjs run packages/sparkdown src/tests/analysis-backend/native-conformance/nativeHarnessResults.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureInitialization.test.ts src/tests/analysis-backend/native-conformance/nativeFixturePresets.test.ts src/tests/analysis-backend/native-conformance/nativeCaseRegistration.test.ts src/tests/analysis-backend/native-conformance/nativeRegisteredRepresentatives.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureBoundaries.test.ts src/tests/analysis-backend/native-conformance/nativeFixtureActions.test.ts src/tests/analysis-backend/native-conformance/nativeActionEligibility.test.ts --wait 600
       - name: Execute finite synthetic, support and NonStrict action contracts

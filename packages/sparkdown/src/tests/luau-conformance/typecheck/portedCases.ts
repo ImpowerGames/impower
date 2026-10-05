@@ -208,6 +208,7 @@ export type PortedAction =
   /** Exact audited case-body recipes, once on the same fresh Fixture under its flags. */
   | { syntheticSetup: "cyclicUnion" | "asymmetricExtern" }
   | { nonstrictBuiltinGlobals: true }
+  | { nestedBuiltinsFixture: true }
   | { captureGlobalFunction: CaptureGlobalFunction }
   | { expectCapturedLevels: ExpectCapturedLevels }
   | { checkThrows: CheckThrows }
@@ -230,6 +231,12 @@ function actionsOf(c: PortedCase): PortedAction[] | undefined {
     } else if ("nonstrictBuiltinGlobals" in action) {
       if (Object.keys(action).length !== 1 || action.nonstrictBuiltinGlobals !== true || index !== 0 || c.fixture !== "NonStrictTypeCheckerFixture")
         throw Error("NonStrict builtin action requires exact fresh NonStrict fixture and first action");
+    } else if ("nestedBuiltinsFixture" in action) {
+      const next = c.actions[1];
+      if (Object.keys(action).length !== 1 || action.nestedBuiltinsFixture !== true || index !== 0 ||
+          c.fixture !== "BuiltinsFixture" || c.actions.length !== 2 || !object(next) || !object(next.check) ||
+          (next.check.fixture !== undefined && next.check.fixture !== "BuiltinsFixture"))
+        throw Error("Nested Builtins fixture requires exact fresh Builtins fixture then its sole original check");
     } else if ("check" in action) {
       if (Object.keys(action).length !== 1 || !object(action.check) || typeof action.check.source !== "string" || !Array.isArray(action.check.expect))
         throw Error("Invalid native check action");
@@ -1279,6 +1286,9 @@ export async function runNativePortedCase(
         } else if ("nonstrictBuiltinGlobals" in action) {
           initialize(c.fixture ?? "Fixture");
           fixture.nonStrictBuiltinGlobals();
+        } else if ("nestedBuiltinsFixture" in action) {
+          initialize(c.fixture ?? "Fixture");
+          fixture.nestedBuiltinsFixture();
         } else if ("captureGlobalFunction" in action) {
           initialize(c.fixture ?? "Fixture");
           captures.capture(action.captureGlobalFunction);

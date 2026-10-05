@@ -214,11 +214,15 @@ std::string checked(Handle value)
 // reset retains the actual constructor behavior of the selected preset.
 template<class F> const char* guarded(F operation, bool scopedOperation = true)
 {
+    auto invoke = [&]() -> std::string {
     try
     {
         output = scopedOperation && session ? session->withOperationFlags(operation) : operation();
         if (output.size() > 1048576) throw RequestError("Native observation output limit");
     }
+    // Require failure must escape to the genuine doctest operation context;
+    // never turn it into an ordinary successful result or generic error.
+    catch (const doctest::detail::TestFailureException&) { session.reset(); throw; }
     // Derived exceptions must precede InternalCompilerError: classify real C++ objects.
     catch (const Luau::TimeLimitError& error) { session.reset(); output = "{\"status\":\"deadline\",\"message\":" + quote(error.what()) + "}"; }
     catch (const Luau::UserCancelError& error) { session.reset(); output = "{\"status\":\"cancelled\",\"message\":" + quote(error.what()) + "}"; }
@@ -239,6 +243,24 @@ template<class F> const char* guarded(F operation, bool scopedOperation = true)
     catch (const RequestError& error) { output = "{\"status\":\"error\",\"message\":" + quote(error.what()) + "}"; }
     catch (const std::exception& error) { session.reset(); output = "{\"status\":\"error\",\"message\":" + quote(error.what()) + "}"; }
     catch (...) { session.reset(); output = "{\"status\":\"error\",\"message\":\"Unknown native exception\"}"; }
+    return output;
+    };
+    try { output = runConformanceOperation(invoke, [&] { session.reset(); }); }
+    catch (const AssertionFailure& failure)
+    {
+        const auto& actual = failure.facts;
+        output = "{\"status\":\"assertion-failure\",\"message\":" + quote(failure.what()) +
+            ",\"assertion\":{\"expression\":" + quote(actual.expression) + ",\"file\":" + quote(actual.file) +
+            ",\"line\":" + std::to_string(actual.line) + ",\"function\":" + quote(actual.function) + "}}";
+    }
+    catch (const FixtureTestFailure& failure)
+    {
+        output = "{\"status\":\"fixture-test-failure\",\"message\":" + quote(failure.what()) + "}";
+    }
+    catch (const std::exception& error)
+    {
+        output = "{\"status\":\"error\",\"message\":" + quote(error.what()) + "}";
+    }
     return output.c_str();
 }
 }
@@ -304,6 +326,14 @@ EMSCRIPTEN_KEEPALIVE const char* fixture_heap_bytes()
 EMSCRIPTEN_KEEPALIVE const char* fixture_source(const char* module, const char* bytes, int type)
 {
     return guarded([&] { get().source(module, bytes, Luau::SourceCode::Type(type)); return std::string("{\"status\":\"ok\"}"); });
+}
+EMSCRIPTEN_KEEPALIVE const char* fixture_assign_source(const char* module, const char* bytes, int type)
+{
+    return guarded([&] { get().assignSource(module, bytes, Luau::SourceCode::Type(type)); return std::string("{\"status\":\"ok\"}"); });
+}
+EMSCRIPTEN_KEEPALIVE const char* fixture_nested_builtins_fixture()
+{
+    return guarded([&] { get().nestedBuiltinsFixture(); return std::string("{\"status\":\"ok\"}"); });
 }
 EMSCRIPTEN_KEEPALIVE const char* fixture_definition(const char* bytes)
 {
@@ -741,7 +771,38 @@ EMSCRIPTEN_KEEPALIVE const char* fixture_reset()
 }
 EMSCRIPTEN_KEEPALIVE const char* fixture_dispose()
 {
-    session.reset(); initializationFlags.clear(); caseFlags.clear();
-    output = "{\"status\":\"ok\"}"; return output.c_str();
+    return guarded([&] { session.reset(); initializationFlags.clear(); caseFlags.clear();
+        return std::string("{\"status\":\"ok\"}"); }, false);
+}
+// Fixed test-only profile controls. Neither is a port graph/flag DSL or a
+// production export. Actual failed assertions use the normal operation context.
+EMSCRIPTEN_KEEPALIVE const char* fixture_assertion_control(int passes)
+{
+    return guarded([&] {
+        if (passes != 0 && passes != 1) throw RequestError("Invalid assertion profile control");
+        get(); assertionControl(passes != 0);
+        return std::string("{\"status\":\"ok\"}");
+    });
+}
+EMSCRIPTEN_KEEPALIVE const char* fixture_assertion_handler_restored()
+{
+    // Direct observation after the scoped context exits; wrapping this read
+    // would instead observe the currently installed operation handler.
+    output = "{\"status\":\"ok\",\"restored\":" + boolean(assertionHandlerRestored()) + "}";
+    return output.c_str();
+}
+EMSCRIPTEN_KEEPALIVE const char* fixture_doctest_control(int passes)
+{
+    return guarded([&] {
+        if (passes != 0 && passes != 1) throw RequestError("Invalid doctest context control");
+        get(); doctestControl(passes != 0);
+        return std::string("{\"status\":\"ok\"}");
+    });
+}
+EMSCRIPTEN_KEEPALIVE const char* fixture_assertion_debugbreak_control()
+{
+    // Fixed lifetime control for the non-unwinding debugger branch in Common.h.
+    // It is distinct from the no-debugger ADD_FAIL_AT assertion failure.
+    return guarded([&] { get(); LUAU_DEBUGBREAK(); return std::string("{\"status\":\"ok\"}"); });
 }
 }

@@ -125,6 +125,12 @@ Definition-only cases need no fabricated final source check:
 An action is `{ definition, mandatory?: true, expect }`, `{ check: PortedCheck }`,
 `{ syntheticSetup: "cyclicUnion" | "asymmetricExtern" }`, or one of the finite
 retained-function/exception operations below.
+The exact `singleton_types` plain test uses `fixture: "BuiltinsFixture"` and
+`actions: [{ nestedBuiltinsFixture: true }, { check: originalCheck }]`. It constructs
+and destroys the second real BuiltinsFixture inside the same WASM while the first
+remains alive, then runs its sole original check. The action is once-only, first
+and fresh; extra keys, another preset, later setup or multiple checks are rejected.
+It does not stand in for a child fixture sharing a parent's global scope.
 `mandatory` additionally requires success. Direct unsuccessful definitions retain
 actual ordered parser/errors, module presence and source labels; they are not a
 CheckResult and have no invented `nativeIndex`. Definition assertions select
@@ -259,18 +265,21 @@ Each `expect` preserves the original predicates in order:
   a selector alone checks presence without inventing a signature or predicate.
 - `equals`, `notEquals` and `printedSameAs` use native printing options, including
   `maxTableLength: 0` for unlimited tables. `sameAs`/`notSameAs` compare original
-  raw TypeId/PackId identity. A `{ follow: 0 }` path step represents an explicit
-  upstream follow. Printing and kind inspection may follow without changing
-  raw equality semantics.
+  raw TypeId/PackId identity. Printing and kind inspection may follow without
+  changing raw equality semantics. The direct native helper supports explicit
+  follow; the shared selector path currently has no `follow` step. An original
+  explicit-follow identity assertion requires that separately audited support.
 - `arguments`/`returns` inspect direct head/tail; `flattenedArguments` and
   `flattenedReturns` call native flatten. Chained concrete heads and residual
   tails remain distinct. Size/first/finite/pack identity are separate operations;
   printed shape does not establish topology.
 - Function/generic/pack facts, declared versus instantiated parameters,
   property/name/location/scope metadata, selected-New subtype and normalization
-  use actual data. Unsupported paths still fail, including the current declared
-  TypeFun-parameter path and module-qualified diagnostic sequence. Vocabulary
-  alone is not a capability-completion claim.
+  use actual data. A `{ typeParameter: i }` path selects a declared TypeFun
+  parameter only immediately after an alias, exportedAlias or importedAlias
+  selector; instantiated table parameters use `instantiatedTypeParameter`.
+  Unsupported paths still fail, including module-qualified diagnostic type
+  selectors. Vocabulary alone is not a capability-completion claim.
 - `decoratedSource` uses native `attachTypeData` and `prettyPrintWithTypes` on the
   retained SourceModule, without replaying source spelling or manufacturing a
   checker input through a host emitter.

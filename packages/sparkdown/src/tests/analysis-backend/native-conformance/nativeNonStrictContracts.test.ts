@@ -76,30 +76,27 @@ it("dispatches the original first-begin variant before its scalar field after re
 });
 
 it("rejects a wrong shared table-state expectation on the original actual raw Sealed bit32", async () => {
-  let rawStateObserved = false;
-  const hosts: NativeFixture[] = [];
-  const assertions: Assertion[] = [{ type: "b", tableState: "Generic" }];
+  // Loading, native setup/check and raw-kind positives are outside the negative
+  // boundary. None can accidentally satisfy the expected state mismatch.
+  const fixture = await loadNativeFixture();
   try {
-    await expect(runNativePortedCase("TypeInfer.builtins.test.cpp", {
-      // Added negative uses the original literal. Original state is Sealed;
-      // it has no upstream zero-errors assertion, so none is added here.
-      name: "builtin_tables_sealed wrong-state control", fixture: "BuiltinsFixture",
-      source: bit32Source, expect: assertions,
-    }, skip, async () => {
-      const fixture = await loadNativeFixture(); hosts.push(fixture);
-      const check = fixture.check.bind(fixture);
-      vi.spyOn(fixture, "check").mockImplementation((...args) => {
-        const actual = check(...args), table = fixture.mainType(actual, "b");
-        expect(fixture.facts(table).rawTable).toBe(true);
-        expect(fixture.tableState(table)).toBe(0); // Actual TableState::Sealed.
-        rawStateObserved = true;
-        return actual;
-      });
-      return fixture;
-    })).rejects.toThrow();
+    const result = nativeCaseChecker(fixture)(bit32Source, { fixture: "BuiltinsFixture" });
+    expect(result.checked).toBe(true);
+    const table = fixture.mainType(fixture.context(), "b");
+    expect(fixture.facts(table).rawTable).toBe(true);
+    expect(fixture.tableState(table)).toBe(0); // Actual TableState::Sealed.
+    // The original has no zero-errors assertion. Preserve its exact source
+    // and require the actual matching state through the same assertion core.
+    runAssertions(result, { source: bit32Source, expect: [{ type: "b", tableState: "Sealed" }] });
+    let mismatch: unknown;
+    try {
+      runAssertions(result, { source: bit32Source, expect: [{ type: "b", tableState: "Generic" }] });
+    } catch (error) { mismatch = error; }
+    expect(mismatch).toBeInstanceOf(Error);
+    expect(mismatch).toMatchObject({ name: "AssertionError", actual: "Sealed", expected: "Generic" });
   } finally {
-    console.log(JSON.stringify({ control: "shared state baseline", rawStateObserved, hosts: hosts.length }));
-    for (const host of hosts) expect(() => host.heapBytes()).toThrow("Disposed native fixture host");
+    fixture.dispose();
+    expect(() => fixture.heapBytes()).toThrow("Disposed native fixture host");
   }
 });
 
@@ -110,7 +107,7 @@ it("dispatches the exact in-place NonStrict builtin action before the original s
     const observe = fixture.observe.bind(fixture), dispose = fixture.dispose.bind(fixture);
     vi.spyOn(fixture, "observe").mockImplementation((operation, ...args) => {
       if (operation === "create" || operation === "nonstrict_builtin_globals") events.push(operation);
-      if (operation === "source") {
+      if (operation === "assign_source") {
         events.push(operation); expect(args[0]).toBe("MainModule"); expect(args[1]).toBe(methodSource);
       }
       if (operation === "check_nonstrict") {
@@ -130,7 +127,7 @@ it("dispatches the exact in-place NonStrict builtin action before the original s
   try {
     await expect(runNativePortedCase("NonStrictTypeChecker.test.cpp", record, skip, load)).resolves.toBeUndefined();
     expect(load).toHaveBeenCalledTimes(1);
-    expect(events).toEqual(["create", "nonstrict_builtin_globals", "source", "check_nonstrict", "dispose"]);
+    expect(events).toEqual(["create", "nonstrict_builtin_globals", "assign_source", "check_nonstrict", "dispose"]);
   } finally {
     console.log(JSON.stringify({ control: "in-place registration baseline", loads: load.mock.calls.length, events }));
   }

@@ -151,8 +151,7 @@ Session::NegationFixture::NegationFixture()
 }
 Luau::Frontend& Session::ExternFixture::getFrontend()
 {
-    // The upstream helper registers its graph on each call. A session installs it once.
-    if (frontend) return *frontend;
+    // Pinned ExternTypeFixture registers its actual graph on EVERY operation call.
     return Luau::ExternTypeFixture::getFrontend();
 }
 Luau::Frontend& Session::RefinementExternFixture::getFrontend()
@@ -283,6 +282,10 @@ const Luau::Fixture& Session::get() const
 {
     return std::visit([](const auto& owner) -> const Luau::Fixture& { return *owner; }, fixture);
 }
+Luau::Frontend& Session::observationFrontend()
+{
+    return std::visit([](auto& owner) -> Luau::Frontend& { return owner->observationFrontend(); }, fixture);
+}
 
 void Session::invalidateResults()
 {
@@ -297,6 +300,11 @@ void Session::invalidateResults()
 
 void Session::source(const std::string& module, const std::string& bytes, Luau::SourceCode::Type type)
 {
+    assignSource(module, bytes, type);
+    std::visit([&](auto& owner) { owner->markSourceDirty(module); }, fixture);
+}
+void Session::assignSource(const std::string& module, const std::string& bytes, Luau::SourceCode::Type type)
+{
     if (type != Luau::SourceCode::Module && type != Luau::SourceCode::Script && type != Luau::SourceCode::None)
         throw RequestError("Invalid source type");
     invalidateResults();
@@ -304,7 +312,16 @@ void Session::source(const std::string& module, const std::string& bytes, Luau::
     auto& value = get();
     value.fileResolver.source[module] = bytes;
     value.fileResolver.sourceTypes[module] = type;
-    std::visit([&](auto& owner) { owner->markSourceDirty(module); }, fixture);
+}
+void Session::nestedBuiltinsFixture()
+{
+    if (preset != Preset::Builtins || !graphSetupAllowed || nestedBuiltinsUsed)
+        throw RequestError("Nested BuiltinsFixture requires the original fresh Builtins fixture");
+    // TypeInfer.primitives.test.cpp94: a remains alive while b is constructed
+    // and destroyed in this SAME native instance, before a's sole check.
+    { Luau::BuiltinsFixture child; }
+    nestedBuiltinsUsed = true;
+    graphSetupAllowed = false;
 }
 
 Luau::LoadDefinitionFileResult Session::loadDefinition(const std::string& bytes)
@@ -317,7 +334,9 @@ Luau::LoadDefinitionFileResult Session::loadDefinition(const std::string& bytes)
     auto& globals = frontend.globals;
     Luau::unfreeze(globals.globalTypes);
     Luau::LoadDefinitionFileResult result;
-    try { result = frontend.loadDefinitionFile(globals, globals.globalScope, bytes, "@test", false, false); }
+    // Fixture::loadDefinition691 invokes the virtual operation twice, including
+    // ExternTypeFixture's repeated registration before the actual load.
+    try { result = get().getFrontend().loadDefinitionFile(globals, globals.globalScope, bytes, "@test", false, false); }
     catch (...) { Luau::freeze(globals.globalTypes); throw; }
     Luau::freeze(globals.globalTypes);
     // Direct-load tests assert false success and real diagnostics. Setup callers separately
@@ -343,7 +362,7 @@ Handle Session::check(const std::string& module, Luau::Mode mode, const std::vec
     Overrides caseOverrides;
     caseOverrides.apply(flags);
     if (FFlag::DebugLuauForceOldSolver && preset != Preset::ExternExplicitNew &&
-        !(bodyNewSolverSelected && get().getFrontend().getLuauSolverMode() == Luau::SolverMode::New))
+        !(bodyNewSolverSelected && observationFrontend().getLuauSolverMode() == Luau::SolverMode::New))
         throw RequestError("Native conformance requires selected new solver");
     if (mode != Luau::Mode::Strict && mode != Luau::Mode::Nonstrict && mode != Luau::Mode::NoCheck)
         throw RequestError("Invalid check mode");
@@ -353,11 +372,13 @@ Handle Session::check(const std::string& module, Luau::Mode mode, const std::vec
     graphSetupAllowed = false;
     // Fixture::check328 initializes first; getFrontend734 assigns the initial
     // Strict config. Assigning the requested mode before that loses it.
-    auto& frontend = value.getFrontend();
+    value.getFrontend();
     value.configResolver.defaultConfig.mode = mode;
-    frontend.markDirty(module);
-    frontend.clearStats();
-    checked = frontend.check(module);
+    // Four virtual calls in the exact Fixture::check328 order, not one cached
+    // reference. ExternTypeFixture has observable registration on each call.
+    value.getFrontend().markDirty(module);
+    value.getFrontend().clearStats();
+    checked = value.getFrontend().check(module);
     for (const auto& flag : flags) checkedFlags.push_back({flag.name, effectiveFlag(flag.name)});
     return {id, revision};
 }
@@ -367,7 +388,7 @@ Handle Session::checkModule(const std::string& module, const std::vector<Flag>& 
     Overrides caseOverrides;
     caseOverrides.apply(flags);
     if (FFlag::DebugLuauForceOldSolver && preset != Preset::ExternExplicitNew &&
-        !(bodyNewSolverSelected && get().getFrontend().getLuauSolverMode() == Luau::SolverMode::New))
+        !(bodyNewSolverSelected && observationFrontend().getLuauSolverMode() == Luau::SolverMode::New))
         throw RequestError("Native conformance requires selected new solver");
     auto& value = get();
     if (!value.fileResolver.source.count(module)) throw RequestError("Missing root module");
@@ -447,7 +468,7 @@ const std::vector<Flag>& Session::configuration(Handle handle) const
 TypeHandle Session::binding(Handle handle, const std::string& module, const std::string& name)
 {
     result(handle);
-    auto nativeModule = get().getFrontend().moduleResolver.getModule(module);
+    auto nativeModule = observationFrontend().moduleResolver.getModule(module);
     if (!nativeModule || !nativeModule->hasModuleScope()) throw RequestError("Missing native module scope");
     auto value = Luau::lookupName(nativeModule->getModuleScope(), name);
     if (!value) throw RequestError("Missing native binding: " + name);
@@ -493,7 +514,7 @@ Handle Session::context() const { return {id, revision}; }
 TypeHandle Session::mainType(Handle handle, const std::string& name)
 {
     result(handle);
-    auto module = get().getFrontend().moduleResolver.getModule("MainModule");
+    auto module = observationFrontend().moduleResolver.getModule("MainModule");
     if (!module || !module->hasModuleScope()) throw RequestError("Missing native main module scope");
     // Exact Fixture::getType + requireType behavior, including the raw-flag branch.
     auto value = FFlag::DebugLuauForceOldSolver ? Luau::lookupName(module->getModuleScope(), name) :
@@ -504,7 +525,7 @@ TypeHandle Session::mainType(Handle handle, const std::string& name)
 TypeHandle Session::positionType(Handle handle, const std::string& module, Luau::Position position, bool expected)
 {
     result(handle);
-    auto& frontend = get().getFrontend();
+    auto& frontend = observationFrontend();
     auto checkedModule = frontend.moduleResolver.getModule(module);
     auto sourceModule = frontend.getSourceModule(module);
     if (!checkedModule || !sourceModule) throw RequestError("Missing native module for position query");
@@ -516,21 +537,21 @@ TypeHandle Session::positionType(Handle handle, const std::string& module, Luau:
 TypeHandle Session::globalAlias(Handle handle, const std::string& name)
 {
     validate(handle);
-    auto value = get().getFrontend().globals.globalScope->lookupType(name);
+    auto value = observationFrontend().globals.globalScope->lookupType(name);
     if (!value) throw RequestError("Missing native global alias: " + name);
     return retain(handle, value->type);
 }
 Luau::Binding Session::globalBinding(Handle handle, const std::string& name)
 {
     validate(handle);
-    auto value = get().getFrontend().globals.globalScope->linearSearchForBinding(name);
+    auto value = observationFrontend().globals.globalScope->linearSearchForBinding(name);
     if (!value) throw RequestError("Missing native global binding: " + name);
     return *value;
 }
 ModuleFacts Session::moduleFacts(Handle handle, const std::string& name)
 {
     result(handle);
-    auto& frontend = get().getFrontend();
+    auto& frontend = observationFrontend();
     if (!frontend.options.retainFullTypeGraphs) throw RequestError("Native module graph retention disabled; node counts unavailable");
     auto module = frontend.moduleResolver.getModule(name);
     if (!module || !module->internalTypes) throw RequestError("Missing retained native module graph");
@@ -541,7 +562,7 @@ std::vector<Luau::TypeError> Session::moduleDiagnostics(Handle handle, const std
 {
     result(handle);
     if (name.empty() || name.size() > 4096) throw RequestError("Invalid native module selection");
-    auto module = get().getFrontend().moduleResolver.getModule(name);
+    auto module = observationFrontend().moduleResolver.getModule(name);
     if (!module) throw RequestError("Missing native module: " + name);
     if (module->errors.size() > 256) throw RequestError("Native module diagnostic limit256");
     return module->errors;
@@ -567,10 +588,10 @@ void Session::bindGlobal(TypeHandle handle, const std::string& name)
 bool Session::inArena(TypeHandle handle, const std::string& arena, const std::string& name)
 {
     auto selected = type(handle);
-    if (arena == "global") return Luau::isInArena(selected, get().getFrontend().globals.globalTypes);
+    if (arena == "global") return Luau::isInArena(selected, observationFrontend().globals.globalTypes);
     if (arena != "interface") throw RequestError("Invalid native arena selector");
     result(handle.result);
-    auto module = get().getFrontend().moduleResolver.getModule(name);
+    auto module = observationFrontend().moduleResolver.getModule(name);
     if (!module) throw RequestError("Missing native module for arena membership");
     // Fixture.cpp923 uses contains(raw TypeId); deliberately no follow here.
     return Luau::isInArena(selected, module->interfaceTypes);
@@ -578,7 +599,7 @@ bool Session::inArena(TypeHandle handle, const std::string& arena, const std::st
 OverloadFacts Session::overloadAt(Handle handle, const std::string& name, Luau::Position position)
 {
     result(handle);
-    auto& frontend = get().getFrontend();
+    auto& frontend = observationFrontend();
     auto module = frontend.moduleResolver.getModule(name);
     auto source = frontend.getSourceModule(name);
     if (!module || !source) throw RequestError("Missing native overload module");
@@ -597,7 +618,7 @@ OverloadFacts Session::overloadAt(Handle handle, const std::string& name, Luau::
 std::string Session::decorated(Handle handle, const std::string& name)
 {
     result(handle);
-    auto& frontend = get().getFrontend();
+    auto& frontend = observationFrontend();
     auto module = frontend.moduleResolver.getModule(name);
     auto source = frontend.getSourceModule(name);
     if (!module || !source || !source->root) throw RequestError("Missing native decoration module");
@@ -621,7 +642,7 @@ Luau::TypePackId Session::pack(PackHandle handle) const
 PackHandle Session::modulePack(Handle handle, const std::string& name)
 {
     result(handle);
-    auto module = get().getFrontend().moduleResolver.getModule(name);
+    auto module = observationFrontend().moduleResolver.getModule(name);
     if (!module) throw RequestError("Missing native pack module");
     return retainPack(handle, module->returnType);
 }
@@ -665,7 +686,7 @@ TypeHandle Session::normalized(TypeHandle handle)
     result(handle.result);
     if (queryArenas.size() >= 256) throw RequestError("Native query arena limit");
     auto arena = std::make_unique<Luau::TypeArena>();
-    auto& frontend = get().getFrontend();
+    auto& frontend = observationFrontend();
     // Exact refinements694 New-solver Normalizer recipe; retain its arena because
     // the result is an opaque native TypeId, not merely a transient printed string.
     Luau::UnifierSharedState state{Luau::NotNull{&frontend.iceHandler}};
@@ -883,7 +904,7 @@ bool Session::notATableErrorEquals(Handle handle, size_t index, TypeHandle expec
 TypeHandle Session::alias(Handle handle, const std::string& module, const std::string& name)
 {
     result(handle);
-    auto nativeModule = get().getFrontend().moduleResolver.getModule(module);
+    auto nativeModule = observationFrontend().moduleResolver.getModule(module);
     if (!nativeModule || !nativeModule->hasModuleScope()) throw RequestError("Missing native module scope");
     auto value = nativeModule->getModuleScope()->lookupType(name);
     if (!value) throw RequestError("Missing native alias: " + name);
@@ -892,7 +913,7 @@ TypeHandle Session::alias(Handle handle, const std::string& module, const std::s
 TypeHandle Session::global(Handle handle, const std::string& name)
 {
     validate(handle);
-    auto value = Luau::lookupName(get().getFrontend().globals.globalScope, name);
+    auto value = Luau::lookupName(observationFrontend().globals.globalScope, name);
     if (!value) throw RequestError("Missing native global: " + name);
     return retain(handle, *value);
 }
@@ -900,7 +921,7 @@ TypeFunFacts Session::typeFun(Handle handle, const std::string& module, const st
     const std::string& lookup, const std::string& prefix)
 {
     result(handle);
-    auto native = get().getFrontend().moduleResolver.getModule(module);
+    auto native = observationFrontend().moduleResolver.getModule(module);
     if (!native || !native->hasModuleScope()) throw RequestError("Missing native module scope");
     std::optional<Luau::TypeFun> value;
     if (lookup == "ordinary") value = native->getModuleScope()->lookupType(name);
@@ -932,7 +953,7 @@ TypeFunFacts Session::typeFun(Handle handle, const std::string& module, const st
 std::vector<ScopeFacts> Session::scopes(Handle handle, const std::string& module)
 {
     result(handle);
-    auto native = get().getFrontend().moduleResolver.getModule(module);
+    auto native = observationFrontend().moduleResolver.getModule(module);
     if (!native) throw RequestError("Missing native module");
     if (native->scopes.size() > 256) throw RequestError("Native scope observation limit");
     std::vector<ScopeFacts> facts;
@@ -1211,7 +1232,7 @@ size_t Session::firstErrorAt(Handle handle, Luau::Position begin) const
 
 FunctionCapture Session::captureGlobalFunction(const std::string& global, const std::string& property)
 {
-    auto& frontend = get().getFrontend();
+    auto& frontend = observationFrontend();
     auto value = Luau::lookupName(frontend.globals.globalScope, global);
     if (!value) throw RequestError("Missing native global");
     auto table = Luau::get<Luau::TableType>(Luau::follow(*value));
@@ -1224,7 +1245,7 @@ FunctionCapture Session::captureGlobalFunction(const std::string& global, const 
 FunctionCapture Session::captureType(TypeHandle handle) { return captureFunction(type(handle)); }
 FunctionCapture Session::captureFunction(Luau::TypeId selected)
 {
-    auto& frontend = get().getFrontend();
+    auto& frontend = observationFrontend();
     auto function = Luau::get<Luau::FunctionType>(selected);
     if (!function) throw RequestError("Native property is not a function");
     // registerBuiltinGlobals allocates ordinary globals in globalTypes, while
@@ -1267,6 +1288,7 @@ void Session::reset()
     std::visit([](auto& owner) { owner.reset(); }, fixture);
     graphSetupAllowed = true;
     bodyNewSolverSelected = false;
+    nestedBuiltinsUsed = false;
     initialize();
 }
 std::variant<bool, int> Session::effectiveFlag(const std::string& name)

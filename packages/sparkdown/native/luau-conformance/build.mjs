@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, copyFil
 import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compileProfile, assertionPolicy, compileFlags } from "./compile-profile.mjs";
 
 const PIN = "7d5f73364fdbbaa984fa545071630eba73cfea98";
 const root = dirname(fileURLToPath(import.meta.url));
@@ -51,7 +52,8 @@ const upstreamInputs = run("git", ["-C", source, "ls-files"]).split("\n")
   .filter(path => path === "Sources.cmake" || path.endsWith(".h") || path.endsWith(".hpp") ||
     path.endsWith(".inl") || path.endsWith(".cpp") || path.endsWith(".c"));
 const inputHashes = Object.fromEntries(upstreamInputs.map(path => [path, hashFile(join(source, path))]));
-const compileFlags = ["-std=c++17", "-O2", "-fexceptions", "-DNDEBUG"];
+// Uniform for ALL upstream and owned objects. This is an optimized Luau-assert
+// profile, not the full non-NDEBUG CMake Debug layout or a production artifact.
 // Exact Luau.UnitTest target definitions from pinned CMakeLists.txt:300. They
 // affect only the fixture/adapter TUs, never production Analysis/Compiler/VM objects.
 const fixtureCompileFlags = ["-DDOCTEST_CONFIG_DOUBLE_STRINGIFY", "-DDOCTEST_CONFIG_USE_STD_HEADERS"];
@@ -61,13 +63,13 @@ const linkFlags = ["-fexceptions", "-sMODULARIZE=1", "-sEXPORT_ES6=1", "-sENVIRO
   "-sEXPORT_NAME=createLuauConformance", "-sALLOW_MEMORY_GROWTH=1", "-sMAXIMUM_MEMORY=268435456",
   "-sINITIAL_MEMORY=16777216", "-sSTACK_SIZE=2097152", "-sDISABLE_EXCEPTION_CATCHING=0",
   "-sABORTING_MALLOC=0", "-sERROR_ON_UNDEFINED_SYMBOLS=1", '-sEXPORTED_RUNTIME_METHODS=["ccall","writeArrayToMemory"]'];
-const baseIdentity = { pin: PIN, version, tools, compileFlags, includes, upstreamSources, inputHashes };
+const baseIdentity = { pin: PIN, version, tools, compileProfile, assertionPolicy, compileFlags, includes, upstreamSources, inputHashes };
 const cacheKey = hashBytes(JSON.stringify(baseIdentity));
 // Keep production/Fixture cache identity stable; added fixture TUs have their own
 // exact path+defines object identity and are also covered by inputHashes above.
 const fixtureSources = ["tests/ClassFixture.cpp"];
 const allSources = [...upstreamSources, ...fixtureSources];
-const owned = ["session.h", "session.cpp", "bridge.cpp", "fixture-runtime.cpp", "build.mjs"];
+const owned = ["session.h", "session.cpp", "bridge.cpp", "fixture-runtime.cpp", "build.mjs", "compile-profile.mjs"];
 const ownedHashes = Object.fromEntries(owned.map(path => [path, hashFile(join(root, path))]));
 const cacheRoot = join(cache, cacheKey);
 const objectPath = path => join(cacheRoot, hashBytes(path.startsWith("tests/") ?
@@ -78,7 +80,7 @@ function validObject(path) {
 }
 const missing = allSources.filter(path => !validObject(path));
 const plan = { pin: PIN, cacheKey, output, workers: 1, upstreamObjectCount: allSources.length,
-  uncachedObjectCount: missing.length, fixtureSources, ownedHashes, compileFlags, fixtureCompileFlags, includes, linkFlags };
+  uncachedObjectCount: missing.length, fixtureSources, ownedHashes, compileProfile, assertionPolicy, compileFlags, fixtureCompileFlags, includes, linkFlags };
 console.log(JSON.stringify({ phase: "plan", ...plan }, null, 2));
 if (planOnly) process.exit(0);
 mkdirSync(cacheRoot, { recursive: true });

@@ -14,6 +14,9 @@ type Manifest = {
   instrumentation: string;
   pin: string;
   version: string;
+  compileProfile: string;
+  assertionPolicy: string;
+  compileFlags: string[];
   ownedHashes: Record<string, string>;
   artifacts: Record<string, { sha256: string; bytes: number }>;
 };
@@ -78,6 +81,13 @@ type Observation = {
   [key: string]: unknown;
 };
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+/** The loader and its negative controls use this same strict build-profile boundary. */
+export function validateNativeAssertionProfile(manifest: { compileProfile?: unknown; assertionPolicy?: unknown; compileFlags?: unknown }): void {
+  if (manifest.compileProfile !== "luau-conformance-assert-v1" || manifest.assertionPolicy !== "pinned-doctest-require-operation" ||
+      !Array.isArray(manifest.compileFlags) || JSON.stringify(manifest.compileFlags) !== JSON.stringify([
+        "-std=c++17", "-O2", "-fexceptions", "-DNDEBUG", "-DLUAU_ENABLE_ASSERT",
+      ])) throw Error("Native conformance requires the uniform assertion-enabled profile");
+}
 
 export async function loadNativeFixture(): Promise<NativeFixture> {
   // Missing or stale artifacts fail explicitly; these tests never silently skip native execution.
@@ -85,7 +95,8 @@ export async function loadNativeFixture(): Promise<NativeFixture> {
   const manifest: Manifest = JSON.parse(await readFile(new URL("manifest.json", generated), "utf8"));
   if (manifest.abi !== 1 || manifest.instrumentation !== "native-fixture-only" || manifest.pin !== PIN ||
       !manifest.version.includes("4.0.10")) throw Error("Invalid native conformance build provenance");
-  for (const path of ["session.h", "session.cpp", "bridge.cpp", "fixture-runtime.cpp", "build.mjs"])
+  validateNativeAssertionProfile(manifest);
+  for (const path of ["session.h", "session.cpp", "bridge.cpp", "fixture-runtime.cpp", "build.mjs", "compile-profile.mjs"])
     if (sha256(await readFile(new URL(path, nativeRoot))) !== manifest.ownedHashes[path])
       throw Error(`Stale native conformance build input: ${path}`);
   const files = new Map<string, Buffer>();
@@ -129,8 +140,13 @@ export class NativeFixture {
         return pointer;
       });
       return JSON.parse(this.module.ccall(`fixture_${operation}`, "string", values.map(() => "number"), values) as string);
+    } catch (error) {
+      // A WASM trap cannot unwind the native flags/context. Discard the host;
+      // it must never be reused as a recovered fixture after such a failure.
+      if (error instanceof WebAssembly.RuntimeError) this.disposed = true;
+      throw error;
     } finally {
-      for (const pointer of allocations) this.module.ccall("fixture_free", null, ["number"], [pointer]);
+      if (!this.disposed) for (const pointer of allocations) this.module.ccall("fixture_free", null, ["number"], [pointer]);
     }
   }
   private ok(operation: string, ...args: (string | number)[]): Observation {
@@ -151,9 +167,22 @@ export class NativeFixture {
   create(preset: FixturePreset): void {
     this.ok("create", ["Fixture", "BuiltinsFixture", "NonStrictTypeCheckerFixture", "ExternTypeFixture", "ExternExplicitNewFixture", "RefinementExternTypeFixture", "ClassesFixture", "NegationFixture", "IsSubtypeFixture"].indexOf(preset));
   }
-  source(module: string, source: string, type: "module" | "script" | "none" = "module"): void {
-    this.ok("source", module, source, ["none", "module", "script"].indexOf(type));
+  source(module: string, source: string, type: "module" | "script" | "none" = "module", markDirty = true): void {
+    if (typeof markDirty !== "boolean") throw Error("Invalid native source dirtying policy");
+    this.ok(markDirty ? "source" : "assign_source", module, source, ["none", "module", "script"].indexOf(type));
   }
+  /** Actual fileResolver.source assignment; leaves an existing named-check cache alone. */
+  assignSource(module: string, source: string, type: "module" | "script" | "none" = "module"): void {
+    this.source(module, source, type, false);
+  }
+  /** Pinned singleton_types constructs and destroys a second BuiltinsFixture in this WASM. */
+  nestedBuiltinsFixture(): void { this.ok("nested_builtins_fixture"); }
+  /** Fixed actual-assertion controls, excluded from the shared port protocol. */
+  assertionControl(passes: boolean): void {
+    if (typeof passes !== "boolean") throw Error("Invalid assertion profile control");
+    this.ok("assertion_control", Number(passes));
+  }
+  assertionHandlerRestored(): boolean { return this.ok("assertion_handler_restored")["restored"] as boolean; }
   definition(source: string): void {
     if (!this.ok("definition", source).success) throw Error("Native definition load failed");
   }

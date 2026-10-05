@@ -36,6 +36,7 @@ import {
 import { Frontend } from "../../compiler/typecheck/Frontend";
 import {
   checkLuauUnit,
+  documentPosition,
   modeFromName,
   runFileUnit,
 } from "../../compiler/typecheck/LuauDocumentChecker";
@@ -57,7 +58,8 @@ import {
 } from "../../compiler/typecheck/Type";
 import type { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import type { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
-import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { createSyntaxDiagnosticProjection, grammarOwnsSyntaxDiagnostic } from "../../compiler/typecheck/SyntaxDiagnosticProjection";
 import type { SparkdownNodeName } from "../../compiler/types/SparkdownNodeName";
 import { nodeNameSet } from "../../compiler/utils/nodeNameSet";
 import { diagnosticMessage } from "./diagnosticTestHarness";
@@ -412,20 +414,29 @@ function compileSource(source: string) {
   if (!unit)
     throw new Error(`the checker does not read ${wrapped.uri} as a run file`);
   const converterDiagnostics: LuauDiagnostic[] = [];
+  const projectSyntax = createSyntaxDiagnosticProjection(wrapped.document.getText(), wrapped.tree)(position => documentPosition(unit, position));
+  const grammarErrors = (program.diagnostics?.[SNIPPET_URI] ?? [])
+    .filter(error => error.severity === DiagnosticSeverity.Error && error.range)
+    .map(error => error.range);
   for (const error of unit.errors) {
     // Same explicit ownership as SparkdownTypechecker.report: grammar reports
     // syntax unless the reader marks a construct only Luau reading can reject.
     // Preserve every raw unit error for the AST path; do not infer ownership
     // from its message or publish grammar recovery twice.
-    if (!error.malformed) continue;
-    const diagnostic: LuauDiagnostic = { code: "SyntaxError", message: error.message,
-      line: error.location.begin.line, column: error.location.begin.column,
-      endLine: error.location.end.line, endColumn: error.location.end.column };
+    const projected = projectSyntax({ ...error, malformed: Boolean(error.malformed) });
+    if (!projected) continue;
+    const sourceRange = { start: { ...projected.start, line: projected.start.line - wrapped.lineOffset },
+      end: { ...projected.end, line: projected.end.line - wrapped.lineOffset } };
+    if (grammarOwnsSyntaxDiagnostic(sourceRange, grammarErrors)) continue;
+    const diagnostic: LuauDiagnostic = { code: "SyntaxError", message: projected.message,
+      line: sourceRange.start.line, column: sourceRange.start.character,
+      endLine: sourceRange.end.line, endColumn: sourceRange.end.character };
     if (!syntaxDiagnostics.some(value => value.line === diagnostic.line && value.column === diagnostic.column &&
       value.endLine === diagnostic.endLine && value.endColumn === diagnostic.endColumn && value.message === diagnostic.message))
       converterDiagnostics.push(diagnostic);
   }
   syntaxDiagnostics.unshift(...converterDiagnostics);
+  syntaxDiagnostics.sort((a, b) => a.line - b.line || a.column - b.column);
   return { unit, syntaxDiagnostics, compilerMessages };
 }
 

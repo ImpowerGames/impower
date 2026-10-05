@@ -50,11 +50,11 @@ export function nativeCaseChecker(
       const dependency = prepareLuauSource(text);
       setupSyntaxDiagnostics.push(...dependency.syntaxDiagnostics.map(error => ({ ...error,module })));
       compilerMessages.push(...dependency.compilerMessages);
-      fixture.source(module,text);
+      fixture.source(module,text,"module",false);
     }
     // Raw fixture parsing is an independent required proof. The canonical
     // converter AST remains intact for the separate public production path.
-    fixture.source(entry,source);
+    fixture.source(entry,source,"module",false);
     const result = options.entrypoint === "module"
       ? nativePreset === "NonStrictTypeCheckerFixture" ? fixture.checkNonStrictModule(entry,nonStrictDefinitions) : fixture.checkModule(entry)
       : nativePreset === "NonStrictTypeCheckerFixture" ? fixture.checkNonStrict(entry,nonStrictDefinitions) : fixture.check(entry,options.mode ?? "strict");

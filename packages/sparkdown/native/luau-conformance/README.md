@@ -26,11 +26,28 @@ and real diagnostics; mandatory setup loads require success. Diagnostics preserv
 upstream order and byte positions, which differ from production UTF-16 positions.
 Ordinary Fixture construction and first source registration stay lazy. Registering
 a source marks an existing frontend dirty without constructing one; the first
-actual frontend operation uses its current case flags. Presets preserve their
+actual frontend operation uses its current case flags. `assignSource` is the exact
+fileResolver assignment and does not dirty a cached named module; explicit direct
+`source` replacement marks it dirty. The shared case runner uses raw assignment,
+then the original ordinary or named check operation. Presets preserve their
 original eager constructor/setup behavior. Reset replaces the fixture in its
 current operation context while retaining Session-owned initialization flags.
 Ordering obtained from native hash containers is specific to the wasm32 Emscripten
 target; it is not an assertion of platform-independent iteration order.
+
+The test-only `luau-conformance-assert-v1` profile keeps optimized NDEBUG layout
+and enables official LUAU_ASSERT in every upstream and owned TU. It has a distinct
+cache identity; old assertion-disabled objects are not eligible. The loader
+requires that profile, handler policy and exact common flags. A genuine bounded
+doctest operation context runs each native entry point, with the pinned
+ADD_FAIL_AT require/exception failure semantics and scoped handler restoration.
+Actual assertions fail the operation, destroy its partially failed session and
+invalidate its handles; they are not ordinary type diagnostics or successful
+zero-error checks. A non-unwinding WASM trap discards the host. Fixed profile and
+trap controls belong only to this test artifact, outside the shared port actions.
+Until the new artifact's controls run, these are source implementation contracts,
+not assertion-enabled execution claims. Historical 8e00 passes did not evaluate
+LUAU_ASSERT and cannot prove no forced-constraint dispatch.
 Opaque result/type/pack/capture handles carry a host WASM instance brand, so equal
 numeric tokens from different instances are rejected. Results invalidate on
 graph-changing operations. Global function captures retain the exact raw TypeId

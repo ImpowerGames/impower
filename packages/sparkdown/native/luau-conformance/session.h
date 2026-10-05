@@ -15,6 +15,22 @@ LUAU_FASTFLAG(LuauAllowGlobalDeclarationToBeCalledClass)
 
 namespace SparkdownConformance
 {
+struct AssertionFacts { std::string expression; std::string file; int line; std::string function; };
+class AssertionFailure : public std::runtime_error
+{
+public:
+    explicit AssertionFailure(AssertionFacts value) : std::runtime_error("Native Luau assertion failed"), facts(std::move(value)) {}
+    AssertionFacts facts;
+};
+class FixtureTestFailure : public std::runtime_error
+{
+public:
+    using std::runtime_error::runtime_error;
+};
+std::string runConformanceOperation(const std::function<std::string()>& operation, const std::function<void()>& teardown);
+void assertionControl(bool passes);
+void doctestControl(bool passes);
+bool assertionHandlerRestored();
 class RequestError : public std::runtime_error
 {
 public:
@@ -131,6 +147,9 @@ public:
     Session& operator=(const Session&) = delete;
 
     void source(const std::string& module, const std::string& bytes, Luau::SourceCode::Type type);
+    // Exact fileResolver assignment; unlike explicit source replacement it does not markDirty.
+    void assignSource(const std::string& module, const std::string& bytes, Luau::SourceCode::Type type);
+    void nestedBuiltinsFixture();
     Luau::LoadDefinitionFileResult loadDefinition(const std::string& bytes);
     Handle check(const std::string& module, Luau::Mode mode, const std::vector<Flag>& flags = {});
     // Direct Frontend::check: preserve the current config, including a prior mode check.
@@ -239,6 +258,12 @@ private:
         {
             if (this->frontend) this->frontend->markDirty(module);
         }
+        Luau::Frontend& observationFrontend()
+        {
+            // Initialize once when necessary, but do not repeat constructor-owned
+            // graph registration merely to observe an already initialized object.
+            return this->frontend ? *this->frontend : this->getFrontend();
+        }
         const Luau::Scope* currentGlobalScope() const
         {
             if (!this->frontend) throw RequestError("Native frontend is not initialized");
@@ -267,6 +292,7 @@ private:
     uint64_t environment = 0;
     bool graphSetupAllowed = true;
     bool bodyNewSolverSelected = false;
+    bool nestedBuiltinsUsed = false;
     std::optional<Luau::CheckResult> checked;
     std::vector<Flag> checkedFlags;
     std::vector<Flag> requestedOperationFlags;
@@ -277,6 +303,7 @@ private:
     std::vector<Capture> captures;
     Luau::Fixture& get();
     const Luau::Fixture& get() const;
+    Luau::Frontend& observationFrontend();
     void initialize();
     void invalidateResults();
     Luau::TypeId type(TypeHandle handle) const;
