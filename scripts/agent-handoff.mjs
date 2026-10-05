@@ -11,7 +11,7 @@ import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-
 import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
-import { removeProbeCheckouts } from "./reviewer-probe-cleanup.mjs";
+import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -415,6 +415,8 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         : `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}.${step.role === "review" ? ` End your posted report with the line \`${reportToken}\`.` : ""} Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`);
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const reportNotBefore=new Date().toISOString();
+      // What the reviewer directory holds before the reviewer runs is never cleaned up afterwards.
+      const reviewerHad = step.role === "review" && step.nativeResult === "codex-jsonl" ? snapshotReviewerDirectory(step.permissions.cwd) : null;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, completedRoundReviews, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
       const log = fs.openSync(output, "wx");
       let stderr;
@@ -567,10 +569,10 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       // The report is validated and the exit confirmed: the reviewer's probe
       // clones and installs are no longer evidence, and concurrent rounds fill
       // a shared disk with them. A failure here never voids the validated review.
-      if (step.role === "review" && step.nativeResult === "codex-jsonl") {
+      if (reviewerHad) {
         try {
           const kept = args[args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg)) + 1];
-          const { files, links } = removeProbeCheckouts(step.permissions.cwd, [kept, step.prompt]);
+          const { files, links } = removeProbeCheckouts(step.permissions.cwd, { preserve: reviewerHad, keep: [kept] });
           append({ event: "probe-checkouts-removed", index, step: current, directory: step.permissions.cwd, files, links });
         } catch (error) { append({ event: "probe-cleanup-failed", index, step: current, directory: step.permissions.cwd, reason: error.message }); }
       }

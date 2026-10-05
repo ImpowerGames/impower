@@ -1,12 +1,18 @@
 // A Codex reviewer clones and installs the reviewed head and base into its
 // private directory (about 2.5 GB each), and a container's disk is shared by
 // every concurrent round (#1451). Once the launcher has confirmed the exit and
-// validated the report, those probe checkouts are dead weight: this removes
-// everything in the directory except the files named to keep.
+// validated the report, those probe checkouts are dead weight. The launcher
+// snapshots the directory's top-level names before the reviewer starts, and
+// this removes only the entries that appeared after, never what the plan or
+// another round already had there, so a plan whose reviewer directory is
+// shared with other files cannot lose them.
 import fs from 'node:fs';
 import path from 'node:path';
 
-const contains=(parent,child)=>{const relative=path.relative(parent,child);return relative!==''&&!relative.startsWith('..')&&!path.isAbsolute(relative);};
+// The names the directory holds now; the launcher takes this before the spawn.
+export const snapshotReviewerDirectory=(directory)=>new Set(fs.readdirSync(directory));
+
+const isInside=(parent,child)=>{const relative=path.relative(parent,child);return relative!==''&&relative!=='..'&&!relative.startsWith(`..${path.sep}`)&&!path.isAbsolute(relative);};
 
 // Removes one entry without following links. A symbolic link or Windows
 // junction is unlinked itself, never entered; a directory is emptied first.
@@ -27,24 +33,28 @@ function removeEntry(target,counts) {
   counts.files++;
 }
 
-// Returns the counts of removed files and links, and the kept paths. Throws
-// when the directory is not an existing real directory, so a plan pointing
-// the reviewer at a link never makes this walk somewhere else.
-export function removeProbeCheckouts(directory,keep=[]) {
-  const root=fs.realpathSync.native(directory);
+// `preserve` holds the top-level names that existed before the reviewer ran;
+// `keep` the files to keep even though they are new (the final report). A kept
+// file is matched by its canonical name, so another spelling of the same path
+// (a different case on Windows) still protects it. Returns the counts of
+// removed files and links. Throws when the directory is not an existing real
+// directory, so a plan pointing the reviewer at a link never makes this walk
+// somewhere else.
+export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[]}={}) {
   if(!fs.lstatSync(directory).isDirectory())throw new Error(`Reviewer directory ${directory} is not a directory`);
-  // A kept file elsewhere (a prompt kept in the job directory) needs no protection here.
-  const kept=new Set(keep.map(file=>path.join(fs.realpathSync.native(path.dirname(file)),path.basename(file))).filter(file=>contains(root,file)));
+  const root=fs.realpathSync.native(directory);
+  const canonical=(file)=>{try{return fs.realpathSync.native(file);}catch{return path.join(fs.realpathSync.native(path.dirname(file)),path.basename(file));}};
+  const kept=new Set(keep.map(canonical).filter(file=>isInside(root,file)));
   const counts={files:0,links:0};
-  const visit=(current)=>{
+  const visit=(current,top)=>{
     for(const name of fs.readdirSync(current)){
       const target=path.join(current,name);
-      if(kept.has(target))continue;
+      if(top&&preserve.has(name)||kept.has(target))continue;
       // A directory holding a kept file is walked, not removed.
-      if([...kept].some(file=>contains(target,file))&&fs.lstatSync(target).isDirectory()){visit(target);continue;}
+      if([...kept].some(file=>isInside(target,file))&&fs.lstatSync(target).isDirectory()){visit(target,false);continue;}
       removeEntry(target,counts);
     }
   };
-  visit(root);
-  return {...counts,kept:[...kept]};
+  visit(root,true);
+  return counts;
 }
