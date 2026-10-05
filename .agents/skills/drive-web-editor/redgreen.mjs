@@ -285,19 +285,24 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   ) {
     return "import";
   }
-  // A Vitest run that collected tests, failed some and printed an
-  // AssertionError ran the test: a syntax-looking line elsewhere in its output
-  // is that test's own output, not a failure to load it.
-  const assertedFailure = /^\s*Tests\s.*\b[1-9]\d* failed\b/m.test(output) && /\bAssertionError\b/.test(output);
-  // A Node or Vitest error banner at the start of its line, or a compiler error
-  // line: `error TS…` alone, or after its location in either form
-  // (`file(1,2): error TS…`, the pretty `file:1:2 - error TS…`). The location's
-  // path is any text, since a filename can hold spaces, quotes and colons; the
-  // line is not one when it is an assertion's own message or expected/received
-  // value (`AssertionError: expected 'a.ts:1:2 - error TS…'`).
-  const compilerError = /^(?!\s*(?:Expected|Received|expected)\b)(?![^\r\n]*\bAssertionError\b)[^\r\n]*?(?:\(\d+,\d+\)|:\d+:\d+)(?::| -) error TS\d{4}:|^\s*error TS\d{4}:/im;
-  if (!assertedFailure && (/^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b)/im.test(runnerOutput) || compilerError.test(runnerOutput))) {
-    return "syntax";
+  const syntaxBanner = /^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b)/im.test(runnerOutput);
+  if (parseVitestSummary(output) != null || VITEST_BANNER_RE.test(output)) {
+    // A Vitest run reports a file it could not load under its own
+    // `FAIL  file [ file ]` header, so a banner counts only beside one. A
+    // banner without it is something a test printed, and a file that loaded
+    // and failed an assertion does not show that another one loaded too.
+    if (syntaxBanner && /^\s*FAIL\s+(?![^\r\n]*\s>\s)[^\r\n]*\[ [^\]\r\n]+ \]\s*$/m.test(runnerOutput)) return "syntax";
+  } else {
+    if (syntaxBanner) return "syntax";
+    // A compiler error line: `error TS…` alone, or after its location in
+    // either form (`file(1,2): error TS…`, the pretty `file:1:2 - error TS…`).
+    // The location's path is any text, since a filename can hold spaces,
+    // quotes, colons and words like Expected. A source frame's words (`FAIL`)
+    // are not assertion evidence; a runner's own assertion record beside the
+    // compiler line is mixed evidence a human must read.
+    if (/^[^\r\n]*?(?:\(\d+,\d+\)|:\d+:\d+)(?::| -) error TS\d{4}:|^\s*error TS\d{4}:/im.test(runnerOutput)) {
+      return /^\s*(?:AssertionError(?: \[\w+\])?:|FAIL\s|not ok \d|[✕✗×✖]\s)|^\s*Tests\s+\d+ failed|\d+ failing\b/m.test(runnerOutput) ? "unknown" : "syntax";
+    }
   }
   // Anchored to how a runner reports its own death, at the start of a line:
   // a test name or an assertion diff can carry any of these words mid-line.

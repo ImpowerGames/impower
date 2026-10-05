@@ -1361,7 +1361,37 @@ check("unchanged context lines of a multiline assertion diff never decide a synt
 check("a Vitest run that ran and failed an assertion is not a syntax failure because a passing test printed one", () => {
   const output = "stdout | a.test.ts > prints\nSyntaxError: Unexpected token } in JSON\n\n FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)";
   assert.equal(classifyRedFailure(output, { exit: 1 }), "assertion");
-  assert.equal(classifyRedFailure("SyntaxError: Unexpected token } in JSON\n Test Files  1 failed (1)\n      Tests  no tests", { exit: 1 }), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts [ a.test.ts ]\nSyntaxError: Unexpected token } in JSON\n Test Files  1 failed (1)\n      Tests  no tests", { exit: 1 }), "syntax");
+});
+
+// Round 3: assertion vocabulary in a compiler path, and a file that failed to
+// load beside a file that asserted (#1439).
+check("assertion words in a compiler path do not make a compile error an assertion", () => {
+  for (const file of ["AssertionError.ts", "Expected files/lib.ts", "expected dir/Received.ts"]) {
+    const output = `${file}:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n`;
+    assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax", file);
+  }
+  // A runner's own assertion record beside a compiler line is mixed evidence, never accepted as a red.
+  assert.equal(classifyRedFailure("lib.ts(1,2): error TS1109: x\nAssertionError: expected 1 to be 2\n", { exit: 1 }), "unknown");
+});
+
+check("a file that failed to load beside a file that asserted is still a syntax failure", () => {
+  const output = [
+    " RUN  v2.1.9 C:/repo",
+    "",
+    " FAIL  collection.test.mjs [ collection.test.mjs ]",
+    "SyntaxError: Unexpected token ';'",
+    " ❯ loadModule collection.test.mjs:2:1",
+    "",
+    " FAIL  assertion.test.mjs > unrelated assertion",
+    "AssertionError: expected 1 to be 2",
+    "",
+    " Test Files  2 failed (2)",
+    "      Tests  1 failed (1)",
+  ].join("\n");
+  assert.equal(classifyRedFailure(output, { exit: 1 }), "syntax");
+  // The same output without the load-failure header is a test printing the line.
+  assert.equal(classifyRedFailure(output.replace(" FAIL  collection.test.mjs [ collection.test.mjs ]\n", ""), { exit: 1 }), "assertion");
 });
 
 if (failures > 0) {
