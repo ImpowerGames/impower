@@ -1,0 +1,252 @@
+// Follow-up publication controls use the existing public workspace methods and
+// held-connection pattern. The first three-case reproduction stays separate.
+import { describe, expect, it } from "vitest";
+import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
+import type { CompileProgramResult } from "../../compiler/classes/messages/CompileProgramMessage";
+import type { File } from "../../compiler/types/File";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
+import { ProgramTransportEncoder } from "../../workspace/utils/programTransport";
+
+const MAIN = "file://ordering/main.sd";
+const DEPENDENCY = "file://ordering/library.sd";
+const settle = async () => {
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+};
+
+class HeldConnection {
+  compiles: {
+    resolve: (result: CompileProgramResult) => void;
+    reject: (error: Error) => void;
+  }[] = [];
+  sendRequest(type: { method: string }) {
+    if (type.method !== CompileProgramMessage.method) return Promise.resolve({});
+    return new Promise<CompileProgramResult>((resolve, reject) => {
+      this.compiles.push({ resolve, reject });
+    });
+  }
+  abandon(error: Error) {
+    for (const compile of this.compiles) compile.reject(error);
+  }
+  close() {}
+}
+
+const file = (uri: string): File => ({
+  uri, name: uri === MAIN ? "main" : "library", type: "script", ext: "sd",
+  languageId: "sparkdown", text: "A line.\n", version: 1,
+} as File);
+
+class OrderingWorkspace extends SparkdownWorkspace {
+  declare connections: HeldConnection[];
+  notifications: string[] = [];
+  publications: SparkProgram[] = [];
+  constructor() {
+    super("");
+    this._compilerConfigured = true;
+    this._compilerConfig = { files: [] } as never;
+    this._scriptFilePattern = /[.]sd$/;
+    this._watchedFiles.set(MAIN, file(MAIN));
+  }
+  protected override startCompilerWorker() {
+    this.connections ??= [];
+    const connection = new HeldConnection();
+    this.connections.push(connection);
+    this._compilerChannelConnection = connection as never;
+    this._compilerWorker = { terminate() {} } as never;
+    this._initializedCompiler = true;
+  }
+  override debouncedCompile = (async () => undefined) as never;
+  protected override scheduleChangeCompile() {}
+  override async loadFile(input: { uri: string }) { return file(input.uri); }
+  sendRequest(): never { throw Error("not used"); }
+  async sendNotification(method: string) { this.notifications.push(method); }
+  override onCompiledTextDocument(params: { textDocument: { uri: string }; program: SparkProgram }) {
+    this.publications.push(params.program);
+  }
+  async getFileText() { return ""; }
+  async getFileSrc() { return ""; }
+  async getFileVersion() { return 1; }
+  async getFileLanguageId() { return "sparkdown"; }
+  get connection() { return this.connections[this.connections.length - 1]!; }
+}
+
+const open = (workspace: OrderingWorkspace, uri = MAIN, version = 1) =>
+  workspace.openTextDocument({
+    textDocument: { uri, version, languageId: "sparkdown", text: "A line.\n" },
+  });
+const edit = (workspace: OrderingWorkspace, uri = MAIN, version = 2) =>
+  workspace.changeTextDocument({
+    textDocument: { uri, version }, contentChanges: [{ text: "An edited line.\n" }],
+  });
+const response = (version: number, label: string, scripts = { [MAIN]: version }): CompileProgramResult => ({
+  textDocument: { uri: MAIN, version },
+  program: {
+    summary: true, uri: MAIN, scripts,
+    diagnostics: { [MAIN]: [{ severity: 2, code: "TypeMismatch", source: "sparkdown",
+      message: label, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } } }] },
+  } as unknown as SparkProgram,
+});
+
+describe("compiler analysis publication ordering", () => {
+  it("publishes a current main response after an unrelated existing script body edit", async () => {
+    const workspace = new OrderingWorkspace();
+    await open(workspace);
+    await workspace.createFile(DEPENDENCY);
+    await open(workspace, DEPENDENCY);
+    const compiling = workspace.compile(MAIN, true);
+    await settle();
+    expect(workspace.connection.compiles).toHaveLength(1);
+    await edit(workspace, DEPENDENCY, 2);
+    workspace.connection.compiles[0]!.resolve(response(1, "main remains current"));
+    const program = await compiling;
+    expect(program).toBeDefined();
+    expect(program?.scripts).toEqual({ [MAIN]: 1 });
+    expect(workspace.program(MAIN)).toBe(program);
+    expect(workspace.publications).toEqual([program]);
+    expect(workspace.notifications).toEqual(["compiler/didCompile"]);
+  });
+
+  it("an old failure does not settle callers waiting for a newer result", async () => {
+    const workspace = new OrderingWorkspace();
+    await open(workspace);
+    const failure = new Error("old analysis failed");
+    const old = workspace.compile(MAIN, true).then(
+      () => undefined, error => error,
+    );
+    await settle();
+    await edit(workspace);
+    const current = workspace.compile(MAIN, true);
+    await settle();
+    let waiterSettled = false;
+    const waiter = workspace.compile(MAIN, false).then(program => {
+      waiterSettled = true;
+      return program;
+    });
+    workspace.connection.compiles[0]!.reject(failure);
+    expect(await old).toBe(failure);
+    await settle();
+    const settledBeforeCurrent = waiterSettled;
+    workspace.connection.compiles[1]!.resolve(response(2, "current"));
+    const program = await current;
+    expect(await waiter).toBe(program);
+    expect(settledBeforeCurrent).toBe(false);
+    expect(workspace.program(MAIN)).toBe(program);
+    expect(workspace.publications).toEqual([program]);
+  });
+
+  it("same-version force compiles publish only the newer request", async () => {
+    const workspace = new OrderingWorkspace();
+    await open(workspace);
+    const old = workspace.compile(MAIN, true);
+    const current = workspace.compile(MAIN, true);
+    await settle();
+    expect(workspace.connection.compiles).toHaveLength(2);
+    workspace.connection.compiles[1]!.resolve(response(1, "new request"));
+    const program = await current;
+    workspace.connection.compiles[0]!.resolve(response(1, "old request"));
+    expect(await old).toBeUndefined();
+    expect(workspace.program(MAIN)).toBe(program);
+    expect(workspace.publications).toEqual([program]);
+  });
+
+  it("restart settles the old session and same-version recreation rejects its old file result", async () => {
+    const workspace = new OrderingWorkspace();
+    await open(workspace);
+    const oldSession = workspace.compile(MAIN, true);
+    await settle();
+    const restarting = workspace.restartCompiler();
+    await settle();
+    expect(workspace.connections).toHaveLength(2);
+    expect(workspace.connection.compiles).toHaveLength(1);
+    workspace.connection.compiles[0]!.resolve(response(1, "new session"));
+    await restarting;
+    expect(await oldSession).toBeUndefined();
+    const priorFile = workspace.compile(MAIN, true);
+    await settle();
+    await workspace.deleteFile(MAIN);
+    await workspace.createFile(MAIN);
+    await open(workspace);
+    const current = workspace.compile(MAIN, true);
+    await settle();
+    workspace.connection.compiles[2]!.resolve(response(1, "recreated file"));
+    const program = await current;
+    const publicationCount = workspace.publications.length;
+    workspace.connection.compiles[1]!.resolve(response(1, "deleted file"));
+    expect(await priorFile).toBeUndefined();
+    expect(workspace.program(MAIN)).toBe(program);
+    expect(workspace.publications).toHaveLength(publicationCount);
+  });
+
+  it("a newer-revision piggyback waits past an older successful response", async () => {
+    const workspace = new OrderingWorkspace();
+    await open(workspace);
+    const old = workspace.compile(MAIN, true);
+    await settle();
+    await edit(workspace);
+    const current = workspace.compile(MAIN, true);
+    await settle();
+    let waiterSettled = false;
+    const waiter = workspace.compile(MAIN, false).then(program => {
+      waiterSettled = true;
+      return program;
+    });
+    workspace.connection.compiles[0]!.resolve(response(1, "old"));
+    await old;
+    await settle();
+    const settledBeforeCurrent = waiterSettled;
+    workspace.connection.compiles[1]!.resolve(response(2, "current"));
+    const program = await current;
+    expect(await waiter).toBe(program);
+    expect(settledBeforeCurrent).toBe(false);
+    expect(workspace.program(MAIN)).toBe(program);
+    expect(workspace.publications).toEqual([program]);
+  });
+
+  it("deleting an included dependency invalidates a response even when the root version is unchanged", async () => {
+    const workspace = new OrderingWorkspace();
+    await open(workspace);
+    await workspace.createFile(DEPENDENCY);
+    await open(workspace, DEPENDENCY);
+    const compiling = workspace.compile(MAIN, true);
+    await settle();
+    await workspace.deleteFile(DEPENDENCY);
+    workspace.connection.compiles[0]!.resolve(response(1, "deleted dependency", {
+      [MAIN]: 1, [DEPENDENCY]: 1,
+    }));
+    expect(await compiling).toBeUndefined();
+    expect(workspace.program(MAIN)).toBeUndefined();
+    expect(workspace.program(DEPENDENCY)).toBeUndefined();
+    expect(workspace.publications).toEqual([]);
+    expect(workspace.notifications).toEqual([]);
+  });
+
+  it("decodes shared vocabulary in response order while discarding obsolete publication", async () => {
+    const workspace = new OrderingWorkspace();
+    const encoder = new ProgramTransportEncoder();
+    const layers = [{ name: "face" }];
+    const full = (version: number): CompileProgramResult => {
+      const result = response(version, "transport");
+      delete result.program.summary;
+      result.program.files = {
+        portrait: { attribute_vocabulary: { layers } },
+      } as unknown as SparkProgram["files"];
+      return { ...result, program: encoder.encode(result.program) };
+    };
+    await open(workspace);
+    const old = workspace.compile(MAIN, true);
+    await settle();
+    await edit(workspace);
+    const current = workspace.compile(MAIN, true);
+    await settle();
+    workspace.connection.compiles[0]!.resolve(full(1));
+    const obsolete = await old;
+    const publishedBeforeCurrent = workspace.publications.length;
+    workspace.connection.compiles[1]!.resolve(full(2));
+    const program = await current;
+    expect(publishedBeforeCurrent).toBe(0);
+    expect(obsolete).toBeUndefined();
+    expect(program?.files?.portrait?.attribute_vocabulary?.layers).toEqual(layers);
+    expect(workspace.program(MAIN)).toBe(program);
+    expect(workspace.publications).toEqual([program]);
+  });
+});

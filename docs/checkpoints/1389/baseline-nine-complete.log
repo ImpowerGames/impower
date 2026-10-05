@@ -1,0 +1,372 @@
+
+ RUN  v2.1.9 C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/refactor/1389-wasm-host-rollout/packages/sparkdown
+
+ ❯ src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts (6 tests | 6 failed) 22ms
+   × compiler analysis publication ordering > an old failure does not settle callers waiting for a newer result 11ms
+     → expected undefined to be { summary: true, …(4) } // Object.is equality
+   × compiler analysis publication ordering > same-version force compiles publish only the newer request 2ms
+     → expected { summary: true, …(4) } to be undefined
+   × compiler analysis publication ordering > restart settles the old session and same-version recreation rejects its old file result 2ms
+     → expected { summary: true, …(4) } to be undefined
+   × compiler analysis publication ordering > a newer-revision piggyback waits past an older successful response 3ms
+     → expected { summary: true, …(4) } to be { summary: true, …(4) } // Object.is equality
+   × compiler analysis publication ordering > deleting an included dependency invalidates a response even when the root version is unchanged 1ms
+     → expected { summary: true, …(4) } to be undefined
+   × compiler analysis publication ordering > decodes shared vocabulary in response order while discarding obsolete publication 1ms
+     → expected 1 to be +0 // Object.is equality
+ ❯ src/tests/compiler/workspaceAnalysisPublication.test.ts (3 tests | 2 failed) 14ms
+   × current compiler analysis publication > does not publish diagnostics captured before a document edit 8ms
+     → expected { summary: true, …(4) } to be undefined
+   × current compiler analysis publication > does not let an older response replace an already published newer result 1ms
+     → expected { summary: true, …(4) } to be undefined
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublication.test.ts > current compiler analysis publication > does not publish diagnostics captured before a document edit
+AssertionError: expected { summary: true, …(4) } to be undefined
+
+- Expected: 
+undefined
+
++ Received: 
+Object {
+  "diagnostics": Object {
+    "file://publication/main.sd": Array [
+      Object {
+        "code": "TypeMismatch",
+        "message": "Expected number, got string",
+        "range": Object {
+          "end": Object {
+            "character": 1,
+            "line": 0,
+          },
+          "start": Object {
+            "character": 0,
+            "line": 0,
+          },
+        },
+        "severity": 2,
+        "source": "sparkdown",
+      },
+    ],
+  },
+  "scripts": Object {
+    "file://publication/main.sd": 1,
+  },
+  "summary": true,
+  "uri": "file://publication/main.sd",
+  "version": 1,
+}
+
+ ❯ src/tests/compiler/workspaceAnalysisPublication.test.ts:106:29
+    104|     await edit(workspace);
+    105|     workspace.compiles[0]!.resolve(response(1));
+    106|     expect(await compiling).toBeUndefined();
+       |                             ^
+    107|     expect(workspace.program(MAIN)).toBeUndefined();
+    108|     expect(workspace.publications).toEqual([]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublication.test.ts > current compiler analysis publication > does not let an older response replace an already published newer result
+AssertionError: expected { summary: true, …(4) } to be undefined
+
+- Expected: 
+undefined
+
++ Received: 
+Object {
+  "diagnostics": Object {
+    "file://publication/main.sd": Array [
+      Object {
+        "code": "TypeMismatch",
+        "message": "Expected number, got string",
+        "range": Object {
+          "end": Object {
+            "character": 1,
+            "line": 0,
+          },
+          "start": Object {
+            "character": 0,
+            "line": 0,
+          },
+        },
+        "severity": 2,
+        "source": "sparkdown",
+      },
+    ],
+  },
+  "scripts": Object {
+    "file://publication/main.sd": 1,
+  },
+  "summary": true,
+  "uri": "file://publication/main.sd",
+  "version": 2,
+}
+
+ ❯ src/tests/compiler/workspaceAnalysisPublication.test.ts:125:30
+    123|     expect(current?.scripts[MAIN]).toBe(2);
+    124|     workspace.compiles[0]!.resolve(response(1));
+    125|     expect(await oldCompile).toBeUndefined();
+       |                              ^
+    126|     expect(workspace.program(MAIN)).toBe(current);
+    127|     expect(workspace.publications).toEqual([current]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts > compiler analysis publication ordering > an old failure does not settle callers waiting for a newer result
+AssertionError: expected undefined to be { summary: true, …(4) } // Object.is equality
+
+- Expected: 
+Object {
+  "diagnostics": Object {
+    "file://ordering/main.sd": Array [
+      Object {
+        "code": "TypeMismatch",
+        "message": "current",
+        "range": Object {
+          "end": Object {
+            "character": 1,
+            "line": 0,
+          },
+          "start": Object {
+            "character": 0,
+            "line": 0,
+          },
+        },
+        "severity": 2,
+        "source": "sparkdown",
+      },
+    ],
+  },
+  "scripts": Object {
+    "file://ordering/main.sd": 2,
+  },
+  "summary": true,
+  "uri": "file://ordering/main.sd",
+  "version": 1,
+}
+
++ Received: 
+undefined
+
+ ❯ src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts:113:26
+    111|     workspace.connection.compiles[1]!.resolve(response(2, "current"));
+    112|     const program = await current;
+    113|     expect(await waiter).toBe(program);
+       |                          ^
+    114|     expect(settledBeforeCurrent).toBe(false);
+    115|     expect(workspace.program(MAIN)).toBe(program);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts > compiler analysis publication ordering > same-version force compiles publish only the newer request
+AssertionError: expected { summary: true, …(4) } to be undefined
+
+- Expected: 
+undefined
+
++ Received: 
+Object {
+  "diagnostics": Object {
+    "file://ordering/main.sd": Array [
+      Object {
+        "code": "TypeMismatch",
+        "message": "old request",
+        "range": Object {
+          "end": Object {
+            "character": 1,
+            "line": 0,
+          },
+          "start": Object {
+            "character": 0,
+            "line": 0,
+          },
+        },
+        "severity": 2,
+        "source": "sparkdown",
+      },
+    ],
+  },
+  "scripts": Object {
+    "file://ordering/main.sd": 1,
+  },
+  "summary": true,
+  "uri": "file://ordering/main.sd",
+  "version": 2,
+}
+
+ ❯ src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts:129:23
+    127|     const program = await current;
+    128|     workspace.connection.compiles[0]!.resolve(response(1, "old request…
+    129|     expect(await old).toBeUndefined();
+       |                       ^
+    130|     expect(workspace.program(MAIN)).toBe(program);
+    131|     expect(workspace.publications).toEqual([program]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts > compiler analysis publication ordering > restart settles the old session and same-version recreation rejects its old file result
+AssertionError: expected { summary: true, …(4) } to be undefined
+
+- Expected: 
+undefined
+
++ Received: 
+Object {
+  "diagnostics": Object {
+    "file://ordering/main.sd": Array [
+      Object {
+        "code": "TypeMismatch",
+        "message": "deleted file",
+        "range": Object {
+          "end": Object {
+            "character": 1,
+            "line": 0,
+          },
+          "start": Object {
+            "character": 0,
+            "line": 0,
+          },
+        },
+        "severity": 2,
+        "source": "sparkdown",
+      },
+    ],
+  },
+  "scripts": Object {
+    "file://ordering/main.sd": 1,
+  },
+  "summary": true,
+  "uri": "file://ordering/main.sd",
+  "version": 2,
+}
+
+ ❯ src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts:157:29
+    155|     const publicationCount = workspace.publications.length;
+    156|     workspace.connection.compiles[1]!.resolve(response(1, "deleted fil…
+    157|     expect(await priorFile).toBeUndefined();
+       |                             ^
+    158|     expect(workspace.program(MAIN)).toBe(program);
+    159|     expect(workspace.publications).toHaveLength(publicationCount);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts > compiler analysis publication ordering > a newer-revision piggyback waits past an older successful response
+AssertionError: expected { summary: true, …(4) } to be { summary: true, …(4) } // Object.is equality
+
+- Expected
++ Received
+
+  Object {
+    "diagnostics": Object {
+      "file://ordering/main.sd": Array [
+        Object {
+          "code": "TypeMismatch",
+-         "message": "current",
++         "message": "old",
+          "range": Object {
+            "end": Object {
+              "character": 1,
+              "line": 0,
+            },
+            "start": Object {
+              "character": 0,
+              "line": 0,
+            },
+          },
+          "severity": 2,
+          "source": "sparkdown",
+        },
+      ],
+    },
+    "scripts": Object {
+-     "file://ordering/main.sd": 2,
++     "file://ordering/main.sd": 1,
+    },
+    "summary": true,
+    "uri": "file://ordering/main.sd",
+-   "version": 2,
++   "version": 1,
+  }
+
+ ❯ src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts:181:26
+    179|     workspace.connection.compiles[1]!.resolve(response(2, "current"));
+    180|     const program = await current;
+    181|     expect(await waiter).toBe(program);
+       |                          ^
+    182|     expect(settledBeforeCurrent).toBe(false);
+    183|     expect(workspace.program(MAIN)).toBe(program);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts > compiler analysis publication ordering > deleting an included dependency invalidates a response even when the root version is unchanged
+AssertionError: expected { summary: true, …(4) } to be undefined
+
+- Expected: 
+undefined
+
++ Received: 
+Object {
+  "diagnostics": Object {
+    "file://ordering/main.sd": Array [
+      Object {
+        "code": "TypeMismatch",
+        "message": "deleted dependency",
+        "range": Object {
+          "end": Object {
+            "character": 1,
+            "line": 0,
+          },
+          "start": Object {
+            "character": 0,
+            "line": 0,
+          },
+        },
+        "severity": 2,
+        "source": "sparkdown",
+      },
+    ],
+  },
+  "scripts": Object {
+    "file://ordering/library.sd": 1,
+    "file://ordering/main.sd": 1,
+  },
+  "summary": true,
+  "uri": "file://ordering/main.sd",
+  "version": 1,
+}
+
+ ❯ src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts:198:29
+    196|       [MAIN]: 1, [DEPENDENCY]: 1,
+    197|     }));
+    198|     expect(await compiling).toBeUndefined();
+       |                             ^
+    199|     expect(workspace.program(MAIN)).toBeUndefined();
+    200|     expect(workspace.program(DEPENDENCY)).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts > compiler analysis publication ordering > decodes shared vocabulary in response order while discarding obsolete publication
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ src/tests/compiler/workspaceAnalysisPublicationOrdering.test.ts:228:36
+    226|     workspace.connection.compiles[1]!.resolve(full(2));
+    227|     const program = await current;
+    228|     expect(publishedBeforeCurrent).toBe(0);
+       |                                    ^
+    229|     expect(obsolete).toBeUndefined();
+    230|     expect(program?.files?.portrait?.attribute_vocabulary?.layers).toE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+ Test Files  2 failed (2)
+      Tests  8 failed | 1 passed (9)
+   Start at  19:32:22
+   Duration  1.42s (transform 288ms, setup 0ms, collect 756ms, tests 37ms, environment 0ms, prepare 224ms)
