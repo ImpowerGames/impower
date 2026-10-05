@@ -188,7 +188,7 @@ fnB() -- prints "false", "nil"
 });
 
 // Luau: LocalShadowLocal
-describe.skip("a local redeclared in the same scope (not implemented: LocalShadow)", () => {
+describe("a local redeclared in the same scope", () => {
   test("local arg twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -204,7 +204,7 @@ print(arg)
 
 // Luau: LocalShadowGlobal
 // Shadowing itself is covered as behavior in LocalShadowsGlobal.test.ts.
-describe.skip("a local named like a global in use (not implemented: LocalShadow)", () => {
+describe("a local named like a global in use", () => {
   test("local global inside bar", () => {
     expect(
       lintMessagesInFunction(`
@@ -223,7 +223,7 @@ return bar()
 });
 
 // Luau: LocalShadowArgument
-describe.skip("a local named like a parameter (not implemented: LocalShadow)", () => {
+describe("a local named like a parameter", () => {
   test("local a inside bar(a, b)", () => {
     expect(
       lintMessagesInFunction(`

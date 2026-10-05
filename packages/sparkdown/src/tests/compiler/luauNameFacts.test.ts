@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { NodeType, Tree, TreeBuffer } from "@lezer/common";
 import * as lint from "../../compiler/lint/collectLuauLints";
-import { AstExprFunction, AstExprLocal, AstStatFor, AstStatForIn, AstStatLocal, AstStatLocalFunction, visitAst } from "../../compiler/typecheck/Ast";
+import { collectNameFacts, hasNameExpression } from "../../compiler/lint/luauNames";
+import { AstExprError, AstExprFunction, AstExprGlobal, AstExprLocal, AstStatFor, AstStatForIn, AstStatLocal, AstStatLocalFunction, visitAst } from "../../compiler/typecheck/Ast";
+import { readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
 import { readDocumentUnits } from "../../compiler/typecheck/LuauDocumentChecker";
 import { getParser } from "./grammarSnapshot";
 import { testCompiler } from "../engineUnderTest";
@@ -44,6 +46,158 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
+  test("a bare recovery placeholder does not own syntax while its real const-target child does", () => {
+    const malformed = "0xg";
+    const reading = readLuauExpressionAfter(0, malformed);
+    expect(reading.errors.map(error => error.message)).toEqual(["Malformed number"]);
+    expect(reading.expr instanceof AstExprError).toBe(true);
+    expect((reading.expr as AstExprError).expressions).toEqual([]);
+    const offsets = { range: (location: { begin: { column: number }; end: { column: number } }) => ({ from: location.begin.column, to: location.end.column }) };
+    const bare = collectNameFacts([{ root: reading.expr, offsets }], malformed);
+    expect(hasNameExpression(bare, 0, malformed.length)).toBe(false);
+    expect(bare.references).toEqual([]);
+
+    const source = "function inspect899() const target = 1; target = 2; return target end\n";
+    const value = script(source);
+    const unit = readDocumentUnits(value.tree, source).prelude;
+    expect(unit.errors.map(error => error.message)).toContain("Variable 'target' is constant and may not be reassigned");
+    let target: AstExprError | undefined;
+    visitAst(unit.root, {
+      visit(node) {
+        if (node instanceof AstExprError && node.expressions[0] instanceof AstExprLocal) target = node;
+        return true;
+      },
+    });
+    expect(target).toBeDefined();
+    expect(target!.expressions).toHaveLength(1);
+    const child = target!.expressions[0] as AstExprLocal;
+    expect(child.local.isConst).toBe(true);
+    expect(child.location.equals(target!.location)).toBe(true);
+    const range = offsets.range(target!.location);
+    const owned = collectNameFacts([{ root: target!, offsets }], source);
+    expect(hasNameExpression(owned, range.from, range.to)).toBe(true);
+    expect(owned.references[0]!.node).toBe(child);
+    const write = names(value).references.find((reference: any) => reference.from === source.indexOf("target = 2"));
+    expect(write).toMatchObject({ name: "target", access: "write" });
+    expect(write.node).toBe(child);
+  });
+
+  test.each([
+    ["initializer reads the previous parameter", 'function inspect899(value)\n local value = `{plural(value)|one="a"|other="b"}`\n return value\nend\n', ["parameter"]],
+    ["block local ends before the next selector", 'function inspect899(value)\n do local value = 2; print(`{plural(value)|one="a"|other="b"}`) end\n return `{plural(value)|one="a"|other="b"}`\nend\n', ["local", "parameter"]],
+    ["loop parameter belongs only to its body", 'function inspect899(value)\n for value = 1, 2 do print(`{plural(value)|one="a"|other="b"}`) end\n return `{plural(value)|one="a"|other="b"}`\nend\n', ["loop", "parameter"]],
+    ["repeat local remains visible through until only", 'function inspect899(value)\n repeat\n  local value = 2\n until `{plural(value)|one="a"|other="b"}` == "a"\n return `{plural(value)|one="a"|other="b"}`\nend\n', ["local", "parameter"]],
+    ["sibling closures keep distinct parameters", 'function inspect899()\n consume(function(value) return `{plural(value)|one="a"|other="b"}` end)\n consume(function(value) return `{plural(value)|one="a"|other="b"}` end)\nend\n', ["parameter", "parameter"]],
+  ] as const)("opaque selectors: %s", (_label, source, kinds) => {
+    const value = script(source);
+    const unit = readDocumentUnits(value.tree, source).prelude;
+    expect(unit.errors).toEqual([]);
+    const originalLocals = new Set();
+    visitAst(unit.root, {
+      visit(node) {
+        if (node instanceof AstExprFunction) for (const local of node.args) originalLocals.add(local);
+        if (node instanceof AstStatLocal) for (const local of node.vars) originalLocals.add(local);
+        if (node instanceof AstStatFor) originalLocals.add(node.variable);
+        if (node instanceof AstStatForIn) for (const local of node.vars) originalLocals.add(local);
+        return true;
+      },
+    });
+    const facts = names(value);
+    const declared = facts.declarations.filter((d: any) => d.name === "value");
+    const positions = [...source.matchAll(/plural\(value\)/g)].map(match => match.index! + 7);
+    expect(positions).toHaveLength(kinds.length);
+    const parameters = declared.filter((d: any) => d.kind === "parameter");
+    for (const [i, from] of positions.entries()) {
+      const expected = parameters.length === 2 ? parameters[i] : declared.find((d: any) => d.kind === kinds[i]);
+      expect(expected).toBeDefined();
+      expect(originalLocals.has(expected.local)).toBe(true);
+      const reference = facts.references.find((r: any) => r.name === "value" && r.from === from);
+      expect(reference).toBeDefined();
+      expect(reference.local).toBe(expected.local);
+      expect(reference.node instanceof AstExprLocal).toBe(true);
+      expect(expected.local.functionDepth).toBe(expected.enclosingFunction.functionDepth);
+    }
+    if (parameters.length === 2) expect(parameters[0].local).not.toBe(parameters[1].local);
+    expect(lint.indexProgramNames([{ uri: "lexical", names: facts }]).globals.has("value")).toBe(false);
+  });
+
+  test("the corpus plural selectors retain the original parameter through opaque alternators", () => {
+    const source = 'function count_geese(n: number)\n  return `There {plural(n)|one="is"|other="are"} {n} {plural(n)|one="goose"|other="geese"}.`\nend\n';
+    const value = script(source);
+    const unit = readDocumentUnits(value.tree, source).prelude;
+    expect(unit.errors).toEqual([]);
+    const facts = names(value);
+    const declaration = facts.declarations.find((d: any) => d.name === "n" && d.kind === "parameter");
+    expect(declaration).toBeDefined();
+    const original = facts.functions.find((f: any) => f.name === "count_geese");
+    expect(declaration.local).toBe(original.function.args[0]);
+    const positions = [source.indexOf("plural(n)") + 7, source.indexOf("{n}") + 1, source.lastIndexOf("plural(n)") + 7];
+    for (const from of positions) {
+      const reference = facts.references.find((r: any) => r.name === "n" && r.from === from);
+      expect(reference).toBeDefined();
+      expect(reference.local).toBe(declaration.local);
+      expect(reference.node instanceof AstExprLocal).toBe(true);
+    }
+    expect(lint.indexProgramNames([{ uri: "corpus", names: facts }]).globals.has("n")).toBe(false);
+  });
+
+  test.each([
+    ["scene parameter", "scene inspect899(value)\n Value: {value}.\n & print(value)\nend\n", "parameter"],
+    ["backtick parameter", "function inspect899(value)\n print(value)\n return `Value: {value}.`\nend\n", "parameter"],
+    ["nested capture", "function inspect899(value)\n print(value)\n local callback = function() return `Value: {value}.` end\n return callback()\nend\n", "parameter"],
+    ["backtick shadowing local", "function inspect899(value)\n local value = 2\n print(value)\n return `Value: {value}.`\nend\n", "local"],
+    ["scene shadowing local", "scene inspect899(value)\n & local value = 2\n & print(value)\n Value: {value}.\nend\n", "local"],
+  ])("%s interpolation preserves the original lexical binding and exact authored range", (_label, source, kind) => {
+    const value = script(source);
+    const units = readDocumentUnits(value.tree, source);
+    expect(units.prelude.errors).toEqual([]);
+    expect(units.flows.flatMap(unit => unit.errors)).toEqual([]);
+    const facts = names(value);
+    const declared = facts.declarations.filter((d: any) => d.name === "value" && d.kind === kind);
+    expect(declared).toHaveLength(1);
+    const originalLocals = new Set();
+    for (const unit of [units.prelude, ...units.flows]) visitAst(unit.root, {
+      visit(node) {
+        if (node instanceof AstExprFunction) for (const local of node.args) originalLocals.add(local);
+        if (node instanceof AstStatLocal) for (const local of node.vars) originalLocals.add(local);
+        return true;
+      },
+    });
+    expect(originalLocals.has(declared[0].local)).toBe(true);
+    const from = source.indexOf("{value}") + 1;
+    const uses = facts.references.filter((r: any) => r.name === "value" && r.from === from);
+    expect(uses).toHaveLength(1);
+    expect(uses[0]).toMatchObject({ from, to: from + 5, access: "read" });
+    expect(uses[0].local).toBe(declared[0].local);
+    expect(uses[0].node instanceof AstExprLocal).toBe(true);
+    expect(uses[0].node.local).toBe(declared[0].local);
+    expect(facts.references.filter((r: any) => r.name === "value").every((r: any) => r.local)).toBe(true);
+    const index = lint.indexProgramNames([{ uri: "lexical", names: facts }]);
+    expect(index.globals.has("value")).toBe(false);
+    const expanded = lint.collectLuauLints(unpack(value.tree), (from, to) => source.slice(from, to));
+    const expandedDecl = expanded.names.declarations.find(d => d.name === "value" && d.kind === kind)!;
+    const expandedUse = expanded.names.references.find(r => r.from === from)!;
+    expect(expandedUse.local).toBe(expandedDecl.local);
+    expect(expandedUse.node instanceof AstExprLocal).toBe(true);
+  });
+
+  test("a true external narrative read and write remain global beside a scoped scene parameter", () => {
+    const source = "scene inspect899(value)\n Value: {value}.\n & print(value)\nend\nOutside: {value}.\n& value = 7\n";
+    const value = script(source);
+    const units = readDocumentUnits(value.tree, source);
+    expect(units.prelude.errors).toEqual([]);
+    expect(units.flows.flatMap(unit => unit.errors)).toEqual([]);
+    const facts = names(value);
+    const index = lint.indexProgramNames([{ uri: "lexical", names: facts }]);
+    const global = index.globals.get("value")!;
+    expect(global).toBeDefined();
+    expect(global.reads.map(r => r.from)).toEqual([source.lastIndexOf("{value}") + 1]);
+    expect(global.writes.map(r => r.from)).toEqual([source.lastIndexOf("value")]);
+    const parameter = facts.declarations.find((d: any) => d.name === "value" && d.kind === "parameter");
+    expect(parameter).toBeDefined();
+    expect(facts.references.find((r: any) => r.from === source.indexOf("{value}") + 1).local).toBe(parameter.local);
+  });
+
   test.each([
     ["style", "function inspect() local style = {}; setStyle(style) end\n"],
     ["layout", "function inspect() local layout = {}; return layout.x end\n"],
@@ -306,6 +460,7 @@ describe("shared AST name facts", () => {
     ["interpolation", "Hi {target()}.\n"],
     ["bare interpolation", "Hi {target}.\n"],
     ["call shorthand", "Hi {{target()}}.\n"],
+    ["bare Sparkle handler", "layout main with\n button @click=target\nend\n"],
     ["Sparkle handler", "layout main with\n button @click=target()\nend\n"],
     ["Sparkle closure", "layout main with\n button @click={ target() }\nend\n"],
   ])("indexes uses from %s across scripts", (_label, source) => {
@@ -315,6 +470,37 @@ describe("shared AST name facts", () => {
     const index = (lint as any).indexProgramNames([{ uri: "definition", names: definition }, { uri: "use", names: use }]);
     expect(index.globals.get("target").reads.some((r: any) => r.uri === "use")).toBe(true);
     expect(index.globals.get("target").definitions[0].uri).toBe("definition");
+  });
+
+  test.each([
+    ["bare", "button @click=target"],
+    ["call", "button @click=target()"],
+    ["closure", "button @click={ target() }"],
+    ["bare with a comment", "button @click=target -- ignored"],
+    ["bare before a label", "button @click=target \"ignored\""],
+    ["bare before another attribute", "button @click=target #label=\"ignored\""],
+  ])("a %s handler publishes the exact original global expression", (_label, line) => {
+    const source = `layout main with\n ${line}\nend\n`;
+    const value = script(source);
+    expect(readDocumentUnits(value.tree, source).prelude.errors).toEqual([]);
+    const references = value.result.names.references;
+    expect(references.map(r => r.name)).toEqual(["target"]);
+    const reference = references[0]!;
+    expect(reference.access).toBe("read");
+    expect(reference.local).toBeUndefined();
+    expect(reference.enclosingFunction).toBeUndefined();
+    expect(reference.from).toBe(source.indexOf("target"));
+    expect(reference.to).toBe(source.indexOf("target") + "target".length);
+    expect(reference.node).toBeInstanceOf(AstExprGlobal);
+    const original = new Set();
+    for (const { root } of value.result.roots) visitAst(root, { visit(node) { original.add(node); return true; } });
+    expect(original.has(reference.node)).toBe(true);
+    const index = lint.indexProgramNames([{ uri: "handler", names: value.result.names }]);
+    expect(index.globals.get("target")!.reads[0]!.node).toBe(reference.node);
+    const expanded = lint.collectLuauLints(unpack(value.tree), (from, to) => source.slice(from, to));
+    expect(expanded.names.references.map(r => ({ name: r.name, access: r.access, from: r.from, to: r.to }))).toEqual([
+      { name: "target", access: "read", from: reference.from, to: reference.to },
+    ]);
   });
 
   test("reuses unchanged tree facts and removes changed or removed script uses on recombination", () => {

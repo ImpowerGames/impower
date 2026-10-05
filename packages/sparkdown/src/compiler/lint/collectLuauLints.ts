@@ -83,7 +83,7 @@ import { NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typ
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
-import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type NameRoot } from "./luauNames";
+import { collectNameFacts, hasNameExpression, nameContextAt, isAuthoredLuauName, type LuauNameContext, type LuauNameDeclaration, type LuauNameFacts, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
 /** The rules, by the name each warning carries as its diagnostic code. */
@@ -95,6 +95,7 @@ export const LUAU_LINT_CODES = [
   "PlaceholderRead",
   "SameLineStatement",
   "MultiLineStatement",
+  "LocalShadow",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -110,6 +111,41 @@ export interface LuauScriptLints {
   lints: LuauLint[];
   names: LuauNameFacts;
   roots: NameRoot[];
+  /** Used locals with no runtime local to shadow; globals are resolved per program. */
+  globalShadows: LuauNameDeclaration[];
+}
+
+/** Binding identity is already resolved by the converter/shared facts. An
+ * uncertain keyword occurrence is never evidence that a local was read. */
+function lintLocalShadows(names: LuauNameFacts, complete: Set<AstExprFunction>, starts: readonly number[], out: LuauLint[]): LuauNameDeclaration[] {
+  const declarations = new Map(names.declarations.map(declaration => [declaration.local, declaration]));
+  const used = new Set(names.references.filter(reference => reference.local && reference.access !== "write").map(reference => reference.local!));
+  const globals: LuauNameDeclaration[] = [];
+  const line = (offset: number) => {
+    let low = 0, high = starts.length;
+    while (low + 1 < high) {
+      const middle = (low + high) >>> 1;
+      if (starts[middle]! <= offset) low = middle;
+      else high = middle;
+    }
+    return low + 1;
+  };
+  for (const declaration of names.declarations) {
+    const { local } = declaration;
+    if (local.name.startsWith("_") || !used.has(local) || declaration.scope?.hasEnd === false) continue;
+    if (declaration.enclosingFunction && !complete.has(declaration.enclosingFunction)) continue;
+    // A const has a checking-only binding. Follow it to the runtime local,
+    // as collectNameFacts does for references; never report that const itself.
+    let shadow = local.shadow;
+    while (shadow?.isConst) shadow = shadow.shadow;
+    if (shadow) {
+      const previous = declarations.get(shadow);
+      // Synthetic flow wrappers are absent from authored declarations.
+      if (!previous || shadow.functionDepth !== local.functionDepth) continue;
+      out.push({ code: "LocalShadow", from: declaration.from, to: declaration.to, message: `Variable '${local.name}' shadows previous declaration at line ${line(previous.from)}` });
+    } else globals.push(declaration);
+  }
+  return globals;
 }
 
 /** The offset of each line of a document. */
@@ -184,7 +220,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
 // Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure", "LuauSparkleEventHandlerName"]);
 const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 
 /** Relevant nodes in Lezer's public packed representation. Avoid constructing
@@ -306,6 +342,7 @@ interface OutsideReading {
   errors: readonly { location: Location }[];
   /** Whether `expr` is the function written around statements, not one the author wrote. */
   statements: boolean;
+  context?: LuauNameContext;
 }
 
 /**
@@ -320,7 +357,7 @@ interface OutsideReading {
  * statement as the body of a function (`readLuauStatements`), located in
  * the document's lines; one inside another that reads it is not read again.
  */
-function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauAstUnit[]): OutsideReading[] {
+function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauAstUnit[], names: LuauNameFacts, roots: NameRoot[], offsets: Offsets): OutsideReading[] {
   const key = (node: { name: string; from: number; to: number }) => `${node.from}:${node.to}:${node.name}`;
   const statementNodes = new Set(units.flatMap((unit) => unit.statements.flatMap((source) => source.nodes.map(key))));
   /** The nearest node above `node` that a unit's reading passes over, or null when a unit's statement reads it. */
@@ -332,11 +369,12 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
     return undefined;
   };
   interface Reading {
+    node: SyntaxNode;
     from: number;
     to: number;
     /** Where the nearest node above it that the reading passes over begins; -1 at the top of the document. */
     context: number;
-    read: () => OutsideReading;
+    read: (context?: LuauNameContext) => OutsideReading;
   }
   const readings: Reading[] = [];
   for (const node of nodes) {
@@ -346,17 +384,17 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       if (above === null) continue;
       const context = above ? above.from : -1;
       if (node.name === "LuauMethodDefinition") {
-        readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauMethod(node, text), statements: false }) });
+        readings.push({ node, from: node.from, to: node.to, context, read: (scope) => ({ ...readLuauMethod(node, text, scope), statements: false }) });
       } else if (node.name === "LuauSparkleHandlerClosure") {
         const content = node.getChild("LuauSparkleHandlerClosure_content");
-        if (content) readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([content], text), statements: true }) });
+        if (content) readings.push({ node, from: node.from, to: node.to, context, read: (scope) => ({ ...readLuauStatements([content], text, scope), statements: true }) });
       } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
-        readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([node], text), statements: true }) });
+        readings.push({ node, from: node.from, to: node.to, context, read: (scope) => ({ ...readLuauStatements([node], text, scope), statements: true }) });
       } else {
         const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
-        readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false }) });
+        readings.push({ node, from: first.from, to: last.to, context, read: (scope) => ({ ...readLuauExpression(parts, text, scope), statements: false }) });
       }
   }
   // Outermost first; a reading inside another is part of it, unless a node
@@ -367,7 +405,30 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
     const inside = kept.some((outer) => outer.from <= reading.from && reading.to <= outer.to && reading.context <= outer.from);
     if (!inside) kept.push(reading);
   }
-  return kept.map((reading) => reading.read());
+  const outside: OutsideReading[] = [];
+  const sources = new Map(units.flatMap(unit => unit.statements.flatMap(source => source.nodes.map(node => [key(node), unit] as const))));
+  for (const reading of kept) {
+    // The original unit already parsed this expression with its real locals.
+    // An opaque syntax wrapper is not permission to parse it again as global.
+    if (hasNameExpression(names, reading.from, reading.to)) continue;
+    let owner: LuauAstUnit | undefined;
+    for (let node: SyntaxNode | null = reading.node; node && !owner; node = node.parent) owner = sources.get(key(node));
+    if (!owner) owner = units.find((unit, i) => {
+      if (!unit.header) return false;
+      const end = roots[i]!.offsets.range(unit.root.location).to;
+      return unit.header.from <= reading.from && reading.to <= end;
+    });
+    const context = nameContextAt(names, reading.from, reading.to, owner?.root);
+    const result = { ...reading.read(context), context };
+    outside.push(result);
+    const wrapper = result.statements && result.expr instanceof AstExprFunction ? result.expr : undefined;
+    const root: NameRoot = { root: wrapper ? wrapper.body : result.expr, offsets, syntheticFunction: context?.syntheticFunction, context: wrapper ? { ...context, locals: context?.locals ?? [], functionDepth: wrapper.functionDepth, vararg: wrapper.vararg, function: wrapper } : context };
+    roots.push(root);
+    collectNameFacts([root], text, names);
+  }
+  names.references.sort((a, b) => a.from - b.from || a.to - b.to);
+  names.globals.sort((a, b) => a.from - b.from || a.to - b.to);
+  return outside;
 }
 
 /** The offsets of the `if` that begins each of Sparkdown's narrative `if` blocks. */
@@ -462,7 +523,7 @@ function lintUnreachable(fn: AstExprFunction, offsets: Offsets, out: LuauLint[])
 // (`keywordWords`, #984), and a use is never missed. A type name or such a
 // word names the local of that name whose scope it stands in, the one
 // declared last, as Luau binds a name.
-function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[]): void {
+function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], complete: Set<AstExprFunction>): void {
   const declared: AstLocal[] = [];
   const used = new Set<AstLocal>();
   const typeNames: { name: string; at: number }[] = [];
@@ -484,7 +545,12 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
     visit(node) {
       if (node instanceof AstStatBlock) blocks.push({ block: node, from: offsets.of(node.location.begin), to: offsets.of(node.location.end) });
       if (node instanceof AstStatRepeat) repeatEnds.set(node.body, offsets.of(node.location.end));
-      if (node instanceof AstExprFunction) bindBody([...(node.self ? [node.self] : []), ...node.args], node.body);
+      if (node instanceof AstExprFunction) {
+        // The outermost function was already read to every block's end. This
+        // existing traversal also reaches its complete authored inner functions.
+        complete.add(node);
+        bindBody([...(node.self ? [node.self] : []), ...node.args], node.body);
+      }
       else if (node instanceof AstStatFor) bindBody([node.variable], node.body);
       else if (node instanceof AstStatForIn) bindBody(node.vars, node.body);
       // A local function's name is in scope from its body, after its signature, as Luau binds it.
@@ -862,7 +928,7 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 }
 
 // ---------------------------------------------------------------------------
-const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[] }>();
+const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; shadows?: { lints: LuauLint[]; globals: LuauNameDeclaration[] } }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
@@ -871,7 +937,6 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   let facts = documentFacts.get(tree);
   if (!facts) {
     const nodes = lintSyntaxNodes(tree, text);
-    const outside = expressionsOutsideUnits(nodes, text, [units.prelude, ...units.flows]);
     const roots: NameRoot[] = [units.prelude, ...units.flows].map((unit) => ({
       root: unit.root,
       offsets: new Offsets(starts, unit.lines),
@@ -879,19 +944,21 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       // Carry that exact node; an authored function with the same name is real.
       syntheticFunction: unit.kind === "flow" && unit.root.body[0] instanceof AstStatLocalFunction ? unit.root.body[0] : undefined,
     }));
-    roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined) })));
     const names = collectNameFacts(roots, text);
+    const outside = expressionsOutsideUnits(nodes, text, [units.prelude, ...units.flows], names, roots, new Offsets(starts, undefined));
     names.uncertainNames = uncertainNames(nodes, text, names);
     facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
   const out: LuauLint[] = [];
+  const complete = new Set<AstExprFunction>();
   // Separate AST readings can share a document line (two interpolations).
   const sameLines = new Set<number>();
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
     for (const fn of functions) {
-      lintUnusedLocals(fn, tree, text, offsets, out);
+      complete.add(fn);
+      lintUnusedLocals(fn, tree, text, offsets, out, complete);
       lintPlaceholderReads(fn, offsets, out);
       lintUnreachable(fn, offsets, out);
     }
@@ -916,5 +983,11 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
-  return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to), names: facts.names, roots: facts.roots };
+  if (!facts.shadows) {
+    const lints: LuauLint[] = [];
+    facts.shadows = { lints, globals: lintLocalShadows(facts.names, complete, starts, lints) };
+  }
+  out.push(...facts.shadows.lints);
+  const globalShadows = facts.shadows.globals;
+  return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to), names: facts.names, roots: facts.roots, globalShadows };
 }

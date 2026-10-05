@@ -2,10 +2,11 @@ import {
   AstExpr, AstExprError, AstExprFunction, AstExprGlobal, AstExprIndexName, AstExprLocal,
   AstStatBlock, getFunctionNameAsString,
   AstStatAssign, AstStatCompoundAssign, AstStatFor, AstStatForIn,
-  AstStatFunction, AstStatLocal, AstStatLocalFunction, AstStatSparkdownStore, visitAst,
+  AstStatFunction, AstStatLocal, AstStatLocalFunction, AstStatRepeat, AstStatSparkdownStore, visitAst,
   type AstLocal, type AstNode,
 } from "../typecheck/Ast";
 import type { Location } from "../typecheck/Location";
+import type { LuauExpressionContext } from "../typecheck/readLuauAst";
 
 export interface NameRange { from: number; to: number }
 export interface LuauNameReference extends NameRange {
@@ -65,6 +66,60 @@ export interface NameRoot {
   offsets: { range(location: Location): NameRange };
   /** The converter's flow wrapper, identified by unit provenance, never by name. */
   syntheticFunction?: AstStatLocalFunction;
+  context?: LuauNameContext;
+}
+
+export interface LuauNameContext extends LuauExpressionContext {
+  /** Includes a checking/handler wrapper whose function depth still matters. */
+  function?: AstExprFunction;
+  enclosingFunction?: AstExprFunction;
+  scope?: AstStatBlock;
+  syntheticFunction?: AstStatLocalFunction;
+}
+
+interface LexicalScope extends NameRange {
+  node: AstStatBlock;
+  root: AstNode;
+  parent?: LexicalScope;
+  depth: number;
+  function?: AstExprFunction;
+  enclosingFunction?: AstExprFunction;
+  syntheticFunction?: AstStatLocalFunction;
+}
+interface ContextBinding { local: AstLocal; available: number }
+interface NameState {
+  seen: Set<AstNode>;
+  locals: Set<AstLocal>;
+  scopes: Map<AstStatBlock, LexicalScope>;
+  bindings: Map<AstStatBlock, ContextBinding[]>;
+  expressions: Set<string>;
+}
+const nameStates = new WeakMap<LuauNameFacts, NameState>();
+
+/** An already read unit expression owns its syntax even below opaque grammar wrappers. */
+export function hasNameExpression(facts: LuauNameFacts, from: number, to: number): boolean {
+  return nameStates.get(facts)?.expressions.has(`${from}:${to}`) ?? false;
+}
+
+/** Resolve through actual block ancestry, not a flat name/range overlap map. */
+export function nameContextAt(facts: LuauNameFacts, from: number, to: number, root?: AstNode): LuauNameContext | undefined {
+  const state = nameStates.get(facts);
+  if (!state) return undefined;
+  let selected: LexicalScope | undefined;
+  let ambiguous = false;
+  for (const scope of state.scopes.values()) {
+    if ((root && scope.root !== root) || scope.from > from || scope.to < to) continue;
+    if (!selected || scope.depth > selected.depth) { selected = scope; ambiguous = false; }
+    else if (scope !== selected && scope.depth === selected.depth) ambiguous = true;
+  }
+  if (!selected || ambiguous) return undefined;
+  const bindings = new Map<string, AstLocal>();
+  const chain: LexicalScope[] = [];
+  for (let scope: LexicalScope | undefined = selected; scope; scope = scope.parent) chain.push(scope);
+  for (const scope of chain.reverse()) for (const binding of state.bindings.get(scope.node) ?? []) {
+    if (binding.available <= from) bindings.set(binding.local.name, binding.local);
+  }
+  return { locals: [...bindings.values()], function: selected.function, functionDepth: selected.function?.functionDepth ?? 0, vararg: selected.function?.vararg ?? true, enclosingFunction: selected.enclosingFunction, scope: selected.node, syntheticFunction: selected.syntheticFunction };
 }
 
 /** Missing identifiers have this recovery name in the converter, never in authored code. */
@@ -75,13 +130,23 @@ export function isAuthoredLuauName(name: string): boolean {
 /** Names over the existing converter AST. The walk classifies assignment
  * targets without treating their receivers/indexes as written, and keeps
  * AstLocal identity rather than resolving names with another scope reader. */
-export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts {
-  const facts: LuauNameFacts = { declarations: [], references: [], globals: [], functions: [], uncertainNames: [] };
-  const seen = new Set<AstNode>();
-  const locals = new Set<AstLocal>();
-  for (const { root, offsets, syntheticFunction } of roots) {
-    let enclosingFunction: AstExprFunction | undefined;
-    let scope: AstStatBlock | undefined;
+export function collectNameFacts(roots: NameRoot[], text: string, into?: LuauNameFacts): LuauNameFacts {
+  const facts: LuauNameFacts = into ?? { declarations: [], references: [], globals: [], functions: [], uncertainNames: [] };
+  const state: NameState = nameStates.get(facts) ?? { seen: new Set(), locals: new Set(), scopes: new Map(), bindings: new Map(), expressions: new Set() };
+  nameStates.set(facts, state);
+  const { seen, locals } = state;
+  for (const { root, offsets, syntheticFunction, context } of roots) {
+    let enclosingFunction = context?.enclosingFunction;
+    let actualFunction: AstExprFunction | undefined = context?.function;
+    let scope = context?.scope;
+    let lexical = scope ? state.scopes.get(scope) : undefined;
+    const repeatEnds = new Map<AstStatBlock, number>();
+    const addBinding = (local: AstLocal, owner: AstStatBlock | undefined, available: number) => {
+      if (!owner) return;
+      let list = state.bindings.get(owner);
+      if (!list) state.bindings.set(owner, list = []);
+      list.push({ local, available });
+    };
     // A flow's checking wrapper has no runtime binding. Keep the original
     // expression node while classifying accesses to that exact binding as
     // globals; a real authored local of the same spelling remains local.
@@ -96,6 +161,11 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
       if (!isAuthoredLuauName(local.name)) return;
       if (locals.has(local)) return;
       locals.add(local);
+      // Locals become visible after their initializer; a recursive local
+      // function becomes visible in its body, after signature annotations.
+      const available = kind === "parameter" || kind === "loop" ? offsets.range(declarationScope!.location).from
+        : kind === "function" && fn ? offsets.range(fn.body.location).from : offsets.range((stat ?? fn ?? root).location).to;
+      addBinding(local, declarationScope, available);
       if (local.isConst) facts.globals.push({ name: local.name, kind: "const", ...offsets.range(local.location), node: stat ?? fn ?? root, enclosingFunction, function: fn, scope: declarationScope });
       else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope });
     };
@@ -124,15 +194,31 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
       visit(node: AstNode): boolean {
         if (seen.has(node)) return false;
         seen.add(node);
+        // A recovery placeholder does not prove the syntax was read. Its
+        // actual expression children still certify their own ranges below.
+        if (node instanceof AstExpr && !(node instanceof AstExprError)) {
+          const range = offsets.range(node.location);
+          state.expressions.add(`${range.from}:${range.to}`);
+        }
+        // Unlike other blocks, repeat's locals also bind its until condition.
+        // The original repeat AST owns this extension, not an overlapping block.
+        if (node instanceof AstStatRepeat) repeatEnds.set(node.body, offsets.range(node.location).to);
         if (node instanceof AstStatBlock) {
           const outer = scope;
+          const parent = lexical;
           scope = node;
+          lexical = { node, root: parent?.root ?? root, parent, depth: (parent?.depth ?? 0) + 1, function: actualFunction, enclosingFunction, syntheticFunction, ...offsets.range(node.location) };
+          lexical.to = repeatEnds.get(node) ?? lexical.to;
+          state.scopes.set(node, lexical);
           for (const stat of node.body) visitAst(stat, visitor);
           scope = outer;
+          lexical = parent;
           return false;
         }
         if (node instanceof AstExprFunction) {
           const outer = enclosingFunction;
+          const outerActual = actualFunction;
+          actualFunction = node;
           if (node !== syntheticFunction?.func) enclosingFunction = node;
           if (node.self) declaration(node.self, "parameter", undefined, node, node.body);
           for (const local of node.args) declaration(local, "parameter", undefined, node, node.body);
@@ -141,10 +227,12 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
           if (node.returnAnnotation) visitAst(node.returnAnnotation, visitor);
           visitAst(node.body, visitor);
           enclosingFunction = outer;
+          actualFunction = outerActual;
           return false;
         }
         if (node instanceof AstStatLocal) for (let i = 0; i < node.vars.length; i++) declaration(node.vars[i]!, "local", node.values[i] instanceof AstExprFunction ? node.values[i] as AstExprFunction : undefined, node);
-        else if (node instanceof AstStatLocalFunction && node !== syntheticFunction) {
+        else if (node instanceof AstStatLocalFunction && node === syntheticFunction) addBinding(node.name, scope, offsets.range(node.location).from);
+        else if (node instanceof AstStatLocalFunction) {
           declaration(node.name, "function", node.func, node);
           if (isAuthoredLuauName(node.name.name)) facts.functions.push({ name: node.name.name, target: node.name, local: node.name.isConst ? undefined : node.name, method: false, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
         }
@@ -171,8 +259,10 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
     };
     visitAst(root, visitor);
   }
-  facts.references.sort((a, b) => a.from - b.from || a.to - b.to);
-  facts.globals.sort((a, b) => a.from - b.from || a.to - b.to);
+  if (!into) {
+    facts.references.sort((a, b) => a.from - b.from || a.to - b.to);
+    facts.globals.sort((a, b) => a.from - b.from || a.to - b.to);
+  }
   return facts;
 }
 

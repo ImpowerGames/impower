@@ -23,6 +23,8 @@ import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../inkjs/engine/StdLib";
+import builtinDefinitions from "../typecheck/definitions/builtin.json";
+import type { ProgramNameReference } from "../lint/luauNames";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -183,6 +185,15 @@ const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 // Synthetic URI for the bundled builtins prelude (used as the file URI when the
 // prelude is compiled once to seed the builtins cache; see getCompiledPrelude).
 const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
+
+// Reuse the pinned Luau declaration data and runtime registry without loading
+// a typechecker to decide whether a global shadow warning is appropriate.
+const LOCAL_SHADOW_BUILTINS = new Set(Object.keys(STDLIB).map(name => name.split(".")[0]!));
+for (const declaration of builtinDefinitions.root.body) {
+  if ((declaration.type === "AstStatDeclareFunction" || declaration.type === "AstStatDeclareGlobal") && "name" in declaration && typeof declaration.name === "string") {
+    LOCAL_SHADOW_BUILTINS.add(declaration.name);
+  }
+}
 
 // The builtins prelude (builtins.sd) compiles to the same context + runtime
 // every time — its source is a constant. Compiling it as part of EVERY program
@@ -6730,7 +6741,12 @@ export class SparkdownCompiler {
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
-    const scripts: { uri: string; names: LuauScriptLints["names"] }[] = [];
+    // A direct revalidation must replace program-dependent shadows as well as
+    // a fresh compile does; a removed use cannot leave an earlier warning.
+    for (const scriptUri of Object.keys(program.diagnostics ?? {})) {
+      program.diagnostics![scriptUri] = program.diagnostics![scriptUri]!.filter(diagnostic => diagnostic.code !== "LocalShadow");
+    }
+    const scripts: { uri: string; names: LuauScriptLints["names"]; script: LuauScriptLints }[] = [];
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
@@ -6740,8 +6756,9 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
-      scripts.push({ uri: scriptUri, names: script.names });
+      scripts.push({ uri: scriptUri, names: script.names, script });
       for (const lint of script.lints) {
+        if (scriptUri === BUILTINS_PRELUDE_URI && lint.code === "LocalShadow") continue;
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
           range: doc.range(lint.from, lint.to),
           code: lint.code,
@@ -6752,6 +6769,56 @@ export class SparkdownCompiler {
       }
     }
     const names = indexProgramNames(scripts);
+    // One first reference per name/script keeps candidate lookup linear in
+    // the facts, rather than rescanning every global use for every local.
+    const first = new Map<string, { any: ProgramNameReference; byScript: Map<string, ProgramNameReference> }>();
+    const candidates = new Set(scripts.filter(script => script.uri !== BUILTINS_PRELUDE_URI).flatMap(script => script.script.globalShadows.map(declaration => declaration.name)));
+    // The isolated builtin-prelude compile disables this configuration. Never
+    // initialize the prelude from its own lint pass, or before any candidate
+    // needs its builtin exemptions: the cache is not published until it exits.
+    const preludeGlobals = candidates.size && this._config.useBuiltinsPrelude
+      ? getPreludeGlobalNames() : undefined;
+    const compare = (a: ProgramNameReference, b: ProgramNameReference) => {
+      const left = new URL(a.uri).href, right = new URL(b.uri).href;
+      return left < right ? -1 : left > right ? 1 : a.from - b.from || a.to - b.to;
+    };
+    for (const [name, global] of names.globals) {
+      if (!candidates.has(name) || LOCAL_SHADOW_BUILTINS.has(name) || preludeGlobals?.has(name)) continue;
+      for (const reference of [...global.reads, ...global.writes]) {
+        if (reference.uri === BUILTINS_PRELUDE_URI) continue;
+        let entry = first.get(name);
+        if (!entry) first.set(name, entry = { any: reference, byScript: new Map() });
+        if (compare(reference, entry.any) < 0) entry.any = reference;
+        const own = entry.byScript.get(reference.uri);
+        if (!own || reference.from < own.from || (reference.from === own.from && reference.to < own.to)) entry.byScript.set(reference.uri, reference);
+      }
+    }
+    for (const { uri: scriptUri, script } of scripts) {
+      if (scriptUri === BUILTINS_PRELUDE_URI) continue;
+      const doc = this.documents.get(scriptUri)!;
+      for (const declaration of script.globalShadows) {
+        const entry = first.get(declaration.name);
+        if (!entry) continue; // definitions/uncertainty alone never establish use
+        const reference = entry.byScript.get(scriptUri) ?? entry.any;
+        const source = this.documents.get(reference.uri);
+        if (!source) continue;
+        const line = source.positionAt(reference.from).line + 1;
+        let suffix = "";
+        if (reference.uri !== scriptUri) {
+          const path = new URL(reference.uri);
+          const root = new URL("./", program.uri);
+          const display = path.host === root.host && path.protocol === root.protocol && path.pathname.startsWith(root.pathname)
+            ? decodeURIComponent(path.pathname.slice(root.pathname.length)) : decodeURIComponent(path.href);
+          suffix = ` in '${display}'`;
+        }
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range: doc.range(declaration.from, declaration.to), code: "LocalShadow",
+          severity: DiagnosticSeverity.Warning,
+          message: { kind: "markdown", value: `Variable '${declaration.name}' shadows a global variable used at line ${line}${suffix}` },
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
     profile("end", this._profilerId, "validateLints", uri);
     return names;
   }

@@ -1547,6 +1547,15 @@ class Parser {
     return this.errors.length === 0 && this.current().kind === "eof";
   }
 
+  /** Original lexical bindings for a supplemental expression, without rereading a unit. */
+  expressionContext(context: LuauExpressionContext): void {
+    // Seed the existing parser; do not recreate or mutate a converter local.
+    // Nested authored functions still use the normal push/restore operations.
+    this.functionStack.length = 0;
+    for (let depth = 0; depth <= context.functionDepth; depth++) this.functionStack.push({ vararg: depth === context.functionDepth && context.vararg, loopDepth: 0 });
+    for (const local of context.locals) this.localMap.set(local.name, local);
+  }
+
   /** One expression, which must be all the tokens hold. */
   parseLoneExpression(): AstExpr {
     const expr = this.parseExpr();
@@ -4062,15 +4071,19 @@ export function readLuauStatementCandidate(
   return { root: result.root, errors: result.errors };
 }
 
-/**
- * Reads the one Luau expression some nodes hold (an interpolation's,
- * a choice's condition, a struct's value), with every name read as a global.
- */
-export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export interface LuauExpressionContext {
+  /** Original converter bindings visible at this authored expression. */
+  locals: readonly AstLocal[];
+  functionDepth: number;
+  vararg: boolean;
+}
+
+/** Reads one expression with original visible locals when supplied; otherwise names are global. */
+export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], documentText: string, context?: LuauExpressionContext): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   for (const node of Array.isArray(nodes) ? nodes : [nodes as SyntaxNode]) tokenizer.read(node);
-  return parseLoneTokens(tokenizer, documentText, index);
+  return parseLoneTokens(tokenizer, documentText, index, context);
 }
 
 // Missing-value diagnostics need Luau's reading beyond the node the
@@ -4136,7 +4149,7 @@ export function luauPositionOffset(position: Position, documentText: string): nu
  * `function` Sparkdown leaves implicit written before its parameters and
  * its name left out. The lints read it (`collectLuauLints.ts`).
  */
-export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauMethod(node: SyntaxNode, documentText: string, context?: LuauExpressionContext): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const name = findDescendant(node, "LuauFunctionName");
@@ -4150,7 +4163,7 @@ export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: 
       return true;
     });
   readWithoutName(node);
-  return parseLoneTokens(tokenizer, documentText, index);
+  return parseLoneTokens(tokenizer, documentText, index, context);
 }
 
 /**
@@ -4159,7 +4172,7 @@ export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: 
  * around them, `function()` before and `end` after. The lints read them
  * (`collectLuauLints.ts`).
  */
-export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string, context?: LuauExpressionContext): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const from = nodes[0]?.from ?? 0;
@@ -4168,14 +4181,15 @@ export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: s
   tokenizer.synthetic("symbol", ")", from);
   for (const node of nodes) tokenizer.read(node);
   tokenizer.synthetic("keyword", "end", nodes[nodes.length - 1]?.to ?? from);
-  return parseLoneTokens(tokenizer, documentText, index);
+  return parseLoneTokens(tokenizer, documentText, index, context);
 }
 
 /** The one expression a tokenizer's tokens hold (`readLuauExpression`, `readLuauMethod`, `readLuauStatements`). */
-function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: LineIndex): { expr: AstExpr; errors: LuauSyntaxError[] } {
+function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: LineIndex, context?: LuauExpressionContext): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
+  if (context) parser.expressionContext(context);
   let expr: AstExpr;
   try {
     expr = parser.parseLoneExpression();
