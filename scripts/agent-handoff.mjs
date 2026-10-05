@@ -207,9 +207,11 @@ function semanticMessages(line) {
 }
 
 // The excerpt is capped for display but always holds the failure it names, so
-// a match far into a long message is not cut away.
+// a match far into a long message is not cut away. A usage limit outranks an
+// earlier failure in the same message, because the excerpt is what the fallback
+// classification reads and only a usage limit permits a same-vendor reviewer.
 function failureExcerpt(text) {
-  const match = routeFailurePattern.exec(text);
+  const match = usageLimitPattern.exec(text) ?? routeFailurePattern.exec(text);
   const start = match && match.index + match[0].length > 400 ? Math.max(0, match.index - 20) : 0;
   return text.slice(start).trim().slice(0, 400);
 }

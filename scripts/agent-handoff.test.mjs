@@ -769,11 +769,15 @@ console.log("PASS: real already-exited children have no false termination warnin
     assert.match(routeFailure(JSON.stringify({ ...metadata, result: limit }).slice(300)), /weekly limit/, "a line cut mid-metadata still names the limit");
     assert.equal(routeFailure(JSON.stringify({ ...metadata, is_error: false, result: "OK" })), undefined, "an answered probe is not a route failure");
     assert.match(routeFailure(JSON.stringify({ ...metadata, result: "x".repeat(600) + " rate limit reached" })), /rate limit/, "a match beyond the display length stays in the excerpt");
+    const retried = "Authentication failed; " + "retry context ".repeat(40) + "You've hit your weekly limit";
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: retried })), /weekly limit/, "a usage limit after an earlier failure in one long message stays in the excerpt");
+    assert.match(routeFailure(retried), /weekly limit/, "the same holds for a text line");
   }
   const routeChild = path.join(scratch, "route-child.mjs");
   const launchedMarker =path.join(scratch, "route-child-launched");
   fs.writeFileSync(routeChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; const mode=process.argv[2]; const probe=p.startsWith("Reviewer route probe");
 if(probe&&mode==="limited"){console.error("You've hit your weekly limit - resets Sep 28");process.exit(1);}
+if(probe&&mode==="jsonlimited"){console.log(JSON.stringify({type:"result",is_error:true,terminal_reason:"api_error",modelUsage:{filler:"x".repeat(900)},result:"Authentication failed; "+"retry context ".repeat(40)+"You've hit your weekly limit - resets Oct 5"}));process.exit(1);}
 if(probe&&mode==="silent"){setInterval(()=>{},1000);}
 else if(probe&&mode==="mute"){process.exit(0);}
 else if(probe){console.log("OK");process.exit(0);}
@@ -788,6 +792,9 @@ else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log(
   assert.equal(rows.some((row) => row.event === "reserved"), false, "a failed probe reserves no slot");
   assert.equal(fs.existsSync(launchedMarker), false, "a failed probe launches no reviewer");
   assert.match(rows.at(-1).reason, /weekly limit/, "the blocked row names the route's own error");
+
+  await assert.rejects(run("jsonlimited"), /unavailable before slot reservation: .*weekly limit - resets Oct 5.*wait for the limit to reset/s, "a native JSON limit behind long metadata is named and classified as a usage limit");
+  assert.match(journalRows("jsonlimited").at(-1).reason, /weekly limit - resets Oct 5.*wait for the limit to reset/s, "the blocked row keeps the limit classification");
 
   await assert.rejects(run("silent"), /unavailable before slot reservation: no answer within 2 seconds/);
   assert.equal(journalRows("silent").some((row) => row.event === "reserved"), false, "a probe timeout reserves no slot");
