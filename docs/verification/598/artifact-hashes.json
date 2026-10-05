@@ -1,0 +1,37 @@
+[
+  {
+    "file": "evidence/TypeInfer.builtins.test.cpp.draft.json",
+    "sha256": "a18a1803fe89e4fe928f0eb7a14860427a93452046a1460dbd9b7f1048da29b9",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/NonStrictTypeChecker.test.cpp.draft.json",
+    "sha256": "a6437bd5083d86b8bad4692769d0f634786b4f9782d0189fa9b729fbbbe600d4",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/NonstrictMode.test.cpp.draft.json",
+    "sha256": "43ba30d925779f83aa9deb5ee1f898814ffeb274f822c288018741c6c2b648e8",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/source-audit.json",
+    "sha256": "33d5d3771d19494cc5b16fba94875b317a769b4fa3ad62f76b6766a1d5f1a011",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/support-audit.md",
+    "sha256": "0d1dc69a0559a653097f26af41bdac24988ce3f2fc28c5a22e80d2b39a602c8d",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/early-return-audit.md",
+    "sha256": "394a6bb268fc5b6a3aae079cfbf0d232395b042546d774e4b36800cc17d362f7",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "1b892a7872ea9a1d8d18963ae1fe4e0bf9d8b95325e2d1f2a3cb952e765ec855",
+    "kind": "unaltered historical artifact"
+  }
+]
