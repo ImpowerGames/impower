@@ -1,0 +1,12 @@
+[
+  {
+    "file": "evidence/transcription-data.json",
+    "sha256": "8b6f0545d06f98b9ce2431155d065d757d2ec69188dbfecea0e888a1f1a517eb",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "8bb95d058f7484e961fe79f19cce0b133506baced19feb2c15324d4a9559c2f1",
+    "kind": "unaltered historical artifact"
+  }
+]
