@@ -100,21 +100,36 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity)
 
 // Rename a guard whose recorded owner (pid and start time, the identity
 // `reservationState` compares) names no live process, keeping it as
-// `recovered-guard-<time>.json`. Returns whether it did.
+// `recovered-guard-<time>.json`. Returns whether the guard is gone and the
+// caller should try to take it again.
+//
+// The read, the identity check and the rename run under an exclusive
+// `guard-recovery.json` claim, so two recoverers cannot both judge the same
+// abandoned guard and have the slower one rename the replacement the faster one
+// just took. Only a recoverer can remove a guard whose owner is dead, so under
+// the claim the guard read is the guard renamed. A claim left by a recoverer
+// that died inside it is never guessed away: no guard is recovered until it is
+// inspected, which is how every abandoned guard behaved before recovery existed.
 function recoverAbandonedGuard(root, guard, identify) {
-  let owner;
-  try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
+  const claim = path.join(root, "guard-recovery.json");
+  let fd;
+  try { fd = fs.openSync(claim, "wx"); }
   catch { return false; }
-  if (!owner?.pid || !owner.start) return false;
-  // An unreadable process table is not evidence that the owner is gone.
-  let current;
-  try { current = identify(owner.pid); }
-  catch { return false; }
-  if (same(owner, current)) return false;
-  const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
-  try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
-  catch (error) { if (error.code !== "ENOENT") return false; }
-  return true;
+  try {
+    let owner;
+    try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
+    catch (error) { return error.code === "ENOENT"; }
+    if (!owner?.pid || !owner.start) return false;
+    // An unreadable process table is not evidence that the owner is gone.
+    let current;
+    try { current = identify(owner.pid); }
+    catch { return false; }
+    if (same(owner, current)) return false;
+    const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
+    try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
+    catch (error) { return error.code === "ENOENT"; }
+    return true;
+  } finally { fs.closeSync(fd); fs.unlinkSync(claim); }
 }
 
 const guardWaitMs = 5000;

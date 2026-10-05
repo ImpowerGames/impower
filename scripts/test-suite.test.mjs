@@ -417,6 +417,35 @@ for (const [label, identify, record] of [
   fs.unlinkSync(guardFile);
 }
 assert.equal(recoveredGuards().length, recoveredBefore + 1, "no held guard was recovered");
+// Two recoverers never judge the same abandoned guard. While the first is
+// inside its identity check, a second acquirer finds the guard held and waits
+// instead of recovering it, so the first's rename can only move the guard it read.
+fs.writeFileSync(guardFile, abandoned);
+let nestedFailure = null, nestedBegan = false, guardDuringNested = null;
+const outer = acquire("first recoverer", { root: lockRoot, census: () => [], guardWaitMs: 2000, identify: pid => {
+  if (pid !== deadOwner.pid) return processIdentity(pid);
+  if (!nestedBegan) {
+    nestedBegan = true;
+    try { acquire("second recoverer", { root: lockRoot, census: () => [], guardWaitMs: 100, identify: () => null }); }
+    catch (error) { nestedFailure = error; }
+    guardDuringNested = fs.readFileSync(guardFile, "utf8");
+  }
+  return null;
+} });
+assert.ok(nestedFailure?.guardHeld === true, "a second acquirer does not recover a guard another recoverer is judging");
+assert.equal(guardDuringNested, abandoned, "the guard stays in place until the first recoverer renames it");
+assert.equal(recoveredGuards().length, recoveredBefore + 2, "exactly one recoverer renamed the guard");
+assert.equal(fs.existsSync(path.join(lockRoot, "guard-recovery.json")), false, "the recovery claim is released");
+outer.release();
+// A claim left by a recoverer that died inside it blocks recovery until inspected.
+const claimFile = path.join(lockRoot, "guard-recovery.json");
+fs.writeFileSync(guardFile, abandoned);
+fs.writeFileSync(claimFile, "{}");
+assert.throws(() => acquire("claimed", { root: lockRoot, census: () => [], guardWaitMs: 100, identify: () => null }), error => error.guardHeld === true);
+assert.equal(fs.readFileSync(guardFile, "utf8"), abandoned, "an unrecovered claim leaves the guard in place");
+assert.equal(fs.existsSync(claimFile), true, "the claim is never removed on another process's behalf");
+fs.unlinkSync(claimFile);
+fs.unlinkSync(guardFile);
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
 
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
