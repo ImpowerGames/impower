@@ -58,26 +58,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Every workspace with a vitest.config.ts. Add a package here when it
-        # gains one; .github/scripts/test-suite-matrix.test.mjs fails the
-        # tooling checks when this list and the tracked configs differ.
-        package:
-          - impower-dev
-          - packages/jsonrpc
-          - packages/opfs-workspace
-          - packages/spark-editor-protocol
-          - packages/spark-engine
-          - packages/spark-morph
-          - packages/spark-web-player
-          - packages/sparkdown
-          - packages/sparkdown-document-views
-          - packages/sparkdown-language-server
-          - vscode-sparkdown
-    name: ${{ matrix.package }}
+        # One job per package shard: every workspace with a vitest.config.ts.
+        # Add a package here when it gains one; the three slow packages are
+        # split with vitest's --shard=<shard>/<shards>, which assigns whole
+        # files to shards. .github/scripts/test-suite-matrix.test.mjs fails
+        # the tooling checks when this list and the tracked configs differ,
+        # or when a package's shards are not exactly 1..shards.
+        include:
+          - { package: impower-dev, shard: 1, shards: 1 }
+          - { package: packages/jsonrpc, shard: 1, shards: 1 }
+          - { package: packages/opfs-workspace, shard: 1, shards: 1 }
+          - { package: packages/spark-editor-protocol, shard: 1, shards: 1 }
+          - { package: packages/spark-engine, shard: 1, shards: 2 }
+          - { package: packages/spark-engine, shard: 2, shards: 2 }
+          - { package: packages/spark-morph, shard: 1, shards: 1 }
+          - { package: packages/spark-web-player, shard: 1, shards: 2 }
+          - { package: packages/spark-web-player, shard: 2, shards: 2 }
+          - { package: packages/sparkdown, shard: 1, shards: 4 }
+          - { package: packages/sparkdown, shard: 2, shards: 4 }
+          - { package: packages/sparkdown, shard: 3, shards: 4 }
+          - { package: packages/sparkdown, shard: 4, shards: 4 }
+          - { package: packages/sparkdown-document-views, shard: 1, shards: 1 }
+          - { package: packages/sparkdown-language-server, shard: 1, shards: 1 }
+          - { package: vscode-sparkdown, shard: 1, shards: 1 }
+    name: ${{ matrix.package }}${{ matrix.shards > 1 && format(' ({0}/{1})', matrix.shard, matrix.shards) || '' }}
     runs-on: ubuntu-latest
-    # Sparkdown's growing conformance suite can exceed 30 minutes on a
-    # slower hosted runner with one worker. Keep other package bounds.
-    timeout-minutes: ${{ matrix.package == 'packages/sparkdown' && 45 || 30 }}
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,8 +103,9 @@ jobs:
 
       # Definitions use the oracle's pinned WASM at build time. Reparse the
       # source aggregates and require byte-for-byte generated JSON agreement.
+      # It checks the whole package, so only the first shard runs it.
       - name: Verify generated definition ASTs
-        if: matrix.package == 'packages/sparkdown'
+        if: matrix.package == 'packages/sparkdown' && matrix.shard == 1
         run: node packages/sparkdown/scripts/buildDefinitionAst.mjs --check
 
       # The package's own vitest.config.ts stays in force (pool, environment,
@@ -113,9 +120,10 @@ jobs:
           # Vitest colours its output on CI even through a pipe; the summary
           # check below matches plain text.
           NO_COLOR: 1
+          SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
         run: |
           set -o pipefail
-          npx vitest run --no-file-parallelism --reporter=default 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+          npx vitest run --no-file-parallelism --reporter=default --shard="$SHARD" 2>&1 | tee "$RUNNER_TEMP/vitest.log"
 
       # A worker killed by the OS can leave vitest exiting 0 with no summary,
       # which must read as a failure rather than a pass. The same rules as the
