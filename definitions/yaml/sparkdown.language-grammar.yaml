@@ -8613,7 +8613,7 @@ repository:
   LuauSparkdownExplicitThenExpression:
     # lookaround: LuauElseExpression owns the next clause; the then arm opens at then and yields before else or a following statement clause.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: (?=(?:then)\b)|(?<=\bthen)({{WS}}*)
+    begin: (?=(?:then)\b)|(?<=\bthen|/[dgimsuvy]{1,8}then)({{WS}}*)
     beginCaptures:
       1:
         emit: true
@@ -10557,8 +10557,9 @@ repository:
   # that its condition took (see `LuauTernaryExpressionCondition`); this
   # expression's own level stands just after a `then` in no other case.
   #
-  # lookaround: `(?<=\bthen)` finds that `then`, which a sibling's end took,
-  # not a parent's begin. Without it the empty alternative opens the arm at
+  # lookaround: `(?<=\bthen|/[dgimsuvy]{1,8}then)` finds that `then`, which a
+  # sibling's end took, not a parent's begin. The second branch is the `then`
+  # glued to a regex literal's flags, where no word boundary precedes it. Without it the empty alternative opens the arm at
   # every position of `LuauTernaryExpression`, ahead of `LuauElseExpression`
   # and `LuauExpression` (fixture luau-function/if-expression-glued-then).
   # The condition cannot leave the glued `then` to this rule's first
@@ -10570,7 +10571,7 @@ repository:
   # `(?<=^{{WS}}*)(?=…)` are the line rules described below: a line that
   # begins a statement (`LUAU_STATEMENT_LINE_START`) ends the arm.
   LuauThenExpression:
-    begin: (?=(?:then)\b)|(?<=\bthen)({{WS}}*)
+    begin: (?=(?:then)\b)|(?<=\bthen|/[dgimsuvy]{1,8}then)({{WS}}*)
     beginCaptures:
       1:
         emit: true

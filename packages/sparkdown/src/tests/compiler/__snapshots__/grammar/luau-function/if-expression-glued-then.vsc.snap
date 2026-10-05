@@ -360,7 +360,7 @@ text.source.sparkdown [0..598]
  │       │   ├─ punctuation.definition.string.end.sd [571..572]: "/"
  │       │   └─ keyword.other.regexp.flags.sd [572..574]: "gi"
  │       ├─ keyword.control.then.luau [574..578]: "then"
- │       ├─ punctuation.whitespace.required.sd [578..579]: " "
+ │       ├─ punctuation.whitespace.optional.sd [578..579]: " "
  │       ├─ constant.numeric.decimal.luau [579..580]: "1"
  │       ├─ punctuation.whitespace.required.sd [580..581]: " "
  │       ├─ keyword.control.else.luau [581..585]: "else"
