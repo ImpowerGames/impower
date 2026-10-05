@@ -289,10 +289,14 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   // AssertionError ran the test: a syntax-looking line elsewhere in its output
   // is that test's own output, not a failure to load it.
   const assertedFailure = /^\s*Tests\s.*\b[1-9]\d* failed\b/m.test(output) && /\bAssertionError\b/.test(output);
-  // A Node or Vitest error banner, or a compiler error (`file(1,2): error TS…`
-  // or the pretty `file:1:2 - error TS…`, whose path may hold spaces but not a
-  // quote), at the start of its line.
-  if (!assertedFailure && /^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b|(?:(?:[A-Za-z]:)?[^:'"\r\n]+?(?:\(\d+,\d+\)|:\d+:\d+)(?::| -) )?error TS\d{4}:)/im.test(runnerOutput)) {
+  // A Node or Vitest error banner at the start of its line, or a compiler error
+  // line: `error TS…` alone, or after its location in either form
+  // (`file(1,2): error TS…`, the pretty `file:1:2 - error TS…`). The location's
+  // path is any text, since a filename can hold spaces, quotes and colons; the
+  // line is not one when it is an assertion's own message or expected/received
+  // value (`AssertionError: expected 'a.ts:1:2 - error TS…'`).
+  const compilerError = /^(?!\s*(?:Expected|Received|expected)\b)(?![^\r\n]*\bAssertionError\b)[^\r\n]*?(?:\(\d+,\d+\)|:\d+:\d+)(?::| -) error TS\d{4}:|^\s*error TS\d{4}:/im;
+  if (!assertedFailure && (/^\s*(?:(?:Uncaught )?SyntaxError\b|(?:Error: )?Transform failed\b|(?:\w*Error: )?Unexpected token\b)/im.test(runnerOutput) || compilerError.test(runnerOutput))) {
     return "syntax";
   }
   // Anchored to how a runner reports its own death, at the start of a line:

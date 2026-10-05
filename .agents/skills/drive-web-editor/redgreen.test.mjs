@@ -1319,6 +1319,16 @@ check("a compiler error in a path with spaces is a syntax failure", () => {
   const output = "folder space/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n";
   assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax");
   assert.equal(classifyRedFailure("C:\\repo with space\\lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
+  // Quotes are legal in a filename; a labelled assertion that quotes a diagnostic is still an assertion.
+  assert.equal(classifyRedFailure("O'Connor/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("O'Connor/lib.ts(1,21): error TS1109: Expression expected.", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("/srv/a:b c/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("error TS5058: The specified path does not exist: 'x.ts'.", { exit: 1 }), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts > x\nexpected 'a.ts:1:2 - error TS2304: x' to be 'ok'\n Tests  1 failed (1)", { exit: 1 }), "assertion");
+  assert.equal(
+    classifyRedFailure("AssertionError: expected 'a.ts:1:2 - error TS2304: Cannot find name' to be 'ok'\n Tests  1 failed (1)", { exit: 1 }),
+    "assertion",
+  );
 });
 
 check("unchanged context lines of a multiline assertion diff never decide a syntax verdict", () => {
