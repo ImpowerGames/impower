@@ -1,0 +1,4 @@
+define party as filtered_image with image = image.mia attributes = { "sd" } end
+scene story
+  Hello.
+end

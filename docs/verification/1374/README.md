@@ -1,0 +1,60 @@
+# #1374 unfinished verification recovery
+
+**INCOMPLETE / UNVERIFIED. Preservation only; do not run anything until the human stop is lifted and the resource coordinator grants the specific next operation. Keep [PR #1402](https://github.com/ImpowerGames/impower/pull/1402) draft.** The same original writer is gpt-6.1-sol/high. No product behavior changes accompany this packet. These portable paths were inspected as source; the adapted helper, generator and qualification paths have not been executed.
+
+Production baseline is `f2644bd1ea454742558fd21f42b65adf8c6f85d1`, parent `f5837205e8ec617c0f385c7d1346359d0174cfcc`; accepted PR base is `e39acc2ec7799d29303efdc532b0cd16c72484ef`. Original grammar work began on `22c46d48c5243541303490d8f918540e2c1398bc`. Use the preservation commit on `codex/feat/1374-function-intersections`; its exact pushed SHA is recorded in the PR/ticket checkpoint. Do not rebase or merge the PR. No reviewed head is changed while any reviewer or delegate is active.
+
+## Completed evidence and open gates
+
+- Final Rename guard: four symbol/prepare failures plus21 positive controls →25 GREEN, exact source restoration. Actual references/rename edits were already positive and are not claimed fixed.
+- Final completion guard with existing image-attribute controls: one genuine bounded-context failure plus17 positive controls →18 GREEN; exact provider restoration.
+- Cleanup compatibility:74 PASS. The earlier final semantic/reference/outline/keyword/callable guard was35 RED +44 positive →79 GREEN; both package logs/restoration were inspected.
+- Original flat-path whole-project qualification:2 PASS, real mia vocabulary/context/face.sad, full diagnostics retained. Failed prior project assumptions and duplicate-party fixture attempts are preserved in the public checkpoint. Compiler filtered TYPE passed22919ms; LS-only TYPE passed16133ms after private eight TS4111 errors were corrected by equivalent bracket reads. Earlier two-project correction TYPE passed2/2 in51.2s.
+- Historical f264 CI completed28 entries:25 SUCCESS,3 SKIPPED, no failed/pending checks at preservation preparation. Historical f583 had24 SUCCESS/3 SKIPPED;3abc had23 SUCCESS/3 SKIPPED. Historical f0c Sparkdown had37 failures in16 files and its aggregate failed; this is not erased. The new preservation push automatically starts configured checks; no manual dispatch/retry or waiting for full suites is authorized by preservation.
+- R1 finished its fixed three reviewers, last reviewed head f583 ([author/grammar](https://github.com/ImpowerGames/impower/pull/1402#issuecomment-5979592766), [parser/scope](https://github.com/ImpowerGames/impower/pull/1402#issuecomment-5982249630), [undirected](https://github.com/ImpowerGames/impower/pull/1402#issuecomment-5984012132)). The post-final-review Rename/context/validator corrections still need Round2, sized at two serial reviewers including author experience and final undirected coverage, with grammar conventions where applicable. The delegated total cap is six rounds; one complete round used, five remain. Carry the actual user delegation and writer attestation through the mandatory CLI launcher, never native reviewer agents. The remote primary quota journal dated2026-10-04T16:36:12.498Z expired at22:36UTC; it cannot authorize a future fallback. A new actual cross-vendor Opus5.5/high usage-limit journal is needed before Astra/high fallback unless the human explicitly changes the route.
+- Latest final-correction live attempt failed BEFORE on literal `definitions.sd` OPFS read, after successful canonical ALICE→BOB two edits and marked prepareRename null. Only three BEFORE web PNGs were inspected by the remote operator; this writer did not inspect those remote pixels. No completion, VS or AFTER proof was reached. Supported shutdown/full release was reported2026-10-05T00:04:14Z. Eighteen known refresh page errors and five compiler-initialization console entries remain in the original report. Normalized fixtures below are prepared, not qualified/live-passed.
+- Older MSI12670/30802 timeouts remain real/intermittent/unattributed; remote exact-source observations do not prove cause, fix, pressure or performance. Earlier380→f583 live has12 remotely inspected images and disclosed served-VS Outline limitations ([receipt](https://github.com/ImpowerGames/impower/pull/1402#issuecomment-5983780030)). Those observations do not verify the later f264 corrections. Cold-start lifecycle remains #1389/full-#589 acceptance work.
+
+## Portable inputs and exact scope
+
+`fixtures/artwork/` contains root `main.sd`, `scripts/definitions.sd`, and the small authored `assets/mia.svg`. Canonical main defines its own party without including the supporting definition. `fixtures/artwork-marked.sd` explicitly includes `scripts/definitions.sd`, then exercises the bounded OOP attribute author operation while the real included party supplies context. The existing ignored marked-definition execution is not enabled. `fixtures/rename/` is the one-file canonical rename seed; `fixtures/rename-marked.sd` and `fixtures/extension-marked.sd` are the corresponding marked controls. `workbench-source-probe.js` only reads rendered served-VS source lines.
+
+The app migrates flat non-main scripts/assets before LS startup (`WorkspaceFileSystem.ts:104–151`, `fileTree.ts:484–529`). The driver OPFS reader uses literal paths (`driver.mjs:1358–1378`). The original flat input was actually renamed to scripts/definitions.sd and assets/mia.svg; later writes of the old include were not corrected when no migration remained. These normalized inputs preserve source intent and bypass those two layout moves by the existing idempotent rule. That is not causal proof the initialization error is resolved.
+
+Source-backed compiler-error hypothesis: migration broadcasts Deleted old URIs (`opfs-workspace.ts:381–414`), forwarded to LS; deleteFile invokes removeFile before initialize may have established the configuration promise (`SparkdownWorkspace.ts:419,788–793,1362–1384`); removeFile reaches the throwing documents getter (`SparkdownCompiler.ts:508–512,1293–1300`). These paths are identical f583→f264. Two moved files, two compiler logs/responses and one Promise rejection support the hypothesis, not runtime causal proof or an e39 defect claim.
+
+The helper retains the remote periodic host-array recorder and final evidence on success/failure. Three exact committed-driver known refresh families require actual response-worker stack matches; raw stage/time/stack/counts remain. It does not accept compiler initialization, generic errors, timeouts or wrong-stack refreshes. Custom page-error/workbench allowances default empty. No raw logs, browser storage, profiles, sessions, credentials or machine-private configs are committed.
+
+## Resume after explicit authorization
+
+1. Read repository AGENTS and the full applicable skills. Restore dependencies only through a separately admitted setup; use a fresh RAM>=2GiB gate and supported machine-wide test reservation. Windows/Node/npm/gh, browser binaries, VSCode artifact setup, actual CLI identity, credentials, disk/RAM, evidence directory, profile/session and process-creation census are machine prerequisites, not shared by this packet. Frozen candidate heads, install/lock hashes and all owned processes must be verified.
+2. Run ONE named normalized whole-project qualification (two cases; asset and included-script URIs changed):
+
+   ```text
+   node scripts/test-suite.mjs run sparkdown-language-server src/tests/providers/LiveNormalizedDefineCompletion1374.test.ts --wait 600
+   ```
+
+   Retain full diagnostics/presence, real SVG vocabulary/context, completion data/edits, exact source and actual exit. Stop on unexpected failure; no retry or fixture expansion. Do not repeat Rename25/completion18/cleanup74 or previously clean product TYPE solely for preservation. The test now resolves this repository's fixtures via import.meta.url; no machine-private path is required.
+3. After separate live/setup grant, prepare immutable BEFORE f583 and AFTER preservation-head candidates. The BEFORE commit lacks this packet: copy only these preservation artifacts and qualification source from the Git tree into that dedicated candidate, retaining an exact copy/hash manifest and clean tracked production. Never revert a subset of grammar as a purported baseline. Do not touch another writer's existing tree. Verify every full install/build input and correct bundle per candidate. Narrow LSP/extension builds do not supply a missing PDF worker; use the skill's setup procedure under its own admission if required. Never waive a missing artifact or new workbench error.
+4. Generate configs outside either candidate with actual machine values, not placeholders inferred from another host. From the candidate root:
+
+   ```text
+   node docs/verification/1374/prepare-config.mjs before <absolute-before-root> <fresh-external-evidence-root> <absolute-fresh-profile> <session> <shared-absolute-deadline-ms> f5837205e8ec617c0f385c7d1346359d0174cfcc
+   node docs/verification/1374/prepare-config.mjs after <absolute-after-root> <same-external-evidence-root> <absolute-fresh-after-profile> <after-session> <same-deadline-ms> <actual-preservation-head> <absolute-successful-before-report>
+   ```
+
+   This unexecuted generator writes configs only; no services start. Inspect actual config/source/fixture hashes against the Git tree, not merely the generator's newly computed hashes. Set IMPOWER_DRIVER_SESSION and IMPOWER_DRIVER_PROFILE to each config's exact values. No historical failed before report can qualify the AFTER phase.
+5. The phase invocation is:
+
+   ```text
+   node docs/verification/1374/live-phase.mjs <absolute-phase-config.json>
+   ```
+
+   **Do not invoke it alone.** An independently audited operator outer guard still must enforce ONE shared840000ms (14min) hard cap from the first admitted pair command including builds/startups/cleanup, complete pre/during/post process creation identities and listeners, supported owner-specific down for both drivers, and exact candidate/install/input restoration. No executable hard outer guard is preserved here; the phase's soft deadline is insufficient. Source-audit and admit the actual guard before launching. Use new output/profile/session; no blind old-session cleanup or unrelated process kill. Web shuts down before served VS starts. Any compiler configuration error or other unknown error fails and stops; no automatic retry or generic waiver. BEFORE expects six pixels, AFTER eight; all fourteen must be inspected and attributed to the actual observer.
+6. After genuine qualification/live/restoration/release, update public adjudication and fresh head CI, then authorize the remaining two-reviewer Round2 through the mandatory CLI handoff workflow with actual fresh journals and exits. Keep the draft if any gate fails. Never reset the review count or merge autonomously.
+
+## Coordination dependencies
+
+#879 separately owns released grammar YAML/both generated outputs for its require-keyword correction; no pending grammar writes belong to this preservation. #1304 separately owns the repeat/until LuauUnitNodes classification; no unit-node edit is carried here. #867 owns completion-member/provider work and the additive exported declaration-offset lease; its narrow getDefineContext predicate lease is already in f264. Before the SECOND #1374/#867 merge, integrate the first normally and verify keyword/member/source-scope composition, including positive score completion (the earlier both-empty parity is not that proof). No integration or peer merge is authorized by this checkpoint. #589 coordinates all admissions and final integration; #1389 retains startup lifecycle acceptance.
+
+All complete historical details and posted review/adjudication/image evidence remain accessible through [PR #1402](https://github.com/ImpowerGames/impower/pull/1402) and [Feature #1374](https://github.com/ImpowerGames/impower/issues/1374). Private raw reports stay with the original operators; do not infer their pixel inspection or byte possession from this summary.
