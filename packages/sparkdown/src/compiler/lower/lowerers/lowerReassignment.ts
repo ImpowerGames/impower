@@ -117,9 +117,13 @@ function lowerSingleAssignment(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
+  // A value the parser could not read (`x =` with nothing after it), which
+  // the type checker reports, assigns nothing: an assignment with no value
+  // would take whatever is on the evaluation stack, or nothing, and leave
+  // the target holding no value at all.
+  if (!value) return {};
   const store = storeTarget(target, site.source, ctx);
   if (store) {
-    if (!value) return {};
     return wrapInWeave(
       propertyStore(
         store.base,
@@ -168,15 +172,18 @@ function lowerSingleAssignment(
     });
   }
 
-  let expr = value;
-  if (opText !== "=" && expr) {
-    const current = new VariableReference([targetIdentifier(target, ctx)!]);
-    expr = new BinaryExpression(current, expr, opText.slice(0, -1));
-  }
+  const expr =
+    opText === "="
+      ? value
+      : new BinaryExpression(
+          new VariableReference([targetIdentifier(target, ctx)!]),
+          value,
+          opText.slice(0, -1),
+        );
   return wrapInWeave([
     new VariableAssignment({
       variableIdentifier: identifier,
-      assignedExpression: expr ?? undefined,
+      assignedExpression: expr,
     }),
   ]);
 }
