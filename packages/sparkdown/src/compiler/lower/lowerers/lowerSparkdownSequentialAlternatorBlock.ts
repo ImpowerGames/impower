@@ -6,6 +6,7 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { findChildByName, lowerArms } from "../utils/alternatorArms";
+import { recordAlternatorSource } from "../utils/statementShape";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // queue          → Sequence(Once)         — plays through and stops
@@ -59,5 +60,6 @@ export function lowerSparkdownSequentialAlternatorBlock(
 
   const contentLists = arms.map((arm) => new ContentList(arm.body));
   const sequence = new Sequence(contentLists, seqType);
+  recordAlternatorSource(ctx, sequence, nodeRef.node);
   return wrapInWeave([sequence]);
 }

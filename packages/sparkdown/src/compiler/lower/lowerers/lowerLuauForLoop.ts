@@ -23,7 +23,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
-import { loopOf, openBody } from "../utils/statementShape";
+import { openBody, recordLoop } from "../utils/statementShape";
 
 // `for i = start, stop [, step] do BODY end` — Luau numeric-for.
 //
@@ -178,10 +178,11 @@ export function lowerLuauForLoop(
 
   // The body's natural fall-through goes to the step-update label;
   // `continue` also targets it. `break` targets `breakLabel`.
+  const toStep = new Divert([new Identifier(stepLabel)]);
   const branch = new ConditionalSingleBranch([
     copyLoopVar,
     ...bodyStatements,
-    new Divert([new Identifier(stepLabel)]),
+    toStep,
   ]);
   branch.ownExpression = condExpr;
   branch.isElse = false;
@@ -192,7 +193,8 @@ export function lowerLuauForLoop(
   // label, skipping the step-update entirely.
   const loopGather = new Gather(new Identifier(loopLabel), 1);
   loopGather.AddContent(conditional);
-  loopGather.AddContent(new Divert([new Identifier(breakLabel)]));
+  const toBreak = new Divert([new Identifier(breakLabel)]);
+  loopGather.AddContent(toBreak);
 
   // Step gather: increment the hidden index then divert back to the
   // loop head. Only reachable from the body (via natural fall-through
@@ -204,7 +206,8 @@ export function lowerLuauForLoop(
       assignedExpression: buildAdd(idxName, stepName),
     }),
   );
-  stepGather.AddContent(new Divert([new Identifier(loopLabel)]));
+  const toLoop = new Divert([new Identifier(loopLabel)]);
+  stepGather.AddContent(toLoop);
 
   // Break gather: sentinel for natural loop exit and `break` divert.
   const breakGather = new Gather(new Identifier(breakLabel), 1);
@@ -236,7 +239,7 @@ export function lowerLuauForLoop(
     breakGather,
   ]);
   if (body) {
-    loopOf.set(scoped[0]!, {
+    recordLoop(scoped[0]!, {
       kind: "for",
       body,
       objects: scoped,
@@ -244,7 +247,7 @@ export function lowerLuauForLoop(
       init: [initIdx, initStop, initStep],
       copy: copyLoopVar,
       step: stepGather.content[0] as VariableAssignment,
-    });
+    }, [loopGather, stepGather, breakGather, toStep, toBreak, toLoop]);
   }
   return wrapInWeave(scoped);
 }

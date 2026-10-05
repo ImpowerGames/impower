@@ -55,6 +55,10 @@ export class VariableReference extends Expression {
   public resolvedAs: "variable" | "count" | "function" | "unresolved" =
     "unresolved";
 
+  /** The scene, branch or label whose count the name reads, when it
+   *  resolved to a count. */
+  public countTarget: ParsedObject | null = null;
+
   // The member a colon call reads from this reference, as in `table:nogetn()`.
   // When set, an unresolved name reports the member path (`table.nogetn`)
   // across both names, as the dot form's path reference does. The compiler
@@ -130,6 +134,7 @@ export class VariableReference extends Expression {
 
     // Work is already done if it's a constant or list item reference
     this.resolvedAs = "variable";
+    this.countTarget = null;
     if (this.isConstantReference || this.isListItemReference) {
       return;
     }
@@ -179,6 +184,7 @@ export class VariableReference extends Expression {
       }
 
       this.resolvedAs = "count";
+      this.countTarget = targetForCount;
       targetForCount.containerForCounting.visitsShouldBeCounted = true;
 
       // If this is an argument to a function that wants a variable to be
@@ -306,23 +312,34 @@ export class VariableReference extends Expression {
 
   // A variable read, with `VariableReference`'s runtime fallbacks (a dotted
   // name walked through tables, `_G`, a function's name as its value, a
-  // builtin's marker, nil). A read count is not emitted yet.
+  // builtin's marker, nil). A name that reads a scene's, a branch's or a
+  // label's count reads the count of its symbol (`GetCount`), which every
+  // counted symbol keeps, so no fact about the target is recorded and a read
+  // added in one flow emits nothing of the flow it counts
+  // (docs/engine/binary-program.md, section 5).
   public override EmitExpression(emitter: ProgramEmitter): void {
     if (this.isListItemReference) {
       emitter.unsupported("list");
     }
-    if (this.resolvedAs === "count") {
-      emitter.unsupported("read count");
-    }
     emitter.recordResolution(this.resolutionKey);
+    if (this.resolvedAs === "count") {
+      const symbol = emitter.targetSymbol(this.countTarget, this.name);
+      emitter.referenceTarget(symbol);
+      emitter.emit(Op.GetCount, symbol);
+      return;
+    }
     emitter.emit(Op.GetVar, emitter.variable(this.name));
   }
 
-  /** The name and what it resolved to, as a chunk records it. A name the
-   *  compiler generated, which it numbers by document order, is recorded
-   *  without its number, since the chunk names it by its own. */
+  /** The name and what it resolved to, as a chunk records it: for a count,
+   *  the symbol whose count it reads. A name the compiler generated, which it
+   *  numbers by document order, is recorded without its number, since the
+   *  chunk names it by its own. */
   get resolutionKey(): string {
     const name = /^__synth_\d+$/.test(this.name) ? "__synth" : this.name;
+    if (this.resolvedAs === "count") {
+      return `${name}:count:${this.countTarget?.programSymbolName ?? ""}`;
+    }
     return `${name}:${this.resolvedAs}`;
   }
 

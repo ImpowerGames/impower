@@ -36,6 +36,14 @@ export abstract class ParsedObject {
     emitter.unsupported(this.typeName);
   }
 
+  /** The qualified name of the binary program's symbol for this object as a
+   *  divert target or a counted target (docs/engine/binary-program.md,
+   *  section 2): a scene, a branch and a label have one; anything else has
+   *  none. */
+  get programSymbolName(): string | null {
+    return null;
+  }
+
   public identifier: Identifier | null = null;
 
   // Diagnostic-dedup state: the compile epoch (see CompileEpoch.ts) at which

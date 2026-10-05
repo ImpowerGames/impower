@@ -10,7 +10,7 @@ import { ObjectValue } from "../../inkjs/engine/Value";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { isAnonymousSymbol } from "../../program/ProgramSymbols";
+import { isAnonymousSymbol, SymbolKind } from "../../program/ProgramSymbols";
 import {
   B_BREAK,
   B_HEAD_LINES,
@@ -167,6 +167,9 @@ export function describeRoot(root: ProgramRoot): string[] {
   const symbolName = (symbol: number): string => {
     if (!isAnonymousSymbol(root.table, symbol)) {
       return JSON.stringify(root.table.symbols[symbol]);
+    }
+    if (root.kindOf(symbol) === SymbolKind.Alternator) {
+      return "alternator";
     }
     const at = root.definition(symbol);
     const chunk = at ? root.sequence(at.sequence)?.arrays.chunks[at.entry] : undefined;

@@ -134,6 +134,32 @@ export const loopOf = new WeakMap<ParsedObject, LoopShape>();
 /** Whether a divert is a `break` or a `continue` of the innermost loop. */
 export const loopExitOf = new WeakMap<ParsedObject, "break" | "continue">();
 
+// The labels a loop's lowering made for its own head, step and exits, and the
+// diverts to them, which the binary program's writer emits as the loop's
+// chunk and never as a label or a jump.
+const loopInternals = new WeakSet<ParsedObject>();
+
+/** Records `loop`, whose objects start with `first`, and marks `internals`,
+ *  the labels and diverts its lowering made for itself. The lowering names
+ *  them: a divert an author wrote in the loop's header (`-> top` as a value,
+ *  or the proxy divert of `READ_COUNT(-> top)`) sits among the loop's
+ *  objects too, and stays an author's jump target. */
+export const recordLoop = (
+  first: ParsedObject,
+  loop: LoopShape,
+  internals: readonly ParsedObject[],
+): void => {
+  loopOf.set(first, loop);
+  for (const obj of internals) {
+    loopInternals.add(obj);
+  }
+};
+
+/** Whether `obj` is a label, or a divert to one, that a loop's lowering made
+ *  for itself (`recordLoop`), as opposed to one an author wrote. */
+export const isLoopInternal = (obj: ParsedObject): boolean =>
+  loopInternals.has(obj);
+
 const emptyReads = (context: string): StatementReads => ({
   callable: new Map(),
   defineType: new Map(),
@@ -262,6 +288,29 @@ export const closeFunctionBody = (
     hoisted,
     ...(named ? { named } : {}),
   });
+};
+
+/** Where each alternator's own source starts and ends, relative to the
+ *  start of the top-level node it was lowered in, as a function's is
+ *  (`FunctionShape`): the source its count symbol is aligned by when its
+ *  statement is emitted again (docs/engine/binary-program.md, section 2). */
+export const alternatorSourceOf = new WeakMap<
+  ParsedObject,
+  { from: number; to: number }
+>();
+
+/** Records the source of `alternator`, the syntax node `node` spans, when
+ *  shapes are recorded. */
+export const recordAlternatorSource = (
+  ctx: LowerContext,
+  alternator: ParsedObject,
+  node: { from: number; to: number },
+): void => {
+  if (!currentStatement(ctx)) {
+    return;
+  }
+  const base = ctx.chunkFrom ?? 0;
+  alternatorSourceOf.set(alternator, { from: node.from - base, to: node.to - base });
 };
 
 /** The single statement of an evaluator's body, `return <expr>`, recorded
