@@ -448,6 +448,12 @@ variables:
   # `else @/x/gthen`). The flags are bounded so the lookbehind stays one
   # Oniguruma accepts.
   AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
+  # A `then` that ends just behind the current position, for use inside a
+  # lookbehind: a word-bounded `then`, or one glued to a regex literal's
+  # flags, where no word boundary precedes it. An if expression's
+  # condition takes a `then` glued to it (`LuauTernaryExpressionCondition`),
+  # and its then arm opens just after one (`LuauThenExpression`).
+  LUAU_THEN_BEHIND: (?:\bthen|/[dgimsuvy]{1,8}then)
   # What begins a statement rather than a value when it begins a line: the
   # keywords `LuauReturnStatement` stops at, a `;`, and a named
   # function declaration (a `function` literal is a value).
@@ -8613,7 +8619,7 @@ repository:
   LuauSparkdownExplicitThenExpression:
     # lookaround: LuauElseExpression owns the next clause; the then arm opens at then and yields before else or a following statement clause.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: (?=(?:then)\b)|(?<=\bthen|/[dgimsuvy]{1,8}then)({{WS}}*)
+    begin: (?=(?:then)\b)|(?<={{LUAU_THEN_BEHIND}})({{WS}}*)
     beginCaptures:
       1:
         emit: true
@@ -10551,15 +10557,22 @@ repository:
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
     # Right after `elseif`, a `then` is that clause's own, with its condition
     # missing (`elseif then 2`).
-    end: "(?={{BEAT}}|$|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    #
+    # lookaround: a `then` glued to its condition is taken by the condition,
+    # so at a line end right after it no then arm is open yet. The `(?<!…)`
+    # keeps the end of the line from ending the expression there, so that
+    # `LuauThenExpression` opens and reads the line break
+    # (`LuauGluedThenSpacing`). Before a column-0 line the arm ends empty at
+    # once, and
+    # `BEFORE_LUAU_COLUMN_0_LINE` ends the expression there instead.
+    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}"
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
   # expression's own level stands just after a `then` in no other case.
   #
-  # lookaround: `(?<=\bthen|/[dgimsuvy]{1,8}then)` finds that `then`, which a
-  # sibling's end took, not a parent's begin. The second branch is the `then`
-  # glued to a regex literal's flags, where no word boundary precedes it. Without it the empty alternative opens the arm at
+  # lookaround: `(?<={{LUAU_THEN_BEHIND}})` finds that `then`, which a
+  # sibling's end took, not a parent's begin. Without it the empty alternative opens the arm at
   # every position of `LuauTernaryExpression`, ahead of `LuauElseExpression`
   # and `LuauExpression` (fixture luau-function/if-expression-glued-then).
   # The condition cannot leave the glued `then` to this rule's first
@@ -10567,17 +10580,16 @@ repository:
   # `then` or `do`, and an end is tried before the patterns. The first
   # alternative's `(?=…)` opens the arm without taking `then`, which
   # `LuauThenOperator` inside it reads, so the keyword and the line break
-  # after it are part of the arm. The end's `^(?!…)` and
+  # after it are part of the arm. The second alternative takes nothing, so
+  # that `LuauGluedThenSpacing` inside it still finds the glued `then` and
+  # reads the whitespace and line break after it as `LuauThenOperator` does
+  # after a spaced one. The end's `^(?!…)` and
   # `(?<=^{{WS}}*)(?=…)` are the line rules described below: a line that
   # begins a statement (`LUAU_STATEMENT_LINE_START`) ends the arm.
   LuauThenExpression:
-    begin: (?=(?:then)\b)|(?<=\bthen|/[dgimsuvy]{1,8}then)({{WS}}*)
-    beginCaptures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
+    begin: (?=(?:then)\b)|(?<={{LUAU_THEN_BEHIND}})
     patterns:
+      - { include: "#LuauGluedThenSpacing" }
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauLineContinuation" }
@@ -10612,6 +10624,29 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
+    patterns:
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
+
+  # The whitespace and line break after a `then` that its condition took
+  # (see `LuauThenExpression`), read as `LuauThenOperator` reads them after
+  # its own `then`, so an arm whose glued `then` ends its line takes its
+  # value from the next line.
+  #
+  # lookaround: the lookbehind is `LuauThenExpression`'s, and holds only
+  # right after that `then`. The `(?=$|{{WS}})` keeps the rule from opening
+  # empty before a value glued to the `then` (`(c)then(1)`), where its end
+  # would close it at once and the arm would open it again at the same
+  # position.
+  LuauGluedThenSpacing:
+    begin: (?<={{LUAU_THEN_BEHIND}})(?=$|{{WS}})({{WS}}*)
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace`, not `OptionalWhitespace`, as in `LuauThenOperator`.
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }

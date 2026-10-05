@@ -779,7 +779,6 @@ sparkdown [0..446]
  │   │       │   │   │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 233
  │   │       │   │   │       │       │   ├─ LuauThenExpression [233..239]
  │   │       │   │   │       │       │   │   ├─ LuauThenExpression_begin 233
- │   │       │   │   │       │       │   │   │   └─ LuauThenExpression_begin_c1 233
  │   │       │   │   │       │       │   │   ├─ LuauThenExpression_content [233..239]
  │   │       │   │   │       │       │   │   │   ├─ LuauThenOperator [233..238]
  │   │       │   │   │       │       │   │   │   │   ├─ LuauThenOperator_begin [233..238]

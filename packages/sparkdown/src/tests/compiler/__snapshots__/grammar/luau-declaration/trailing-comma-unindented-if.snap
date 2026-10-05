@@ -120,7 +120,6 @@ sparkdown [0..180]
  │   │       │   │   │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 37
  │   │       │   │   │       │       │   ├─ LuauThenExpression [37..44]
  │   │       │   │   │       │       │   │   ├─ LuauThenExpression_begin 37
- │   │       │   │   │       │       │   │   │   └─ LuauThenExpression_begin_c1 37
  │   │       │   │   │       │       │   │   ├─ LuauThenExpression_content [37..44]
  │   │       │   │   │       │       │   │   │   ├─ LuauThenOperator [37..42]
  │   │       │   │   │       │       │   │   │   │   ├─ LuauThenOperator_begin [37..42]
@@ -341,7 +340,6 @@ sparkdown [0..180]
  │   │       │   │   │   │   │       │   │       └─ LuauTernaryExpressionCondition_end_c2 108
  │   │       │   │   │   │   │       │   ├─ LuauThenExpression [108..114]
  │   │       │   │   │   │   │       │   │   ├─ LuauThenExpression_begin 108
- │   │       │   │   │   │   │       │   │   │   └─ LuauThenExpression_begin_c1 108
  │   │       │   │   │   │   │       │   │   ├─ LuauThenExpression_content [108..114]
  │   │       │   │   │   │   │       │   │   │   ├─ LuauThenOperator [108..113]
  │   │       │   │   │   │   │       │   │   │   │   ├─ LuauThenOperator_begin [108..113]
