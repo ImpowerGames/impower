@@ -18,7 +18,8 @@ import { findChildByName } from "../utils/alternatorArms";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { contextValueToExpression } from "./lowerLuauDefine";
 import { readMorphBody } from "../../morph/readMorphBody";
-import { parseStructBodyTyped } from "./lowerStructBodyTyped";
+import { parseStructBodyTyped, type StructSource } from "./lowerStructBodyTyped";
+import type { DefinitionPropertyEntry } from "../../types/DefinitionPropertyMetadata";
 
 // `animation NAME [as PARENT] with <body> end` / `theme NAME …` — structural
 // presentation keywords (style-family). They produce BOTH:
@@ -64,10 +65,12 @@ export function lowerLuauStructDefine(
   // returned CompiledBlock: this is a chunk-level lowerer, so the annotator
   // picks `block.diagnostics` up directly.
   const diagnostics: InkDiagnostic[] = [];
+  const sources = new WeakMap<object, StructSource>();
+  const morph = type === "morph" ? readMorphBody(contentNode, ctx, diagnostics) : undefined;
   const body =
-    type === "morph"
-      ? readMorphBody(contentNode, ctx, diagnostics).struct
-      : parseStructBodyTyped(contentNode, ctx, diagnostics);
+    morph
+      ? morph.struct
+      : parseStructBodyTyped(contentNode, ctx, diagnostics, { sources });
 
   const struct: Record<string, unknown> = {
     $type: type,
@@ -119,6 +122,32 @@ export function lowerLuauStructDefine(
   });
   const block = wrapInWeave([declaration]);
   block.context = { [type]: { [name]: struct } };
+  const properties: DefinitionPropertyEntry[] = [];
+  const collect = (value: unknown, path: (string | number)[]) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      value.forEach((item, i) => collect(item, [...path, i]));
+      return;
+    }
+    const source = (morph?.sources ?? sources).get(value);
+    for (const [key, child] of Object.entries(value)) {
+      const span = source?.keys.get(key);
+      const nextPath = [...path, key];
+      if (span) properties.push({
+        path: nextPath,
+        key: { from: span.from - (ctx.chunkFrom ?? nodeRef.from), to: span.to - (ctx.chunkFrom ?? nodeRef.from) },
+        declared: false,
+        value: child,
+      });
+      collect(child, nextPath);
+    }
+  };
+  collect(body, []);
+  block.definitionProperties = [{
+    type, name, root: false,
+    parent: { type, name: parent || "$default" },
+    properties, openPaths: [],
+  }];
   if (diagnostics.length > 0) {
     block.diagnostics = [...(block.diagnostics ?? []), ...diagnostics];
   }

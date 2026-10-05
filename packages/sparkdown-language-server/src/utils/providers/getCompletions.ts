@@ -13,6 +13,7 @@ import {
   insideElementValue,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
+import { getKnownDefinitionProperties } from "@impower/sparkdown/src/compiler/utils/knownDefinitionProperties";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -668,6 +669,7 @@ const addStructPropertyNameContextCompletions = (
   lineText: string,
   cursorPosition: Position,
   exclude?: string[],
+  documentationPrefix = "",
 ) => {
   const textAfterCursor = lineText.slice(cursorPosition.character);
   if (typeStruct) {
@@ -730,13 +732,13 @@ const addStructPropertyNameContextCompletions = (
                   program?.context?.[typeStruct.$type]?.[
                     `$description:${name}`
                   ],
-                  p,
+                  documentationPrefix + p,
                 )?.[""] ||
                 getProperty<Record<string, string>>(
                   config?.definitions?.descriptions?.[typeStruct.$type]?.[
                     "$description"
                   ],
-                  p,
+                  documentationPrefix + p,
                 )?.[""];
               if (documentationValue) {
                 completion.documentation = {
@@ -770,27 +772,33 @@ const addStructPropertyNameCompletions = (
   exclude: string[],
 ) => {
   if (type) {
-    for (const typeStruct of [
-      program?.context?.[type]?.["$default"],
-      program?.context?.[type]?.[`$optional:${name}`],
-      program?.context?.[type]?.["$optional"],
-      config?.definitions?.optionals?.[type]?.["$optional"],
-    ]) {
-      addStructPropertyNameContextCompletions(
+    const parts = path.split(".").filter(Boolean);
+    const registry = {
+      context: program?.context,
+      definitions: program?.definitionProperties,
+      optionals: config?.definitions?.optionals,
+    };
+    let known = getKnownDefinitionProperties(registry, type, name, parts);
+    if (known.recursive) known = getKnownDefinitionProperties(registry, type, name);
+    const typeStruct = Object.fromEntries([
+      ["$type", type],
+      ...[...known.properties].map(([key, property]) => [key, property.value]),
+    ]);
+    addStructPropertyNameContextCompletions(
         completions,
         program,
         config,
         typeStruct,
         name,
         modifier,
-        path,
+        "",
         valueAssignmentSeparator,
         includeTypeAsDetail,
         lineText,
         cursorPosition,
         exclude,
-      );
-    }
+        known.recursive || parts.length === 0 ? "" : `.${parts.join(".")}`,
+    );
   }
 };
 

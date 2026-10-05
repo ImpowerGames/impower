@@ -1,0 +1,12 @@
+[
+  {
+    "file": "evidence/verify-optional-color.mjs",
+    "sha256": "bd659c049a69e235bda9f8ccc60d1655d3055248fab27fdf4cd04d24bf7c302c",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "a37e3575402bb29f72247447d2e3164dca892a46a63fef9ce8c00acb60a45391",
+    "kind": "unaltered historical artifact"
+  }
+]

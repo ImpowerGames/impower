@@ -34,6 +34,7 @@ import {
 } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import type { DefinitionPropertyMetadata } from "../../types/DefinitionPropertyMetadata";
 
 export interface InkDiagnostic {
   message: string;
@@ -46,6 +47,7 @@ export interface InkDiagnostic {
 }
 
 export interface CompiledBlock {
+  definitionProperties?: DefinitionPropertyMetadata[];
   diagnostics?: InkDiagnostic[];
   content?: ParsedObject[];
   include?: string;
