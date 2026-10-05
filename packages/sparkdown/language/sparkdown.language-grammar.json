@@ -12456,17 +12456,7 @@
       }
     },
     "LuauSparkdownExplicitThenExpression": {
-      "begin": "(?=(?:then)\\b)|(?<=(?:\\bthen|/[dgimsuvy]{1,8}then))((?:[^\\S\\n\\r])*)",
-      "beginCaptures": {
-        "1": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        }
-      },
+      "begin": "(?=(?:then)\\b)|(?<=(?:\\bthen|/[dgimsuvy]{1,8}then))",
       "patterns": [
         {
           "include": "#LuauSparkdownExplicitThenOperator"
@@ -13634,7 +13624,7 @@
       "match": "((?:[^\\S\\n\\r])*)((?:[&]|[|])|(?<=(?:[\\w)}\\]\"'`?]|[^-]>)(?:[^\\S\\n\\r])*)[-][>])((?:[^\\S\\n\\r])*)(?=$|(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,)\\]}>]|=(?!=)|\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)))"
     },
     "LuauSparkdownExplicitThenOperator": {
-      "begin": "((?:then)\\b)((?:[^\\S\\n\\r])*)",
+      "begin": "((?:then)\\b)((?:[^\\S\\n\\r])*)|(?<=(?:\\bthen|/[dgimsuvy]{1,8}then))(?=(?:[^\\S\\n\\r]))((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -13644,6 +13634,14 @@
           ]
         },
         "2": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "3": {
           "emit": true,
           "patterns": [
             {

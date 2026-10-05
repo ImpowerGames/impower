@@ -8619,12 +8619,7 @@ repository:
   LuauSparkdownExplicitThenExpression:
     # lookaround: LuauElseExpression owns the next clause; the then arm opens at then and yields before else or a following statement clause.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: (?=(?:then)\b)|(?<={{LUAU_THEN_BEHIND}})({{WS}}*)
-    beginCaptures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
+    begin: (?=(?:then)\b)|(?<={{LUAU_THEN_BEHIND}})
     patterns:
       - { include: "#LuauSparkdownExplicitThenOperator" }
       - { include: "#LuauComment" }
@@ -9516,13 +9511,23 @@ repository:
     # See bounded-invalid-token rationale above for the structural alternatives.
     match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END_BEFORE_OPTIONAL}}{{WS}}*)[-][>])({{WS}}*)(?=$|{{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
+  # The bounded twin of `LuauThenOperator`, with the same two begin
+  # alternatives; it never reads past its line.
+  # lookaround: the second alternative's lookbehind is
+  # `LuauSparkdownExplicitThenExpression`'s, and its `(?={{WS}})` keeps it
+  # from opening empty, as in `LuauThenOperator`; at the line end the arm
+  # itself ends first.
   LuauSparkdownExplicitThenOperator:
-    begin: ((?:then)\b)({{WS}}*)
+    begin: ((?:then)\b)({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?={{WS}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#LuauThenKeyword" }
       2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
