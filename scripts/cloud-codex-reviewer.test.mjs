@@ -242,16 +242,18 @@ try {
     assert.deepEqual([counts.files,counts.links],[2,2]);
     assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives','links are not followed');
     assert.deepEqual(removeProbeCheckouts(dir,{preserve:had,keep:[keepReport]}).files,0,'a second run removes nothing');
-    // A report that is a link to another file in the directory keeps both the report entry and what it points at.
+    // A kept report that is a link (to a file, through a chain, or to a directory) refuses the whole cleanup before anything is removed.
     const linkedDir=fs.mkdtempSync(path.join(scratch,'cleanup-report-link-')),linkedHad=snapshotReviewerDirectory(linkedDir);
-    fs.writeFileSync(path.join(linkedDir,'answer.md'),'the report');fs.writeFileSync(path.join(linkedDir,'junk.txt'),'j');
-    let fileLinkCreated=true;
-    try{fs.symlinkSync(path.join(linkedDir,'answer.md'),path.join(linkedDir,'report.md'),'file');}catch(error){if(error.code!=='EPERM')throw error;fileLinkCreated=false;console.log('SKIP: a report linked to another file (creating a file symlink needs a privilege this account lacks)');}
-    if(fileLinkCreated){
-      removeProbeCheckouts(linkedDir,{preserve:linkedHad,keep:[path.join(linkedDir,'report.md')]});
-      assert.deepEqual(fs.readdirSync(linkedDir).sort(),['answer.md','report.md'],'the linked report and its target both remain');
-      assert.equal(fs.readFileSync(path.join(linkedDir,'report.md'),'utf8'),'the report');
-    }
+    fs.writeFileSync(path.join(linkedDir,'answer.md'),'the report');fs.writeFileSync(path.join(linkedDir,'junk.txt'),'j');fs.mkdirSync(path.join(linkedDir,'alias-target'));
+    fs.symlinkSync(path.join(linkedDir,'alias-target'),path.join(linkedDir,'report.md'),'junction');
+    assert.throws(()=>removeProbeCheckouts(linkedDir,{preserve:linkedHad,keep:[path.join(linkedDir,'report.md')]}),/not a regular file; nothing was removed/,'a report that is a directory link is refused');
+    assert.deepEqual(fs.readdirSync(linkedDir).sort(),['alias-target','answer.md','junk.txt','report.md'],'a refused cleanup removes nothing');
+    try{fs.unlinkSync(path.join(linkedDir,'report.md'));}catch{fs.rmdirSync(path.join(linkedDir,'report.md'));}
+    try{
+      fs.symlinkSync(path.join(linkedDir,'answer.md'),path.join(linkedDir,'middle.md'),'file');fs.symlinkSync(path.join(linkedDir,'middle.md'),path.join(linkedDir,'report.md'),'file');
+      assert.throws(()=>removeProbeCheckouts(linkedDir,{preserve:linkedHad,keep:[path.join(linkedDir,'report.md')]}),/not a regular file/,'a report linked through a chain is refused');
+      assert.equal(fs.readFileSync(path.join(linkedDir,'report.md'),'utf8'),'the report','the chain is still readable');
+    } catch(error){if(error.code!=='EPERM')throw error;console.log('SKIP: a report linked through a chain of file symlinks (creating a file symlink needs a privilege this account lacks)');}
     fs.rmSync(linkedDir,{recursive:true});
     assert.throws(()=>removeProbeCheckouts(path.join(dir,'missing')),/ENOENT/);
     const linked=path.join(scratch,'cleanup-link');fs.symlinkSync(outside,linked,'junction');

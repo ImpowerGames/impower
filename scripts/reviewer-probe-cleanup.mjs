@@ -35,25 +35,28 @@ function removeEntry(target,counts) {
 
 // `preserve` holds the top-level names that existed before the reviewer ran;
 // `keep` the files to keep even though they are new (the final report). A kept
-// file is matched by its canonical name, so another spelling of the same path
-// (a different case on Windows) still protects it. Returns the counts of
-// removed files and links. Throws when the directory is not an existing real
-// directory, so a plan pointing the reviewer at a link never makes this walk
-// somewhere else.
+// file inside the directory must be a regular file, matched by the name the
+// directory lists (another case on Windows still matches): a link would need
+// every link component and target kept to stay readable, so one refuses the
+// whole cleanup before anything is removed. A kept file elsewhere needs no
+// protection here. Returns the counts of removed files and links. Throws when
+// the directory is not an existing real directory, so a plan pointing the
+// reviewer at a link never makes this walk somewhere else.
 export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[]}={}) {
   if(!fs.lstatSync(directory).isDirectory())throw new Error(`Reviewer directory ${directory} is not a directory`);
   const root=fs.realpathSync.native(directory);
-  // The directory entry's own name keeps the report when it is a link, and the
-  // canonical target keeps what a link points at; either spelling of the name
-  // (another case on Windows) resolves to the entry the directory lists.
-  const keptPaths=(file)=>{
-    const directory=fs.realpathSync.native(path.dirname(file)),base=path.basename(file),names=fs.readdirSync(directory);
+  const keptPath=(file)=>{
+    const parent=fs.realpathSync.native(path.dirname(file)),base=path.basename(file),names=fs.readdirSync(parent);
     const entry=names.find(name=>name===base)??(process.platform==='win32'?names.find(name=>name.toLowerCase()===base.toLowerCase()):undefined);
-    const paths=[entry===undefined?path.join(directory,base):path.join(directory,entry)];
-    try{paths.push(fs.realpathSync.native(file));}catch{}
-    return paths;
+    return path.join(parent,entry??base);
   };
-  const kept=new Set(keep.flatMap(keptPaths).filter(file=>isInside(root,file)));
+  const kept=new Set();
+  for(const file of keep){
+    const target=keptPath(file);
+    if(!isInside(root,target))continue;
+    if(!fs.lstatSync(target).isFile())throw new Error(`Kept file ${target} is not a regular file; nothing was removed`);
+    kept.add(target);
+  }
   const counts={files:0,links:0};
   const visit=(current,top)=>{
     for(const name of fs.readdirSync(current)){
