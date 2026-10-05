@@ -406,6 +406,7 @@ assert.equal(fs.readFileSync(path.join(lockRoot, recoveredGuards().at(-1)), "utf
 afterAbandoned.release();
 for (const [label, identify, record] of [
   ["a live owner", () => deadOwner, abandoned],
+  ["an unreadable process table", () => { throw new Error("process table unreadable"); }, abandoned],
   ["an unreadable record", () => null, ""],
   ["a record without an owner start", () => null, JSON.stringify({ owner: { pid: deadOwner.pid } })],
   ["malformed JSON", () => null, "{"],

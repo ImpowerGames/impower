@@ -105,7 +105,12 @@ function recoverAbandonedGuard(root, guard, identify) {
   let owner;
   try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
   catch { return false; }
-  if (!owner?.pid || !owner.start || same(owner, identify(owner.pid))) return false;
+  if (!owner?.pid || !owner.start) return false;
+  // An unreadable process table is not evidence that the owner is gone.
+  let current;
+  try { current = identify(owner.pid); }
+  catch { return false; }
+  if (same(owner, current)) return false;
   const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
   try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
   catch (error) { if (error.code !== "ENOENT") return false; }
