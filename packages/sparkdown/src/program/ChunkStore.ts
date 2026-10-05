@@ -257,8 +257,9 @@ interface ChunkInfo {
   alternators: readonly AlternatorPart[];
   /** The choices the statement raises, in order. */
   choices: readonly ChoicePart[];
-  /** The block of the `then` clause of a `choose` statement, or -1. */
-  thenBlock: number;
+  /** The blocks of the `then` clauses of a `choose` statement, in order: its
+   *  own, and that of a block written in its preamble. */
+  thenBlocks: readonly number[];
   anonymousReferences: readonly number[];
   /** The locals each function the statement writes declares at its entry
    *  (`hoistedOf`). */
@@ -1093,6 +1094,9 @@ export class ChunkStore {
           oldInfo.choices.map((part) => part.fingerprint),
         )
       : [];
+    // The `then` clauses (a block's own, and one of a block written in its
+    // preamble) keep the old clauses' ids in order.
+    let thens = 0;
     const partBlocks: (number | undefined)[] = bodies.map((body) => {
       const part = partOfBody.get(body.shape as BodyShape);
       if (!part || !oldInfo) {
@@ -1103,7 +1107,7 @@ export class ChunkStore {
         const block = pair === undefined ? -1 : oldInfo.choices[pair]!.block;
         return block >= 0 ? block : undefined;
       }
-      return oldInfo.thenBlock >= 0 ? oldInfo.thenBlock : undefined;
+      return oldInfo.thenBlocks[thens++];
     });
     const oldControl: number[] = [];
     if (inherited) {
@@ -1211,9 +1215,9 @@ export class ChunkStore {
           (body) => partOfBody.get(body.shape as BodyShape) === choice,
         ),
       })),
-      thenBlock: bodies.findIndex((body) => {
+      thenBlocks: bodies.flatMap((body, k) => {
         const part = partOfBody.get(body.shape as BodyShape);
-        return !!part && !(part instanceof Choice);
+        return part && !(part instanceof Choice) ? [k] : [];
       }),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
       hoisted: hoistedOf(statement),

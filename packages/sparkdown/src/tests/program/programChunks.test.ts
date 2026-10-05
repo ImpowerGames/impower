@@ -14,12 +14,12 @@ import {
 } from "../../program/StatementChunk";
 import { compileScript, MAIN_URI, storyBeats } from "./programHarness";
 
-// An `if` holding a `choose` block with a `then` clause of its own, to write
-// in another block's preamble, which the writer does not emit.
+// An `if` written in a `choose` block's preamble that gates two choices with
+// a label between them, which the writer does not emit: the current engine
+// raises the second only once the first is taken.
 const PREAMBLE_THEN =
-  "  if true then\n    choose\n      * [B]\n    then\n      Inner.\n    end\n  end\n";
-const PREAMBLE_THEN_CONSTRUCT =
-  "a then clause of a choose block in another's preamble";
+  "  if true then\n    * [B]\n    label mid\n    * [C]\n  end\n";
+const PREAMBLE_THEN_CONSTRUCT = "a label between choices an if gates";
 const indent = (text: string) =>
   text
     .split("\n")
@@ -229,8 +229,8 @@ describe("the fallback", () => {
     });
   });
 
-  // A `choose` block written in another's preamble with a `then` clause of
-  // its own is not emitted.
+  // A label between two choices an `if` of a `choose` block's preamble gates
+  // is not emitted.
   it("names a block statement at the top level", () => {
     const { program } = compileScript(
       `One.\nchoose\n${PREAMBLE_THEN}  + [A]\n    Took A.\nend\n`,

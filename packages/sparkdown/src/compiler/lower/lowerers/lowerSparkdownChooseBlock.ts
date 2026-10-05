@@ -17,6 +17,7 @@ import {
   inlineChoiceBranches,
   openBody,
   openStatement,
+  recordChooseContext,
   recordChoiceBody,
   type BodyShape,
 } from "../utils/statementShape";
@@ -55,6 +56,7 @@ export function lowerSparkdownChooseBlock(
   // inside an `if` there) offers its choices with that block's, so it holds
   // no flow of its own: its choices continue where the other block's do.
   const inPreamble = (ctx as MutableCtx).inChoosePreamble === true;
+  recordChooseContext(ctx, `${depth}:${inPreamble}`);
 
   const content = findChildByName(
     nodeRef.node,
@@ -197,7 +199,12 @@ export function lowerSparkdownChooseBlock(
       if (!currentChoice) {
         // An `if` of the preamble that offers choices gates them: its
         // branches are the block's own code.
-        inlineChoiceBranches(ctx, items, holdsChoice);
+        inlineChoiceBranches(
+          ctx,
+          items,
+          holdsChoice,
+          (obj) => obj instanceof Choice,
+        );
       }
     } finally {
       if (shape && currentBody) {

@@ -13,7 +13,10 @@ import type { IWeavePoint } from "./IWeavePoint";
 import { ParsedObject } from "./Object";
 import { Story } from "./Story";
 import { SymbolType } from "./SymbolType";
-import { ClosestFlowBase } from "./Flow/ClosestFlowBase";
+import {
+  weavePointResolutionKey,
+  weavePointSymbolName,
+} from "./weavePointSymbol";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 
 // Stands where a chosen choice repeats its start content, when that is not the
@@ -158,25 +161,13 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
    *  joined by a dot, or its own alone at the story's top level. A choice
    *  with no name counts under an anonymous symbol of its statement. */
   public override get programSymbolName(): string | null {
-    const name = this.name;
-    if (!name) {
-      return null;
-    }
-    const flow = ClosestFlowBase(this) as ParsedObject | null;
-    if (!flow) {
-      return null;
-    }
-    if (!flow.parent) {
-      return name;
-    }
-    const flowName = flow.programSymbolName;
-    return flowName === null ? null : `${flowName}.${name}`;
+    return weavePointSymbolName(this, this.name);
   }
 
   /** What a named choice's chunk records of how its name resolved: the
    *  qualified name of the symbol it exports. */
   get programResolutionKey(): string {
-    return `label:${this.programSymbolName ?? ""}`;
+    return weavePointResolutionKey(this);
   }
 
   // A choice is emitted by the `choose` block that offers it (the writer's

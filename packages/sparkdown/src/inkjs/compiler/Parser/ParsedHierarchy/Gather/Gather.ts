@@ -6,7 +6,10 @@ import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";
-import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
+import {
+  weavePointResolutionKey,
+  weavePointSymbolName,
+} from "../weavePointSymbol";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
@@ -43,25 +46,13 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
    *  own alone at the story's top level. An unnamed gather, and a label
    *  inside a function, have none. */
   public override get programSymbolName(): string | null {
-    const name = this.name;
-    if (!name) {
-      return null;
-    }
-    const flow = ClosestFlowBase(this) as ParsedObject | null;
-    if (!flow) {
-      return null;
-    }
-    if (!flow.parent) {
-      return name;
-    }
-    const flowName = flow.programSymbolName;
-    return flowName === null ? null : `${flowName}.${name}`;
+    return weavePointSymbolName(this, this.name);
   }
 
   /** What a label's chunk records of how its name resolved: the qualified
    *  name of the symbol it exports. */
   get programResolutionKey(): string {
-    return `label:${this.programSymbolName ?? ""}`;
+    return weavePointResolutionKey(this);
   }
 
   // A label is a chunk of its own that exports its symbol at the `Visit`

@@ -37,6 +37,11 @@ export interface ProgramEmitter {
    *  choice's entry code with its body entered as a block, and its `then`
    *  clause (docs/engine/binary-program.md, section 4). */
   emitChoose(weave: object): void;
+  /** Emits a `choose` block written in another block's preamble (a `Weave`
+   *  that holds choices and is no block of its own) as part of that block's
+   *  presentation, its choices continuing at its `then` clause when it has
+   *  one. */
+  emitPreambleChoose(weave: object): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump to a label the caller already holds, bound or not: a

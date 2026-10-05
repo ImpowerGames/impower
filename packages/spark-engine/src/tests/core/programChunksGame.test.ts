@@ -243,8 +243,9 @@ describe("a game that runs statement chunks", () => {
     expect(dialogue).toContain("Two, and a half.");
   });
 
-  // Choices are not emitted yet, so the program falls back and the game runs
-  // it on the current engine as a whole.
+  // The game runs the block on the program engine (#697), taking the first
+  // choice, and presents the caption with the choices as the current engine
+  // does.
   it("shows a `choose` block's caption as the current engine does", () => {
     const texts = {
       [MAIN]: [
@@ -264,9 +265,9 @@ describe("a game that runs statement chunks", () => {
     };
     const startFrom = { file: MAIN, line: 1 };
     const on = compile(texts, true);
-    expect(on.program.fallback).toEqual({ construct: "choose", uri: MAIN, line: 2 });
+    expect(on.program.fallback).toBeUndefined();
     const chunks = play(on.program, on.story, true, startFrom);
-    expect(chunks.engine).toBeInstanceOf(Story);
+    expect(chunks.engine).toBeInstanceOf(ProgramStory);
     const off = compile(texts, false);
     const current = play(off.program, off.story, false, startFrom);
     expect(chunks.finished).toBe(true);

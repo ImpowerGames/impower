@@ -304,6 +304,42 @@ describe("choose blocks on the program engine", () => {
     agrees(text, [[0, 1], [1, 1, 1, 0, 1], [2]]);
   });
 
+  // A block written in another block's preamble offers its choices with that
+  // block's; with a `then` clause of its own, its choices continue there, and
+  // the flow then goes on through the rest of the preamble, as the current
+  // engine's weave does.
+  it("runs a block written in another block's preamble, with and without a then clause of its own", () => {
+    for (const inner of [
+      ["      choose", "        * Inner A", "          Took inner A.", "        * Inner B", "      then (inner_then)", "        Inner then {inner_then}.", "      end"],
+      ["      choose", "        * Inner A", "          Took inner A.", "      end", "      Still in the preamble."],
+    ]) {
+      const text = [
+        "-> main",
+        "scene main",
+        "  label top",
+        "  choose",
+        "    Caption {top}.",
+        "    if true then",
+        ...inner,
+        "    end",
+        "    + Outer",
+        "      Took outer.",
+        "    + Leave",
+        "      -> out",
+        "  end",
+        "  -> top",
+        "end",
+        "scene out",
+        "  Out.",
+        "end",
+        "",
+      ].join("\n");
+      const runs = agrees(text, [[0, 2], [1, 2], [2], [0, 0, 0, 2]]);
+      expect(menuTexts(runs[0]!.actual)[0]).toContain("Inner A");
+      expect(menuTexts(runs[0]!.actual)[0]).toContain("Outer");
+    }
+  });
+
   it("follows a fallback choice when every other choice is unavailable", () => {
     const text = [
       "store has_key = false",
@@ -612,6 +648,49 @@ describe("the choose chunk", () => {
     expect(before).not.toContain("Visit");
     expect(before).not.toContain("SetVar");
     expect(before).not.toContain("StoreIndex");
+  });
+
+  // A choice an `if` of the preamble gates has a body that is a block too:
+  // the lines after it in its branch, which the current engine runs when it
+  // is taken.
+  it("re-emits only the edited statement for an edit inside the body of a choice an if gates, and keeps the choose chunk", () => {
+    const gated = [
+      "store open = true",
+      "-> main",
+      "scene main",
+      "  choose",
+      "    if open then",
+      "      Before the gated choice.",
+      "      * Pay",
+      "        Paid.",
+      "        Paid again.",
+      "      + Wait",
+      "        Waited.",
+      "    end",
+      "    + Leave",
+      "      Left.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ].join("\n");
+    agrees(gated, [[0], [1], [2], [0, 0]]);
+    const s = session(gated);
+    const [chunk] = chooseChunks(s.first.chunks!);
+    expect(blockCount(chunk!)).toBe(3);
+    const before = new Set(rootChunks(s.first.chunks!));
+    for (const [from, to] of [
+      ["Paid again.", "Paid once more."],
+      ["Waited.", "Waited a while."],
+      ["Left.", "Left at once."],
+    ] as const) {
+      const root = s.edit(from, to);
+      expect(s.emitted, from).toBe(1);
+      expect(chooseChunks(root)[0]).toBe(chunk);
+      const after = rootChunks(root);
+      expect(after.filter((c) => !before.has(c))).toHaveLength(1);
+      after.forEach((c) => before.add(c));
+    }
   });
 
   it("re-emits only the edited statement for an edit inside the then clause or a choice's body, and keeps the choose chunk", () => {

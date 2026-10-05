@@ -169,6 +169,8 @@ export interface EmittedStatement {
 // raises, with the label its `Choice` targets, its count symbol, whether that
 // is a named choice's label symbol, and what its entry runs after the
 // choice's own content when its body is no block.
+// A choice of a block written in the preamble whose block has a `then` clause
+// continues at that clause (`join`) rather than at the block's end.
 interface ChooseState {
   entries: {
     choice: Choice;
@@ -176,7 +178,11 @@ interface ChooseState {
     symbol: number;
     named: boolean;
     inline: readonly ParsedObject[];
+    join: ProgramLabel | null;
   }[];
+  join: ProgramLabel | null;
+  /** The block's end, `T`. */
+  end: ProgramLabel;
 }
 
 // A block of the chunk being written, as its `EnterBlock` left it.
@@ -580,18 +586,25 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const obj = objects[i]!;
       if (obj instanceof Choice) {
         // A choice is raised by the code of the `choose` block that offers
-        // it. One whose body is no block of the statement, as a choice an
-        // `if` of the block's preamble gates, runs what follows it in the
-        // list up to the next choice when it is taken, as the current
-        // engine's weave nests that content in the choice.
+        // it. A choice an `if` of the block's preamble gates runs what
+        // follows it in its branch up to the next choice when it is taken,
+        // as the current engine's weave nests that content in the choice:
+        // its body, then what the branch closes (its scope).
         if (!this._choose) {
           this.unsupported(obj.typeName);
         }
         let end = i + 1;
-        if (!choiceBodyOf.has(obj)) {
-          while (end < objects.length && !(objects[end] instanceof Choice)) {
-            end += 1;
-          }
+        while (end < objects.length && !(objects[end] instanceof Choice)) {
+          end += 1;
+        }
+        // A label between two such choices makes the later one a choice the
+        // current engine raises only once the earlier is taken, which its
+        // weave reaches through the label.
+        if (
+          end < objects.length &&
+          objects.slice(i + 1, end).some((part) => part instanceof Gather)
+        ) {
+          this.unsupported("a label between choices an if gates");
         }
         this.emitChoicePoint(obj, objects.slice(i + 1, end));
         i = end - 1;
@@ -683,12 +696,13 @@ export class BinaryProgramWriter implements ProgramEmitter {
     if (this._choose || !(gather instanceof Gather)) {
       this.unsupported("a choose block in another's preamble");
     }
-    const presentation: ChooseState = { entries: [] };
+    const end: ProgramLabel = { offset: -1 };
+    const presentation: ChooseState = { entries: [], join: null, end };
     this._choose = presentation;
     this.emitObjects(content.slice(0, -1));
     this._choose = null;
     this.emit(Op.Done, 0, 0, DONE_HOLD);
-    const end = this.jump(Op.Jump);
+    this.jumpBack(Op.Jump, end);
     presentation.entries.forEach((entry, n) => {
       this.bind(entry.label);
       this.withRange(entry.choice.ownDebugMetadata as DebugMetadata | null, () => {
@@ -697,15 +711,11 @@ export class BinaryProgramWriter implements ProgramEmitter {
           this.exportHere(entry.symbol);
         }
         this.emit(Op.Visit, entry.symbol);
-        this.emitWithBody(
-          entry.choice.innerContent.content,
-          choiceBodyOf.get(entry.choice),
-          BLOCK_CHOICE,
-          "a choice's body",
-        );
-        this.emitObjects(entry.inline);
+        this.emitChoiceEntry(entry.choice, entry.inline);
       });
-      if (n < presentation.entries.length - 1) {
+      if (entry.join) {
+        this.jumpBack(Op.Jump, entry.join);
+      } else if (n < presentation.entries.length - 1) {
         this.jumpBack(Op.Jump, end);
       }
     });
@@ -724,6 +734,55 @@ export class BinaryProgramWriter implements ProgramEmitter {
         "a then clause",
       );
     });
+  }
+
+  /**
+   * A `choose` block written in another block's preamble (a `Weave` that is
+   * no block of its own), as part of that block's presentation: its choices
+   * are raised with the other block's, and when it has a `then` clause, its
+   * choices continue there, as the current engine's weave diverts their loose
+   * ends to that clause's gather, which the flow does not enter otherwise,
+   * and the clause continues where the other block's choices do, as the
+   * gather's own loose end passes up to the other block:
+   *
+   *   its own code and its choices; Jump past; J: Visit (the clause's label);
+   *   EnterBlock (the clause); Jump (the other block's end); past:
+   */
+  emitPreambleChoose(weaveObject: object): void {
+    const weave = weaveObject as ParsedObject;
+    if (!this._choose) {
+      this.unsupported("Choice");
+    }
+    const content = weave.content;
+    const last = content[content.length - 1];
+    const gather = last instanceof Gather ? last : null;
+    const presentation = this._choose;
+    const outer = presentation.join;
+    const join: ProgramLabel | null = gather ? { offset: -1 } : outer;
+    presentation.join = join;
+    this.emitObjects(gather ? content.slice(0, -1) : content);
+    presentation.join = outer;
+    if (!gather) {
+      return;
+    }
+    const past = this.jump(Op.Jump);
+    this.bind(join!);
+    this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
+      if (gather.name) {
+        this.recordResolution(gather.programResolutionKey);
+        const symbol = this.labelSymbol(gather);
+        this.exportHere(symbol);
+        this.emit(Op.Visit, symbol);
+      }
+      this.emitWithBody(
+        gather.content,
+        choiceBodyOf.get(gather),
+        BLOCK_THEN,
+        "a then clause",
+      );
+    });
+    this.jumpBack(Op.Jump, outer ?? presentation.end);
+    this.bind(past);
   }
 
   /** A choice's presentation: its start text and its choice-only text, each
@@ -759,8 +818,43 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const named = !!choice.name;
       const symbol = named ? this.labelSymbol(choice) : this.choiceSymbol(choice);
       const label = this.jump(Op.Choice, flags);
-      presentation.entries.push({ choice, label, symbol, named, inline });
+      presentation.entries.push({
+        choice,
+        label,
+        symbol,
+        named,
+        inline,
+        join: presentation.join,
+      });
     });
+  }
+
+  /** A choice's entry after its `Visit`: its own content (the chosen line
+   *  and its arrow) and its body as a block. The body of a choice of the
+   *  block's own is the end of its content; the body of a choice an `if`
+   *  gates is the start of `inline`, what follows the choice in its branch,
+   *  whose rest runs after the body. */
+  protected emitChoiceEntry(
+    choice: Choice,
+    inline: readonly ParsedObject[],
+  ): void {
+    const body = choiceBodyOf.get(choice);
+    const content = choice.innerContent.content;
+    const held = body
+      ? heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0])
+      : [];
+    if (!body || held.length === 0 || content.includes(held[0]!)) {
+      this.emitWithBody(content, body, BLOCK_CHOICE, "a choice's body");
+      this.emitObjects(inline);
+      return;
+    }
+    this.expect(
+      held.every((part, k) => inline[k] === part),
+      "a choice's body",
+    );
+    this.emitObjects(content);
+    this.enterBlock(body, BLOCK_CHOICE);
+    this.emitObjects(inline.slice(held.length));
   }
 
   /** The anonymous symbol that counts a choice of the statement. */

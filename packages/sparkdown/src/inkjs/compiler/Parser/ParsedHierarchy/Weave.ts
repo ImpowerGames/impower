@@ -139,19 +139,16 @@ export class Weave extends ParsedObject {
   // clause (docs/engine/binary-program.md, section 4). A block written in
   // another block's preamble offers its choices with that block's and holds
   // no flow of its own: its code is part of the other block's presentation,
-  // and its choices continue where the other block's do. Such a block's
-  // `then` clause, which the current engine keeps as a gather its choices'
-  // loose ends lead to, is not emitted.
+  // and its choices continue at its `then` clause when it has one, and
+  // otherwise where the other block's do.
   public override EmitProgram(emitter: ProgramEmitter): void {
     if (this.isChooseBlock) {
       emitter.emitChoose(this);
       return;
     }
-    if (
-      this.content.some((obj) => obj instanceof Choice) &&
-      this.content.some((obj) => obj instanceof Gather)
-    ) {
-      emitter.unsupported("a then clause of a choose block in another's preamble");
+    if (this.content.some((obj) => obj instanceof Choice)) {
+      emitter.emitPreambleChoose(this);
+      return;
     }
     emitter.emitObjects(this.content);
   }

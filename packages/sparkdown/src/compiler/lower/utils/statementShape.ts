@@ -314,6 +314,16 @@ export const recordAlternatorSource = (
   alternatorSourceOf.set(alternator, { from: node.from - base, to: node.to - base });
 };
 
+/** Records that the running statement's lowering read the `choose` blocks
+ *  around it (`value`): how deep it stands in them and whether it stands in
+ *  one's preamble, which decide whether it is a block of its own or offers
+ *  its choices with the block around it. A statement whose syntax reads the
+ *  same in another such place is lowered to other objects, so its chunk is
+ *  kept only while this reads the same. */
+export const recordChooseContext = (ctx: LowerContext, value: string): void => {
+  currentStatement(ctx)?.reads.other.push(`choose:${value}`);
+};
+
 /** The body of each choice of a `choose` block, and the body of its `then`
  *  clause, by the choice or by the clause's gather: blocks of the `choose`
  *  statement (docs/engine/binary-program.md, section 4). */
@@ -337,41 +347,74 @@ export const recordChoiceBody = (part: ParsedObject, body: BodyShape): void => {
  * `if` written before a block's first choice gates the choices it holds, and
  * its branches are relative jumps around their code in the block's chunk
  * (docs/engine/binary-program.md, section 4), not blocks. Each such branch's
- * body is taken out of the statement's bodies; the bodies of the statements
- * it held (a loop's, a nested `if`'s) become the statement's own, and what
- * those statements' lowering read is the statement's.
+ * body is taken out of the statement's bodies. Its statements up to its first
+ * choice are the statement's own code: the bodies of those statements (a
+ * loop's, a nested `if`'s) become the statement's own, and what their
+ * lowering read is the statement's. A choice's line is the statement's own
+ * code too, and the statements after it up to the next choice, which the
+ * current engine's weave nests in the choice, are the choice's body, a block
+ * of the statement as the body of any other choice is.
  */
 export const inlineChoiceBranches = (
   ctx: LowerContext,
   objects: readonly ParsedObject[],
   holdsChoice: (obj: ParsedObject) => boolean,
+  isChoice: (obj: ParsedObject) => boolean,
 ): void => {
   const owner = currentStatement(ctx);
   if (!owner) {
     return;
   }
+  const own = (statement: StatementShape) => {
+    for (const [name, found] of statement.reads.callable) {
+      owner.reads.callable.set(name, found);
+    }
+    for (const [name, found] of statement.reads.defineType) {
+      owner.reads.defineType.set(name, found);
+    }
+    owner.reads.other.push(...statement.reads.other);
+  };
   const hoist = (body: BodyShape) => {
     const at = owner.bodies.findIndex((shape) => shape === body);
-    if (at < 0) {
-      return;
-    }
     owner.bodies.splice(at, 1);
-    for (const statement of body.statements) {
-      for (const [name, found] of statement.reads.callable) {
-        owner.reads.callable.set(name, found);
+    const statements = body.statements;
+    let choiceBody: BodyShape | undefined;
+    statements.forEach((statement, i) => {
+      const choice = statement.objects.find(isChoice);
+      if (choice) {
+        let next = i + 1;
+        while (
+          next < statements.length &&
+          !statements[next]!.objects.some(isChoice)
+        ) {
+          next += 1;
+        }
+        choiceBody = {
+          statements: [],
+          headEnd: statement.to,
+          nextStart: statements[next]?.from ?? body.nextStart,
+        };
+        owner.bodies.push(choiceBody);
+        recordChoiceBody(choice, choiceBody);
+        own(statement);
+        return;
       }
-      for (const [name, found] of statement.reads.defineType) {
-        owner.reads.defineType.set(name, found);
+      if (choiceBody) {
+        choiceBody.statements.push(statement);
+        return;
       }
-      owner.reads.other.push(...statement.reads.other);
+      own(statement);
       owner.bodies.push(...statement.bodies);
-    }
+    });
   };
   const visit = (obj: ParsedObject) => {
     const branches = (obj as { branches?: ParsedObject[] }).branches;
     for (const branch of branches ?? []) {
       const body = bodyOfBlock.get(branch);
-      if (body && holdsChoice(branch)) {
+      // A branch whose body is still the statement's: one inside a choice's
+      // body is that body's statement's, which a choice cannot stand in.
+      const owned = owner.bodies.some((shape) => shape === body);
+      if (body && owned && holdsChoice(branch)) {
         bodyOfBlock.delete(branch);
         hoist(body);
       }
