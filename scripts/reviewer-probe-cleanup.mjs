@@ -43,8 +43,17 @@ function removeEntry(target,counts) {
 export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[]}={}) {
   if(!fs.lstatSync(directory).isDirectory())throw new Error(`Reviewer directory ${directory} is not a directory`);
   const root=fs.realpathSync.native(directory);
-  const canonical=(file)=>{try{return fs.realpathSync.native(file);}catch{return path.join(fs.realpathSync.native(path.dirname(file)),path.basename(file));}};
-  const kept=new Set(keep.map(canonical).filter(file=>isInside(root,file)));
+  // The directory entry's own name keeps the report when it is a link, and the
+  // canonical target keeps what a link points at; either spelling of the name
+  // (another case on Windows) resolves to the entry the directory lists.
+  const keptPaths=(file)=>{
+    const directory=fs.realpathSync.native(path.dirname(file)),base=path.basename(file),names=fs.readdirSync(directory);
+    const entry=names.find(name=>name===base)??(process.platform==='win32'?names.find(name=>name.toLowerCase()===base.toLowerCase()):undefined);
+    const paths=[entry===undefined?path.join(directory,base):path.join(directory,entry)];
+    try{paths.push(fs.realpathSync.native(file));}catch{}
+    return paths;
+  };
+  const kept=new Set(keep.flatMap(keptPaths).filter(file=>isInside(root,file)));
   const counts={files:0,links:0};
   const visit=(current,top)=>{
     for(const name of fs.readdirSync(current)){

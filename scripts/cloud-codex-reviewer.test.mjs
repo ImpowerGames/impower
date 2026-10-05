@@ -242,6 +242,17 @@ try {
     assert.deepEqual([counts.files,counts.links],[2,2]);
     assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives','links are not followed');
     assert.deepEqual(removeProbeCheckouts(dir,{preserve:had,keep:[keepReport]}).files,0,'a second run removes nothing');
+    // A report that is a link to another file in the directory keeps both the report entry and what it points at.
+    const linkedDir=fs.mkdtempSync(path.join(scratch,'cleanup-report-link-')),linkedHad=snapshotReviewerDirectory(linkedDir);
+    fs.writeFileSync(path.join(linkedDir,'answer.md'),'the report');fs.writeFileSync(path.join(linkedDir,'junk.txt'),'j');
+    let fileLinkCreated=true;
+    try{fs.symlinkSync(path.join(linkedDir,'answer.md'),path.join(linkedDir,'report.md'),'file');}catch(error){if(error.code!=='EPERM')throw error;fileLinkCreated=false;console.log('SKIP: a report linked to another file (creating a file symlink needs a privilege this account lacks)');}
+    if(fileLinkCreated){
+      removeProbeCheckouts(linkedDir,{preserve:linkedHad,keep:[path.join(linkedDir,'report.md')]});
+      assert.deepEqual(fs.readdirSync(linkedDir).sort(),['answer.md','report.md'],'the linked report and its target both remain');
+      assert.equal(fs.readFileSync(path.join(linkedDir,'report.md'),'utf8'),'the report');
+    }
+    fs.rmSync(linkedDir,{recursive:true});
     assert.throws(()=>removeProbeCheckouts(path.join(dir,'missing')),/ENOENT/);
     const linked=path.join(scratch,'cleanup-link');fs.symlinkSync(outside,linked,'junction');
     assert.throws(()=>removeProbeCheckouts(linked),/not a directory/,'a linked reviewer directory is refused');
