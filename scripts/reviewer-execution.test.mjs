@@ -278,6 +278,20 @@ try {
   assert.equal(result.timedOut, true);
   assert.equal(result.passed, false);
 } finally { await timed.close(); }
+
+// A Vitest child queued behind another suite for longer than timeoutSeconds
+// still starts and finishes: the reservation wait is added to the kill budget.
+write("scripts/test-suite.mjs", `setTimeout(() => { console.log("Test Files  1 passed (1)"); }, 1500);`);
+git("add", "."); git("commit", "-m", "queued suite fixture");
+const queuedDirectory = path.join(scratch, "queued"); fs.mkdirSync(queuedDirectory);
+const queued = await startExecutionService({ operations: [{ ...operations[0], timeoutSeconds: 1, waitSeconds: 5 }], root, directory: queuedDirectory, head: git("rev-parse", "HEAD") });
+try {
+  const queuedHeaders = { authorization: `Bearer ${queued.environment.IMPOWER_REVIEW_EXECUTION_TOKEN}` };
+  await fetch(queued.environment.IMPOWER_REVIEW_EXECUTION_URL + "/operations/tests", { method: "POST", headers: queuedHeaders });
+  const result = await requestExecution("tests", { env: queued.environment, pollMs: 10 });
+  assert.equal(result.timedOut, false, "queueing past timeoutSeconds does not consume the run's budget");
+  assert.equal(result.passed, true);
+} finally { await queued.close(); }
 console.log("PASS: delegated tests and benchmarks, authentication, fixed inputs, retained failures, freeze, serial execution and drained shutdown");
 
 // The client must be told when returned output is incomplete, while the
