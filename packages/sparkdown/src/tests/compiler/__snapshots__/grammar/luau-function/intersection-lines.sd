@@ -1,0 +1,11 @@
+function combine(value: { x: number }
+  & { y: string })
+  type Combined = { x: number }
+    & { y: string }
+  local nested = function()
+    type Result = number
+      & string
+    return value
+  end
+  return nested()
+end

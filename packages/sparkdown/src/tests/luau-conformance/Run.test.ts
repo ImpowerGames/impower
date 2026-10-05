@@ -43,10 +43,9 @@ describe("run statement", () => {
     "run helpers",
   ])("loads a .luau file and runs its body: %s", (runLine) => {
     // The .luau file's body becomes a wrapper function called from
-    // main flow. Inside the function body, bare calls don't fire
-    // (#75) so the .luau content uses `&` discard-prefix to invoke
-    // the harness-bound external.
-    const luau = `& harness_record(42)
+    // main flow. Ordinary Luau calls invoke the harness-bound external
+    // inside that function body.
+    const luau = `harness_record(42)
 `;
     const main = `external harness_record(v)
 ${runLine}
@@ -69,6 +68,14 @@ done
     });
     story.ContinueMaximally();
     expect(recorded).toEqual([42]);
+  });
+
+  test("a removed marker in a run file remains a syntax error", () => {
+    const { errs } = compileWithFiles([
+      { uri: "inmemory:///main.sd", text: `external harness_record(v)\nrun "helpers"\ndone\n` },
+      { uri: "inmemory:///helpers.luau", text: "& harness_record(42)\n" },
+    ]);
+    expect(errs).toContain("Expected identifier when parsing expression, got '&'");
   });
 
   test("errors on missing .luau file", () => {

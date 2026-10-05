@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { findOwnDeclarationName } from "../../lower/utils/findOwnDeclarationName";
 // Side-effect import to stabilize the inkjs engine module load order.
 // `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
 // dependency cycle; if `Object.ts` is the first to load, `Value.ts`
@@ -344,6 +345,19 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     node: import("@lezer/common").SyntaxNode,
     set: Set<string>,
   ): void {
+    if (node.name === "LuauSparkdownExplicitStatement" ||
+      node.name === "LuauSparkdownExplicitBlockStatement") {
+      const content = node.getChild(`${node.name}_content`);
+      // Only named functions directly authored on the top-level marked line
+      // are global callables. Do not descend into blocks or function bodies.
+      for (let child = content?.firstChild; child; child = child.nextSibling) {
+        if (isExplicitRuleName(child.name, "LuauFunctionDefinition") &&
+          findOwnDeclarationName(child)) {
+          this.collectGlobalNameAt(child, set);
+        }
+      }
+      return;
+    }
     if (node.name === "LuauExternalDeclaration") {
       const content = node.getChild("LuauExternalDeclaration_content");
       const target = content ?? node;
@@ -351,7 +365,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       if (found) set.add(this.read(found.from, found.to).trim());
       return;
     }
-    if (node.name === "LuauFunctionDefinition") {
+    if (isExplicitRuleName(node.name, "LuauFunctionDefinition")) {
       const found = this.findDescendant(node, "LuauFunctionName");
       if (found) set.add(this.read(found.from, found.to).trim());
       return;

@@ -56,16 +56,16 @@ sparkdown [0..24]
      │       │       │   └─ LuauSparkdownExplicitParenthetical_begin_c1 [15..16]
      │       │       │       └─ PunctuationParenOpen [15..16]: "("
      │       │       ├─ LuauSparkdownExplicitParenthetical_content [16..23]
-     │       │       │   └─ LuauDoubleQuotedString [16..23]
-     │       │       │       ├─ LuauDoubleQuotedString_begin [16..17]
-     │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [16..17]
+     │       │       │   └─ LuauSparkdownExplicitDoubleQuotedString [16..23]
+     │       │       │       ├─ LuauSparkdownExplicitDoubleQuotedString_begin [16..17]
+     │       │       │       │   └─ LuauSparkdownExplicitDoubleQuotedString_begin_c1 [16..17]
      │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [16..17]: "\""
-     │       │       │       ├─ LuauDoubleQuotedString_content [17..22]
+     │       │       │       ├─ LuauSparkdownExplicitDoubleQuotedString_content [17..22]
      │       │       │       │   └─ Word [17..22]: "hello"
-     │       │       │       └─ LuauDoubleQuotedString_end [22..23]
-     │       │       │           ├─ LuauDoubleQuotedString_end_c1 [22..23]
+     │       │       │       └─ LuauSparkdownExplicitDoubleQuotedString_end [22..23]
+     │       │       │           ├─ LuauSparkdownExplicitDoubleQuotedString_end_c1 [22..23]
      │       │       │           │   └─ PunctuationStringDoubleQuoteClose [22..23]: "\""
-     │       │       │           └─ LuauDoubleQuotedString_end_c2 23
+     │       │       │           └─ LuauSparkdownExplicitDoubleQuotedString_end_c2 23
      │       │       └─ LuauSparkdownExplicitParenthetical_end [23..24]
      │       │           ├─ LuauSparkdownExplicitParenthetical_end_c1 [23..24]
      │       │           │   └─ PunctuationParenClose [23..24]: ")"

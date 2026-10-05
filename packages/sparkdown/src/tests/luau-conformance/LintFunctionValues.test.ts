@@ -28,12 +28,12 @@ describe("the functions the rules read", () => {
   });
 
   test("a function value passed as an argument", () => {
-    expect(functionLints("& print(function()\n  local unused = 1\nend)\n")).toEqual(["1:8 LocalUnused"]);
+    expect(functionLints("function outer()\nprint(function()\n  local unused = 1\nend)\nend\n")).toEqual(["2:8 LocalUnused"]);
   });
 
   test("a function definition and a function value in a scene, each read once", () => {
     expect(
-      functionLints("scene alpha\n  function helper()\n    local unused = 1\n  end\n  & local g = function()\n    local other = 2\n  end\n  Alpha waits.\nend\n"),
+      functionLints("scene alpha\n  function helper()\n    local unused = 1\n  end\n  local g = function()\n    local other = 2\n  end\n  Alpha waits.\nend\n"),
     ).toEqual(["2:10 LocalUnused", "5:10 LocalUnused"]);
   });
 

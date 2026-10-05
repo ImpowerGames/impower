@@ -89,8 +89,8 @@ test.each([
     "6",
   ],
   [
-    "explicit statement",
-    "local t = { a = 5 }\nlocal y = 0\n& y = t\n  .a\nreturn y",
+    "reassignment statement",
+    "local t = { a = 5 }\nlocal y = 0\ny = t\n  .a\nreturn y",
     "5",
   ],
   [

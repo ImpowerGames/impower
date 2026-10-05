@@ -17,7 +17,7 @@ function function_to_evaluate()
 end
 
 function zero_equals_(k)
-  & do_nothing(0)
+  do_nothing(0)
   return 0 == k
 end
 

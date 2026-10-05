@@ -195,7 +195,7 @@ LuauSparkdownIfBlock:
   # Tried in declaration order against the body.
   patterns:
     - { include: "#LuauIfBlockCondition" }
-    - { include: "#LuauExplicitStatement" }
+    - { include: "#LuauSparkdownExplicitStatement" }
     - { include: "#LuauImplicitStatement" }
     - { include: "#LuauSparkdownControlBlock" }
     - { include: "#SparkdownStatement" }
@@ -244,7 +244,7 @@ The parser surfaces this two ways:
 - **A `console.warn`** of the form `[ScopedRule:RuleName] Incomplete scope at pos=...!` — look in stderr / your console first.
 - **An `ERROR_INCOMPLETE` node** appended as the last child of the offending scope. `printTree` renders these in red (the node type has `isError: true`).
 
-**A worked failure.** Parse this recursive function:
+**A historical worked failure.** Before #1374 removed function statement markers, this recursive function exposed incomplete-scope recovery:
 
 ```sparkdown
 function count(n)
@@ -288,7 +288,7 @@ Plus two `console.warn`s in stderr.
 
 The runtime symptom was that the function appeared to never terminate — but the actual bug was structural: the recursive call was unconditionally executed every time the function ran, regardless of the guard.
 
-**Fix.** `LuauControlBlock` (which `LuauIfBlock` includes) needed `LuauExplicitStatement` and `LuauImplicitStatement` added so `&`-statements and declarations would parse inside the body.
+**Original fix.** `LuauControlBlock` (which `LuauIfBlock` includes) needed `LuauExplicitStatement` and `LuauImplicitStatement` added so the then-valid `&` statements and declarations would parse inside the body. Under the current syntax, write `count(n - 1)` without `&`. A removed marker must diagnose while recovery keeps the call and both closing `end` keywords inside the function.
 
 **Two rules for avoiding this:**
 
@@ -960,15 +960,15 @@ Many block-shaped constructs come in pairs because the same syntactic shape need
 | `LuauSparkdownIfBlock`                   | sparkdown context (inside a scene, branch, or other narrative flow) | Luau **plus** display lines, `SparkdownStatement`, narrative text |
 | `LuauSequentialAlternatorBlock`          | pure-Luau context (inline `{queue\|A\|B\|C}` in an expression)      | arms parsed as Luau expressions                                   |
 | `LuauSparkdownSequentialAlternatorBlock` | sparkdown context (block-form `queue \| A \| B \| C end`)           | arms parsed as display text                                       |
-| `LuauReturnStatement`                    | pure-Luau context (a function body and the blocks inside it), and a narrative line's `&` statement or expression (`& return`, `& f() return`, `& repeat return`) | values on the `return` line, or on the next line when `return` is the whole of its line |
-| `LuauExplicitStatement`, `LuauDoBlock` | pure-Luau context | explicit statements and do blocks may contain multiline function code |
+| `LuauReturnStatement`                    | pure-Luau context (a function body and the blocks inside it); narrative `& return`, `& f() return` and `& repeat return` reach its bounded counterpart | pure-Luau values may start on the next line when `return` is the whole of its line; narrative values stay on the marked physical line |
+| `LuauDoBlock` | pure-Luau context | ordinary Luau statements and blocks may span lines; an `&` statement marker is invalid |
 | `LuauSparkdownExplicitStatement`, `LuauSparkdownExplicitDoBlock` and its bounded if/loop body rules | narrative `&` line | explicit code and nested blocks end at the narrative line boundary; nested markers use `LuauSparkdownExplicitBlockStatement` to leave block closers to their parents |
 
 ### 13.1 Why pairs exist
 
-The narrative explicit expression family is closed over its recursive call, index, table, type and operator children: ordinary expression continuation stops at the story line boundary. Its counterparts preserve the original scopes and captures but have distinct rule identities. Genuine function definitions/expressions and type functions retain their established multiline headers and bodies. Complete opaque strings, comments and regex constructs, and existing structured style/layout/Sparkle definition bodies, retain their established ownership; a complete multiline comment can therefore keep the code suffix on its closing line in the Luau island. An unfinished ordinary call or annotation has no such exception. `SparkdownExplicitTag`, `SparkdownExplicitTags`, `SparkdownExplicitAnnotation` and `SparkdownExplicitDivertPath` preserve their original non-Luau category.
+The narrative explicit expression family is closed over its recursive call, index, table, type, operator, string, comment and function children. Every `&` statement ends at physical EOL. Counterparts preserve original scopes and captures with distinct rule identities. Structured definitions use eight bounded root counterparts inside a finite line capture. Their canonical header and Sparkle children can only read that capture, so a nested scope cannot carry the statement into another line. Unmarked functions, type functions and structured definitions retain their ordinary multiline rules. `SparkdownExplicitTag`, `SparkdownExplicitTags`, `SparkdownExplicitAnnotation` and `SparkdownExplicitDivertPath` preserve their original non-Luau category.
 
-The `Sparkdown`-prefixed variant generally accepts the Luau forms plus display-context constructs. Explicit statements are a bounded exception: narrative `&` marks one line, while an actual function body remains Luau across lines. Unmarked `return` in a narrative body is ordinary display text, so the shared declaration bundle does not include returns; `LuauExpression` includes `LuauReturnStatement` for code contexts. Narrative code reaches its bounded counterpart, `LuauSparkdownExplicitReturnStatement`, through `LuauSparkdownExplicitStatement`. The converter independently prevents a narrative return from reading the next story line as its value. A function definition inside an explicit statement still has a real multiline function body. **If you add a new block-shaped construct that should work in both contexts, you almost always need to write both variants** (and remember §3.2 — each variant's `patterns:` must be exhaustive for its context).
+The `Sparkdown`-prefixed variant generally accepts Luau forms plus display-context constructs. Narrative `&` marks one physical line, including any child function. A multiline function must use its ordinary unmarked definition; its entire body and nested blocks use Luau statements without `&` markers. A line-leading `&` inside that body can continue an intersection type. Unmarked `return` in a narrative body is display text, so the shared declaration bundle excludes returns; code contexts include `LuauReturnStatement`. Narrative code reaches its bounded counterpart, `LuauSparkdownExplicitReturnStatement`, through `LuauSparkdownExplicitStatement`. The converter also prevents a narrative return suffix from reading a later physical line. **A new block-shaped construct that works in both contexts usually needs both variants** (and remember §3.2 — each variant's `patterns:` must be exhaustive for its context).
 
 When you see a bug like "this works in a scene body but not inside a function," the cause is often that the rule's pure-Luau variant is missing a child pattern its Sparkdown variant has.
 
@@ -985,11 +985,11 @@ Three `Switch` rules cover the different statement shapes a body might need to a
 
 - **`LuauDeclarations`** — declaration-shaped statements: `function`, `local`, `const`, `break`, `continue`, `goto`, label declarations, type declarations. Does _not_ include returns, reassignments or function calls.
 - **`LuauReassignment`** — the bare reassignment form: `x = expr`, `obj.field = expr`, `obj.a[k].b += expr`. Does _not_ cover declarations. As in Luau, its target and value lists continue past a comma that ends the line (`LuauCommaLineBreak`, as in `LuauVariableDefinition`). It also begins at a target list that ends its line with a comma (`LUAU_REASSIGNMENT_TARGETS_CONTINUED`, `a,` then `g = 1, 2`), since nothing else in Luau code starts with a name and a comma. It ends where the line after the comma starts a statement: its `end:` checks `LUAU_LIST_LINE_START_STATEMENT` only at the start of a line (`(?<=^{{WS}}*)`), which the reassignment reaches only through that line break. A narrative body (`LuauSparkdownControlBlock`) includes `LuauSparkdownReassignment` instead, which has no line-break pattern and so always ends at its line; a comma it ends with is reported by the lowerer.
-- **`LuauExplicitStatement`** — the `& …` discard-call / explicit-statement form in function code; narrative bodies use `LuauSparkdownExplicitStatement` to keep their line boundary.
+- **`LuauSparkdownExplicitStatement`** — the `& …` statement form in story scope. Pure function dispatchers exclude statement markers; a removed marker remains authored invalid Luau and must produce an error.
 
-Bounded if/loop conditions use `LuauSparkdownExplicitParenthetical`: an unfinished parenthetical yields the narrative line or next beat. Actual function expressions keep `LuauParenthetical`, including multiline values and identifier expressions. The bounded block validator reports a missing `end`/`until` on its explicit line; a later narrative closer cannot repair it.
+Bounded if/loop conditions use `LuauSparkdownExplicitParenthetical`: an unfinished parenthetical yields the narrative line or next beat. Unmarked function expressions keep `LuauParenthetical`, including multiline values and identifier expressions. The bounded block validator reports a missing `end`/`until` on its explicit line; a later narrative closer cannot repair it.
 
-When wiring up a parent block's `patterns:`, you typically want all three included. The `LuauControlBlock` Switch rule pulls in `LuauDeclarations` and `LuauExplicitStatement` for you; `LuauReassignment` is a separate include because of grammar-precedence concerns.
+Choose statement bundles for the parent's context. `LuauControlBlock` includes `LuauDeclarations` and `LuauReassignment` for pure Luau bodies, which accept ordinary calls and assignments without story markers. `LuauSparkdownBlockBody` includes `LuauSparkdownExplicitStatement` for story code islands alongside narrative statements and declarations. Keep the story marker bundle out of pure function bodies.
 
 ---
 

@@ -461,7 +461,7 @@ const SYMBOLS = [
 ];
 
 // Strings, numbers and comments, which the tree reads whole.
-const QUOTED_STRING = /^Luau(DoubleQuoted|SingleQuoted)String$/;
+const QUOTED_STRING = /^Luau(?:SparkdownExplicit)?(DoubleQuoted|SingleQuoted)String$/;
 const RAW_STRING = "LuauMultilineString";
 const INTERPOLATED_STRING = "LuauInterpolatedString";
 const NUMBER = /^LuauNumeric\w+$/;
@@ -488,6 +488,17 @@ const DOUBLE_QUOTED_INTERPOLATION = "LuauDoubleQuotedStringInterpolation";
 const BACKTICK_INTERPOLATION = "LuauBacktickStringInterpolation";
 const CALL_SHORTHANDS = new Set(["LuauDoubleQuotedFunctionCallShorthand", "LuauBacktickFunctionCallShorthand"]);
 
+function isCallShorthand(name: string): boolean {
+  return [...CALL_SHORTHANDS].some(original => isExplicitRuleName(name, original));
+}
+
+/** Direct children only: nested functions must not supply their parent's body. */
+function ruleChild(node: SyntaxNode | null | undefined, original: string): SyntaxNode | undefined {
+  for (let child = node?.firstChild; child; child = child.nextSibling)
+    if (isExplicitRuleName(child.name, original)) return child;
+  return undefined;
+}
+
 /** The node's range without the whitespace at its ends. */
 function trimmedRange(text: string, from: number, to: number): [number, number] {
   while (from < to && /\s/.test(text[from]!)) from++;
@@ -496,7 +507,7 @@ function trimmedRange(text: string, from: number, to: number): [number, number] 
 }
 
 /** A return's trailing trivia owns complete opaque comments, never later prose. */
-function returnSuffixSpan(text: string, index: LineIndex, from: number): { to: number; triviaEnd: number; unfinished?: number } {
+function returnSuffixSpan(text: string, index: LineIndex, from: number, physicalEnd = false): { to: number; triviaEnd: number; unfinished?: number } {
   let to = index.lineEnd(index.lineAt(from));
   let at = from;
   while (at < to) {
@@ -508,6 +519,7 @@ function returnSuffixSpan(text: string, index: LineIndex, from: number): { to: n
     }
     const delimiter = `]${long[1]}]`;
     const close = text.indexOf(delimiter, at + long[0].length);
+    if (physicalEnd && (close < 0 || close + delimiter.length > to)) return { to, triviaEnd: to, unfinished: at };
     if (close < 0) return { to: text.length, triviaEnd: text.length, unfinished: at };
     at = close + delimiter.length;
     to = index.lineEnd(index.lineAt(at));
@@ -555,7 +567,7 @@ class Tokenizer {
   read(node: SyntaxNode): void {
     const name = node.name;
     if (isExplicitRuleName(name, "LuauReturnStatement")) {
-      const suffix = returnSuffixSpan(this.text, this.index, node.to);
+      const suffix = returnSuffixSpan(this.text, this.index, node.to, node.name !== "LuauReturnStatement");
       this.returnSourceLines.push(this.location(node.from, suffix.to));
       this.returnTriviaSpans.push({ from: node.to, to: suffix.triviaEnd });
     }
@@ -577,16 +589,20 @@ class Tokenizer {
       return;
     }
     if (name === "LuauExplicitStatementMark") {
-      this.push("mark", from, to);
+      let ancestor = node.parent;
+      while (ancestor && !["LuauFunctionDefinition", "LuauFunctionTypeDeclaration", "LuauMethodDefinition"]
+        .some(original => isExplicitRuleName(ancestor!.name, original))) ancestor = ancestor.parent;
+      if (ancestor) this.lex(from, to);
+      else this.push("mark", from, to);
       return;
     }
     if (name === "LuauSparkdownExplicitStatement") {
       const first = this.tokens.length;
       this.readChildren(node);
       for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.authoredIsland ??= node.to;
-      // Only the narrative island wrapper owns this EOF. Nested marked
-      // statements still yield to their written block's closer; genuine
-      // functions and opaque constructs extend this wrapper's own span.
+      // The narrative wrapper owns the physical-line EOF. Nested marked
+      // blocks yield to their written closer inside that line; bounded child
+      // functions and opaque tokens cannot extend it.
       this.tokens.push({ kind: "break", text: "", from: node.to, to: node.to, location: this.location(node.to, node.to), source: this.source, story: true, authoredEnd: true });
       return;
     }
@@ -621,11 +637,11 @@ class Tokenizer {
       if (to > from) this.push("string", from, to, node);
       return;
     }
-    if (name === RAW_STRING) {
+    if (isExplicitRuleName(name, RAW_STRING)) {
       if (to > from) this.push("rawstring", from, to, node);
       return;
     }
-    if (name === INTERPOLATED_STRING) {
+    if (isExplicitRuleName(name, INTERPOLATED_STRING)) {
       if (to > from) this.push("interp", from, to, node);
       return;
     }
@@ -633,7 +649,7 @@ class Tokenizer {
       if (to > from) this.push("number", from, to, node);
       return;
     }
-    if (name === "LuauFunctionDefinition") {
+    if (isExplicitRuleName(name, "LuauFunctionDefinition")) {
       this.readFunctionDefinition(node);
       return;
     }
@@ -723,10 +739,10 @@ class Tokenizer {
    * ends it (`function greet -- note`), as the type checker reads it.
    */
   private readFunctionDefinition(node: SyntaxNode): void {
-    const content = node.getChild("LuauFunctionDefinition_content");
-    const body = content?.getChild("LuauFunctionBody");
+    const content = ruleChild(node, "LuauFunctionDefinition_content");
+    const body = ruleChild(content, "LuauFunctionBody");
     let listAt: number | undefined;
-    if (content && body && !content.getChild("LuauFunctionParameters")) {
+    if (content && body && !ruleChild(content, "LuauFunctionParameters")) {
       let last = body.prevSibling;
       while (last && NEUTRAL.test(last.name)) last = last.prevSibling;
       if (last) {
@@ -744,9 +760,9 @@ class Tokenizer {
     }
     const at = listAt;
     this.readChildren(node, (child) => {
-      if (child.name !== "LuauFunctionDefinition_content") return false;
+      if (!isExplicitRuleName(child.name, "LuauFunctionDefinition_content")) return false;
       this.readChildren(child, (part) => {
-        if (part.name === "LuauFunctionBody") {
+        if (isExplicitRuleName(part.name, "LuauFunctionBody")) {
           this.synthetic("symbol", "(", at);
           this.synthetic("symbol", ")", at);
         }
@@ -1173,6 +1189,8 @@ class Parser {
   private readonly localMap = new Map<string, AstLocal | undefined>();
   private readonly localStack: AstLocal[] = [];
   private eof: Token;
+  private authoredBoundary?: { index: number; eof: Token };
+  private authoredEnds = new Map<number, number>();
   private blockDepth = 0;
   private recursionCounter = 0;
   private recursionContext = "block";
@@ -1230,14 +1248,17 @@ class Parser {
   // -- Tokens --------------------------------------------------------------
 
   private current(): Token {
+    if (this.authoredBoundary && this.pos >= this.authoredBoundary.index) return this.authoredBoundary.eof;
     return this.tokens[this.pos] ?? this.eof;
   }
 
   private lookahead(): Token {
+    if (this.authoredBoundary && this.pos + 1 >= this.authoredBoundary.index) return this.authoredBoundary.eof;
     return this.tokens[this.pos + 1] ?? this.eof;
   }
 
   private next(): void {
+    if (this.authoredBoundary && this.pos >= this.authoredBoundary.index) return;
     const token = this.tokens[this.pos];
     if (token) {
       this.previous = token.location;
@@ -1271,8 +1292,10 @@ class Parser {
    * the tokens is placed there rather than after the rest of the unit.
    */
   private withTokens<T>(tokens: Token[], end: Location, read: () => T): T {
-    const saved = { tokens: this.tokens, pos: this.pos, previous: this.previous, eof: this.eof };
+    const saved = { tokens: this.tokens, pos: this.pos, previous: this.previous, eof: this.eof, authoredBoundary: this.authoredBoundary, authoredEnds: this.authoredEnds };
     this.tokens = tokens;
+    this.authoredBoundary = undefined;
+    this.authoredEnds = new Map();
     this.pos = 0;
     this.eof = { kind: "eof", text: "", from: 0, to: 0, location: end, source: -1 };
     try {
@@ -1282,6 +1305,8 @@ class Parser {
       this.pos = saved.pos;
       this.previous = saved.previous;
       this.eof = saved.eof;
+      this.authoredBoundary = saved.authoredBoundary;
+      this.authoredEnds = saved.authoredEnds;
     }
   }
 
@@ -1328,8 +1353,9 @@ class Parser {
     // A marked narrative statement owns its missing value/closer at its
     // authored EOF. The following prose only supplies a synthetic break;
     // delegating this error to story grammar would drop it entirely.
-    // Genuine Luau functions keep their existing multiline recovery.
-    const boundedStoryEnd = !this.currentFunction().luau && this.current().kind === "break" && this.current().authoredEnd === true;
+    // This includes child functions inside the marked wrapper; genuine Luau
+    // functions have no authored wrapper EOF and keep multiline recovery.
+    const boundedStoryEnd = this.current().authoredEnd === true;
     const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
     if (malformed && !follows && !consequence && this.sparkdownDepth === 0 && !atSparkdown && !this.atAbandonedCloser()) {
       error.malformed = malformed;
@@ -1483,7 +1509,9 @@ class Parser {
     // the converter owns the native misplaced-branch diagnostic. Keep EOF
     // and other keyword-closer diagnostics under their existing ownership.
     const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
-    this.expectMatchAndConsumeFail(text, begin, "", misplacedElseBranch ? "statement" : undefined);
+    // A written bounded function owns missing-end syntax at its authored EOF.
+    const boundedFunctionEnd = begin.text === "function" && begin.from < begin.to && begin.authoredIsland !== undefined && this.current().authoredEnd === true;
+    this.expectMatchAndConsumeFail(text, begin, "", misplacedElseBranch || boundedFunctionEnd ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
       return false;
@@ -1675,7 +1703,7 @@ class Parser {
           ? this.ctx.index.lines[returned.location.end.line]!
           : returned.location.end.line;
         const from = this.ctx.index.starts[line]! + returned.location.end.column;
-        const { to, unfinished } = returnSuffixSpan(this.ctx.text, this.ctx.index, from);
+        const { to, unfinished } = returnSuffixSpan(this.ctx.text, this.ctx.index, from, true);
         this.recordSourceDependency(from, to);
         const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
         tokenizer.lex(from, to);
@@ -1708,6 +1736,30 @@ class Parser {
   }
 
   private parseStat(): AstStat {
+    const island = this.current().authoredIsland;
+    if (island === undefined) return this.parseStatContents();
+    // Every statement in the marked wrapper, including semicolon tails, has
+    // this ownership. Keep absolute token/error indices and the real delimiter
+    // for the outer block; recovery sees only its exact physical-line EOF.
+    let index = this.authoredEnds.get(island);
+    if (index === undefined) {
+      index = this.pos;
+      while (index < this.tokens.length && !(this.tokens[index]!.authoredEnd === true && this.tokens[index]!.from === island)) index++;
+      if (!this.tokens[index]) throw new FatalReadError(this.current().location, "Missing authored statement EOF token");
+      this.authoredEnds.set(island, index);
+    }
+    if (this.authoredBoundary && index >= this.authoredBoundary.index) return this.parseStatContents();
+    const end = this.tokens[index]!;
+    const saved = this.authoredBoundary;
+    this.authoredBoundary = { index, eof: { ...end, kind: "eof", text: "" } };
+    try {
+      return this.parseStatContents();
+    } finally {
+      this.authoredBoundary = saved;
+    }
+  }
+
+  private parseStatContents(): AstStat {
     const token = this.current();
     if (token.kind === "keyword") {
       switch (token.text) {
@@ -1785,7 +1837,9 @@ class Parser {
   private parseExplicit(): AstStat {
     const mark = this.current().location;
     this.next();
-    if (this.blockFollow(this.current())) {
+    // An authored wrapper with no native payload retains the ordinary native
+    // expression-error path and its existing diagnostic ownership.
+    if (this.blockFollow(this.current()) && this.current().authoredEnd !== true) {
       return this.reportStatError(mark, [], [], `Expected a statement after '&', got ${describe(this.current())}`);
     }
     const statement = this.parseStat();
@@ -3326,7 +3380,7 @@ class Parser {
     let at = token.from + 1;
     const close = token.to - 1;
     for (const child of stringPartNodes(node, interpolation)) {
-      const isShorthand = CALL_SHORTHANDS.has(child.name);
+      const isShorthand = isCallShorthand(child.name);
       const value = quotedValue(text.slice(at, child.from));
       if (value === undefined) return undefined;
       strings.push(value);
@@ -3398,7 +3452,7 @@ class Parser {
     if (!parts) return this.reportExprError(token.location, [], "Interpolated string literal contains malformed escape sequence");
     if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
     // The closing backtick is the string node's own end, not a backtick inside it.
-    const end = token.node?.getChild("LuauInterpolatedString_end");
+    const end = ruleChild(token.node, "LuauInterpolatedString_end");
     if (!end || !/`/.test(this.ctx.text.slice(end.from, end.to))) {
       return this.reportExprError(token.location, parts.expressions, "Malformed interpolated string; did you forget to add a '`'?");
     }
@@ -3425,7 +3479,7 @@ function isFinished(token: Token): boolean {
 /** A string node's interpolations and `{{f}}` shorthands, in order, under whatever nodes hold them. */
 function stringPartNodes(node: SyntaxNode, interpolation: string, found: SyntaxNode[] = []): SyntaxNode[] {
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === interpolation || CALL_SHORTHANDS.has(child.name)) found.push(child);
+    if (isExplicitRuleName(child.name, interpolation) || isCallShorthand(child.name)) found.push(child);
     else stringPartNodes(child, interpolation, found);
   }
   return found;
@@ -3703,7 +3757,7 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
     } else if (node.name === "LuauEndKeyword") {
       const closed = open.pop();
       if (closed && !open.includes(closed)) closed.end = node;
-    } else if (node.name === "LuauFunctionDefinition") {
+    } else if (isExplicitRuleName(node.name, "LuauFunctionDefinition")) {
       preludeNodes.push(node);
     } else if (LUAU_STATEMENTS.has(node.name)) {
       const flow = open[open.length - 1];
@@ -3925,12 +3979,12 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
   const index = lineIndex(documentText);
   let wrapper: SyntaxNode | null = null;
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-    if (node.name === "LuauFunctionDefinition") {
+    if (isExplicitRuleName(node.name, "LuauFunctionDefinition")) {
       wrapper = node;
       break;
     }
   }
-  const body = wrapper?.getChild("LuauFunctionDefinition_content")?.getChild("LuauFunctionBody");
+  const body = ruleChild(ruleChild(wrapper, "LuauFunctionDefinition_content"), "LuauFunctionBody");
   if (!wrapper || !body) return undefined;
   const tokenizer = new Tokenizer(documentText, index);
   tokenizer.luauThroughout = true;

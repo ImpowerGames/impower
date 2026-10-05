@@ -120,7 +120,7 @@ const getDefineContext = (
       name: nameNode ? read(nameNode.from, nameNode.to).trim() : "$default",
     };
   }
-  const defineNode = leftStack.find((n) => n.name === "LuauDefine");
+  const defineNode = leftStack.find((n) => isExplicitRuleName(n.name, "LuauDefine"));
   if (defineNode) {
     const parentNode = getDescendent("LuauDefineParentName", defineNode);
     const nameNode = getDescendent("LuauDefineName", defineNode);
@@ -2212,7 +2212,14 @@ export const getCompletions = (
       }
     }
 
-    if (rootLevelNode.name === "LuauFunctionDefinition") {
+    if (
+      isExplicitRuleName(rootLevelNode.name, "LuauFunctionDefinition") ||
+      ((rootLevelNode.name === "LuauSparkdownExplicitStatement" ||
+        rootLevelNode.name === "LuauSparkdownExplicitBlockStatement") &&
+        leftStack.some(n =>
+          isExplicitRuleName(n.name, "LuauFunctionDefinition") &&
+          documentCursorOffset < n.to))
+    ) {
       const contentNode = leftStack[0];
       if (contentNode) {
         addTriggeredKeywordCompletions(

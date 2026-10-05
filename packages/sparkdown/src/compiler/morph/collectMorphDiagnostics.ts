@@ -1,4 +1,5 @@
 import { type SyntaxNode, type Tree } from "@lezer/common";
+import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { LowerContext } from "../lower/context";
 import type {
@@ -37,7 +38,7 @@ export function findMorphNodes(tree: Tree): SyntaxNode[] {
   const nodes: SyntaxNode[] = [];
   tree.iterate({
     enter: (ref) => {
-      if (ref.name === "LuauMorph") {
+      if (isExplicitRuleName(ref.name, "LuauMorph")) {
         nodes.push(ref.node);
         return false;
       }
@@ -161,7 +162,7 @@ export function readWrittenMorphs(scripts: readonly (MorphScript & { uri: string
         node,
         name: nameNode ? script.read(nameNode.from, nameNode.to).trim() : "",
         nameNode: nameNode ?? null,
-        own: readMorphBody(findChildByName(node, "LuauMorph_content"), ctx),
+        own: readMorphBody(findChildByName(node, `${node.name}_content`), ctx),
       });
     }
   }

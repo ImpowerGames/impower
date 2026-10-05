@@ -35,7 +35,7 @@ describe("a local's value list", () => {
     ["a boolean after a field named const", "local t = {}\nt.const = 1\nlocal a, b, c = 1, t.const, true\nreturn tostring(c)", "Value true.\n"],
     ["a name after a string-typed name", 'local x = 5\nlocal a: "p" | "q", b = "p", x\nreturn a .. b', "Value p5.\n"],
     ["a name after a semicolon-ended local", "local x = 5\nlocal a = 1; local b, c = 2, x\nreturn c", "Value 5.\n"],
-    ["a name in an explicit statement", "local x = 5\n& local a: number, b: number = 1, x\nreturn b", "Value 5.\n"],
+    ["a name in a typed function statement", "local x = 5\nlocal a: number, b: number = 1, x\nreturn b", "Value 5.\n"],
     ["a name after a string naming a keyword and an escaped quote", 'local x = 5\nlocal m, b = "the store said \\"hi\\"", x\nreturn b', "Value 5.\n"],
     ["a boolean after a single-quoted string naming a keyword and an escaped quote", "local m, b = 'a const \\'q\\'', true\nreturn tostring(b)", "Value true.\n"],
     ["a boolean after a backtick string naming a keyword", "local m, b = `store {1}`, true\nreturn tostring(b)", "Value true.\n"],

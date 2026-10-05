@@ -105,8 +105,8 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test.each(["", "& "])("a real function's %sreturn preserves its multiline parenthetical", async (marker) => {
-    const source = `Value {f()}.\nfunction f()\n  ${marker}return (\n    5\n  )\nend\n`;
+  test("a real function's return preserves its multiline parenthetical", async () => {
+    const source = `Value {f()}.\nfunction f()\n  return (\n    5\n  )\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");

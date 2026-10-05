@@ -1,5 +1,6 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
 import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
@@ -36,7 +37,7 @@ const findCharacterNameValue = (
   ) {
     return undefined;
   }
-  const defineNode = stack.find((n) => n.name === "LuauDefine");
+  const defineNode = stack.find((n) => isExplicitRuleName(n.name, "LuauDefine"));
   if (!defineNode) {
     return undefined;
   }

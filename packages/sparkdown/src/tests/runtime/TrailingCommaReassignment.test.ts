@@ -118,7 +118,7 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     ],
     [
       "in a function body",
-      `Value {f()}.\nfunction f()\n${bump}  local g = 0\n  & g = 1, bump()\n  return g * 10 + calls\nend\n`,
+      `Value {f()}.\nfunction f()\n${bump}  local g = 0\n  g = 1, bump()\n  return g * 10 + calls\nend\n`,
     ],
     [
       "to a field target in a narrative body",
@@ -126,9 +126,9 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     ],
     [
       "to a field target in a function body",
-      `Value {f()}.\nfunction f()\n${bump}  local t = { g = 0 }\n  & t.g = 1, bump()\n  return t.g * 10 + calls\nend\n`,
+      `Value {f()}.\nfunction f()\n${bump}  local t = { g = 0 }\n  t.g = 1, bump()\n  return t.g * 10 + calls\nend\n`,
     ],
-  ])("an extra value for a single target after `&` is still evaluated (%s)", (_name, source) => {
+  ])("an extra value for a single target is still evaluated (%s)", (_name, source) => {
     const { errors, text } = run(source);
     expect(errors).toEqual([]);
     expect(text).toBe("Value 11.\n");
@@ -202,11 +202,12 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(got)]);
   });
 
-  test("a `&` statement in a function body ends at its line", () => {
+  test("a removed `&` marker in a function body is reported", () => {
     const { errorMessages } = collectDiagnostics(
       "function f()\n  local a, g = 0, 0\n  & a, g = 1,\n  return g\nend\nValue {f()}.\n",
     );
-    expect(errorMessages).toContain(missingValue("return"));
+    expect(errorMessages.length).toBeGreaterThan(0);
+    expect(errorMessages.some((message) => message.includes("`&"))).toBe(true);
   });
 });
 
@@ -403,7 +404,6 @@ describe("evaluation order of targets and values", () => {
   test.each([
     ["one value", "  t[key()] = bump()"],
     ["an extra value", "  t[key()] = 1, bump()"],
-    ["an extra value after `&`", "  & t[key()] = 1, bump()"],
     ["several targets", "  t[key()], g = bump(), 2"],
     ["an extra value on the next line", "  t[key()] = 1,\n    bump()"],
   ])("%s: the target's key first", (_name, assignment) => {

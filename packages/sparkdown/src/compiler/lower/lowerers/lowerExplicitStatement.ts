@@ -15,7 +15,7 @@ import {
   type StatementSite,
 } from "./lowerLuauStatement";
 
-const EXPLICIT_STATEMENT = nodeNameSet(["LuauExplicitStatement", "LuauSparkdownExplicitStatement", "LuauSparkdownExplicitBlockStatement"]);
+const EXPLICIT_STATEMENT = nodeNameSet(["LuauSparkdownExplicitStatement", "LuauSparkdownExplicitBlockStatement"]);
 
 /**
  * A statement marked with `&`, which writes Luau where narrative would
@@ -23,8 +23,9 @@ const EXPLICIT_STATEMENT = nodeNameSet(["LuauExplicitStatement", "LuauSparkdownE
  * `& foo()` (a call whose value is discarded), and `& store x = 5`,
  * `& const x = 5`, `& local x = 5`, which declare as the unmarked
  * declarations do. The statement it marks lowers as that statement does.
- * The validators of its node report a redundant `&` in a function body and
- * what its list leaves missing (`validateStatementNode`).
+ * Its node validators report missing declaration or assignment values
+ * (`validateStatementNode`). Function bodies use ordinary Luau statements;
+ * their removed `&` markers are diagnosed before lowering.
  */
 export function lowerExplicitStatement(
   stat: AstStatSparkdownExplicit,

@@ -32,7 +32,7 @@ function captureScopes(value: unknown): unknown {
 
 describe("closed narrative expression family", () => {
   test("all recursive counterparts keep scopes and never escape to an ordinary expression child", () => {
-    expect(pairs).toHaveLength(80);
+    expect(pairs).toHaveLength(113);
     const originals = new Set(pairs.map(([original]) => original));
     for (const [original, twin] of pairs) {
       for (const field of ["name", "contentName", "captures", "beginCaptures", "endCaptures"]) expect(captureScopes(repository[twin]![field])).toEqual(captureScopes(repository[original]![field]));
@@ -40,15 +40,12 @@ describe("closed narrative expression family", () => {
       expect(includes(repository[twin]).filter(name => ["Newline", "LuauReturnLineBreak", "LuauCommaLineBreak"].includes(name))).toEqual([]);
       if (repository[twin]!["begin"]) expect(String(repository[twin]!["end"])).toContain("$");
     }
-    // Only actual opaque roots and genuine structured/function contexts may
-    // stop the closure walk. Helpers named AfterComment are ordinary code.
+    // Only line comments and existing structured definitions stop this walk.
+    // Opaque literals and function descendants must share physical EOL.
     const barriers = new Set([
-      "LuauComment", "LuauLineComment", "LuauDocLineComment", "LuauBlockComment",
-      "LuauTypeTrailingBlockComment", "LuauValueTrailingBlockComment",
-      "LuauUncallableValueTrailingBlockComment", "LuauCallableValueTrailingBlockComment",
-      "LuauString", "LuauDoubleQuotedString", "LuauSingleQuotedString",
-      "LuauMultilineString", "LuauInterpolatedString", "LuauRegexLiteral",
-      "LuauFunctionBody", "LuauFunctionDefinition", "LuauFunctionExpression", "LuauFunctionTypeDeclaration",
+      "LuauLineComment", "LuauDocLineComment", "LuauRegexLiteral",
+      "LuauSparkdownExplicitStructuredStatement",
+      "LuauSparkdownExplicitDefine", "LuauSparkdownExplicitStyle", "LuauSparkdownExplicitLayout", "LuauSparkdownExplicitScreen", "LuauSparkdownExplicitComponent", "LuauSparkdownExplicitAnimation", "LuauSparkdownExplicitTheme", "LuauSparkdownExplicitMorph",
       "LuauStyle", "LuauLayout", "LuauScreen", "LuauComponent", "LuauAnimation", "LuauTheme", "LuauMorph", "LuauDefine",
     ]);
     const visited = new Set<string>();
@@ -122,25 +119,25 @@ describe("closed narrative expression family", () => {
     expect(runtime.story.ContinueMaximally()).toBe("Value 5.\nreturn to the village\n");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test.each(["[[é😀\nnext]]", "[=[é😀\nnext]=]"])("opaque string %s retains ownership", async value => {
+  test.each(["[[é😀\nnext]]", "[=[é😀\nnext]=]"])("opaque story string %s ends at physical EOL", async value => {
     const source = `store x = ""\n& do x = ${value} end\nreturn to the village\nValue {x}.\ndone\n`;
     const runtime = makeRuntimeStoryFromSource(source);
-    expect(runtime.errorMessages).toEqual([]);
-    expect(runtime.story.ContinueMaximally()).toBe("return to the village\nValue é😀\nnext.\n");
+    expect(runtime.errorMessages.length).toBeGreaterThan(0);
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("next"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test("a marked anonymous function retains multiline parameters and body", async () => {
+  test("a marked anonymous function ends before multiline parameters and body", async () => {
     const source = "store x = 0\n& do local identity = function(\n  value\n)\n  return value\nend; x = identity(5) end\nreturn to the village\nValue {x}.\ndone\n";
     const runtime = makeRuntimeStoryFromSource(source);
-    expect(runtime.errorMessages).toEqual([]);
-    expect(runtime.story.ContinueMaximally()).toBe("return to the village\nValue 5.\n");
+    expect(runtime.errorMessages.length).toBeGreaterThan(0);
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("value\n"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test("a complete opaque comment retains its closing-line code suffix", async () => {
+  test("a story comment leaves its later closing-line suffix as prose", async () => {
     const source = "store x = 0\n& do x = 5 --[=[ é😀\ncomment ]=]; x += 1 end\nreturn to the village\nValue {x}.\ndone\n";
     const runtime = makeRuntimeStoryFromSource(source);
-    expect(runtime.errorMessages).toEqual([]);
-    expect(runtime.story.ContinueMaximally()).toBe("return to the village\nValue 6.\n");
+    expect(runtime.errorMessages.length).toBeGreaterThan(0);
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("comment ]=]"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test("a physically multiline backtick retains its native malformed-string error", () => {
