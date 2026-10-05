@@ -1,5 +1,5 @@
 import "../../inkjs/engine/Container";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { checkerTextUnits } from "./luauCheckerText";
@@ -8,6 +8,21 @@ import { officialSyntaxErrors } from "./officialSyntax";
 const URI = "inmemory:///main.sd";
 
 function readings(text: string) {
+  // A rule that opens and closes without reading anything at one position
+  // over and over is a grammar loop, which the parser breaks out of with a
+  // warning; the tree it leaves behind is not the grammar's.
+  const warn = vi.spyOn(console, "warn");
+  try {
+    const result = compile(text);
+    const loops = warn.mock.calls.map((call) => String(call[0])).filter((message) => /empty matches/.test(message));
+    expect(loops, "grammar loop warnings").toEqual([]);
+    return result;
+  } finally {
+    warn.mockRestore();
+  }
+}
+
+function compile(text: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -114,6 +129,7 @@ describe("an if expression whose then is glued to its condition and ends its lin
     ["whose next line ends the function", (opening) => `function f(c)\n  local s = ${opening}\nend\n`],
     ["before a column-0 line", (opening) => `local c = true\nlocal s = ${opening}\nlocal t = 1\n`],
     ["before a column-0 call", (opening) => `local c = true\nlocal s = ${opening}\nprint(c)\n`],
+    ["in a reassignment before a column-0 call", (opening) => `local c = true\nlocal s = 0\ns = ${opening}\nprint(s)\n`],
   ];
   describe.each(missingValue)("an arm with no value %s", (_, script) => {
     test.each([
