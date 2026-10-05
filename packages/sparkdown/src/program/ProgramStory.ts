@@ -428,7 +428,7 @@ export class ProgramStory {
     this._state.DiscardLineEnd();
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
-    this.land(target.position);
+    this.land(target.position, this._state.blockStack);
     this.countEntered(target.position.sequence, left);
     if (target.symbol !== undefined) {
       this.enterStart(target.symbol, target.position.sequence);
@@ -1743,11 +1743,14 @@ export class ProgramStory {
 
   /** Moves to `target` in the current frame (docs/engine/binary-program.md,
    *  section 5): the frame's block stack is rebuilt from the root's sequence
-   *  and chunk tables, and its scopes are cut to the frame's own and opened
-   *  again for the blocks the target stands in, as many as each owner has
-   *  open where it enters its block, and as many as the target's chunk has
-   *  opened before the target. */
-  protected land(target: ProgramPosition): void {
+   *  and chunk tables, and its scope depth becomes the target's. The scopes
+   *  of the blocks the target shares with `from`, the blocks the frame stood
+   *  in before (nothing for a new frame or a reset one), keep their
+   *  bindings; the scopes past them are closed, and the scopes of the blocks
+   *  the target enters are opened, as many as each owner has open where it
+   *  enters its block, and as many as the target's chunk has opened before
+   *  the target. */
+  protected land(target: ProgramPosition, from: readonly BlockEntry[]): void {
     const state = this._state;
     const blocks = blockStackOf(this.root, target.sequence);
     if (!blocks) {
@@ -1761,19 +1764,30 @@ export class ProgramStory {
     state.blockStack = blocks;
     const frame = state.frame;
     if (frame) {
-      while (frame.temporaryScopes.length > 1) {
+      const scopesOf = (block: BlockEntry) =>
+        blockScopes(block.sequence.arrays.chunks[block.entry]!, block.block);
+      let shared = 0;
+      let kept = 1;
+      while (
+        shared < blocks.length &&
+        shared < from.length &&
+        sameBlock(blocks[shared]!, from[shared]!)
+      ) {
+        kept += scopesOf(blocks[shared]!);
+        shared += 1;
+      }
+      while (frame.temporaryScopes.length > kept) {
         frame.PopScope();
       }
-      let scopes = 0;
+      let scopes = 1;
       for (const block of blocks) {
-        const owner = block.sequence.arrays.chunks[block.entry]!;
-        scopes += blockScopes(owner, block.block);
+        scopes += scopesOf(block);
       }
       const chunk = target.sequence.arrays.chunks[target.entry];
       if (chunk) {
         scopes += scopesBefore(chunk, target.offset);
       }
-      for (let s = 0; s < scopes; s += 1) {
+      while (frame.temporaryScopes.length < scopes) {
         frame.PushScope();
       }
     }
@@ -1782,13 +1796,15 @@ export class ProgramStory {
   /** `JumpSym`: moves to where `symbol` is defined, counting the flows the
    *  jump enters from the position it left, or raises the current engine's
    *  error for a target the program does not define, with the jump's line. */
-  protected jumpTo(symbol: number): void {
-    const left = this._running?.sequence ?? null;
+  protected jumpTo(
+    symbol: number,
+    left: SequenceRow | null = this._running?.sequence ?? null,
+  ): void {
     const place = this.root.place(symbol);
     if (!place) {
       this.Error("Divert target not found.");
     }
-    this.land(place);
+    this.land(place, this._state.blockStack);
     this.countEntered(place.sequence, left);
     this.enterStart(symbol, place.sequence);
   }
@@ -1803,7 +1819,7 @@ export class ProgramStory {
     }
     const branch = this.root.place(start);
     if (branch) {
-      this.land(branch);
+      this.land(branch, this._state.blockStack);
       this.countEntered(branch.sequence, at);
     }
   }
@@ -1852,7 +1868,7 @@ export class ProgramStory {
       blocks: state.blockStack,
       symbol,
     });
-    this.land(place);
+    this.land(place, []);
     this.countEntered(place.sequence, left);
     this.enterStart(symbol, place.sequence);
   }
@@ -1895,7 +1911,9 @@ export class ProgramStory {
       if (symbol === undefined) {
         this.Error("Divert target not found.");
       }
-      this.jumpTo(symbol);
+      // The onward jump leaves from the caller the frame returned to, as
+      // the current engine's divert after `PopTunnel` does.
+      this.jumpTo(symbol, state.position?.sequence ?? null);
     }
   }
 
@@ -2174,6 +2192,10 @@ export class ProgramStory {
     return { sequence, entry, offset };
   }
 }
+
+/** Whether two block stack entries name one block of one owner. */
+const sameBlock = (a: BlockEntry, b: BlockEntry): boolean =>
+  a.sequence.id === b.sequence.id && a.entry === b.entry && a.block === b.block;
 
 /** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
  *  its `EndScope`s, read once in order (docs/engine/binary-program.md,

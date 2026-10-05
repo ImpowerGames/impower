@@ -608,6 +608,101 @@ describe("flows on the program engine", () => {
     expect(texts(storyBeats(new ProgramStory(back.chunks!)))).toEqual(["Before.", "Other."]);
   });
 
+  // Round 1 of the review of #1431: a jump keeps the bindings of the blocks
+  // it stays in.
+  it("keeps the locals of the blocks a jump stays in", () => {
+    const { expected, actual } = bothEngines(
+      [
+        "-> main",
+        "scene main",
+        "  if true then",
+        "    local x = 7",
+        "    -> here",
+        "    label here",
+        "    Value {x}.",
+        "  end",
+        "  done",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(actual).toEqual(expected);
+    expect(texts(actual)).toEqual(["Value 7."]);
+  });
+
+  // Round 1 of the review of #1431: an onward return leaves from the caller
+  // the tunnel returned to, so it does not count the caller's flow again.
+  it("counts an onward return to the caller's own flow from the caller", () => {
+    const { expected, actual } = bothEngines(
+      [
+        "-> main",
+        "scene main",
+        "  -> side ->",
+        "  label after",
+        "  Visits {main}.",
+        "  done",
+        "end",
+        "scene side",
+        "  ->-> main.after",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(actual).toEqual(expected);
+    expect(texts(actual)).toEqual(["Visits 1."]);
+  });
+
+  // Round 1 of the review of #1431: a checkpoint drains visits and turns
+  // apart, and fills the count slots of a state saved without them.
+  it("hands a checkpoint its visit and turn deltas apart, and restores counts it injects into a state saved without them", () => {
+    const { program } = silence(() =>
+      compileScript(
+        [
+          "-> main",
+          "scene main",
+          "  label top",
+          "  & n = n + 1",
+          "  Pass {n}, {top}.",
+          "  if n < 2 then",
+          "    -> top",
+          "  end",
+          "  done",
+          "end",
+          "store n = 0",
+          "",
+        ].join("\n"),
+        { programChunks: true },
+      ),
+    );
+    const root = program.chunks!;
+    const story = new ProgramStory(root);
+    expect(story.Continue()).toBe("Pass 1, 1.\n");
+    const visits = story.state.DrainVisitCountDeltas();
+    const turns = story.state.DrainTurnIndexDeltas();
+    expect(visits).toContainEqual(["main.top", 1]);
+    expect(turns.map(([key]) => key)).toContain("main.top");
+    expect(story.state.DrainVisitCountDeltas()).toEqual([]);
+    expect(story.Continue()).toBe("Pass 2, 2.\n");
+    // As `CheckpointStore.injectCounts` fills a state saved without counts.
+    const bare = story.state.ToJsonWithoutCounts();
+    expect(bare).toContain('"visitCounts":{}');
+    expect(bare).toContain('"turnIndices":{}');
+    const injected = bare
+      .replace(
+        '"visitCounts":{}',
+        `"visitCounts":${JSON.stringify(Object.fromEntries(story.state.GetVisitCountEntries()))}`,
+      )
+      .replace(
+        '"turnIndices":{}',
+        `"turnIndices":${JSON.stringify(Object.fromEntries(story.state.GetTurnIndexEntries()))}`,
+      );
+    const loaded = new ProgramStory(root);
+    loaded.state.LoadJson(injected);
+    const top = countIdOf(root.table, symbolOf(root, "main.top"));
+    expect(loaded.state.VisitCount(top)).toBe(2);
+    expect(loaded.state.TurnsSince(top)).toBe(story.state.TurnsSince(top));
+  });
+
   // Round 1 of the review of #1431: a label an author names as a loop's
   // lowering names its own labels is the author's label, and a jump to it
   // records the symbol it names, so renaming the scene emits the jump again.

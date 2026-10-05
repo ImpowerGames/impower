@@ -180,8 +180,11 @@ export class ProgramStoryState {
   /** The turn of each counted symbol's last visit, by count id, or
    *  `NEVER_VISITED`. */
   turns = new Int32Array(0);
-  /** The count ids visited since the counts were last drained. */
-  protected _changedCounts = new Set<number>();
+  /** The count ids whose visits, and whose turns, changed since each was
+   *  last drained; a checkpoint drains the two apart, as the current
+   *  engine's state keeps them. */
+  protected _changedVisits = new Set<number>();
+  protected _changedTurns = new Set<number>();
 
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
@@ -275,7 +278,8 @@ export class ProgramStoryState {
     this.growCounts(id);
     this.visits[id] = this.visits[id]! + 1;
     this.turns[id] = this.currentTurnIndex;
-    this._changedCounts.add(id);
+    this._changedVisits.add(id);
+    this._changedTurns.add(id);
   }
 
   /** The visits of count id `id`. */
@@ -822,17 +826,20 @@ export class ProgramStoryState {
   }
 
   DrainVisitCountDeltas(): [string, number][] {
-    const out = this.changedEntries(this.visits);
-    this._changedCounts.clear();
+    const out = this.changedEntries(this.visits, this._changedVisits);
+    this._changedVisits.clear();
     return out;
   }
 
   DrainTurnIndexDeltas(): [string, number][] {
-    return this.changedEntries(this.turns);
+    const out = this.changedEntries(this.turns, this._changedTurns);
+    this._changedTurns.clear();
+    return out;
   }
 
   ResetCountDeltaTracking(): void {
-    this._changedCounts.clear();
+    this._changedVisits.clear();
+    this._changedTurns.clear();
   }
 
   // The key of each count id of the root's table.
@@ -868,9 +875,12 @@ export class ProgramStoryState {
     return out;
   }
 
-  protected changedEntries(values: Uint32Array | Int32Array): [string, number][] {
+  protected changedEntries(
+    values: Uint32Array | Int32Array,
+    changed: ReadonlySet<number>,
+  ): [string, number][] {
     const keys = this.countKeys();
-    return [...this._changedCounts]
+    return [...changed]
       .filter((id) => keys[id] !== undefined)
       .map((id) => [keys[id]!, values[id]!]);
   }
@@ -965,21 +975,22 @@ export class ProgramStoryState {
         w.WriteArrayEnd();
       });
     }
-    if (withCounts) {
-      writer.WriteIntProperty("countGeneration", this._root.generation);
-      writer.WriteProperty("visitCounts", (w) =>
-        writeCounts(w, this.GetVisitCountEntries()),
-      );
-      writer.WriteProperty("turnIndices", (w) =>
-        writeCounts(w, this.GetTurnIndexEntries()),
-      );
-    }
+    // Without its counts, the state keeps both slots empty, which a
+    // checkpoint fills with the entries it keeps apart
+    // (`CheckpointStore.injectCounts`).
+    writer.WriteIntProperty("countGeneration", this._root.generation);
+    writer.WriteProperty("visitCounts", (w) =>
+      writeCounts(w, withCounts ? this.GetVisitCountEntries() : []),
+    );
+    writer.WriteProperty("turnIndices", (w) =>
+      writeCounts(w, withCounts ? this.GetTurnIndexEntries() : []),
+    );
     writer.WriteObjectEnd();
     return writer.toString();
   }
 
-  /** The state without its counts, which a checkpoint keeps apart
-   *  (`GetVisitCountEntries`). */
+  /** The state with both count slots empty, which a checkpoint fills with
+   *  the entries it keeps apart (`GetVisitCountEntries`). */
   ToJsonWithoutCounts(): string {
     return this.toJson(false);
   }
@@ -1117,7 +1128,7 @@ export class ProgramStoryState {
     this.readFrames(frames);
     this.visits = new Uint32Array(0);
     this.turns = new Int32Array(0);
-    this._changedCounts.clear();
+    this.ResetCountDeltaTracking();
     const generation = Number(obj["countGeneration"] ?? this._root.generation);
     for (const [key, visits] of Object.entries(obj["visitCounts"] ?? {})) {
       const id = this.countIdOfKey(key, generation);
