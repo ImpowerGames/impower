@@ -116,6 +116,9 @@ function recoverAbandonedGuard(root, guard, identify) {
   try { fd = fs.openSync(claim, "wx"); }
   catch { return false; }
   try {
+    // Recorded for the inspector of an abandoned claim; nothing reads it back.
+    fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
+    fs.fsyncSync(fd);
     let owner;
     try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
     catch (error) { return error.code === "ENOENT"; }

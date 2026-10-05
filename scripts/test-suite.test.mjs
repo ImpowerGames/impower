@@ -421,11 +421,12 @@ assert.equal(recoveredGuards().length, recoveredBefore + 1, "no held guard was r
 // inside its identity check, a second acquirer finds the guard held and waits
 // instead of recovering it, so the first's rename can only move the guard it read.
 fs.writeFileSync(guardFile, abandoned);
-let nestedFailure = null, nestedBegan = false, guardDuringNested = null;
+let nestedFailure = null, nestedBegan = false, guardDuringNested = null, claimDuringRecovery = null;
 const outer = acquire("first recoverer", { root: lockRoot, census: () => [], guardWaitMs: 2000, identify: pid => {
   if (pid !== deadOwner.pid) return processIdentity(pid);
   if (!nestedBegan) {
     nestedBegan = true;
+    claimDuringRecovery = JSON.parse(fs.readFileSync(path.join(lockRoot, "guard-recovery.json"), "utf8"));
     try { acquire("second recoverer", { root: lockRoot, census: () => [], guardWaitMs: 100, identify: () => null }); }
     catch (error) { nestedFailure = error; }
     guardDuringNested = fs.readFileSync(guardFile, "utf8");
@@ -433,7 +434,8 @@ const outer = acquire("first recoverer", { root: lockRoot, census: () => [], gua
   return null;
 } });
 assert.ok(nestedFailure?.guardHeld === true, "a second acquirer does not recover a guard another recoverer is judging");
-assert.equal(guardDuringNested, abandoned, "the guard stays in place until the first recoverer renames it");
+assert.deepEqual(claimDuringRecovery, { owner: processIdentity(process.pid) }, "the recovery claim records its owner's identity for an inspector");
+assert.equal(guardDuringNested, abandoned,"the guard stays in place until the first recoverer renames it");
 assert.equal(recoveredGuards().length, recoveredBefore + 2, "exactly one recoverer renamed the guard");
 assert.equal(fs.existsSync(path.join(lockRoot, "guard-recovery.json")), false, "the recovery claim is released");
 outer.release();
