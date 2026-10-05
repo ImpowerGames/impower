@@ -3,7 +3,7 @@
 // that the validator can ask the same question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
-import { explicitRuleNames } from "../utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
@@ -210,6 +210,13 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   if (!isCheckedLuau(token, read)) return false;
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
+    // The reading carries a construct on into an assignment in Luau code
+    // (`local a, b =` before a line `f(1),`, which the tree reads as an
+    // assignment's targets), except after an empty if-expression arm,
+    // as `readLuauAst.ts` does.
+    if (isExplicitRuleName(n.name, "LuauReassignment") && !/(?:^|[^A-Za-z0-9_])(?:then|else)$/.test(read(node.from, node.to).trimEnd())) {
+      return true;
+    }
     const text = read(n.from, n.to);
     return !(n.from + text.length - text.trimStart().length === tokenFrom && breaksStatement(text));
   }

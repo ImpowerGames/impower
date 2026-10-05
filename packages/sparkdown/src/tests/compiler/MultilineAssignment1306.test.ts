@@ -1,15 +1,17 @@
 import "../../inkjs/engine/Container";
-import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
-import { wrapConformanceSource } from "../luau-conformance/conformanceTestHarness";
-import { applyUpstreamPatches } from "../luau-conformance/upstreamPatches";
-import { conformanceLuau } from "./luauFixtures";
 import { officialSyntaxErrors } from "./officialSyntax";
 
+// A Luau declaration or reassignment whose `=` ends its line takes its value
+// from the next line, as Luau does (#1306), including a value list whose
+// lines end with commas, which the tree reads as an assignment's targets.
+
 const URI = "inmemory:///main.sd";
+
+const crlf = (text: string) => text.replaceAll("\n", "\r\n");
 
 function compile(text: string, programEngine = false) {
   const compiler = new SparkdownCompiler();
@@ -17,7 +19,7 @@ function compile(text: string, programEngine = false) {
   const { program } = compiler.compile({ textDocument: { uri: URI } });
   const errors = (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)
-    .map((d) => ({ message: typeof d.message === "string" ? d.message : d.message.value, line: d.range.start.line, character: d.range.start.character }));
+    .map((d) => ({ message: typeof d.message === "string" ? d.message : d.message.value, line: d.range.start.line, column: d.range.start.character }));
   return { errors, program };
 }
 
@@ -26,25 +28,16 @@ function execute(text: string, programEngine = false) {
   expect(programEngine ? program.chunks != null : program.compiled != null, program.fallback?.construct).toBe(true);
   const story = programEngine ? new ProgramStory(program.chunks!) : new Story(program.compiled as Record<string, any>);
   const runtimeErrors: string[] = [];
-  story.onError = (message) => runtimeErrors.push(message);
+  story.onError = (message: string) => runtimeErrors.push(message);
   return { errors, output: story.ContinueMaximally(), runtimeErrors };
 }
 
-describe.each([false, true])("next-line assignment on the program engine: %s (#1306)", (programEngine) => {
-  test.each([
-    ["original local", "function f()\n  local a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
-    ["original reassignment", "function f()\n  local a = 0\n  a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
-    ["original two locals", "function f()\n  local a, b =\n    1, 2\n  return b\nend\n\n{f()}\n", "2\n"],
-    ["original table at column zero", "function f()\nlocal t =\n{\n  1\n}\nreturn t[1]\nend\n\n{f()}\n", "1\n"],
-  ])("accepts and executes the %s input", (_name, source, output) => {
-    const result = execute(source, programEngine);
-    expect.soft(result.errors).toEqual([]);
-    expect.soft(result.runtimeErrors).toEqual([]);
-    expect(result.output).toBe(output);
-  });
+// The official parser's errors as the compiler reports them (0-based lines).
+function officialErrors(text: string) {
+  return officialSyntaxErrors(text).map((e) => ({ message: e.message, line: e.location.begin.line, column: e.location.begin.column }));
+}
 
-  test.each(["LF", "CRLF"])("executes all eight next-line calls in order exactly once (%s)", (ending) => {
-    const source = `Value {f()}.
+const EIGHT_CALLS = `Value {f()}.
 function f()
   local calls = 0
   local order = ""
@@ -65,52 +58,73 @@ function f()
   return tostring(x0) .. tostring(x1) .. tostring(x2) .. tostring(x3) .. tostring(x4) .. tostring(x5) .. tostring(x6) .. tostring(x7) .. ":" .. order .. ":" .. tostring(calls)
 end
 `;
-    const result = execute(ending === "CRLF" ? source.replaceAll("\n", "\r\n") : source, programEngine);
-    expect.soft(result.errors).toEqual([]);
-    expect.soft(result.runtimeErrors).toEqual([]);
-    expect(result.output).toBe("Value 12345678:12345678:8.\n");
+
+describe.each([false, true])("next-line values on the program engine: %s", (programEngine) => {
+  test.each([
+    ["a local", "function f()\n  local a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
+    ["a reassignment", "function f()\n  local a = 0\n  a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
+    ["two locals", "function f()\n  local a, b =\n    1, 2\n  return b\nend\n\n{f()}\n", "2\n"],
+    ["a table at column zero", "function f()\nlocal t =\n{\n  1\n}\nreturn t[1]\nend\n\n{f()}\n", "1\n"],
+    ["names on comma-ended lines", "function f()\n  local x, y = 1, 2\n  local a, b =\n    y,\n    x\n  return a .. b\nend\n\n{f()}\n", "21\n"],
+    ["a reassignment of comma-ended lines", "function f()\n  local a, b = 0, 0\n  a, b =\n    tostring(3),\n    tostring(4)\n  return a .. b\nend\n\n{f()}\n", "34\n"],
+  ])("reads %s", (_name, source, output) => {
+    for (const text of [source, crlf(source)]) {
+      expect(execute(text, programEngine)).toEqual({ errors: [], runtimeErrors: [], output });
+    }
+  });
+
+  test.each(["LF", "CRLF"])("calls all eight next-line values in order exactly once (%s)", (ending) => {
+    const result = execute(ending === "CRLF" ? crlf(EIGHT_CALLS) : EIGHT_CALLS, programEngine);
+    expect(result).toEqual({ errors: [], runtimeErrors: [], output: "Value 12345678:12345678:8.\n" });
   });
 });
 
-test("accepts the complete original native_integer_spills input", () => {
-  const original = readFileSync(new URL("../luau-conformance/upstream/conformance/native_integer_spills.luau", import.meta.url), "utf8");
-  const source = applyUpstreamPatches("native_integer_spills.luau", original);
-  expect(officialSyntaxErrors(conformanceLuau(source))).toEqual([]);
-  expect(compile(wrapConformanceSource(source)).errors).toEqual([]);
-}, 120_000);
-
-describe.each(["LF", "CRLF"])("next-line missing-value boundaries (%s)", (ending) => {
-  const lines = (text: string) => ending === "CRLF" ? text.replaceAll("\n", "\r\n") : text;
+describe.each(["LF", "CRLF"])("Luau's errors after a line-ending operator (%s)", (ending) => {
+  const lines = (text: string) => (ending === "CRLF" ? crlf(text) : text);
   test.each([
-    ["end", "function f()\n  local x =\nend\n", "end"],
-    ["else", "function f()\n  if true then\n    local x =\n  else\n    return 1\n  end\nend\n", "else"],
-    ["until", "function f()\n  repeat\n    local x =\n  until true\nend\n", "until"],
-    ["EOF", "function f()\n  local x =\n", "<eof>"],
-  ])("rejects a missing value before %s", (_name, source, got) => {
-    expect(officialSyntaxErrors(source).length).toBeGreaterThan(0);
-    const errors = compile(lines(source)).errors.map((d) => d.message);
-    const missing = errors.filter((message) => message.startsWith("Expected identifier when parsing expression"));
-    expect(missing).toEqual([`Expected identifier when parsing expression, got ${got === "<eof>" ? got : `'${got}'`}`]);
+    ["before end", "function f()\n  local x =\nend\n"],
+    ["before else", "function f()\n  if true then\n    local x =\n  else\n    return 1\n  end\nend\n"],
+    ["before until", "function f()\n  repeat\n    local x =\n  until true\nend\n"],
+    ["after a comma-ended line before end", "function f()\n  local a, b =\n    x,\nend\n"],
+    ["at a second operator on the next line", "function f()\n  local a = 0\n  a =\n    b = 2\n  return a\nend\n"],
+    ["after an empty else arm", "function f()\n  local a = if true then 1 else\n  b = 2\n  return a\nend\n"],
+  ])("reports the official parser's error %s", (_name, source) => {
+    const official = officialErrors(source);
+    expect(official).toHaveLength(1);
+    expect(compile(lines(source)).errors).toEqual(official);
   });
 
-  test("a genuine new assignment does not hide an unfinished declaration", () => {
-    const source = "function f()\n  local a =\n  a = 2\n  return a\nend\n";
+  // The unclosed function is reported too, so only the missing value is compared.
+  test("reports a value missing at the end of the file", () => {
+    const source = "function f()\n  local x =\n";
     expect(officialSyntaxErrors(source).length).toBeGreaterThan(0);
-    expect(compile(lines(source)).errors.length).toBeGreaterThan(0);
+    expect(compile(lines(source)).errors.map((e) => e.message)).toContain("Expected identifier when parsing expression, got <eof>");
   });
 
+  test("keeps the missing else of an empty then arm before an assignment", () => {
+    const source = "function f()\n  local a = if true then\n  b = 2\n  return a\nend\n";
+    expect(officialSyntaxErrors(source)).toHaveLength(1);
+    expect(compile(lines(source)).errors).toEqual([{ message: "Expected 'else' when parsing if then else expression", line: 1, column: 12 }]);
+  });
+});
+
+describe.each(["LF", "CRLF"])("story after an unfinished marked statement (%s)", (ending) => {
+  const lines = (text: string) => (ending === "CRLF" ? crlf(text) : text);
   test.each([
-    ["top-level prose", "store x = 0\n& x =\nStory follows.\n", "Story follows.\n"],
-    ["value-looking story", "store x = 0\n& x =\n2\nStory follows.\n", "2\nStory follows.\n"],
-    ["scene local", "-> one\nscene one\n  & local x =\n  Story follows.\nend\n", "Story follows.\n"],
-  ])("preserves %s after an unfinished marked statement", (_name, source, output) => {
+    ["prose", "store x = 0\n& x =\nStory follows.\n", 1, "Story follows.\n"],
+    ["a value-looking line", "store x = 0\n& x =\n2\nStory follows.\n", 1, "2\nStory follows.\n"],
+    ["comma-ended prose", "store x = 0\n& x =\nWell, then,\nStory follows.\n", 1, "Well, then,\nStory follows.\n"],
+    ["a reassignment", "store x = 0\nstore y = 0\n& x =\ny, x = 1, 2\nValue {x}{y}.\n", 2, "Value 21.\n"],
+    ["a scene's prose", "-> one\nscene one\n  & local x =\n  Story follows.\nend\n", 2, "Story follows.\n"],
+    ["a scene's comma-ended prose", "-> one\nscene one\n  & local x =\n  a, b,\n  Story follows.\nend\n", 2, "a, b,\nStory follows.\n"],
+  ])("keeps %s out of the value", (_name, source, line, output) => {
     const result = execute(lines(source));
-    expect(result.errors.map((d) => d.message)).toEqual(["Expected identifier when parsing expression, got <eof>"]);
+    expect(result.errors.map((e) => [e.message, e.line])).toEqual([["Expected identifier when parsing expression, got <eof>", line]]);
     expect(result.runtimeErrors).toEqual([]);
     expect(result.output).toBe(output);
   });
 
-  test("a complete same-line marked assignment still executes", () => {
+  test("runs a complete marked assignment", () => {
     expect(execute(lines("store x = 0\n& x = 2\nValue {x}.\n"))).toEqual({ errors: [], runtimeErrors: [], output: "Value 2.\n" });
   });
 });

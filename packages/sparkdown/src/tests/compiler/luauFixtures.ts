@@ -73,11 +73,6 @@ export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
     reason: "Sparkdown only: `@/x/githen` (line 23) is reported as missing its then",
   },
   ...UNSUPPORTED_INTEGER_INPUTS,
-  {
-    fixture: "conformance/native_integer_spills.luau",
-    issue: 1306,
-    reason: "Sparkdown only: `local x0, ..., x7 =` with its values on the next line",
-  },
 ];
 
 export interface LuauInput {
