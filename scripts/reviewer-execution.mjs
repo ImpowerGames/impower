@@ -30,9 +30,10 @@ export function validateExecutionShape(step) {
   for (const op of step.execution) {
     if (!op || !/^[a-z][a-z0-9-]{0,63}$/.test(op.id ?? "") || ids.has(op.id)) throw new Error("execution IDs must be unique simple names");
     ids.add(op.id);
-    const keys = op.kind === "editor" ? ["id", "kind", "maxRequests", "timeoutSeconds"] : op.kind === "vitest" ? ["id", "kind", "package", "files", "timeoutSeconds"] : ["id", "kind", "mode", "samples", "warmup", "timeoutSeconds"];
+    const keys = op.kind === "editor" ? ["id", "kind", "maxRequests", "timeoutSeconds"] : op.kind === "vitest" ? ["id", "kind", "package", "files", "timeoutSeconds", "waitSeconds"] : ["id", "kind", "mode", "samples", "warmup", "timeoutSeconds"];
     if (Object.keys(op).some(key => !keys.includes(key))) throw new Error("Unknown execution operation field");
     if (op.timeoutSeconds !== undefined && !integer(op.timeoutSeconds, 1, 1800)) throw new Error("execution timeoutSeconds must be 1..1800");
+    if (op.waitSeconds !== undefined && !integer(op.waitSeconds, 1, 1800)) throw new Error("execution waitSeconds must be 1..1800");
     if (op.kind === "editor") {
       if (!integer(op.maxRequests, 1, 100)) throw new Error("editor maxRequests must be 1..100");
     } else if (op.kind === "vitest") {
@@ -55,7 +56,7 @@ export function executionCommands(operations, root) {
     return target;
   };
   return operations.map(op => {
-    let args;
+    let args, waitSeconds;
     if (op.kind === "editor") {
       args = [trackedFile(path.join(root, ".agents/skills/drive-web-editor/driver.mjs"))];
     } else if (op.kind === "vitest") {
@@ -69,11 +70,14 @@ export function executionCommands(operations, root) {
         if (!inside(packageRoot, target)) throw new Error("Execution test escapes package");
         return path.relative(packageRoot, target);
       });
-      args = [trackedFile(path.join(root, "scripts/test-suite.mjs")), "run", packageRoot, ...files, "--wait", "300"];
+      // The reservation wait is its own budget, so queueing behind another
+      // worktree's suite never consumes the run's timeoutSeconds.
+      waitSeconds = op.waitSeconds ?? op.timeoutSeconds ?? 600;
+      args = [trackedFile(path.join(root, "scripts/test-suite.mjs")), "run", packageRoot, ...files, "--wait", String(waitSeconds)];
     } else {
       args = [trackedFile(path.join(root, `scripts/bench/${op.kind}.mjs`)), "--fixture", "--mode", op.mode, "--samples", String(op.samples), "--warmup", String(op.warmup)];
     }
-    return { id: op.id, kind: op.kind, args, ...(op.kind === "editor" ? { maxRequests: op.maxRequests } : {}), timeoutSeconds: op.timeoutSeconds ?? 600 };
+    return { id: op.id, kind: op.kind, args, ...(op.kind === "editor" ? { maxRequests: op.maxRequests } : {}), ...(waitSeconds ? { waitSeconds } : {}), timeoutSeconds: op.timeoutSeconds ?? 600 };
   });
 }
 
@@ -82,6 +86,14 @@ export function executionCommands(operations, root) {
 export function executionEnvironment(source = process.env) {
   const allowed = /^(?:path|pathext|systemroot|windir|comspec|programdata|programfiles|programfiles\(x86\)|temp|tmp|home|userprofile|appdata|localappdata|psmodulepath|lang|lc_all)$/i;
   return { ...Object.fromEntries(Object.entries(source).filter(([key]) => allowed.test(key))), NODE_OPTIONS: "--max-old-space-size=1024" };
+}
+
+// test-suite.mjs exits 75 and prints this line when it could not take the
+// reservation, so no test ran. Either signal alone makes the run a not-run.
+export function vitestNotRun(result) {
+  if (result.exit === 75) return true;
+  if (!result.log) return false;
+  try { return /^test-suite: not run:/m.test(fs.readFileSync(result.log, "utf8")); } catch { return false; }
 }
 
 function execute(command, root, directory) {
@@ -102,7 +114,7 @@ function execute(command, root, directory) {
       } catch (error) { stopError = error.message; }
       // Keep awaiting actual close. Unconfirmed exit cannot release the review
       // freeze or start another operation, even if termination was requested.
-    }, command.timeoutSeconds * 1000);
+    }, (command.timeoutSeconds + (command.waitSeconds ?? 0)) * 1000);
     child.once("error", error => { launchError = error.message; });
     child.once("close", (exit, signal) => {
       clearTimeout(timer);
@@ -170,7 +182,8 @@ export async function startExecutionService({ operations, root, directory, head 
         return editors.get(command.id).run(request);
       }).then(result => {
         frozen();
-        const terminal = { ...result, id: command.id, head, state: "complete", passed: executionPassed(result) };
+        const notRun = command.kind === "vitest" && vitestNotRun(result);
+        const terminal = { ...result, id: command.id, head, state: "complete", passed: !notRun && executionPassed(result), ...(notRun ? { notRun: true } : {}) };
         const resultFile = editorRequest ? path.join(path.dirname(result.log), "result.json") : path.join(directory, `${command.id}.json`);
         fs.writeFileSync(resultFile, JSON.stringify(terminal, null, 2));
         results.set(key, terminal);

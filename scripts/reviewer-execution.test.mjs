@@ -150,7 +150,17 @@ await createReviewJob({ worktree: root, jobDir: supervised, head, base: head, pr
   { preflight: async () => ({ supported: true }) }, { jobRoot: scratch, verifyExecutable: () => {} });
 assert.deepEqual(JSON.parse(fs.readFileSync(path.join(supervised, "handoff.json"))).steps.tests.execution, operations, "supervised plans preserve the exact caller grants");
 assert.equal(commands[0].args[1], "run");
-assert.deepEqual(commands[0].args.slice(-2), ["--wait", "300"]);
+assert.deepEqual(commands[0].args.slice(-2), ["--wait", "600"], "the reservation wait defaults to the run budget, not a fixed 300");
+assert.equal(commands[0].waitSeconds, 600);
+const patient = executionCommands([{ ...operations[0], timeoutSeconds: 900, waitSeconds: 1200 }], root)[0];
+assert.deepEqual(patient.args.slice(-2), ["--wait", "1200"], "a step may set its own bounded wait");
+assert.equal(patient.timeoutSeconds, 900);
+assert.equal(patient.waitSeconds, 1200);
+assert.deepEqual(executionCommands([{ ...operations[0], timeoutSeconds: 1800 }], root)[0].args.slice(-2), ["--wait", "1800"], "the wait follows the operation's timeout");
+assert.equal(executionCommands([operations[1]], root)[0].waitSeconds, undefined, "only Vitest waits for the reservation");
+assert.throws(() => executionCommands([{ ...operations[0], waitSeconds: 0 }], root), /waitSeconds/);
+assert.throws(() => executionCommands([{ ...operations[0], waitSeconds: 1801 }], root), /waitSeconds/);
+assert.throws(() => executionCommands([{ ...operations[1], waitSeconds: 10 }], root), /Unknown execution operation field/);
 assert.deepEqual(commands[1].args.slice(1), ["--fixture", "--mode", "step", "--samples", "1", "--warmup", "0"]);
 for (const alteration of [ { command: "arbitrary" }, { env: { NODE_OPTIONS: "--import bad" } }, { args: ["--project", "outside"] } ]) {
   assert.throws(() => executionCommands([{ ...operations[0], ...alteration }], root), /Unknown execution operation field/);
@@ -231,6 +241,30 @@ try {
   await fetch(serial.environment.IMPOWER_REVIEW_EXECUTION_URL + "/operations/preview", { method: "POST", headers: { authorization: `Bearer ${serial.environment.IMPOWER_REVIEW_EXECUTION_TOKEN}` } });
   await assert.rejects(requestExecution("tests", { env: serial.environment }), /Another operation/);
 } finally { releaseRun(); await serial.close(); }
+
+// A Vitest run that never took the machine-wide reservation is not a result:
+// it reports `notRun`, never a pass, whatever exit status the runner gave.
+const marker = "test-suite: not run: Existing suite running\n";
+for (const [label, exit, line] of [["exit 75", 75, marker], ["marker with exit 0", 0, marker], ["exit 75 without marker", 75, ""]]) {
+  const notRunDirectory = fs.mkdtempSync(path.join(scratch, "not-run-"));
+  const notRunLog = path.join(notRunDirectory, "tests.log");
+  fs.writeFileSync(notRunLog, `{"status":"waiting"}\n${line}`);
+  const waiting = await startExecutionService({ operations: [operations[0]], root, directory: notRunDirectory, head }, { run: async command => ({ id: command.id, exit, signal: null, log: notRunLog }) });
+  try {
+    const result = await requestExecution("tests", { env: waiting.environment, pollMs: 10 });
+    assert.equal(result.passed, false, label);
+    assert.equal(result.notRun, true, label);
+  } finally { await waiting.close(); }
+}
+const ranDirectory = fs.mkdtempSync(path.join(scratch, "ran-"));
+const ranLog = path.join(ranDirectory, "tests.log");
+fs.writeFileSync(ranLog, "1 failed\n");
+const ran = await startExecutionService({ operations: [operations[0]], root, directory: ranDirectory, head }, { run: async command => ({ id: command.id, exit: 1, signal: null, log: ranLog }) });
+try {
+  const result = await requestExecution("tests", { env: ran.environment, pollMs: 10 });
+  assert.equal(result.passed, false);
+  assert.notEqual(result.notRun, true, "a real failure is not a not-run");
+} finally { await ran.close(); }
 
 // A real owned child timeout cannot be a pass.
 write("scripts/bench/preview-bench.mjs", `console.log("waiting"); setTimeout(()=>{}, 30000);`);
