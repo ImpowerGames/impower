@@ -212,8 +212,11 @@ function semanticMessages(line) {
 // classification reads and only a usage limit permits a same-vendor reviewer.
 function failureExcerpt(text) {
   const match = usageLimitPattern.exec(text) ?? routeFailurePattern.exec(text);
-  const start = match && match.index + match[0].length > 400 ? Math.max(0, match.index - 20) : 0;
-  return text.slice(start).trim().slice(0, 400);
+  if (!match || match.index + match[0].length <= 400) return text.trim().slice(0, 400);
+  // Every pattern alternative that spans text joins two fixed words with `.*`,
+  // so a span longer than the cap keeps its two ends and still matches.
+  const span = match[0].length > 400 ? `${match[0].slice(0, 190)} … ${match[0].slice(-190)}` : text.slice(Math.max(0, match.index - Math.min(20, 400 - match[0].length)));
+  return span.trim().slice(0, 400);
 }
 
 export function routeFailure(text) {

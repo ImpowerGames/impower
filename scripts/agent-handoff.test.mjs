@@ -772,6 +772,13 @@ console.log("PASS: real already-exited children have no false termination warnin
     const retried = "Authentication failed; " + "retry context ".repeat(40) + "You've hit your weekly limit";
     assert.match(routeFailure(JSON.stringify({ ...metadata, result: retried })), /weekly limit/, "a usage limit after an earlier failure in one long message stays in the excerpt");
     assert.match(routeFailure(retried), /weekly limit/, "the same holds for a text line");
+    for (const spanning of ["You have exceeded " + "allocation details; ".repeat(30) + "quota", "You've hit your " + "plan detail ".repeat(40) + "limit"]) {
+      for (const input of [spanning, JSON.stringify({ ...metadata, result: spanning })]) {
+        const excerpt = routeFailure(input);
+        assert.ok(excerpt.length <= 400, "the excerpt stays capped");
+        assert.match(excerpt, /exceeded .*quota|hit your .*limit/, "a usage-limit match longer than the cap keeps its classification");
+      }
+    }
   }
   const routeChild = path.join(scratch, "route-child.mjs");
   const launchedMarker =path.join(scratch, "route-child-launched");
