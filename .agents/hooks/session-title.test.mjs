@@ -194,6 +194,11 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(afterTool({ ...rename("shared", "FIX #302: filterimage layers"), cwd: wt302 }, "claude"), null);
   assert.equal(gate(at(wt302, "git status"), "claude"), null, "a rename from its own worktree acknowledges it");
   afterTool(shell("shared", create), "claude");
+  // The event names no writer, so a rename from outside every pending worktree acknowledges the entry with that exact title and no other.
+  assert.equal(afterTool({ ...rename("shared", "FEAT #9: second thing"), cwd: repo }, "claude"), null);
+  assert.equal(gate(at(wt9, "git status"), "claude"), null);
+  assert.match(gate(at(wt302, "git status"), "claude"), /FIX #302/, "the other worktree stays pending");
+  afterTool(shell("shared", "git worktree add -b feat/9-second-thing ../y origin/main"), "claude");
   // The acknowledgement command clears only the worktree it names.
   afterTool(shell("shared", create), "claude");
   assert.equal(gate(at(wt9, ackCommand("shared", wt302)), "claude") === null, false, "the sibling's acknowledgement does not clear this worktree");
