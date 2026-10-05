@@ -1,4 +1,5 @@
-import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
+import { isTypeLineContinuation } from "@impower/sparkdown/src/compiler/lower/utils/lineContinuation";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
 import { ancestorMatching } from "@impower/sparkdown/src/compiler/utils/ancestorMatching";
@@ -14,6 +15,14 @@ import { type Tree } from "@lezer/common";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 type Node = GrammarSyntaxNode<SparkdownNodeName>;
+
+const ownRuleChild = (node: Node, original: string): Node | null => {
+  for (const name of explicitRuleNames(original)) {
+    const child = node.getChild(name);
+    if (child) return child as Node;
+  }
+  return null;
+};
 
 /**
  * Declared names grouped by scope path (`""` for global, `scene` or
@@ -94,7 +103,7 @@ const LUAU_BRANCHES = nodeNameSet([
 
 const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]);
 
-// What may come between a declaration and a union member line that
+// What may come between a declaration and a union or intersection member line that
 // continues its type: blank lines, indentation and comments.
 const UNION_LINE_BRIDGE: ReadonlySet<string> = new Set([
   "Newline",
@@ -202,11 +211,11 @@ const getLocalScope = (
     return undefined;
   }
   // A define's explicit function declarations belong to its method table.
-  if (type === "function" && definition.parent?.name === "LuauDefine_content") {
+  if (type === "function" && isExplicitRuleName(definition.parent?.name, "LuauDefine_content")) {
     return null;
   }
   const modifierRoot = type === "function"
-    ? definition.getChild("LuauFunctionDefinition_begin") as Node | null
+    ? definition.getChild(`${definition.name}_begin`) as Node | null
     : definition;
   const modifier = modifierRoot && getDescendent("LuauScopeModifier", modifierRoot);
   if (!modifier || read(modifier.from, modifier.to).trim() !== "local") {
@@ -226,7 +235,7 @@ const getLocalScope = (
     : text.slice(trimmed.length).includes("\n")
       ? definition.from + trimmed.length
       : definition.to;
-  // A union member line after a comment line continues the declaration's
+  // A union or intersection member line after a comment continues the declaration's
   // type (`local v: number` then `-- note` then `| string = 5`) and can hold
   // its value, so the names are visible only after the last such line.
   for (
@@ -234,7 +243,7 @@ const getLocalScope = (
     next;
     next = next.nextSibling
   ) {
-    if (next.name === "LuauTypeUnionLineContinuation") {
+    if (isTypeLineContinuation(next)) {
       const lineText = read(next.from, next.to);
       const lineTrimmed = lineText.trimEnd();
       start = lineText.slice(lineTrimmed.length).includes("\n")
@@ -253,7 +262,7 @@ const getLocalScope = (
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (
       TRAILING_STATEMENT_NAMES.has(child.name) &&
-      !(child.name === "LuauFunctionDefinition" && !findOwnDeclarationName(child))
+      !(isExplicitRuleName(child.name, "LuauFunctionDefinition") && !findOwnDeclarationName(child))
     ) {
       start = child.from;
       break;
@@ -316,8 +325,8 @@ const getParameterScope = (
   if (
     !parameters ||
     !owner ||
-    (owner.name !== "LuauFunctionDefinition_content" &&
-      owner.name !== "LuauMethodDefinition_content")
+    (!isExplicitRuleName(owner.name, "LuauFunctionDefinition_content") &&
+      !isExplicitRuleName(owner.name, "LuauMethodDefinition_content"))
   ) {
     return undefined;
   }
@@ -327,11 +336,11 @@ const getParameterScope = (
   // The parameters are visible from the header's end: after the return type
   // when there is one, which takes in the line breaks after it, so a body
   // can open lines later and a function with no body has only its header.
-  const returnType = owner.getChild("LuauFunctionReturnType");
+  const returnType = ownRuleChild(owner as Node, "LuauFunctionReturnType");
   const headerEnd = returnType
     ? returnType.from + read(returnType.from, returnType.to).trimEnd().length
     : parameters.to;
-  const body = owner.getChild("LuauFunctionBody");
+  const body = ownRuleChild(owner as Node, "LuauFunctionBody");
   return body
     ? { from: Math.min(body.from, headerEnd), to: body.to }
     : { from: headerEnd, to: owner.to };

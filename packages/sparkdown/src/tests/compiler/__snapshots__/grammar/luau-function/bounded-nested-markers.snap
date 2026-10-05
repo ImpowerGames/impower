@@ -696,17 +696,17 @@ sparkdown [0..292]
  │   │       │       │       │   │   │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [204..205]
  │   │       │       │       │   │   │           └─ OptionalWhitespace [204..205]: " "
  │   │       │       │       │   │   ├─ LuauSparkdownExplicitReturnStatement_content [205..213]
- │   │       │       │       │   │   │   ├─ LuauDoubleQuotedString [205..210]
- │   │       │       │       │   │   │   │   ├─ LuauDoubleQuotedString_begin [205..206]
- │   │       │       │       │   │   │   │   │   └─ LuauDoubleQuotedString_begin_c1 [205..206]
+ │   │       │       │       │   │   │   ├─ LuauSparkdownExplicitDoubleQuotedString [205..210]
+ │   │       │       │       │   │   │   │   ├─ LuauSparkdownExplicitDoubleQuotedString_begin [205..206]
+ │   │       │       │       │   │   │   │   │   └─ LuauSparkdownExplicitDoubleQuotedString_begin_c1 [205..206]
  │   │       │       │       │   │   │   │   │       └─ PunctuationStringDoubleQuoteOpen [205..206]: "\""
- │   │       │       │       │   │   │   │   ├─ LuauDoubleQuotedString_content [206..209]
+ │   │       │       │       │   │   │   │   ├─ LuauSparkdownExplicitDoubleQuotedString_content [206..209]
  │   │       │       │       │   │   │   │   │   ├─ Word [206..207]: "é"
  │   │       │       │       │   │   │   │   │   └─ Punctuation [207..209]: "😀"
- │   │       │       │       │   │   │   │   └─ LuauDoubleQuotedString_end [209..210]
- │   │       │       │       │   │   │   │       ├─ LuauDoubleQuotedString_end_c1 [209..210]
+ │   │       │       │       │   │   │   │   └─ LuauSparkdownExplicitDoubleQuotedString_end [209..210]
+ │   │       │       │       │   │   │   │       ├─ LuauSparkdownExplicitDoubleQuotedString_end_c1 [209..210]
  │   │       │       │       │   │   │   │       │   └─ PunctuationStringDoubleQuoteClose [209..210]: "\""
- │   │       │       │       │   │   │   │       └─ LuauDoubleQuotedString_end_c2 210
+ │   │       │       │       │   │   │   │       └─ LuauSparkdownExplicitDoubleQuotedString_end_c2 210
  │   │       │       │       │   │   │   ├─ LuauCommaSeparator [210..212]
  │   │       │       │       │   │   │   │   ├─ LuauCommaSeparator_c1 210
  │   │       │       │       │   │   │   │   ├─ LuauCommaSeparator_c2 [210..211]: ","

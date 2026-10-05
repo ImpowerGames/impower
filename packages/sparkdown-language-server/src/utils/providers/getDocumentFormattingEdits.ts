@@ -15,7 +15,6 @@ import {
   type TextEdit,
 } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
-import { collectRedundantDiscardEdits } from "./collectRedundantDiscardEdits";
 
 const WHITESPACE_REGEX = /[\t ]*/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -2184,10 +2183,5 @@ export const getDocumentFormattingEdits = (
 
   const result = resolveFormattingConflicts(edits, document, formattingOnType);
 
-  // Post-pass: strip redundant `& ` prefixes from explicit statements
-  // inside function bodies. Runs after the whitespace formatter so
-  // the discard-strip's delete edits don't interact with whitespace
-  // edits on the same line — the formatter is done by this point.
-  const discardEdits = collectRedundantDiscardEdits(document, tree);
-  return [...(result ?? []), ...discardEdits];
+  return result ?? [];
 };

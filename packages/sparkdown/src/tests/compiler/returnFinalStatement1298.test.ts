@@ -20,9 +20,6 @@ const cases = [
   ["same line", "function f() return 1; print(2) end\n", 0],
   ["else", "function f()\n  if x then\n    print(1)\n  else\n    return 1\n    print(2)\n  end\nend\n", 7],
   ["repeat", "function f()\n  repeat\n    return 1\n    print(2)\n  until true\nend\n", 5],
-  ["marked function", "function f()\n  & return 1\n  & print(2)\nend\n", 3],
-  ["marked do", "function f()\n  do\n    & return 1\n    & print(2)\n  end\nend\n", 5],
-  ["marked then", "function f()\n  if x then\n    & return 1\n    & print(2)\n  end\nend\n", 5],
 ] as const;
 
 describe("return is the final Luau statement in its block (#1298)", () => {
@@ -100,7 +97,7 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     expect(errors).toEqual([]);
   });
   it.each(cases)("reports Luau's syntax error for %s", (_name, source) => {
-    const oracle = officialSyntaxErrors(source.replaceAll("&", " "))[0]!;
+    const oracle = officialSyntaxErrors(source)[0]!;
     expect(oracle).toBeDefined();
     const program = compile(source + "\nBOB:\n  Hello after.\n");
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
@@ -119,9 +116,9 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     "function f()\n  if x then\n    return 1\n  else\n    return 2\n  end\n  print(3)\nend\n",
     "function f()\n  do\n    return\n  end\n  print(3)\nend\n",
     "function f()\n  return\n    1 +\n    2\nend\n",
-    "function f()\n  & return\n  & -1\nend\n",
-    "function f()\n  & return 1,\n  & print(2)\nend\n",
-    "function f()\n  & return 1 +\n  & print(2)\nend\n",
+    "function f()\n  return\n  -1\nend\n",
+    "function f()\n  return 1,\n  print(2)\nend\n",
+    "function f()\n  return 1 +\n  print(2)\nend\n",
   ])("accepts final Luau returns and multiline return values: %s", (source) => {
     const program = compile(source + "\nBOB:\n  Hello after.\n");
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
@@ -139,19 +136,19 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     expect(returns).toEqual(["return"]);
   });
 
-  it("keeps the existing unreachable warning alongside the marked function's syntax error", () => {
-    const program = compile("function f()\n  & return 1\n  & print(2)\nend\n");
+  it("keeps the existing unreachable warning alongside the function's syntax error", () => {
+    const program = compile("function f()\n  return 1\n  print(2)\nend\n");
     const diagnostics = (Object.values(program.diagnostics ?? {}) as any[]).flat();
     expect(diagnostics.filter((d: any) => d.code === "UnreachableCode").map((d: any) => ({ message: d.message.value, severity: d.severity, range: d.range }))).toEqual([
-      { message: "Unreachable code (previous statement always returns)", severity: 2, range: { start: { line: 2, character: 4 }, end: { line: 2, character: 12 } } },
+      { message: "Unreachable code (previous statement always returns)", severity: 2, range: { start: { line: 2, character: 2 }, end: { line: 2, character: 10 } } },
     ]);
   });
 
-  it.each(["function", "do", "if"])("marked bare returns keep Luau's multiline values in %s blocks", (block) => {
-    for (const follower of ["print(2)", "x = 1"]) for (const marked of [false, true]) {
+  it.each(["function", "do", "if"])("bare returns keep Luau's multiline values in %s blocks", (block) => {
+    for (const follower of ["print(2)", "x = 1"]) {
       const header = block === "do" ? "  do\n" : block === "if" ? "  if x then\n" : "";
-      const source = `function f()\n${header}  & return\n  ${marked ? "& " : ""}${follower}\n${header ? "  end\n" : ""}end\n`;
-      const oracle = officialSyntaxErrors(source.replaceAll("&", " "))[0];
+      const source = `function f()\n${header}  return\n  ${follower}\n${header ? "  end\n" : ""}end\n`;
+      const oracle = officialSyntaxErrors(source)[0];
       const program = compile(source);
       const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
       expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual(oracle ? [

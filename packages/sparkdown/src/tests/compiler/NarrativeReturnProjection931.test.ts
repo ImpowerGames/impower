@@ -118,8 +118,29 @@ describe("independent narrative-return oracle projection", () => {
     "--[[ a\nb ]]",
     "--[=[ é😀\nb ]=]",
     "; --[[ é😀\nb ]]",
-  ])("keeps the complete multiline comment before a synthetic closer: %s", (comment) => {
-    agrees(`& return 5 ${comment}\nProse.\n& f()\n`, 1);
+  ])("cannot take a marked return's comment closer from another physical line: %s", (comment) => {
+    for (const newline of ["\n", "\r\n"]) {
+      const text = `& return 5 ${comment}\nProse.\n& f()\n`.replace(/\n/g, newline);
+      const firstLine = text.slice(0, text.indexOf(newline));
+      const native = parseOfficialTree(firstLine.replace(/^&/, " "));
+      expect(native.errors.map(error => error.message)).toEqual(["Expected <eof>, got unfinished comment"]);
+      const result = readings(text)[0]!;
+      expect(result.unit.text).toBe(`  do ${firstLine.slice(2)}${newline === "\r\n" ? "\r" : ""} end\n  f()`);
+      expect(result.official.errors.map(error => error.message)).toEqual(["Expected 'end' (to close 'do' at column 3), got unfinished comment"]);
+      expect(result.ours.errors.map(error => error.message)).toEqual(native.errors.map(error => error.message));
+      expect(result.ours.root.body).toHaveLength(2);
+      expect(result.ours.root.body[1]!.location.begin.line).toBe(3);
+      expect(jsonNodes(result.actual).filter(node => node["type"] === "AstExprGlobal" && node["global"] === "f")).toHaveLength(1);
+      const cursor = parseSource(text).cursor();
+      let markedTo = -1;
+      let proseFrom = -1;
+      do {
+        if (cursor.name === "LuauSparkdownExplicitStatement" && cursor.from === 0) markedTo = cursor.to;
+        if (cursor.name === "ImplicitAction" && cursor.from === text.indexOf("Prose.")) proseFrom = cursor.from;
+      } while (cursor.next());
+      expect(markedTo).toBe(firstLine.length);
+      expect(proseFrom).toBe(text.indexOf("Prose."));
+    }
   });
   test.each([
     "& repeat return 5",

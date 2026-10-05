@@ -2212,7 +2212,14 @@ export const getCompletions = (
       }
     }
 
-    if (rootLevelNode.name === "LuauFunctionDefinition") {
+    if (
+      isExplicitRuleName(rootLevelNode.name, "LuauFunctionDefinition") ||
+      ((rootLevelNode.name === "LuauSparkdownExplicitStatement" ||
+        rootLevelNode.name === "LuauSparkdownExplicitBlockStatement") &&
+        leftStack.some(n =>
+          isExplicitRuleName(n.name, "LuauFunctionDefinition") &&
+          documentCursorOffset < n.to))
+    ) {
       const contentNode = leftStack[0];
       if (contentNode) {
         addTriggeredKeywordCompletions(

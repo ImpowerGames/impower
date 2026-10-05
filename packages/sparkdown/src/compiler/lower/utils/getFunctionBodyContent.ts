@@ -35,13 +35,14 @@ export function getFunctionBodyContent(
   // `LuauFunctionBody` sub-wrapper, since the rule's patterns include
   // `LuauBlockBody` directly).
   const content =
-    findChildByName(fnDefNode, "LuauFunctionDefinition_content") ??
+    findChildByName(fnDefNode, `${fnDefNode.name}_content`) ??
     findChildByName(fnDefNode, "LuauMethodDefinition_content");
   if (!content) return null;
-  const bodyWrapper = findChildByName(content, "LuauFunctionBody");
+  const bodyWrapper = findChildByName(content, "LuauFunctionBody") ??
+    findChildByName(content, "LuauSparkdownExplicitFunctionBody");
   if (bodyWrapper) {
     return (
-      findChildByName(bodyWrapper, "LuauFunctionBody_content") ?? bodyWrapper
+      findChildByName(bodyWrapper, `${bodyWrapper.name}_content`) ?? bodyWrapper
     );
   }
   return content;

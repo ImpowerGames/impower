@@ -8,7 +8,7 @@ import { jsonLocation, jsonNodes, parseOfficialTree } from "./officialAstTestUti
 import { printOfficialAst } from "./printOfficialAst";
 
 describe("written return semicolon locations", () => {
-  for (const context of ["file", "scene", "branch", "function"]) for (const mark of ["", "& "]) {
+  for (const context of ["file", "scene", "branch", "function"]) for (const mark of context === "function" ? [""] : ["", "& "]) {
     test.each(["return;", "return 5;", "return 1, 2;", "return 5; -- comment", "return 5; --[[comment]]", "return 5 --[[comment]];"])(`${context} ${mark}%s includes its written delimiter`, (line) => {
       const source = `${mark}${line}\n`;
       const text = context === "file" ? source : `${context} a${context === "function" ? "()" : ""}\n${source}end\n`;
@@ -29,6 +29,17 @@ describe("written return semicolon locations", () => {
 });
 
 const URI = "inmemory:///main.sd";
+
+test.each(["return;", "return 5;", "return 1, 2;", "return 5; -- comment", "return 5; --[[comment]]", "return 5 --[[comment]];"])("a removed function marker diagnoses before %s", line => {
+  const text = `function f()\n& ${line}\nend\n`;
+  const converted = readLuauUnits(parseSource(text), text).prelude;
+  const native = parseOfficialTree(text);
+  expect(converted.errors[0]!.message).toBe(native.errors[0]!.message);
+  expect(converted.errors[0]!.location).toEqual(native.errors[0]!.location);
+  const functions = jsonNodes(printOfficialAst(converted.root)).filter(node => node["type"] === "AstExprFunction");
+  expect(functions).toHaveLength(1);
+  expect(jsonLocation(functions[0]!).end.line).toBe(2);
+});
 
 class ReturnSession extends SparkdownCompiler {
   check(text: string, version: number) {

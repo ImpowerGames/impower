@@ -55,6 +55,32 @@ variables:
   LUAU_SHARED_TERNARY_CONDITION_LINE_END: "(?!{{WS}}*then\\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}})"
   # lookaround: LuauTypeofFunction owns typeof calls; LuauVariableAssignment must not mistake typeof for a binding name.
   LUAU_SHARED_NOT_TYPEOF: "(?!typeof\\b)"
+  # lookaround: invalid marked calls stay in LuauInvalidStatement recovery;
+  # a type name cannot take call arguments, while typeof is a valid type operand.
+  LUAU_SHARED_NOT_REMOVED_MARK_CALL: "(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}{{LUAU_SHARED_FUNCTION_NAME_SUFFIX}}*{{WS}}*[(])"
+  LUAU_SHARED_FUNCTION_NAME_SUFFIX: '(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})'
+  _LUAU_SHARED_FUNCTION_SCOPE_PREFIX_: '(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*))'
+  LUAU_SHARED_AFTER_UNCALLABLE_VALUE: '(?:{{AFTER_LUAU_UNCALLABLE_VALUE}})'
+  LUAU_SHARED_AFTER_CALLABLE_VALUE: '(?:{{AFTER_LUAU_VALUE}})'
+  LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD: '(?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(])'
+  # lookaround: LuauSparkdownExplicitComment owns a goto's trailing comment.
+  # Reordering children cannot end the open goto; splitting its dispatch and
+  # its parent end do not distinguish comment trivia. Share the token guard.
+  LUAU_SHARED_GOTO_NO_COMMENT_AHEAD: '(?!{{LUAU_COMMENT_START}})'
+  # lookaround: LuauLabelName and LuauSparkdownExplicitComment own the label and
+  # trailing comment. A zero-width end preserves those siblings; consuming the
+  # gap would shift their authored ranges, so the goto ends before either.
+  LUAU_SHARED_GOTO_LINE_END: '(?=$|{{WS}}*{{LUAU_SHARED_GOTO_NO_COMMENT_AHEAD}})'
+  # Keep the existing trailing-only word boundary. Array variables add a leading
+  # boundary too, which would change recovery when this capture searches a line.
+  LUAU_MARKED_STRUCTURED_KEYWORDS: '(?:define|style|layout|screen|component)\b'
+  LUAU_MARKED_STRUCTURED_NAMESPACE_KEYWORDS: '(?:animation|theme|morph)\b'
+  # lookaround: LuauAccessPath and LuauFunctionCall own animation.x and
+  # animation(...), also theme/morph. Moving expressions first consumes
+  # declaration names; splitting the root Switch still needs this boundary;
+  # a parent end cannot repair the wrong opener. Tighten the shared head token.
+  LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL: '(?![.(])'
+  LUAU_MARKED_STRUCTURED_HEAD: '(?:{{LUAU_MARKED_STRUCTURED_KEYWORDS}}|{{LUAU_MARKED_STRUCTURED_NAMESPACE_KEYWORDS}}{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}})'
   # lookaround: LuauTypeAnnotationOperation and LuauAssignmentOperation own annotations and values; LuauVariableAssignment must yield before either.
   LUAU_SHARED_VARIABLE_HEAD_END: "(?:[,]|[=](?![=])|[:](?![:])(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\\n|\\r|$)"
   LUAU_SHARED_DIVERT_DOTTED_PART: "(?:[.]{{IDENTIFIER}})"
@@ -158,7 +184,7 @@ variables:
   LUAU_JUMP_KEYWORDS: ["goto"]
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
-  LUAU_MODULE_KEYWORDS: ["require", "export"]
+  LUAU_MODULE_KEYWORDS: ["export"]
   LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
   LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]
@@ -463,7 +489,7 @@ variables:
   # this list misses would be read as a value.
   LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\b{{WS}}+{{LUAU_IDENTIFIER}})
   # Where a reassignment ends on its own line (see `LuauReassignment`).
-  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$"
+  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\]{{LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$"
   # The start of a reassignment statement: its targets (a name with `.field`,
   # `[index]` or `(call)` suffixes, or several names separated by commas) and
   # an assignment operator. `LuauReassignment` begins here, and the rules that
@@ -849,7 +875,7 @@ variables:
   # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
   # opens its `(` only right after one, and `LuauFunctionBody` never opens
   # there.
-  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}{{LUAU_SHARED_FUNCTION_NAME_SUFFIX}}*)?(?:<[^<>\n]*>)?)
   # A token that a declaration's comma line break (`LuauCommaLineBreak`)
   # can reach but that begins a statement rather than a value: a statement
   # keyword or a type declaration. An `if` there is an if expression, as in
@@ -4003,7 +4029,10 @@ repository:
         patterns:
           - { include: "#RequiredWhitespace" }
     patterns:
-      - { include: "#LuauFunctionDefinition" }
+      # Trailing comments leave a closer immediately before code to the body.
+      # The validator rejects this token unless an actual comment ends here.
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
+      - { include: "#LuauSparkdownExplicitFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitStoryVariableDefinition" }
       - { include: "#LuauSparkdownExplicitDeclarations" }
@@ -4015,48 +4044,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       # Keep unmatched punctuation in the authored code island so the
       # checker reports its written token rather than losing it to prose.
-      - { include: "#LuauInvalidStatementToken" }
-    end: (?={{BEAT}})|$|(?=^)
-
-  LuauExplicitStatement:
-    begin: ({{WS}}*)([&])($|{{WS}}+)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauExplicitStatementMark" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-    # `LuauCommaSeparator` is in the pattern list so multi-target /
-    # multi-RHS reassignment statements (`& a, b = 10, 20`) can break
-    # across commas at the statement level. The lowerer reconstructs
-    # the target list from the siblings of the `LuauAssignmentOperation`.
-    # Function-call commas live inside `LuauFunctionCallParameters` and
-    # are scoped there — they don't reach this pattern.
-    patterns:
-      # Declarations need to come before LuauExpression so `& store x = 5`
-      # parses as a `LuauSparkdownVariableDefinition` rather than an
-      # expression where `store` would degrade to a bare identifier
-      # reference. This makes the explicit form (`& store x = 5`)
-      # interchangeable with the implicit form (`store x = 5`). An `&`
-      # statement is one line, so it declares with the narrative rule.
-      # `LuauFunctionDefinition` comes first, so `& local function f()`
-      # is a function rather than a declaration of `function`.
-      - { include: "#LuauFunctionDefinition" }
-      # A written `& do ... end` is a Luau island, including its return.
-      # Its body must not fall through to the narrative do-block at root.
-      - { include: "#LuauDoBlock" }
-      - { include: "#LuauSparkdownVariableDefinition" }
-      - { include: "#LuauDeclarations" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-    # A statement ends at its line's end; it only stands at the start of a
-    # line when a value that spans lines, such as an unfinished if
-    # expression, took the line break and ended there, which ends it too.
+      - { include: "#LuauSparkdownExplicitInvalidStatementToken" }
     end: (?={{BEAT}})|$|(?=^)
 
   LuauExplicitStatementMark:
@@ -7120,7 +7108,7 @@ repository:
   LuauFunctionDefinition:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*))?(function)\b({{WS}}*)
+    begin: ({{WS}}*){{_LUAU_SHARED_FUNCTION_SCOPE_PREFIX_}}?(function)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -7143,8 +7131,7 @@ repository:
       # `LuauFunctionBody` opens AFTER the close-paren of the param
       # list (or after a return-type annotation), so its lookbehind
       # anchors on the last header char. Keeping body in
-      # its own rule lets `bare-assignment-in-body` style content
-      # (e.g. `& x = expr`) parse without polluting the function-
+      # its own rule lets bare assignments (`x = expr`) parse without polluting the function-
       # header context. `LuauBlockBody` then matches statements inside.
       # It comes before the name and parameter rules because it can open
       # at the start of a line, where the parameter rule would take a
@@ -7236,6 +7223,7 @@ repository:
     patterns:
       - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauTypeUnionLineContinuation" }
+      - { include: "#LuauTypeIntersectionLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauVariadicParameter" }
       - { include: "#LuauFunctionParameter" }
@@ -7527,17 +7515,11 @@ repository:
       - { include: "#LuauElseBlock" }
       - { include: "#LuauAlternatorBlocks" }
       # `LuauDeclarations` covers declarations (`local x = …`,
-      # `function …`, `break`, `continue`, `goto`, labels,
-      # type declarations). `LuauExplicitStatement` covers the `& …`
-      # discard-call / assignment statement form. Both are valid inside
-      # pure-luau bodies (function definitions, `if`/`for`/`while`/`do`
-      # blocks). Without them, a body like
-      #   function f() if cond then & g() end end
-      # cannot match `& g()` inside the `if` body, so the if-block
-      # terminates early and the discard-call ends up at the function
-      # level (outside the conditional) — silently broken bytecode.
+      # `function …`, `break`, `continue`, `goto`, labels and type
+      # declarations). Pure Luau bodies use ordinary calls and assignments;
+      # removed story markers remain invalid tokens without moving a statement
+      # out of its block.
       - { include: "#LuauDeclarations" }
-      - { include: "#LuauExplicitStatement" }
       - { include: "#LuauReassignment" }
 
   # Shared body-content pattern set for every sparkdown-context block-shaped
@@ -7567,7 +7549,7 @@ repository:
   # Pure-Luau counterpart of `LuauSparkdownBlockBody`. Used inside every
   # Luau-only block rule (`LuauIfBlock`, `LuauForLoop`, `LuauFunctionDefinition`,
   # etc.). `LuauControlBlock` already transitively includes
-  # `LuauDeclarations` / `LuauExplicitStatement` / etc., so the
+  # `LuauDeclarations` / etc., so the
   # body tail here is shorter than the Sparkdown variant.
   #
   # `LuauCommaSeparator` is included as a forgiveness measure — bare
@@ -7578,9 +7560,11 @@ repository:
     patterns:
       - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauTypeUnionLineContinuation" }
+      - { include: "#LuauTypeIntersectionLineContinuation" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauMinusLineContinuation" }
+      - { include: "#LuauRemovedExplicitStatementMark" }
       - { include: "#LuauControlBlock" }
       - { include: "#LuauInvalidStatement" }
       - { include: "#LuauExpression" }
@@ -8081,6 +8065,7 @@ repository:
 
   LuauSparkdownExplicitBlockBody:
     patterns:
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauSparkdownExplicitBlockStatement" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitIfBlock" }
@@ -8093,7 +8078,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       # The enclosing block takes its own closer first; other unmatched
       # punctuation remains code for native diagnostic recovery.
-      - { include: "#LuauInvalidStatementToken" }
+      - { include: "#LuauSparkdownExplicitInvalidStatementToken" }
 
   # A nested marker stays in its code block. Leave the enclosing block's
   # branch/end/until token to that block instead of closing incomplete there.
@@ -8104,7 +8089,7 @@ repository:
       2: { patterns: [{ include: "#LuauExplicitStatementMark" }] }
       3: { patterns: [{ include: "#RequiredWhitespace" }] }
     patterns:
-      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauSparkdownExplicitFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitStoryVariableDefinition" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
     # lookaround: branch/end/until belong to the enclosing bounded block;
@@ -8113,9 +8098,8 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|until\b))|$|(?=^)
 
   # Closed expression family for narrative '&' islands. Recursive expression
-  # children stop at the story line; complete opaque strings/comments/regex,
-  # genuine function headers/bodies and structured definitions retain their
-  # established ownership. Names/scopes/captures otherwise mirror Luau rules.
+  # children, including strings, comments and function bodies, stop at the
+  # physical story line. Names/scopes/captures otherwise mirror Luau rules.
   # Zero-width wrapper contract used by the lookaround rationales below:
   # the named child owns its operator, argument opener, type or clause token;
   # its wrapper owns the recursive content. Consuming that token in a wrapper
@@ -8156,6 +8140,611 @@ repository:
   # operator/identifier variable globally would also reject its valid use.
   # These matches leave the following delimiter with its owner. Direct native
   # EOF and valid-value controls in BoundedExpressionFamily931 pin both paths.
+  # Opaque tokens inside story markers yield the same physical EOL.
+  # Pure Luau retains ordinary multiline string and comment rules.
+  LuauSparkdownExplicitString:
+    patterns:
+      - { include: "#LuauSparkdownExplicitDoubleQuotedString" }
+      - { include: "#LuauSparkdownExplicitSingleQuotedString" }
+      - { include: "#LuauSparkdownExplicitMultilineString" }
+      - { include: "#LuauSparkdownExplicitInterpolatedString" }
+
+  LuauSparkdownExplicitComment:
+    patterns:
+      - { include: "#LuauSparkdownExplicitBlockComment" }
+      - { include: "#LuauDocLineComment" }
+      - { include: "#LuauLineComment" }
+
+  LuauSparkdownExplicitBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    begin: ({{WS}}*)(--\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+    end: (\])(\3)(\])({{WS}}*)|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitDoubleQuotedString:
+    tag: definition(string)
+    name: string.quoted.double.luau
+    begin: (["])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringDoubleQuoteOpen" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitStringEscape" }
+      - { include: "#LuauSparkdownExplicitDoubleQuotedFunctionCallShorthand" }
+      - { include: "#LuauSparkdownExplicitDoubleQuotedStringInterpolation" }
+      - { include: "#Color" }
+      - { include: "#SparkdownExplicitPlainText" }
+    end: (["]){{_LUAU_SHARED_OPERATOR_AHEAD_}}|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringDoubleQuoteClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitSingleQuotedString:
+    tag: definition(string)
+    name: string.quoted.single.luau
+    begin: (['])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringSingleQuoteOpen" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitStringEscape" }
+      - { include: "#Color" }
+      - { include: "#SparkdownExplicitPlainText" }
+    end: ([']){{_LUAU_SHARED_OPERATOR_AHEAD_}}|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringSingleQuoteClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitMultilineString:
+    tag: definition(string)
+    name: string.other.multiline.luau
+    begin: (\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationStringEqualQuoteOpen" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteOpen" }
+    patterns:
+      - { include: "#Color" }
+      - { include: "#SparkdownExplicitPlainText" }
+    end: (\])(\2)(\]){{_LUAU_BINARY_OPERATOR_AHEAD_}}|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationStringEqualQuoteClose" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteClose" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitInterpolatedString:
+    tag: definition(string)
+    name: string.interpolated.luau
+    begin: ([`])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBacktickQuoteOpen" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitBacktickFunctionCallShorthand" }
+      - { include: "#LuauSparkdownExplicitBacktickStringInterpolation" }
+      - { include: "#LuauSparkdownExplicitStringEscape" }
+      - { include: "#Color" }
+      - { include: "#SparkdownExplicitPlainText" }
+    end: ([`]){{_LUAU_BINARY_OPERATOR_AHEAD_}}|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBacktickQuoteClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitDoubleQuotedStringInterpolation:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceOpen"
+    patterns:
+      - include: "#LuauSparkdownExplicitExpression"
+      - include: "#ExtraWhitespace"
+    end: ([}])|(?=["])|$
+    endCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceClose"
+
+  LuauSparkdownExplicitBacktickStringInterpolation:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceOpen"
+    patterns:
+      - include: "#LuauSparkdownExplicitExpression"
+      - include: "#ExtraWhitespace"
+    end: ([}])|(?=[`])|$
+    endCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceClose"
+    applyEndPatternLast: true
+
+  LuauSparkdownExplicitDoubleQuotedFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: ([}])([}])?|(?=["])|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  LuauSparkdownExplicitBacktickFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: ([}])([}])?|(?=[`])|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+    applyEndPatternLast: true
+
+  LuauSparkdownExplicitStringEscape:
+    patterns:
+      - { include: "#LuauEscapeStandard" }
+      - { include: "#LuauEscapeDecimal" }
+      - { include: "#LuauEscapeHex" }
+      - { include: "#LuauEscapeUnicode" }
+      - { include: "#LuauEscapeAny" }
+
+  SparkdownExplicitPlainText:
+    patterns:
+      - { include: "#Space" }
+      - { include: "#Word" }
+      - { include: "#Punctuation" }
+
+  LuauSparkdownExplicitInvalidStatementToken:
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauSparkdownExplicitString" }
+      - { include: "#LuauNumber" }
+      - { include: "#LuauInvalidStatementLogicalKeyword" }
+      - { include: "#LuauInvalidStatementKeyword" }
+      - { include: "#LuauInvalidStatementName" }
+      - { include: "#LuauInvalidStatementAccessor" }
+      - { include: "#LuauInvalidStatementComma" }
+      - { include: "#LuauInvalidStatementOperator" }
+      - { include: "#LuauInvalidStatementCharacter" }
+
+  LuauSparkdownExplicitGotoStatement:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(goto)\b({{WS}}*)
+    beginCaptures:
+      1: { patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauControlKeyword" }] }
+      3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauLabelName" }
+    applyEndPatternLast: true
+    # lookaround: LuauLabelName and LuauSparkdownExplicitComment own their tokens. This wrapper
+    # must yield after them without consuming the next statement's whitespace;
+    # sibling ordering cannot end an already-open goto (bounded-entry contract).
+    end: (?={{BEAT}})|{{LUAU_SHARED_GOTO_LINE_END}}
+
+  LuauSparkdownExplicitTypeTrailingBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    # lookaround: LuauSparkdownExplicitBlockComment owns complete line-local
+    # comments; LuauTypeTrailingBlockCommentClose owns closers followed by code.
+    # Reordering comments cannot close the enclosing type or locate its preceding
+    # token; splitting dispatch retains that need, and the parent cannot consume
+    # the comment's closer. These guards preserve the canonical ownership.
+    begin: (?<={{LUAU_TYPE_END}}{{WS}}*)(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+    # lookaround: LuauTypeTrailingBlockCommentClose owns a closer before type
+    # code; OptionalWhitespace owns the whole suffix only when no code follows.
+    # Ordering or splitting children cannot transfer an end token to the parent;
+    # the enclosing type's end needs that token, so keep the canonical end guards.
+    end: (?=\]\3\]{{LUAU_TYPE_CODE_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_TYPE_CODE_AHEAD}})|)|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitValueTrailingBlockComment:
+    patterns:
+      - { include: "#LuauSparkdownExplicitUncallableValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitCallableValueTrailingBlockComment" }
+
+  LuauSparkdownExplicitUncallableValueTrailingBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    # lookaround: LuauSparkdownExplicitBlockComment owns a complete line-local
+    # comment. Reordering it cannot close the preceding value; splitting dispatch
+    # still needs the value boundary, and a parent end cannot consume this closer.
+    begin: '{{LUAU_SHARED_AFTER_UNCALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+    # lookaround: LuauTypeTrailingBlockCommentClose owns a closer before the
+    # next statement; OptionalWhitespace owns a suffix with no following code.
+    # Neither child order nor a Switch can transfer an end token to the parent;
+    # retain the canonical guards so its value ends before the next statement.
+    end: (?=\]\3\]{{LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitCallableValueTrailingBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    # lookaround: LuauSparkdownExplicitBlockComment owns complete line-local
+    # comments. Reordering cannot close the preceding value; splitting dispatch
+    # retains the same value boundary, and its parent cannot consume this closer.
+    begin: '{{LUAU_SHARED_AFTER_CALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+    # lookaround: LuauTypeTrailingBlockCommentClose owns the closer before
+    # statement code; OptionalWhitespace owns the entire suffix otherwise.
+    # Child order and Switch splitting cannot transfer an end token to the
+    # enclosing value, so its parent boundary relies on these canonical guards.
+    end: (?=\]\3\]{{LUAU_STATEMENT_CODE_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}})|)|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauSparkdownExplicitFunctionDefinition:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*){{_LUAU_SHARED_FUNCTION_SCOPE_PREFIX_}}?(function)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauScopeModifier" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauFunctionKeyword" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitFunctionBody" }
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauSparkdownExplicitGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnMissingType" }
+      - { include: "#LuauSparkdownExplicitFunctionReturnType" }
+      - { include: "#LuauFunctionDeclarationName" }
+      - { include: "#LuauSparkdownExplicitFunctionParameters" }
+      - { include: "#LuauSparkdownExplicitFunctionBlockBody" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitFunctionBody:
+    tag: meta
+    name: meta.function.body.luau
+    begin: "{{LUAU_FUNCTION_BODY_AT_COMMENT_CLOSE}}|{{LUAU_FUNCTION_BODY_AT_SPACED_STATEMENT}}|{{LUAU_FUNCTION_BODY_AFTER_PARAMETERS}}|{{LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT}}|{{LUAU_FUNCTION_BODY_AT_LINE_BREAK}}|{{LUAU_FUNCTION_BODY_AT_LINE_START}}"
+    patterns:
+      - { include: "#LuauSparkdownExplicitFunctionBlockBody" }
+    end: (?={{BEAT}}|{{WS}}*\bend\b)|$
+
+  LuauSparkdownExplicitFunctionParameters:
+    tag: meta
+    name: meta.parameter.luau
+    brackets: true
+    # lookaround: LuauSparkdownExplicitFunctionBody owns calls after the header.
+    # Body-first ordering handles line starts but not inline calls; splitting
+    # dispatch or a parent end cannot distinguish their identical '(' token.
+    # LUAU_FUNCTION_HEADER therefore tightens the preceding-token boundary.
+    begin: ((?<={{LUAU_FUNCTION_HEADER}}{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauVariadicParameter" }
+      - { include: "#LuauFunctionParameter" }
+      - { include: "#LuauSparkdownExplicitTypeAnnotationOperation" }
+      - { include: "#LuauSparkdownExplicitExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+    end: ([)])|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  LuauSparkdownExplicitFunctionReturnType:
+    # lookaround: LuauSparkdownExplicitFunctionParameters owns the preceding
+    # ')' and LuauSparkdownExplicitTypeCastOperation owns '::'. Body-first
+    # ordering cannot distinguish the two colon forms; a Switch and parent end
+    # retain the same ambiguity, so tighten this header's colon token.
+    begin: (?<=[)]{{WS}}*)([:])(?![:])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauTypeOperator" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauSparkdownExplicitTypeLiteral" }
+      - { include: "#ExtraWhitespace" }
+    # lookaround: LuauSparkdownExplicitTypeTrailingBlockComment owns a comment
+    # after the type before body code. Child reordering or Switch splitting
+    # cannot close an already-open return type; the function parent cannot
+    # place this boundary inside its header, so retain the type-end guard.
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|[;=,)\]}>]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})|$
+
+  LuauSparkdownExplicitGenericsDeclaration:
+    begin: ([<])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleOpen" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauSparkdownExplicitTypeLiteral" }
+      - { include: "#LuauTypeAssignmentOperator" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+    end: ([>])|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleClose" }
+
+  LuauSparkdownExplicitFunctionTypeDeclaration:
+    tag: meta
+    name: meta.function.luau
+    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type)\\b({{WS}}*)(function)\\b({{WS}}*)"
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauExportModifier" }
+      3:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauTypeKeyword" }
+      5:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      6:
+        patterns:
+          - { include: "#LuauFunctionKeyword" }
+      7:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitFunctionBody" }
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauSparkdownExplicitGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnMissingType" }
+      - { include: "#LuauSparkdownExplicitFunctionReturnType" }
+      - { include: "#LuauTypeFunctionName" }
+      - { include: "#LuauSparkdownExplicitFunctionParameters" }
+      - { include: "#LuauSparkdownExplicitFunctionBlockBody" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # Function bodies in a marked story statement share its physical EOL.
+  # A genuine multiline function has its ordinary, unmarked definition.
+  LuauSparkdownExplicitFunctionBlockBody:
+    patterns:
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
+      - { include: "#LuauSparkdownExplicitDoBlock" }
+      - { include: "#LuauSparkdownExplicitIfBlock" }
+      - { include: "#LuauSparkdownExplicitLoop" }
+      - { include: "#LuauSparkdownExplicitRepeatLoop" }
+      - { include: "#LuauSparkdownExplicitReassignment" }
+      - { include: "#LuauSparkdownExplicitExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitInvalidStatementToken" }
+
   LuauSparkdownExplicitTernaryExpressionCondition:
     # lookaround: LuauThenExpression owns then; this condition opens only after if or elseif and stops before the clause delimiter.
     # See bounded-entry rationale above for the structural alternatives.
@@ -8193,7 +8782,7 @@ repository:
       - { include: "#LuauSparkdownExplicitLogicalOperation" }
       - { include: "#LuauSparkdownExplicitAccessPart" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
-      - { include: "#LuauString" }
+      - { include: "#LuauSparkdownExplicitString" }
       - { include: "#LuauSparkdownExplicitTable" }
       - { include: "#LuauSparkdownExplicitArithmeticOperation" }
       - { include: "#LuauSparkdownExplicitCompareOperation" }
@@ -8237,7 +8826,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitAccessPart" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
-      - { include: "#LuauString" }
+      - { include: "#LuauSparkdownExplicitString" }
       - { include: "#LuauSparkdownExplicitTable" }
       - { include: "#LuauSparkdownExplicitArithmeticOperation" }
       - { include: "#LuauSparkdownExplicitCompareOperation" }
@@ -8319,14 +8908,14 @@ repository:
     # See bounded-entry rationale above for the structural alternatives.
     begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
     patterns:
-      - { include: "#LuauTypeTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitTypeTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauTypeOptionalOperator" }
       - { include: "#LuauTypeStrayOptionalOperator" }
       - { include: "#LuauTypeStrayColon" }
       - { include: "#LuauSparkdownExplicitTypeBinaryOperation" }
       - { include: "#LuauSparkdownExplicitTypeTableStruct" }
-      - { include: "#LuauString" }
+      - { include: "#LuauSparkdownExplicitString" }
       - { include: "#LuauBoolean" }
       - { include: "#LuauSparkdownExplicitTypeofFunction" }
       - { include: "#LuauVariadicType" }
@@ -8364,7 +8953,7 @@ repository:
         patterns:
           - { include: "#PunctuationBraceOpen" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeTableIndexer" }
       - { include: "#LuauTypeTableElementAccessModifier" }
       - { include: "#LuauTypeTableProperty" }
@@ -8396,7 +8985,7 @@ repository:
         patterns:
           - { include: "#PunctuationBracketOpen" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
       - { include: "#ExtraWhitespace" }
     end: (\])|$
@@ -8442,8 +9031,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauTypeTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitTypeTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitNamedTypeArguments" }
       - { include: "#LuauExtraTypeQualification" }
       - { include: "#LuauSparkdownExplicitTypeNameExtraQualifierContinuation" }
@@ -8483,7 +9072,7 @@ repository:
     name: invalid.illegal.type-name-qualifier.luau
     begin: '{{LUAU_TYPE_QUALIFICATION_OPEN}}'
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})|({{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}*)|$
 
@@ -8505,8 +9094,8 @@ repository:
       - { include: "#LuauSparkdownExplicitNamedTypeQualification" }
       - { include: "#LuauPrimitiveType" }
       - { include: "#LuauTypeName" }
-      - { include: "#LuauTypeTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitTypeTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitNamedTypeArguments" }
       - { include: "#ExtraWhitespace" }
     # lookaround: LuauNamedTypeArguments owns the close; the reference must
@@ -8521,8 +9110,8 @@ repository:
         patterns:
           - { include: "#LuauAccessorOperator" }
     patterns:
-      - { include: "#LuauTypeTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitTypeTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauQualifiedTypeFinalName" }
       - { include: "#LuauSparkdownExplicitNamedTypeArguments" }
       - { include: "#LuauExtraTypeQualification" }
@@ -8543,7 +9132,7 @@ repository:
         patterns:
           - { include: "#PunctuationParenOpen" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeNamedFunctionParameter" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
       - { include: "#LuauCommaSeparator" }
@@ -8600,7 +9189,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitLineContinuation" }
       - { include: "#LuauSparkdownExplicitIndexerLineContinuation" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
@@ -8621,7 +9210,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownExplicitThenOperator" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitLineContinuation" }
       - { include: "#LuauSparkdownExplicitIndexerLineContinuation" }
       - { include: "#LuauSparkdownExplicitExpression" }
@@ -8752,7 +9341,7 @@ repository:
         patterns:
           - { include: "#PunctuationDoubleAngleOpen" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     end: ([>][>])|$
@@ -8770,7 +9359,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
     # lookaround: LuauFunctionCallParameters and LuauString own argument forms; this chain opens only at a call suffix and closes when no further suffix follows.
@@ -8786,7 +9375,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauSparkdownExplicitPropertyIndexer" }
@@ -8866,8 +9455,8 @@ repository:
     # reassignments continue through their original LuauCommaLineBreak.
     patterns:
       - { include: "#LuauSparkdownExplicitCommaLineBreak" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownExplicitAccessPath" }
       - { include: "#LuauSparkdownExplicitAssignmentOperation" }
@@ -8879,7 +9468,7 @@ repository:
 
   LuauSparkdownExplicitExpression:
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       # Returns belong to Luau code (functions and explicit `&` islands).
       # Story bodies try display text before their expression fallback.
       - { include: "#LuauSparkdownExplicitReturnStatement" }
@@ -8904,7 +9493,7 @@ repository:
       - { include: "#LuauSparkdownExplicitParenthetical" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
-      - { include: "#LuauString" }
+      - { include: "#LuauSparkdownExplicitString" }
       - { include: "#LuauBoolean" }
       - { include: "#LuauNil" }
       - { include: "#LuauKeyword" }
@@ -8960,8 +9549,8 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     # Narrative bodies reach this bounded return only through an explicit
-    # Luau island. Its values stay on that authored line, except complete
-    # opaque constructs owning their closing-line suffix. A bare narrative
+    # Luau island. Its values stay on that physical authored line, including
+    # strings, comments and child functions. A bare narrative
     # `return` is prose. Genuine function returns use the ordinary rule and
     # retain multiline values; written block closers remain with the block.
     #
@@ -8969,10 +9558,10 @@ repository:
     # return statement before the separator (`;` no longer parses
     # inside `LuauExpression`).
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownExplicitExpression" }
-    # lookaround: LuauIfBlock and LuauRepeatLoop own their closing keywords; this return yields before written closers while retaining same-line values and owned opaque/function spans.
+    # lookaround: LuauIfBlock and LuauRepeatLoop own their closing keywords; this return yields before written closers while retaining same-line values.
     # See bounded-exit rationale above for the structural alternatives.
     end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
 
@@ -9043,8 +9632,8 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitLogicalOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
@@ -9071,8 +9660,8 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitArithmeticOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
@@ -9087,8 +9676,8 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitCompareOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
@@ -9103,8 +9692,8 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitConcatOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
@@ -9119,8 +9708,8 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitTypeCastOperator" }
-      - { include: "#LuauTypeTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitTypeTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # A cast's type can be followed by a value operator. The type reader
     # takes its trailing whitespace, so close here even without whitespace
@@ -9144,7 +9733,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitTypeBinaryOperatorMissingType" }
       - { include: "#LuauSparkdownExplicitTypeBinaryOperator" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # lookaround: LuauArithmeticOperation must claim value operators after a
     # complete union, intersection or function return type. The nested type
@@ -9163,7 +9752,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitTypeAnnotationMissingType" }
       - { include: "#LuauSparkdownExplicitTypeAnnotationOperator" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # lookaround: LuauFunctionAccessor owns method colons; this annotation opens only at a type colon and yields before a following method call.
     # See bounded-exit rationale above for the structural alternatives.
@@ -9188,7 +9777,7 @@ repository:
 
   LuauSparkdownExplicitTypeArgumentContents:
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauVariadicType" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
       - { include: "#LuauTypeAssignmentOperator" }
@@ -9232,7 +9821,7 @@ repository:
       # function-call begin matches via `LUAU_FUNCTION_CALL_START` but
       # the body can't consume the argument, leaving the parser stuck
       # and desyncing the enclosing scope's `end`-matching.
-      - { include: "#LuauString" }
+      - { include: "#LuauSparkdownExplicitString" }
       - { include: "#LuauSparkdownExplicitTable" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|.)
@@ -9243,7 +9832,7 @@ repository:
     begin: (?=(?:else)\b)
     patterns:
       - { include: "#LuauSparkdownExplicitElseOperator" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     # Mirror `LuauThenExpression`'s end. We need explicit
     # closing-delimiter alternatives because inline ternary lives
@@ -9426,7 +10015,7 @@ repository:
     # See bounded-entry rationale above for the structural alternatives.
     begin: (?=$|{{LUAU_COMMENT_START}})
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#ExtraWhitespace" }
     # lookaround: LuauCommaSeparator owns ordinary commas; this gap opens only at a line-ending comma and yields at the next non-trivia token.
     # See bounded-exit rationale above for the structural alternatives.
@@ -9599,8 +10188,8 @@ repository:
     # captures and end together.
     patterns:
       - { include: "#LuauSparkdownExplicitCommaLineBreak" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTargetTypeCast" }
       - { include: "#LuauSparkdownExplicitVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
@@ -9613,9 +10202,8 @@ repository:
     # line (`local x = 5 return x`) is the enclosing body's next statement;
     # at a `;` or a closing bracket; and at the authored line's end. The
     # bounded type/value children cannot carry a trailing comma or ordinary
-    # expression into the next line, regardless of indentation. Complete
-    # opaque constructs and genuine functions retain their own ownership;
-    # the declaration resumes after those children return. The original
+    # expression into the next line, regardless of indentation. Strings,
+    # comments and child functions share this physical boundary. The original
     # LuauVariableDefinition alone uses multiline list continuation.
     # lookaround: LuauAssignmentOperation and LuauTypeAnnotationOperation own declaration values and annotations; this declaration ends only after their content is complete.
     # See bounded-exit rationale above for the structural alternatives.
@@ -9635,7 +10223,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})
 
@@ -9660,11 +10248,11 @@ repository:
     # `=` or comma (`local x --[[c]] = 1`, #1212). The end cannot match before
     # the comment, so without `LuauComment` here the rule is left unfinished.
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTargetTypeCastAfterComment" }
       - { include: "#LuauSparkdownExplicitTypeAnnotationOperation" }
       - { include: "#LuauSparkdownExplicitAssignmentOperation" }
-      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauSparkdownExplicitFunctionDefinition" }
     # Terminate at `,` (in addition to WS / EOL / `BEAT`) so the
     # outer `LuauVariableDefinition` owns the comma between
     # multi-RHS values. Previously the VA's own `LuauCommaSeparator`
@@ -9691,22 +10279,22 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauAssignmentOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     # An ordinary marked assignment value ends at authored EOF, including
     # an unfinished if expression; it cannot take the next prose line.
-    # Complete opaque constructs and genuine functions keep their own spans.
+    # Strings, comments and child functions share this physical boundary.
     # It also yields before a block comment followed by another statement.
     end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   LuauSparkdownExplicitVariableDefinitionValue:
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTernaryExpression" }
       - { include: "#LuauSparkdownExplicitAlternatorBlocks" }
       - { include: "#LuauSparkdownExplicitDivertTargetLiteral" }
-      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauSparkdownExplicitFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
@@ -9719,7 +10307,7 @@ repository:
       - { include: "#LuauSparkdownExplicitParenthetical" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
-      - { include: "#LuauString" }
+      - { include: "#LuauSparkdownExplicitString" }
       - { include: "#LuauBoolean" }
       - { include: "#LuauNil" }
       - { include: "#LuauUnitKeywords" }
@@ -9742,8 +10330,8 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitLengthOperator" }
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitValueTrailingBlockComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
@@ -9760,7 +10348,7 @@ repository:
     # See bounded-entry rationale above for the structural alternatives.
     begin: "(?!{{BEAT}})(?={{LUAU_SHARED_PATH_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}})"
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitAccessPart" }
     # A `for` loop variable's path is its name alone, and ends before the
     # `:` of the variable's type annotation (`for k: number | string, v in t`,
@@ -9807,7 +10395,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
       - { include: "#LuauSparkdownExplicitTypeAssignment" }
     end: "(?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|{{WS}}*{{LUAU_SHARED_TYPE_DECLARATION_END}})"
@@ -9823,7 +10411,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # lookaround: LuauTypeLiteral owns annotation content; this assignment yields only after that type and before unrelated content.
     # See bounded-exit rationale above for the structural alternatives.
@@ -9869,11 +10457,11 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTargetTypeCast" }
       - { include: "#LuauSparkdownExplicitVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauSparkdownExplicitFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitStoryVariableDefinition" }
       - { include: "#LuauSparkdownExplicitExpression" }
     # lookaround: LuauAssignmentOperation and LuauTypeAnnotationOperation own declaration values and annotations; this declaration ends only after their content is complete.
@@ -9912,23 +10500,301 @@ repository:
     # rather than disambiguate downstream. Regression: FrontMatterAndCommentContext.test.ts.
     patterns:
       - { include: "#LuauShebang" }
-      - { include: "#LuauStyle" }
-      - { include: "#LuauLayout" }
-      - { include: "#LuauScreen" }
-      - { include: "#LuauComponent" }
-      - { include: "#LuauAnimation" }
-      - { include: "#LuauTheme" }
-      - { include: "#LuauMorph" }
-      - { include: "#LuauDefine" }
-      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauSparkdownExplicitStructuredStatement" }
+      - { include: "#LuauSparkdownExplicitFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitVariableDefinition" }
-      - { include: "#LuauFunctionTypeDeclaration" }
+      - { include: "#LuauSparkdownExplicitFunctionTypeDeclaration" }
       - { include: "#LuauSparkdownExplicitDataTypeDeclaration" }
       - { include: "#LuauSparkdownExplicitUntilStatement" }
-      - { include: "#LuauGotoStatement" }
+      - { include: "#LuauSparkdownExplicitGotoStatement" }
       - { include: "#LuauBreakStatement" }
       - { include: "#LuauContinueStatement" }
       - { include: "#LuauLabel" }
+
+  # Structured definitions preserve canonical scopes and header children in
+  # explicit root twins. Nested begin/end scopes stay inside this finite
+  # physical-line capture, including ordinary struct/Sparkle descendants.
+  LuauSparkdownExplicitStructuredStatement:
+    match: ({{WS}}*{{LUAU_MARKED_STRUCTURED_HEAD}}[^\r\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauSparkdownExplicitDefine" }
+          - { include: "#LuauSparkdownExplicitStyle" }
+          - { include: "#LuauSparkdownExplicitLayout" }
+          - { include: "#LuauSparkdownExplicitScreen" }
+          - { include: "#LuauSparkdownExplicitComponent" }
+          - { include: "#LuauSparkdownExplicitAnimation" }
+          - { include: "#LuauSparkdownExplicitTheme" }
+          - { include: "#LuauSparkdownExplicitMorph" }
+          # After a definition's closer, retain ordinary code and trivia on
+          # the same marked line rather than discarding the capture's tail.
+          - { include: "#LuauSparkdownExplicitBlockBody" }
+
+  LuauSparkdownExplicitDefine:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(define)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauDefineKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauDefineNameAndInheritance" }
+      - { include: "#LuauSparkdownExplicitFunctionDefinition" }
+      - { include: "#LuauPropertyDefinition" }
+      - { include: "#LuauMethodDefinition" }
+      - { include: "#LuauBlockBody" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitStyle:
+    tag: meta
+    name: meta.style.luau
+    begin: ({{WS}}*)(style)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStyleKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauStyleNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitLayout:
+    tag: meta
+    name: meta.layout.luau
+    begin: ({{WS}}*)(layout)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauLayoutKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauLayoutNameAndInheritance" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitScreen:
+    tag: meta
+    name: meta.screen.luau
+    begin: ({{WS}}*)(screen)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauScreenKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauScreenNameHeader" }
+      # A screen body carries no content yet; a brace block there is read as
+      # a struct block, and nothing reads it.
+      - { include: "#LuauStructBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitComponent:
+    tag: meta
+    name: meta.component.luau
+    begin: ({{WS}}*)(component)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauComponentKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauComponentNameAndInheritance" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitAnimation:
+    tag: meta
+    name: meta.animation.luau
+    # `(?![.(])` keeps `animation` an identifier/namespace when followed by `.`
+    # or `(` — so `animation.fadein` refs and any `animation(...)` keep working
+    # in expression position; only a true `animation NAME with …` block starts.
+    begin: ({{WS}}*)(animation)\b{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}}({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAnimationKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitTheme:
+    tag: meta
+    name: meta.theme.luau
+    # See LuauAnimation: `(?![.(])` keeps `theme.X` refs and the `theme(...)`
+    # selector function working in expression position.
+    begin: ({{WS}}*)(theme)\b{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}}({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauThemeKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownExplicitMorph:
+    tag: meta
+    name: meta.morph.luau
+    # See LuauAnimation: `(?![.(])` keeps `morph.blink` a reference in
+    # expression position.
+    begin: ({{WS}}*)(morph)\b{{LUAU_SHARED_STRUCTURED_NOT_ACCESS_OR_CALL}}({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauMorphKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkdownExplicitComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitStructuredText" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # Tile otherwise unparsed characters so both engines retain the root scope.
+  LuauSparkdownExplicitStructuredText:
+    match: (.)
 
   SparkdownExplicitTags:
     tag: docComment
@@ -11468,6 +12334,54 @@ repository:
     # or a comma or closing bracket (`| string)` in a parameter list).
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|[,;)\]}])
 
+  # Pure Luau's leading intersection continues the preceding type. Narrative
+  # bodies retain their explicit statement dispatcher and never include this.
+  LuauTypeIntersectionLineContinuation:
+    # Consume the operator in its usual capture, then read its type. Opening
+    # the ordinary binary-operation wrapper before a column-zero & would
+    # immediately hit the shared story type-break and reopen without progress.
+    begin: ^({{WS}}*)([&]){{LUAU_SHARED_NOT_REMOVED_MARK_CALL}}({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauTypeBinaryOperator" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauComment" }
+    # lookaround: commas/brackets belong to the enclosing parameter or body;
+    # consuming them would alter its child/capture ownership. A sibling
+    # reorder cannot close an already-open type line (AmpersandBoundary1374).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|[,;)\]}])
+
+  # Removed markers remain invalid tokens in their block. Keep the following
+  # statement in the ordinary Luau grammar so recovery cannot close/hoist it.
+  # A valid line-leading type operand is claimed by the preceding continuation.
+  LuauRemovedExplicitStatementMark:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{WS}}*)([&])({{WS}}*)
+    captures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauInvalidStatementCharacter" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
   LuauIndexerLineContinuation:
     begin: ^({{WS}}*)(?={{LUAU_INDEXER_LINE_CONTINUATION}})
     beginCaptures:
@@ -12463,7 +13377,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 
@@ -13149,7 +14063,7 @@ repository:
   LuauUncallableValueTrailingBlockComment:
     tag: blockComment
     name: comment.block.luau
-    begin: (?:{{AFTER_LUAU_UNCALLABLE_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    begin: '{{LUAU_SHARED_AFTER_UNCALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
     beginCaptures:
       1:
         patterns:
@@ -13167,7 +14081,7 @@ repository:
       - { include: "#LuauDocCommentTags" }
       - { include: "#LuauBlockCommentContent" }
       - { include: "#Newline" }
-    end: (?=\]\3\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)
+    end: (?=\]\3\]{{LUAU_SHARED_STATEMENT_OR_PAREN_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)
     endCaptures:
       1:
         patterns:
@@ -13186,7 +14100,7 @@ repository:
   LuauCallableValueTrailingBlockComment:
     tag: blockComment
     name: comment.block.luau
-    begin: (?:{{AFTER_LUAU_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    begin: '{{LUAU_SHARED_AFTER_CALLABLE_VALUE}}(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)'
     beginCaptures:
       1:
         patterns:

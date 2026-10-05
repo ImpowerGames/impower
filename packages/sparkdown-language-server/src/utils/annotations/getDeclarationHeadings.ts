@@ -1,5 +1,6 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
 import { type Tree } from "@lezer/common";
 import { Position, Range } from "vscode-languageserver-textdocument";
 
@@ -58,7 +59,7 @@ export const getDeclarationHeadings = (
   };
   const functionDefinition = (from: number) => {
     let node = tree?.resolveInner(from, 1) ?? null;
-    while (node && node.name !== "LuauFunctionDefinition") {
+    while (node && !isExplicitRuleName(node.name, "LuauFunctionDefinition")) {
       node = node.parent;
     }
     return node;

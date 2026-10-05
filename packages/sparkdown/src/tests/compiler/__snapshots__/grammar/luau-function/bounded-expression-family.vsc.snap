@@ -94,38 +94,33 @@ text.source.sparkdown [0..297]
  │   └─ meta.parameter.luau [167..168]
  │       └─ punctuation.definition.template-expression.begin.sd [167..168]: "("
  ├─ Newline [168..169]: "\n"
- ├─ meta.function.luau [169..172]
- │   └─ meta.parameter.luau [169..172]
- │       ├─ punctuation.whitespace.extra.sd [169..171]: "  "
- │       └─ variable.parameter.function.luau [171..172]: "n"
+ ├─ punctuation.whitespace.optional.sd [169..171]: "  "
+ ├─ string.display.text.chunk.sd [171..172]
+ │   └─ markup.raw.text.sd [171..172]: "n"
  ├─ Newline [172..173]: "\n"
- ├─ meta.function.luau [173..174]
- │   └─ meta.parameter.luau [173..174]
- │       └─ punctuation.definition.template-expression.end.sd [173..174]: ")"
+ ├─ string.display.text.chunk.sd [173..174]
+ │   └─ markup.raw.punctuation.sd [173..174]: ")"
  ├─ Newline [174..175]: "\n"
- ├─ meta.function.luau [175..185]
- │   └─ meta.function.body.luau [175..185]
- │       └─ meta.function.luau [175..185]
- │           ├─ punctuation.whitespace.optional.sd [175..177]: "  "
- │           ├─ keyword.control.luau [177..183]: "return"
- │           ├─ punctuation.whitespace.optional.sd [183..184]: " "
- │           └─ variable.other.readwrite.luau [184..185]: "n"
+ ├─ punctuation.whitespace.optional.sd [175..177]: "  "
+ ├─ string.display.text.chunk.sd [177..185]
+ │   ├─ markup.raw.text.sd [177..183]: "return"
+ │   ├─ markup.raw.space.sd [183..184]: " "
+ │   └─ markup.raw.text.sd [184..185]: "n"
  ├─ Newline [185..186]: "\n"
- ├─ meta.function.luau [186..189]
- │   └─ keyword.control.end.luau [186..189]: "end"
- ├─ keyword.operator.semicolon.luau [189..190]: ";"
- ├─ punctuation.whitespace.optional.sd [190..191]: " "
- ├─ variable.other.readwrite.luau [191..196]: "value"
- ├─ punctuation.whitespace.optional.sd [196..197]: " "
- ├─ keyword.operator.assignment.luau [197..198]: "="
- ├─ punctuation.whitespace.optional.sd [198..199]: " "
- ├─ entity.name.function.luau [199..207]: "identity"
- ├─ meta.parameter.luau [207..210]
- │   ├─ punctuation.definition.template-expression.begin.sd [207..208]: "("
- │   ├─ constant.numeric.decimal.luau [208..209]: "5"
- │   └─ punctuation.definition.template-expression.end.sd [209..210]: ")"
- ├─ punctuation.whitespace.optional.sd [210..211]: " "
- ├─ keyword.control.end.luau [211..214]: "end"
+ ├─ keyword.control.end.luau [186..189]: "end"
+ ├─ string.display.text.chunk.sd [189..214]
+ │   ├─ markup.raw.punctuation.sd [189..190]: ";"
+ │   ├─ markup.raw.space.sd [190..191]: " "
+ │   ├─ markup.raw.text.sd [191..196]: "value"
+ │   ├─ markup.raw.space.sd [196..197]: " "
+ │   ├─ markup.raw.punctuation.sd [197..198]: "="
+ │   ├─ markup.raw.space.sd [198..199]: " "
+ │   ├─ markup.raw.text.sd [199..207]: "identity"
+ │   ├─ markup.raw.punctuation.sd [207..208]: "("
+ │   ├─ markup.raw.text.sd [208..209]: "5"
+ │   ├─ markup.raw.punctuation.sd [209..210]: ")"
+ │   ├─ markup.raw.space.sd [210..211]: " "
+ │   └─ markup.raw.text.sd [211..214]: "end"
  ├─ Newline [214..215]: "\n"
  ├─ keyword.other.statement.explicit.luau.mark.sd [215..216]: "&"
  ├─ punctuation.whitespace.required.sd [216..217]: " "
@@ -142,19 +137,12 @@ text.source.sparkdown [0..297]
  │       ├─ punctuation.definition.comment.content.sd [236..237]: "é"
  │       └─ punctuation.definition.comment.content.sd [237..239]: "😀"
  ├─ Newline [239..240]: "\n"
- ├─ meta.function.luau [240..251]
- │   └─ comment.block.luau [240..251]
- │       ├─ punctuation.definition.comment.content.sd [240..241]: "c"
- │       ├─ punctuation.definition.comment.content.sd [241..242]: "o"
- │       ├─ punctuation.definition.comment.content.sd [242..243]: "m"
- │       ├─ punctuation.definition.comment.content.sd [243..244]: "m"
- │       ├─ punctuation.definition.comment.content.sd [244..245]: "e"
- │       ├─ punctuation.definition.comment.content.sd [245..246]: "n"
- │       ├─ punctuation.definition.comment.content.sd [246..247]: "t"
- │       ├─ punctuation.definition.comment.content.sd [247..248]: " "
- │       ├─ comment.luau [248..249]: "]"
- │       ├─ comment.luau [249..250]: "="
- │       └─ comment.luau [250..251]: "]"
+ ├─ string.display.text.chunk.sd [240..251]
+ │   ├─ markup.raw.text.sd [240..247]: "comment"
+ │   ├─ markup.raw.space.sd [247..248]: " "
+ │   ├─ markup.raw.punctuation.sd [248..249]: "]"
+ │   ├─ markup.raw.punctuation.sd [249..250]: "="
+ │   └─ markup.raw.punctuation.sd [250..251]: "]"
  ├─ Newline [251..252]: "\n"
  ├─ string.display.text.chunk.sd [252..273]
  │   ├─ markup.raw.text.sd [252..258]: "return"

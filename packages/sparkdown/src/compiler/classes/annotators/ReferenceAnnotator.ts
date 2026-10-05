@@ -1,4 +1,4 @@
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { ancestorMatching } from "../../utils/ancestorMatching";
@@ -118,7 +118,7 @@ const STRUCT_KEY_TOKENS = STRUCT_KEY_TOKEN_NAMES;
 // Top-level structural-define keyword nodes → the engine type they declare.
 // Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
 // `as PARENT` is `$extends` (a sibling of the SAME type), not the type itself.
-const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
+const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = Object.fromEntries(Object.entries({
   LuauStyle: "style",
   LuauLayout: "layout",
   LuauScreen: "screen",
@@ -126,7 +126,7 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauAnimation: "animation",
   LuauTheme: "theme",
   LuauMorph: "morph",
-};
+}).flatMap(([name, type]) => explicitRuleNames(name).map(rule => [rule, type])));
 
 // `[[open hud]]` / `[[close hud]]` — the directive's target is a SCREEN name, so
 // it references the `screen <name>` define (symbolId `screen.<name>`) rather than
@@ -379,9 +379,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // LuauTypeFunctionName.
       const definition = ancestorMatching(nodeRef.node, PARAMETER_OWNER);
       let functionNameNode = null;
-      if (definition?.name === "LuauFunctionTypeDeclaration") {
+      if (definition && isExplicitRuleName(definition.name, "LuauFunctionTypeDeclaration")) {
         functionNameNode = getDescendent("LuauTypeFunctionName", definition);
-      } else if (definition?.name === "LuauFunctionDefinition") {
+      } else if (definition && isExplicitRuleName(definition.name, "LuauFunctionDefinition")) {
         const declName = getDescendent("LuauFunctionDeclarationName", definition);
         functionNameNode = declName
           ? getDescendent("LuauFunctionName", declName)
@@ -427,7 +427,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     // OOP `define <name> with …`       : root define, name IS the type.
     // structural `style/screen/component/animation/theme <name> [as <extends>]` :
     //   type = keyword, instance = name, trailing `as` = `$extends` (same type).
-    if (nodeRef.name === "LuauDefine") {
+    if (isExplicitRuleName(nodeRef.name, "LuauDefine")) {
       this.resetDefineState();
       this.inStructural = false;
       this.oopHasParent = !!getDescendent("LuauDefineParentName", nodeRef.node);
@@ -939,7 +939,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
     if (
-      nodeRef.name === "LuauDefine" ||
+      isExplicitRuleName(nodeRef.name, "LuauDefine") ||
       STRUCTURAL_TYPE_BY_NODE[nodeRef.name]
     ) {
       this.resetDefineState();

@@ -74,7 +74,7 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
 
   test.each([
     "function f()\n local n = 1,\n 2\n return n\nend\n",
-    "& local f = function()\n local n = 1,\n 2\n return n\nend\n",
+    "local f = function()\n local n = 1,\n 2\n return n\nend\n",
   ])("a genuine function's value list still continues across lines: %s", source => {
     expect(errors(source)).toEqual([]);
   });

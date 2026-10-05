@@ -539,10 +539,10 @@ export function buildFunction(
 function findHeaderName(node: SyntaxNode): SyntaxNode | null {
   let content: SyntaxNode | null = null;
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === "LuauFunctionDefinition_content") content = child;
+    if (child.name === `${node.name}_content`) content = child;
   }
   for (let child = (content ?? node).firstChild; child; child = child.nextSibling) {
-    if (child.name === "LuauFunctionParameters") return null;
+    if (isExplicitRuleName(child.name, "LuauFunctionParameters")) return null;
     if (child.name === "LuauFunctionDeclarationName") {
       return getDescendent("LuauFunctionName", child) ?? child;
     }

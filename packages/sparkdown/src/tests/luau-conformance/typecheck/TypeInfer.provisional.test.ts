@@ -380,7 +380,6 @@ return wrapStrictTable
       },
       {
         module: "game/B",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local wrapStrictTable = require(game.A)
 
@@ -419,7 +418,6 @@ return wrapStrictTable
       },
       {
         module: "game/B",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local wrapStrictTable = require(game.A)
 
@@ -700,7 +698,6 @@ return tbl
       },
       {
         module: "game/B",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local tbl = require(game.A)
 tbl:f3()

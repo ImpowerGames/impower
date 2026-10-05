@@ -79,7 +79,7 @@ export function validateStatementNode(
     validateVariableDefinition(node, continuation, ctx);
     return;
   }
-  if (node.name === "LuauExplicitStatement" || node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
+  if (node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
     // Stylistic diagnostic: inside a function body, the `&` prefix is
     // redundant.
     const diagnostics = validateExplicitStatement(node, ctx);
