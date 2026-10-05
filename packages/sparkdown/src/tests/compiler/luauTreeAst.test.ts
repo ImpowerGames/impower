@@ -65,8 +65,8 @@ interface StructuralDisagreement {
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
 ];
 
-// #1304/#1305/#1306 still disagree about extracted syntax/diagnostics, but their
-// full tree ASTs agree with C++ and remain ordinary comparisons here.
+// Fixtures excluded from the extracted-syntax agreement suite are excluded here
+// too; every other fixture's full tree AST is compared with C++.
 const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.issue === 1298 || entry.limitation).map((entry) => entry.fixture));
 const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
 
