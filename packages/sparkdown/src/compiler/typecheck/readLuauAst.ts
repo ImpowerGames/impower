@@ -122,7 +122,7 @@ import {
   type SparkdownSource,
 } from "./Ast";
 import { Location, Position } from "./Location";
-import { breaksStatement, COMMENT, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY, STATEMENT_BREAKS } from "./LuauUnitNodes";
+import { breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 
@@ -599,13 +599,7 @@ class Tokenizer {
       this.markKeyword("chooseEnd", node, "end");
       return;
     }
-    // In a Luau body an assignment begins with an ordinary expression;
-    // it must not hide the preceding statement's syntax error. Preserve
-    // the boundary after an empty if-expression arm: its missing value
-    // must not consume the next assignment's target.
-    const previous = this.tokens[this.tokens.length - 1];
-    const emptyArm = previous?.text === "then" || previous?.text === "else";
-    if (STATEMENT_BREAKS.has(name) && (!isExplicitRuleName(name, "LuauReassignment") || emptyArm)) this.statementBreak(from, to);
+    if (endsStatementBefore(name, this.tokens[this.tokens.length - 1]?.text)) this.statementBreak(from, to);
     if (SPARKDOWN_ONLY.has(name)) return;
     if (name === "LuauScopeModifier") {
       const modifier = this.text.slice(from, to);
