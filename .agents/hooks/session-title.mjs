@@ -107,23 +107,39 @@ function sessionOf(payload) {
   return payload.session_id;
 }
 
+// Writers that run as subagents of one session share its id, so the record
+// holds one pending entry { id, title, worktree } per worktree, and each is
+// gated, renamed and acknowledged on its own.
+const canonical = (p) => {
+  const slashed = (realPath(p) ?? path.resolve(p)).replaceAll("\\", "/").replace(/\/+$/, "");
+  return process.platform === "win32" ? slashed.toLowerCase() : slashed;
+};
+export const worktreeId = (worktree) => createHash("sha256").update(canonical(worktree)).digest("hex").slice(0, 16);
+
 function pending(sessionId) {
   try {
     const state = JSON.parse(fs.readFileSync(statePath(sessionId), "utf8"));
-    return state.sessionId === sessionId ? state.title ?? null : null;
+    return state.sessionId === sessionId && Array.isArray(state.entries) ? state.entries : [];
   } catch (error) {
-    if (error.code === "ENOENT") return null;
+    if (error.code === "ENOENT") return [];
     throw error;
   }
 }
 
-export const ackCommand = (sessionId) => `node "${self.replaceAll("\\", "/")}" confirm ${sessionKey(sessionId)}`;
+function save(sessionId, entries) {
+  if (!entries.length) return fs.rmSync(statePath(sessionId), { force: true });
+  fs.mkdirSync(stateDir(), { recursive: true });
+  fs.writeFileSync(statePath(sessionId), JSON.stringify({ sessionId, entries }));
+}
 
-function instruction(title, sessionId, harness) {
+export const ackCommand = (sessionId, worktree) => `node "${self.replaceAll("\\", "/")}" confirm ${sessionKey(sessionId)} ${worktreeId(worktree)}`;
+
+function instruction(entry, sessionId, harness) {
+  const { title } = entry;
   const call = harness === "claude"
     ? `Load the set_session_title tool through tool search (its full name ends in __set_session_title), then call it with session_id "self" and title "${title}".`
     : `Call set_thread_title with title "${title}" when the host offers it.`;
-  return `This session creates the worktree for "${title}". Rename the session to exactly that title before running further shell commands. ${call} Only if this runner offers no rename tool, run \`${ackCommand(sessionId)}\` instead.`;
+  return `This session creates the worktree for "${title}" at ${entry.worktree}. Rename the session to exactly that title before running further shell commands in that worktree. ${call} Only if this runner offers no rename tool, run \`${ackCommand(sessionId, entry.worktree)}\` instead.`;
 }
 
 // PostToolUse: record the title after worktree creation; clear it after the rename.
@@ -131,37 +147,59 @@ export function afterTool(payload, harness) {
   const sessionId = sessionOf(payload);
   const tool = String(payload.tool_name ?? "");
   if (SHELLS.has(tool.toLowerCase())) {
+    const cwd = payload.cwd || process.cwd();
     const created = deriveWorktree(payload.tool_input?.command ?? "");
-    if (!created || !worktreeCreated(payload.cwd || process.cwd(), created)) return null;
-    fs.mkdirSync(stateDir(), { recursive: true });
-    fs.writeFileSync(statePath(sessionId), JSON.stringify({ sessionId, title: created.title }));
-    return instruction(created.title, sessionId, harness);
+    if (!created || !worktreeCreated(cwd, created)) return null;
+    const worktree = path.resolve(cwd, created.target);
+    const entry = { id: worktreeId(worktree), title: created.title, worktree };
+    save(sessionId, [...pending(sessionId).filter((other) => other.id !== entry.id), entry]);
+    return instruction(entry, sessionId, harness);
   }
   if (RENAME.test(tool)) {
-    const title = pending(sessionId);
-    if (!title) return null;
+    const entries = pending(sessionId);
+    if (!entries.length) return null;
+    const match = entries.find((entry) => entry.title === payload.tool_input?.title);
     // A rename aimed at another session does not rename this one.
     const target = payload.tool_input?.session_id;
-    if (payload.tool_input?.title !== title || (target !== undefined && target !== "self" && target !== sessionId)) return `The session title must be exactly "${title}". ${instruction(title, sessionId, harness)}`;
-    fs.rmSync(statePath(sessionId), { force: true });
+    if (!match || (target !== undefined && target !== "self" && target !== sessionId)) {
+      const entry = match ?? entries[0];
+      return `The session title must be exactly "${entry.title}". ${instruction(entry, sessionId, harness)}`;
+    }
+    save(sessionId, entries.filter((entry) => entry !== match));
   }
   return null;
 }
 
-// PreToolUse: deny shell commands while a derived title is unconfirmed.
+// Whether the command runs in, or names, the entry's worktree.
+function touches(entry, payload) {
+  const worktree = canonical(entry.worktree);
+  if (payload.cwd) {
+    const cwd = canonical(payload.cwd);
+    if (cwd === worktree || cwd.startsWith(worktree + "/")) return true;
+  }
+  let command = String(payload.tool_input?.command ?? "").replaceAll("\\", "/");
+  if (process.platform === "win32") command = command.toLowerCase();
+  for (let at = command.indexOf(worktree); at >= 0; at = command.indexOf(worktree, at + 1)) {
+    const next = command[at + worktree.length];
+    if (next === undefined || /[\s/"';&|)]/.test(next)) return true;
+  }
+  return false;
+}
+
+// PreToolUse: deny shell commands in a worktree whose derived title is unconfirmed.
 export function gate(payload, harness) {
   const tool = String(payload?.tool_name ?? "").toLowerCase();
   if (!SHELLS.has(tool)) return null;
   const sessionId = sessionOf(payload);
-  const title = pending(sessionId);
-  if (!title) return null;
-  return isAck(payload.tool_input?.command, sessionId) ? null : instruction(title, sessionId, harness);
+  const entry = pending(sessionId).find((candidate) => touches(candidate, payload));
+  if (!entry) return null;
+  return isAck(payload.tool_input?.command, sessionId, entry) ? null : instruction(entry, sessionId, harness);
 }
 
-// The only command let through is this script's own confirm for this session.
-function isAck(command, sessionId) {
-  const match = String(command ?? "").trim().match(/^node\s+(?:"([^"]+)"|([^\s"';&|]+))\s+confirm\s+([0-9a-f]{64})$/);
-  return Boolean(match) && match[3] === sessionKey(sessionId) && samePath(match[1] ?? match[2], self);
+// The only command let through is this script's own confirm for this session and worktree.
+function isAck(command, sessionId, entry) {
+  const match = String(command ?? "").trim().match(/^node\s+(?:"([^"]+)"|([^\s"';&|]+))\s+confirm\s+([0-9a-f]{64})\s+([0-9a-f]{16})$/);
+  return Boolean(match) && match[3] === sessionKey(sessionId) && match[4] === entry.id && samePath(match[1] ?? match[2], self);
 }
 
 async function readEvent() {
@@ -183,15 +221,21 @@ export async function main(event, harness) {
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href.toLowerCase() === import.meta.url.toLowerCase()) {
-  const [command, key] = process.argv.slice(2);
-  if (command !== "confirm" || !/^[0-9a-f]{64}$/.test(key ?? "")) {
-    console.error("Usage: node session-title.mjs confirm <session key from the hook message>");
+  const [command, key, id] = process.argv.slice(2);
+  if (command !== "confirm" || !/^[0-9a-f]{64}$/.test(key ?? "") || !/^[0-9a-f]{16}$/.test(id ?? "")) {
+    console.error("Usage: node session-title.mjs confirm <session key> <worktree id, both from the hook message>");
     process.exitCode = 2;
-  } else if (!fs.existsSync(keyPath(key))) {
-    console.error(`No pending session title for ${key}.`);
-    process.exitCode = 1;
   } else {
-    fs.rmSync(keyPath(key), { force: true });
-    console.log(`Session title acknowledged for ${key}.`);
+    let state = null;
+    try { state = JSON.parse(fs.readFileSync(keyPath(key), "utf8")); } catch { /* no record */ }
+    const entries = Array.isArray(state?.entries) ? state.entries : [];
+    const match = entries.find((entry) => entry.id === id);
+    if (!match) {
+      console.error(`No pending session title for ${key} ${id}.`);
+      process.exitCode = 1;
+    } else {
+      save(state.sessionId, entries.filter((entry) => entry !== match));
+      console.log(`Session title "${match.title}" acknowledged.`);
+    }
   }
 }
