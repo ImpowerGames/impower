@@ -885,7 +885,6 @@ foo(1 :: any)
   },
   {
     // TypeInfer.provisional.test.cpp:1368 TEST_CASE_FIXTURE(BuiltinsFixture, "function_indexer_satisfies_reading_property")
-    // Upstream prints the given type exhaustively.
     name: "function_indexer_satisfies_reading_property",
     fixture: "BuiltinsFixture",
     source: `
@@ -905,7 +904,7 @@ foo(1 :: any)
     `,
     expect: [
       { errors: 1 },
-      { error: 0, code: "TypeMismatch", fields: { givenType: "setmetatable<{  }, { __index: (unknown, string) -> number }>", wantedType: "{ read X: number }" } },
+      { error: 0, code: "TypeMismatch", fields: { givenType: "setmetatable<{  }, { __index: (unknown, string) -> number }>", wantedType: "{ read X: number }" }, fieldOptions: { givenType: { exhaustive: true } } },
     ],
   },
   {

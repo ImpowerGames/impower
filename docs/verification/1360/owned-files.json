@@ -1,0 +1,14 @@
+{
+  "source": [
+    "packages/sparkdown/src/compiler/typecheck/Normalize.ts",
+    "packages/sparkdown/src/compiler/typecheck/Subtyping.ts",
+    "packages/sparkdown/src/tests/luau-conformance/generalInferenceFixtures.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/generalInferenceFixtures.ts",
+    "packages/sparkdown/src/tests/luau-conformance/generalInferenceObservations.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/generalInferenceObservations.ts",
+    "packages/sparkdown/src/tests/luau-conformance/generalInferenceRegression.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/TypeInfer.provisional.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/TypeInfer.test.ts"
+  ],
+  "archivedNativeProbes": []
+}
