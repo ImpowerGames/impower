@@ -290,17 +290,18 @@ export const closeFunctionBody = (
   });
 };
 
-/** Where each alternator's own source starts and ends, relative to the
- *  start of the top-level node it was lowered in, as a function's is
- *  (`FunctionShape`): the source its count symbol is aligned by when its
- *  statement is emitted again (docs/engine/binary-program.md, section 2). */
+/** Where each alternator's and each choice's own source starts and ends,
+ *  relative to the start of the top-level node it was lowered in, as a
+ *  function's is (`FunctionShape`): the source its count symbol is aligned by
+ *  when its statement is emitted again (docs/engine/binary-program.md,
+ *  section 2). A choice's body goes with its count symbol. */
 export const alternatorSourceOf = new WeakMap<
   ParsedObject,
   { from: number; to: number }
 >();
 
-/** Records the source of `alternator`, the syntax node `node` spans, when
- *  shapes are recorded. */
+/** Records the source of `alternator` (or of a choice), the syntax node
+ *  `node` spans, when shapes are recorded. */
 export const recordAlternatorSource = (
   ctx: LowerContext,
   alternator: ParsedObject,
@@ -311,6 +312,75 @@ export const recordAlternatorSource = (
   }
   const base = ctx.chunkFrom ?? 0;
   alternatorSourceOf.set(alternator, { from: node.from - base, to: node.to - base });
+};
+
+/** The body of each choice of a `choose` block, and the body of its `then`
+ *  clause, by the choice or by the clause's gather: blocks of the `choose`
+ *  statement (docs/engine/binary-program.md, section 4). */
+export const choiceBodyOf = new WeakMap<ParsedObject, BodyShape>();
+
+/** The part of a `choose` statement that heads each of its bodies: the
+ *  choice, or the gather of the `then` clause, by which the body keeps its
+ *  sequence id when the statement is emitted again. */
+export const partOfBody = new WeakMap<BodyShape, ParsedObject>();
+
+/** Records `body` as the body of `part`, a choice or a `then` clause's
+ *  gather. */
+export const recordChoiceBody = (part: ParsedObject, body: BodyShape): void => {
+  choiceBodyOf.set(part, body);
+  partOfBody.set(body, part);
+};
+
+/**
+ * Makes the branches of the conditionals among `objects` that offer choices
+ * part of the running statement's own code, which is a `choose` block's: an
+ * `if` written before a block's first choice gates the choices it holds, and
+ * its branches are relative jumps around their code in the block's chunk
+ * (docs/engine/binary-program.md, section 4), not blocks. Each such branch's
+ * body is taken out of the statement's bodies; the bodies of the statements
+ * it held (a loop's, a nested `if`'s) become the statement's own, and what
+ * those statements' lowering read is the statement's.
+ */
+export const inlineChoiceBranches = (
+  ctx: LowerContext,
+  objects: readonly ParsedObject[],
+  holdsChoice: (obj: ParsedObject) => boolean,
+): void => {
+  const owner = currentStatement(ctx);
+  if (!owner) {
+    return;
+  }
+  const hoist = (body: BodyShape) => {
+    const at = owner.bodies.findIndex((shape) => shape === body);
+    if (at < 0) {
+      return;
+    }
+    owner.bodies.splice(at, 1);
+    for (const statement of body.statements) {
+      for (const [name, found] of statement.reads.callable) {
+        owner.reads.callable.set(name, found);
+      }
+      for (const [name, found] of statement.reads.defineType) {
+        owner.reads.defineType.set(name, found);
+      }
+      owner.reads.other.push(...statement.reads.other);
+      owner.bodies.push(...statement.bodies);
+    }
+  };
+  const visit = (obj: ParsedObject) => {
+    const branches = (obj as { branches?: ParsedObject[] }).branches;
+    for (const branch of branches ?? []) {
+      const body = bodyOfBlock.get(branch);
+      if (body && holdsChoice(branch)) {
+        bodyOfBlock.delete(branch);
+        hoist(body);
+      }
+    }
+    for (const child of obj.content ?? []) {
+      visit(child);
+    }
+  };
+  objects.forEach(visit);
 };
 
 /** The single statement of an evaluator's body, `return <expr>`, recorded

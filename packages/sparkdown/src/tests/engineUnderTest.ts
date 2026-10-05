@@ -130,17 +130,17 @@ export function testCompiler(): SparkdownCompiler {
 
 /**
  * The constructs a test's program may fall back for, which then runs on the
- * current engine: those other slices of the binary program emit (#692), a
- * `choose` block, a choice and a gather of one (#697); an included script's
- * top-level content, a `run` statement's call among it, which the design
- * leaves to the current engine (docs/engine/binary-program.md, What is
- * built); and an assignment the parser left without its value, which the
- * writer never emits.
+ * current engine: a choice outside any `choose` block's code, which a script
+ * holds only beside a compile error, and a `then` clause of a `choose` block
+ * written in another block's preamble, which the writer leaves to the
+ * current engine (#697); an included script's top-level content, a `run`
+ * statement's call among it, which the design leaves to the current engine
+ * (docs/engine/binary-program.md, What is built); and an assignment the
+ * parser left without its value, which the writer never emits.
  */
 const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
-  "choose",
   "Choice",
-  "Gather",
+  "a then clause of a choose block in another's preamble",
   "IncludedFile",
   "an assignment without a value",
 ]);

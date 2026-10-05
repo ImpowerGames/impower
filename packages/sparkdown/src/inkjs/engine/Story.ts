@@ -2074,6 +2074,49 @@ export function popLuauCondition(story: any): boolean {
   return isLuauTruthy(oneValue(story.state.PopEvaluationStack() as AbstractValue));
 }
 
+/** Ends a tag written inside a capture, as `EndTag` does there: the text
+ *  written since its `BeginTag` leaves the output and becomes a tag on the
+ *  evaluation stack, which the next choice takes with its text. `clean`
+ *  cleans the tag's whitespace. Shared by both engines. */
+export function captureTag(
+  story: { state: any; Error(message: string): void },
+  clean: (text: string) => string,
+): void {
+  const state = story.state;
+  let contentStackForTag: InkObject[] = [];
+  let outputCountConsumed = 0;
+  for (let i = state.outputStream.length - 1; i >= 0; --i) {
+    let obj = state.outputStream[i];
+    outputCountConsumed++;
+
+    let command = asOrNull(obj, ControlCommand);
+    if (command != null) {
+      if (command.commandType == ControlCommand.CommandType.BeginTag) {
+        break;
+      } else {
+        story.Error(
+          "Unexpected ControlCommand while extracting tag from choice",
+        );
+        break;
+      }
+    }
+    if (obj instanceof StringValue) {
+      contentStackForTag.push(obj);
+    }
+  }
+
+  // Consume the content that was produced for this string
+  state.PopFromOutputStream(outputCountConsumed);
+  // Build string out of the content we collected
+  let sb = new StringBuilder();
+  for (let strVal of contentStackForTag.reverse()) {
+    sb.Append(strVal.toString());
+  }
+  // Pushing to the evaluation stack means it gets picked up
+  // when a Choice is generated from the next Choice Point.
+  state.PushEvaluationStack(new Tag(clean(sb.toString())));
+}
+
 /** Closes the innermost capture of `state`'s output and returns the text it
  *  caught, as `EndString` does; the tags a choice wrote inside it stay in the
  *  output. */
@@ -3577,44 +3620,7 @@ export class Story extends InkObject {
         // as the string for the choice content.
         case ControlCommand.CommandType.EndTag: {
           if (this.state.inStringEvaluation) {
-            let contentStackForTag: InkObject[] = [];
-            let outputCountConsumed = 0;
-            for (let i = this.state.outputStream.length - 1; i >= 0; --i) {
-              let obj = this.state.outputStream[i];
-              outputCountConsumed++;
-
-              // var command = obj as ControlCommand;
-              let command = asOrNull(obj, ControlCommand);
-              if (command != null) {
-                if (
-                  command.commandType == ControlCommand.CommandType.BeginTag
-                ) {
-                  break;
-                } else {
-                  this.Error(
-                    "Unexpected ControlCommand while extracting tag from choice",
-                  );
-                  break;
-                }
-              }
-              if (obj instanceof StringValue) {
-                contentStackForTag.push(obj);
-              }
-            }
-
-            // Consume the content that was produced for this string
-            this.state.PopFromOutputStream(outputCountConsumed);
-            // Build string out of the content we collected
-            let sb = new StringBuilder();
-            for (let strVal of contentStackForTag.reverse()) {
-              sb.Append(strVal.toString());
-            }
-            let choiceTag = new Tag(
-              this.state.CleanOutputWhitespace(sb.toString()),
-            );
-            // Pushing to the evaluation stack means it gets picked up
-            // when a Choice is generated from the next Choice Point.
-            this.state.PushEvaluationStack(choiceTag);
+            captureTag(this, (text) => this.state.CleanOutputWhitespace(text));
           } else {
             // Otherwise! Simply push EndTag, so that in the output stream we
             // have a structure of: [BeginTag, "the tag content", EndTag]

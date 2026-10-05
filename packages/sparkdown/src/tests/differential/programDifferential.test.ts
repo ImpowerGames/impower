@@ -1,18 +1,22 @@
-// The differential run of the binary program (#692, #694, #695, #698, #696). It
-// compiles shared fixtures once per engine and compares what they show under
-// the parity contract of #692: each beat's text, tags and display tables, and
-// the errors and warnings with their source lines. A program that falls back
-// runs on the current engine as a whole, so only the programs that have their
-// chunks are compared, and the run reports the constructs the others fall
-// back for. Both engines take their shuffles' draws from one injected stream
-// per run (`shuffleDraws`), so a shuffle picks the same arms on both.
+// The differential run of the binary program (#692, #694, #695, #698, #696,
+// #697). It compiles shared fixtures once per engine and compares what they
+// show under the parity contract of #692: each beat's text, tags and display
+// tables, the errors and warnings with their source lines, and each menu's
+// choices with their texts, tags and indexes, taking the first choice at
+// every menu and each other choice at the first menus. A program that falls
+// back runs on the current engine as a whole, so only the programs that have
+// their chunks are compared, and the run reports the constructs the others
+// fall back for. Both engines take their shuffles' draws from one injected
+// stream per run (`shuffleDraws`), so a shuffle picks the same arms on both.
 //
 // It also runs randomized incremental edits on the statement chunks, as
 // `incrementalEquivalence` and `incrementalCumulativeEquivalence` run them on
-// the current compile, over five screenplays made of the constructs the
+// the current compile, over six screenplays made of the constructs the
 // writer emits, one of display lines, one of logic, one of functions, one of
-// functions that capture the locals around them and one of flow (scenes,
-// branches, labels, diverts, tunnels, threads, counts and alternators): after
+// functions that capture the locals around them, one of flow (scenes,
+// branches, labels, diverts, tunnels, threads, counts and alternators) and
+// one of `choose` blocks (their choices, bodies and `then` clauses, and
+// choices raised in threads): after
 // each edit, the chunks compared by content, the flows and the diagnostics
 // equal a cold compile's, and every chunk of a statement the edit did not
 // touch is the chunk it was before.
@@ -31,6 +35,7 @@ import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Ex
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { shuffleDraws } from "../../inkjs/engine/Story";
 import { FLOW_INSERTS, flowScreenplay } from "../program/flowScreenplay";
+import { CHOOSE_INSERTS, chooseScreenplay } from "../program/chooseScreenplay";
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -49,6 +54,8 @@ import {
   programCompiler,
   rootChunks,
   storyBeats,
+  storyRun,
+  type Menu,
 } from "../program/programHarness";
 import {
   programStatements,
@@ -123,16 +130,31 @@ function differential(text: string): {
       return { fallback: program.fallback?.construct ?? "no story" };
     }
     const current = compileScript(text);
-    injectDraws();
-    const currentShown = shown(() => {
-      current.story.ResetState();
-      return storyBeats(current.story);
-    });
-    injectDraws();
-    const programShown = shown(() => storyBeats(new ProgramStory(program.chunks!)));
+    const run = (picks: number[]) => {
+      injectDraws();
+      const currentShown = shown(() => {
+        current.story.ResetState();
+        return storyRun(current.story, picks);
+      });
+      injectDraws();
+      const programShown = shown(() =>
+        storyRun(new ProgramStory(program.chunks!), picks),
+      );
+      return { current: comparable(currentShown), program: comparable(programShown) };
+    };
+    // The first choice at every menu, then each other choice at each of the
+    // first menus the current engine shows (#697), so that taking each
+    // choice is compared.
+    const runs = [run([])];
+    const menus = (runs[0]!.current as { menus?: Menu[] }).menus ?? [];
+    for (let m = 0; m < Math.min(menus.length, 3); m += 1) {
+      for (let c = 1; c < menus[m]!.choices.length && runs.length < 12; c += 1) {
+        runs.push(run([...Array<number>(m).fill(0), c]));
+      }
+    }
     return {
-      current: comparable(currentShown),
-      program: comparable(programShown),
+      current: runs.map((r) => r.current),
+      program: runs.map((r) => r.program),
     };
   } finally {
     shuffleDraws.next = null;
@@ -263,6 +285,7 @@ const SCREENPLAYS = [
   { name: "the function screenplay", text: () => functionScreenplay(3), inserts: FUNCTION_INSERTS },
   { name: "the capture screenplay", text: () => captureScreenplay(3), inserts: CAPTURE_INSERTS },
   { name: "the flow screenplay", text: () => flowScreenplay(3), inserts: FLOW_INSERTS },
+  { name: "the choose screenplay", text: () => chooseScreenplay(3), inserts: CHOOSE_INSERTS },
 ];
 
 describe("the differential run", () => {
@@ -292,7 +315,7 @@ describe("the differential run", () => {
   it("shows the beats fixture and the screenplays as the current engine does", () => {
     const { files } = buildBeatsFixture({ lines: 300 });
     const beats = files.get("main.sd")!.replace("include scripts/characters\n", "");
-    for (const text of [beats, displayScreenplay(), logicScreenplay(3), functionScreenplay(3), captureScreenplay(3), flowScreenplay(3)]) {
+    for (const text of [beats, displayScreenplay(), logicScreenplay(3), functionScreenplay(3), captureScreenplay(3), flowScreenplay(3), chooseScreenplay(3)]) {
       const quiet = silence();
       try {
         const scenes = [...text.matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);
@@ -300,13 +323,19 @@ describe("the differential run", () => {
         expect(program.fallback).toBeUndefined();
         const current = compileScript(text);
         for (const scene of scenes) {
-          injectDraws();
-          current.story.ResetState();
-          const expected = storyBeats(current.story, scene);
-          injectDraws();
-          const actual = storyBeats(new ProgramStory(program.chunks!), scene);
-          expect(actual).toEqual(expected);
-          expect(expected.beats.length).toBeGreaterThan(0);
+          // The first choice at every menu, and other choices at the first
+          // menus, as the fixtures take them.
+          for (const picks of [[], [1], [2, 1], [3, 3, 3]]) {
+            injectDraws();
+            current.story.ResetState();
+            const expected = storyRun(current.story, picks, { from: scene });
+            injectDraws();
+            const actual = storyRun(new ProgramStory(program.chunks!), picks, {
+              from: scene,
+            });
+            expect(actual).toEqual(expected);
+            expect(expected.beats.length).toBeGreaterThan(0);
+          }
         }
       } finally {
         shuffleDraws.next = null;

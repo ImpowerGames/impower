@@ -14,6 +14,18 @@ import {
 } from "../../program/StatementChunk";
 import { compileScript, MAIN_URI, storyBeats } from "./programHarness";
 
+// An `if` holding a `choose` block with a `then` clause of its own, to write
+// in another block's preamble, which the writer does not emit.
+const PREAMBLE_THEN =
+  "  if true then\n    choose\n      * [B]\n    then\n      Inner.\n    end\n  end\n";
+const PREAMBLE_THEN_CONSTRUCT =
+  "a then clause of a choose block in another's preamble";
+const indent = (text: string) =>
+  text
+    .split("\n")
+    .map((line) => (line ? `  ${line}` : line))
+    .join("\n");
+
 const listing = (text: string, flow = "") => {
   const { program } = compileScript(text, { programChunks: true });
   const root = program.chunks!;
@@ -217,14 +229,16 @@ describe("the fallback", () => {
     });
   });
 
+  // A `choose` block written in another's preamble with a `then` clause of
+  // its own is not emitted.
   it("names a block statement at the top level", () => {
     const { program } = compileScript(
-      "One.\nchoose\n  + [A]\n    Took A.\nend\n",
+      `One.\nchoose\n${PREAMBLE_THEN}  + [A]\n    Took A.\nend\n`,
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
-      construct: "choose",
+      construct: PREAMBLE_THEN_CONSTRUCT,
       uri: MAIN_URI,
       line: 1,
     });
@@ -247,18 +261,18 @@ describe("the fallback", () => {
 
   it("names a construct in a scene with the line of its statement", () => {
     const { program } = compileScript(
-      "scene MAIN\n  One.\n  choose\n    + [A]\n      Took A.\n  end\nend\n",
+      `scene MAIN\n  One.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`,
       { programChunks: true },
     );
     expect(program.fallback).toEqual({
-      construct: "choose",
+      construct: PREAMBLE_THEN_CONSTRUCT,
       uri: MAIN_URI,
       line: 2,
     });
   });
 
   it("runs a program that fell back on the current engine", () => {
-    const text = "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\n  choose\n    + [A]\n      Took A.\n  end\nend\n";
+    const text = `One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`;
     const { program } = compileScript(text, { programChunks: true });
     const current = compileScript(text);
     expect(program.compiled).toEqual(current.program.compiled);
