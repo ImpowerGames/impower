@@ -443,6 +443,19 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     );
   };
 
+  /** Lexical temporary/parameter visibility only. Unlike IsLocalInScope,
+   * an existing story global establishes no local binding; an unknown
+   * function binding site cannot establish visibility either. */
+  public IsLexicalLocalInScope = (
+    varName: string,
+    fromNode: ParsedObject,
+  ): boolean => {
+    const parent = fromNode.parent;
+    return parent !== null && this.IsLocalInScopeAt(
+      varName, parent, parent.content.indexOf(fromNode), true,
+    );
+  };
+
   // Whether a `local` named `varName` is in scope just before
   // `parent.content[end]`. It is when it is declared in or under an earlier
   // object of that content, or of an ancestor's content up to the enclosing
@@ -458,6 +471,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     varName: string,
     parent: ParsedObject,
     end: number,
+    conservativeMissingSite = false,
   ): boolean => {
     let node: ParsedObject | null = parent;
     while (node && !(node instanceof FlowBase)) {
@@ -481,15 +495,23 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       return false;
     }
     const parentFlow = asOrNull(flow.parent, FlowBase);
-    const site = !parentFlow
+    // A hoisted callback can acquire source metadata while being placed in
+    // the assembled story. Its actual function value still owns the lexical
+    // binding site; metadata alone must not turn it into a named declaration.
+    const valueSite = conservativeMissingSite && parentFlow
+      ? functionValueSite(this.story, flow)
+      : null;
+    const site = valueSite ?? (!parentFlow
       ? flow.parent && {
           parent: flow.parent,
           end: flow.parent.content.indexOf(flow),
         }
       : flow.ownDebugMetadata || flow.identifier?.debugMetadata
         ? definitionSite(parentFlow, flow)
-        : functionValueSite(this.story, flow);
-    return !site || this.IsLocalInScopeAt(varName, site.parent, site.end);
+        : functionValueSite(this.story, flow));
+    return site
+      ? this.IsLocalInScopeAt(varName, site.parent, site.end, conservativeMissingSite)
+      : !conservativeMissingSite;
   };
 
   public AddNewVariableDeclaration = (varDecl: VariableAssignment): void => {
