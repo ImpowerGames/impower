@@ -97,6 +97,31 @@ interface ProgramState {
   version: number;
   compilingDocumentVersion?: number;
   compiledDocumentVersion?: number;
+  compilingRequest?: number;
+  compiledFileRevision?: number;
+  compiledEnvironment?: number;
+  compiledConnection?: Port1MessageConnection;
+  compiledRequest?: number;
+}
+
+interface CompileRequest {
+  id: number;
+  uri: string;
+  root: string;
+  connection: Port1MessageConnection;
+  snapshot?: {
+    environment: number;
+    versions: Map<string, number>;
+    files: Map<string, number>;
+  };
+}
+
+interface CompileWaiter {
+  resolve: (program: SparkProgram | undefined) => void;
+  version: number | undefined;
+  identity: number;
+  connection: Port1MessageConnection;
+  request?: number;
 }
 
 export interface ClientCapabilities {
@@ -190,8 +215,16 @@ export abstract class SparkdownWorkspace {
 
   protected _onNextCompiled = new Map<
     string,
-    ((program: SparkProgram | undefined) => void)[]
+    CompileWaiter[]
   >();
+
+  private _nextCompileRequest = 0;
+  private _latestCompileRequests = new Map<string, number>();
+  // Revisions survive deletion, so recreating a URI at version 1 cannot make
+  // an old response current again. Body edits affect only their own URI.
+  private _fileRevisions = new Map<string, number>();
+  private _fileIdentities = new Map<string, number>();
+  private _compileEnvironment = 0;
 
   omitImageData = false;
 
@@ -299,6 +332,7 @@ export abstract class SparkdownWorkspace {
    */
   async restartCompiler(): Promise<void> {
     const previous = this._compilerChannelConnection;
+    this.settleConnectionWaiters(previous);
     this._compilerWorker?.terminate();
     this._initializedCompiler = false;
     this._compilerConfigured = false;
@@ -571,6 +605,9 @@ export abstract class SparkdownWorkspace {
   }
 
   async configureCompiler(config: SparkdownCompilerConfig) {
+    // Configuration changes the project environment even if script versions
+    // stay fixed. Ordinary document updates do not come through this path.
+    this._compileEnvironment++;
     const connection = this._compilerChannelConnection;
     try {
       return await connection.sendRequest(ConfigureCompilerMessage.type, config);
@@ -859,6 +896,129 @@ export abstract class SparkdownWorkspace {
     return done;
   }
 
+  private fileRevision(uri: string) {
+    return this._fileRevisions.get(uri) ?? 0;
+  }
+
+  private noteFileChange(uri: string, identity = false) {
+    this._fileRevisions.set(uri, this.fileRevision(uri) + 1);
+    if (identity) {
+      this._fileIdentities.set(uri, (this._fileIdentities.get(uri) ?? 0) + 1);
+      for (const waiter of this._onNextCompiled.get(uri) ?? []) {
+        waiter.resolve(undefined);
+      }
+      this._onNextCompiled.delete(uri);
+    }
+  }
+
+  private documentVersion(uri: string) {
+    return this._documentVersions.get(uri) ?? this._watchedFiles.get(uri)?.version ?? undefined;
+  }
+
+  private waitForCompile(uri: string, request?: number) {
+    return new Promise<SparkProgram | undefined>((resolve) => {
+      const waiters = this._onNextCompiled.get(uri) ?? [];
+      waiters.push({
+        resolve, request,
+        version: this.documentVersion(uri),
+        identity: this._fileIdentities.get(uri) ?? 0,
+        connection: this._compilerChannelConnection,
+      });
+      this._onNextCompiled.set(uri, waiters);
+    });
+  }
+
+  private settleConnectionWaiters(connection: Port1MessageConnection) {
+    for (const [uri, waiters] of this._onNextCompiled) {
+      const remaining = waiters.filter((waiter) => {
+        if (waiter.connection !== connection) return true;
+        waiter.resolve(undefined);
+        return false;
+      });
+      if (remaining.length) this._onNextCompiled.set(uri, remaining);
+      else this._onNextCompiled.delete(uri);
+    }
+  }
+
+  private settleCompileWaiters(
+    uri: string, program: SparkProgram | undefined, request?: number,
+  ) {
+    const waiters = this._onNextCompiled.get(uri);
+    if (!waiters) return;
+    const remaining = waiters.filter((waiter) => {
+      const covered = program
+        ? waiter.connection === this._compilerChannelConnection &&
+          waiter.identity === (this._fileIdentities.get(uri) ?? 0) &&
+          program.scripts[uri] != null &&
+          (waiter.version == null || waiter.version <= program.scripts[uri]!) &&
+          (request == null || waiter.request == null || waiter.request <= request)
+        : waiter.request === request;
+      if (!covered) return true;
+      waiter.resolve(program);
+      return false;
+    });
+    if (remaining.length) this._onNextCompiled.set(uri, remaining);
+    else this._onNextCompiled.delete(uri);
+  }
+
+  private ownsCompile(request: CompileRequest) {
+    return request.connection === this._compilerChannelConnection &&
+      this._latestCompileRequests.get(request.uri) === request.id &&
+      this._latestCompileRequests.get(request.root) === request.id;
+  }
+
+  private currentCompile(request: CompileRequest, result: CompileProgramResult) {
+    const snapshot = request.snapshot;
+    if (!this.ownsCompile(request) || !snapshot ||
+        snapshot.environment !== this._compileEnvironment) return false;
+    const scripts = result.program.scripts;
+    const uris = new Set([request.uri, request.root, ...Object.keys(scripts)]);
+    for (const uri of uris) {
+      const version = this.documentVersion(uri);
+      if (version == null || snapshot.versions.get(uri) !== version ||
+          (snapshot.files.get(uri) ?? 0) !== this.fileRevision(uri) ||
+          (scripts[uri] != null && scripts[uri] !== version) ||
+          (this._latestCompileRequests.get(uri) ?? 0) > request.id) return false;
+    }
+    return true;
+  }
+
+  private recordCompiledProgram(request: CompileRequest, program: SparkProgram) {
+    const unchanged = program === this._programStates.get(program.uri)?.program;
+    for (const [uri, version] of Object.entries(program.scripts)) {
+      const state = this.getProgramState(uri);
+      state.program = program;
+      state.compiledDocumentVersion = version;
+      state.compiledFileRevision = this.fileRevision(uri);
+      state.compiledEnvironment = this._compileEnvironment;
+      state.compiledConnection = request.connection;
+      state.compiledRequest = request.id;
+      this._latestCompileRequests.set(uri, request.id);
+      if (state.compilingRequest != null && state.compilingRequest <= request.id) {
+        state.compilingRequest = undefined;
+        state.compilingDocumentVersion = undefined;
+      }
+      if (!unchanged) state.version++;
+      this.settleCompileWaiters(uri, program, request.id);
+    }
+    return unchanged;
+  }
+
+  private finishCompile(request: CompileRequest) {
+    for (const uri of new Set([request.uri, request.root])) {
+      const state = this._programStates.get(uri);
+      if (state?.compilingRequest !== request.id) continue;
+      state.compilingRequest = undefined;
+      state.compilingDocumentVersion = undefined;
+    }
+    // An owned obsolete result or failure has no checked program to give
+    // these callers. This also covers dependency waiters transferred to the
+    // request; those transferred to a newer request remain pending.
+    for (const uri of this._onNextCompiled.keys()) {
+      this.settleCompileWaiters(uri, undefined, request.id);
+    }
+  }
+
   /**
    * Compile the program as it would be with `contentChanges` applied to
    * `textDocument`, without applying them (see
@@ -968,35 +1128,26 @@ export abstract class SparkdownWorkspace {
       }
     }
     const state = this.getProgramState(uri);
-    if (!force && !anyDocChanged && state.program) {
+    if (!force && !anyDocChanged && state.program && state.compilingRequest == null &&
+        state.compiledFileRevision === this.fileRevision(uri) &&
+        state.compiledEnvironment === this._compileEnvironment &&
+        state.compiledConnection === this._compilerChannelConnection) {
       // Flush any waiters queued behind a compile that ended up unnecessary
       // (e.g. a forced compile already covered their version).
-      const nextCompiledCallbacks = this._onNextCompiled.get(uri);
-      if (nextCompiledCallbacks) {
-        this._onNextCompiled.delete(uri);
-        nextCompiledCallbacks.forEach((c) => c?.(state.program));
-      }
+      this.settleCompileWaiters(uri, state.program, state.compiledRequest);
       return state.program;
     }
     if (!force && this._pendingChangeCompileUris.has(uri)) {
       // A debounced keystroke compile for this document is already scheduled;
       // piggyback on it instead of racing it with a second full compile.
-      return new Promise((resolve) => {
-        const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
-        nextCompiledCallbacks.push(resolve);
-        this._onNextCompiled.set(uri, nextCompiledCallbacks);
-      });
+      return this.waitForCompile(uri);
     }
     if (
       !force &&
       state.compilingDocumentVersion != null &&
       this._documentVersions.get(uri)! <= state.compilingDocumentVersion
     ) {
-      return new Promise((resolve) => {
-        const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
-        nextCompiledCallbacks.push(resolve);
-        this._onNextCompiled.set(uri, nextCompiledCallbacks);
-      });
+      return this.waitForCompile(uri, state.compilingRequest);
     }
     // Start the phase only once the cheap exits above are behind us. The
     // no-change and piggyback returns do no compile work — one of them just
@@ -1005,8 +1156,29 @@ export abstract class SparkdownWorkspace {
     // actually costs. The `finally` is what the ticket is about: the body
     // below rethrows, and a bare trailing call would drop that measurement.
     profile("start", this._profilerId, "workspace" + " " + "compile", uri);
+    const mainScriptUri = this.getMainScriptUri(uri);
+    const request: CompileRequest = {
+      id: ++this._nextCompileRequest, uri, root: mainScriptUri ?? uri,
+      connection: this._compilerChannelConnection,
+    };
+    for (const target of new Set([uri, request.root])) {
+      this._latestCompileRequests.set(target, request.id);
+      const targetState = this.getProgramState(target);
+      targetState.compilingRequest = request.id;
+      targetState.compilingDocumentVersion = this.documentVersion(target);
+    }
+    // A newer request for the same root covers existing waiters too. An old
+    // response/error can no longer settle them after this transfer.
+    for (const [target, waiters] of this._onNextCompiled) {
+      if ((this.getMainScriptUri(target) ?? target) !== request.root) continue;
+      for (const waiter of waiters) {
+        if (waiter.connection === request.connection &&
+            waiter.identity === (this._fileIdentities.get(target) ?? 0)) {
+          waiter.request = request.id;
+        }
+      }
+    }
     try {
-      state.compilingDocumentVersion = this._documentVersions.get(uri);
       let result: CompileProgramResult | undefined = undefined;
       // When the compiler's no-change short-circuit serves its cached program,
       // it returns the SAME object as last time. Bumping our version counter on
@@ -1014,59 +1186,20 @@ export abstract class SparkdownWorkspace {
       // player rebuilds its whole Game whenever program.version changes -- so
       // detect identity and keep the version stable.
       let programUnchanged = false;
-      const mainScriptUri = this.getMainScriptUri(uri);
       try {
         if (mainScriptUri) {
-          const previousProgram = this.getProgramState(mainScriptUri).program;
-          result = await this.compileDocument(mainScriptUri);
-          programUnchanged = result.program === previousProgram;
-          this.getProgramState(mainScriptUri).program = result.program;
-          if (result.program.scripts) {
-            for (const [uri, version] of Object.entries(result.program.scripts)) {
-              const state = this.getProgramState(uri);
-              state.program = result.program;
-              state.compilingDocumentVersion = undefined;
-              state.compiledDocumentVersion = version;
-              if (!programUnchanged) {
-                state.version++;
-              }
-              this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-              this._onNextCompiled.delete(uri);
-            }
-          }
+          result = await this.compileDocument(mainScriptUri, request);
+          if (!result || !this.currentCompile(request, result)) return undefined;
+          programUnchanged = this.recordCompiledProgram(request, result.program);
         }
         if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
           // Target script is not included by main,
           // So it must be parsed on its own to report diagnostics
-          const previousProgram = this.getProgramState(uri).program;
-          result = await this.compileDocument(uri);
-          programUnchanged = result.program === previousProgram;
-          const state = this.getProgramState(uri);
-          state.program = result.program;
-          state.compilingDocumentVersion = undefined;
-          state.compiledDocumentVersion = result.program?.scripts[uri];
-          if (!programUnchanged) {
-            state.version++;
-          }
-          this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-          this._onNextCompiled.delete(uri);
+          result = await this.compileDocument(uri, request);
+          if (!result || !this.currentCompile(request, result)) return undefined;
+          programUnchanged = this.recordCompiledProgram(request, result.program);
         }
       } catch (e) {
-        // Settle instead of strand: piggybacked callers (pull diagnostics etc.)
-        // are awaiting these resolvers, and a compile failure must not turn
-        // their requests into permanent hangs.
-        const flush = (flushUri: string) => {
-          const callbacks = this._onNextCompiled.get(flushUri);
-          if (callbacks) {
-            this._onNextCompiled.delete(flushUri);
-            callbacks.forEach((c) => c?.(undefined));
-          }
-        };
-        flush(uri);
-        if (mainScriptUri) {
-          flush(mainScriptUri);
-        }
-        state.compilingDocumentVersion = undefined;
         if (e instanceof CompilerRestartedError) {
           // The worker it was sent to is gone; the restarted one compiles
           // the project again (`restartCompiler`).
@@ -1115,6 +1248,7 @@ export abstract class SparkdownWorkspace {
       }
       return result?.program;
     } finally {
+      this.finishCompile(request);
       profile("end", this._profilerId, "workspace" + " " + "compile", uri);
     }
   }
@@ -1174,15 +1308,35 @@ export abstract class SparkdownWorkspace {
     return diagnostics;
   }
 
-  protected async compileDocument(uri: string) {
+  protected async compileDocument(uri: string, request: CompileRequest) {
     // Wait out initialization rather than throwing "Compiler has not been
     // configured!" at whoever asked first (see `whenCompilerConfigured`).
     const configuring = this.whenCompilerConfigured;
     if (configuring) {
       await configuring;
     }
+    // File loading can yield before its RPC is sent. A snapshot taken ahead
+    // of that update would carry the new revision but the worker's old files.
+    for (;;) {
+      const documents = this._documentUpdates;
+      const files = this._fileUpdates;
+      await Promise.all([documents, files]);
+      if (documents === this._documentUpdates && files === this._fileUpdates) break;
+    }
+    const connection = request.connection;
+    if (connection !== this._compilerChannelConnection) return undefined;
+    const decoder = this._programTransport;
+    const versions = new Map<string, number>();
+    for (const [uri, file] of this._watchedFiles) {
+      if (file.version != null) versions.set(uri, file.version);
+    }
+    for (const [uri, version] of this._documentVersions) versions.set(uri, version);
+    request.snapshot = {
+      environment: this._compileEnvironment, versions,
+      files: new Map(this._fileRevisions),
+    };
     this._lastCompiledUri = uri;
-    const result = await this._compilerChannelConnection.sendRequest(
+    const result = await connection.sendRequest(
       CompileProgramMessage.type,
       {
         textDocument: { uri },
@@ -1190,7 +1344,7 @@ export abstract class SparkdownWorkspace {
       },
     );
     if (!result.program?.summary) {
-      this._programTransport.decode(result.program);
+      decoder.decode(result.program);
     }
     return result;
   }
@@ -1213,6 +1367,7 @@ export abstract class SparkdownWorkspace {
     };
   }) {
     const textDocument = params.textDocument;
+    this.noteFileChange(textDocument.uri, true);
     this._openDocuments.add(textDocument.uri);
     this._documentVersions.set(textDocument.uri, textDocument.version);
     this._configuredDocumentVersions.delete(textDocument.uri);
@@ -1254,6 +1409,7 @@ export abstract class SparkdownWorkspace {
   }) {
     const textDocument = params.textDocument;
     const contentChanges = params.contentChanges;
+    this.noteFileChange(textDocument.uri);
     this._documentVersions.set(textDocument.uri, textDocument.version);
     const mirrored = this._documentTexts.get(textDocument.uri);
     if (mirrored) {
@@ -1302,6 +1458,8 @@ export abstract class SparkdownWorkspace {
   }
 
   async createFile(uri: string) {
+    this.noteFileChange(uri, true);
+    this._compileEnvironment++;
     const file = await this.trackFileUpdate(async () => {
       if (this.getFileType(uri) === "script") {
         this._documentVersions.set(uri, 0);
@@ -1330,6 +1488,10 @@ export abstract class SparkdownWorkspace {
   async changeFile(uri: string) {
     const type = this.getFileType(uri);
     if (type && (type !== "script" || !this._openDocuments.has(uri))) {
+      this.noteFileChange(uri);
+      // Assets feed the compiler's project-wide context/vocabulary. A script
+      // body replacement instead invalidates only results which include it.
+      if (type !== "script") this._compileEnvironment++;
       // Changed file is an asset or an unopened script
       this._documentTexts.delete(uri);
       const file = await this.trackFileUpdate(async () => {
@@ -1360,6 +1522,8 @@ export abstract class SparkdownWorkspace {
   }
 
   async deleteFile(uri: string) {
+    this.noteFileChange(uri, true);
+    this._compileEnvironment++;
     const deletedFile = await this.trackFileUpdate(async () => {
       const deletedFile = this._watchedFiles.get(uri);
       this._imageVocabularyCache.delete(uri);
