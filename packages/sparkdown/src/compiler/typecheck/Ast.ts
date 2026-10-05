@@ -6,7 +6,7 @@
 // tree is built: a name that refers to a local is an `AstExprLocal` pointing
 // at its `AstLocal`, and any other name is an `AstExprGlobal`.
 
-import type { Location, Position } from "./Location";
+import { Position, type Location } from "./Location";
 
 export class AstLocal {
   /** Set after construction when the local is exported. */
@@ -615,6 +615,8 @@ export class AstStatLocalFunction extends AstStat {
     public name: AstLocal,
     public func: AstExprFunction,
     public isConst = false,
+    /** Actual const/export keyword; never derived from the attributed statement range. */
+    public constKeywordBegin: Position = Position.missing(),
   ) {
     super(location);
   }
@@ -760,6 +762,8 @@ export class AstTypeReference extends AstType {
     public nameLocation: Location,
     public hasParameterList = false,
     public parameters: AstTypeOrPack[] = [],
+    /** Exact lexical binding at parse time. Null is authoritative; undefined means unavailable. */
+    public prefixLocal: AstLocal | null | undefined = undefined,
   ) {
     super(location);
   }

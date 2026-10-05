@@ -55,6 +55,10 @@ export interface LuauUnit {
   errors: LuauSyntaxError[];
   /** The unit's `--!` comments, which select a `run` file's mode. */
   hotcomments: HotComment[];
+  /** Lexical query metadata; legacy manually constructed checker units may omit it. */
+  commentLocations?: import("./readLuauAst").LuauComment[];
+  /** Authoritative consumed token ranges; separate from broad synthetic wrapper ranges. */
+  queryLocations?: import("./Location").Location[];
   /** The document line of each of the unit's lines. */
   lines: number[];
   /** What the unit's check depends on of the document (`LuauAstUnit.key`): units with the same key check alike. */
@@ -86,7 +90,7 @@ export { isLuauFile };
 
 function checkedUnit(read: LuauAstUnit): LuauUnit {
   if (read.kind === "block") throw new Error("A lowering block is not a document checking unit");
-  return { kind: read.kind, root: read.root, errors: read.errors, hotcomments: read.hotcomments, lines: read.lines ?? [], key: read.key ?? "" };
+  return { kind: read.kind, root: read.root, errors: read.errors, hotcomments: read.hotcomments, commentLocations: read.commentLocations, queryLocations: read.queryLocations, lines: read.lines ?? [], key: read.key ?? "" };
 }
 
 /** The Luau a `.sd` file holds, as units. */
