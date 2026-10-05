@@ -69,6 +69,16 @@ describe("an if expression whose then is glued to its condition and ends its lin
   });
 
   test.each([
+    "local s = if c then 1 else 2 -- then\n  print(s)",
+    "local s = if c then 1 -- then\n    else 2\n  print(s)",
+    "local s = if c then 1 else 2 --[[ then ]]\n  print(s)",
+  ])("does not read a line ending in a commented then as glued: %s", (statements) => {
+    const result = readings(`function f(c)\n  ${statements}\n  return 0\nend\n`);
+    expect(result.official, "official Luau parser of projected checker text").toEqual([]);
+    expect(result.errors).toEqual([]);
+  });
+
+  test.each([
     "if (c)then\n    return 1\n  end",
     "if if c then true else (c)then\n    return 1\n  end",
     "while (c)do\n    return 1\n  end",
