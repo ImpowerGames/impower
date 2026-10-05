@@ -1,0 +1,1989 @@
+{
+  "pin": "7d5f73364fdbbaa984fa545071630eba73cfea98",
+  "compiler": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\emsdk-oracle-1320\\upstream\\emscripten\\em++.py",
+  "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.10 (b7dc6e5747465580df5984e723b9d1f10d8e804b)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+  "compilerScriptSha256": "017f735c953318fdaaa4af68c8d4bf13936a787ddbd5dad804d532b0223b6c2f",
+  "plannerSha256": "0edd2e5e444cd6b4bff3bb416edef3a0565a489bde86cd933b5b5c6945a62672",
+  "compilerVersionEvidence": "successful prior artifact manifest; no plan-only compiler execution",
+  "workers": 1,
+  "totalTUs": 144,
+  "cachedTUs": 144,
+  "uncachedTUs": 0,
+  "syntaxFirst": [],
+  "compileFlags": [
+    "-std=c++17",
+    "-O2",
+    "-fexceptions",
+    "-DNDEBUG",
+    "-IC:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1387/scope-overlay/Analysis/include",
+    "-ffile-prefix-map=C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1387/scope-overlay=luau",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Common/include",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Ast/include",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Bytecode/include",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Compiler/include",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Config/include",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/VM/include",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Analysis/include",
+    "-IC:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/VM/src"
+  ],
+  "baseCompileFlags": [
+    "-std=c++17",
+    "-O2",
+    "-fexceptions",
+    "-DNDEBUG",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Common\\include",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\include",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\include",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\include",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Config\\include",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\include",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\include",
+    "-IC:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src"
+  ],
+  "scopeOverlay": {
+    "pin": "7d5f73364fdbbaa984fa545071630eba73cfea98",
+    "definitionSha256": "684e8cf79857c061df50c30dc79017b29cd2ef81bf90c97cb96fa90af990931e",
+    "files": [
+      {
+        "path": "Analysis/src/AutocompleteCore.h",
+        "inputSha256": "fc6a215f210b2f117bf253bc61458cdaed8b81fba9913cfb62093241ca8c3ad1",
+        "canonicalInputSha256": "87efeccbf2ec22df328215b20ec36eda6345cbd7ca6318e761f9631c7080c985",
+        "outputSha256": "87efeccbf2ec22df328215b20ec36eda6345cbd7ca6318e761f9631c7080c985"
+      },
+      {
+        "path": "Analysis/include/Luau/ConstraintGenerator.h",
+        "inputSha256": "821f9af7eab0db49e5688f94c088d1d6ede8d2e8a1ffebe192b96b5ac46f52df",
+        "canonicalInputSha256": "1eddf5eb912c8fa9de6face403a1016fdce68a4c022c451a2f7616dc72b6b1c3",
+        "outputSha256": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383"
+      },
+      {
+        "path": "Analysis/include/Luau/Frontend.h",
+        "inputSha256": "050c2b8abda85a4ec50f1ede56d9e5a57de88f9e3e26e3715a18463ad5ec4ee7",
+        "canonicalInputSha256": "5b74050ad372ec22447e9b2e49064f119bd53af9dabe3b36568732544628df94",
+        "outputSha256": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+      },
+      {
+        "path": "Analysis/src/ConstraintGenerator.cpp",
+        "inputSha256": "3d5e66c06ef4d13cd2d09d0d4d8e6f4b12560c6a50efd9a62b90eeb4be752fe6",
+        "canonicalInputSha256": "75d488b84d53dec57465bd59e6ca0212c9bfd0ba474154f607010d173d1cfbfa",
+        "outputSha256": "7f0dc5ecf9d01ffc5c89fe4367f1d73cde2f30c878b4a8a29655a9adc403756a"
+      },
+      {
+        "path": "Analysis/src/Frontend.cpp",
+        "inputSha256": "df00db8d65b27efc9f5ae1af29c7209600e9e1a25f758db5d18b3ea6a6f7339d",
+        "canonicalInputSha256": "ec625dd3ba6739b9742d34dc4204c8517819c17b267bab337bf18c98b7c270d8",
+        "outputSha256": "a2b7584b08eb7d4218a9743e3af67317b45fe781fe0b6ba0fb72a675a6946e51"
+      },
+      {
+        "path": "Analysis/src/FragmentAutocomplete.cpp",
+        "inputSha256": "6edbcfa60bf6e5c6ea8c5be8b1099508651b8a4ffc40e1605fdc79eed63417e5",
+        "canonicalInputSha256": "5d8d462b95c36f2e5344cc92db52fa5a75ad4ce52569d38d9e38be850b9a72f7",
+        "outputSha256": "80e964d24cc1a56c12ec14d772785b947513b60773d2b71fe1e8a62af5e52cc2"
+      }
+    ]
+  },
+  "headerAuditSha256": "1573f17058f1609ea93a1bf8c853e80cf62bf10d42fb0169c05dc3233a347a80",
+  "headerDependencies": {
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\bridge.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+      "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.h": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1",
+      "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.h": "d7c4b35a2918882226aacb9097225f0fb5a554abc1af65b3534a34b659305f5d",
+      "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\source-metadata.h": "c9dfa5f2512aaa5e8ac97b1bdc37d7a51021d4ec4fcc528f150931cf71ec5d22"
+    },
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+      "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.h": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1"
+    },
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+      "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.h": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1",
+      "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.h": "d7c4b35a2918882226aacb9097225f0fb5a554abc1af65b3534a34b659305f5d",
+      "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\source-metadata.h": "c9dfa5f2512aaa5e8ac97b1bdc37d7a51021d4ec4fcc528f150931cf71ec5d22"
+    },
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstQuery.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+    },
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Autocomplete.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+    },
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AutocompleteCore.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+    },
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\BuiltinDefinitions.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383",
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+    },
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\ConstraintGenerator.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383"
+    },
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\FragmentAutocomplete.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383",
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\AutocompleteCore.h": "87efeccbf2ec22df328215b20ec36eda6345cbd7ca6318e761f9631c7080c985"
+    },
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\Frontend.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383",
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+    },
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Module.cpp": {
+      "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383"
+    }
+  },
+  "linkFlags": [
+    "-sMODULARIZE=1",
+    "-sEXPORT_ES6=1",
+    "-sENVIRONMENT=web,worker,node",
+    "-sEXPORT_NAME=createLuauAnalysis",
+    "-sALLOW_MEMORY_GROWTH=1",
+    "-sMAXIMUM_MEMORY=268435456",
+    "-sINITIAL_MEMORY=16777216",
+    "-sSTACK_SIZE=2097152",
+    "-sDISABLE_EXCEPTION_CATCHING=0",
+    "-sABORTING_MALLOC=0",
+    "-sERROR_ON_UNDEFINED_SYMBOLS=1",
+    "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"writeArrayToMemory\"]"
+  ],
+  "output": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\repro-link-canonical",
+  "orderedLink": [
+    {
+      "source": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\bridge.cpp",
+      "sourceSha256": "b16ba1e5cd139233a5e7416e70e0eca6026c2e535fa3124cb99df4c9ca786ab9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\d4285922831c-707b5606371f.o",
+      "objectSha256": "f2e4a86600c1fdecefed3a5ba657d2ffee27ded33bf6dbd1c1972bb08857c9cf"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.cpp",
+      "sourceSha256": "5c3b33b89db367c3ebcab4351240478aace0564135887bab4ef93745c9f2a376",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\4e460d1c554f-44893e201041.o",
+      "objectSha256": "5c39148dc3c0b357b13a569170d9805a1d10c5270ce2a83f94cfb5eade6e0ba3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.cpp",
+      "sourceSha256": "a450d2662c01accf3909bdd106d743bd656b86796acbc6b554f6b1998c607b6d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\49c80dc5e618-2f465e27b062.o",
+      "objectSha256": "67e7faed3e8264d01432703f83449428fe0aa7b523c52d3c1040e398d36aee15"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Common\\src\\BytecodeWire.cpp",
+      "sourceSha256": "1f6a963756f2e36e521da51b4b4e8bae509e738166d62e1e23e4d75dd333a56c",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeWire-e3f48be4ef367c72.o",
+      "objectSha256": "ca42d0248a4fd366c2971a83f1e7f37e035b86a3a84d1a33510261d4f46bf402"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Common\\src\\StringUtils.cpp",
+      "sourceSha256": "3a02c47c377998cca93d5224e38472320625e250c35d93ae8f9fe81d47aca8ee",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\StringUtils-0cca725e13995531.o",
+      "objectSha256": "f860e2249804c6019b0c5a67c8c109fda72e07eaf428638e84ff9f37eaea12fc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Common\\src\\TimeTrace.cpp",
+      "sourceSha256": "5a75ce96d13a30b172ba407e285970f5632ffd61bf152da5bff9bc593fc90caf",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TimeTrace-6febb57996d5f0bd.o",
+      "objectSha256": "58b4eb9bb5feff079aaccb88503f30ee7e1cbf229589a8298a94c970de06d438"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Allocator.cpp",
+      "sourceSha256": "47bc5f01ad11bc5e0b8010e7122b0ba2e0ba1abcffb9e222cdbe7ceb6752bc9b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Allocator-e28dcaf9afb237d7.o",
+      "objectSha256": "8025c36ac195e3ef39f3a52671340fecd499c1f7d310227f10c82a70565acfb5"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Ast.cpp",
+      "sourceSha256": "46014c251e8e5e8c6a56db6e47baef025ee062e5505e762c57b03d4bf4e20ec3",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Ast-1f4a948ce4ae6cc2.o",
+      "objectSha256": "f25b0f236e32c0c203e5bb6774d2b5872ef7f50ab2190ac1b687ecfc759e8b59"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Confusables.cpp",
+      "sourceSha256": "bb11e83335ff1897828315178c7b18104b2a23474b202d235c0932458f0ac6a7",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Confusables-cacc0ad3f5e149b0.o",
+      "objectSha256": "96feb653a788aca8f313beaa0018e9bc556ab662267afc18810d7c144db0e39d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Cst.cpp",
+      "sourceSha256": "261b8a8cf0855ee42ed14423760b27210c058b15ef129a67c42a9ab825f90292",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Cst-9ad87817150c3f91.o",
+      "objectSha256": "1411d8d95a37a69e2ba4de1a85e323b84ba51aab1ce91a42d300b5edf1506318"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Lexer.cpp",
+      "sourceSha256": "9f9ed71bf7a9eaf79226afe6881ac614f956a11898cb206f34bef3d8b3a492ce",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Lexer-c0b3ef2e0748e455.o",
+      "objectSha256": "9724665f0fee7a63970afb8d2321d105074a22ffd54fb78fbfd779dd22e35118"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Location.cpp",
+      "sourceSha256": "7275e3f9290ab8b1ed7233d625ebb9961a3df2139702b3fb90efd2c4989f9b64",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Location-505915ea3271aa45.o",
+      "objectSha256": "d4fc55cb384e92cf645a939ca2358df2628b0c077f7eddfcda0b17c41ebf6da4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Parser.cpp",
+      "sourceSha256": "be033e24cb1085182ff0d434d09eea360b754afafb1577d761c3b2e55452dae5",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Parser-e0aba52b91255aa1.o",
+      "objectSha256": "540f67bd6531ae80e566883619f7358e131ac887311bdef81ec35f9356e87270"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\PrettyPrinter.cpp",
+      "sourceSha256": "b08d0373368206711e1f0ad72d2afbb641563424353c5bf813293081af1b765e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\PrettyPrinter-ec3a17dcfb532b8c.o",
+      "objectSha256": "7274804040b124b558139c0a2e10599afc6500d77e2c9d4e379474723cff31eb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\BytecodeBuilder.cpp",
+      "sourceSha256": "b3ae6e31b8cc3adef98fef09139bfbc1bb83375226e9d5a0b351222a90eeeb44",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeBuilder-8c98ae4613b01de7.o",
+      "objectSha256": "33f7c97c16bb75dbebe62e0c51c7994ad832b34784406ac00426b2772cd0040c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\BytecodeDump.cpp",
+      "sourceSha256": "a4e9955f5a8df7176f26aff4f877bda242ddf2765275ad6a1ffd5bf0edd33207",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeDump-18c85e23f01e40ac.o",
+      "objectSha256": "bf18bdb3fde1953654116dec63b798ecd610c23e30c6add2f5f9a8b768dd12f2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\BytecodeGraph.cpp",
+      "sourceSha256": "7e5a1b78185f93ddcfc0813d3ce194c208a8ac9cda7911eb4f1aacb691a3e68e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeGraph-a9edd872f8214772.o",
+      "objectSha256": "3eef056dd03ccb85a7ba7f0fbbc622d7905cbfd014f0159d5e09035691731e6f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\Sccp.cpp",
+      "sourceSha256": "97c29d2347e7085c0f97dd2dba80d5b04806a9e1d6fb61f8c6515f849d8e0c09",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Sccp-8e9a4ae4087e42ab.o",
+      "objectSha256": "920488d414d335e4b38056236c64080c54c66730b29a89e9bad65b29e05b22b6"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\Compiler.cpp",
+      "sourceSha256": "bb5af4552e9db73a50c7685c155e933cdce7337c78f717f9c876c9904d25412d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Compiler-32b0084f59c0b876.o",
+      "objectSha256": "b89235c42eaf9c295673300c9f14066b1beedfd789e79f41173594a0e7f5e167"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\Builtins.cpp",
+      "sourceSha256": "11fbb9bedd7a1c672181a368831081c212d17f0b5e06240449979b0b4d757964",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Builtins-4ad9b67d86f4edca.o",
+      "objectSha256": "5540db6741807187055fcdb21a3db509a42aacdc53338ea60af0ae75fcd1cbd8"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\BuiltinFolding.cpp",
+      "sourceSha256": "d5a8a44150dc1e57287075d6ad3d902d948816f824f8536f013248466f7bc47b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BuiltinFolding-ed1f650345c9323f.o",
+      "objectSha256": "4f27bbf116c579923b201c9f89dcd77d6f65506f3cbaa6969f5054edadadab0a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\ConstantFolding.cpp",
+      "sourceSha256": "feb71521a3ef96ccd537d7be5c27073cef49ad4d483efd0cc7a4257923f9fc41",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ConstantFolding-3f57f0906282d3d7.o",
+      "objectSha256": "3b573b7b82b5525597b4fed5c40ca662c8e23ec3e11cd45cd79f547dd2d383b3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\CostModel.cpp",
+      "sourceSha256": "6c09404616c3bf9906853ae15d3a6cedd7f465145aefc237d6ef7047687d2912",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\CostModel-b23cc08bd02341b5.o",
+      "objectSha256": "d183ad0eee943ee554007db90169639a241b821e9036db19a5932dd59e7ecdbe"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\TableShape.cpp",
+      "sourceSha256": "ae068e94ceed15602e5094525795a72a49438f06964ec8ba84e9b2faedc5e44f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TableShape-9a05f0fabe01ed4c.o",
+      "objectSha256": "abd79014719d4e57924aba649d1ad2f282d142a06357b9d49967f36ae7e748b8"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\Types.cpp",
+      "sourceSha256": "b8f6de1f0faf81bd920bee61259a9dacb9a0842285753d7ae7b0840e27ce0935",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Types-e357a6e809e550d4.o",
+      "objectSha256": "0bf25e55d1ef92c3296f274ba3472b7e2b784003150f16959f7bbdf8fb9f0475"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\ValueTracking.cpp",
+      "sourceSha256": "343e287d7f0ebc4124c604a0d364d87b3ba559ce2b3fce01d49ae9f7bcd6cf02",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ValueTracking-d5efbedac0d2f12e.o",
+      "objectSha256": "d5f41efc72ff55dc1ed2db072a850c6cb519c603af2e5cf12fc418e97418eb3e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\lcode.cpp",
+      "sourceSha256": "ce14f91e32d53ce377f068f872fc12cca81dbeeedf1f1409bc584927d9da7a88",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lcode-dcf4abf75751cd13.o",
+      "objectSha256": "ad5b88316b1254f4ca503b3c40fb49fb62581a4c16d17b511b0b6608de2a6b39"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Config\\src\\Config.cpp",
+      "sourceSha256": "cc8b28238268f80b047950877e995bf1d2950da7f25aedbcff6172b00bf40f17",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Config-4b56e4935d8fadc6.o",
+      "objectSha256": "a974e129445203f75a0b5559f7f5a71982b73492a31959939d7e7b865fdbfd4a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Config\\src\\LinterConfig.cpp",
+      "sourceSha256": "3ac34ba8ca5fb0f3d23a294a4233271bbb1b9e1ae8a5bf39b7bdab2a16b7d729",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\LinterConfig-5b6fb0bc73afb181.o",
+      "objectSha256": "0750d1c56b05f0c40e51ed492e46f8ee59efa805ba413ec0d4550cd9661caf6e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Config\\src\\LuauConfig.cpp",
+      "sourceSha256": "95147945ab7713a639fd7ac065e6c131a5ecac56f3393e787776b3620756bd26",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\LuauConfig-15355e87166c5723.o",
+      "objectSha256": "e9cdd9497b74078cd62872820701bd2e15d1079587a7b1b1e53791662e417378"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lapi.cpp",
+      "sourceSha256": "12d513c20990523873a501428120406d42615c5a2c06c6df9dd66da7b8f20611",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lapi-7d975ffa65862f62.o",
+      "objectSha256": "f33add24fdde3445ec482846b800cdbab8373a47b4563725a1c35964c6cb99b3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\laux.cpp",
+      "sourceSha256": "ab9b21c981d3764769f20921b8ad168e20b64826dc8627eaaeeaf501f5ec7dad",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\laux-1f29ea9377a8d112.o",
+      "objectSha256": "6b37df66ed4fbb8c6f730355638b0e7ba88a40a8b6de79e60c6227fe9546750d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbaselib.cpp",
+      "sourceSha256": "fce2d874679ebf9931d25d4a8be8265fbf872ce74301a85b456f4d0f1826409e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbaselib-e43f22379696103c.o",
+      "objectSha256": "35dd1747ab983932a15e2b8efd833d05d890fcd5939080270f48d4bfdc67a42b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbitlib.cpp",
+      "sourceSha256": "90a4c6c2ef63b1565342151a7f196e1410ce4aa6ae565672a5f07c3e5175a3ad",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbitlib-e3cae5a5567199e1.o",
+      "objectSha256": "3fe99769a0f3436e4bf12af99c9383b711ceb43a9e01284fa6fce455e977a049"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbuffer.cpp",
+      "sourceSha256": "ad79012e1433cd4b43bca6ce2733ac920cc76d3e77c190c057f83e3f7b6696e1",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbuffer-591f57fd46f8af3c.o",
+      "objectSha256": "08354c52368c50bbb86360765ff1e5b2d35c1b75a18c3d4f89129bfafd80bca6"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbuflib.cpp",
+      "sourceSha256": "1ba25e1140240bac7bebb93a894d7855a94a955e63097ad55bd93f92953f14ac",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbuflib-56bbc9de92b2ab45.o",
+      "objectSha256": "b0bbfe14c720c90603eaf2cf49365effb444e834f2f44e0d2b055c3075558ef5"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbuiltins.cpp",
+      "sourceSha256": "b07682792302beb5f8602ab16ee9addb1826ec493501d1c4ea22e86613f24d1f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbuiltins-2b9ab6dc37de314a.o",
+      "objectSha256": "96b24216469d82b7cb747a50bf2d2a0ea421ef89bf5f42cee3749e37ccb4ed58"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lcorolib.cpp",
+      "sourceSha256": "32087aa5234bca5b8440d9d13dc9fcb755a5cbf0b1ebdcc0bc7bae0c9929207a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lcorolib-3f01d3d06648c8b0.o",
+      "objectSha256": "69ad12dbbad13e54e0dee0c3e25a9a94df7abf5d166f105ac8272a4184188865"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ldblib.cpp",
+      "sourceSha256": "b12d9f1b4cda9582e1bdb7ae7cb52dcfc1586ae1513fe0da1ba4e3fdd9e4d1df",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ldblib-07dcfb077dbdb54f.o",
+      "objectSha256": "f8c4efda141c6b0865f8768f9cf35da59ce277c959d0cd86de7ebf7326a6ba13"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ldebug.cpp",
+      "sourceSha256": "694cc3f0dcd60c8f8574fe035cc44a7eba989f87416dbf7635a42e84b90f2520",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ldebug-98156470284f9e4d.o",
+      "objectSha256": "97f5e4480abc00e993f15d251c923ae65d53ce9049d3bded952f20ba7f4fe657"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ldo.cpp",
+      "sourceSha256": "980ba70630e202f413f3b0663fe31aded191ba9c06cc33050a4a7e87d3a6ab21",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ldo-122fd1b1b20016e6.o",
+      "objectSha256": "fa43027fdb1add869eee5135bdc51e5a2a94d89e1a6571eeb3ce434b2be198cc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lfunc.cpp",
+      "sourceSha256": "ecc3e2061ebb3f08c10fb1d1b45d6d0e05cbb5258470c9d9868d2c7757c968eb",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lfunc-b219f77bb535cf8e.o",
+      "objectSha256": "26321f4206ce9320411300f241720562fb00ee29278d9ee6b7839f32a914bc61"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lgc.cpp",
+      "sourceSha256": "9bf40be5b15588fd216a033e92e414f02167d07080b472eac8d9242b67cb688b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lgc-b829accac350aedc.o",
+      "objectSha256": "38b141997dbd007f7de6f1f333bed2ce22ab18c58c564f83b2bd2215a9a7912f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lgcdebug.cpp",
+      "sourceSha256": "2212c933becd868e2acf9c850ce4619f2fd76abbd645808979332030508eac7b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lgcdebug-ee673a0672d6df8f.o",
+      "objectSha256": "160d15ae5be13c00008e88dfeb3e1c7ee1dc745828b3dc42629bdaeee03af27d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\linit.cpp",
+      "sourceSha256": "965592cd3c64d669f8668477034d910fb722b723bbb9b27f880f799df0e1a2b8",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\linit-85e987542fd5084b.o",
+      "objectSha256": "715ef9fc5817ac4c1d83ba24ad6811b34b36ea3587dd85107e0c410457908271"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lmathlib.cpp",
+      "sourceSha256": "a78b3b624fef350f78d2a415dd2aa29ad46f31e45d1586fabd8f2d9e88110845",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lmathlib-acd3a52d70e198c1.o",
+      "objectSha256": "8f9f4d742d8b03ed004b0f4273cf081282a98a68e897bf41db8c271b8b8a6084"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lmem.cpp",
+      "sourceSha256": "7c9b097e03e466a0118bca4bda263b25e032c69d4490971af0b723eba245a246",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lmem-e486d5801bead63b.o",
+      "objectSha256": "458689cbee1d9b70622e017c088c0ceb8bebb95be86505ef10efcbe2665c9d00"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lnumprint.cpp",
+      "sourceSha256": "c6001abe411f06fa1036a5a01ddc824657f2a01e4ff1b8c5213509acfad1368f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lnumprint-cc8bac4dc2a41825.o",
+      "objectSha256": "d5f7229ad50db1548887c5b670bf258b4f7ed67ee2270dcb5481182ea6d67b0b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lobject.cpp",
+      "sourceSha256": "a3fc6b61e79c3adf8084ec9ace67ce0a3507bc98b263ff033d7eb89174962d16",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lobject-81d372a2228f082c.o",
+      "objectSha256": "b83f502f9333bde49a017f3e4882ebe46cccef56ffa08a9f1eeaf012ff6a3cd3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\loslib.cpp",
+      "sourceSha256": "0e88d5dc2cfb6b29c07d98454bce1312f479e519072401214fda724f32cedff2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\loslib-e37a326aa0c3d834.o",
+      "objectSha256": "9ccb2138a554b5135a06f1dc5d89a40ee0a754bf14299c71fe196e299ed1b06a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lperf.cpp",
+      "sourceSha256": "6effaa71b16a7cdc1576062533e8f524f34ad30de64194fd106ae373800783b9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lperf-556330a9979192cd.o",
+      "objectSha256": "ba76464462bcc4d45878ff944f600730ec9af81312d0188302baeb08a38aafc0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lstate.cpp",
+      "sourceSha256": "45bfec4c6f2688ca4e8dce335e258725567a3eb0bc491f49bc0f48f444a85e6b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lstate-f31b3d5a8f2e60c3.o",
+      "objectSha256": "cd2f34c50272a003ddc98e01e747df735db4c37458d5aafbace651e68d8bec48"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lstring.cpp",
+      "sourceSha256": "c3cd0c52a48f4d2f0c2c6a0ff9d5961432a1e3b42fab9be2de89b32caf99d0e2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lstring-4275ab97d1008822.o",
+      "objectSha256": "9147ae88fc945104a13dbbf3414ef935194a832b1a49668d25399ac4bfd2af4f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lstrlib.cpp",
+      "sourceSha256": "0a8665c3ca8725b6d72da353cc10fc2d9495739c96f2e27d76d2bf2794c24738",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lstrlib-9b5688e8aa1afb42.o",
+      "objectSha256": "f9afe4be2d7f8370ce5a9279b7057328fda0cf05f8dcaa7063bd784469c300c0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ltable.cpp",
+      "sourceSha256": "7491398ece90fff5211212385ce09af6b53fc9aaf21f7a1dda71a362d90c65df",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ltable-f6bbf5874d1447fb.o",
+      "objectSha256": "0e50ade118be32800ec33bbf796be034cb01259520dce5768cd7a7e690e4bcdb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ltablib.cpp",
+      "sourceSha256": "3bdaf0b7025dc0153f106f2dfb00ead0d6aafd7dd3df4a52b473b0b4778b0eac",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ltablib-ae19466dd988035b.o",
+      "objectSha256": "b53307f618ef8e9e22674d635124763bf26dc438379e4cfb35fe055dceb6eee1"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ltm.cpp",
+      "sourceSha256": "d67a538cf683fbe327828ba27637936c9a3b5879e001c32188a69e186d31d1f2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ltm-be44630ee2477e56.o",
+      "objectSha256": "38ab849102b126c78e3d2b0b5a1b0adb49b1745566e9641b5601042998c3dacd"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ludata.cpp",
+      "sourceSha256": "929d73a728fc13a59aa6a08a7bec970b408ecf4a3b5f45dbd9f92f7e7c7816be",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ludata-f782f6efcb9bcbca.o",
+      "objectSha256": "351dbd2d906d896462aa4eee6d2092ceb79307a26f407401d0b52fe39ae818f7"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lutf8lib.cpp",
+      "sourceSha256": "f8a4051ec967fa2ea24c72e3b331b1f608594f85852a3630b6bf71bed59029e1",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lutf8lib-7c053b9305f23afb.o",
+      "objectSha256": "653b576eee62ec3f137bb25ad9fd3469b87ab683167fceb5931f2a57359be3a4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lveclib.cpp",
+      "sourceSha256": "1a7c758b5f26f8c0e75419bbe9e8cc8a5e8f2b17771c3b6ced04e514910ce300",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lveclib-13a2f2a3679ee387.o",
+      "objectSha256": "54835a815faad28917a5a46cbdf419e1e3d0915983d0e64ff21609c9c8ee5a6e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lintlib.cpp",
+      "sourceSha256": "5dc99d62551d857d2aee1713fc096d68039083b1f0550f691f2c9b0f321243c2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lintlib-fd24c515af4042b8.o",
+      "objectSha256": "6aa01bd6079e2004b86098bc2bdaa05128112063427577cc469b17fd3cb3b5bb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvmexecute.cpp",
+      "sourceSha256": "11210ecdc21a4db5494feba5a041991bc22f65906ee434dbeb6e59b1ad8d9de4",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvmexecute-6278b5fead2113d4.o",
+      "objectSha256": "cfe00c6d4f4f6dd6d8e4791c5fe884ecbd6c567c007f2f03c532154f20429c46"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lclass.cpp",
+      "sourceSha256": "034f2f930d3b017a24a1e2ff3c9ce2a54b6efd3dcc6b088bdf2c9688834d5005",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lclass-ee7984901c005f42.o",
+      "objectSha256": "9a82bae093606cdc514eacb576bdb7a0d5752af6d94124e04c9de51a2cd682f4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lclasslib.cpp",
+      "sourceSha256": "b2839864e7f15a40da16768a5780b631b0028fb4006cc8e2e860607e88e7ef7b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lclasslib-e6ba96d4db2fd4ff.o",
+      "objectSha256": "a1cd4e1506661fbf342bfbde72781908815f4bda76cd0a04e5b25bcaec74e13c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvector.cpp",
+      "sourceSha256": "33612d191c1457c027b7b0ce3e126e71640abfe06ab1c1cd178a027224cc0cf7",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvector-0bf903ab81754fe6.o",
+      "objectSha256": "698acd868ff3263aae753f709e0a7af499b362a308d33f7b51e6ca1d210ffb37"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvmload.cpp",
+      "sourceSha256": "7f96f0176e07428165d1c7a75c5b8f3c22eca6c42b222d924791d362821dd9af",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvmload-2176316bb885e4d9.o",
+      "objectSha256": "2bd5cda9b9517a89d43db4a78b9f150c7619751f500d5629999568180c0a4651"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvmutils.cpp",
+      "sourceSha256": "860cfd81e92a4e9528682986da1c614971c04fe6e749376c2c1d49108f00445f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvmutils-2f8e058bc3c80027.o",
+      "objectSha256": "1bd56d00e94a6bcd380892222853d887ff9170e3459b8cd9a9b53b622ea48157"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Anyification.cpp",
+      "sourceSha256": "8624a9d4a3ce5d72afa276fbe025b8ea427a353ece46dd88457e24e06e63240e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Anyification-a7d4fdfefce7c7fd.o",
+      "objectSha256": "d9c08853a649c192bdc867210ab88d737fa2c7d73d6459c9d7b5e0bc4202701d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ApplyTypeFunction.cpp",
+      "sourceSha256": "e838c1ff8e844108a264b38aae38ad9237fbfbfbbb6f45116ae3b443c95b7703",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ApplyTypeFunction-5a08fbe77eeb9c07.o",
+      "objectSha256": "bc54df7fb1109954e884d7a0b31c19b9eba27027de3bde0aa85efefef19c5ffa"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstJsonEncoder.cpp",
+      "sourceSha256": "1275039033e9bcfe360768215ca2976bd6f1690c0284f95c24b2898c195a3cd4",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\AstJsonEncoder-486d5a30e2d31d2a.o",
+      "objectSha256": "7eea7fd839725fa32bf97eed70fea8c45047e7783e546f773a6ec94160b0bbf9"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstQuery.cpp",
+      "sourceSha256": "e745139899440eea9936ac3ffc67d98df7769cde7fb4dfc68192f5be71946461",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\5b032e3760b1-a2bd8e761ee1.o",
+      "objectSha256": "1dc39e9c4dc580118d67d5bafb9108456d0a1db71ff79e2095feeadc2f7259b3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstUtils.cpp",
+      "sourceSha256": "d0cd194380ecb0897b0ba863820c04a839435d4aeeda19c01a20c75d0a597fcd",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\AstUtils-ae2596dab60e8e5d.o",
+      "objectSha256": "8263d9b1923b4dcd910e81d5a33db55183e6f0cf08208b16a95a8f00a0a61468"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Autocomplete.cpp",
+      "sourceSha256": "a405270ac72b9b2d3c62c44f158befd729b4d503a0b9af34ed5e5007154f6f3b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\a401606f4185-0465b10ce389.o",
+      "objectSha256": "ad7a3b4e30cd0020a2f79e50b60e1662d146eeed9d2c79e189c96dd9b9ac33ee"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AutocompleteCore.cpp",
+      "sourceSha256": "8927a204dab452f95feabb4418f9d83d3e6ac52b81141d2cf3c10d1f81c74b35",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\f8cdc189dda5-1800f439ee50.o",
+      "objectSha256": "0bc17b187d1ae06f0001f3aae60100f3223b098bcd7520ccb871d01629765770"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\BuiltinDefinitions.cpp",
+      "sourceSha256": "4292ac1eda31721b82bc75c1806bbfd681e6e6c2ee543f9b16cdcb8c03d3b1e9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\d887a585fcb0-32cc68750e26.o",
+      "objectSha256": "55d5de97a7ee4028b3b01b1ef19f2ac0f6a28d416e31e621c69466f2493edaa0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\BuiltinTypeFunctions.cpp",
+      "sourceSha256": "7b89458a83cc5f77d0e2acf4595ad6b8e9bf28e77f2d353bacf65bb2bc414760",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BuiltinTypeFunctions-e4a27414ac0a4f13.o",
+      "objectSha256": "2729d8605d91b042c7adce771ceaf89d9455fa301eaf7e73860bff67c2ff5560"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Clone.cpp",
+      "sourceSha256": "9d3624518d351fd9932da7b3ed58505db5a730e0c6934941a5a24e36457e20c9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Clone-54f1be11c75bade5.o",
+      "objectSha256": "6fbc4b4b2e2b49489e91ee221aeea92c8ff3a4c76eb5d625ff75e0deb6b4b85d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Constraint.cpp",
+      "sourceSha256": "4e7879e0af29280353369a740c27783cce8d1310fbb0ab26fc2b5e96ae80b9f2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Constraint-4fc1120154c96250.o",
+      "objectSha256": "84c17ee35c487937b790437f67af49cb84637020117735563c15ae55ae8558e2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\ConstraintGenerator.cpp",
+      "sourceSha256": "7f0dc5ecf9d01ffc5c89fe4367f1d73cde2f30c878b4a8a29655a9adc403756a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\35058183881d-fbba30511737.o",
+      "objectSha256": "13754b6f2dbe92131a4fcf5d4bf7873a51025bb94f1404ec03d545cfe4d820af"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ConstraintGraph.cpp",
+      "sourceSha256": "4a194dc480ab2e3585241d710b747b793e2df8b0fcec72058ed79b5c04b22305",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ConstraintGraph-886d79dbb118930d.o",
+      "objectSha256": "3a01f995612be582b99c95ce1e9aca107bfa9618dfd783f2692276df7cd72339"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ConstraintSolver.cpp",
+      "sourceSha256": "2a260005816063f8c1691fc7b80320c8c01e5d86b977ac19975280b9b6aa4f19",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ConstraintSolver-5509c5716f953503.o",
+      "objectSha256": "404830f82f6e8379c4206b246f4d92c60ff75ec157525b96e688a31c3c23d792"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ControlFlowGraph.cpp",
+      "sourceSha256": "72fdbfb9996b17fd3695569e4de1f24e3a4679406d6c9c34b3c596adf080b024",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ControlFlowGraph-91de3da82712dfb4.o",
+      "objectSha256": "7b973b1086b276d0050db91584ac7703822d0fe679fa40ed50f5a15ec38b6b7d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\DumpCFG.cpp",
+      "sourceSha256": "d6ec22eca6d00a7ff57f9d156cef1f8224d6f9d752b50b1cc294c648d43ca97d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\DumpCFG-7f40f1e0a579888f.o",
+      "objectSha256": "e2100e099cc402cd18b6f5afe0579916e139c738881c8f3c7cd3153316b6414c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeStateMap.cpp",
+      "sourceSha256": "406e93584b95ee920e2b5dc9672761d6d829c2c1548a0433086b0f2a8b852bd5",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeStateMap-8868c21f8358bc76.o",
+      "objectSha256": "f938a5ce4e5489f5f17ca09b9a8abbe7ad52efc937437c76e483510498b4ca8f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\DataFlowGraph.cpp",
+      "sourceSha256": "b6dd6b0bc4fbf944dbb2f5b9a01947ac68f9baf1b6f25949a40ba213bf79c4fc",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\DataFlowGraph-d0c9c4e924ebdfd8.o",
+      "objectSha256": "6d413418f69ab85e3d1584edc09c5fc587b09ae36b3ecbad73ae4580e33c0e3c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\DcrLogger.cpp",
+      "sourceSha256": "25a98a6df9ed9106aecf569ce33c65ffa22ee056730d70c7cdca24139bd9356f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\DcrLogger-ab2aab3560e1889c.o",
+      "objectSha256": "be1a0e865828c02db7fda17bec349d24d6927ae1ac793fcff876a2396e15a024"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Def.cpp",
+      "sourceSha256": "bae45619f9fac3325ecc9ba64fd074cda3444811a37aca06e33312537b664600",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Def-68f62cdc9a7f4afe.o",
+      "objectSha256": "cb8793b2728a6e44aeb87531796c640a7f115c282fbe0ff6383e02c618991d9e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\EmbeddedBuiltinDefinitions.cpp",
+      "sourceSha256": "cbdf404ba2904593188fa0fd61a08942225c940fbdc07982ed09ffabc7d15590",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\EmbeddedBuiltinDefinitions-3fc28b3d9a7fe1de.o",
+      "objectSha256": "3f0a74b8eda6f5cbf892c40e18e5cd0eacae214d65d4b497bb9fde015a84196b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Error.cpp",
+      "sourceSha256": "a4d43fae82329d3a6f781e6165c3a19f358b4abeb0f08df2e01b127139d5bcac",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Error-24708a8d9dce7fa6.o",
+      "objectSha256": "af28ac98fa3796679b88005811d9c1f1d5a298ea9a26e7ec1ca865fa2b36e820"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ExpectedTypeVisitor.cpp",
+      "sourceSha256": "63e80c762db18dcb61594eca4ec1d91eeac2ede8acb0dcd2024ddaca30852299",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ExpectedTypeVisitor-fca9b31e0db95679.o",
+      "objectSha256": "0c7682517dbf3f855079e7c05fbee16042f8556f1e188a9e4bb851a9774bb8dc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\FileResolver.cpp",
+      "sourceSha256": "028323463936efb90d91bc8a6a6bff8578cd120be850176dfda67d6c8f14c69a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\FileResolver-90a9a97cf4bc17b8.o",
+      "objectSha256": "d0f44dc6739ca0b5a8a59d6b46224290b1c4b1d95b61f28c913e4c053f4ade54"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\FragmentAutocomplete.cpp",
+      "sourceSha256": "80e964d24cc1a56c12ec14d772785b947513b60773d2b71fe1e8a62af5e52cc2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\8c3d317434c3-3f59ff9020be.o",
+      "objectSha256": "b24e7a6b9420ed5de2226a6a841505d6656e47a1bcd87747e39ac737dba9733b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\Frontend.cpp",
+      "sourceSha256": "a2b7584b08eb7d4218a9743e3af67317b45fe781fe0b6ba0fb72a675a6946e51",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\47e4c0318ae5-10e5827f6627.o",
+      "objectSha256": "d15d07bd0081458a2a37f6061ddc253eae63e8f85da56bbbd24aca41cea48445"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Generalization.cpp",
+      "sourceSha256": "57883f413977290a3dfdb2a52bdab5218149f975f365503197494a8bf4e95212",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Generalization-e2397b8198805815.o",
+      "objectSha256": "b3286427ba5be9941cbcf2c370e9f9ac0ec267dbe13f9b8c8410db162b79f666"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\NativeStackGuard.cpp",
+      "sourceSha256": "d11e48320134edf047d6a774fa9493d85b3dc7503f584f89db52c3960d4e9415",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\NativeStackGuard-d37fad27cb5f074d.o",
+      "objectSha256": "f6ea2a37f373750b344a7c1bd18ee3f9eac03e8d102abf5d149a020b63315ab0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\GlobalTypes.cpp",
+      "sourceSha256": "f97a114785b58415ed07fda122226a1c1503e3da2bb1eb41b49a71fde5c79280",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\GlobalTypes-2d3796899d318d98.o",
+      "objectSha256": "b6658024b021b7de3b6c94f81bfd62c1f051e87bbcc776708a4404c2a88bfcdb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Instantiation.cpp",
+      "sourceSha256": "60354778b6556057f70f9f82d22498c22e7a7660d126adc8ae54595375358b73",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Instantiation-d996c011608e282e.o",
+      "objectSha256": "9eed6d5a9e26d526d9343a9bd50fbd8b4bd20465698de1c05ce7ea5e27645a7d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Instantiation2.cpp",
+      "sourceSha256": "308740ac1ab728778c07a172b89fbbb274486b49d1262cf4e193f5572f28ad39",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Instantiation2-d082d435deb1847d.o",
+      "objectSha256": "8b3a5298002e0b3380993d3386bcfb4d594aabe9f0eb4e2e505cd0551b2b174f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\IostreamHelpers.cpp",
+      "sourceSha256": "1f59d773a4834fca34498ba82fa00065dddda0d2ca26f5c190b9a7543a44bed3",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\IostreamHelpers-8fb52c9c9c3795ec.o",
+      "objectSha256": "3e97fef9e2e1e4fd6b01f9ce5875683e0ea93b559a4669de3259d1eb42a549d3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\IterativeTypeVisitor.cpp",
+      "sourceSha256": "626fe544cebcf6191217ef91ea61a0e157f794419b3c4e686b9095327b37b1e1",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\IterativeTypeVisitor-051f8f925eed3a1a.o",
+      "objectSha256": "09ea7cfdef2d68d5bcaeed82e6423ae06f08e4f0f9c69c7121a310fb63689bc5"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\IterativeTypeFunctionTypeVisitor.cpp",
+      "sourceSha256": "efe57f6a9d474aaa365299589beb7cea365bb17a2eefe924ddd8eab2d60f5804",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\IterativeTypeFunctionTypeVisitor-16cf92c35d0ba7a3.o",
+      "objectSha256": "abbf8a203fe1a4b20deabb982426abc111f3681e13b4b332ca3d7864cb9ab2b7"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\JsonEmitter.cpp",
+      "sourceSha256": "f5eb94182190dbd8e14f81d3ee05a11912bd2267357d68dfc69e9525b49ae651",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\JsonEmitter-f190568509226f49.o",
+      "objectSha256": "02f0eaa80a5e094ffc9b252c57b2ddef0ddb230f6a57565b63fb6339ff8c9b4a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Linter.cpp",
+      "sourceSha256": "e66d627b05bf0fb6f3447392dfb0a3b44c30c39928727287eb58d3b3e4f06e61",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Linter-511605352edd78ba.o",
+      "objectSha256": "a0fa83deedc1b2ef54115c3b8c2d3f11aea62393e282d18b33a10531aa44690c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\LValue.cpp",
+      "sourceSha256": "6f3402369bdbe1f77f61a360e52d4dfef3a2456df5ac982da68bf4e5689f38af",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\LValue-bbe29133e5e809dd.o",
+      "objectSha256": "1f2328dfe92eac15c66af92a15dc2cea4f19ab1abe645d39402b3243a1d09a2c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Module.cpp",
+      "sourceSha256": "df0de318bcd9629f56a5cfaa4ff1087ec48f62c6759905bc4e936a0903cb18fb",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\b3a842534593-54444656c24a.o",
+      "objectSha256": "cbc2d061b290ee7486758bd4e4f04e68074b34327d8d575e4d7049f06766cd29"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\NonStrictTypeChecker.cpp",
+      "sourceSha256": "f88e4ff39a51c54cd80b04a3fe9b63737e61b38f034309c8dbcd43b24b3b70c9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\NonStrictTypeChecker-69142fe78bfb4536.o",
+      "objectSha256": "6012744643bab5f9c4e34ed043ed7d58aecf6abcd62de3f9866059f0bc8cb77f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Normalize.cpp",
+      "sourceSha256": "e261dd5a5ab4b1a7de47f4c8694599e8e943e78863563820bd8f4d059b74a7ba",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Normalize-5012651bdbe952bd.o",
+      "objectSha256": "0badb495760387974f587a277f75b1fc2554da01621069a9b76518e73f0448e7"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\OverloadResolver.cpp",
+      "sourceSha256": "6a9062cd12a2a1e11d35051da6fa3b4f3b841a95e699ae3e2e7787225a2a3374",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\OverloadResolver-53fb6265d8c7d226.o",
+      "objectSha256": "fae74f31c17a2e655a8685ca6e63fe22e259ebbab30867dacc60436104998259"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Quantify.cpp",
+      "sourceSha256": "756862356353ace6a4181a3d5fda1b7a1d7e0db88d6f5969d7ceaddfcd48e772",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Quantify-8a64b923d38852e5.o",
+      "objectSha256": "8c9cee725a1e6bd61abd3c8e3d7a27f1abae44ccc4e6a1b394f6d49191d9f252"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\RecursionCounter.cpp",
+      "sourceSha256": "f987d2a276534703e91f084cf928a986a8bb0b053532b541dd52864a1163e68a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\RecursionCounter-fb0c1462b26a1129.o",
+      "objectSha256": "242c67ad2cfd6d7db259e282e827bf496f7535502808d146a6aa90cce6c720e3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Refinement.cpp",
+      "sourceSha256": "29a31112130c21619a4f99457253b9f9285c094a0e7e1167754135bd3bd0516f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Refinement-405b1141c88b94b8.o",
+      "objectSha256": "98b0b8ddb040f6a84fcf74fe2f3770940db18ea743f9218a618e385cf05b52a0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\RequireTracer.cpp",
+      "sourceSha256": "929f8b019e16fbed5b4ed994ce2c754ad702911611f0633e8a0cd4e9610ed864",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\RequireTracer-8c8453ecfbab9fd7.o",
+      "objectSha256": "b8de069f743993053e9b856cae129e51a689f06013c6c1533342cda3cb3559f2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Scope.cpp",
+      "sourceSha256": "eaf55048a02fbc65761fb528f66944d0c52bfdc059bece9010125ce8bbbd493a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Scope-cc7233fc2855a55d.o",
+      "objectSha256": "29614187a5da23657f3596ba9bd22b7fabba04b5137814ad18372f456f56e61a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Simplify.cpp",
+      "sourceSha256": "07486132045951786e09d9d41cfde02c2b93d652e8a80cb2d963f90706643a86",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Simplify-ee782a6b999af365.o",
+      "objectSha256": "147e0f06e3cec9af3f4ee80a9b8c0d0b0a7599b65bb404225ae596db7da2437c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\StructuralTypeEquality.cpp",
+      "sourceSha256": "83470a137df5caec284b8bcc565b7a6be173de4b400e05c7d8252993632cd6ca",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\StructuralTypeEquality-a2b260e10d6920b2.o",
+      "objectSha256": "a163599479b4f389f4b46e06870c75503871feaa9167c330dbe330ced2305978"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Substitution.cpp",
+      "sourceSha256": "884639c186f8a7d6ab4cc7e99fc628ce65d688fd009324e291eb5fe55aef8801",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Substitution-6b3a333ce3af5b86.o",
+      "objectSha256": "2b916ceaf57bae4174a36c96a2d436a21a9f3c47d8411be51f5504b48bcd6ac4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Subtyping.cpp",
+      "sourceSha256": "7bbc692bb18db5159e72d41590ad6b99ae866c65da5b55e6e26e4d18cbc27320",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Subtyping-4a969ab344bb2daf.o",
+      "objectSha256": "bee15169c593b00a869da28763f2d7fddfaac9e3a6c39d16f365a05439e2198a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\SubtypingUnifier.cpp",
+      "sourceSha256": "312b944786e4d0414ffbc8ad7f1c7a6064e4d8247e502396434cb30018b22e4b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\SubtypingUnifier-c239252034360ac7.o",
+      "objectSha256": "fc2a08dd4901a097f71e60e33276660e5a4f34dc67fdacfc68c289f6f3725282"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Symbol.cpp",
+      "sourceSha256": "e80b7e486cd2db25667801af4bde4a232d070be984ae346c607a98404c07b1cf",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Symbol-bbb639e7da310f36.o",
+      "objectSha256": "0b7e17048378763e56c122bd0b00cd5861d7447dd3f5196a3644c302edb71301"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TableLiteralInference.cpp",
+      "sourceSha256": "28df9d3bb2c22e4417dabd5a161fe7335a4aaf2b4af0a51b121a03c6520fffb5",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TableLiteralInference-e23af4649f765e19.o",
+      "objectSha256": "d8bbc9e5fcf77aea9ae407e884e5dba1104fb86d65c1cc6f929def08abc17080"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ToDot.cpp",
+      "sourceSha256": "e8380841bef62360a7ab6733e8e6c74efcf88f86919283893f773133869d1d4e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ToDot-2fc84a1db321f060.o",
+      "objectSha256": "f677e9feecfaedc615dd98c97dbb07744e2dcf04ad977689f4100c80c4664dda"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TopoSortStatements.cpp",
+      "sourceSha256": "fe6771df12a76a181ab10e60942ab71366d179371b06e394118e3e712838b77d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TopoSortStatements-6523b47d1596b38b.o",
+      "objectSha256": "2afb66dc96901b281c555f9fc3418ae0268c3fd5472a25f1f4ed2bcea37911d2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ToString.cpp",
+      "sourceSha256": "7d9ea2219884802c6135bc4970372405e91641b543cbc5b3d009fc8bdb04ddea",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ToString-8140216234e298ab.o",
+      "objectSha256": "d9e3851e8eafe47b2a60d1e5953eb6c2b5033aef2331b07efbdd0fb9a426e97b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TxnLog.cpp",
+      "sourceSha256": "7562b5940f630d5a205c8749b96aeb0153fe029f5bd8ba2e00802d9eb3434d1e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TxnLog-0153d0d8a18994dc.o",
+      "objectSha256": "ea1bd2a4a25441158ed1c518bd1972114175e0e581de651eb20b59c652e94c6c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Type.cpp",
+      "sourceSha256": "44bd7aafc9ddea7808955ad84203c105dccc76c31efe001f5b9bf49029df659f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Type-90de541313c15f67.o",
+      "objectSha256": "fc6c9df70bc80a942771512f69b8a54b2cde560057361eacccc52129cea19bae"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeArena.cpp",
+      "sourceSha256": "136639097306fd69a0ad85315f2d60a80ed77bb727ae396576f30a7e94603f05",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeArena-bf6838984834f526.o",
+      "objectSha256": "955d0e75366d5a835f848fa37c6927422e96e92cbc328d3bad5d05e6c1464b6b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeAttach.cpp",
+      "sourceSha256": "7fcff9735405827d6cf8f664bf24eadc651e250ee4b5b6f10a9be48a786b3f71",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeAttach-7b75c2f9f6583893.o",
+      "objectSha256": "29e65e457bc00eb59f1ac4e5c56eadcfbffff815485091be1da1734b3c95ddbc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeChecker2.cpp",
+      "sourceSha256": "fb0f470e80b05ec0ef3da22b1cfc9926c9dc55fab0f3418b65c41e14b84d06ff",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeChecker2-12f98ac9dcee2c11.o",
+      "objectSha256": "b4cb80d19137f6522a2c6e63602635bf47f53d9fb87f5b4f08d2af5544803b58"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypedAllocator.cpp",
+      "sourceSha256": "746b00d4fcad8fb0f893d4f1321009e5086c77d776427745cca9d2b46c33d673",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypedAllocator-d2a8209bde129b9e.o",
+      "objectSha256": "c9b997dd69a158cb4c31df987e93f9a49d636209c7b2ab989ecb9a639f631fc0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunction.cpp",
+      "sourceSha256": "2c95395f44b41ad5400d364b3f1f8da8b123c3564aaff0c74f22ea57d57d2eb3",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunction-256f66257436eddb.o",
+      "objectSha256": "3efbc2618e7c804bc972b2bfdfbd8b56f93effc73c9e2809235c262971656312"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionError.cpp",
+      "sourceSha256": "661430bea3202dc385378f7897f09d131bf38e08b6a06f15c2411e18fbec4d13",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionError-38a483b80fd84f29.o",
+      "objectSha256": "af4e96caa80f0b29fd5cde0166b7e9529deed7640c536b6919f4fc8f9c78bedb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionReductionGuesser.cpp",
+      "sourceSha256": "13d7b4847100ac5d47c88831f0845de593c70785dc3475c8ea9eccecf5eda78e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionReductionGuesser-d7d9d5e2dbded481.o",
+      "objectSha256": "d68bda7b229a15da42922a7087290a4bc5744b11b5336c3511f73a1f317d3773"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionRuntime.cpp",
+      "sourceSha256": "391bda4798c2f65dcfef226d1ff5406f6b5fe05bf25a3573da113ed079fc0981",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionRuntime-03e92cb7bcf61d19.o",
+      "objectSha256": "ab242ee1bd30b2997071034e352ca85a1f17b19107d60d70315abc0aac347e98"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionRuntimeBuilder.cpp",
+      "sourceSha256": "d8a216100ac2d0e5bd9585eab5addf3442d9771b39b52fb29c416f034c8f9a64",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionRuntimeBuilder-579565cdd167753f.o",
+      "objectSha256": "9192f32211cf7840b62b6f659336d0b3382e01d89b36b91846450296696cf82d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeIds.cpp",
+      "sourceSha256": "17146eff0904aa8bf2e86f948d425a355f3422bdd0a09cfe2f53ea28edb2e965",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeIds-44607d0a57f3aa6d.o",
+      "objectSha256": "a84342ef2d18d5ed7e417941ea39be303b721b797d585a3680bb5825840789d3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeInfer.cpp",
+      "sourceSha256": "0d5988d45cce05e2912b9067c73ea34ed0121375b879c2526270510c248d9177",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeInfer-ce50abf4f39db4c0.o",
+      "objectSha256": "4d649e1f5e98ce08fb0da7b128053c3c1c342451be14f0c6e0affdf3975cf824"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeOrPack.cpp",
+      "sourceSha256": "4552369feb830d189eec80f95985d948b30aa01bd71aaea187f8d1f3501b5db6",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeOrPack-494f6e0979af48ae.o",
+      "objectSha256": "45976365bbddf342ba314a81003223f7c2c29607e2a1c686c62d716b78e47649"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypePack.cpp",
+      "sourceSha256": "ca00ffd47066f725d741c4fdc352a0ec36bebf682f53e60df9a6319b21263044",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypePack-da3b3f75cf71b64f.o",
+      "objectSha256": "82ec9fccc7d796a9b3ed892ff9fa7207535179754bcbfb454c8c4d5eb28914ee"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypePath.cpp",
+      "sourceSha256": "369f08b034f49c719fa9951f9e56b1bf83f43242c0c3a260d087a21565cbef42",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypePath-388161d6fc361d4e.o",
+      "objectSha256": "1b23a2ff932947b21b74a2cfea66ad3198e11d25ca5d0b868c0e5ccb7b90aa8d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeUtils.cpp",
+      "sourceSha256": "d146f96141d9f50ac675be1ae01b608f7f00f743bc3b04024305fc3bf385846a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeUtils-ccb13697bb1d0d78.o",
+      "objectSha256": "dfee45ac7b251aa8d9a11990b23d9b72e5ea9df5c2c78df4611d604f79f8c8f9"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Unifiable.cpp",
+      "sourceSha256": "0de25680cfba56ae0190b85e530aecac0a458aea17c7677025615e07df2f3407",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Unifiable-e985d65663c7b9c9.o",
+      "objectSha256": "d257a6fe1a4be1fcf6788a8a153d090bc2a6ca83314bce3979a9788567bee7f2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Unifier.cpp",
+      "sourceSha256": "fe4b1fe54b2130c7a8b03805d74cb1f9319427763d9deb27a13627f0d9896406",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Unifier-6c035ede8d9f016f.o",
+      "objectSha256": "e4585eedf24d04d60b19651f2ef7a01c2322ce39b809ee55c1344238f232f202"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Unifier2.cpp",
+      "sourceSha256": "3188829d6c15a253c76f9ded7ad44c4899b27f56bf629cc32e5af7e0333294db",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Unifier2-bb07813d83e35f60.o",
+      "objectSha256": "c0fe14039717a2eaa896d4d674634409e6ea764cb2cd39c61262eec127ce8696"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\UserDefinedTypeFunction.cpp",
+      "sourceSha256": "307f1dbf8dab8fad028f7aefbf2f49b456b9e8e9c8d1bc4aea50cb3cf4a1cd02",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\UserDefinedTypeFunction-8ae71c44215bd1a3.o",
+      "objectSha256": "590fdf0d408771c81579f15acb0bc3f4f9a2dbf6960c4743095c9f1e06b5f32c"
+    }
+  ],
+  "relinkOnly": true,
+  "inputs": {
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\bridge.cpp": "b16ba1e5cd139233a5e7416e70e0eca6026c2e535fa3124cb99df4c9ca786ab9",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.cpp": "5c3b33b89db367c3ebcab4351240478aace0564135887bab4ef93745c9f2a376",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.cpp": "a450d2662c01accf3909bdd106d743bd656b86796acbc6b554f6b1998c607b6d",
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstQuery.cpp": "e745139899440eea9936ac3ffc67d98df7769cde7fb4dfc68192f5be71946461",
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Autocomplete.cpp": "a405270ac72b9b2d3c62c44f158befd729b4d503a0b9af34ed5e5007154f6f3b",
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AutocompleteCore.cpp": "8927a204dab452f95feabb4418f9d83d3e6ac52b81141d2cf3c10d1f81c74b35",
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\BuiltinDefinitions.cpp": "4292ac1eda31721b82bc75c1806bbfd681e6e6c2ee543f9b16cdcb8c03d3b1e9",
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\ConstraintGenerator.cpp": "7f0dc5ecf9d01ffc5c89fe4367f1d73cde2f30c878b4a8a29655a9adc403756a",
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\FragmentAutocomplete.cpp": "80e964d24cc1a56c12ec14d772785b947513b60773d2b71fe1e8a62af5e52cc2",
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\Frontend.cpp": "a2b7584b08eb7d4218a9743e3af67317b45fe781fe0b6ba0fb72a675a6946e51",
+    "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Module.cpp": "df0de318bcd9629f56a5cfaa4ff1087ec48f62c6759905bc4e936a0903cb18fb",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.h": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.h": "d7c4b35a2918882226aacb9097225f0fb5a554abc1af65b3534a34b659305f5d",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\scope-overlay.mjs": "822c0e122a2bbe7638fdc4e2745c71dbb21195a4babd331731d9da0872962044",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\source-metadata.h": "c9dfa5f2512aaa5e8ac97b1bdc37d7a51021d4ec4fcc528f150931cf71ec5d22",
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\AutocompleteCore.h": "87efeccbf2ec22df328215b20ec36eda6345cbd7ca6318e761f9631c7080c985",
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383",
+    "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\scope-overlay.d.mts": "dc5abcb6749c7260a19126a40c51e6ea5ee1a8a731e3722b0e1c02019ef9d815",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\build.mjs": "9bc88b744220fd017a5a60552b0778af371b2bec3fa949ee6db89862d3db7a21",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\compiler\\typecheck\\Ast.ts": "f3d3e83e9d06544fb9177a46475d11eda4b7ad03c58d28c0677988d016e0040c",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\compiler\\typecheck\\readLuauAst.ts": "9ffd08a1d3551a495f3d24118a62c4ab48823fc036befcf549f5b7ecfaadce5e",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\compiler\\typecheck\\LuauDocumentChecker.ts": "bb26cd8798550008a422794988ae7a92d1bf2c6758d573fffdb9fff1435f337d",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\compiler\\typecheck\\SparkdownAnalysisAst.ts": "cad560a72c26d2c82911ad4c0df2b6ff2026f16d1f76178eb07046df5d43cb34",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\compiler\\typecheck\\SparkdownAnalysisCodec.ts": "889324085465a094a857b296021f333739782b9fed5a6e4ff76d0b1c0eeb6227",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\compiler\\typecheck\\SparkdownAnalysisInputs.ts": "a0bc0776b79a76ad43761269e4bbd3842ce303a1bfabb5d48a4def36fce4c781",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\compiler\\typecheck\\SparkdownAnalysis.ts": "27cffd86744a7fa35000d198d91ad45216f193363fa929c1f2b8f512bf744e1d",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\analysis-backend\\contract.ts": "6af2a52a5fc578d24676d3024fbc5941e1e324d5ccb6509572376ce7eb6be651",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\analysis-backend\\wasm-adapter.ts": "be54214eb43340308f6df8b87c98cf451b4f7264a568371679b1e61cbfcc1509",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\analysis-backend\\runtime.mjs": "1c6982134269dce38b2a49e221198c2ca90379df35bf062346df17839309308d",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\module-resolution.test.ts": "239d21412551828824c541833dd7f895a64e6b7312bf513e2fcc128e6e3d2306",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\incremental-scope-graphs.test.ts": "f23b91c43c3ae312cc1a79f5cb3a200fd31434a5db16304e83fd8fa2d0ad6f3a",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\typefunction-lexical-scopes.test.ts": "ac20acfea55dfa07e8c9795e6b37d1d3ac65fc16cc1c42d853105ab20c8a0542",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\scope-overlay.test.ts": "0b75cf97aa517168eefcedaf210f0679dc1e113762f7cfdfc9c997e25010fa30",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\source-metadata.test.ts": "6143caa0fdef08722c2b4e0da76260b2ba24dfee092f3876fb9c5736f57858d8",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\source-metadata-reuse.test.ts": "d8d15b2bd0347e1a5e8cbead71b8d8fd53622477de5c93e7eb4585ee0826427a",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\scope-source-metadata.test.ts": "0558c37d753bfed98957d5f8eea51f6837a035b2480d0b1edd17438e1edc4779",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\scope-alias-precedence.test.ts": "535e0017e40fb080c9f960e752f4e104acff6f25f035d60b7613b007969c6a83",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\source-metadata-graph-shift.test.ts": "f0e682eb6e508ea8c7fc1644aa0ee40f1ac9d87ca6f1308b1d02918d3f55b80a",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\scope-source-view.test.ts": "8e8f3400af02e0f89cfb756acc802964a0921a080f03a211749d99e039cc762b",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\source-metadata-remaining-graphs.test.ts": "098fe9ab56fd8b575ef6e0c86d22c7f13443a679e4da0b68c768c6ed3606c91c",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\typefunction-correspondence.test.ts": "7858957daae0957f9cdf3318adc8f09fdae4c3240395390cc3b96045cf8b1858",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\typefunction-environment-invalidation.test.ts": "3ced8df5575ac5b33cb6788d44c7af462e2d68cfd37c741f361371a005fd9ef2",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\source-metadata-acceptance-gaps.test.ts": "aefb96862c12aff3d334017fa4bce5ed8a7546452b9ba777dd4bb1d2b3d33416",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\typefunction-shifted-error-location.test.ts": "77f807ea032305d3cce08b324548d71dc8c168d3c3314af091997f6bc0eb8aeb",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\analysis-backend\\source-metadata-indexer-origin.test.ts": "80e1e7fd44b7342f6a734cf7bd98dd31e13b31db7b39192b8ab0a4242d1c2978",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\compiler\\SparkdownAnalysisSourceShift.test.ts": "93bdd3e2c4873fac475fd9e7b8930fa1b078f3d3bc97afa3cbb168d5b0e3fa09",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\compiler\\SparkdownAnalysisSourceMetadata.test.ts": "2e292694f6782a2584f06f6e7b22a8f54dcd9560593902b88b7b6bd729d83773",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\compiler\\SparkdownAnalysis.test.ts": "5cbfc4054f7e82f67b568b379ce0a4b474a0f3dd968a66f4db2a2e0bd8641d92",
+    "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\src\\tests\\compiler\\SparkdownAnalysisLifecycle.test.ts": "cfa11ed7c41dc2b5e8d89facf82e83011afb39b2f8a0a45790160acdd881a2ae"
+  },
+  "reused": [
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Common\\src\\BytecodeWire.cpp",
+      "sourceSha256": "1f6a963756f2e36e521da51b4b4e8bae509e738166d62e1e23e4d75dd333a56c",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeWire-e3f48be4ef367c72.o",
+      "objectSha256": "ca42d0248a4fd366c2971a83f1e7f37e035b86a3a84d1a33510261d4f46bf402"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Common\\src\\StringUtils.cpp",
+      "sourceSha256": "3a02c47c377998cca93d5224e38472320625e250c35d93ae8f9fe81d47aca8ee",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\StringUtils-0cca725e13995531.o",
+      "objectSha256": "f860e2249804c6019b0c5a67c8c109fda72e07eaf428638e84ff9f37eaea12fc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Common\\src\\TimeTrace.cpp",
+      "sourceSha256": "5a75ce96d13a30b172ba407e285970f5632ffd61bf152da5bff9bc593fc90caf",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TimeTrace-6febb57996d5f0bd.o",
+      "objectSha256": "58b4eb9bb5feff079aaccb88503f30ee7e1cbf229589a8298a94c970de06d438"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Allocator.cpp",
+      "sourceSha256": "47bc5f01ad11bc5e0b8010e7122b0ba2e0ba1abcffb9e222cdbe7ceb6752bc9b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Allocator-e28dcaf9afb237d7.o",
+      "objectSha256": "8025c36ac195e3ef39f3a52671340fecd499c1f7d310227f10c82a70565acfb5"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Ast.cpp",
+      "sourceSha256": "46014c251e8e5e8c6a56db6e47baef025ee062e5505e762c57b03d4bf4e20ec3",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Ast-1f4a948ce4ae6cc2.o",
+      "objectSha256": "f25b0f236e32c0c203e5bb6774d2b5872ef7f50ab2190ac1b687ecfc759e8b59"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Confusables.cpp",
+      "sourceSha256": "bb11e83335ff1897828315178c7b18104b2a23474b202d235c0932458f0ac6a7",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Confusables-cacc0ad3f5e149b0.o",
+      "objectSha256": "96feb653a788aca8f313beaa0018e9bc556ab662267afc18810d7c144db0e39d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Cst.cpp",
+      "sourceSha256": "261b8a8cf0855ee42ed14423760b27210c058b15ef129a67c42a9ab825f90292",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Cst-9ad87817150c3f91.o",
+      "objectSha256": "1411d8d95a37a69e2ba4de1a85e323b84ba51aab1ce91a42d300b5edf1506318"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Lexer.cpp",
+      "sourceSha256": "9f9ed71bf7a9eaf79226afe6881ac614f956a11898cb206f34bef3d8b3a492ce",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Lexer-c0b3ef2e0748e455.o",
+      "objectSha256": "9724665f0fee7a63970afb8d2321d105074a22ffd54fb78fbfd779dd22e35118"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Location.cpp",
+      "sourceSha256": "7275e3f9290ab8b1ed7233d625ebb9961a3df2139702b3fb90efd2c4989f9b64",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Location-505915ea3271aa45.o",
+      "objectSha256": "d4fc55cb384e92cf645a939ca2358df2628b0c077f7eddfcda0b17c41ebf6da4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\Parser.cpp",
+      "sourceSha256": "be033e24cb1085182ff0d434d09eea360b754afafb1577d761c3b2e55452dae5",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Parser-e0aba52b91255aa1.o",
+      "objectSha256": "540f67bd6531ae80e566883619f7358e131ac887311bdef81ec35f9356e87270"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Ast\\src\\PrettyPrinter.cpp",
+      "sourceSha256": "b08d0373368206711e1f0ad72d2afbb641563424353c5bf813293081af1b765e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\PrettyPrinter-ec3a17dcfb532b8c.o",
+      "objectSha256": "7274804040b124b558139c0a2e10599afc6500d77e2c9d4e379474723cff31eb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\BytecodeBuilder.cpp",
+      "sourceSha256": "b3ae6e31b8cc3adef98fef09139bfbc1bb83375226e9d5a0b351222a90eeeb44",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeBuilder-8c98ae4613b01de7.o",
+      "objectSha256": "33f7c97c16bb75dbebe62e0c51c7994ad832b34784406ac00426b2772cd0040c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\BytecodeDump.cpp",
+      "sourceSha256": "a4e9955f5a8df7176f26aff4f877bda242ddf2765275ad6a1ffd5bf0edd33207",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeDump-18c85e23f01e40ac.o",
+      "objectSha256": "bf18bdb3fde1953654116dec63b798ecd610c23e30c6add2f5f9a8b768dd12f2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\BytecodeGraph.cpp",
+      "sourceSha256": "7e5a1b78185f93ddcfc0813d3ce194c208a8ac9cda7911eb4f1aacb691a3e68e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BytecodeGraph-a9edd872f8214772.o",
+      "objectSha256": "3eef056dd03ccb85a7ba7f0fbbc622d7905cbfd014f0159d5e09035691731e6f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Bytecode\\src\\Sccp.cpp",
+      "sourceSha256": "97c29d2347e7085c0f97dd2dba80d5b04806a9e1d6fb61f8c6515f849d8e0c09",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Sccp-8e9a4ae4087e42ab.o",
+      "objectSha256": "920488d414d335e4b38056236c64080c54c66730b29a89e9bad65b29e05b22b6"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\Compiler.cpp",
+      "sourceSha256": "bb5af4552e9db73a50c7685c155e933cdce7337c78f717f9c876c9904d25412d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Compiler-32b0084f59c0b876.o",
+      "objectSha256": "b89235c42eaf9c295673300c9f14066b1beedfd789e79f41173594a0e7f5e167"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\Builtins.cpp",
+      "sourceSha256": "11fbb9bedd7a1c672181a368831081c212d17f0b5e06240449979b0b4d757964",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Builtins-4ad9b67d86f4edca.o",
+      "objectSha256": "5540db6741807187055fcdb21a3db509a42aacdc53338ea60af0ae75fcd1cbd8"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\BuiltinFolding.cpp",
+      "sourceSha256": "d5a8a44150dc1e57287075d6ad3d902d948816f824f8536f013248466f7bc47b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BuiltinFolding-ed1f650345c9323f.o",
+      "objectSha256": "4f27bbf116c579923b201c9f89dcd77d6f65506f3cbaa6969f5054edadadab0a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\ConstantFolding.cpp",
+      "sourceSha256": "feb71521a3ef96ccd537d7be5c27073cef49ad4d483efd0cc7a4257923f9fc41",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ConstantFolding-3f57f0906282d3d7.o",
+      "objectSha256": "3b573b7b82b5525597b4fed5c40ca662c8e23ec3e11cd45cd79f547dd2d383b3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\CostModel.cpp",
+      "sourceSha256": "6c09404616c3bf9906853ae15d3a6cedd7f465145aefc237d6ef7047687d2912",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\CostModel-b23cc08bd02341b5.o",
+      "objectSha256": "d183ad0eee943ee554007db90169639a241b821e9036db19a5932dd59e7ecdbe"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\TableShape.cpp",
+      "sourceSha256": "ae068e94ceed15602e5094525795a72a49438f06964ec8ba84e9b2faedc5e44f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TableShape-9a05f0fabe01ed4c.o",
+      "objectSha256": "abd79014719d4e57924aba649d1ad2f282d142a06357b9d49967f36ae7e748b8"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\Types.cpp",
+      "sourceSha256": "b8f6de1f0faf81bd920bee61259a9dacb9a0842285753d7ae7b0840e27ce0935",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Types-e357a6e809e550d4.o",
+      "objectSha256": "0bf25e55d1ef92c3296f274ba3472b7e2b784003150f16959f7bbdf8fb9f0475"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\ValueTracking.cpp",
+      "sourceSha256": "343e287d7f0ebc4124c604a0d364d87b3ba559ce2b3fce01d49ae9f7bcd6cf02",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ValueTracking-d5efbedac0d2f12e.o",
+      "objectSha256": "d5f41efc72ff55dc1ed2db072a850c6cb519c603af2e5cf12fc418e97418eb3e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Compiler\\src\\lcode.cpp",
+      "sourceSha256": "ce14f91e32d53ce377f068f872fc12cca81dbeeedf1f1409bc584927d9da7a88",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lcode-dcf4abf75751cd13.o",
+      "objectSha256": "ad5b88316b1254f4ca503b3c40fb49fb62581a4c16d17b511b0b6608de2a6b39"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Config\\src\\Config.cpp",
+      "sourceSha256": "cc8b28238268f80b047950877e995bf1d2950da7f25aedbcff6172b00bf40f17",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Config-4b56e4935d8fadc6.o",
+      "objectSha256": "a974e129445203f75a0b5559f7f5a71982b73492a31959939d7e7b865fdbfd4a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Config\\src\\LinterConfig.cpp",
+      "sourceSha256": "3ac34ba8ca5fb0f3d23a294a4233271bbb1b9e1ae8a5bf39b7bdab2a16b7d729",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\LinterConfig-5b6fb0bc73afb181.o",
+      "objectSha256": "0750d1c56b05f0c40e51ed492e46f8ee59efa805ba413ec0d4550cd9661caf6e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Config\\src\\LuauConfig.cpp",
+      "sourceSha256": "95147945ab7713a639fd7ac065e6c131a5ecac56f3393e787776b3620756bd26",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\LuauConfig-15355e87166c5723.o",
+      "objectSha256": "e9cdd9497b74078cd62872820701bd2e15d1079587a7b1b1e53791662e417378"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lapi.cpp",
+      "sourceSha256": "12d513c20990523873a501428120406d42615c5a2c06c6df9dd66da7b8f20611",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lapi-7d975ffa65862f62.o",
+      "objectSha256": "f33add24fdde3445ec482846b800cdbab8373a47b4563725a1c35964c6cb99b3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\laux.cpp",
+      "sourceSha256": "ab9b21c981d3764769f20921b8ad168e20b64826dc8627eaaeeaf501f5ec7dad",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\laux-1f29ea9377a8d112.o",
+      "objectSha256": "6b37df66ed4fbb8c6f730355638b0e7ba88a40a8b6de79e60c6227fe9546750d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbaselib.cpp",
+      "sourceSha256": "fce2d874679ebf9931d25d4a8be8265fbf872ce74301a85b456f4d0f1826409e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbaselib-e43f22379696103c.o",
+      "objectSha256": "35dd1747ab983932a15e2b8efd833d05d890fcd5939080270f48d4bfdc67a42b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbitlib.cpp",
+      "sourceSha256": "90a4c6c2ef63b1565342151a7f196e1410ce4aa6ae565672a5f07c3e5175a3ad",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbitlib-e3cae5a5567199e1.o",
+      "objectSha256": "3fe99769a0f3436e4bf12af99c9383b711ceb43a9e01284fa6fce455e977a049"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbuffer.cpp",
+      "sourceSha256": "ad79012e1433cd4b43bca6ce2733ac920cc76d3e77c190c057f83e3f7b6696e1",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbuffer-591f57fd46f8af3c.o",
+      "objectSha256": "08354c52368c50bbb86360765ff1e5b2d35c1b75a18c3d4f89129bfafd80bca6"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbuflib.cpp",
+      "sourceSha256": "1ba25e1140240bac7bebb93a894d7855a94a955e63097ad55bd93f92953f14ac",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbuflib-56bbc9de92b2ab45.o",
+      "objectSha256": "b0bbfe14c720c90603eaf2cf49365effb444e834f2f44e0d2b055c3075558ef5"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lbuiltins.cpp",
+      "sourceSha256": "b07682792302beb5f8602ab16ee9addb1826ec493501d1c4ea22e86613f24d1f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lbuiltins-2b9ab6dc37de314a.o",
+      "objectSha256": "96b24216469d82b7cb747a50bf2d2a0ea421ef89bf5f42cee3749e37ccb4ed58"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lcorolib.cpp",
+      "sourceSha256": "32087aa5234bca5b8440d9d13dc9fcb755a5cbf0b1ebdcc0bc7bae0c9929207a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lcorolib-3f01d3d06648c8b0.o",
+      "objectSha256": "69ad12dbbad13e54e0dee0c3e25a9a94df7abf5d166f105ac8272a4184188865"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ldblib.cpp",
+      "sourceSha256": "b12d9f1b4cda9582e1bdb7ae7cb52dcfc1586ae1513fe0da1ba4e3fdd9e4d1df",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ldblib-07dcfb077dbdb54f.o",
+      "objectSha256": "f8c4efda141c6b0865f8768f9cf35da59ce277c959d0cd86de7ebf7326a6ba13"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ldebug.cpp",
+      "sourceSha256": "694cc3f0dcd60c8f8574fe035cc44a7eba989f87416dbf7635a42e84b90f2520",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ldebug-98156470284f9e4d.o",
+      "objectSha256": "97f5e4480abc00e993f15d251c923ae65d53ce9049d3bded952f20ba7f4fe657"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ldo.cpp",
+      "sourceSha256": "980ba70630e202f413f3b0663fe31aded191ba9c06cc33050a4a7e87d3a6ab21",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ldo-122fd1b1b20016e6.o",
+      "objectSha256": "fa43027fdb1add869eee5135bdc51e5a2a94d89e1a6571eeb3ce434b2be198cc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lfunc.cpp",
+      "sourceSha256": "ecc3e2061ebb3f08c10fb1d1b45d6d0e05cbb5258470c9d9868d2c7757c968eb",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lfunc-b219f77bb535cf8e.o",
+      "objectSha256": "26321f4206ce9320411300f241720562fb00ee29278d9ee6b7839f32a914bc61"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lgc.cpp",
+      "sourceSha256": "9bf40be5b15588fd216a033e92e414f02167d07080b472eac8d9242b67cb688b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lgc-b829accac350aedc.o",
+      "objectSha256": "38b141997dbd007f7de6f1f333bed2ce22ab18c58c564f83b2bd2215a9a7912f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lgcdebug.cpp",
+      "sourceSha256": "2212c933becd868e2acf9c850ce4619f2fd76abbd645808979332030508eac7b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lgcdebug-ee673a0672d6df8f.o",
+      "objectSha256": "160d15ae5be13c00008e88dfeb3e1c7ee1dc745828b3dc42629bdaeee03af27d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\linit.cpp",
+      "sourceSha256": "965592cd3c64d669f8668477034d910fb722b723bbb9b27f880f799df0e1a2b8",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\linit-85e987542fd5084b.o",
+      "objectSha256": "715ef9fc5817ac4c1d83ba24ad6811b34b36ea3587dd85107e0c410457908271"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lmathlib.cpp",
+      "sourceSha256": "a78b3b624fef350f78d2a415dd2aa29ad46f31e45d1586fabd8f2d9e88110845",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lmathlib-acd3a52d70e198c1.o",
+      "objectSha256": "8f9f4d742d8b03ed004b0f4273cf081282a98a68e897bf41db8c271b8b8a6084"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lmem.cpp",
+      "sourceSha256": "7c9b097e03e466a0118bca4bda263b25e032c69d4490971af0b723eba245a246",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lmem-e486d5801bead63b.o",
+      "objectSha256": "458689cbee1d9b70622e017c088c0ceb8bebb95be86505ef10efcbe2665c9d00"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lnumprint.cpp",
+      "sourceSha256": "c6001abe411f06fa1036a5a01ddc824657f2a01e4ff1b8c5213509acfad1368f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lnumprint-cc8bac4dc2a41825.o",
+      "objectSha256": "d5f7229ad50db1548887c5b670bf258b4f7ed67ee2270dcb5481182ea6d67b0b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lobject.cpp",
+      "sourceSha256": "a3fc6b61e79c3adf8084ec9ace67ce0a3507bc98b263ff033d7eb89174962d16",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lobject-81d372a2228f082c.o",
+      "objectSha256": "b83f502f9333bde49a017f3e4882ebe46cccef56ffa08a9f1eeaf012ff6a3cd3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\loslib.cpp",
+      "sourceSha256": "0e88d5dc2cfb6b29c07d98454bce1312f479e519072401214fda724f32cedff2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\loslib-e37a326aa0c3d834.o",
+      "objectSha256": "9ccb2138a554b5135a06f1dc5d89a40ee0a754bf14299c71fe196e299ed1b06a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lperf.cpp",
+      "sourceSha256": "6effaa71b16a7cdc1576062533e8f524f34ad30de64194fd106ae373800783b9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lperf-556330a9979192cd.o",
+      "objectSha256": "ba76464462bcc4d45878ff944f600730ec9af81312d0188302baeb08a38aafc0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lstate.cpp",
+      "sourceSha256": "45bfec4c6f2688ca4e8dce335e258725567a3eb0bc491f49bc0f48f444a85e6b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lstate-f31b3d5a8f2e60c3.o",
+      "objectSha256": "cd2f34c50272a003ddc98e01e747df735db4c37458d5aafbace651e68d8bec48"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lstring.cpp",
+      "sourceSha256": "c3cd0c52a48f4d2f0c2c6a0ff9d5961432a1e3b42fab9be2de89b32caf99d0e2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lstring-4275ab97d1008822.o",
+      "objectSha256": "9147ae88fc945104a13dbbf3414ef935194a832b1a49668d25399ac4bfd2af4f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lstrlib.cpp",
+      "sourceSha256": "0a8665c3ca8725b6d72da353cc10fc2d9495739c96f2e27d76d2bf2794c24738",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lstrlib-9b5688e8aa1afb42.o",
+      "objectSha256": "f9afe4be2d7f8370ce5a9279b7057328fda0cf05f8dcaa7063bd784469c300c0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ltable.cpp",
+      "sourceSha256": "7491398ece90fff5211212385ce09af6b53fc9aaf21f7a1dda71a362d90c65df",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ltable-f6bbf5874d1447fb.o",
+      "objectSha256": "0e50ade118be32800ec33bbf796be034cb01259520dce5768cd7a7e690e4bcdb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ltablib.cpp",
+      "sourceSha256": "3bdaf0b7025dc0153f106f2dfb00ead0d6aafd7dd3df4a52b473b0b4778b0eac",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ltablib-ae19466dd988035b.o",
+      "objectSha256": "b53307f618ef8e9e22674d635124763bf26dc438379e4cfb35fe055dceb6eee1"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ltm.cpp",
+      "sourceSha256": "d67a538cf683fbe327828ba27637936c9a3b5879e001c32188a69e186d31d1f2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ltm-be44630ee2477e56.o",
+      "objectSha256": "38ab849102b126c78e3d2b0b5a1b0adb49b1745566e9641b5601042998c3dacd"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\ludata.cpp",
+      "sourceSha256": "929d73a728fc13a59aa6a08a7bec970b408ecf4a3b5f45dbd9f92f7e7c7816be",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ludata-f782f6efcb9bcbca.o",
+      "objectSha256": "351dbd2d906d896462aa4eee6d2092ceb79307a26f407401d0b52fe39ae818f7"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lutf8lib.cpp",
+      "sourceSha256": "f8a4051ec967fa2ea24c72e3b331b1f608594f85852a3630b6bf71bed59029e1",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lutf8lib-7c053b9305f23afb.o",
+      "objectSha256": "653b576eee62ec3f137bb25ad9fd3469b87ab683167fceb5931f2a57359be3a4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lveclib.cpp",
+      "sourceSha256": "1a7c758b5f26f8c0e75419bbe9e8cc8a5e8f2b17771c3b6ced04e514910ce300",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lveclib-13a2f2a3679ee387.o",
+      "objectSha256": "54835a815faad28917a5a46cbdf419e1e3d0915983d0e64ff21609c9c8ee5a6e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lintlib.cpp",
+      "sourceSha256": "5dc99d62551d857d2aee1713fc096d68039083b1f0550f691f2c9b0f321243c2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lintlib-fd24c515af4042b8.o",
+      "objectSha256": "6aa01bd6079e2004b86098bc2bdaa05128112063427577cc469b17fd3cb3b5bb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvmexecute.cpp",
+      "sourceSha256": "11210ecdc21a4db5494feba5a041991bc22f65906ee434dbeb6e59b1ad8d9de4",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvmexecute-6278b5fead2113d4.o",
+      "objectSha256": "cfe00c6d4f4f6dd6d8e4791c5fe884ecbd6c567c007f2f03c532154f20429c46"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lclass.cpp",
+      "sourceSha256": "034f2f930d3b017a24a1e2ff3c9ce2a54b6efd3dcc6b088bdf2c9688834d5005",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lclass-ee7984901c005f42.o",
+      "objectSha256": "9a82bae093606cdc514eacb576bdb7a0d5752af6d94124e04c9de51a2cd682f4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lclasslib.cpp",
+      "sourceSha256": "b2839864e7f15a40da16768a5780b631b0028fb4006cc8e2e860607e88e7ef7b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lclasslib-e6ba96d4db2fd4ff.o",
+      "objectSha256": "a1cd4e1506661fbf342bfbde72781908815f4bda76cd0a04e5b25bcaec74e13c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvector.cpp",
+      "sourceSha256": "33612d191c1457c027b7b0ce3e126e71640abfe06ab1c1cd178a027224cc0cf7",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvector-0bf903ab81754fe6.o",
+      "objectSha256": "698acd868ff3263aae753f709e0a7af499b362a308d33f7b51e6ca1d210ffb37"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvmload.cpp",
+      "sourceSha256": "7f96f0176e07428165d1c7a75c5b8f3c22eca6c42b222d924791d362821dd9af",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvmload-2176316bb885e4d9.o",
+      "objectSha256": "2bd5cda9b9517a89d43db4a78b9f150c7619751f500d5629999568180c0a4651"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\VM\\src\\lvmutils.cpp",
+      "sourceSha256": "860cfd81e92a4e9528682986da1c614971c04fe6e749376c2c1d49108f00445f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\lvmutils-2f8e058bc3c80027.o",
+      "objectSha256": "1bd56d00e94a6bcd380892222853d887ff9170e3459b8cd9a9b53b622ea48157"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Anyification.cpp",
+      "sourceSha256": "8624a9d4a3ce5d72afa276fbe025b8ea427a353ece46dd88457e24e06e63240e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Anyification-a7d4fdfefce7c7fd.o",
+      "objectSha256": "d9c08853a649c192bdc867210ab88d737fa2c7d73d6459c9d7b5e0bc4202701d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ApplyTypeFunction.cpp",
+      "sourceSha256": "e838c1ff8e844108a264b38aae38ad9237fbfbfbbb6f45116ae3b443c95b7703",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ApplyTypeFunction-5a08fbe77eeb9c07.o",
+      "objectSha256": "bc54df7fb1109954e884d7a0b31c19b9eba27027de3bde0aa85efefef19c5ffa"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstJsonEncoder.cpp",
+      "sourceSha256": "1275039033e9bcfe360768215ca2976bd6f1690c0284f95c24b2898c195a3cd4",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\AstJsonEncoder-486d5a30e2d31d2a.o",
+      "objectSha256": "7eea7fd839725fa32bf97eed70fea8c45047e7783e546f773a6ec94160b0bbf9"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstUtils.cpp",
+      "sourceSha256": "d0cd194380ecb0897b0ba863820c04a839435d4aeeda19c01a20c75d0a597fcd",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\AstUtils-ae2596dab60e8e5d.o",
+      "objectSha256": "8263d9b1923b4dcd910e81d5a33db55183e6f0cf08208b16a95a8f00a0a61468"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\BuiltinTypeFunctions.cpp",
+      "sourceSha256": "7b89458a83cc5f77d0e2acf4595ad6b8e9bf28e77f2d353bacf65bb2bc414760",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\BuiltinTypeFunctions-e4a27414ac0a4f13.o",
+      "objectSha256": "2729d8605d91b042c7adce771ceaf89d9455fa301eaf7e73860bff67c2ff5560"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Clone.cpp",
+      "sourceSha256": "9d3624518d351fd9932da7b3ed58505db5a730e0c6934941a5a24e36457e20c9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Clone-54f1be11c75bade5.o",
+      "objectSha256": "6fbc4b4b2e2b49489e91ee221aeea92c8ff3a4c76eb5d625ff75e0deb6b4b85d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Constraint.cpp",
+      "sourceSha256": "4e7879e0af29280353369a740c27783cce8d1310fbb0ab26fc2b5e96ae80b9f2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Constraint-4fc1120154c96250.o",
+      "objectSha256": "84c17ee35c487937b790437f67af49cb84637020117735563c15ae55ae8558e2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ConstraintGraph.cpp",
+      "sourceSha256": "4a194dc480ab2e3585241d710b747b793e2df8b0fcec72058ed79b5c04b22305",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ConstraintGraph-886d79dbb118930d.o",
+      "objectSha256": "3a01f995612be582b99c95ce1e9aca107bfa9618dfd783f2692276df7cd72339"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ConstraintSolver.cpp",
+      "sourceSha256": "2a260005816063f8c1691fc7b80320c8c01e5d86b977ac19975280b9b6aa4f19",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ConstraintSolver-5509c5716f953503.o",
+      "objectSha256": "404830f82f6e8379c4206b246f4d92c60ff75ec157525b96e688a31c3c23d792"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ControlFlowGraph.cpp",
+      "sourceSha256": "72fdbfb9996b17fd3695569e4de1f24e3a4679406d6c9c34b3c596adf080b024",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ControlFlowGraph-91de3da82712dfb4.o",
+      "objectSha256": "7b973b1086b276d0050db91584ac7703822d0fe679fa40ed50f5a15ec38b6b7d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\DumpCFG.cpp",
+      "sourceSha256": "d6ec22eca6d00a7ff57f9d156cef1f8224d6f9d752b50b1cc294c648d43ca97d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\DumpCFG-7f40f1e0a579888f.o",
+      "objectSha256": "e2100e099cc402cd18b6f5afe0579916e139c738881c8f3c7cd3153316b6414c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeStateMap.cpp",
+      "sourceSha256": "406e93584b95ee920e2b5dc9672761d6d829c2c1548a0433086b0f2a8b852bd5",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeStateMap-8868c21f8358bc76.o",
+      "objectSha256": "f938a5ce4e5489f5f17ca09b9a8abbe7ad52efc937437c76e483510498b4ca8f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\DataFlowGraph.cpp",
+      "sourceSha256": "b6dd6b0bc4fbf944dbb2f5b9a01947ac68f9baf1b6f25949a40ba213bf79c4fc",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\DataFlowGraph-d0c9c4e924ebdfd8.o",
+      "objectSha256": "6d413418f69ab85e3d1584edc09c5fc587b09ae36b3ecbad73ae4580e33c0e3c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\DcrLogger.cpp",
+      "sourceSha256": "25a98a6df9ed9106aecf569ce33c65ffa22ee056730d70c7cdca24139bd9356f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\DcrLogger-ab2aab3560e1889c.o",
+      "objectSha256": "be1a0e865828c02db7fda17bec349d24d6927ae1ac793fcff876a2396e15a024"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Def.cpp",
+      "sourceSha256": "bae45619f9fac3325ecc9ba64fd074cda3444811a37aca06e33312537b664600",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Def-68f62cdc9a7f4afe.o",
+      "objectSha256": "cb8793b2728a6e44aeb87531796c640a7f115c282fbe0ff6383e02c618991d9e"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\EmbeddedBuiltinDefinitions.cpp",
+      "sourceSha256": "cbdf404ba2904593188fa0fd61a08942225c940fbdc07982ed09ffabc7d15590",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\EmbeddedBuiltinDefinitions-3fc28b3d9a7fe1de.o",
+      "objectSha256": "3f0a74b8eda6f5cbf892c40e18e5cd0eacae214d65d4b497bb9fde015a84196b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Error.cpp",
+      "sourceSha256": "a4d43fae82329d3a6f781e6165c3a19f358b4abeb0f08df2e01b127139d5bcac",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Error-24708a8d9dce7fa6.o",
+      "objectSha256": "af28ac98fa3796679b88005811d9c1f1d5a298ea9a26e7ec1ca865fa2b36e820"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ExpectedTypeVisitor.cpp",
+      "sourceSha256": "63e80c762db18dcb61594eca4ec1d91eeac2ede8acb0dcd2024ddaca30852299",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ExpectedTypeVisitor-fca9b31e0db95679.o",
+      "objectSha256": "0c7682517dbf3f855079e7c05fbee16042f8556f1e188a9e4bb851a9774bb8dc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\FileResolver.cpp",
+      "sourceSha256": "028323463936efb90d91bc8a6a6bff8578cd120be850176dfda67d6c8f14c69a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\FileResolver-90a9a97cf4bc17b8.o",
+      "objectSha256": "d0f44dc6739ca0b5a8a59d6b46224290b1c4b1d95b61f28c913e4c053f4ade54"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Generalization.cpp",
+      "sourceSha256": "57883f413977290a3dfdb2a52bdab5218149f975f365503197494a8bf4e95212",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Generalization-e2397b8198805815.o",
+      "objectSha256": "b3286427ba5be9941cbcf2c370e9f9ac0ec267dbe13f9b8c8410db162b79f666"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\NativeStackGuard.cpp",
+      "sourceSha256": "d11e48320134edf047d6a774fa9493d85b3dc7503f584f89db52c3960d4e9415",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\NativeStackGuard-d37fad27cb5f074d.o",
+      "objectSha256": "f6ea2a37f373750b344a7c1bd18ee3f9eac03e8d102abf5d149a020b63315ab0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\GlobalTypes.cpp",
+      "sourceSha256": "f97a114785b58415ed07fda122226a1c1503e3da2bb1eb41b49a71fde5c79280",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\GlobalTypes-2d3796899d318d98.o",
+      "objectSha256": "b6658024b021b7de3b6c94f81bfd62c1f051e87bbcc776708a4404c2a88bfcdb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Instantiation.cpp",
+      "sourceSha256": "60354778b6556057f70f9f82d22498c22e7a7660d126adc8ae54595375358b73",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Instantiation-d996c011608e282e.o",
+      "objectSha256": "9eed6d5a9e26d526d9343a9bd50fbd8b4bd20465698de1c05ce7ea5e27645a7d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Instantiation2.cpp",
+      "sourceSha256": "308740ac1ab728778c07a172b89fbbb274486b49d1262cf4e193f5572f28ad39",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Instantiation2-d082d435deb1847d.o",
+      "objectSha256": "8b3a5298002e0b3380993d3386bcfb4d594aabe9f0eb4e2e505cd0551b2b174f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\IostreamHelpers.cpp",
+      "sourceSha256": "1f59d773a4834fca34498ba82fa00065dddda0d2ca26f5c190b9a7543a44bed3",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\IostreamHelpers-8fb52c9c9c3795ec.o",
+      "objectSha256": "3e97fef9e2e1e4fd6b01f9ce5875683e0ea93b559a4669de3259d1eb42a549d3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\IterativeTypeVisitor.cpp",
+      "sourceSha256": "626fe544cebcf6191217ef91ea61a0e157f794419b3c4e686b9095327b37b1e1",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\IterativeTypeVisitor-051f8f925eed3a1a.o",
+      "objectSha256": "09ea7cfdef2d68d5bcaeed82e6423ae06f08e4f0f9c69c7121a310fb63689bc5"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\IterativeTypeFunctionTypeVisitor.cpp",
+      "sourceSha256": "efe57f6a9d474aaa365299589beb7cea365bb17a2eefe924ddd8eab2d60f5804",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\IterativeTypeFunctionTypeVisitor-16cf92c35d0ba7a3.o",
+      "objectSha256": "abbf8a203fe1a4b20deabb982426abc111f3681e13b4b332ca3d7864cb9ab2b7"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\JsonEmitter.cpp",
+      "sourceSha256": "f5eb94182190dbd8e14f81d3ee05a11912bd2267357d68dfc69e9525b49ae651",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\JsonEmitter-f190568509226f49.o",
+      "objectSha256": "02f0eaa80a5e094ffc9b252c57b2ddef0ddb230f6a57565b63fb6339ff8c9b4a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Linter.cpp",
+      "sourceSha256": "e66d627b05bf0fb6f3447392dfb0a3b44c30c39928727287eb58d3b3e4f06e61",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Linter-511605352edd78ba.o",
+      "objectSha256": "a0fa83deedc1b2ef54115c3b8c2d3f11aea62393e282d18b33a10531aa44690c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\LValue.cpp",
+      "sourceSha256": "6f3402369bdbe1f77f61a360e52d4dfef3a2456df5ac982da68bf4e5689f38af",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\LValue-bbe29133e5e809dd.o",
+      "objectSha256": "1f2328dfe92eac15c66af92a15dc2cea4f19ab1abe645d39402b3243a1d09a2c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\NonStrictTypeChecker.cpp",
+      "sourceSha256": "f88e4ff39a51c54cd80b04a3fe9b63737e61b38f034309c8dbcd43b24b3b70c9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\NonStrictTypeChecker-69142fe78bfb4536.o",
+      "objectSha256": "6012744643bab5f9c4e34ed043ed7d58aecf6abcd62de3f9866059f0bc8cb77f"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Normalize.cpp",
+      "sourceSha256": "e261dd5a5ab4b1a7de47f4c8694599e8e943e78863563820bd8f4d059b74a7ba",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Normalize-5012651bdbe952bd.o",
+      "objectSha256": "0badb495760387974f587a277f75b1fc2554da01621069a9b76518e73f0448e7"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\OverloadResolver.cpp",
+      "sourceSha256": "6a9062cd12a2a1e11d35051da6fa3b4f3b841a95e699ae3e2e7787225a2a3374",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\OverloadResolver-53fb6265d8c7d226.o",
+      "objectSha256": "fae74f31c17a2e655a8685ca6e63fe22e259ebbab30867dacc60436104998259"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Quantify.cpp",
+      "sourceSha256": "756862356353ace6a4181a3d5fda1b7a1d7e0db88d6f5969d7ceaddfcd48e772",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Quantify-8a64b923d38852e5.o",
+      "objectSha256": "8c9cee725a1e6bd61abd3c8e3d7a27f1abae44ccc4e6a1b394f6d49191d9f252"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\RecursionCounter.cpp",
+      "sourceSha256": "f987d2a276534703e91f084cf928a986a8bb0b053532b541dd52864a1163e68a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\RecursionCounter-fb0c1462b26a1129.o",
+      "objectSha256": "242c67ad2cfd6d7db259e282e827bf496f7535502808d146a6aa90cce6c720e3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Refinement.cpp",
+      "sourceSha256": "29a31112130c21619a4f99457253b9f9285c094a0e7e1167754135bd3bd0516f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Refinement-405b1141c88b94b8.o",
+      "objectSha256": "98b0b8ddb040f6a84fcf74fe2f3770940db18ea743f9218a618e385cf05b52a0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\RequireTracer.cpp",
+      "sourceSha256": "929f8b019e16fbed5b4ed994ce2c754ad702911611f0633e8a0cd4e9610ed864",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\RequireTracer-8c8453ecfbab9fd7.o",
+      "objectSha256": "b8de069f743993053e9b856cae129e51a689f06013c6c1533342cda3cb3559f2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Scope.cpp",
+      "sourceSha256": "eaf55048a02fbc65761fb528f66944d0c52bfdc059bece9010125ce8bbbd493a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Scope-cc7233fc2855a55d.o",
+      "objectSha256": "29614187a5da23657f3596ba9bd22b7fabba04b5137814ad18372f456f56e61a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Simplify.cpp",
+      "sourceSha256": "07486132045951786e09d9d41cfde02c2b93d652e8a80cb2d963f90706643a86",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Simplify-ee782a6b999af365.o",
+      "objectSha256": "147e0f06e3cec9af3f4ee80a9b8c0d0b0a7599b65bb404225ae596db7da2437c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\StructuralTypeEquality.cpp",
+      "sourceSha256": "83470a137df5caec284b8bcc565b7a6be173de4b400e05c7d8252993632cd6ca",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\StructuralTypeEquality-a2b260e10d6920b2.o",
+      "objectSha256": "a163599479b4f389f4b46e06870c75503871feaa9167c330dbe330ced2305978"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Substitution.cpp",
+      "sourceSha256": "884639c186f8a7d6ab4cc7e99fc628ce65d688fd009324e291eb5fe55aef8801",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Substitution-6b3a333ce3af5b86.o",
+      "objectSha256": "2b916ceaf57bae4174a36c96a2d436a21a9f3c47d8411be51f5504b48bcd6ac4"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Subtyping.cpp",
+      "sourceSha256": "7bbc692bb18db5159e72d41590ad6b99ae866c65da5b55e6e26e4d18cbc27320",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Subtyping-4a969ab344bb2daf.o",
+      "objectSha256": "bee15169c593b00a869da28763f2d7fddfaac9e3a6c39d16f365a05439e2198a"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\SubtypingUnifier.cpp",
+      "sourceSha256": "312b944786e4d0414ffbc8ad7f1c7a6064e4d8247e502396434cb30018b22e4b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\SubtypingUnifier-c239252034360ac7.o",
+      "objectSha256": "fc2a08dd4901a097f71e60e33276660e5a4f34dc67fdacfc68c289f6f3725282"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Symbol.cpp",
+      "sourceSha256": "e80b7e486cd2db25667801af4bde4a232d070be984ae346c607a98404c07b1cf",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Symbol-bbb639e7da310f36.o",
+      "objectSha256": "0b7e17048378763e56c122bd0b00cd5861d7447dd3f5196a3644c302edb71301"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TableLiteralInference.cpp",
+      "sourceSha256": "28df9d3bb2c22e4417dabd5a161fe7335a4aaf2b4af0a51b121a03c6520fffb5",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TableLiteralInference-e23af4649f765e19.o",
+      "objectSha256": "d8bbc9e5fcf77aea9ae407e884e5dba1104fb86d65c1cc6f929def08abc17080"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ToDot.cpp",
+      "sourceSha256": "e8380841bef62360a7ab6733e8e6c74efcf88f86919283893f773133869d1d4e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ToDot-2fc84a1db321f060.o",
+      "objectSha256": "f677e9feecfaedc615dd98c97dbb07744e2dcf04ad977689f4100c80c4664dda"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TopoSortStatements.cpp",
+      "sourceSha256": "fe6771df12a76a181ab10e60942ab71366d179371b06e394118e3e712838b77d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TopoSortStatements-6523b47d1596b38b.o",
+      "objectSha256": "2afb66dc96901b281c555f9fc3418ae0268c3fd5472a25f1f4ed2bcea37911d2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\ToString.cpp",
+      "sourceSha256": "7d9ea2219884802c6135bc4970372405e91641b543cbc5b3d009fc8bdb04ddea",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\ToString-8140216234e298ab.o",
+      "objectSha256": "d9e3851e8eafe47b2a60d1e5953eb6c2b5033aef2331b07efbdd0fb9a426e97b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TxnLog.cpp",
+      "sourceSha256": "7562b5940f630d5a205c8749b96aeb0153fe029f5bd8ba2e00802d9eb3434d1e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TxnLog-0153d0d8a18994dc.o",
+      "objectSha256": "ea1bd2a4a25441158ed1c518bd1972114175e0e581de651eb20b59c652e94c6c"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Type.cpp",
+      "sourceSha256": "44bd7aafc9ddea7808955ad84203c105dccc76c31efe001f5b9bf49029df659f",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Type-90de541313c15f67.o",
+      "objectSha256": "fc6c9df70bc80a942771512f69b8a54b2cde560057361eacccc52129cea19bae"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeArena.cpp",
+      "sourceSha256": "136639097306fd69a0ad85315f2d60a80ed77bb727ae396576f30a7e94603f05",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeArena-bf6838984834f526.o",
+      "objectSha256": "955d0e75366d5a835f848fa37c6927422e96e92cbc328d3bad5d05e6c1464b6b"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeAttach.cpp",
+      "sourceSha256": "7fcff9735405827d6cf8f664bf24eadc651e250ee4b5b6f10a9be48a786b3f71",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeAttach-7b75c2f9f6583893.o",
+      "objectSha256": "29e65e457bc00eb59f1ac4e5c56eadcfbffff815485091be1da1734b3c95ddbc"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeChecker2.cpp",
+      "sourceSha256": "fb0f470e80b05ec0ef3da22b1cfc9926c9dc55fab0f3418b65c41e14b84d06ff",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeChecker2-12f98ac9dcee2c11.o",
+      "objectSha256": "b4cb80d19137f6522a2c6e63602635bf47f53d9fb87f5b4f08d2af5544803b58"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypedAllocator.cpp",
+      "sourceSha256": "746b00d4fcad8fb0f893d4f1321009e5086c77d776427745cca9d2b46c33d673",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypedAllocator-d2a8209bde129b9e.o",
+      "objectSha256": "c9b997dd69a158cb4c31df987e93f9a49d636209c7b2ab989ecb9a639f631fc0"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunction.cpp",
+      "sourceSha256": "2c95395f44b41ad5400d364b3f1f8da8b123c3564aaff0c74f22ea57d57d2eb3",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunction-256f66257436eddb.o",
+      "objectSha256": "3efbc2618e7c804bc972b2bfdfbd8b56f93effc73c9e2809235c262971656312"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionError.cpp",
+      "sourceSha256": "661430bea3202dc385378f7897f09d131bf38e08b6a06f15c2411e18fbec4d13",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionError-38a483b80fd84f29.o",
+      "objectSha256": "af4e96caa80f0b29fd5cde0166b7e9529deed7640c536b6919f4fc8f9c78bedb"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionReductionGuesser.cpp",
+      "sourceSha256": "13d7b4847100ac5d47c88831f0845de593c70785dc3475c8ea9eccecf5eda78e",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionReductionGuesser-d7d9d5e2dbded481.o",
+      "objectSha256": "d68bda7b229a15da42922a7087290a4bc5744b11b5336c3511f73a1f317d3773"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionRuntime.cpp",
+      "sourceSha256": "391bda4798c2f65dcfef226d1ff5406f6b5fe05bf25a3573da113ed079fc0981",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionRuntime-03e92cb7bcf61d19.o",
+      "objectSha256": "ab242ee1bd30b2997071034e352ca85a1f17b19107d60d70315abc0aac347e98"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeFunctionRuntimeBuilder.cpp",
+      "sourceSha256": "d8a216100ac2d0e5bd9585eab5addf3442d9771b39b52fb29c416f034c8f9a64",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeFunctionRuntimeBuilder-579565cdd167753f.o",
+      "objectSha256": "9192f32211cf7840b62b6f659336d0b3382e01d89b36b91846450296696cf82d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeIds.cpp",
+      "sourceSha256": "17146eff0904aa8bf2e86f948d425a355f3422bdd0a09cfe2f53ea28edb2e965",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeIds-44607d0a57f3aa6d.o",
+      "objectSha256": "a84342ef2d18d5ed7e417941ea39be303b721b797d585a3680bb5825840789d3"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeInfer.cpp",
+      "sourceSha256": "0d5988d45cce05e2912b9067c73ea34ed0121375b879c2526270510c248d9177",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeInfer-ce50abf4f39db4c0.o",
+      "objectSha256": "4d649e1f5e98ce08fb0da7b128053c3c1c342451be14f0c6e0affdf3975cf824"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeOrPack.cpp",
+      "sourceSha256": "4552369feb830d189eec80f95985d948b30aa01bd71aaea187f8d1f3501b5db6",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeOrPack-494f6e0979af48ae.o",
+      "objectSha256": "45976365bbddf342ba314a81003223f7c2c29607e2a1c686c62d716b78e47649"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypePack.cpp",
+      "sourceSha256": "ca00ffd47066f725d741c4fdc352a0ec36bebf682f53e60df9a6319b21263044",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypePack-da3b3f75cf71b64f.o",
+      "objectSha256": "82ec9fccc7d796a9b3ed892ff9fa7207535179754bcbfb454c8c4d5eb28914ee"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypePath.cpp",
+      "sourceSha256": "369f08b034f49c719fa9951f9e56b1bf83f43242c0c3a260d087a21565cbef42",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypePath-388161d6fc361d4e.o",
+      "objectSha256": "1b23a2ff932947b21b74a2cfea66ad3198e11d25ca5d0b868c0e5ccb7b90aa8d"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\TypeUtils.cpp",
+      "sourceSha256": "d146f96141d9f50ac675be1ae01b608f7f00f743bc3b04024305fc3bf385846a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\TypeUtils-ccb13697bb1d0d78.o",
+      "objectSha256": "dfee45ac7b251aa8d9a11990b23d9b72e5ea9df5c2c78df4611d604f79f8c8f9"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Unifiable.cpp",
+      "sourceSha256": "0de25680cfba56ae0190b85e530aecac0a458aea17c7677025615e07df2f3407",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Unifiable-e985d65663c7b9c9.o",
+      "objectSha256": "d257a6fe1a4be1fcf6788a8a153d090bc2a6ca83314bce3979a9788567bee7f2"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Unifier.cpp",
+      "sourceSha256": "fe4b1fe54b2130c7a8b03805d74cb1f9319427763d9deb27a13627f0d9896406",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Unifier-6c035ede8d9f016f.o",
+      "objectSha256": "e4585eedf24d04d60b19651f2ef7a01c2322ce39b809ee55c1344238f232f202"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Unifier2.cpp",
+      "sourceSha256": "3188829d6c15a253c76f9ded7ad44c4899b27f56bf629cc32e5af7e0333294db",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\Unifier2-bb07813d83e35f60.o",
+      "objectSha256": "c0fe14039717a2eaa896d4d674634409e6ea764cb2cd39c61262eec127ce8696"
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\UserDefinedTypeFunction.cpp",
+      "sourceSha256": "307f1dbf8dab8fad028f7aefbf2f49b456b9e8e9c8d1bc4aea50cb3cf4a1cd02",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\native-prototype\\objects\\UserDefinedTypeFunction-8ae71c44215bd1a3.o",
+      "objectSha256": "590fdf0d408771c81579f15acb0bc3f4f9a2dbf6960c4743095c9f1e06b5f32c"
+    }
+  ],
+  "ownedReused": [
+    {
+      "source": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\bridge.cpp",
+      "sourceSha256": "b16ba1e5cd139233a5e7416e70e0eca6026c2e535fa3124cb99df4c9ca786ab9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\d4285922831c-707b5606371f.o",
+      "objectSha256": "f2e4a86600c1fdecefed3a5ba657d2ffee27ded33bf6dbd1c1972bb08857c9cf",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+        "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.h": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1",
+        "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.h": "d7c4b35a2918882226aacb9097225f0fb5a554abc1af65b3534a34b659305f5d",
+        "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\source-metadata.h": "c9dfa5f2512aaa5e8ac97b1bdc37d7a51021d4ec4fcc528f150931cf71ec5d22"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.cpp",
+      "sourceSha256": "5c3b33b89db367c3ebcab4351240478aace0564135887bab4ef93745c9f2a376",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\4e460d1c554f-44893e201041.o",
+      "objectSha256": "5c39148dc3c0b357b13a569170d9805a1d10c5270ce2a83f94cfb5eade6e0ba3",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+        "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.h": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.cpp",
+      "sourceSha256": "a450d2662c01accf3909bdd106d743bd656b86796acbc6b554f6b1998c607b6d",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\49c80dc5e618-2f465e27b062.o",
+      "objectSha256": "67e7faed3e8264d01432703f83449428fe0aa7b523c52d3c1040e398d36aee15",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+        "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\ast-input.h": "0df7183661ad070ba89b7c72d5cd683d82df2ce8cd6b1913fee68df0a2676db1",
+        "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\incremental-scopes.h": "d7c4b35a2918882226aacb9097225f0fb5a554abc1af65b3534a34b659305f5d",
+        "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\codex\\refactor\\1387-incremental-checker\\packages\\sparkdown\\native\\luau-analysis\\source-metadata.h": "c9dfa5f2512aaa5e8ac97b1bdc37d7a51021d4ec4fcc528f150931cf71ec5d22"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AstQuery.cpp",
+      "sourceSha256": "e745139899440eea9936ac3ffc67d98df7769cde7fb4dfc68192f5be71946461",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\5b032e3760b1-a2bd8e761ee1.o",
+      "objectSha256": "1dc39e9c4dc580118d67d5bafb9108456d0a1db71ff79e2095feeadc2f7259b3",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Autocomplete.cpp",
+      "sourceSha256": "a405270ac72b9b2d3c62c44f158befd729b4d503a0b9af34ed5e5007154f6f3b",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\a401606f4185-0465b10ce389.o",
+      "objectSha256": "ad7a3b4e30cd0020a2f79e50b60e1662d146eeed9d2c79e189c96dd9b9ac33ee",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\AutocompleteCore.cpp",
+      "sourceSha256": "8927a204dab452f95feabb4418f9d83d3e6ac52b81141d2cf3c10d1f81c74b35",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\f8cdc189dda5-1800f439ee50.o",
+      "objectSha256": "0bc17b187d1ae06f0001f3aae60100f3223b098bcd7520ccb871d01629765770",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\BuiltinDefinitions.cpp",
+      "sourceSha256": "4292ac1eda31721b82bc75c1806bbfd681e6e6c2ee543f9b16cdcb8c03d3b1e9",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\d887a585fcb0-32cc68750e26.o",
+      "objectSha256": "55d5de97a7ee4028b3b01b1ef19f2ac0f6a28d416e31e621c69466f2493edaa0",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383",
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\ConstraintGenerator.cpp",
+      "sourceSha256": "7f0dc5ecf9d01ffc5c89fe4367f1d73cde2f30c878b4a8a29655a9adc403756a",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\35058183881d-fbba30511737.o",
+      "objectSha256": "13754b6f2dbe92131a4fcf5d4bf7873a51025bb94f1404ec03d545cfe4d820af",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\FragmentAutocomplete.cpp",
+      "sourceSha256": "80e964d24cc1a56c12ec14d772785b947513b60773d2b71fe1e8a62af5e52cc2",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\8c3d317434c3-3f59ff9020be.o",
+      "objectSha256": "b24e7a6b9420ed5de2226a6a841505d6656e47a1bcd87747e39ac737dba9733b",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383",
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f",
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\AutocompleteCore.h": "87efeccbf2ec22df328215b20ec36eda6345cbd7ca6318e761f9631c7080c985"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\src\\Frontend.cpp",
+      "sourceSha256": "a2b7584b08eb7d4218a9743e3af67317b45fe781fe0b6ba0fb72a675a6946e51",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\47e4c0318ae5-10e5827f6627.o",
+      "objectSha256": "d15d07bd0081458a2a37f6061ddc253eae63e8f85da56bbbd24aca41cea48445",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383",
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\Frontend.h": "40ed69d2adf1b79f0418ae7ac2e410d404f6f95e2803c8c62f00aa360e64a14f"
+      }
+    },
+    {
+      "source": "C:\\Users\\Lovelle\\AppData\\Local\\Temp\\luau-typecheck-1368\\Analysis\\src\\Module.cpp",
+      "sourceSha256": "df0de318bcd9629f56a5cfaa4ff1087ec48f62c6759905bc4e936a0903cb18fb",
+      "object": "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\production-objects\\b3a842534593-54444656c24a.o",
+      "objectSha256": "cbc2d061b290ee7486758bd4e4f04e68074b34327d8d575e4d7049f06766cd29",
+      "provenance": "2026-10-04T22:02:37.346Z",
+      "dependencies": {
+        "C:\\Users\\Lovelle\\.codex\\private\\orchestrate-589-20261003\\ticket-1387\\scope-overlay\\Analysis\\include\\Luau\\ConstraintGenerator.h": "82fd48b48f9f858bf18dc060a9b895cdc73cbf7895e1e5483d08976a10b9a383"
+      }
+    }
+  ]
+}
