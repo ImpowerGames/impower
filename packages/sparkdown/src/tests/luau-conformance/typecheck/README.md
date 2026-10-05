@@ -1,117 +1,331 @@
 # Luau's type-checker tests
 
-This directory ports Luau's own type-checker tests, from `tests/` in [luau-lang/luau](https://github.com/luau-lang/luau), as the specification for Sparkdown's type checker (#589). Each port file is named after its upstream file (`TypeInfer.primitives.test.cpp` becomes `TypeInfer.primitives.test.ts`) and hands its cases to `portUpstreamFile` in `portedCases.ts`, which registers one test per case and a coverage test for the file. `../typecheckTestHarness.ts` compiles each snippet.
+This directory ports the pinned Luau tests as the specification for Sparkdown's
+type checker (#589). Each port file names its upstream file and calls
+`portUpstreamFile` in `portedCases.ts`, registering one test per original case and
+a coverage test. `../upstream/typecheck-cases.json` records the original names,
+fixtures, order, solver guards and disabled cases; `../upstream/VENDORING.md`
+describes the pin and regeneration procedure.
 
-## What runs
+## Execution and proof boundaries
 
-Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. The checker is the port of Luau's type checker in `src/compiler/typecheck/`; `checkLuau` checks a snippet with the globals of the case's fixture (`Fixture`, `BuiltinsFixture`, its new-solver-only child `TypeStateFixture`, `NegationFixture`, `IsSubtypeFixture`, `ExternTypeFixture`, or `RefinementExternTypeFixture`). From the repository root:
+Every source receives Sparkdown's compiler parse check. Active registered cases
+then execute the exact source through the test-only official native fixture.
+The async registration boundary loads the generated artifact and invokes the
+synchronous assertion core with a native checker. Missing artifacts, unsupported
+operations and applicable mismatches fail explicitly. Registration has no implicit
+TypeScript solver fallback; the older `checkLuau` helper remains for its own
+direct tests, not as evidence of native conformance.
+
+`CHECKED_AREAS` controls which files execute semantic assertions. Inactive,
+explicitly skipped or unparsed cases remain parse-only and initialize no native
+fixture. `LUAU_TYPECHECK_AREAS=all`, or a comma-separated upstream file list,
+changes activation for a named run; it does not establish that every capability
+or source parses. From the repository root:
 
 ```bash
 LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/tests/luau-conformance/typecheck/TypeInfer.primitives.test.ts --wait 900
 ```
 
-## The upstream cases
+Build the generated fixture artifact with the pinned source/SDK procedure in
+[the native boundary README](../../../../native/luau-conformance/README.md).
+Generated outputs are ignored, provenance-validated and built explicitly in CI.
+Locally use the supported named runner; whole package coverage comes from CI.
 
-`../upstream/typecheck-cases.json` lists every `TEST_CASE` and `TEST_CASE_FIXTURE` in the 31 type-checker files at the pinned commit, in order: each case's name and fixture, whether `DOES_NOT_PASS_NEW_SOLVER_GUARD` covers the whole case or only blocks within it, and whether upstream compiles it at all. It also lists Luau's error kinds. `../upstream/VENDORING.md` says how to regenerate it for another commit. A port file's coverage test fails unless its cases are exactly that file's cases, in upstream order, with the same fixtures and the markers below.
+The instrumented fixture proves actual upstream setup, queries and VM behavior.
+Ordinary exact sources also require separate execution through the shipped
+production artifact. Sparkdown integration requires actual converter AST input
+through the production decoder and an independently measured comparison. Common
+sources or passing fixture controls do not prove either production path. Full
+activation, final merged-artifact integration, live verification and review remain
+separate gates.
 
-## How a case is ported
+## Preserve the original case
 
-- The case's `name` is the upstream name, exactly, and a comment above it gives the upstream file, line and header. A name upstream uses twice is ported twice.
-- `fixture` is the upstream fixture, which decides the globals and types in scope; a plain `TEST_CASE` has none, and gives the fixture it builds to each check.
-- The Luau source is carried verbatim. A case with one check writes it as `source`; a case that checks several sources, or needs a field on one of them, lists them under `checks`. `module` records the name upstream gives a source it resolves with `require`.
-- `mode` is the mode passed to `check(mode, source)`. Without one, a snippet is checked in strict mode, as Luau's test fixture checks it, and a `--!` directive in the snippet overrides that as it does in Luau.
-- `flags` preserves each requested `ScopedFastFlag`. When an area executes, flags are validated against the explicitly audited fixed settings below; unknown and opposite values fail rather than silently running a default configuration.
-- `limits` records the `ScopedFastInt`s the case sets, each named without its `FInt::` or `DFInt::` prefix and given the value upstream sets for an optimized build without sanitizers. The harness cannot set them, so once the case's area is on it fails as not implemented rather than asserting what upstream sees only under those limits.
-- `ignoreMissingAnnotations: true` stands for `ignoreMissingAnnotations(result)`: `TypeAnnotationRequired` errors are dropped before any assertion.
-- Where a case branches on `FFlag::DebugLuauForceOldSolver`, only the new-solver branch is ported. A branch on any other flag, or an `#if 0` block, is resolved as Luau's CI runs the new solver, with `--fflags=true`: every flag the case does not set is on, except the `Debug` and `Test` flags, and the `#else` part is the one compiled.
-- A source upstream builds in C++ (repeating a fragment up to a recursion limit, or appending generated declarations) is built the same way in TypeScript, with the limit Luau uses in an optimized build without sanitizers.
-- Upstream checks about Luau's internals rather than the checked program (which type arena holds a type, internal-error handlers, the print hook) are left out, and a comment on the case names them. Program checks expressible by the expectations below remain executable data even when the harness cannot yet answer their query.
+- Keep each original name, fixture, source bytes and assertion order, with the
+  upstream file/line/header above the record. Duplicate original names stay
+  duplicated. Coverage verifies the complete inventory and markers.
+- Use inline `source`/`expect` for one check or `checks` for an ordered sequence.
+  `module` preserves the original source name; `moduleSources` registers exact
+  dependencies without adding a preliminary semantic check. Add a dependency
+  check only when upstream actually checks it.
+- One active case owns one actual C++ fixture across its checks and actions,
+  disposed in `finally`, including setup/assertion failure. `shareFixture: true`
+  is legacy metadata; omission does not create fresh fixtures per check.
+  Separate cases remain isolated. `clearModules: true` calls the same fixture's
+  `Frontend::clear`, preserving builtin/global arenas; it is not reset or
+  reconstruction. Explicit fresh construction and retained-graph recipes need
+  their original operation protocol.
+- `definitions` are mandatory successful native definition loads before that
+  check. Typed `globals` currently select real supported builtin TypeIds and
+  call native `addGlobalBinding` with `@test` documentation. Arbitrary function
+  type strings are not parsed into replacement declarations. More complex
+  synthetic recipes remain explicit support requirements.
+- `mode` preserves the original check mode; strict is the fixture default and
+  the original source directive remains authoritative. `flags` and `limits`
+  carry real native FFlags/FInts over setup/check/query operations, restoring
+  values on return or exception. Unknown names fail. They are not restricted
+  to the older TypeScript fixed-flag whitelist.
+- `entrypoint: "module"` preserves an original direct `Frontend::check(module)`.
+  It requires an explicit `module` and forbids a `mode` override. Source registration
+  still precedes checking; this operation keeps the actual current configuration,
+  including any previous explicit mode check. The source directive remains
+  authoritative. NonStrict named checks load the exact standard definitions on
+  every call and scope the original New-solver flag; they do not assign Nonstrict.
+  Ordinary mode checks initialize the frontend before assigning the requested
+  mode, matching the pinned lazy fixture behavior.
+- Constructor presets preserve upstream eager setup; ordinary `Fixture` and
+  initial source registration stay lazy. Case-body flags follow construction
+  and precede the first actual frontend operation. Operation-specific changes
+  must retain their original timing. The audited original ExternTypeFixture
+  override uses `solverOverride: "New"` after body flags, selecting/attesting
+  the real frontend. Raw old=true and effective New are distinct facts;
+  reset/replacement clears its admission.
+- `ignoreMissingAnnotations: true` drops only `TypeAnnotationRequired` before
+  assertions. Surviving diagnostics retain their original native result index
+  for field/structural selectors. Native insertion order is not sorted.
+- NonStrict position macros use `{ errorAtBegin: [line, column], code: "Kind" }`
+  followed by the original scalar-field descriptor at the same begin. An ordinal
+  `error` and `errorAtBegin` are mutually exclusive. The native selector chooses
+  the first original error with that begin, then tests its kind; it never scans
+  onward for a preferred kind. Filtered subsets must retain original wrapper
+  identity, actual locations, native indices and insertion order.
+- `{ type: "b", tableState: "Sealed" }` requires the actual raw TableType before
+  observing its enum state. Supported states are Sealed, Unsealed, Free and
+  Generic. A Bound wrapper fails this predicate even when its followed table
+  has the requested state; printing and followed kind do not establish it.
+- Required internal predicates remain requirements: arena identity, capture
+  lifetimes, class setup, definitions and module graph observations. An
+  unsupported applicable recipe is a blocker, not a permanent exclusion.
 
-### Expectations
+## Ordered definition actions
 
-Each check's `expect` lists what upstream asserts about its result, in upstream order:
+`actions` is a finite alternative to inline `source` and `checks`. Empty or mixed
+alternatives, unknown keys and invalid shapes reject before native loading.
+Assertions run immediately before the next operation in the same fixture.
+Definition-only cases need no fabricated final source check:
 
-- `{ errors: n }` for `LUAU_REQUIRE_ERROR_COUNT(n, result)`, and `{ errors: 0 }` for `LUAU_REQUIRE_NO_ERRORS`; `{ errors: "some" }` for `LUAU_REQUIRE_ERRORS`.
-- `{ error: i, ... }` for facts about `result.errors[i]`: its `code` (the error kind, from `get<Kind>`), its `message` (the text of `toString(result.errors[i])`, or `{ oneOf: [...] }` when upstream accepts either of several), its `location` (`[beginLine, beginColumn, endLine, endColumn]`, counted from 0 within the snippet as Luau's `Location` is), its `line` (the line it begins on, when that is all upstream checks), and its `fields` (the error struct's fields by their upstream names, with types printed).
-- `{ anyError: Kind }` and `{ noError: Kind }` for `LUAU_REQUIRE_ERROR(result, Kind)` and `LUAU_REQUIRE_NO_ERROR(result, Kind)`.
-- `{ everyError: { line: n } }` checks every diagnostic's beginning line after any missing-annotation filtering. It makes no assertion about the count; an empty set satisfies it, as upstream's loop does.
-- `{ decoratedSource: text }` compares the exact `decorateWithTypes` output, including whitespace and the inferred annotations in the new-solver branch.
-- A type assertion names a module-level binding (`type`, as `requireType` finds it), a type alias (`alias`, as `lookupType` finds it) or the type at a position (`typeAt`, as `requireTypeAtPosition` finds it), with an optional `path` into it: a table property's read type, a function's argument or result, an indexer's key or result, or an alias's type parameter. It then states the type's printed text (`equals`, with `options` for Luau's `ToStringOptions`), its Luau class (`kind`, for `get<FunctionType>(...)` and the like), that it is the same type as another selector's (`sameAs`, for comparing `TypeId`s), a function's return pack (`results`), an alias's number of type parameters (`typeParameters`), or a table's number of properties (`properties`). A selector with nothing else states only that the type is there, as upstream's `REQUIRE` on a property, indexer or argument it goes on to read.
-- `{ builtin: "number" }` selects the actual builtin TypeId; use `sameAs` for upstream builtin identity comparisons. `global` selects a fixture global. `exportedAlias` and `importedAlias: ["Import", "T"]` select genuine exported/imported bindings. `diagnosticType: [i, "wantedType"]` selects a genuine diagnostic type field; printed `fields` are a separate comparison.
-- `{ moduleReturn: true, equals: text }` prints the check's module return pack. Its selector can use a `path` beginning with `{ result: i }` to select a returned value, then traverse that type normally.
-- A type selector with `subtypeOf: anotherSelector` and `isSubtype: true` or `false` checks `isSubtype(selected, another)`, preserving the direction and either expected outcome.
+```ts
+{
+  name: "original ordered definitions",
+  fixture: "Fixture",
+  actions: [
+    { definition: firstExactSource, expect: [
+      { success: false },
+      { binding: { name: "foo", present: false } },
+    ] },
+    { definition: secondExactSource, expect: [
+      { success: false },
+      { binding: { name: "bar", present: false } },
+    ] },
+  ],
+}
+```
 
-Queries execute against the real checker: module return packs, subtyping in either direction, normalization (`normalized: true`), and inferred source decoration. A selector's optional `module` chooses a checked dependency. `expectedTypeAt` reads contextual expected types; `overloadAt` selects a call's resolved overload. Missing graph entries fail explicitly.
+An action is `{ definition, mandatory?: true, expect }`, `{ check: PortedCheck }`,
+`{ syntheticSetup: "cyclicUnion" | "asymmetricExtern" }`, or one of the finite
+retained-function/exception operations below.
+The exact `singleton_types` plain test uses `fixture: "BuiltinsFixture"` and
+`actions: [{ nestedBuiltinsFixture: true }, { check: originalCheck }]`. It constructs
+and destroys the second real BuiltinsFixture inside the same WASM while the first
+remains alive, then runs its sole original check. The action is once-only, first
+and fresh; extra keys, another preset, later setup or multiple checks are rejected.
+It does not stand in for a child fixture sharing a parent's global scope.
+`mandatory` additionally requires success. Direct unsuccessful definitions retain
+actual ordered parser/errors, module presence and source labels; they are not a
+CheckResult and have no invented `nativeIndex`. Definition assertions select
+actual binding/alias presence, nullable documentation, own named properties,
+raw type predicates, builtin identity, function metadata and the actual nullable
+ExternType.definitionModuleName. See `../typecheckNativeActions.ts` for the finite
+vocabulary and strict validation.
 
-Decoration prints number literals from their checked AST values, including binary/hexadecimal/separator/exponent spellings. It follows the pinned AST-only printer's signed 32-bit integer bounds and `%.17g` precision, with exact nearest-even decimal rounding, infinity and NaN forms, and the printer's separator/call/binary-expression position behavior. String literals retain the pinned quote/escape rules. This does not add signed 64-bit integer AST support. Parenthesis-free calls and unsupported literal/token forms fail explicitly instead of replaying an unverified spelling.
+The two synthetic actions call the exact pinned native recipes for
+unionTypes:641 and externTypes:803. They construct the original `Fixture`, apply
+case-body flags, and perform setup before definitions, globals, sources or checks.
+The same fixture and graph remain across subsequent original checks. Native
+freshness guards reject duplicate, late and wrong-preset setup; the runner never
+resets or reorders actions to make them succeed. Unknown recipes, extra keys and
+synthetic-only cases without an original check reject before loading. The native
+test adapter's separate `variadicFunctions` operation is not part of this shared
+two-recipe protocol. Inactive, unparsed and skipped cases remain parse-only with
+no native setup. Adding a new recipe requires its own exact source audit.
 
-Additional type facts include `notEquals` (printed inequality), `notSameAs` (reference inequality), and `printedSameAs` (both sides printed with the same options). Function `arguments`/`returns` accept exact direct head `length` and explicit `tail` presence/kind. `flattenedArguments`/`flattenedReturns` instead run Luau `flatten`: they count chained concrete heads and report the actual residual non-concrete tail/kind. Use these when upstream explicitly calls `flatten`, including typePacks:65; a direct one-element node with a concrete two-element tail has flattened length three and no residual tail. Module return packs also expose `flattenedReturns`. `hasSelf`, `generics`, `genericPacks`, generic polarity and `generic`/`genericPack` paths preserve structural predicates. Tables expose `instantiatedTypeParameters`/`instantiatedTypePackParameters` counts and corresponding singular paths, independently of alias declaration parameters. `name`, `hasProperty`, `propertyLocations` and `definitionLocation` query stored metadata. Locations use zero-based four-tuples; a missing property location is `null`. `scopes` can assert `minimum` or exact `count`, alias locations using `scope` or `scopeAt`, and `importedModules` records with scope/name/module.
+`NativeFixture.facts` exposes the raw TypeId's `rawPersistent` bit before follow.
+Its `tableLevel`, `tableScopeIsGlobal` and `indexerIsReadOnly` describe the actual
+followed TableType; non-tables and absent indexers return null. Extern `name`
+comes from the actual native ExternType. These bounded observations do not
+export a graph, imply an arena freeze flag or invent scope metadata for a union.
 
-Diagnostics accept `messageContains`, `messageExcludes`, `endLine`, `moduleMatchesCheck: true`, per-type-field `fieldOptions`, and `fieldLocations` presence/beginning line. `everyError.messageExcludes` preserves a loop's substring predicate. Decoration walks the checked AST using the AST-only branches of pinned PrettyPrinter and the actual inferred cells from TypeAttach conventions. It never replays source tokens or comments. Table and type-table separators are synthesized commas without trailing separators; statement semicolons use the distinct `AstStat.hasSemicolon` fact. Keywords and delimiters advance only where the corresponding pinned branch does, including conditional expressions, assignments, aliases, functions, calls, groups and indices.
+Separate descriptors preserve original intra-action assertion order. For
+definitions:317/361, documentation precedes the raw structural requirement:
 
-The emitter converts the source AST's editor UTF-16 positions to UTF-8 byte columns at the test boundary. Literal and inferred singleton bytes use pinned StringUtils escaping and quote selection, then valid UTF-8 output is decoded to the text API's JavaScript string. Invalid UTF-8 output bytes (for example `"\128"` or `"\255"`) fail explicitly rather than being replaced with U+FFFD. Source literals and explicit singleton annotations retain embedded NUL as the pinned `\000` escape; inferred singleton and AstName rehydration follows TypeAttach's `strlen`/`c_str` boundary and ends at the first NUL. This also applies to inferred table property names; the actual checked property key retains its full bytes. Supporting an invalid-byte decoration assertion requires a byte-valued result API, not changed upstream expectations or permanent exclusion. Exact native-byte probes distinguish this boundary from UTF8ToString/JSON decoding.
+```ts
+expect: [
+  { alias: { name: "Bar", present: true,
+      type: { documentation: "@test/globaltype/Bar" } } },
+  { alias: { name: "Bar", present: true, type: { rawKind: "extern",
+      properties: { prop: { count: 1,
+        documentation: "@test/globaltype/Bar.prop" } } } } },
+]
+```
 
-Supported Luau expression, statement, explicit type and pack branches have source-backed native printer comparisons, including nested, empty, multiline, unusual spelling and Unicode cases. Inferred Unicode singleton tests additionally compare the pinned zero-location TypeAttach rehydration convention. Prepared-AST proofs explicitly distinguish official-parser acceptance from Sparkdown grammar acceptance: the mixed variadic function-type list remains blocked by #876, and qualified type-reference printer probes retain real missing-import errors. Type-function emission tests retain the checker's explicit-annotation errors. These are decoration proofs, not claims that the parser or checker accepts every source. Attributes, interpolated-string/error/Sparkdown nodes, declaration functions/extern statements, signed64 integer ASTs, parenthesis-free calls and cyclic annotation kinds remain explicit unsupported boundaries; no applicable conformance case is permanently excluded by them. This helper is test-only and does not change author-facing formatting.
+Apply the same split to MyClass alias docs and y binding docs before their raw
+predicates. Raw extern/function requirements reject genuine Bound wrappers;
+printing a followed type is not a substitute. Recursive function metadata checks
+module, location, vararg absence, then original-name location, as definitions:361
+does. For definitions:152/192, typed GenericError precedes its message:
 
-### Setup and isolation
+```ts
+expect: [
+  { definitionError: 0, kind: "GenericError" },
+  { definitionError: 0, message: exactOriginalMessage },
+]
+```
 
-Each check creates a fresh frontend, fixture, module graph and arenas. Successful `definitions: string[]` are parsed independently by the verified official parser at the manifest pin, then loaded through the TypeScript frontend's prepared-AST definition API. This parser is a test oracle only; production never imports it. `globals: { foo: "(number) -> string" }` installs independently parsed typed globals without rewriting the snippet. All setup syntax diagnostics retain their own module names and ranges; invalid setup cannot be hidden by an entry snippet's unparsed record. Literal NUL input follows the pinned lexer's EOF behavior; malformed declarations after that byte are not necessarily parsed. Explicit-length native controls cover ordinary, quoted and commented NUL input separately from textual escaped NUL literals.
+Combining fields does not specify arbitrary assertion order. Split descriptors
+where upstream differs from the helper's fixed order; do not globally reorder
+unrelated predicates or weaken structural guards.
 
-`moduleSources` maps exact names to exact source strings and supplies dependencies for the check's `module` entry. Every support source receives the compiler parse check, and require paths rooted at `game` or `script.Parent` follow the pinned fixture resolver. Fresh diagnostics include checked dependencies in LIFO dependency postorder, preserving each module's parse errors followed by actual checker insertion order. Sibling iteration uses pinned DenseHashSet bucket ordering for Emscripten4.0.10 wasm32 libc++ (the attested test oracle target): UTF-8 Murmur2 hashes, uint64 Fibonacci mixing, linear probing and ascending-bucket rehashing at 3/4 capacity. Other native standard libraries have implementation-defined string hashes; this is explicit target fidelity, not universal platform ordering. This is `Fixture::check`/fresh `Frontend::check`, not cached `getCheckResult` source sorting. Product-comparison tests sort their own copies before source-position deduplication. Unused sources and unchanged cached dependencies in an intentional shared sequence contribute no fresh checker errors; their module queries remain available. Shared sessions retain compiled sources and exact require traces. The entry and explicitly supplied support sources are marked dirty, along with every transitive importer, following pinned `Frontend::markDirty`. Invalidated importers recheck their retained sources against current dependency interfaces. Replacing a trace removes former dependency edges; clearing modules also clears retained sources and traces while preserving builtin/global bindings. Cyclic require graphs currently fail explicitly and are separate Task #1384; a missing dependency is handled by the actual checker. These fresh-only fixture results differ from the official product backend's complete-snapshot diagnostic contract.
+The original NonStrict method-call recipe uses one finite setup action before
+its exact sole check, with constructor setup before case flags and this body
+operation under those flags:
 
-Only own enumerable string entries in `moduleSources` are supplied sources, matching `Object.entries` in execution and validation. Inherited or non-enumerable properties do not reserve entry names. Own enumerable duplicates still fail, including `__proto__` and null-prototype maps.
+```ts
+fixture: "NonStrictTypeCheckerFixture",
+actions: [
+  { nonstrictBuiltinGlobals: true },
+  { check: { source: exactOriginalMethodSource, expect: [{ errors: 0 }] } },
+]
+```
 
-Module-qualified `diagnosticType` indices select that module's raw parse errors followed by its checker insertion order, including cached modules. Unqualified indices instead select the fresh result's reachable checked modules in fixture order. They need not have the same index when dependencies contribute errors. Neither selector sorts the diagnostics by source position.
+This operation reuses the actual normal/autocomplete arenas and calls the pinned
+void builtin/test registration functions. It is first, once-only, before other
+definitions, sources, captures or checks. Unknown, duplicate, late and wrong-preset
+requests fail. No manufactured load-definition success or diagnostic accompanies
+the void API. A direct source that already checks cleanly does not prove this
+original setup occurred. Reset reconstructs fresh eligibility; clearing modules
+does not. Exceptional refreeze is a source-reviewed safety path until a genuine
+exception is observed; tests do not invent one to claim coverage.
 
-The test-only module tracer follows pinned `Analysis/src/RequireTracer.cpp` and `tests/Fixture.cpp`: it records a map of exact AST nodes before checking, including both require arguments and full calls, instead of peeling arbitrary call arguments. Roots are `game`, `workspace` and `script`; tracked local initializers, groups, named/string indices, Parent and game:GetService propagate the fixture's context. Assignment invalidates a local's initializer for the entire trace, including earlier calls. A type assertion suppresses traversal beneath it; `typeof` annotations remain traversable. Unknown roots and computed non-method calls stay unresolved. Present empty-name sentinels are distinct from missing entries; the actual solver reports `UnknownRequire` and returns its builtin error type for the empty name. Nested calls preserve upstream preorder: `require(require(game.A))` has an unresolved outer full-call entry and a resolved inner entry, so argument and full-call queries can differ. Dependency collection uses the traced graph, even when the checker subsequently rejects a call's argument count. A private 24-case differential executes the actual pinned Parser and RequireTracer with the Fixture.cpp resolver model; it is not full native checker evidence or a claim that #879 is fixed. UTF-8 string path bytes are decoded into `moduleSources` text keys without NUL truncation, BOM consumption or Unicode normalization. Twelve additional native tracer byte controls cover leading/repeated/trailing BOM, composed/decomposed spellings and non-BMP paths for indexing and GetService; actual-checker controls separately cover embedded NUL and invalid UTF-8 rejection. Invalid UTF-8 byte paths fail explicitly because this contract has Unicode keys.
+The original builtins retained-function case uses one actual fixture and this
+ordered protocol. Capture labels are case-local, unique and limited to16; these
+are opaque native global/builtin FunctionTypes, never copied graphs:
 
-`hiddenTypes: true` installs the pinned hidden aliases, including the builtin `fun` alias, in that check's environment. `retainFullTypeGraphs: false` clones error types into each reachable module's interface arena, discards internal arena ownership and query maps, and retains public return/export/diagnostic queries. Internal graph queries and decoration fail after discard. JavaScript garbage collection cannot reproduce C++ freed-pointer lifetime failures.
+```ts
+actions: [
+  { captureGlobalFunction: { as: "frexp", global: "math", property: "frexp" } },
+  { check: { source: "local a = math.frexp", expect: [{ errors: 0 }] } },
+  { expectCapturedLevels: { capture: "frexp", levelUnchanged: true,
+      subLevelUnchanged: true } },
+]
+```
 
-An intentional upstream same-fixture sequence uses case `shareFixture: true`, with `clearModules: true` on the transition. It retains the fixture's builtin/global bindings while clearing actual module graphs; unrelated cases and ordinary checks remain fresh. The builtin mutation regression therefore survives the transition instead of being masked by creating another fixture.
+Both levels compare against that capture's actual before values. Ordinary checks,
+definition loads and frontend clear retain the same global arena; reset, disposal
+and foreign fixtures reject old captures. Module-owned captures are unsupported.
 
-### Requested flag settings
+`{ checkThrows: { source: exactOriginalSource, exception: "InternalCompilerError" } }`
+is a terminal logical check action. Its source gets the same shared-author syntax
+eligibility before native initialization, and `sourceChecksOf` includes it in
+literal/manifest audits. It does not produce a fake ordinary CheckResult or error
+count. The exact NonStrict fixture runs `check_nonstrict` with the original checked
+definitions; only the native exception-class discriminant passes. Successful,
+wrong-fixture/setup or generic JS errors fail. A terminating check must be last.
+Inactive or skipped cases parse with no native instance.
 
-The frontend has fixed new-solver semantics rather than mutable FastFlags. Only these proven equivalents are accepted; opposite values are rejected:
+## Check expectations and native queries
 
-| Flag | Value | Evidence in the TypeScript checker |
-| --- | --- | --- |
-| DebugLuauForceOldSolver | false | Frontend.check invokes the new solver |
-| DebugLuauMagicTypes | false | Fixture setup installs no internal magic aliases |
-| LuauAvoidTrivialPhis | true | DataFlowGraph.joinScopes skips identical definitions |
-| LuauStrictVisitInstantiatedType | true | ConstraintGenerator records failed references; TypeChecker2 visits instantiated arguments and checks failed generic references |
-| LuauNewTypePathErrorMessages | true | TypeChecker2.explainReasonings uses metadata-aware traversal/rendering, including the enclosing-negation diagnostic branch |
-| LuauFixSuperNegationTypePaths | true | Subtyping's super-negation leaf branches attach the Negated path component, matching the pinned true branches |
+Each `expect` preserves the original predicates in order:
 
-`LuauExportValueSyntax=true` has a narrower audited equivalence: the actual AST must contain a const declaration and no exported value/local-function nodes in the entry or supplied dependencies. Pinned Parser.cpp::parseAssignment/parseCompoundAssignment use reportLValueError for const assignment when true; readLuauAst implements that same diagnostic path unconditionally. The const ports execute their exact readonly diagnostics and inferred-type assertions. Value exports and requests without the audited const setup still fail explicitly; their design decision remains pending. This does not claim general export-value syntax support.
+- `{ error: i, typeMismatchData: { wanted: "string", given: "number" } }`
+  compares actual native TypeErrorData, including its default reason/context and
+  nested-error state. The finite selectors are string/number/boolean. A filtered
+  aggregate ordinal maps through its retained nativeIndex; separate location and
+  structural descriptors preserve the original order. There is no printed-type
+  or partial-field substitute.
+- `{ moduleDiagnostics: { module, errors: n } }` and
+  `{ moduleDiagnostics: { module, moduleIndex: i, kind } }` observe the actual
+  retained Module.errors vector at that point. moduleIndex is a separate local
+  domain, with no guessed aggregate nativeIndex. Requests revalidate the current
+  result and fail on missing/stale/foreign modules/handles; more than256 errors or
+  over1MiB output fails without truncation. Existing module-qualified diagnostic
+  type selectors remain unsupported. These are raw-native observations: an exact
+  module source blocked by shared syntax still requires its parser dependency.
 
-Other recorded requests (including annotation warnings, experimental if-local, compound assignment seeding and iterative search), and opposite values for fixed settings, fail with their exact name/value until their behavior or configuration is implemented or separately scoped. Per-area activation Tasks #1360–#1367 retain that work; metadata is not evidence of a tested setting. Numeric limits remain unsupported.
+- `errors: n`, `errors: 0` and `errors: "some"` preserve the original error macros.
+  `error: i` can compare actual code/message/location/fields. Locations are
+  original zero-based four-tuples. Substring and alternate-message predicates
+  remain distinct; no extra count is implied.
+- `anyError`, `noError` and `everyError` preserve kind/loop checks. Empty loops
+  stay vacuously true where upstream does. Definition diagnostics use their
+  separate action vocabulary.
+- `type`, `global`, `alias`, `exportedAlias`, `importedAlias`, `builtin`, `typeAt`,
+  `expectedTypeAt`, `overloadAt`, `diagnosticType` and `moduleReturn` select actual
+  bounded objects. Optional `module` changes ownership. Missing selectors fail;
+  a selector alone checks presence without inventing a signature or predicate.
+- `equals`, `notEquals` and `printedSameAs` use native printing options, including
+  `maxTableLength: 0` for unlimited tables. `sameAs`/`notSameAs` compare original
+  raw TypeId/PackId identity. Printing and kind inspection may follow without
+  changing raw equality semantics. The direct native helper supports explicit
+  follow; the shared selector path currently has no `follow` step. An original
+  explicit-follow identity assertion requires that separately audited support.
+- `arguments`/`returns` inspect direct head/tail; `flattenedArguments` and
+  `flattenedReturns` call native flatten. Chained concrete heads and residual
+  tails remain distinct. Size/first/finite/pack identity are separate operations;
+  printed shape does not establish topology.
+- Function/generic/pack facts, declared versus instantiated parameters,
+  property/name/location/scope metadata, selected-New subtype and normalization
+  use actual data. A `{ typeParameter: i }` path selects a declared TypeFun
+  parameter only immediately after an alias, exportedAlias or importedAlias
+  selector; instantiated table parameters use `instantiatedTypeParameter`.
+  Unsupported paths still fail, including module-qualified diagnostic type
+  selectors. Vocabulary alone is not a capability-completion claim.
+- `decoratedSource` uses native `attachTypeData` and `prettyPrintWithTypes` on the
+  retained SourceModule, without replaying source spelling or manufacturing a
+  checker input through a host emitter.
+- `moduleGraph: { module, maximumInternalTypes }` compares the actual retained
+  native arena count. Disabled/discarded graphs reject instead of returning zero.
 
-A case upstream asserts nothing about still has a check with an empty `expect`: once its file is switched on, the checker has to run on it.
+Opaque handles belong to their host instance and result revision. Graph-changing
+operations invalidate ordinary result/query handles; reset/dispose and foreign
+instances reject them. Explicit captures preserve eligible real global/builtin
+FunctionType identity across same-arena operations, rather than clone it. Full
+graphs are not transferred to TypeScript. Native UTF-8 byte locations and
+compiler/editor UTF-16 positions remain distinct proof boundaries.
 
-## Skips and records
+## Parse records and precise exclusions
 
-A case's `skip` says why its type assertions never run:
+`skip.newSolver`, `skip.notApplicable` and `skip.disabledUpstream` retain original
+documented reasons. A block-only solver guard uses `doesNotPassNewSolver` on that
+check. Empty `expect` still executes an active no-crash check. Shared API gaps
+never justify skipping required cases.
 
-- `{ newSolver: NEW_SOLVER_GUARD_REASON }` for a case under `DOES_NOT_PASS_NEW_SOLVER_GUARD`, whose expectations are the old solver's and are not ported. A case that returns before checking on the new solver is skipped with `newSolver` and the upstream reason. When the guard covers only a block within a case, the checks in that block are marked `doesNotPassNewSolver: true` instead, and the rest of the case runs.
-- `{ notApplicable: "..." }`, with the specific reason, for a case that cannot apply to Sparkdown.
-- `{ disabledUpstream: true }` for a case upstream never compiles, in an `#if 0` region or a comment.
+`unparsed: { defect: N }` records a parser defect; `unparsed: { divergence }`
+records an exact documented divergence. Both require actual rejection and fail
+once the source parses. `malformed` preserves original Luau-invalid source while
+executing its native error assertions. Compiler parser diagnostics and raw native
+CheckResult SyntaxError remain independent. The parse check also detects non-Luau
+recovery nodes, string interpolation divergences and early wrapper closure.
 
-A check within a case that cannot apply to Sparkdown, when the case's other checks can, carries `notApplicable` with the specific reason instead: its snippet still gets the parse check, and only its own assertions never run.
+Dependency preflight parses entry and support sources before native setup, without
+extra semantic checks. `moduleDivergences` allows only three audited class-source
+associations in `classDependencyExclusions.ts`: classes:418 and modules:1355/1389,
+exact game/A source/hash and heading "No `class` declarations". Token evidence,
+source association and actual rejection are mandatory. Entry and other dependency
+errors remain independent; exact game/B require defect #879 cannot be hidden by
+the A exclusion. Appended malformed text or changed case/source/name rejects.
 
-A snippet Sparkdown cannot parse yet carries a record of why: `unparsed: { defect: N }` names the filed Bug, and `unparsed: { divergence: "..." }` names the `packages/sparkdown/docs/runtime/DIVERGENCES.md` section, by its heading, that documents why it never will. The parse check then expects the snippet to fail, so the test fails, and the record has to go, once the snippet parses. A snippet that fails to parse for any other reason is a defect, to be fixed or filed.
+Class hashing uses only the audit's phase-one CRLF-to-LF equivalence, without trim
+or rewriting. The existing whole-snippet wrapper still rejects CRLF independently;
+hash equivalence is not route acceptance. Experimental if-local/if-const and
+value-export decisions remain pending and are not authorized by native execution
+under an original flag.
 
-A snippet Luau's own parser rejects, such as `return t.` or an `if` expression with no `else`, carries `malformed` with what upstream writes wrong. The parse check then expects Sparkdown to report a syntax diagnostic too, and the case's assertions still run, since Luau's error counts include the parse errors. A malformed snippet Sparkdown reads without complaint has no record, and the error sits in `expect` for the checker to report (see below).
+## Remaining acceptance ownership
 
-A case with a skip or an unparsed snippet still runs its parse check, then reports as skipped.
-
-## The parse check
-
-Sparkdown's grammar recovers from Luau it cannot read without a diagnostic: it reads the rest of the line as narrative text, or closes the enclosing block early. So the harness reads the syntax tree of the compiled snippet as well as the validator's diagnostics, and reports as a `SyntaxError`, in the snippet's own lines and columns:
-
-- each diagnostic the syntax validator gives the snippet (malformed strings, numbers, escapes and comments, in Luau's wording);
-- each node the parser could not finish;
-- each node inside the snippet that is not Luau, such as narrative text or a divert, outside the text of strings and comments (the Luau inside a backtick string's braces is read like any other);
-- each pair of braces in a string that Sparkdown reads as an expression and Luau does not: interpolation in a double-quoted string, which Luau reads as text, and the `{{name}}` call shorthand, which Luau reads as text in a double-quoted string and rejects in a backtick string; a snippet with one records the divergence by its heading, `` `"..."` interpolates; `'...'` does not ``;
-- the function `run` wraps the snippet in closing before the snippet ends.
-
-The parse check asks only whether Sparkdown reads the snippet as Luau. An error Luau's parser reports for a reason the grammar does not look for, such as a `const` assigned a second time, is recorded in `expect` as a `SyntaxError` like any other error, for the checker to report.
+#1388 owns this shared boundary and review/release. #1377, #1379, #1380, #1381 and
+#1384 retain specialized original setup/action acceptance; #593–#598 retain
+transcription, and #1360–#1367 retain full area activation. Portable tests consume
+reviewed relative-import APIs after release. Private cross-worktree probes and
+bounded shared controls do not close those tickets or establish full corpus
+fidelity. Query, diagnostic, lifetime and parser gaps remain explicit dependencies.

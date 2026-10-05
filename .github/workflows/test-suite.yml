@@ -101,6 +101,18 @@ jobs:
         if: matrix.package == 'packages/sparkdown'
         run: node packages/sparkdown/scripts/buildDefinitionAst.mjs --check
 
+      - name: Restore validated native conformance object cache
+        if: matrix.package == 'packages/sparkdown'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/luau-conformance-objects
+          key: ${{ runner.os }}-luau-conformance-assert-v1-7d5-emsdk4.0.10-${{ hashFiles('packages/sparkdown/native/luau-conformance/build.mjs', 'packages/sparkdown/native/luau-conformance/compile-profile.mjs') }}
+          restore-keys: ${{ runner.os }}-luau-conformance-assert-v1-7d5-emsdk4.0.10-
+
+      - name: Build native conformance fixture artifact
+        if: matrix.package == 'packages/sparkdown'
+        run: node packages/sparkdown/native/luau-conformance/prepare-ci.mjs
+
       # The package's own vitest.config.ts stays in force (pool, environment,
       # setup files). The heap cap and single worker match the repository's
       # resource gate; passWithNoTests stays off so an empty include is a

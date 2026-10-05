@@ -14,6 +14,7 @@ import {
   portProblems,
   runAssertions,
   runPortedCase,
+  runNativePortedCase,
   type Manifest,
   type PortedCase,
   type PortedCheck,
@@ -23,6 +24,7 @@ import {
   describeDiagnostic,
   NotImplemented,
   type CheckedType,
+  type CheckLuauOptions,
   type LuauCheckResult,
   type LuauDiagnostic,
   type LuauMode,
@@ -227,6 +229,34 @@ function run(c: PortedCase, result: LuauCheckResult | ((source: string) => LuauC
 }
 
 describe("running a ported case", () => {
+  test("registered inactive and explicitly skipped cases perform parser checks without native initialization", async () => {
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "");
+    const load = vi.fn(async () => { throw Error("parser-only case initialized a native fixture"); });
+    const source = "local x = 1";
+    const skipInactive = vi.fn();
+    await runNativePortedCase(AREA_OFF_FILE, { name: "inactive", fixture: "MissingFixture", source,
+      expect: [{ errors: 99 }], flags: { UnregisteredFlag: true }, limits: { UnregisteredLimit: 1 } }, skipInactive, load);
+    expect(skipInactive).toHaveBeenCalledOnce();
+    const skipExplicit = vi.fn();
+    await runNativePortedCase(FILE, { name: "explicit", skip: { notApplicable: "source-backed exclusion" },
+      source, expect: [{ errors: 99 }] }, skipExplicit, load);
+    expect(skipExplicit).toHaveBeenCalledOnce();
+    await runNativePortedCase(FILE, { name: "guarded", source, doesNotPassNewSolver: true,
+      expect: [{ errors: 99 }] }, vi.fn(), load);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  test("registered unparsed cases retain parser failure ownership and never initialize a native fixture", async () => {
+    const load = vi.fn(async () => { throw Error("unparsed case initialized a native fixture"); });
+    const skip = vi.fn();
+    await runNativePortedCase(FILE, { name: "unparsed", source: "-> elsewhere", unparsed: { defect: 875 },
+      expect: [{ errors: 99 }] }, skip, load);
+    expect(skip).toHaveBeenCalledOnce();
+    await expect(runNativePortedCase(FILE, { name: "record now stale", source: "local x = 1",
+      unparsed: { defect: 875 }, expect: [] }, vi.fn(), load)).rejects.toThrow("the snippet now parses cleanly");
+    expect(load).not.toHaveBeenCalled();
+  });
+
   test("a snippet with a syntax diagnostic fails its case", () => {
     const c: PortedCase = { name: "a", source: "x", expect: [] };
     expect(() => run(c, stub({ syntaxDiagnostics: [SYNTAX_ERROR] }))).toThrow(/Sparkdown did not read the snippet as Luau/);
@@ -345,9 +375,10 @@ describe("running a ported case", () => {
       return stub({ checked: true });
     });
     expect(seen).toEqual([
-      ["x", { mode: "nonstrict", fixture: "BuiltinsFixture" }],
-      ["y", { mode: undefined, fixture: "Fixture" }],
+      ["x", { mode: "nonstrict", fixture: "BuiltinsFixture", session: expect.objectContaining({ modules: expect.any(Map) }) }],
+      ["y", { mode: undefined, fixture: "Fixture", session: expect.objectContaining({ modules: expect.any(Map) }) }],
     ]);
+    expect((seen[0] as [string, CheckLuauOptions])[1].session).toBe((seen[1] as [string, CheckLuauOptions])[1].session);
   });
 });
 
@@ -560,6 +591,14 @@ describe("checking a port against the manifest", () => {
   });
   test("a faithful port has no problems", () => {
     expect(portProblems("X.test.cpp", FAITHFUL, MANIFEST)).toEqual([]);
+  });
+
+  test("an explicit frontend clear uses the faithful default case lifetime without legacy shareFixture metadata", () => {
+    const c: PortedCase = {name:"a",fixture:"Fixture",checks:[
+      {source:"",expect:[]},
+      {source:"",clearModules:true,expect:[]},
+    ]};
+    expect(portProblems("X.test.cpp",withCase(0,c),MANIFEST)).toEqual([]);
   });
 
   test("an upstream file the manifest does not list is named", () => {

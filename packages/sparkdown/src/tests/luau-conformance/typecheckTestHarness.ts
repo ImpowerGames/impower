@@ -16,6 +16,8 @@
 // looks at the syntax tree as well as at what the validator reports.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
+import type { NativeModuleDiagnostics } from "../analysis-backend/native-conformance/nativeFixture";
+import type { TypeMismatchDataAssertion } from "./typecheckNativeActions";
 import { createHash } from "node:crypto";
 import { vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -34,6 +36,7 @@ import {
 import { Frontend } from "../../compiler/typecheck/Frontend";
 import {
   checkLuauUnit,
+  documentPosition,
   modeFromName,
   runFileUnit,
 } from "../../compiler/typecheck/LuauDocumentChecker";
@@ -55,12 +58,16 @@ import {
 } from "../../compiler/typecheck/Type";
 import type { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import type { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
-import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { createSyntaxDiagnosticProjection, grammarOwnsSyntaxDiagnostic } from "../../compiler/typecheck/SyntaxDiagnosticProjection";
 import type { SparkdownNodeName } from "../../compiler/types/SparkdownNodeName";
 import { nodeNameSet } from "../../compiler/utils/nodeNameSet";
 import { diagnosticMessage } from "./diagnosticTestHarness";
 
 export type LuauMode = "strict" | "nonstrict" | "nocheck";
+/** Exact pinned PrimitiveType::Type names, including Integer between Number/String. */
+export const LUAU_PRIMITIVE_KINDS = ["NilType", "Boolean", "Number", "Integer", "String", "Thread", "Function", "Table", "Buffer"] as const;
+export type LuauPrimitiveKind = typeof LUAU_PRIMITIVE_KINDS[number];
 
 /**
  * A diagnostic about the snippet. Lines and columns count from 0 within the
@@ -68,6 +75,8 @@ export type LuauMode = "strict" | "nonstrict" | "nocheck";
  * location compares directly.
  */
 export interface LuauDiagnostic {
+  /** Actual native CheckResult.errors position, retained through annotation filtering. */
+  nativeIndex?: number;
   module?: string;
   line: number;
   column: number;
@@ -153,9 +162,13 @@ export interface PackFacts {
   tailKind?: string;
 }
 export type LocationTuple = [number, number, number, number];
+/** Pinned Type.h TableState ordinals, consumed only after an actual raw-table guard. */
+export type LuauTableState = "Sealed" | "Unsealed" | "Free" | "Generic";
 
 /** A type the checker found. */
 export interface CheckedType {
+  /** Native getPrimitiveType predicate; absent when the followed type is not primitive. */
+  readonly primitive?: LuauPrimitiveKind;
   /** The type printed as Luau's `toString` prints it. */
   print(options?: LuauToStringOptions): string;
   /** The Luau class of the type (`PrimitiveType`, `FunctionType`, ...), after following bound types. */
@@ -164,12 +177,15 @@ export interface CheckedType {
   is(other: CheckedType): boolean;
   /** Whether this type is a subtype of another, in that direction. */
   subtypeOf(other: CheckedType): boolean;
+  /** Exact raw native TypeId membership; unavailable on the legacy TS helper. */
+  inArena?(arena: "interface" | "global", module: string): boolean;
   /** For a function: the types at the head of its return pack. */
   results?: CheckedType[];
   /** For a type alias: how many type parameters it declares. */
   typeParameterCount?: number;
   /** For a table: how many properties it has. */
   propertyCount?: number;
+  readonly tableState?: LuauTableState;
   arguments?: PackFacts;
   returns?: PackFacts;
   /** Facts after Luau flatten(), including the residual non-concrete tail. */
@@ -208,12 +224,20 @@ export interface LuauCheckResult {
    */
   typeOf(name: string, options?: LuauToStringOptions): string;
   /** The type a selector names. */
-  find(selector: TypeSelector): CheckedType;
+  find(selector: TypeSelector, diagnostics?: readonly LuauDiagnostic[]): CheckedType;
   /** The source printed with all inferred annotations, as decorateWithTypes does. */
   decoratedSource(): string;
   /** The compiler's own diagnostics for the snippet, including ones it only logs; not asserted. */
   compilerMessages: string[];
   moduleName?: string;
+  /** Actual retained native module graph counts, unavailable in legacy helpers. */
+  moduleGraph?(module: string): { internalNodes: number };
+  /** Finite native structural comparison on the original retained aggregate diagnostic. */
+  mismatchDataEquals?(diagnostic: LuauDiagnostic, assertion: TypeMismatchDataAssertion): boolean;
+  /** A separate actual Module.errors vector, never reindexed as aggregate diagnostics. */
+  moduleDiagnostics?(module: string): NativeModuleDiagnostics;
+  /** First actual original error with this begin, in an order-preserving selected subset. */
+  diagnosticAtBegin?(begin: readonly [number, number], diagnostics?: readonly LuauDiagnostic[]): LuauDiagnostic;
   /** Parse diagnostics of every dependency/definition, in that source's own locations. */
   setupSyntaxDiagnostics?: LuauDiagnostic[];
   scopes?: {
@@ -224,6 +248,9 @@ export interface LuauCheckResult {
 }
 
 export interface CheckLuauOptions {
+  /** Exact direct Frontend::check(module), retaining current config; requires module and no mode. */
+  entrypoint?: "module";
+  solverOverride?: "New";
   /**
    * The mode a snippet without its own directive is checked in. Luau's test
    * fixture checks in strict mode unless a case asks for another, so that is
@@ -319,8 +346,15 @@ const SNIPPET_URI = `inmemory:///${SNIPPET_NAME}.luau`;
 // The name Luau's test fixture gives the module it checks.
 const MAIN_MODULE_NAME = "MainModule";
 
+class SyntaxPreparationCompiler extends SparkdownCompiler {
+  override validateTypes(): void {
+    // The converter provides syntax errors below. Checking belongs to the native
+    // fixture or public production AST path, never this preparation step.
+  }
+}
+
 function compileSource(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = new SyntaxPreparationCompiler();
   compiler.configure({
     files: [
       {
@@ -379,8 +413,35 @@ function compileSource(source: string) {
   );
   if (!unit)
     throw new Error(`the checker does not read ${wrapped.uri} as a run file`);
+  const converterDiagnostics: LuauDiagnostic[] = [];
+  const projectSyntax = createSyntaxDiagnosticProjection(wrapped.document.getText(), wrapped.tree)(position => documentPosition(unit, position));
+  const grammarErrors = (program.diagnostics?.[SNIPPET_URI] ?? [])
+    .filter(error => error.severity === DiagnosticSeverity.Error && error.range)
+    .map(error => error.range);
+  for (const error of unit.errors) {
+    // Same explicit ownership as SparkdownTypechecker.report: grammar reports
+    // syntax unless the reader marks a construct only Luau reading can reject.
+    // Preserve every raw unit error for the AST path; do not infer ownership
+    // from its message or publish grammar recovery twice.
+    const projected = projectSyntax({ ...error, malformed: Boolean(error.malformed) });
+    if (!projected) continue;
+    const sourceRange = { start: { ...projected.start, line: projected.start.line - wrapped.lineOffset },
+      end: { ...projected.end, line: projected.end.line - wrapped.lineOffset } };
+    if (grammarOwnsSyntaxDiagnostic(sourceRange, grammarErrors)) continue;
+    const diagnostic: LuauDiagnostic = { code: "SyntaxError", message: projected.message,
+      line: sourceRange.start.line, column: sourceRange.start.character,
+      endLine: sourceRange.end.line, endColumn: sourceRange.end.character };
+    if (!syntaxDiagnostics.some(value => value.line === diagnostic.line && value.column === diagnostic.column &&
+      value.endLine === diagnostic.endLine && value.endColumn === diagnostic.endColumn && value.message === diagnostic.message))
+      converterDiagnostics.push(diagnostic);
+  }
+  syntaxDiagnostics.unshift(...converterDiagnostics);
+  syntaxDiagnostics.sort((a, b) => a.line - b.line || a.column - b.column);
   return { unit, syntaxDiagnostics, compilerMessages };
 }
+
+/** Shared converter preparation, independent of the selected native fixture's setup. */
+export { compileSource as prepareLuauSource };
 
 export function checkLuau(
   source: string,
