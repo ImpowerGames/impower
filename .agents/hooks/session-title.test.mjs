@@ -186,6 +186,14 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(afterTool(rename("shared", "FIX #302: filterimage layers"), "claude"), null);
   assert.equal(gate(at(wt302, "git status"), "claude"), null);
   assert.match(gate(at(wt9, "git status"), "claude"), /FEAT #9/);
+  // A rename issued from inside the sibling's worktree does not acknowledge this worktree's title.
+  afterTool(shell("shared", create), "claude");
+  const siblingRename = afterTool({ ...rename("shared", "FIX #302: filterimage layers"), cwd: wt9 }, "claude");
+  assert.match(siblingRename, /FEAT #9: second thing/, "the sibling is told its own title");
+  assert.match(gate(at(wt302, "git status"), "claude"), /FIX #302/, "the rename from another worktree left this one pending");
+  assert.equal(afterTool({ ...rename("shared", "FIX #302: filterimage layers"), cwd: wt302 }, "claude"), null);
+  assert.equal(gate(at(wt302, "git status"), "claude"), null, "a rename from its own worktree acknowledges it");
+  afterTool(shell("shared", create), "claude");
   // The acknowledgement command clears only the worktree it names.
   afterTool(shell("shared", create), "claude");
   assert.equal(gate(at(wt9, ackCommand("shared", wt302)), "claude") === null, false, "the sibling's acknowledgement does not clear this worktree");

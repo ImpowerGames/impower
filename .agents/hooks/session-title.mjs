@@ -190,11 +190,13 @@ export function afterTool(payload, harness) {
   if (RENAME.test(tool)) {
     return modify(statePath(sessionId), sessionId, (entries) => {
       if (!entries.length) return { entries };
-      const match = entries.find((entry) => entry.title === payload.tool_input?.title);
+      // A rename issued from inside one pending worktree can acknowledge only that worktree's title.
+      const from = payload.cwd ? entries.find((entry) => touches(entry, { cwd: payload.cwd })) : undefined;
+      const match = entries.find((entry) => entry.title === payload.tool_input?.title && (!from || entry === from));
       // A rename aimed at another session does not rename this one.
       const target = payload.tool_input?.session_id;
       if (!match || (target !== undefined && target !== "self" && target !== sessionId)) {
-        const entry = match ?? entries[0];
+        const entry = match ?? from ?? entries[0];
         return { entries, value: `The session title must be exactly "${entry.title}". ${instruction(entry, sessionId, harness)}` };
       }
       return { entries: entries.filter((entry) => entry !== match) };
