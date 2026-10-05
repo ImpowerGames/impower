@@ -280,7 +280,7 @@ try {
 } finally { await timed.close(); }
 
 // A Vitest child queued behind another suite for longer than timeoutSeconds
-// still starts and finishes: the reservation wait is added to the kill budget.
+// still starts and finishes, because the wait and the run are separate budgets.
 // The runner prints its acquired line once it holds the reservation; the run's
 // timeout starts there, so a run that starts at once cannot spend the wait.
 const acquired = JSON.stringify({ status: "acquired" });
