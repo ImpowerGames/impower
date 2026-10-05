@@ -10559,12 +10559,20 @@ repository:
     # missing (`elseif then 2`).
     #
     # lookaround: a `then` glued to its condition is taken by the condition,
-    # so at a line end right after it no then arm is open yet. The `(?<!…)`
-    # keeps the end of the line from ending the expression there, so that
-    # `LuauThenExpression` opens and reads the line break
-    # (`LuauGluedThenSpacing`). Before a column-0 line the arm ends empty at
-    # once, and
-    # `BEFORE_LUAU_COLUMN_0_LINE` ends the expression there instead.
+    # so at a line end right after it no then arm is open yet, and the end,
+    # tried before the patterns, would close the expression there. The
+    # `(?<!…)`, which looks back only on the current line, keeps the end of
+    # the line from ending the expression right after a `then`, so that
+    # `LuauThenExpression` opens and its `LuauThenOperator` reads the line
+    # break. Reordering the patterns cannot help, since the end is tried
+    # first, and the condition cannot leave the `then` to the arm (see
+    # `LuauThenExpression`). Right after a `then` before a column-0 line,
+    # the arm and its operator end at once through
+    # `BEFORE_LUAU_COLUMN_0_LINE`, so this end takes the same alternative
+    # there: without it the arm would open again at that position. It is
+    # the line-end decision those rules already make, not a new one, and like
+    # theirs it matches nothing in a line-by-line tokenizer, which reads the
+    # next line through the operator's `Newline` instead.
     end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}"
 
   # The second `begin` alternative opens the then arm after a glued `then`
@@ -10581,15 +10589,13 @@ repository:
   # alternative's `(?=…)` opens the arm without taking `then`, which
   # `LuauThenOperator` inside it reads, so the keyword and the line break
   # after it are part of the arm. The second alternative takes nothing, so
-  # that `LuauGluedThenSpacing` inside it still finds the glued `then` and
-  # reads the whitespace and line break after it as `LuauThenOperator` does
-  # after a spaced one. The end's `^(?!…)` and
+  # that `LuauThenOperator` inside it still finds the glued `then` and reads
+  # the whitespace and line break after it. The end's `^(?!…)` and
   # `(?<=^{{WS}}*)(?=…)` are the line rules described below: a line that
   # begins a statement (`LUAU_STATEMENT_LINE_START`) ends the arm.
   LuauThenExpression:
     begin: (?=(?:then)\b)|(?<={{LUAU_THEN_BEHIND}})
     patterns:
-      - { include: "#LuauGluedThenSpacing" }
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauLineContinuation" }
@@ -10607,13 +10613,32 @@ repository:
     # ends its line, a next line that begins a statement also ends the arm.
     end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}"
 
+  # The `then` of an if expression's then arm and the whitespace and line
+  # break after it. The second `begin` alternative is the arm's own `then`
+  # glued to its condition, which the condition took (see
+  # `LuauThenExpression`), so it reads only what follows that `then`, and an
+  # arm whose glued `then` ends its line takes its value from the next line
+  # as it does after a spaced `then`. Every reader of the arm skips this
+  # rule as the clause's keyword, whichever alternative opened it.
+  #
+  # lookaround: the second alternative's lookbehind is
+  # `LuauThenExpression`'s, and holds only right after that `then`. Its
+  # `(?=$|{{WS}})` keeps it from opening empty before a value glued to the
+  # `then` (`(c)then(1)`), where the end would close it at once and the arm
+  # would open it again at the same position. A separate rule for the
+  # glued case cannot work: the arm's readers would take it for the arm's
+  # value.
   LuauThenOperator:
-    begin: ((?:then)\b)({{WS}}*)
+    begin: ((?:then)\b)({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?=$|{{WS}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#LuauThenKeyword" }
       2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
@@ -10624,29 +10649,6 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
-    patterns:
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
-
-  # The whitespace and line break after a `then` that its condition took
-  # (see `LuauThenExpression`), read as `LuauThenOperator` reads them after
-  # its own `then`, so an arm whose glued `then` ends its line takes its
-  # value from the next line.
-  #
-  # lookaround: the lookbehind is `LuauThenExpression`'s, and holds only
-  # right after that `then`. The `(?=$|{{WS}})` keeps the rule from opening
-  # empty before a value glued to the `then` (`(c)then(1)`), where its end
-  # would close it at once and the arm would open it again at the same
-  # position.
-  LuauGluedThenSpacing:
-    begin: (?<={{LUAU_THEN_BEHIND}})(?=$|{{WS}})({{WS}}*)
-    beginCaptures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-    # `ExtraWhitespace`, not `OptionalWhitespace`, as in `LuauThenOperator`.
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }

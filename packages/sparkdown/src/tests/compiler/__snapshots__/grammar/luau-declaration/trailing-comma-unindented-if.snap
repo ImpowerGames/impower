@@ -125,9 +125,10 @@ sparkdown [0..180]
  │   │       │   │   │       │       │   │   │   │   ├─ LuauThenOperator_begin [37..42]
  │   │       │   │   │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [37..41]
  │   │       │   │   │       │       │   │   │   │   │   │   └─ LuauThenKeyword [37..41]: "then"
- │   │       │   │   │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c2 [41..42]
- │   │       │   │   │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c2 [41..42]
- │   │       │   │   │       │       │   │   │   │   │           └─ OptionalWhitespace [41..42]: " "
+ │   │       │   │   │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 [41..42]
+ │   │       │   │   │       │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 [41..42]
+ │   │       │   │   │       │       │   │   │   │   │   │       └─ OptionalWhitespace [41..42]: " "
+ │   │       │   │   │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 42
  │   │       │   │   │       │       │   │   │   │   └─ LuauThenOperator_end 42
  │   │       │   │   │       │       │   │   │   ├─ LuauNumericDecimal [42..43]
  │   │       │   │   │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [42..43]: "2"
@@ -345,9 +346,10 @@ sparkdown [0..180]
  │   │       │   │   │   │   │       │   │   │   │   ├─ LuauThenOperator_begin [108..113]
  │   │       │   │   │   │   │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [108..112]
  │   │       │   │   │   │   │       │   │   │   │   │   │   └─ LuauThenKeyword [108..112]: "then"
- │   │       │   │   │   │   │       │   │   │   │   │   └─ LuauThenOperator_begin_c2 [112..113]
- │   │       │   │   │   │   │       │   │   │   │   │       └─ LuauThenOperator_begin_c2 [112..113]
- │   │       │   │   │   │   │       │   │   │   │   │           └─ OptionalWhitespace [112..113]: " "
+ │   │       │   │   │   │   │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 [112..113]
+ │   │       │   │   │   │   │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 [112..113]
+ │   │       │   │   │   │   │       │   │   │   │   │   │       └─ OptionalWhitespace [112..113]: " "
+ │   │       │   │   │   │   │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 113
  │   │       │   │   │   │   │       │   │   │   │   └─ LuauThenOperator_end 113
  │   │       │   │   │   │   │       │   │   │   └─ LuauNumericDecimal [113..114]
  │   │       │   │   │   │   │       │   │   │       ├─ LuauNumericDecimal_c1 [113..114]: "2"

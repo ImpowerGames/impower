@@ -13,14 +13,30 @@ function readings(text: string) {
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   } as never);
   const program = compiler.compile({ textDocument: { uri: URI } } as never).program;
-  const errors = (program.diagnostics?.[URI] ?? [])
-    .filter((diagnostic) => diagnostic.severity === DiagnosticSeverity.Error)
-    .map((diagnostic) => typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value);
+  const diagnostics = (program.diagnostics?.[URI] ?? []).filter(
+    (diagnostic) => diagnostic.severity === DiagnosticSeverity.Error,
+  );
+  const errors = diagnostics.map((diagnostic) =>
+    typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
+  );
+  const starts = diagnostics.map((diagnostic) => diagnostic.range.start);
   const tree = compiler.documents.tree(URI);
   if (!tree) throw new Error("Compiler kept no syntax tree");
   const units = checkerTextUnits(tree, text);
   const official = [units.prelude, ...units.flows].flatMap((unit) => officialSyntaxErrors(unit.text));
-  return { errors, official };
+  return { errors, starts, official };
+}
+
+// Where each error begins, with a position on the line holding `then`
+// given relative to the end of that `then`, so that a glued and a spaced
+// `then` compare equal.
+function relativeStarts(text: string, starts: { line: number; character: number }[]) {
+  const lines = text.split("\n");
+  const thenLine = lines.findIndex((line) => /then\s*$/.test(line));
+  const thenEnd = lines[thenLine]!.replace(/\s*$/, "").length;
+  return starts.map(({ line, character }) =>
+    line === thenLine ? `then${character - thenEnd >= 0 ? "+" : ""}${character - thenEnd}` : `${line}:${character}`,
+  );
 }
 
 // The value of the arm is on the line after its `then`.
@@ -88,29 +104,36 @@ describe("an if expression whose then is glued to its condition and ends its lin
     expect(result.errors).toEqual([]);
   });
 
-  test.each(["if (c)then", "if (c) then"])("still rejects %s at the end of the script", (opening) => {
-    const result = readings(`local c = true\nlocal s = ${opening}`);
-    expect(result.official.length, "official Luau parser rejects projected checker text").toBeGreaterThan(0);
-    expect(result.errors.length, "compiler rejects the authored expression").toBeGreaterThan(0);
+  // A then arm with no value reports the same errors whether or not its
+  // `then` is glued, and never asks for an `else` it has not reached.
+  const missingValue: [string, (opening: string) => string][] = [
+    ["at the end of the script", (opening) => `local c = true\nlocal s = ${opening}`],
+    ["at the end of the script before a final line break", (opening) => `local c = true\nlocal s = ${opening}\n`],
+    ["followed by trailing whitespace at the end of the script", (opening) => `local c = true\nlocal s = ${opening}  \n`],
+    ["whose next line begins a statement", (opening) => `function f(c)\n  local s = ${opening}\n  return s\nend\n`],
+    ["whose next line ends the function", (opening) => `function f(c)\n  local s = ${opening}\nend\n`],
+    ["before a column-0 line", (opening) => `local c = true\nlocal s = ${opening}\nlocal t = 1\n`],
+    ["before a column-0 call", (opening) => `local c = true\nlocal s = ${opening}\nprint(c)\n`],
+  ];
+  describe.each(missingValue)("an arm with no value %s", (_, script) => {
+    test.each([
+      ["if (c)then", "if (c) then"],
+      ['if "a"then', 'if "a" then'],
+      ["if @/x/githen", "if @/x/gi then"],
+    ])("reports the same errors for %s as for %s", (glued, spaced) => {
+      const gluedResult = readings(script(glued));
+      const spacedResult = readings(script(spaced));
+      expect(spacedResult.official.length, "official Luau parser rejects the spaced form").toBeGreaterThan(0);
+      expect(
+        gluedResult.official.map((error) => error.message),
+        "official Luau parser reports the same errors for both forms",
+      ).toEqual(spacedResult.official.map((error) => error.message));
+      expect(spacedResult.errors.length, "compiler rejects the spaced form").toBeGreaterThan(0);
+      expect(spacedResult.errors).not.toContain("Expected 'else' when parsing if then else expression");
+      expect(gluedResult.errors).toEqual(spacedResult.errors);
+      expect(relativeStarts(script(glued), gluedResult.starts), "errors begin at the same places").toEqual(
+        relativeStarts(script(spaced), spacedResult.starts),
+      );
+    });
   });
-
-  test.each(["if (c)then", "if (c) then"])(
-    "still rejects %s whose next line begins a statement",
-    (opening) => {
-      const text = `function f(c)\n  local s = ${opening}\n  return s\nend\n`;
-      const result = readings(text);
-      expect(result.official.length, "official Luau parser rejects projected checker text").toBeGreaterThan(0);
-      expect(result.errors.length, "compiler rejects the authored expression").toBeGreaterThan(0);
-    },
-  );
-
-  test.each(["if (c)then", "if (c) then"])(
-    "still rejects %s at the end of a top-level statement before a column-0 line",
-    (opening) => {
-      const text = `local c = true\nlocal s = ${opening}\nlocal t = 1\n`;
-      const result = readings(text);
-      expect(result.official.length, "official Luau parser rejects projected checker text").toBeGreaterThan(0);
-      expect(result.errors.length, "compiler rejects the authored expression").toBeGreaterThan(0);
-    },
-  );
 });

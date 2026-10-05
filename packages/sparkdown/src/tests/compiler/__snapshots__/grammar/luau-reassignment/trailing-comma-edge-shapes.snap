@@ -784,9 +784,10 @@ sparkdown [0..446]
  │   │       │   │   │       │       │   │   │   │   ├─ LuauThenOperator_begin [233..238]
  │   │       │   │   │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [233..237]
  │   │       │   │   │       │       │   │   │   │   │   │   └─ LuauThenKeyword [233..237]: "then"
- │   │       │   │   │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c2 [237..238]
- │   │       │   │   │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c2 [237..238]
- │   │       │   │   │       │       │   │   │   │   │           └─ OptionalWhitespace [237..238]: " "
+ │   │       │   │   │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 [237..238]
+ │   │       │   │   │       │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 [237..238]
+ │   │       │   │   │       │       │   │   │   │   │   │       └─ OptionalWhitespace [237..238]: " "
+ │   │       │   │   │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 238
  │   │       │   │   │       │       │   │   │   │   └─ LuauThenOperator_end 238
  │   │       │   │   │       │       │   │   │   └─ LuauNumericDecimal [238..239]
  │   │       │   │   │       │       │   │   │       ├─ LuauNumericDecimal_c1 [238..239]: "2"
