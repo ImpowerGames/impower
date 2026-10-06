@@ -49,7 +49,9 @@ export function lookaheadContextStart(text: string, pos: number): number {
 }
 
 function lineStart(text: string, pos: number): number {
-  return text.lastIndexOf("\n", pos - 1) + 1;
+  // `lastIndexOf` reads a negative start as 0, where it would find a line
+  // break at offset 0 that comes after `pos`.
+  return pos <= 0 ? 0 : text.lastIndexOf("\n", pos - 1) + 1;
 }
 
 function skippable(line: string): boolean {

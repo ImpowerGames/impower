@@ -40,6 +40,9 @@ const CASES: [string, string, (src: string) => Edit][] = [
   ["delete the next statement", source(""), (s) => replaceEdit(s, "  local r = 1\n", "")],
   // The edit is inside the comment, whose close is still ahead of it.
   ["close a comment that spans lines from inside it", source("\n--[[ a\nb\nc\nd\ne\nf\n]]"), (s) => replaceEdit(s, "\ne\n", "\n]] l\n")],
+  // The walk back over blank lines reaches a document that starts with a
+  // line break.
+  ["type on a blank line under blank lines from the document's start", "\n" + "  \n".repeat(100) + "  local q =\n  local r = 1\n", (s) => insertEdit(s, "  \n  local q", 0, " ")],
 ];
 
 describe("incremental reparse of an operator whose operand is read from a later line", () => {
