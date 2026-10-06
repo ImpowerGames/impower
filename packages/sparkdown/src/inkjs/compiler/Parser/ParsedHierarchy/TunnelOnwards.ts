@@ -9,6 +9,8 @@ import { Story } from "./Story";
 import { Void } from "../../../engine/Void";
 import { asOrNull } from "../../../engine/TypeAssertion";
 import { VariableReference } from "../../../engine/VariableReference";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
+import { ConstValue, Op } from "../../../../program/ProgramInstructions";
 
 export class TunnelOnwards extends ParsedObject {
   private _overrideDivertTarget: DivertTargetValue | null = null;
@@ -27,6 +29,37 @@ export class TunnelOnwards extends ParsedObject {
 
   override get typeName(): string {
     return "TunnelOnwards";
+  }
+
+  // The target `->->` goes on to, if any: the symbol value of the target it
+  // names (`Sym`) or the value of the variable it names (`GetVar`), or void
+  // to return to the caller; then `TunnelReturn`
+  // (docs/engine/binary-program.md, section 3).
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    const after = this.divertAfter;
+    if (!after) {
+      emitter.emit(Op.Const, 0, ConstValue.Void);
+    } else {
+      if (after.args.length > 0) {
+        emitter.unsupported("Argument");
+      }
+      const key = after.programJumpKey;
+      if (key !== null) {
+        emitter.recordResolution(key);
+      }
+      const variable = after.runtimeDivert.variableDivertName;
+      if (variable != null) {
+        emitter.emit(Op.GetVar, emitter.variable(variable));
+      } else {
+        const symbol = emitter.targetSymbol(
+          after.targetContent,
+          after.writtenTargetName,
+        );
+        emitter.referenceTarget(symbol);
+        emitter.emit(Op.Sym, symbol);
+      }
+    }
+    emitter.emit(Op.TunnelReturn);
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

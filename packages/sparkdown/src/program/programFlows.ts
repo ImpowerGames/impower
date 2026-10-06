@@ -176,6 +176,15 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
           close();
           block = owner;
         }
+        if (obj instanceof Weave && obj.isChooseBlock && obj.assembledFrom) {
+          // A `choose` block that ends its chunk: the assembly placed a weave
+          // of its own in place of the block's, which goes on to hold the
+          // content of the chunks after it, as statements after the block.
+          // The block's statement is the weave its chunk lowered.
+          objects.push(obj.assembledFrom);
+          visit(obj.content.slice(obj.assembledFrom.content.length));
+          return;
+        }
         objects.push(...(obj instanceof Statement ? obj.content : [obj]));
       });
     };
@@ -265,6 +274,17 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       fail("Argument", record.uri, record.line);
     }
     headerLines.push({ uri: record.uri, line: record.line });
+    // A scene whose content starts with a branch enters that branch, as the
+    // current engine's knot diverts to its first stitch
+    // (`FlowBase.GenerateRuntimeObject`).
+    const first = flow.content?.[0];
+    const startsWith =
+      flow instanceof Knot &&
+      first instanceof FlowBase &&
+      !first.isFunction &&
+      !first.hasParameters
+        ? `${name}.${first.identifier?.name ?? ""}`
+        : undefined;
     flows.push({
       name,
       kind: flow instanceof Stitch ? SymbolKind.Branch : SymbolKind.Scene,
@@ -276,6 +296,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
         record.uri,
         record.line,
       ),
+      ...(startsWith === undefined ? {} : { startsWith }),
     });
     for (const sub of flow.subFlowsByName.values()) {
       visitFlow(sub, `${name}.`);
@@ -358,6 +379,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
           syntax:
             run === 0 ? record.syntax : () => `${record.syntax()}\u0000${run}`,
           reads: record.reads,
+          text: record.text,
           uri: record.uri,
           globals: [],
         },
@@ -418,6 +440,7 @@ const evaluatorFlow = (
     syntax: () =>
       (syntax ??= `${name}\u0000${record.columnAt?.(own.from) ?? 0}\u0000${sourceOf()}`),
     reads: "",
+    text,
     bodies: [bodyOf(own.body, statements, lineAt, firstLine, text)],
     lineEnd: record.lineEnd,
     defines: name,
@@ -505,6 +528,7 @@ const topLevelStatement = (
       source: record.source,
       syntax: record.syntax,
       reads: shape ? readsKey(shape.reads) : record.reads,
+      text: record.text,
     };
   }
   return statementOf(block, objects, record.range, record.line, shape, record);
@@ -557,6 +581,7 @@ const statementOf = (
     syntax: () =>
       (syntax ??= `${shape.node}\u0000${record.columnAt?.(shape.from) ?? 0}\u0000${ownSource()}`),
     reads: readsKey(shape.reads),
+    text: record.text,
     bodies,
     lineEnd: record.lineEnd,
   };
@@ -599,6 +624,7 @@ const nestedStatement = (
     syntax: () =>
       (syntax ??= `${shape.node}\u0000${record.columnAt!(shape.from)}\u0000${sourceOf()}`),
     reads: readsKey(shape.reads),
+    text: record.text,
   };
 };
 

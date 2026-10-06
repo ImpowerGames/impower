@@ -80,6 +80,15 @@ export class Weave extends ParsedObject {
   // conditional or sequence within it continue at the end of.
   public isChooseBlock = false;
 
+  // The weave of a `choose` block written in another block's preamble, which
+  // offers its choices with that block's.
+  public isPreambleChoose = false;
+
+  // For the weave the compiler assembles in place of a chunk's trailing
+  // weave, the chunk's own weave, whose content is what the chunk lowered;
+  // the assembled one goes on to hold the content of the chunks after it.
+  public assembledFrom: Weave | null = null;
+
   public gatherPointsToResolve: GatherPointToResolve[] = [];
 
   get lastParsedSignificantObject(): ParsedObject | null {
@@ -130,10 +139,23 @@ export class Weave extends ParsedObject {
   }
 
   // A weave that holds statements is their code in order. A `choose` block's
-  // weave is the block itself, which is not emitted yet.
+  // weave is the block itself: its choices, their entries and its `then`
+  // clause (docs/engine/binary-program.md, section 4). A block written in
+  // another block's preamble offers its choices with that block's and holds
+  // no flow of its own: its code is part of the other block's presentation,
+  // and its choices continue at its `then` clause when it has one, and
+  // otherwise where the other block's do.
   public override EmitProgram(emitter: ProgramEmitter): void {
     if (this.isChooseBlock) {
-      emitter.unsupported("choose");
+      emitter.emitChoose(this);
+      return;
+    }
+    if (
+      this.isPreambleChoose ||
+      this.content.some((obj) => obj instanceof Choice)
+    ) {
+      emitter.emitPreambleChoose(this);
+      return;
     }
     emitter.emitObjects(this.content);
   }

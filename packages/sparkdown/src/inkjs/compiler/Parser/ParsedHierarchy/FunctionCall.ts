@@ -16,6 +16,7 @@ import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import {
   CALL_DISCARD,
   CALL_OPEN,
+  COUNT_TURNS,
   ConstValue,
   Op,
 } from "../../../../program/ProgramInstructions";
@@ -321,10 +322,19 @@ export class FunctionCall extends Expression {
   // native function or operator is its arguments, padded with void or cut to
   // its arity as the runtime objects are, then `Native`. A call of a function
   // is its divert's code (`Divert.EmitCall`), then `Pop` where the value is
-  // discarded. A read count names itself.
+  // discarded. A read count or turns since is its target's symbol value, or
+  // the variable that holds one, then `CountOf`.
   public override EmitExpression(emitter: ProgramEmitter): void {
     if (this.isTurnsSince || this.isReadCount) {
-      emitter.unsupported(this.name);
+      if (this.args.length !== 1) {
+        emitter.unsupported(this.name);
+      }
+      emitter.emitObject(this.args[0]!);
+      emitter.emit(Op.CountOf, 0, 0, this.isTurnsSince ? COUNT_TURNS : 0);
+      if (this.shouldPopReturnedValue) {
+        emitter.emit(Op.Pop);
+      }
+      return;
     }
     if (this.isListRange || this.isListRandom) {
       emitter.unsupported("list");

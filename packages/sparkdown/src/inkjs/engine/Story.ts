@@ -992,6 +992,57 @@ function callThroughHandler(
 }
 
 /**
+ * The draws a shuffle takes in place of its seeded generator, when set: the
+ * differential run of the binary program injects one stream into both
+ * engines, which seed their shuffles from different names (a container's path
+ * here, an alternator's symbol there), so that both pick the same arms
+ * (docs/engine/binary-program.md, section 3).
+ */
+export const shuffleDraws: { next: (() => number) | null } = { next: null };
+
+/**
+ * The index a shuffling sequence picks on its `seqCount`th pass over
+ * `numElements` arms, as both engines pick it: the arms are drawn without
+ * replacement from a generator seeded by `seedText`, the loop over the
+ * sequence and the story seed, or from `shuffleDraws` when one is injected.
+ */
+export function sequenceShuffleIndex(
+  seedText: string,
+  seqCount: number,
+  numElements: number,
+  storySeed: number,
+): number {
+  const loopIndex = seqCount / numElements;
+  const iterationIndex = seqCount % numElements;
+
+  let sequenceHash = 0;
+  for (let i = 0, l = seedText.length; i < l; i++) {
+    sequenceHash += seedText.charCodeAt(i) || 0;
+  }
+  const randomSeed = sequenceHash + loopIndex + storySeed;
+  const random = new PRNG(Math.floor(randomSeed));
+  const injected = shuffleDraws.next;
+  const draw = injected ?? (() => random.next());
+
+  const unpickedIndices: number[] = [];
+  for (let i = 0; i < numElements; ++i) {
+    unpickedIndices.push(i);
+  }
+
+  for (let i = 0; i <= iterationIndex; ++i) {
+    const chosen = draw() % unpickedIndices.length;
+    const chosenIndex = unpickedIndices[chosen]!;
+    unpickedIndices.splice(chosen, 1);
+
+    if (i == iterationIndex) {
+      return chosenIndex;
+    }
+  }
+
+  throw new Error("Should never reach here");
+}
+
+/**
  * A call through what the variable `varName` holds, as a divert whose target
  * is a variable runs it on either engine: a builtin iterator steps, a builtin
  * runs, and a table whose metatable has `__call` calls its handler, each
@@ -2021,6 +2072,49 @@ export function shortCircuitDecides(story: any, op: "and" | "or"): boolean {
 export function popLuauCondition(story: any): boolean {
   // Condition position adjusts a multi-value to one value.
   return isLuauTruthy(oneValue(story.state.PopEvaluationStack() as AbstractValue));
+}
+
+/** Ends a tag written inside a capture, as `EndTag` does there: the text
+ *  written since its `BeginTag` leaves the output and becomes a tag on the
+ *  evaluation stack, which the next choice takes with its text. `clean`
+ *  cleans the tag's whitespace. Shared by both engines. */
+export function captureTag(
+  story: { state: any; Error(message: string): void },
+  clean: (text: string) => string,
+): void {
+  const state = story.state;
+  let contentStackForTag: InkObject[] = [];
+  let outputCountConsumed = 0;
+  for (let i = state.outputStream.length - 1; i >= 0; --i) {
+    let obj = state.outputStream[i];
+    outputCountConsumed++;
+
+    let command = asOrNull(obj, ControlCommand);
+    if (command != null) {
+      if (command.commandType == ControlCommand.CommandType.BeginTag) {
+        break;
+      } else {
+        story.Error(
+          "Unexpected ControlCommand while extracting tag from choice",
+        );
+        break;
+      }
+    }
+    if (obj instanceof StringValue) {
+      contentStackForTag.push(obj);
+    }
+  }
+
+  // Consume the content that was produced for this string
+  state.PopFromOutputStream(outputCountConsumed);
+  // Build string out of the content we collected
+  let sb = new StringBuilder();
+  for (let strVal of contentStackForTag.reverse()) {
+    sb.Append(strVal.toString());
+  }
+  // Pushing to the evaluation stack means it gets picked up
+  // when a Choice is generated from the next Choice Point.
+  state.PushEvaluationStack(new Tag(clean(sb.toString())));
 }
 
 /** Closes the innermost capture of `state`'s output and returns the text it
@@ -3526,44 +3620,7 @@ export class Story extends InkObject {
         // as the string for the choice content.
         case ControlCommand.CommandType.EndTag: {
           if (this.state.inStringEvaluation) {
-            let contentStackForTag: InkObject[] = [];
-            let outputCountConsumed = 0;
-            for (let i = this.state.outputStream.length - 1; i >= 0; --i) {
-              let obj = this.state.outputStream[i];
-              outputCountConsumed++;
-
-              // var command = obj as ControlCommand;
-              let command = asOrNull(obj, ControlCommand);
-              if (command != null) {
-                if (
-                  command.commandType == ControlCommand.CommandType.BeginTag
-                ) {
-                  break;
-                } else {
-                  this.Error(
-                    "Unexpected ControlCommand while extracting tag from choice",
-                  );
-                  break;
-                }
-              }
-              if (obj instanceof StringValue) {
-                contentStackForTag.push(obj);
-              }
-            }
-
-            // Consume the content that was produced for this string
-            this.state.PopFromOutputStream(outputCountConsumed);
-            // Build string out of the content we collected
-            let sb = new StringBuilder();
-            for (let strVal of contentStackForTag.reverse()) {
-              sb.Append(strVal.toString());
-            }
-            let choiceTag = new Tag(
-              this.state.CleanOutputWhitespace(sb.toString()),
-            );
-            // Pushing to the evaluation stack means it gets picked up
-            // when a Choice is generated from the next Choice Point.
-            this.state.PushEvaluationStack(choiceTag);
+            captureTag(this, (text) => this.state.CleanOutputWhitespace(text));
           } else {
             // Otherwise! Simply push EndTag, so that in the output stream we
             // have a structure of: [BeginTag, "the tag content", EndTag]
@@ -5234,33 +5291,12 @@ export class Story extends InkObject {
       return throwNullException("seqCount");
     }
 
-    let loopIndex = seqCount / numElements;
-    let iterationIndex = seqCount % numElements;
-
-    let seqPathStr = seqContainer.path.toString();
-    let sequenceHash = 0;
-    for (let i = 0, l = seqPathStr.length; i < l; i++) {
-      sequenceHash += seqPathStr.charCodeAt(i) || 0;
-    }
-    let randomSeed = sequenceHash + loopIndex + this.state.storySeed;
-    let random = new PRNG(Math.floor(randomSeed));
-
-    let unpickedIndices = [];
-    for (let i = 0; i < numElements; ++i) {
-      unpickedIndices.push(i);
-    }
-
-    for (let i = 0; i <= iterationIndex; ++i) {
-      let chosen = random.next() % unpickedIndices.length;
-      let chosenIndex = unpickedIndices[chosen];
-      unpickedIndices.splice(chosen, 1);
-
-      if (i == iterationIndex) {
-        return chosenIndex;
-      }
-    }
-
-    throw new Error("Should never reach here");
+    return sequenceShuffleIndex(
+      seqContainer.path.toString(),
+      seqCount,
+      numElements,
+      this.state.storySeed,
+    );
   }
 
   public Error(message: string, useEndLineNumber = false): never {

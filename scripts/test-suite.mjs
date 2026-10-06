@@ -150,8 +150,15 @@ const reportWait = value => console.log(JSON.stringify({ status: "waiting", ...v
 
 // Nothing has run when the reservation cannot be taken; the error says so, so
 // callers never read a refusal as a test result.
-const queue = (run, options) => acquireWaiting(run, { ...options, onWait: reportWait })
-  .catch(error => { throw Object.assign(error, { notRun: true }); });
+// Once taken, the run says so on its own line: the reviewer execution service
+// starts a delegated run's timeout from it, not from the launch.
+export const reservationAcquiredLine = JSON.stringify({ status: "acquired" });
+const queue = async (run, options) => {
+  const reservation = await acquireWaiting(run, { ...options, onWait: reportWait })
+    .catch(error => { throw Object.assign(error, { notRun: true }); });
+  console.log(reservationAcquiredLine);
+  return reservation;
+};
 
 // The exit status and marker line for a failed command. 75 (EX_TEMPFAIL) and
 // the marker say no test ran and the same command can be run again; the

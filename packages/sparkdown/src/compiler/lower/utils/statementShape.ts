@@ -134,6 +134,32 @@ export const loopOf = new WeakMap<ParsedObject, LoopShape>();
 /** Whether a divert is a `break` or a `continue` of the innermost loop. */
 export const loopExitOf = new WeakMap<ParsedObject, "break" | "continue">();
 
+// The labels a loop's lowering made for its own head, step and exits, and the
+// diverts to them, which the binary program's writer emits as the loop's
+// chunk and never as a label or a jump.
+const loopInternals = new WeakSet<ParsedObject>();
+
+/** Records `loop`, whose objects start with `first`, and marks `internals`,
+ *  the labels and diverts its lowering made for itself. The lowering names
+ *  them: a divert an author wrote in the loop's header (`-> top` as a value,
+ *  or the proxy divert of `READ_COUNT(-> top)`) sits among the loop's
+ *  objects too, and stays an author's jump target. */
+export const recordLoop = (
+  first: ParsedObject,
+  loop: LoopShape,
+  internals: readonly ParsedObject[],
+): void => {
+  loopOf.set(first, loop);
+  for (const obj of internals) {
+    loopInternals.add(obj);
+  }
+};
+
+/** Whether `obj` is a label, or a divert to one, that a loop's lowering made
+ *  for itself (`recordLoop`), as opposed to one an author wrote. */
+export const isLoopInternal = (obj: ParsedObject): boolean =>
+  loopInternals.has(obj);
+
 const emptyReads = (context: string): StatementReads => ({
   callable: new Map(),
   defineType: new Map(),
@@ -262,6 +288,142 @@ export const closeFunctionBody = (
     hoisted,
     ...(named ? { named } : {}),
   });
+};
+
+/** Where each alternator's and each choice's own source starts and ends,
+ *  relative to the start of the top-level node it was lowered in, as a
+ *  function's is (`FunctionShape`): the source its count symbol is aligned by
+ *  when its statement is emitted again (docs/engine/binary-program.md,
+ *  section 2). A choice's body goes with its count symbol. */
+export const alternatorSourceOf = new WeakMap<
+  ParsedObject,
+  { from: number; to: number }
+>();
+
+/** Records the source of `alternator` (or of a choice), the syntax node
+ *  `node` spans, when shapes are recorded. */
+export const recordAlternatorSource = (
+  ctx: LowerContext,
+  alternator: ParsedObject,
+  node: { from: number; to: number },
+): void => {
+  if (!currentStatement(ctx)) {
+    return;
+  }
+  const base = ctx.chunkFrom ?? 0;
+  alternatorSourceOf.set(alternator, { from: node.from - base, to: node.to - base });
+};
+
+/** Records that the running statement's lowering read the `choose` blocks
+ *  around it (`value`): how deep it stands in them and whether it stands in
+ *  one's preamble, which decide whether it is a block of its own or offers
+ *  its choices with the block around it. A statement whose syntax reads the
+ *  same in another such place is lowered to other objects, so its chunk is
+ *  kept only while this reads the same. */
+export const recordChooseContext = (ctx: LowerContext, value: string): void => {
+  currentStatement(ctx)?.reads.other.push(`choose:${value}`);
+};
+
+/** The body of each choice of a `choose` block, and the body of its `then`
+ *  clause, by the choice or by the clause's gather: blocks of the `choose`
+ *  statement (docs/engine/binary-program.md, section 4). */
+export const choiceBodyOf = new WeakMap<ParsedObject, BodyShape>();
+
+/** The part of a `choose` statement that heads each of its bodies: the
+ *  choice, or the gather of the `then` clause, by which the body keeps its
+ *  sequence id when the statement is emitted again. */
+export const partOfBody = new WeakMap<BodyShape, ParsedObject>();
+
+/** Records `body` as the body of `part`, a choice or a `then` clause's
+ *  gather. */
+export const recordChoiceBody = (part: ParsedObject, body: BodyShape): void => {
+  choiceBodyOf.set(part, body);
+  partOfBody.set(body, part);
+};
+
+/**
+ * Makes the branches of the conditionals among `objects` that offer choices
+ * part of the running statement's own code, which is a `choose` block's: an
+ * `if` written before a block's first choice gates the choices it holds, and
+ * its branches are relative jumps around their code in the block's chunk
+ * (docs/engine/binary-program.md, section 4), not blocks. Each such branch's
+ * body is taken out of the statement's bodies. Its statements up to its first
+ * choice are the statement's own code: the bodies of those statements (a
+ * loop's, a nested `if`'s) become the statement's own, and what their
+ * lowering read is the statement's. A choice's line is the statement's own
+ * code too, and the statements after it up to the next choice, which the
+ * current engine's weave nests in the choice, are the choice's body, a block
+ * of the statement as the body of any other choice is.
+ */
+export const inlineChoiceBranches = (
+  ctx: LowerContext,
+  objects: readonly ParsedObject[],
+  holdsChoice: (obj: ParsedObject) => boolean,
+  isChoice: (obj: ParsedObject) => boolean,
+): void => {
+  const owner = currentStatement(ctx);
+  if (!owner) {
+    return;
+  }
+  const own = (statement: StatementShape) => {
+    for (const [name, found] of statement.reads.callable) {
+      owner.reads.callable.set(name, found);
+    }
+    for (const [name, found] of statement.reads.defineType) {
+      owner.reads.defineType.set(name, found);
+    }
+    owner.reads.other.push(...statement.reads.other);
+  };
+  const hoist = (body: BodyShape) => {
+    const at = owner.bodies.findIndex((shape) => shape === body);
+    owner.bodies.splice(at, 1);
+    const statements = body.statements;
+    let choiceBody: BodyShape | undefined;
+    statements.forEach((statement, i) => {
+      const choice = statement.objects.find(isChoice);
+      if (choice) {
+        let next = i + 1;
+        while (
+          next < statements.length &&
+          !statements[next]!.objects.some(isChoice)
+        ) {
+          next += 1;
+        }
+        choiceBody = {
+          statements: [],
+          headEnd: statement.to,
+          nextStart: statements[next]?.from ?? body.nextStart,
+        };
+        owner.bodies.push(choiceBody);
+        recordChoiceBody(choice, choiceBody);
+        own(statement);
+        return;
+      }
+      if (choiceBody) {
+        choiceBody.statements.push(statement);
+        return;
+      }
+      own(statement);
+      owner.bodies.push(...statement.bodies);
+    });
+  };
+  const visit = (obj: ParsedObject) => {
+    const branches = (obj as { branches?: ParsedObject[] }).branches;
+    for (const branch of branches ?? []) {
+      const body = bodyOfBlock.get(branch);
+      // A branch whose body is still the statement's: one inside a choice's
+      // body is that body's statement's, which a choice cannot stand in.
+      const owned = owner.bodies.some((shape) => shape === body);
+      if (body && owned && holdsChoice(branch)) {
+        bodyOfBlock.delete(branch);
+        hoist(body);
+      }
+    }
+    for (const child of obj.content ?? []) {
+      visit(child);
+    }
+  };
+  objects.forEach(visit);
 };
 
 /** The single statement of an evaluator's body, `return <expr>`, recorded

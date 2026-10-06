@@ -32,6 +32,16 @@ export interface ProgramEmitter {
    *  hoisted to the top of its body are declared, and its body runs as a
    *  block of the statement. */
   emitFunctionInPlace(fn: object): void;
+  /** Emits a `choose` block (a `Weave` that is one) as one chunk: the code
+   *  that raises its choices, the `Done` that ends their presentation, each
+   *  choice's entry code with its body entered as a block, and its `then`
+   *  clause (docs/engine/binary-program.md, section 4). */
+  emitChoose(weave: object): void;
+  /** Emits a `choose` block written in another block's preamble (a `Weave`
+   *  that holds choices and is no block of its own) as part of that block's
+   *  presentation, its choices continuing at its `then` clause when it has
+   *  one. */
+  emitPreambleChoose(weave: object): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump to a label the caller already holds, bound or not: a
@@ -65,11 +75,29 @@ export interface ProgramEmitter {
    *  keeps a hash of them, and the chunk is reused only while the program
    *  it is reused in gives the same facts. */
   reference(symbol: number): void;
+  /** Records that the chunk's code refers to `symbol` and depends on no fact
+   *  about it: a jump, a count or a symbol value of a scene, a branch or a
+   *  label, whose code is the same whatever the program defines the symbol
+   *  as, or whether it defines it. */
+  referenceTarget(symbol: number): void;
   /** The symbol of a function of the program (a `FlowBase`): its qualified
    *  name's for a function declared at the top level, and the anonymous one
    *  of the statement that writes it otherwise. A function the program does
    *  not define stops the statement's emission. */
   functionSymbol(fn: object): number;
+  /** The symbol a divert, a count or a divert target names: the symbol of
+   *  the scene, branch or label `target` is (`programSymbolName`), or for a
+   *  target the compile found nothing for, the symbol of the name as
+   *  `written`. A target that has no symbol stops the emission. */
+  targetSymbol(target: object | null, written: string): number;
+  /** The symbol of a `label` (a named `Gather`). */
+  labelSymbol(gather: object): number;
+  /** The anonymous symbol of an alternator (a `Sequence`) of the statement,
+   *  which counts it and seeds its shuffle. */
+  alternatorSymbol(sequence: object): number;
+  /** Exports `symbol` at the next instruction: the chunk defines it
+   *  there. */
+  exportHere(symbol: number): void;
   /** Stops the statement's emission: the program falls back to the current
    *  engine as a whole and names `construct` (the parsed class's `typeName`,
    *  or the builtin's name). */

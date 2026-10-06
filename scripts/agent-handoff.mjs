@@ -11,6 +11,7 @@ import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-
 import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
+import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -194,9 +195,40 @@ export function validateSlotWait(value) {
 const routeFailurePattern = /hit your .*limit|usage limit|rate limit|too many requests|\b(401|429)\s+(unauthori[sz]ed|too many)|(status|http|error)\W{0,3}(401|429)\b|unauthori[sz]ed|incorrect api key|invalid api key|not logged in|please run .*login|failed to authenticate|authentication (failed|error|required|expired)|API Error: 400|requires (a newer|claude code|version)|update claude code|model .*(not found|not available|not supported|does not exist)|quota exceeded|exceeded .*quota/i;
 export const reviewerProbePrompt = "Reviewer route probe: reply with the single word OK and do nothing else.";
 
+// Native Claude `--output-format json` puts long metadata ahead of its result,
+// so a line is read as JSON first and its semantic message (result, error,
+// message) is classified and named whole. A line that is not JSON, or names no
+// failing message, is classified as text.
+function semanticMessages(line) {
+  let parsed;
+  try { parsed = JSON.parse(line); } catch { return undefined; }
+  if (!parsed || typeof parsed !== "object") return undefined;
+  const fields = [parsed.result, parsed.error, parsed.error?.message, parsed.message];
+  return fields.filter((field) => typeof field === "string");
+}
+
+// The excerpt is capped for display but always holds the failure it names, so
+// a match far into a long message is not cut away. A usage limit outranks an
+// earlier failure in the same message, because the excerpt is what the fallback
+// classification reads and only a usage limit permits a same-vendor reviewer.
+function failureExcerpt(text) {
+  const match = usageLimitPattern.exec(text) ?? routeFailurePattern.exec(text);
+  if (!match || match.index + match[0].length <= 400) return text.trim().slice(0, 400);
+  // Every pattern alternative that spans text joins two fixed words with `.*`,
+  // so a span longer than the cap keeps its two ends and still matches.
+  const span = match[0].length > 400 ? `${match[0].slice(0, 190)} … ${match[0].slice(-190)}` : text.slice(Math.max(0, match.index - Math.min(20, 400 - match[0].length)));
+  return span.trim().slice(0, 400);
+}
+
 export function routeFailure(text) {
-  const line = text.split(/\r?\n/).reverse().find((candidate) => routeFailurePattern.test(candidate));
-  return line?.trim().slice(0, 400);
+  for (const line of text.split(/\r?\n/).reverse()) {
+    for (const message of semanticMessages(line) ?? []) {
+      const found = message.split(/\r?\n/).reverse().find((candidate) => routeFailurePattern.test(candidate));
+      if (found) return failureExcerpt(found);
+    }
+    if (routeFailurePattern.test(line)) return failureExcerpt(line);
+  }
+  return undefined;
 }
 
 function logTail(file, bytes = 16384) {
@@ -414,6 +446,8 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         : `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}.${step.role === "review" ? ` End your posted report with the line \`${reportToken}\`.` : ""} Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`);
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const reportNotBefore=new Date().toISOString();
+      // What the reviewer directory holds before the reviewer runs is never cleaned up afterwards.
+      const reviewerHad = step.role === "review" && step.nativeResult === "codex-jsonl" ? snapshotReviewerDirectory(step.permissions.cwd) : null;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, completedRoundReviews, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
       const log = fs.openSync(output, "wx");
       let stderr;
@@ -563,6 +597,16 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         usedReports.add(id);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
+      // The report is validated and the exit confirmed: the reviewer's probe
+      // clones and installs are no longer evidence, and concurrent rounds fill
+      // a shared disk with them. A failure here never voids the validated review.
+      if (reviewerHad) {
+        try {
+          const kept = args[args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg)) + 1];
+          const { files, links } = removeProbeCheckouts(step.permissions.cwd, { preserve: reviewerHad, keep: [kept] });
+          append({ event: "probe-checkouts-removed", index, step: current, directory: step.permissions.cwd, files, links });
+        } catch (error) { append({ event: "probe-cleanup-failed", index, step: current, directory: step.permissions.cwd, reason: error.message }); }
+      }
       if (step.role === "review") {
         completedRoundReviews = step.round > completedRound ? 1 : completedRoundReviews === null ? null : completedRoundReviews + 1;
         if (step.round > completedRound || head !== reviewedHead) finalCorrections = false;

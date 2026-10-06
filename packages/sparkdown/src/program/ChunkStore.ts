@@ -6,14 +6,24 @@ import {
   reseedProgramTable,
   type ProgramTable,
 } from "../binary/ProgramBinaryWriter";
-import { functionShapeOf } from "../compiler/lower/utils/statementShape";
+import {
+  alternatorSourceOf,
+  functionShapeOf,
+  isLoopInternal,
+  partOfBody,
+  type BodyShape,
+} from "../compiler/lower/utils/statementShape";
 import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import type { Story } from "../inkjs/engine/Story";
+import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
+import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Story as ParsedStory } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { Sequence } from "../inkjs/compiler/Parser/ParsedHierarchy/Sequence/Sequence";
 import { Text } from "../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { ConstantDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
@@ -21,6 +31,7 @@ import { VariableReference } from "../inkjs/compiler/Parser/ParsedHierarchy/Vari
 import {
   BinaryProgramWriter,
   factHash,
+  NO_FACTS,
   normalizeSource,
   type BlockInput,
   type FunctionInput,
@@ -30,26 +41,34 @@ import { UnsupportedConstruct } from "./ProgramEmitter";
 import { ProgramStory } from "./ProgramStory";
 import {
   ChunkTable,
+  emptyDefinitions,
   ProgramRoot,
+  type DefinitionArrays,
   type SequenceArrays,
   type SequenceRow,
-  type SymbolDefinition,
 } from "./ProgramRoot";
+import { Op, opOf } from "./ProgramInstructions";
 import {
   anonymousSymbol,
   internSymbol,
   isAnonymousSymbol,
   renumberAnonymousSymbols,
+  snapshotTable,
   SymbolKind,
+  UNDEFINED_KIND,
   type SymbolKindValue,
 } from "./ProgramSymbols";
 import {
+  BLOCK_CHOICE,
   BLOCK_FUNCTION,
+  BLOCK_THEN,
   B_SEQUENCE,
+  HEADER_WORDS,
   blockCount,
   blockField,
   blockFlags,
   chunkId,
+  codeWords,
   exportCount,
   exportOffset,
   exportSymbol,
@@ -83,6 +102,10 @@ export interface StatementSource {
   syntax: () => string;
   /** The lowering inputs the statement recorded, with the answers they got. */
   reads: string;
+  /** The text between two offsets relative to the start of the top-level
+   *  node the statement was lowered in, from which an alternator's own
+   *  source is read (`alternatorSourceOf`). */
+  text?: (from: number, to: number) => string;
   /** The bodies of a block statement, in the order it runs them, and the
    *  bodies of the functions the statement writes. */
   bodies?: readonly BodySource[];
@@ -144,6 +167,10 @@ export interface FlowSource {
   /** The lines the body spans. */
   span: number;
   statements: readonly StatementSource[];
+  /** For a scene whose content starts with a branch that takes no
+   *  parameters, that branch's qualified name: entering the scene enters it,
+   *  as the current engine's knot diverts to its first stitch. */
+  startsWith?: string;
 }
 
 /** What a compile hands the store to build a root from. */
@@ -196,6 +223,22 @@ interface FunctionPart {
   block: number;
 }
 
+// One alternator a chunk writes: what it is aligned by, and its anonymous
+// symbol, which counts it.
+interface AlternatorPart {
+  fingerprint: string;
+  symbol: number;
+}
+
+// One choice a chunk raises: what it is aligned by, its anonymous count
+// symbol (-1 for a named choice, which counts under its label's), and the
+// block its body is (-1 for a choice whose body is no block).
+interface ChoicePart {
+  fingerprint: string;
+  symbol: number;
+  block: number;
+}
+
 // What the store knows of a chunk it emitted or reused: the syntax of the
 // statement it was emitted for, the lowering inputs that statement recorded,
 // the values its emission recorded, for a declaration chunk the names of the
@@ -211,6 +254,12 @@ interface ChunkInfo {
   globals?: string;
   defines?: string;
   parts: readonly FunctionPart[];
+  alternators: readonly AlternatorPart[];
+  /** The choices the statement raises, in order. */
+  choices: readonly ChoicePart[];
+  /** The blocks of the `then` clauses of a `choose` statement, in order: its
+   *  own, and that of a block written in its preamble. */
+  thenBlocks: readonly number[];
   anonymousReferences: readonly number[];
   /** The locals each function the statement writes declares at its entry
    *  (`hoistedOf`). */
@@ -304,12 +353,16 @@ export class ChunkStore {
    *  chunks that write functions and the chunks inside functions' bodies. */
   protected _functionChunks: ReadonlySet<StatementChunk> = new Set();
 
+  /** `table` is the compiler's persistent `ProgramTable`, which the store
+   *  interns into and keeps no table of its own (#696); a reseed of it goes
+   *  through `reseed`. */
   constructor(table: ProgramTable = createProgramTable()) {
     this.table = table;
     this._writer = new BinaryProgramWriter(
       table,
       (symbol) => this.factsOf(symbol),
       (fn) => this.symbolOf(fn),
+      (sequence) => this.alternatorOf(sequence),
     );
   }
 
@@ -348,6 +401,8 @@ export class ChunkStore {
     this._functionSymbols = new Map();
     this._labels = new Map();
     this._plans = new Map();
+    this._statementValues = new WeakMap();
+    this._statementIdentities = new WeakMap();
     // The program's statements, flow after flow and each block statement
     // before the statements of its bodies, then the statements of the
     // functions the declarations write, are aligned with the previous root's
@@ -428,7 +483,9 @@ export class ChunkStore {
     const functionChunks = new Set<StatementChunk>();
     flows.forEach((flow, f) => {
       const symbol = symbols[f]!;
-      const before = previous?.flow(symbol);
+      // By name: the previous root may hold the ids of an older table
+      // generation, which a reseed renumbered.
+      const before = previous?.flowNamed(flow.name);
       const id = before?.id ?? this._nextSequenceId++;
       const failFlow = (construct: string, line: number) => {
         fallback ??= { construct, uri: flow.uri, line };
@@ -582,7 +639,12 @@ export class ChunkStore {
       declarationsEmitted ||
       !sameChunks(oldDeclarations, declarationChunks) ||
       functionsChanged;
-    if (fallback) {
+    const definitions = fallback
+      ? undefined
+      : this.definitionArrays(flows, symbols, sequences, (construct) => {
+          fallback ??= { construct, uri: flows[0]?.uri ?? "", line: 0 };
+        });
+    if (fallback || !definitions) {
       return { fallback, coverage, declarationsChanged };
     }
     for (const ids of scriptFlows.values()) {
@@ -591,7 +653,7 @@ export class ChunkStore {
       );
     }
     const root = new ProgramRoot(
-      this.table,
+      snapshotTable(this.table),
       this._nextRootId++,
       previous?.id ?? -1,
       sequences,
@@ -602,7 +664,7 @@ export class ChunkStore {
       runtimeStory,
       declarationIds,
       declarationChunks,
-      definitionsOf(sequences),
+      definitions,
       new Map(this._labels),
       this._symbolRemaps,
     );
@@ -633,6 +695,87 @@ export class ChunkStore {
     return { root, coverage, declarationsChanged };
   }
 
+  /**
+   * The root's definition arrays (docs/engine/binary-program.md, section 2,
+   * Resolution): each flow at the start of its sequence, with its kind, a
+   * branch's scene and the branch a scene with no content of its own enters;
+   * each symbol a chunk exports at the chunk and the offset that defines it,
+   * a label where its `Visit` stands and a function at its entry; and the
+   * kind of each alternator. A label whose qualified name another label or a
+   * flow of the program has makes the program fall back, naming
+   * `a label named as another`, since a jump to the name could reach either.
+   */
+  protected definitionArrays(
+    flows: readonly FlowSource[],
+    symbols: readonly number[],
+    sequences: ReadonlyMap<number, SequenceRow>,
+    fail: (construct: string) => void,
+  ): DefinitionArrays | undefined {
+    const defs = emptyDefinitions(this.table.symbols.length);
+    for (const row of sequences.values()) {
+      if (row.owner < 0 && row.flow >= 0) {
+        defs.sequence[row.flow] = row.id;
+        defs.kind[row.flow] = row.kind;
+      }
+    }
+    flows.forEach((flow, f) => {
+      const symbol = symbols[f]!;
+      if (flow.kind === SymbolKind.Branch) {
+        const scene = this.table.symbolIds.get(
+          flow.name.slice(0, flow.name.lastIndexOf(".")),
+        );
+        if (scene !== undefined && defs.kind[scene] === SymbolKind.Scene) {
+          defs.parent[symbol] = scene;
+        }
+      }
+      if (flow.startsWith !== undefined) {
+        const start = this.table.symbolIds.get(flow.startsWith);
+        if (start !== undefined && defs.kind[start] === SymbolKind.Branch) {
+          defs.start[symbol] = start;
+        }
+      }
+    });
+    let failed = false;
+    for (const row of sequences.values()) {
+      for (const chunk of row.arrays.chunks) {
+        for (let r = 0; r < exportCount(chunk); r += 1) {
+          const symbol = exportSymbol(chunk, r);
+          const offset = exportOffset(chunk, r);
+          const label = exportsLabel(chunk, r);
+          const before = defs.kind[symbol]!;
+          if (
+            before !== UNDEFINED_KIND &&
+            (label || before === SymbolKind.Label)
+          ) {
+            failed = true;
+          }
+          defs.chunk[symbol] = chunkId(chunk);
+          defs.offset[symbol] = offset;
+          defs.kind[symbol] = label ? SymbolKind.Label : SymbolKind.Function;
+        }
+        for (const part of this._info.get(chunk)?.alternators ?? []) {
+          if (part.symbol < defs.kind.length) {
+            defs.kind[part.symbol] = SymbolKind.Alternator;
+            // What its shuffle is seeded from: its flow's name and its own
+            // source, which no compile renumbers.
+            const flow = row.flow >= 0 ? this.table.symbols[row.flow] : "";
+            this._labels.set(part.symbol, `${flow}:${part.fingerprint}`);
+          }
+        }
+        for (const part of this._info.get(chunk)?.choices ?? []) {
+          if (part.symbol >= 0 && part.symbol < defs.kind.length) {
+            defs.kind[part.symbol] = SymbolKind.Choice;
+          }
+        }
+      }
+    }
+    if (failed) {
+      fail("a label named as another");
+      return undefined;
+    }
+    return defs;
+  }
+
   // Whether the last declarations run raised an error, which runs them again
   // on the next compile.
   protected _declarationsFailed = false;
@@ -643,13 +786,17 @@ export class ChunkStore {
 
   /**
    * Starts a new generation of the table (docs/engine/binary-program.md,
-   * section 2, Reseed). The symbols the current root holds, its flows' and
-   * those of the functions its statements write, are interned again, and
-   * every other entry is dropped, so the next compile emits every chunk
-   * again. The record of the anonymous symbol each part of a statement owns
-   * is remapped with them, so that compile hands every part the symbol it
-   * had, and a symbol value made before the reseed takes its id through the
-   * remap the store keeps.
+   * section 2, Reseed). The symbols the current root holds, its flows', the
+   * labels and functions its chunks export and the alternators its
+   * statements write, are interned again, and every other entry is dropped,
+   * so the next compile emits every chunk again. The record of the anonymous
+   * symbol each part of a statement owns is remapped with them, so that
+   * compile hands every part the symbol it had, and a symbol value made
+   * before the reseed takes its id through the remap the store keeps. The
+   * table's arrays are replaced, not cleared, so every root built before the
+   * reseed goes on reading the generation it was built in
+   * (`ProgramRoot.table`). The compiler reseeds through here
+   * (`SparkdownCompiler.maybeReseedBinaryTable`).
    */
   reseed(): void {
     const root = this.current;
@@ -664,6 +811,17 @@ export class ChunkStore {
       for (const part of this._info.get(chunk)?.parts ?? []) {
         live.add(part.symbol);
       }
+      for (const part of this._info.get(chunk)?.alternators ?? []) {
+        live.add(part.symbol);
+      }
+      for (const part of this._info.get(chunk)?.choices ?? []) {
+        if (part.symbol >= 0) {
+          live.add(part.symbol);
+        }
+      }
+      for (let r = 0; r < exportCount(chunk); r += 1) {
+        live.add(exportSymbol(chunk, r));
+      }
     }
     const remap = reseedProgramTable(this.table, { symbols: live });
     renumberAnonymousSymbols(this.table);
@@ -676,6 +834,14 @@ export class ChunkStore {
           parts: info.parts.map((part) => ({
             ...part,
             symbol: remap.symbols[part.symbol]!,
+          })),
+          alternators: info.alternators.map((part) => ({
+            ...part,
+            symbol: remap.symbols[part.symbol]!,
+          })),
+          choices: info.choices.map((part) => ({
+            ...part,
+            symbol: part.symbol >= 0 ? remap.symbols[part.symbol]! : -1,
           })),
           anonymousReferences: info.anonymousReferences
             .map((symbol) => remap.symbols[symbol]!)
@@ -715,6 +881,20 @@ export class ChunkStore {
   // The anonymous symbols of other statements' functions that the chunk
   // being emitted refers to.
   protected _referenced: Set<number> | null = null;
+  // The symbol of each alternator of the statement being emitted.
+  protected _alternatorPlan: Map<object, number> | null = null;
+
+  /** The anonymous symbol of an alternator of the statement being emitted:
+   *  the one its alignment with the old chunk's alternators gave it, or a
+   *  new one. */
+  protected alternatorOf(sequence: object): number {
+    let symbol = this._alternatorPlan?.get(sequence);
+    if (symbol === undefined) {
+      symbol = anonymousSymbol(this.table);
+      this._alternatorPlan?.set(sequence, symbol);
+    }
+    return symbol;
+  }
 
   /** What a chunk that refers to `symbol` depends on: the kind the program
    *  being built defines it as (and a function's parameters), or that the
@@ -900,18 +1080,57 @@ export class ChunkStore {
   ): StatementChunk {
     const bodies = statement.bodies ?? [];
     const inherited = this._inherit.get(statement);
+    const oldInfo = inherited ? this._info.get(inherited) : undefined;
     const plan = this._plans.get(statement);
+    // The choices the statement raises keep the count symbols of the old
+    // chunk's that they align with by their own source, and their bodies the
+    // sequence ids of those choices' bodies; the `then` clause keeps the old
+    // clause's (section 2).
+    const choices = choicesOf(statement);
+    const choicePrints = choices.map((choice) =>
+      choiceFingerprint(choice, statement.text),
+    );
+    const choicePairs = oldInfo
+      ? alignParts(
+          choicePrints,
+          oldInfo.choices.map((part) => part.fingerprint),
+        )
+      : [];
+    // The `then` clauses (a block's own, and one of a block written in its
+    // preamble) keep the old clauses' ids in order.
+    let thens = 0;
+    const partBlocks: (number | undefined)[] = bodies.map((body) => {
+      const part = partOfBody.get(body.shape as BodyShape);
+      if (!part || !oldInfo) {
+        return undefined;
+      }
+      if (part instanceof Choice) {
+        const pair = choicePairs[choices.indexOf(part)];
+        const block = pair === undefined ? -1 : oldInfo.choices[pair]!.block;
+        return block >= 0 ? block : undefined;
+      }
+      return oldInfo.thenBlocks[thens++];
+    });
     const oldControl: number[] = [];
     if (inherited) {
       for (let k = 0; k < blockCount(inherited); k += 1) {
-        if (!(blockFlags(inherited, k) & BLOCK_FUNCTION)) {
+        if (
+          !(
+            blockFlags(inherited, k) &
+            (BLOCK_FUNCTION | BLOCK_CHOICE | BLOCK_THEN)
+          )
+        ) {
           oldControl.push(k);
         }
       }
     }
     let control = 0;
     const blocks: BlockInput[] = bodies.map((body, k) => {
-      const oldBlock = body.fn ? plan?.oldBlocks[k] : oldControl[control++];
+      const oldBlock = body.fn
+        ? plan?.oldBlocks[k]
+        : partOfBody.has(body.shape as BodyShape)
+          ? partBlocks[k]
+          : oldControl[control++];
       return {
         body: body.shape,
         sequenceId:
@@ -924,6 +1143,35 @@ export class ChunkStore {
         fn: body.fn ? functionInput(body.fn, plan!.symbols[k]!) : undefined,
       };
     });
+    // The alternators the statement writes keep the symbols of the old
+    // chunk's that they align with by their own source (section 2), and any
+    // other takes a new anonymous symbol when the writer first asks for it.
+    const alternators = alternatorsOf(statement);
+    const fingerprints = alternators.map((sequence) =>
+      alternatorFingerprint(sequence, statement.text),
+    );
+    const alternatorPlan = new Map<object, number>();
+    choices.forEach((choice, i) => {
+      const pair = choicePairs[i];
+      const symbol = pair === undefined ? -1 : oldInfo!.choices[pair]!.symbol;
+      if (symbol >= 0 && isAnonymousSymbol(this.table, symbol)) {
+        alternatorPlan.set(choice, symbol);
+      }
+    });
+    if (inherited) {
+      const old = this._info.get(inherited)?.alternators ?? [];
+      const pairs = alignParts(
+        fingerprints,
+        old.map((part) => part.fingerprint),
+      );
+      alternators.forEach((sequence, i) => {
+        const part = pairs[i] === undefined ? undefined : old[pairs[i]!];
+        if (part) {
+          alternatorPlan.set(sequence, part.symbol);
+        }
+      });
+    }
+    this._alternatorPlan = alternatorPlan;
     const referenced = new Set<number>();
     this._referenced = referenced;
     let emitted;
@@ -940,6 +1188,7 @@ export class ChunkStore {
       });
     } finally {
       this._referenced = null;
+      this._alternatorPlan = null;
     }
     const own = new Set(plan?.symbols ?? []);
     const chunk = emitted.chunk;
@@ -955,6 +1204,23 @@ export class ChunkStore {
           ? [{ fingerprint: fingerprintOf(body), symbol: plan!.symbols[k]!, block: k }]
           : [],
       ),
+      alternators: alternators.flatMap((sequence, i) => {
+        const symbol = alternatorPlan.get(sequence);
+        return symbol === undefined
+          ? []
+          : [{ fingerprint: fingerprints[i]!, symbol }];
+      }),
+      choices: choices.map((choice, i) => ({
+        fingerprint: choicePrints[i]!,
+        symbol: choice.name ? -1 : (alternatorPlan.get(choice) ?? -1),
+        block: bodies.findIndex(
+          (body) => partOfBody.get(body.shape as BodyShape) === choice,
+        ),
+      })),
+      thenBlocks: bodies.flatMap((body, k) => {
+        const part = partOfBody.get(body.shape as BodyShape);
+        return part && !(part instanceof Choice) ? [k] : [];
+      }),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
       hoisted: hoistedOf(statement),
       params: paramsOf(statement),
@@ -1001,7 +1267,7 @@ export class ChunkStore {
       this._byBlock.set(statement.block, chunk);
       chunks.push(chunk);
       lineStarts.push(statement.firstLine - firstLine);
-      if (inFunction || exportCount(chunk) > 0) {
+      if (inFunction || exportsFunction(chunk)) {
         functionChunks.add(chunk);
       }
       this.buildBodies(
@@ -1058,20 +1324,36 @@ export class ChunkStore {
    * statement to emit. `statements` and `old` are the new and the previous
    * program's statements in order, and `kept` holds the chunks of the
    * statements whose block the store emitted a chunk for. The others are
-   * aligned with the old chunks: between two statements that kept old chunks,
-   * the old and new statements are matched from both ends and then in order
-   * by their syntax, and a statement matched with one whose syntax and
-   * recorded lowering inputs read the same takes its chunk, while its
-   * recorded values and facts hold. A statement matched by its syntax whose
-   * old chunk cannot be kept, and the one statement left on each side of a
-   * run, is emitted again in place, taking what belongs to the old chunk's
-   * parts (`_inherit`). Of the statements left, only the outermost count:
+   * aligned with the old chunks in two steps.
+   *
+   * By position: between two statements that kept old chunks, the old and
+   * new statements are matched from both ends and then in order by their
+   * syntax, and the one statement left on each side of a run with the one
+   * old statement left; of the statements left, only the outermost count:
    * the statements of a left statement's bodies are part of it, as the
    * statements of a function written on its owner's line are, whose columns
    * move when a function is inserted before it (`nesting`). The statements
    * no run matched are then matched in order by their syntax with the old
    * chunks no run took, wherever those were, as statements an edit moved
-   * past an anchor are (#1221).
+   * past an anchor are (#1221). A matched statement keeps the old chunk when
+   * it can, one that reads as it does in its syntax, its recorded lowering
+   * inputs and its recorded values (`statementIdentity`) while the chunk's
+   * own facts hold, and is otherwise emitted again in place, taking what
+   * belongs to the old chunk's parts (`_inherit`); the one statement left on
+   * each side of a run is emitted again in place only when the two have
+   * parts.
+   *
+   * By identity: every statement that can keep an old chunk it does not
+   * hold then takes it where that leaves nothing behind (#1496): a chunk no
+   * statement holds, when the statement holds none or holds one with no
+   * parts, or by exchange, the chunk another statement holds to be emitted
+   * again in place, when that one can take the one this statement leaves. A
+   * statement that holds none takes no chunk another statement holds, since
+   * that one was edited in place and keeps the parts of its old self, whose
+   * ids and symbols a saved state may name; and a statement that holds a
+   * chunk with parts keeps it over a chunk no statement holds for the same
+   * reason. A chunk left behind goes to a statement no pass matched, by its
+   * syntax.
    */
   protected align(
     statements: readonly StatementSource[],
@@ -1089,8 +1371,36 @@ export class ChunkStore {
     let lastOld = -1;
     let runStart = 0;
     const result = kept.slice();
-    // Takes the old chunk when it can be kept; otherwise the statement,
-    // whose syntax is the old one's, is emitted again in place.
+    // Whether an old chunk's own recorded facts hold in this build, which no
+    // statement changes, so each chunk is checked once.
+    const viable = new Map<StatementChunk, boolean>();
+    const factsHold = (chunk: StatementChunk): boolean => {
+      let holds = viable.get(chunk);
+      if (holds === undefined) {
+        holds = this.factsHold(chunk);
+        viable.set(chunk, holds);
+      }
+      return holds;
+    };
+    // Whether the statement can keep the old chunk, whoever holds it now: the
+    // two read the same in everything a kept chunk depends on
+    // (`statementIdentity`, `chunkIdentity`), and the chunk's facts hold.
+    // Syntax and lowering reads are compared first, so a statement's full
+    // identity is built only for a chunk it can match.
+    const fits = (i: number, o: number): boolean => {
+      const info = this._info.get(old[o]!);
+      const statement = statements[i]!;
+      return (
+        !!info &&
+        info.syntax === statement.syntax() &&
+        info.reads === statement.reads &&
+        this.chunkIdentity(old[o]!) === this.statementIdentity(statement) &&
+        factsHold(old[o]!)
+      );
+    };
+    // Pairs a statement with an old chunk of its syntax: it keeps the chunk
+    // when it can, and is otherwise emitted again in place, taking what
+    // belongs to the old chunk's parts (`_inherit`).
     const take = (i: number, o: number): boolean => {
       const chunk = old[o]!;
       const info = this._info.get(chunk);
@@ -1104,13 +1414,42 @@ export class ChunkStore {
         return false;
       }
       used.add(chunk);
-      if (info.reads !== statement.reads || !this.holds(chunk, statement)) {
+      if (fits(i, o)) {
+        result[i] = chunk;
+      } else {
         this._inherit.set(statement, chunk);
-        return true;
       }
-      result[i] = chunk;
       return true;
     };
+    // A block statement keeps its bodies' sequence ids by an edit in place,
+    // and a statement that writes alternators keeps their count symbols,
+    // which its alternators align with by their own source.
+    // Whether a statement writes alternators, which reads its own objects
+    // past its bodies' statements, so it is found once per statement.
+    const alternating = new Map<StatementSource, boolean>();
+    const writesAlternators = (statement: StatementSource): boolean => {
+      let writes = alternating.get(statement);
+      if (writes === undefined) {
+        writes = alternatorsOf(statement).length > 0;
+        alternating.set(statement, writes);
+      }
+      return writes;
+    };
+    // Whether a statement raises choices, found once per statement as well.
+    const choosing = new Map<StatementSource, boolean>();
+    const raisesChoices = (statement: StatementSource): boolean => {
+      let raises = choosing.get(statement);
+      if (raises === undefined) {
+        raises = choicesOf(statement).length > 0;
+        choosing.set(statement, raises);
+      }
+      return raises;
+    };
+    const ownsParts = (statement: StatementSource, chunk: StatementChunk) =>
+      ((statement.bodies?.length ?? 0) > 0 && blockCount(chunk) > 0) ||
+      (writesAlternators(statement) &&
+        (this._info.get(chunk)?.alternators.length ?? 0) > 0) ||
+      (raisesChoices(statement) && (this._info.get(chunk)?.choices.length ?? 0) > 0);
     const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
       const candidates: number[] = [];
       for (let i = newFrom; i < newTo; i += 1) {
@@ -1150,17 +1489,33 @@ export class ChunkStore {
         back += 1;
       }
       // In between, in order, each statement with the next old one that reads
-      // the same.
+      // the same, found through the positions of each syntax among `olds`
+      // rather than by scanning the run. The position the pass has reached
+      // only grows, so each syntax's positions are walked once, by a cursor.
+      const at = new Map<string, { positions: number[]; next: number }>();
+      for (let k = front; k < olds.length - back; k += 1) {
+        const syntax = syntaxOf(olds[k]!);
+        if (syntax !== undefined) {
+          const bucket = at.get(syntax);
+          if (bucket) {
+            bucket.positions.push(k);
+          } else {
+            at.set(syntax, { positions: [k], next: 0 });
+          }
+        }
+      }
       let o = front;
       for (let c = front; c < candidates.length - back; c += 1) {
-        const syntax = statements[candidates[c]!]!.syntax();
-        for (let k = o; k < olds.length - back; k += 1) {
-          if (syntaxOf(olds[k]!) === syntax) {
-            if (take(candidates[c]!, olds[k]!)) {
-              o = k + 1;
-            }
-            break;
-          }
+        const bucket = at.get(statements[candidates[c]!]!.syntax());
+        if (!bucket) {
+          continue;
+        }
+        while (bucket.next < bucket.positions.length && bucket.positions[bucket.next]! < o) {
+          bucket.next += 1;
+        }
+        const k = bucket.positions[bucket.next];
+        if (k !== undefined && take(candidates[c]!, olds[k]!)) {
+          o = k + 1;
         }
       }
       // A statement edited in place: one left on each side, counting the
@@ -1190,14 +1545,19 @@ export class ChunkStore {
         (k) => old[k]!,
         nesting?.oldOwner,
       );
-      if (
-        leftNew.length === 1 &&
-        leftOld.length === 1 &&
-        (statements[leftNew[0]!]!.bodies?.length ?? 0) > 0 &&
-        blockCount(old[leftOld[0]!]!) > 0
-      ) {
-        used.add(old[leftOld[0]!]!);
-        this._inherit.set(statements[leftNew[0]!]!, old[leftOld[0]!]!);
+      if (leftNew.length === 1 && leftOld.length === 1) {
+        const i = leftNew[0]!;
+        const k = leftOld[0]!;
+        // Two statements an edit swapped cross over each other, so the
+        // passes above match only one of them; the other, left alone with
+        // its own old chunk, keeps it.
+        if (fits(i, k)) {
+          used.add(old[k]!);
+          result[i] = old[k]!;
+        } else if (ownsParts(statements[i]!, old[k]!)) {
+          used.add(old[k]!);
+          this._inherit.set(statements[i]!, old[k]!);
+        }
       }
     };
     for (let i = 0; i <= kept.length; i += 1) {
@@ -1215,72 +1575,366 @@ export class ChunkStore {
     // move into the flow above when its header is broken, find their old
     // chunks outside their run: the old chunks no run took are matched with
     // the statements no run matched, in order, by syntax.
-    const unmatched = new Map<string, number[]>();
-    old.forEach((chunk, o) => {
-      const syntax = used.has(chunk) ? undefined : this._info.get(chunk)?.syntax;
-      if (syntax !== undefined) {
-        const olds = unmatched.get(syntax);
-        if (olds) {
-          olds.push(o);
-        } else {
-          unmatched.set(syntax, [o]);
+    const matchMoved = () => {
+      const unmatched = new Map<string, { olds: number[]; next: number }>();
+      old.forEach((chunk, o) => {
+        const syntax = used.has(chunk) ? undefined : this._info.get(chunk)?.syntax;
+        if (syntax !== undefined) {
+          const bucket = unmatched.get(syntax);
+          if (bucket) {
+            bucket.olds.push(o);
+          } else {
+            unmatched.set(syntax, { olds: [o], next: 0 });
+          }
         }
-      }
-    });
+      });
+      statements.forEach((statement, i) => {
+        if (!result[i] && !this._inherit.has(statement)) {
+          const bucket = unmatched.get(statement.syntax());
+          const o = bucket?.olds[bucket.next];
+          if (o !== undefined) {
+            bucket!.next += 1;
+            take(i, o);
+          }
+        }
+      });
+    };
+    matchMoved();
+
+    // Every statement that can keep an old chunk it does not hold now takes
+    // it where that leaves nothing behind (#1496). The pairing above follows
+    // position, so of statements an edit reordered among others of their
+    // syntax, it can pair one for an edit in place with the chunk another
+    // can keep. A statement paired with no chunk takes an old chunk no
+    // statement holds. A statement paired for an edit in place takes such a
+    // chunk only when the one it leaves has no parts, since the ids and
+    // symbols of a block's bodies, functions and alternators go with the
+    // edit in place and a saved state may name them; and it exchanges
+    // chunks with a statement paired for an edit in place with the chunk it
+    // can keep, which takes the one it leaves, so no chunk is left behind.
+    // A statement paired with no chunk takes none that another statement
+    // holds: that one was edited in place, and keeps the parts of its old
+    // self.
+    const partner = new Map<number, number>();
+    const holder = new Map<number, number>();
     statements.forEach((statement, i) => {
-      if (!result[i] && !this._inherit.has(statement)) {
-        const o = unmatched.get(statement.syntax())?.shift();
-        if (o !== undefined) {
-          take(i, o);
-        }
+      const chunk = result[i] ? undefined : this._inherit.get(statement);
+      const o = chunk ? oldEntry.get(chunk) : undefined;
+      if (o !== undefined) {
+        partner.set(i, o);
+        holder.set(o, i);
       }
     });
+    const unpair = (i: number) => {
+      const o = partner.get(i);
+      if (o !== undefined) {
+        partner.delete(i);
+        holder.delete(o);
+        this._inherit.delete(statements[i]!);
+      }
+    };
+    // The old chunks whose facts hold, by identity: those no statement holds,
+    // and those paired for an edit in place, filed by what their holder can
+    // take in an exchange (`takesLeft`): its syntax, and whether it has
+    // bodies, writes alternators or raises choices. An entry is checked when it is taken and
+    // dropped when it no longer applies, since a chunk moves between lists;
+    // each move files it again, so the lists stay linear in all.
+    interface Held {
+      bySyntax: Map<string, number[]>;
+      bodied: number[];
+      alternating: number[];
+      choosing: number[];
+    }
+    const byIdentity = new Map<string, { free: number[]; held: Held }>();
+    // Each old chunk's lists, found once: a chunk an exchange passes on is
+    // filed again, and its identity, whose length grows with its bodies, is
+    // not looked up again.
+    const chunkLists = new Map<number, { free: number[]; held: Held } | null>();
+    // The syntax and lowering reads of the old chunks filed, so a statement
+    // that no old chunk reads as builds no identity.
+    const readAs = new Set<string>();
+    const listOf = (o: number) => {
+      const known = chunkLists.get(o);
+      if (known !== undefined) {
+        return known ?? undefined;
+      }
+      const info = this._info.get(old[o]!);
+      const identity = this.chunkIdentity(old[o]!);
+      let lists: { free: number[]; held: Held } | undefined;
+      if (info && identity !== undefined && factsHold(old[o]!)) {
+        readAs.add(`${info.syntax}\u0000${info.reads}`);
+        lists = byIdentity.get(identity);
+        if (!lists) {
+          lists = { free: [], held: { bySyntax: new Map(), bodied: [], alternating: [], choosing: [] } };
+          byIdentity.set(identity, lists);
+        }
+      }
+      chunkLists.set(o, lists ?? null);
+      return lists;
+    };
+    const fileHeld = (o: number) => {
+      const lists = listOf(o);
+      const p = holder.get(o);
+      if (!lists || p === undefined) {
+        return;
+      }
+      const statement = statements[p]!;
+      const syntax = statement.syntax();
+      const same = lists.held.bySyntax.get(syntax);
+      if (same) {
+        same.push(o);
+      } else {
+        lists.held.bySyntax.set(syntax, [o]);
+      }
+      if ((statement.bodies?.length ?? 0) > 0) {
+        lists.held.bodied.push(o);
+      }
+      if (writesAlternators(statement)) {
+        lists.held.alternating.push(o);
+      }
+      if (raisesChoices(statement)) {
+        lists.held.choosing.push(o);
+      }
+    };
+    for (let o = old.length - 1; o >= 0; o -= 1) {
+      if (!used.has(old[o]!)) {
+        listOf(o)?.free.push(o);
+      } else if (holder.has(o)) {
+        fileHeld(o);
+      }
+    }
+    const ownsAny = (chunk: StatementChunk) =>
+      blockCount(chunk) > 0 ||
+      (this._info.get(chunk)?.alternators.length ?? 0) > 0 ||
+      (this._info.get(chunk)?.choices.length ?? 0) > 0;
+    const queue: number[] = [];
+    statements.forEach((_, i) => {
+      if (!result[i]) {
+        queue.push(i);
+      }
+    });
+    // Each statement's lists, kept once found: a statement an exchange pairs
+    // again is visited again, and reads the same lists. Its identity is
+    // built once per build (`statementIdentity`).
+    const listsOf = new Map<number, NonNullable<ReturnType<typeof listOf>>>();
+    for (let n = 0; n < queue.length; n += 1) {
+      const i = queue[n]!;
+      if (result[i]) {
+        continue;
+      }
+      let lists = listsOf.get(i);
+      if (!lists) {
+        const statement = statements[i]!;
+        if (!readAs.has(`${statement.syntax()}\u0000${statement.reads}`)) {
+          continue;
+        }
+        lists = byIdentity.get(this.statementIdentity(statement));
+        if (lists) {
+          listsOf.set(i, lists);
+        }
+      }
+      if (!lists) {
+        continue;
+      }
+      const q = partner.get(i);
+      if (q === undefined || !ownsAny(old[q]!)) {
+        let o: number | undefined;
+        while (lists.free.length && o === undefined) {
+          const c = lists.free.pop()!;
+          if (!used.has(old[c]!)) {
+            o = c;
+          }
+        }
+        if (o !== undefined) {
+          if (q !== undefined) {
+            unpair(i);
+            used.delete(old[q]!);
+            listOf(q)?.free.push(q);
+          }
+          used.add(old[o]!);
+          result[i] = old[o]!;
+          continue;
+        }
+      }
+      if (q === undefined) {
+        continue;
+      }
+      // The other statement takes the chunk this one leaves: it keeps it,
+      // or is emitted again in place from it, as a statement of its syntax
+      // or one whose parts the chunk's carry. A statement that could do
+      // neither keeps its chunk, so no exchange leaves a chunk behind. Only
+      // the lists whose holders can take it are read.
+      const left = old[q]!;
+      const takesLeft = (p: number) =>
+        fits(p, q) ||
+        this._info.get(left)?.syntax === statements[p]!.syntax() ||
+        ownsParts(statements[p]!, left);
+      const candidates: number[][] = [];
+      const same = lists.held.bySyntax.get(this._info.get(left)?.syntax ?? "");
+      if (same) {
+        candidates.push(same);
+      }
+      if (blockCount(left) > 0) {
+        candidates.push(lists.held.bodied);
+      }
+      if ((this._info.get(left)?.alternators.length ?? 0) > 0) {
+        candidates.push(lists.held.alternating);
+      }
+      if ((this._info.get(left)?.choices.length ?? 0) > 0) {
+        candidates.push(lists.held.choosing);
+      }
+      let o: number | undefined;
+      for (const list of candidates) {
+        while (list.length && o === undefined) {
+          const c = list.pop()!;
+          const p = holder.get(c);
+          if (p !== undefined && p !== i && takesLeft(p)) {
+            o = c;
+          }
+        }
+        if (o !== undefined) {
+          break;
+        }
+      }
+      if (o === undefined) {
+        continue;
+      }
+      const p = holder.get(o)!;
+      unpair(p);
+      unpair(i);
+      result[i] = old[o]!;
+      if (fits(p, q)) {
+        result[p] = left;
+      } else {
+        partner.set(p, q);
+        holder.set(q, p);
+        this._inherit.set(statements[p]!, left);
+        fileHeld(q);
+        queue.push(p);
+      }
+    }
+    // A chunk a statement left for one it keeps goes to a statement no pass
+    // matched, as the statements an edit moved find theirs.
+    matchMoved();
     return result;
   }
 
   /** Whether a chunk's recorded values and facts still hold for `statement`. */
   protected holds(chunk: StatementChunk, statement: StatementSource): boolean {
-    const info = this._info.get(chunk);
-    if (
-      !info ||
-      info.generation !== this.table.generation ||
-      info.globals !== assignedNames(statement) ||
-      info.defines !== statement.defines ||
-      info.hoisted !== hoistedOf(statement) ||
-      info.params !== paramsOf(statement)
-    ) {
-      return false;
-    }
-    const exclude = bodyObjects(statement);
-    const names = compilerNamedTexts(statement.objects, exclude);
-    if (
-      names.length !== info.emitReads.length ||
-      names.some((name, i) => name !== info.emitReads[i])
-    ) {
-      return false;
-    }
-    const resolutions = resolutionsOf(
-      [...statement.objects, ...hoistedLocals(statement)],
-      exclude,
+    const values = this.chunkValues(chunk);
+    return (
+      values !== undefined &&
+      values === this.statementValues(statement) &&
+      this.factsHold(chunk)
     );
-    if (
-      resolutions.length !== info.resolutions.length ||
-      resolutions.some((value, i) => value !== info.resolutions[i])
-    ) {
-      return false;
+  }
+
+  // The values each statement of the build in progress reads as, and each
+  // chunk recorded (`statementValues`, `chunkValues`).
+  protected _statementValues = new WeakMap<StatementSource, string>();
+  protected _chunkValues = new WeakMap<ChunkInfo, string>();
+
+  /** What a statement reads as in everything a chunk kept for it depends on
+   *  besides its syntax, its lowering reads and the chunk's own facts: the
+   *  globals it assigns, the function it defines, the locals and parameters
+   *  of the functions it writes or runs in place, the texts the compiler
+   *  names by document order, how each name resolves, and which of its
+   *  bodies are functions. A chunk's values (`chunkValues`) read the same
+   *  exactly when they agree. Computed once per build. */
+  protected statementValues(statement: StatementSource): string {
+    let values = this._statementValues.get(statement);
+    if (values === undefined) {
+      const exclude = bodyObjects(statement);
+      values = JSON.stringify([
+        assignedNames(statement) ?? null,
+        statement.defines ?? null,
+        hoistedOf(statement),
+        paramsOf(statement),
+        compilerNamedTexts(statement.objects, exclude),
+        resolutionsOf([...statement.objects, ...hoistedLocals(statement)], exclude),
+        (statement.bodies ?? []).map((body) => !!body.fn),
+      ]);
+      this._statementValues.set(statement, values);
     }
-    const bodies = statement.bodies ?? [];
-    if (
-      bodies.length !== blockCount(chunk) ||
-      bodies.some(
-        (body, k) => !!body.fn !== !!(blockFlags(chunk, k) & BLOCK_FUNCTION),
-      )
-    ) {
+    return values;
+  }
+
+  /** The values a chunk recorded, in the form `statementValues` gives a
+   *  statement's, or nothing for a chunk the store knows nothing of. */
+  protected chunkValues(chunk: StatementChunk): string | undefined {
+    const info = this._info.get(chunk);
+    if (!info) {
+      return undefined;
+    }
+    let values = this._chunkValues.get(info);
+    if (values === undefined) {
+      const functions: boolean[] = [];
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        functions.push(!!(blockFlags(chunk, k) & BLOCK_FUNCTION));
+      }
+      values = JSON.stringify([
+        info.globals ?? null,
+        info.defines ?? null,
+        info.hoisted,
+        info.params,
+        info.emitReads,
+        info.resolutions,
+        functions,
+      ]);
+      this._chunkValues.set(info, values);
+    }
+    return values;
+  }
+
+  /** A statement's syntax, lowering reads and values, which a chunk it keeps
+   *  reads the same in (`chunkIdentity`). */
+  protected statementIdentity(statement: StatementSource): string {
+    let identity = this._statementIdentities.get(statement);
+    if (identity === undefined) {
+      identity = `${statement.syntax()}\u0000${statement.reads}\u0000${this.statementValues(statement)}`;
+      this._statementIdentities.set(statement, identity);
+    }
+    return identity;
+  }
+
+  // The identities of the build in progress's statements, and of the
+  // chunks' recorded infos, each built once (`statementIdentity`,
+  // `chunkIdentity`).
+  protected _statementIdentities = new WeakMap<StatementSource, string>();
+  protected _chunkIdentities = new WeakMap<ChunkInfo, string>();
+
+  /** A chunk's recorded syntax, lowering reads and values, in the form of
+   *  `statementIdentity`. */
+  protected chunkIdentity(chunk: StatementChunk): string | undefined {
+    const info = this._info.get(chunk);
+    if (!info) {
+      return undefined;
+    }
+    let identity = this._chunkIdentities.get(info);
+    if (identity === undefined) {
+      identity = `${info.syntax}\u0000${info.reads}\u0000${this.chunkValues(chunk)}`;
+      this._chunkIdentities.set(info, identity);
+    }
+    return identity;
+  }
+
+  /** Whether the facts a chunk recorded about itself still hold in the build
+   *  in progress, whatever statement it is kept for: its ids belong to the
+   *  table's generation, and every fact its reference table records about a
+   *  symbol is unchanged. */
+  protected factsHold(chunk: StatementChunk): boolean {
+    const info = this._info.get(chunk);
+    if (!info || info.generation !== this.table.generation) {
       return false;
     }
     const start = referenceTableStart(chunk);
     for (let r = 0; r < chunk[H_REFERENCE_ROWS]!; r += 1) {
       const at = start + r * REFERENCE_ROW_WORDS;
+      // A jump, a count or a symbol value of a scene, a branch or a label
+      // depends on no fact about its symbol (`referenceTarget`).
+      if (chunk[at + 1] === NO_FACTS) {
+        continue;
+      }
       if (factHash(this.factsOf(chunk[at]!)) !== chunk[at + 1]) {
         return false;
       }
@@ -1442,6 +2096,140 @@ const functionInput = (fn: ParsedObject, symbol: number): FunctionInput => {
   };
 };
 
+/** Whether a chunk's export row `r` is a label's: a label is exported at
+ *  the `Visit` of its own symbol, and any other export is a function's. */
+const exportsLabel = (chunk: StatementChunk, r: number): boolean => {
+  const offset = exportOffset(chunk, r);
+  return (
+    offset < codeWords(chunk) &&
+    opOf(chunk[HEADER_WORDS + offset]!) === Op.Visit &&
+    chunk[HEADER_WORDS + offset + 1] === exportSymbol(chunk, r)
+  );
+};
+
+/** Whether a chunk exports a function: an export that is no label's
+ *  (`exportsLabel`). A label's chunk holds no function's code, so adding,
+ *  removing or renaming one runs no declaration again. */
+const exportsFunction = (chunk: StatementChunk): boolean => {
+  for (let r = 0; r < exportCount(chunk); r += 1) {
+    if (!exportsLabel(chunk, r)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/** The alternators (`Sequence`s) a statement's own code writes, in the order
+ *  the writer meets them: none of its bodies' statements, and none of a
+ *  function's body, which are other chunks' code. */
+const alternatorsOf = (statement: StatementSource): Sequence[] => {
+  const out: Sequence[] = [];
+  const exclude = bodyObjects(statement);
+  const visit = (obj: ParsedObject) => {
+    if (exclude?.has(obj) || obj instanceof FlowBase) {
+      return;
+    }
+    if (obj instanceof Sequence) {
+      out.push(obj);
+    }
+    const children = obj instanceof FunctionCall ? obj.args : obj.content;
+    for (const child of children ?? []) {
+      visit(child);
+    }
+  };
+  statement.objects.forEach(visit);
+  return out;
+};
+
+/** The choices a statement's own code raises, in the order the writer meets
+ *  them: none of its bodies' statements, which are other chunks' code. */
+const choicesOf = (statement: StatementSource): Choice[] => {
+  const out: Choice[] = [];
+  const exclude = bodyObjects(statement);
+  const visit = (obj: ParsedObject) => {
+    if (exclude?.has(obj) || obj instanceof FlowBase) {
+      return;
+    }
+    if (obj instanceof Choice) {
+      out.push(obj);
+    }
+    const children = obj instanceof FunctionCall ? obj.args : obj.content;
+    for (const child of children ?? []) {
+      visit(child);
+    }
+  };
+  statement.objects.forEach(visit);
+  return out;
+};
+
+/** What a choice is aligned by when its statement is emitted again, which
+ *  its count symbol and its body go with (section 2): its own source,
+ *  normalized, read through the statement's `text` from the range its
+ *  lowering recorded, or without one the text of its start and choice-only
+ *  content. */
+const choiceFingerprint = (
+  choice: Choice,
+  source?: (from: number, to: number) => string,
+): string => {
+  const range = alternatorSourceOf.get(choice);
+  if (range && source) {
+    return `choice|${normalizeSource(source(range.from, range.to))}`;
+  }
+  const text = (list: ParsedObject): string =>
+    list.content
+      .map((obj) => (obj instanceof Text ? obj.text : obj.typeName))
+      .join("");
+  return `choice|${normalizeSource(`${text(choice.startContent)}[${text(choice.choiceOnlyContent)}]`)}`;
+};
+
+/** What an alternator is aligned by when its statement is emitted again,
+ *  and its shuffle seeded from: its own source, normalized, as a function
+ *  part's is (docs/engine/binary-program.md, section 2), read through the
+ *  statement's `text` from the range its lowering recorded. Without one, its
+ *  kind and its arms, read as their text, each object's kind and what each
+ *  object prints as (a name, a number, a string, a call, an operation), with
+ *  the objects it holds, and a nested alternator by its own kind and arms. A
+ *  name the compiler generated is read by the order it first appears in,
+ *  since the compiler numbers those names by document order
+ *  (`SparkdownCompiler.canonicalizeSyntheticFlowNames`) and an edit above
+ *  the statement renumbers them. */
+const alternatorFingerprint = (
+  sequence: Sequence,
+  source?: (from: number, to: number) => string,
+): string => {
+  const range = alternatorSourceOf.get(sequence);
+  if (range && source) {
+    return `${sequence.sequenceType}|${normalizeSource(source(range.from, range.to))}`;
+  }
+  const arms = (seq: Sequence): string =>
+    `${seq.sequenceType}|${seq.sequenceElements.map(text).join("|")}`;
+  const text = (obj: ParsedObject): string => {
+    if (obj instanceof Text) {
+      return obj.text;
+    }
+    if (obj instanceof Sequence) {
+      return `Sequence(${arms(obj)})`;
+    }
+    // Each node's own value too, for one with children as for a leaf: a
+    // call's name and an expression's operator tell apart two alternators
+    // whose arguments and operands read the same (`a(1)` and `b(1)`).
+    const children = obj instanceof FunctionCall ? obj.args : (obj.content ?? []);
+    const own = `${obj.typeName}:${String(obj)}`;
+    return children.length > 0 ? `${own}(${children.map(text).join("")})` : own;
+  };
+  const generated = new Map<string, number>();
+  return normalizeSource(arms(sequence)).replace(GENERATED_NAMES, (name) => {
+    if (!generated.has(name)) {
+      generated.set(name, generated.size);
+    }
+    return `__synth#${generated.get(name)}`;
+  });
+};
+
+// A name the compiler generates, numbered by document order
+// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`).
+const GENERATED_NAMES = /__synth_\d+/g;
+
 /** The hash a function part is aligned by: its own source, normalized. */
 const fingerprintOf = (body: BodySource): string =>
   normalizeSource(body.partSource?.() ?? "");
@@ -1536,25 +2324,6 @@ const functionLabel = (fn: ParsedObject): string => {
   return names.join(".");
 };
 
-/** Where each symbol the root's chunks export is defined: the chunk and the
- *  offset of its entry. */
-const definitionsOf = (
-  sequences: ReadonlyMap<number, SequenceRow>,
-): Map<number, SymbolDefinition> => {
-  const out = new Map<number, SymbolDefinition>();
-  for (const row of sequences.values()) {
-    for (const chunk of row.arrays.chunks) {
-      for (let r = 0; r < exportCount(chunk); r += 1) {
-        out.set(exportSymbol(chunk, r), {
-          chunk: chunkId(chunk),
-          offset: exportOffset(chunk, r),
-        });
-      }
-    }
-  }
-  return out;
-};
-
 /** The texts the compiler rewrites in place in a statement's parsed objects,
  *  in the order the writer reads them (`StringExpression.EmitProgram`),
  *  leaving out the objects in `exclude` (a block statement's bodies, whose
@@ -1612,6 +2381,20 @@ export const resolutionsOf = (
     }
     if (obj instanceof FunctionCall && obj.isUserCall) {
       out.push(obj.proxyDivert.callResolutionKey);
+    }
+    // The symbol a jump, a tunnel, a thread or a divert target names, and
+    // the symbol a label exports (#696).
+    if (obj instanceof Divert) {
+      const key = obj.programJumpKey;
+      if (key !== null) {
+        out.push(key);
+      }
+    }
+    if (obj instanceof Gather && obj.name && !isLoopInternal(obj)) {
+      out.push(obj.programResolutionKey);
+    }
+    if (obj instanceof Choice && obj.name) {
+      out.push(obj.programResolutionKey);
     }
     const children = obj instanceof FunctionCall ? obj.args : obj.content;
     for (const child of children ?? []) {

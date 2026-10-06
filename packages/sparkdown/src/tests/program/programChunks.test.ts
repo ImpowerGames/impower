@@ -14,6 +14,18 @@ import {
 } from "../../program/StatementChunk";
 import { compileScript, MAIN_URI, storyBeats } from "./programHarness";
 
+// An `if` written in a `choose` block's preamble that gates two choices with
+// a label between them, which the writer does not emit: the current engine
+// raises the second only once the first is taken.
+const PREAMBLE_THEN =
+  "  if true then\n    * [B]\n    label mid\n    * [C]\n  end\n";
+const PREAMBLE_THEN_CONSTRUCT = "a label between choices an if gates";
+const indent = (text: string) =>
+  text
+    .split("\n")
+    .map((line) => (line ? `  ${line}` : line))
+    .join("\n");
+
 const listing = (text: string, flow = "") => {
   const { program } = compileScript(text, { programChunks: true });
   const root = program.chunks!;
@@ -202,43 +214,46 @@ describe("the engine", () => {
 });
 
 describe("the fallback", () => {
+  // A scene's parameters are not bound yet, and its header names them.
   it("names a construct at the top level, and emits the current program", () => {
     const { program } = compileScript(
-      "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\nend\n",
+      "One.\nTwo.\n-> MAIN(1)\n\nscene MAIN(n)\n  Three {n}.\nend\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.compiled).toBeTruthy();
     expect(program.fallback).toEqual({
-      construct: "Divert",
+      construct: "Argument",
       uri: MAIN_URI,
-      line: 2,
+      line: 4,
     });
   });
 
+  // A label between two choices an `if` of a `choose` block's preamble gates
+  // is not emitted.
   it("names a block statement at the top level", () => {
     const { program } = compileScript(
-      "One.\nchoose\n  + [A]\n    Took A.\nend\n",
+      `One.\nchoose\n${PREAMBLE_THEN}  + [A]\n    Took A.\nend\n`,
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
-      construct: "choose",
+      construct: PREAMBLE_THEN_CONSTRUCT,
       uri: MAIN_URI,
       line: 1,
     });
   });
 
-  // The read count stands in the text of the table the display call is
+  // The list builtin stands in the text of the table the display call is
   // given, in a statement of a scene's body.
   it("names a construct nested in a block, with the line of its statement", () => {
     const { program } = compileScript(
-      "scene MAIN\n  One.\n  BOB: You were here {MAIN} times.\nend\n",
+      "scene MAIN\n  One.\n  BOB: You were here {LIST_RANDOM(MAIN)} times.\nend\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
-      construct: "read count",
+      construct: "list",
       uri: MAIN_URI,
       line: 2,
     });
@@ -246,18 +261,18 @@ describe("the fallback", () => {
 
   it("names a construct in a scene with the line of its statement", () => {
     const { program } = compileScript(
-      "scene MAIN\n  One.\n  choose\n    + [A]\n      Took A.\n  end\nend\n",
+      `scene MAIN\n  One.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`,
       { programChunks: true },
     );
     expect(program.fallback).toEqual({
-      construct: "choose",
+      construct: PREAMBLE_THEN_CONSTRUCT,
       uri: MAIN_URI,
       line: 2,
     });
   });
 
   it("runs a program that fell back on the current engine", () => {
-    const text = "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\nend\n";
+    const text = `One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`;
     const { program } = compileScript(text, { programChunks: true });
     const current = compileScript(text);
     expect(program.compiled).toEqual(current.program.compiled);

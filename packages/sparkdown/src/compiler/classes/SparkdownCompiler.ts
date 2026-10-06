@@ -2717,6 +2717,8 @@ export class SparkdownCompiler {
       );
       copy.debugMetadata = weave.ownDebugMetadata;
       copy.isChooseBlock = weave.isChooseBlock;
+      copy.isPreambleChoose = weave.isPreambleChoose;
+      copy.assembledFrom = weave;
       return copy;
     };
     const withAssemblyWeaves = (content: ParsedObject[]): ParsedObject[] => {
@@ -4447,7 +4449,15 @@ export class SparkdownCompiler {
       size > this._binaryTableBaseline * BINARY_TABLE_RESEED_RATIO &&
       grown > BINARY_TABLE_RESEED_MIN_SLACK
     ) {
-      reseedProgramTable(this._binaryTable);
+      // The chunk store, which interns into the same table, keeps the
+      // symbols its current root holds and the remap of each reseed
+      // (`ChunkStore.reseed`), so its roots and the symbol values made in
+      // them cross the reseed.
+      if (this._chunkStore) {
+        this._chunkStore.reseed();
+      } else {
+        reseedProgramTable(this._binaryTable);
+      }
       // Not strictly required — `generation` already makes stale chunks
       // unusable — but holding them would pin memory for nothing.
       this._flowChunkCache = undefined;
@@ -4537,7 +4547,9 @@ export class SparkdownCompiler {
         this._preludeStatementRecords.get(block),
       lineCount,
     });
-    this._chunkStore ??= new ChunkStore();
+    // The store interns into the compiler's persistent table, which
+    // `maybeReseedBinaryTable` bounds, and keeps no table of its own.
+    this._chunkStore ??= new ChunkStore(this._binaryTable);
     const build = this._chunkStore.build(
       {
         flows: flows.flows,
@@ -4563,6 +4575,9 @@ export class SparkdownCompiler {
       program.fallback = fallback;
     } else {
       program.chunks = build.root;
+      // After the build: a reseed installs fresh arrays on the table, and
+      // the root just built keeps reading the ones it was built with.
+      this.maybeReseedBinaryTable();
     }
     profile("end", this._profilerId, "program/chunks", uri);
     return !fallback;

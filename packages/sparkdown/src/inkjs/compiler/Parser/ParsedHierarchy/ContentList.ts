@@ -3,6 +3,7 @@ import { ParsedObject } from "./Object";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Text } from "./Text";
 import { asOrNull } from "../../../engine/TypeAssertion";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 
 export class ContentList extends ParsedObject {
   public dontFlatten: boolean = false;
@@ -25,6 +26,12 @@ export class ContentList extends ParsedObject {
 
   override get typeName(): string {
     return "ContentList";
+  }
+
+  // The code of its children in order, with no container
+  // (docs/engine/binary-program.md, section 3).
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    emitter.emitObjects(this.content);
   }
 
   public readonly TrimTrailingWhitespace = (): void => {

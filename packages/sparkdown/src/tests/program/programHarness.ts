@@ -10,7 +10,7 @@ import { ObjectValue } from "../../inkjs/engine/Value";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { isAnonymousSymbol } from "../../program/ProgramSymbols";
+import { isAnonymousSymbol, SymbolKind } from "../../program/ProgramSymbols";
 import {
   B_BREAK,
   B_HEAD_LINES,
@@ -126,6 +126,69 @@ export function storyBeats(
   return { beats, errors, continues };
 }
 
+/** A choice as a menu shows it: its text, its tags and its index. */
+export interface MenuChoice {
+  text: string;
+  tags: string[];
+  index: number;
+}
+
+/** A menu the story stopped at: after how many beats, the choices it showed,
+ *  and the index of the one taken, or -1 when the run stopped there. */
+export interface Menu {
+  afterBeat: number;
+  choices: MenuChoice[];
+  picked: number;
+}
+
+/** A story's beats, as `storyBeats` gives them, through its menus: at each
+ *  menu the choice `picks` names in turn is taken, wrapped to the number of
+ *  choices shown, and past the end of `picks` the first one, until
+ *  `maxChoices` choices were taken. `story` is either engine. */
+export function storyRun(
+  story: Pick<
+    Story,
+    | "canContinue"
+    | "Continue"
+    | "ChoosePathString"
+    | "currentTags"
+    | "currentDisplayInstructions"
+    | "onError"
+    | "ChooseChoiceIndex"
+  > & { currentChoices: readonly { text: string; tags: string[] | null; index: number }[] },
+  picks: readonly number[] = [],
+  { from, maxChoices = 12 }: { from?: string; maxChoices?: number } = {},
+): { beats: Beat[]; errors: string[]; continues: number; menus: Menu[] } {
+  const beats: Beat[] = [];
+  const errors: string[] = [];
+  const menus: Menu[] = [];
+  let continues = 0;
+  let first = true;
+  for (;;) {
+    const run = storyBeats(story, first ? from : undefined);
+    first = false;
+    beats.push(...run.beats);
+    errors.push(...run.errors);
+    continues += run.continues;
+    const choices = story.currentChoices.map((choice) => ({
+      text: choice.text,
+      tags: [...(choice.tags ?? [])],
+      index: choice.index,
+    }));
+    if (choices.length === 0) {
+      break;
+    }
+    if (menus.length >= maxChoices) {
+      menus.push({ afterBeat: beats.length, choices, picked: -1 });
+      break;
+    }
+    const picked = (picks[menus.length] ?? 0) % choices.length;
+    menus.push({ afterBeat: beats.length, choices, picked });
+    story.ChooseChoiceIndex(picked);
+  }
+  return { beats, errors, continues, menus };
+}
+
 /** Every chunk of a root: its flows' statements, flow by flow in the order
  *  of their names, each block statement before its bodies' statements, then
  *  the declaration chunks in the order they run. */
@@ -167,6 +230,12 @@ export function describeRoot(root: ProgramRoot): string[] {
   const symbolName = (symbol: number): string => {
     if (!isAnonymousSymbol(root.table, symbol)) {
       return JSON.stringify(root.table.symbols[symbol]);
+    }
+    if (root.kindOf(symbol) === SymbolKind.Alternator) {
+      return "alternator";
+    }
+    if (root.kindOf(symbol) === SymbolKind.Choice) {
+      return "choice";
     }
     const at = root.definition(symbol);
     const chunk = at ? root.sequence(at.sequence)?.arrays.chunks[at.entry] : undefined;

@@ -276,6 +276,29 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return this.identifier?.name || null;
   }
 
+  /** The name the binary program's symbol of this flow has
+   *  (docs/engine/binary-program.md, section 2): a scene's name, a branch's
+   *  scene and its own name joined by a dot, and the empty string for the
+   *  story's top-level content; nothing for a function, whose symbol the
+   *  chunk store gives it. */
+  public override get programSymbolName(): string | null {
+    if (this.isFunction) {
+      return null;
+    }
+    const names: string[] = [];
+    let at: ParsedObject | null = this;
+    while (at?.parent) {
+      if (at instanceof FlowBase) {
+        if (at.isFunction) {
+          return null;
+        }
+        names.unshift(at.identifier?.name ?? "");
+      }
+      at = at.parent;
+    }
+    return names.join(".");
+  }
+
   /** A function a statement's objects hold is one the story left in the
    *  block it is written in, whose container runs there as the block's
    *  content (a function the story takes out is a flow of the program, and

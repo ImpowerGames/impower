@@ -13,6 +13,11 @@ import type { IWeavePoint } from "./IWeavePoint";
 import { ParsedObject } from "./Object";
 import { Story } from "./Story";
 import { SymbolType } from "./SymbolType";
+import {
+  weavePointResolutionKey,
+  weavePointSymbolName,
+} from "./weavePointSymbol";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 
 // Stands where a chosen choice repeats its start content, when that is not the
 // start of the choice's inner content: inside the string of a `display()`
@@ -20,9 +25,21 @@ import { SymbolType } from "./SymbolType";
 // supplies the runtime jump into its start content when it generates.
 export class ChoiceStartEcho extends ParsedObject {
   public generated: RuntimeContainer | null = null;
+  /** The choice whose start content this repeats. */
+  public choice: Choice | null = null;
 
   override get typeName(): string {
     return "ChoiceStartEcho";
+  }
+
+  // The binary program repeats the start content where it stands: its code is
+  // emitted a second time, inside the string of the chosen line's call
+  // (docs/engine/binary-program.md, section 4).
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (!this.choice) {
+      emitter.unsupported(this.typeName);
+    }
+    emitter.emitObjects(this.choice.startContent.content);
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
@@ -138,6 +155,25 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
 
   override get typeName(): string {
     return "Choice";
+  }
+
+  /** A named choice's symbol, as a label's: its flow's name and its own,
+   *  joined by a dot, or its own alone at the story's top level. A choice
+   *  with no name counts under an anonymous symbol of its statement. */
+  public override get programSymbolName(): string | null {
+    return weavePointSymbolName(this, this.name);
+  }
+
+  /** What a named choice's chunk records of how its name resolved: the
+   *  qualified name of the symbol it exports. */
+  get programResolutionKey(): string {
+    return weavePointResolutionKey(this);
+  }
+
+  // A choice is emitted by the `choose` block that offers it (the writer's
+  // `emitObjects`), which this is never reached from.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    emitter.unsupported(this.typeName);
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

@@ -24,7 +24,7 @@ import { ErrorType } from "../../../inkjs/engine/Error";
 import { syntheticId } from "../utils/documentTag";
 import {
   extendStatement,
-  loopOf,
+  recordLoop,
   openBody,
 } from "../utils/statementShape";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
@@ -147,15 +147,15 @@ export function lowerLuauRepeatLoop(
   // diverts to the respective labels.
   const loopGather = new Gather(new Identifier(loopLabel), 1);
   for (const stmt of bodyStatements) loopGather.AddContent(stmt);
-  loopGather.AddContent(new Divert([new Identifier(continueLabel)]));
+  const toContinue = new Divert([new Identifier(continueLabel)]);
+  loopGather.AddContent(toContinue);
 
   // Continue gather: where the until-condition runs. If cond is
   // false, jump back to the loop head. If true, fall through to the
   // break gather (loop exit).
   const continueGather = new Gather(new Identifier(continueLabel), 1);
-  const loopBackBranch = new ConditionalSingleBranch([
-    new Divert([new Identifier(loopLabel)]),
-  ]);
+  const toLoop = new Divert([new Identifier(loopLabel)]);
+  const loopBackBranch = new ConditionalSingleBranch([toLoop]);
   loopBackBranch.ownExpression = notCond;
   loopBackBranch.isElse = false;
   continueGather.AddContent(
@@ -167,13 +167,13 @@ export function lowerLuauRepeatLoop(
 
   const scoped = wrapInScope([loopGather, continueGather, breakGather]);
   if (body) {
-    loopOf.set(scoped[0]!, {
+    recordLoop(scoped[0]!, {
       kind: "repeat",
       body,
       objects: scoped,
       test: loopBackBranch,
       init: [],
-    });
+    }, [loopGather, continueGather, breakGather, toContinue, toLoop]);
   }
   // A chunk's content reaches the enclosing scene or top-level flow only
   // as a Weave; inside a body, `lowerStatements` unwraps it again.

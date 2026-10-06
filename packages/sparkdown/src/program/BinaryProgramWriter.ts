@@ -4,11 +4,13 @@ import "../inkjs/engine/Container";
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
 import {
   bodyOfBlock,
+  choiceBodyOf,
   functionShapeOf,
   loopOf,
   type LoopShape,
 } from "../compiler/lower/utils/statementShape";
 import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
+import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { Conditional } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import type { ConditionalSingleBranch } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -32,7 +34,14 @@ import type {
 import { UnsupportedConstruct } from "./ProgramEmitter";
 import {
   AUX_MAX,
+  CHOICE_CONDITION,
+  CHOICE_DECISION,
+  CHOICE_INVISIBLE_DEFAULT,
+  CHOICE_ONCE,
+  CHOICE_ONLY,
+  CHOICE_START,
   ConstValue,
+  DONE_HOLD,
   JUMP_DECISION,
   LEAVE_CONTINUE,
   Op,
@@ -46,18 +55,22 @@ import {
   opOf,
 } from "./ProgramInstructions";
 import {
+  anonymousSymbol,
   internNumber,
   internString,
+  internSymbol,
   isAnonymousSymbol,
 } from "./ProgramSymbols";
 import {
   ADDRESS_OFFSETS,
   ANCHOR_STATEMENT,
+  BLOCK_CHOICE,
   BLOCK_FUNCTION,
   BLOCK_LOOP,
   BLOCK_PASS_SCOPE,
   BLOCK_ROW_WORDS,
   BLOCK_SCOPE_SHIFT,
+  BLOCK_THEN,
   EXPORT_ROW_WORDS,
   HEADER_WORDS,
   H_BLOCK_ROWS,
@@ -152,6 +165,32 @@ export interface EmittedStatement {
   resolutions: readonly string[];
 }
 
+// The presentation of the `choose` block being written: each choice it
+// raises, with the label its `Choice` targets, its count symbol and whether
+// that is a named choice's label symbol. A choice an `if` gates has its body
+// in its branch (`body`), and after it what the branch closes (`rest`), which
+// its entry runs after the body. An entry runs at the depth of scopes its
+// choice was raised at (`scopes`). A choice continues at `join` when one is
+// set (the `then` clause of a block written in the preamble), and otherwise
+// at the block's end; `gatherJoin` is where such a clause written in the
+// part being emitted continues.
+interface ChooseState {
+  entries: {
+    choice: Choice;
+    label: ProgramLabel;
+    symbol: number;
+    named: boolean;
+    body: object | undefined;
+    rest: readonly ParsedObject[];
+    scopes: number;
+    join: ProgramLabel | null;
+  }[];
+  join: ProgramLabel | null;
+  gatherJoin: ProgramLabel | null;
+  /** The block's end, `T`. */
+  end: ProgramLabel;
+}
+
 // A block of the chunk being written, as its `EnterBlock` left it.
 interface BlockState {
   entered: boolean;
@@ -202,16 +241,27 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _ranges: (DebugMetadata | null)[] = [];
   protected _exports: number[] = [];
   protected _definesOnly = false;
+  /** The alternators' symbols, in the order the chunk writes them. */
+  protected _alternators: number[] = [];
+  /** The anonymous symbols of the choices the chunk raises, in order. */
+  protected _choices: number[] = [];
+  /** The `choose` block whose presentation is being emitted. */
+  protected _choose: ChooseState | null = null;
 
   /** `facts` gives, for a symbol, what the code that refers to it depends on
    *  (its kind and whether the program defines it); the chunk store reads the
    *  same function when it decides whether a chunk can be reused.
    *  `symbolOf` gives the symbol of a function (a `FlowBase`) of the program
-   *  being built, or nothing for one it does not define. */
+   *  being built, or nothing for one it does not define. `alternatorOf`
+   *  gives the anonymous symbol of an alternator of the statement being
+   *  written, which the store hands on when the statement is emitted
+   *  again. */
   constructor(
     public readonly table: ProgramTable,
     public facts: (symbol: number) => string = () => "",
     public symbolOf: (fn: object) => number | undefined = () => undefined,
+    public alternatorOf: (sequence: object) => number = () =>
+      anonymousSymbol(table),
   ) {}
 
   write(input: StatementInput): EmittedStatement {
@@ -255,6 +305,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._ranges = [input.range];
     this._exports = [];
     this._definesOnly = input.definesOnly ?? false;
+    this._alternators = [];
+    this._choices = [];
+    this._choose = null;
     this.row(input.range);
   }
 
@@ -375,6 +428,46 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._references.push(symbol, factHash(this.facts(symbol)));
   }
 
+  referenceTarget(symbol: number): void {
+    for (let i = 0; i < this._references.length; i += REFERENCE_ROW_WORDS) {
+      if (this._references[i] === symbol) {
+        return;
+      }
+    }
+    this._references.push(symbol, NO_FACTS);
+  }
+
+  targetSymbol(target: object | null, written: string): number {
+    if (target) {
+      const name = (target as ParsedObject).programSymbolName;
+      if (name === null) {
+        this.unsupported((target as ParsedObject).typeName);
+      }
+      return internSymbol(this.table, name);
+    }
+    return internSymbol(this.table, written);
+  }
+
+  labelSymbol(gather: object): number {
+    const name = (gather as ParsedObject).programSymbolName;
+    if (name === null) {
+      this.unsupported("a label inside a function");
+    }
+    return internSymbol(this.table, name);
+  }
+
+  alternatorSymbol(sequence: object): number {
+    const symbol = this.alternatorOf(sequence);
+    if (!this._alternators.includes(symbol)) {
+      this._alternators.push(symbol);
+    }
+    return symbol;
+  }
+
+  exportHere(symbol: number): void {
+    this._exports.push(symbol, this._code.length);
+  }
+
   /** Emits `EnterBlock` for the body `body` of the statement, as block
    *  `flags` says (`BLOCK_LOOP`). Its resume offset is the next instruction
    *  until `blockResume` says otherwise. Returns the block's index. */
@@ -382,6 +475,18 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const k = this._blocks.findIndex((block) => block.body === body);
     if (k < 0 || this._blockStates[k]?.entered) {
       this.unsupported("a body the statement does not record");
+    }
+    // A choice in a block the presentation of a `choose` block enters (the
+    // body of a `do` block or a loop in its preamble) would be raised by
+    // that block's own statements, whose chunks do not hold its entry
+    // (section 4).
+    if (
+      this._choose &&
+      heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0]).some(
+        raisesChoice,
+      )
+    ) {
+      this.unsupported("a choice inside a block of a presentation");
     }
     const resume: ProgramLabel = { offset: -1 };
     this._blockStates[k] = {
@@ -497,6 +602,34 @@ export class BinaryProgramWriter implements ProgramEmitter {
   emitObjects(objects: readonly ParsedObject[]): void {
     for (let i = 0; i < objects.length; i += 1) {
       const obj = objects[i]!;
+      if (obj instanceof Choice) {
+        // A choice is raised by the code of the `choose` block that offers
+        // it. What follows a choice an `if` of the block's preamble gates in
+        // its branch, up to the next choice, is its body, which the current
+        // engine's weave nests in the choice, and then what the branch
+        // closes (its scope), which the choice's entry runs after the body
+        // (`emitChoicePoint`): the branch's scope stays open for the rest of
+        // the presentation, as on the current engine.
+        if (!this._choose) {
+          this.unsupported(obj.typeName);
+        }
+        let end = i + 1;
+        while (end < objects.length && !(objects[end] instanceof Choice)) {
+          end += 1;
+        }
+        // A label between two such choices makes the later one a choice the
+        // current engine raises only once the earlier is taken, which its
+        // weave reaches through the label.
+        if (
+          end < objects.length &&
+          objects.slice(i + 1, end).some((part) => part instanceof Gather)
+        ) {
+          this.unsupported("a label between choices an if gates");
+        }
+        this.emitChoicePoint(obj, objects.slice(i + 1, end));
+        i = end - 1;
+        continue;
+      }
       const loop = loopOf.get(obj);
       if (loop) {
         this.expect(
@@ -558,6 +691,287 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObjects(content.slice(0, start));
     this.enterBlock(body);
     this.emitObjects(content.slice(start + objectsOfBody.length));
+  }
+
+  // -------------------------------------------------------------- choose
+
+  /**
+   * A `choose` block as one chunk (docs/engine/binary-program.md, section 4):
+   *
+   *   the preamble and each choice's text, condition and `Choice`, an `if`
+   *   that gates a choice a jump around it; Done (the hold); Jump T;
+   *   A: Visit #a; the chosen line; EnterBlock (the choice's body); Jump T;
+   *   ...; T: Visit (the `then` label); EnterBlock (the `then` clause)
+   *
+   * A choice's count is an anonymous symbol of the statement, which the
+   * chunk store hands on to the choice it aligns with by its own source, or
+   * a named choice's label symbol, which its entry exports. The `Done` ends
+   * the presentation: it stops only when a choice this chunk raised waits,
+   * so a block whose choices were all gated off runs on into its end.
+   */
+  emitChoose(weaveObject: object): void {
+    const weave = weaveObject as ParsedObject;
+    const content = weave.content;
+    const gather = content[content.length - 1];
+    if (this._choose || !(gather instanceof Gather)) {
+      this.unsupported("a choose block in another's preamble");
+    }
+    const end: ProgramLabel = { offset: -1 };
+    const presentation: ChooseState = {
+      entries: [],
+      join: null,
+      gatherJoin: null,
+      end,
+    };
+    this._choose = presentation;
+    this.emitObjects(content.slice(0, -1));
+    this._choose = null;
+    this.emit(Op.Done, 0, 0, DONE_HOLD);
+    this.jumpBack(Op.Jump, end);
+    // A gated branch leaves its scope open for the rest of the presentation,
+    // as the current engine's does, and its choice's content closes it. The
+    // scopes open at an offset therefore depend on which branches ran, and
+    // what the chunk records is the most there can be: the scopes opened
+    // before the offset and not yet closed on the way there. An entry runs at
+    // the depth its choice was raised at (its body's row records it) and the
+    // block's end at the depth the presentation ends at. A jump inside a
+    // body keeps every scope up to the recorded depth, so it closes none the
+    // thread holds.
+    const depth = this._scopes;
+    presentation.entries.forEach((entry) => {
+      this.bind(entry.label);
+      this._scopes = entry.scopes;
+      this.withRange(entry.choice.ownDebugMetadata as DebugMetadata | null, () => {
+        if (entry.named) {
+          this.recordResolution(entry.choice.programResolutionKey);
+          this.exportHere(entry.symbol);
+        }
+        this.emit(Op.Visit, entry.symbol);
+        this.emitChoiceEntry(entry.choice, entry.body);
+        this.emitObjects(entry.rest);
+      });
+      this.jumpBack(Op.Jump, entry.join ?? end);
+    });
+    this._scopes = depth;
+    this.bind(end);
+    this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
+      if (gather.name) {
+        this.recordResolution(gather.programResolutionKey);
+        const symbol = this.labelSymbol(gather);
+        this.exportHere(symbol);
+        this.emit(Op.Visit, symbol);
+      }
+      this.emitWithBody(
+        gather.content,
+        choiceBodyOf.get(gather),
+        BLOCK_THEN,
+        "a then clause",
+      );
+    });
+  }
+
+  /**
+   * A `choose` block written in another block's preamble (a `Weave` that is
+   * no block of its own), as part of that block's presentation: its choices
+   * are raised with the other block's, and when it has a `then` clause, its
+   * own choices continue there, as the current engine's weave diverts their
+   * loose ends to that clause's gather, which the flow does not enter
+   * otherwise, and the clause continues where the weave around it sends a
+   * gather (`gatherJoin`): the clause of the preamble block it is written in,
+   * or the block's end:
+   *
+   *   its own code and its choices; Jump past; J: Visit (the clause's label);
+   *   EnterBlock (the clause); Jump (where the clause continues); past:
+   *
+   * As the current engine's weave passes them up: a choice of its own with
+   * no clause to continue at continues where the weave around it sends a
+   * choice; a choice an `if` in it gates, where the `choose` block it is part
+   * of ends; and the clause of a block written in such an `if`, at this
+   * block's clause.
+   */
+  emitPreambleChoose(weaveObject: object): void {
+    const weave = weaveObject as ParsedObject;
+    if (!this._choose) {
+      this.unsupported("Choice");
+    }
+    const content = weave.content;
+    const last = content[content.length - 1];
+    const gather = last instanceof Gather ? last : null;
+    const items = gather ? content.slice(0, -1) : content;
+    const presentation = this._choose;
+    const outer = presentation.join;
+    const outerGather = presentation.gatherJoin;
+    const label: ProgramLabel | null = gather ? { offset: -1 } : null;
+    const choices = label ?? outer;
+    const gathers = label ?? outerGather;
+    for (const item of items) {
+      const weaveItem =
+        (item as { isPreambleChoose?: boolean }).isPreambleChoose === true;
+      presentation.join =
+        item instanceof Choice || weaveItem ? choices : null;
+      presentation.gatherJoin = gathers;
+      this.emitObjects([item]);
+    }
+    presentation.join = outer;
+    presentation.gatherJoin = outerGather;
+    if (!gather) {
+      return;
+    }
+    // With no choice of its own, the current engine's weave enters the
+    // clause where it stands, and the clause continues where the block ends.
+    const own = items.some((item) => item instanceof Choice);
+    const past = own ? this.jump(Op.Jump) : null;
+    this.bind(label!);
+    this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
+      if (gather.name) {
+        this.recordResolution(gather.programResolutionKey);
+        const symbol = this.labelSymbol(gather);
+        this.exportHere(symbol);
+        this.emit(Op.Visit, symbol);
+      }
+      this.emitWithBody(
+        gather.content,
+        choiceBodyOf.get(gather),
+        BLOCK_THEN,
+        "a then clause",
+      );
+    });
+    this.jumpBack(Op.Jump, outerGather ?? presentation.end);
+    if (past) {
+      this.bind(past);
+    }
+  }
+
+  /** A choice's presentation: its start text and its choice-only text, each
+   *  captured with its tags, its condition, and the `Choice` that raises it,
+   *  whose target is its entry. `inline` is what follows a choice an `if`
+   *  gates in its branch, up to the next choice: its body, which its entry
+   *  enters, and then what the branch closes (its scope), which its entry
+   *  runs after the body, as the current engine's weave nests it in the
+   *  choice. */
+  protected emitChoicePoint(choice: Choice, inline: readonly ParsedObject[]): void {
+    const presentation = this._choose!;
+    const body = choiceBodyOf.get(choice);
+    const held = body
+      ? heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0])
+      : [];
+    const inBranch =
+      held.length > 0 && !choice.innerContent.content.includes(held[0]!);
+    this.expect(
+      !inBranch || held.every((part, k) => inline[k] === part),
+      "a choice's body",
+    );
+    const rest = inBranch ? inline.slice(held.length) : inline;
+    this.expect(
+      (body !== undefined || inline.length === 0) &&
+        rest.every((part) => isBeginScope(part) || isEndScope(part)),
+      "a choice's body",
+    );
+    this.withRange(choice.ownDebugMetadata as DebugMetadata | null, () => {
+      let flags = 0;
+      if (choice.startContent.content.length > 0) {
+        this.emit(Op.BeginString);
+        this.emitObjects(choice.startContent.content);
+        this.emit(Op.EndString);
+        flags |= CHOICE_START;
+      }
+      if (choice.choiceOnlyContent.content.length > 0) {
+        this.emit(Op.BeginString);
+        this.emitObjects(choice.choiceOnlyContent.content);
+        this.emit(Op.EndString);
+        flags |= CHOICE_ONLY;
+      }
+      if (choice.condition) {
+        this.emitObject(choice.condition);
+        flags |= CHOICE_CONDITION | CHOICE_DECISION;
+      }
+      if (choice.onceOnly) {
+        flags |= CHOICE_ONCE;
+      }
+      if (choice.isInvisibleDefault) {
+        flags |= CHOICE_INVISIBLE_DEFAULT;
+      }
+      const named = !!choice.name;
+      const symbol = named ? this.labelSymbol(choice) : this.choiceSymbol(choice);
+      const label = this.jump(Op.Choice, flags);
+      presentation.entries.push({
+        choice,
+        label,
+        symbol,
+        named,
+        body: inBranch ? body : undefined,
+        rest,
+        scopes: this._scopes,
+        join: presentation.join,
+      });
+    });
+  }
+
+  /** A choice's entry after its `Visit`: its own content (the chosen line
+   *  and its arrow) and its body as a block. The body of a choice of the
+   *  block's own is the end of its content; `branchBody` is the body of a
+   *  choice an `if` gates, which follows it in its branch. */
+  protected emitChoiceEntry(choice: Choice, branchBody: object | undefined): void {
+    const content = choice.innerContent.content;
+    if (!branchBody) {
+      this.emitWithBody(
+        content,
+        choiceBodyOf.get(choice),
+        BLOCK_CHOICE,
+        "a choice's body",
+      );
+      return;
+    }
+    this.emitObjects(content);
+    this.enterBlock(branchBody, BLOCK_CHOICE);
+  }
+
+  /** The anonymous symbol that counts a choice of the statement. */
+  protected choiceSymbol(choice: Choice): number {
+    const symbol = this.alternatorOf(choice);
+    if (!this._choices.includes(symbol)) {
+      this._choices.push(symbol);
+    }
+    return symbol;
+  }
+
+  /** Emits `content`, whose last objects are the statements of `body` when
+   *  one is given: the objects before them as the statement's own code, and
+   *  the body as a block (`flags`). */
+  protected emitWithBody(
+    content: readonly ParsedObject[],
+    body: object | undefined,
+    flags: number,
+    construct: string,
+  ): void {
+    if (!body) {
+      this.emitObjects(content);
+      return;
+    }
+    const held = heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0]);
+    this.requireHeld(held, content);
+    const start = held.length > 0 ? content.indexOf(held[0]!) : content.length;
+    this.expect(
+      start >= 0 &&
+        start + held.length === content.length &&
+        held.every((part, k) => content[start + k] === part),
+      construct,
+    );
+    this.emitObjects(content.slice(0, start));
+    this.enterBlock(body, flags);
+  }
+
+  /** Runs `emit` under a line table row of `range`, when one is given. */
+  protected withRange(range: DebugMetadata | null, emit: () => void): void {
+    if (range) {
+      this._ranges.push(range);
+      this.row(range);
+    }
+    emit();
+    if (range) {
+      this._ranges.pop();
+      this.row(this._ranges[this._ranges.length - 1] ?? null);
+    }
   }
 
   // --------------------------------------------------------------- loops
@@ -891,11 +1305,18 @@ export class BinaryProgramWriter implements ProgramEmitter {
       case Op.SetVar:
       case Op.VarPtr:
       case Op.CallVar:
+      case Op.JumpVar:
+      case Op.Tag:
         return JSON.stringify(this.table.strings[arg]);
       case Op.Num:
         return numberText(this.table.numbers[arg]!);
       case Op.Sym:
       case Op.Call:
+      case Op.JumpSym:
+      case Op.Visit:
+      case Op.GetCount:
+      case Op.VisitIndex:
+      case Op.ShuffleIndex:
         return this.describeSymbol(arg);
       default:
         return String(arg);
@@ -903,12 +1324,21 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   /** A symbol as the layout hash reads it: its qualified name, or for an
-   *  anonymous symbol of one of this statement's functions, the ordinal of
-   *  that function among the statement's (section 1). An anonymous symbol of
-   *  another statement's function reads as such. */
+   *  anonymous symbol of one of this statement's functions or alternators,
+   *  the ordinal of that part among the statement's parts of its kind
+   *  (section 1). An anonymous symbol of another statement's function reads
+   *  as such. */
   protected describeSymbol(symbol: number): string {
     if (!isAnonymousSymbol(this.table, symbol)) {
       return JSON.stringify(this.table.symbols[symbol]);
+    }
+    const alternator = this._alternators.indexOf(symbol);
+    if (alternator >= 0) {
+      return `alternator#${alternator}`;
+    }
+    const choice = this._choices.indexOf(symbol);
+    if (choice >= 0) {
+      return `choice#${choice}`;
     }
     const part = this._blocks
       .filter((block) => block.fn)
@@ -991,6 +1421,13 @@ export const branchContent = (
   (branch as unknown as { _innerWeave: { content: ParsedObject[] } | null })
     ._innerWeave?.content ?? [];
 
+/** Whether `obj` raises a choice of the presentation it stands in: it is a
+ *  choice, or holds one outside a `choose` block of its own. */
+const raisesChoice = (obj: ParsedObject): boolean =>
+  obj instanceof Choice ||
+  ((obj as { isChooseBlock?: boolean }).isChooseBlock !== true &&
+    (obj.content ?? []).some(raisesChoice));
+
 /** A multiple assignment's targets: its values unpacked to as many as it
  *  has targets, and each target assigned in order, the first first, as its
  *  own assignment records it. */
@@ -1038,6 +1475,11 @@ const isConditionalOf = (
 /** The hash a reference table row keeps of the facts about its symbol. */
 export const factHash = (facts: string): number => hash64(facts)[1];
 
+/** The hash of a reference whose code depends on no fact about its symbol
+ *  (`referenceTarget`): the hash of no facts, which no symbol's facts read
+ *  as. */
+export const NO_FACTS = factHash("");
+
 /** A number of the table as text, negative zero as `-0`, which `String`
  *  writes as `0`. */
 const numberText = (value: number): string =>
@@ -1083,6 +1525,7 @@ export const describeInstruction = (
   switch (op) {
     case Op.Text:
     case Op.Str:
+    case Op.Tag:
       return `${name} ${JSON.stringify(table.strings[arg])}`;
     case Op.CallStd:
     case Op.Native:
@@ -1093,8 +1536,19 @@ export const describeInstruction = (
       return `${name} ${table.strings[arg]}${flagText}`;
     case Op.CallVar:
       return `${name} ${table.strings[arg]}/${aux}${flagText}`;
+    case Op.JumpVar:
+      return `${name} ${table.strings[arg]}`;
     case Op.Sym:
+    case Op.JumpSym:
+    case Op.Visit:
+    case Op.GetCount:
+    case Op.VisitIndex:
+    case Op.ShuffleIndex:
       return `${name} ${symbol(arg)}`;
+    case Op.CountOf:
+      return `${name}${flagText}`;
+    case Op.Thread:
+      return `${name} ${offset + 2 + arg}`;
     case Op.Call:
       return `${name} ${symbol(arg)}/${aux}${flagText}`;
     case Op.Num:
@@ -1108,8 +1562,11 @@ export const describeInstruction = (
     case Op.Jump:
     case Op.JumpIfFalse:
     case Op.JumpIfKeep:
+    case Op.Choice:
       // The target, as an offset in the chunk's code.
       return `${name} ${offset + 2 + arg}${flagText}`;
+    case Op.Done:
+      return flags & DONE_HOLD ? `${name} hold` : name;
     case Op.CallValue:
       return `${name} ${aux}`;
     case Op.Leave:
