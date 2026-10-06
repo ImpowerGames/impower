@@ -664,6 +664,7 @@ const bodyOf = (
     headLines: first - above,
     fn,
     partSource: part && text ? () => text(part.from, part.to) : undefined,
+    headSource: text ? () => text(shape.headStart, shape.headEnd) : undefined,
   };
 };
 

@@ -41,7 +41,7 @@ export function lowerLuauDoBlock(
   if (!node) return {};
   const bodyContent = findChildByName(node, `${node.name}_content`);
   if (!bodyContent) return {};
-  const shape = openBody(ctx, bodyContent.from, bodyContent.to);
+  const shape = openBody(ctx, node.from, bodyContent.from, bodyContent.to);
   // Bump `ctx.scopeDepth` around the body lowering so a `break` /
   // `continue` inside the block knows to emit an EndScope for this
   // frame before diverting out of the enclosing loop.

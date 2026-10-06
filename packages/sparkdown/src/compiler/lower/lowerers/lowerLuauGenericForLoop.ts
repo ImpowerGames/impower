@@ -160,6 +160,7 @@ export function lowerLuauGenericForLoop(
   });
   const body = openBody(
     ctx,
+    node.from,
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );
