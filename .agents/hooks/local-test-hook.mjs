@@ -41,7 +41,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
+import { REDIRECT_DUP, REDIRECT_GLUED, REDIRECT_OP, baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
 
 const SINGLE_FILE =
   "node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDeclarationValidity.test.ts --wait 600";
@@ -75,14 +75,6 @@ const GLOB = /[*?[\]{}]/;
 // Text a static reading cannot resolve: a variable, a substitution, a home
 // directory or a PowerShell drive other than a filesystem path.
 const DYNAMIC = /[$%`~]/;
-// Redirections, in bash and PowerShell spellings (`*>` is PowerShell's
-// all-streams redirect): a descriptor duplication that takes no target
-// (`2>&1`, `*>&1`), a bare operator whose target is the next token (`>`,
-// `2>`, `*>`, `&>`), and an operator glued to its target (`>log`, `2>err`).
-// None of these tokens is an argument of the program they follow.
-const REDIRECT_DUP = /^(?:\d+|\*|&)?[<>]{1,2}&[\d-]+$/;
-const REDIRECT_OP = /^(?:\d+|\*|&)?[<>]{1,2}$|^>&$/;
-const REDIRECT_GLUED = /^(?:\d+|\*|&)?[<>]{1,2}&?[^<>&]/;
 // PowerShell assignment pieces: a target with its operator (`$p=`, `$p +=`
 // as one token), a lone operator (`=`, `+=`), and a whole assignment glued
 // into one token (`$p='...'`, which the tokenizer keeps whole when quoted).
@@ -267,16 +259,35 @@ function suiteRunReason(args, command) {
   const files = [];
   for (let i = 0; i < args.length; i++) {
     const { text } = args[i];
-    if (text === "--wait") { i++; continue; }
+    if (text === "--wait") {
+      i++;
+      // The value may carry an attached redirection (`--wait 600> log`).
+      const value = args[i];
+      if (value && !opensQuoted(value, command) && /^[^<>]+?(?:\d+|\*|&)?[<>]{1,2}$/.test(value.text)) i++;
+      continue;
+    }
     // A token that opens with a quote is a literal argument; one that opens
     // with an operator is a redirection even when its target is quoted
     // (`>"my run.log"`), which the tokenizer reports as quoted too.
+    let word = text;
     if (!opensQuoted(args[i], command)) {
-      if (REDIRECT_DUP.test(text)) continue;
-      if (REDIRECT_OP.test(text)) { i++; continue; }
-      if (REDIRECT_GLUED.test(text)) continue;
+      // An operator attached to the argument before it (`f.test.ts> log`,
+      // `f.test.ts>log`) leaves that argument and starts a redirection. A
+      // token whose source holds a quote anywhere is one literal word.
+      const raw = Number.isInteger(args[i].start) && Number.isInteger(args[i].end) ? command.slice(args[i].start, args[i].end) : text;
+      const whole = REDIRECT_DUP.test(text) || REDIRECT_OP.test(text) || REDIRECT_GLUED.test(text);
+      const attached = whole || /["']/.test(raw) ? null : text.match(/^([^<>]+?)((?:\d+|\*|&)?[<>].*)$/);
+      const op = attached ? attached[2] : text;
+      if (attached) word = attached[1];
+      if (REDIRECT_DUP.test(op) || REDIRECT_GLUED.test(op)) {
+        if (!attached) continue;
+      } else if (REDIRECT_OP.test(op)) {
+        if (attached) files.push(word);
+        i++;
+        continue;
+      }
     }
-    files.push(text);
+    files.push(word);
   }
   return files.length > MAX_FILES ? wideReason(files.length, files) : null;
 }
