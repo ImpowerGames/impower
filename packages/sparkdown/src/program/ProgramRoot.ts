@@ -292,18 +292,24 @@ export class ProgramRoot {
    *  statement before the statements of its bodies, then the statements of
    *  the functions the declarations write, in the order the declarations
    *  run, which is the order a compile aligns the next program's statements
-   *  with. */
-  statementOrder(): StatementChunk[] {
+   *  with. `owners`, when given, receives the owner of each statement of a
+   *  body. */
+  statementOrder(
+    owners?: Map<StatementChunk, StatementChunk>,
+  ): StatementChunk[] {
     const out: StatementChunk[] = [];
-    const walk = (row: SequenceRow | undefined) => {
+    const walk = (row: SequenceRow | undefined, owner?: StatementChunk) => {
       for (const chunk of row?.arrays.chunks ?? []) {
         out.push(chunk);
+        if (owner) {
+          owners?.set(chunk, owner);
+        }
         walkBodies(chunk);
       }
     };
     const walkBodies = (chunk: StatementChunk) => {
       for (let k = 0; k < blockCount(chunk); k += 1) {
-        walk(this.body(chunk, k));
+        walk(this.body(chunk, k), chunk);
       }
     };
     for (const row of this.flowSequences()) {

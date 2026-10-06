@@ -13,8 +13,10 @@
  * object that now reads otherwise marks its statement changed. The store
  * reads a statement's values again only when the watch marked it, or when the
  * statement's parsed objects are new, so the values of every other statement
- * are read nowhere: the watch is the reader that recorded them, and a new
- * kind of value is a new reader, with no detector added anywhere else.
+ * are read nowhere. The objects and their readers come from the readers of a
+ * statement's identity themselves (`resolutionsOf`, `compilerNamedTexts`),
+ * which hand the watch each object they read: a value added there is watched
+ * with no list kept here, and the passes report every object they resolve.
  */
 export class StatementWatch {
   /** The statements, by the block that stands for each, one of whose watched

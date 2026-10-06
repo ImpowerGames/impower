@@ -919,6 +919,77 @@ describe("a program that falls back after compiles that did not", () => {
     }
     expect(outcomes).toEqual(["fell back", "chunks", "fell back", "fell back", "chunks", "fell back"]);
   });
+
+  it("builds the root a cold compile builds after a preview whose compile reseeded the table", () => {
+    // A preview's compile reseeds the table when it has grown past its
+    // bound (`SparkdownCompiler.maybeReseedBinaryTable`), which starts a new
+    // generation and drops what the store keeps by symbol; the next real
+    // compile then emits every chunk again.
+    const text = [
+      "scene MAIN",
+      "  label top",
+      "  if true then",
+      "    Inside {top}.",
+      "  end",
+      "  local f = function(n) return n + 1 end",
+      "  Got {f(1)}.",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const at = text.indexOf("    Inside {top}.");
+    quietly(() =>
+      s.compiler.previewCompile({
+        textDocument: { uri: MAIN_URI, version: 1 },
+        contentChanges: [{ range: { start: posAt(text, at), end: posAt(text, at) }, text: "    Previewed.\n" }],
+        root: { uri: MAIN_URI },
+      } as never),
+    );
+    s.store.reseed();
+    const after = s.edit("  Got {f(1)}.", "  Got {f(2)}.")!;
+    expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
+    // The compile after the reseed emitted every chunk; the next one is
+    // proportional again.
+    s.edit("  Got {f(2)}.", "  Got {f(3)}.");
+    expect(s.store.emittedLastBuild).toBe(1);
+    expect(describeRoot(s.root)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
+  });
+
+  it("reads a name as the current engine reads it when an assignment below makes the name a global", () => {
+    // Resolution makes `knock` a global as it reaches the bare assignment,
+    // after the line above it has read the label's count. A program that
+    // falls back is resolved again for the current engine, which must start
+    // from the declarations it started from the first time.
+    const text = [
+      "-> MAIN",
+      "scene MAIN",
+      "  label knock",
+      "  Count {knock}.",
+      "  & knock = 5",
+      "  done",
+      "end",
+      "",
+      "scene UNUSED",
+      "  Rolled {LIST_RANDOM(knock)}.",
+      "end",
+      "",
+    ].join("\n");
+    const { program, story } = quietly(() =>
+      programCompiler(
+        { [MAIN_URI]: text },
+        { programChunks: true, seedBuiltinsIntoStory: true },
+      ).compile(),
+    );
+    expect(program.fallback?.construct).toBe("list");
+    const current = quietly(() =>
+      programCompiler({ [MAIN_URI]: text }, { seedBuiltinsIntoStory: true }).compile(),
+    );
+    expect(program.compiled).toEqual(current.program.compiled);
+    const beatTexts = (s: Story) => storyBeats(s).beats.map((b) => b.text.trim());
+    const ran = beatTexts(story);
+    expect(ran).toEqual(["Count 1."]);
+    expect(ran).toEqual(beatTexts(current.story));
+  });
 });
 
 /** The messages of a program's diagnostics, by script, in order. */

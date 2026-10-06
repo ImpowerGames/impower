@@ -622,6 +622,12 @@ export class Story extends FlowBase {
     // we want the paths to be absolute)
     // Every list and struct is declared by now.
     this._collisionIndex = null;
+    // Resolution makes a global of each name a bare assignment assigns as it
+    // reaches the assignment, so what a read resolves to depends on where it
+    // stands; a resolution again for the current engine starts from here.
+    this._declarationsBeforeResolution = programMode
+      ? new Map(this.variableDeclarations)
+      : null;
     try {
       this.ResolveReferences(this);
     } catch (e) {
@@ -646,6 +652,13 @@ export class Story extends FlowBase {
 
   // The root container the last `ExportRuntime` generated.
   protected _exportedRoot: RuntimeContainer | null = null;
+
+  // The story's declarations as `ExportRuntime` began resolving, in
+  // `programMode`, which `FinishForCurrentEngine` resolves again from.
+  protected _declarationsBeforeResolution: Map<
+    string,
+    VariableAssignment
+  > | null = null;
 
   // Set while `FinishForCurrentEngine` resolves the story a second time,
   // whose diagnostics the first resolution reported.
@@ -689,6 +702,14 @@ export class Story extends FlowBase {
     // The paths the first resolution derived are the unflattened tree's, and
     // a path is cached until the epoch moves.
     activation.epoch += 1;
+    // From the declarations the first resolution started from, so that each
+    // read resolves as it did then: the globals the first resolution made
+    // of bare assignments are made again as the resolution reaches them.
+    if (this._declarationsBeforeResolution) {
+      this.variableDeclarations = new Map(this._declarationsBeforeResolution);
+      this._declarationsBeforeResolution = null;
+    }
+    this.builtinGlobalDiverts = [];
     this._silenced = true;
     try {
       this.ResolveReferences(this);

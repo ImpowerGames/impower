@@ -1875,26 +1875,8 @@ export class ChunkStore {
   } {
     let known = this._orders.get(root);
     if (!known) {
-      const order: StatementChunk[] = [];
       const owners = new Map<StatementChunk, StatementChunk>();
-      const walk = (row: SequenceRow | undefined, owner?: StatementChunk) => {
-        for (const chunk of row?.arrays.chunks ?? []) {
-          order.push(chunk);
-          if (owner) {
-            owners.set(chunk, owner);
-          }
-          walkBodies(chunk);
-        }
-      };
-      const walkBodies = (chunk: StatementChunk) => {
-        for (let k = 0; k < blockCount(chunk); k += 1) {
-          walk(root.body(chunk, k), chunk);
-        }
-      };
-      for (const row of root.flowSequences()) {
-        walk(row);
-      }
-      root.initialization.forEach(walkBodies);
+      const order = root.statementOrder(owners);
       known = { order, owners };
       this._orders.set(root, known);
     }
@@ -1928,33 +1910,20 @@ export class ChunkStore {
 
   /** Has the statement watch watch every value `statement`'s chunk
    *  recorded of its objects: how each name its code reads resolved, and
-   *  each text the compiler names by document order, read as
-   *  `resolutionsOf` and `compilerNamedTexts` read them. */
+   *  each text the compiler names by document order. The readers that build
+   *  the statement's identity (`resolutionsOf`, `compilerNamedTexts`) hand
+   *  the watch each object they read with the reader that reads it, so a
+   *  value added to them is watched with nothing added here. */
   protected watchStatement(statement: StatementSource): void {
     const exclude = bodyObjects(statement);
-    const block = statement.block;
-    const visit = (obj: ParsedObject) => {
-      if (
-        exclude?.has(obj) ||
-        obj instanceof ConstantDeclaration ||
-        (obj instanceof VariableAssignment && obj.isGlobalDeclaration)
-      ) {
-        return;
-      }
-      if (obj instanceof FlowBase) {
-        (functionShapeOf.get(obj)?.hoisted ?? []).forEach(visit);
-        return;
-      }
-      const read = watchedValueOf(obj);
-      if (read) {
-        this.watch.watch(obj, block, read);
-      }
-      const children = obj instanceof FunctionCall ? obj.args : obj.content;
-      for (const child of children ?? []) {
-        visit(child);
-      }
-    };
-    [...statement.objects, ...hoistedLocals(statement)].forEach(visit);
+    const watch = (obj: ParsedObject, read: (obj: any) => string) =>
+      this.watch.watch(obj, statement.block, read);
+    resolutionsOf(
+      [...statement.objects, ...hoistedLocals(statement)],
+      exclude,
+      watch,
+    );
+    compilerNamedTexts(statement.objects, exclude, watch);
   }
 
   /**
@@ -2935,47 +2904,19 @@ const copyDefinitions = (
   return out;
 };
 
-/** The value of a parsed object that a chunk recorded and the statement
- *  watch reads again, as `resolutionsOf` and `compilerNamedTexts` read it:
- *  how a name, a call, a jump or a label resolved, with the object it found,
- *  or a text the compiler names; nothing for any other object. */
-const watchedValueOf = (
-  obj: ParsedObject,
-): ((obj: any) => string) | undefined => {
-  if (obj instanceof VariableReference) {
-    return readReference;
-  }
-  if (obj instanceof VariableAssignment) {
-    return readAssignment;
-  }
-  if (obj instanceof FunctionCall) {
-    return readCall;
-  }
-  // A loop's own labels and the diverts that run it, `break` and `continue`
-  // among them, are no symbols the chunk names: the writer emits the loop's
-  // jumps inside the chunk (`Divert.programJumpKey`, `resolutionsOf`), and the
-  // names the compiler gives them, which an edit above renumbers, are read
-  // by no chunk. A call's divert is read through its call.
-  if (obj instanceof Divert) {
-    return obj.isFunctionCall ||
-      obj.isEnd ||
-      obj.isDone ||
-      loopExitOf.has(obj) ||
-      isLoopInternal(obj)
-      ? undefined
-      : readJump;
-  }
-  if (obj instanceof Gather) {
-    return obj.name && !isLoopInternal(obj) ? readLabel : undefined;
-  }
-  if (obj instanceof Choice) {
-    return obj.name ? readLabel : undefined;
-  }
-  if (obj instanceof Text && obj.isCompilerNamed) {
-    return readText;
-  }
-  return undefined;
-};
+/** How the readers of a statement's identity hand the statement watch each
+ *  object they read, with the reader that reads its value. */
+type WatchRead = (obj: ParsedObject, read: (obj: any) => string) => void;
+
+/** Whether a divert is one a chunk names no symbol for: a call's, `done`,
+ *  `fin`, and a loop's own jumps, `break` and `continue` among them, which
+ *  the writer emits inside the chunk (`Divert.programJumpKey`). */
+const isOwnJump = (obj: Divert): boolean =>
+  obj.isFunctionCall ||
+  obj.isEnd ||
+  obj.isDone ||
+  loopExitOf.has(obj) ||
+  isLoopInternal(obj);
 
 /** What a name, a call or a jump found, as the symbol its chunk names it by
  *  reads: a scene, a branch, a label or a function declared at the top level
@@ -3323,6 +3264,7 @@ const functionLabel = (fn: ParsedObject): string => {
 export const compilerNamedTexts = (
   objects: readonly ParsedObject[],
   exclude?: ReadonlySet<ParsedObject>,
+  watch?: WatchRead,
 ): string[] => {
   const out: string[] = [];
   const visit = (obj: ParsedObject) => {
@@ -3331,6 +3273,7 @@ export const compilerNamedTexts = (
     }
     if (obj instanceof Text && obj.isCompilerNamed) {
       out.push(obj.text);
+      watch?.(obj, readText);
     }
     const children = obj instanceof FunctionCall ? obj.args : obj.content;
     for (const child of children ?? []) {
@@ -3352,6 +3295,7 @@ export const compilerNamedTexts = (
 export const resolutionsOf = (
   objects: readonly ParsedObject[],
   exclude?: ReadonlySet<ParsedObject>,
+  watch?: WatchRead,
 ): string[] => {
   const out: string[] = [];
   const visit = (obj: ParsedObject) => {
@@ -3366,25 +3310,37 @@ export const resolutionsOf = (
       (functionShapeOf.get(obj)?.hoisted ?? []).forEach(visit);
       return;
     }
-    if (obj instanceof VariableReference || obj instanceof VariableAssignment) {
+    if (obj instanceof VariableReference) {
       out.push(obj.resolutionKey);
+      watch?.(obj, readReference);
+    }
+    if (obj instanceof VariableAssignment) {
+      out.push(obj.resolutionKey);
+      watch?.(obj, readAssignment);
     }
     if (obj instanceof FunctionCall && obj.isUserCall) {
       out.push(obj.proxyDivert.callResolutionKey);
+      watch?.(obj, readCall);
     }
     // The symbol a jump, a tunnel, a thread or a divert target names, and
     // the symbol a label exports (#696).
-    if (obj instanceof Divert) {
+    // A divert whose jump names no symbol (a call's, `done`, `fin`, a
+    // loop's own) records nothing; one that holds a function as a value
+    // records nothing either, and the watch reads which function it found.
+    if (obj instanceof Divert && !isOwnJump(obj)) {
       const key = obj.programJumpKey;
       if (key !== null) {
         out.push(key);
       }
+      watch?.(obj, readJump);
     }
     if (obj instanceof Gather && obj.name && !isLoopInternal(obj)) {
       out.push(obj.programResolutionKey);
+      watch?.(obj, readLabel);
     }
     if (obj instanceof Choice && obj.name) {
       out.push(obj.programResolutionKey);
+      watch?.(obj, readLabel);
     }
     const children = obj instanceof FunctionCall ? obj.args : obj.content;
     for (const child of children ?? []) {
