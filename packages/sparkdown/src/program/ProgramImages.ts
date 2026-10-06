@@ -63,7 +63,26 @@ export class ProgramImages {
     /** Call frames and output objects a positional copy held. */
     frames: 0,
     outputs: 0,
+    /** Restores that set every written table and cell and every global,
+     *  for an image that shares no keyframe with the state, and the keys
+     *  the other restores set. */
+    wholeRestores: 0,
+    restoredKeys: 0,
   };
+
+  protected _identities = new WeakMap<object, number>();
+  protected _nextIdentity = 0;
+
+  /** A number that names a table or a cell for as long as it lives, which
+   *  a digest reads it by. */
+  identityOf(obj: object): number {
+    let id = this._identities.get(obj);
+    if (id === undefined) {
+      id = this._nextIdentity++;
+      this._identities.set(obj, id);
+    }
+    return id;
+  }
 
   nextId(): number {
     return this._nextId++;
@@ -206,6 +225,16 @@ export interface ProgramImage {
   readonly keyframe: ProgramImage;
   /** How many deltas the chain holds from its keyframe to the image. */
   readonly depth: number;
+  /** A keyframe's: every table and cell its state reached, which a digest
+   *  reads by identity. */
+  readonly reached: WeakSet<object> | null;
+  /** A keyframe taken on top of an image (a checkpoint's slot, or a chain
+   *  that reached `MAX_DELTA_DEPTH`): that image, held weakly, and the keys
+   *  written between it and the keyframe, so that a restore of an image
+   *  before the keyframe that something still holds costs the changes
+   *  along the path between them. */
+  readonly previous: WeakRef<ProgramImage> | null;
+  readonly bridge: Keys | null;
   /** The table and generation the count ids are of. */
   readonly table: ProgramTable;
   readonly generation: number;
@@ -314,6 +343,9 @@ export const captureImage = (
     for (const cell of reached.cells) {
       if (images.pristineCell(cell)) cells.set(cell, copyCell(cell));
     }
+    const reachedSet = new WeakSet<object>();
+    reached.tables.forEach((table) => reachedSet.add(table));
+    reached.cells.forEach((cell) => reachedSet.add(cell));
     stats.keyframes += 1;
     stats.counts += state.visits.length;
     stats.globals += globals.size;
@@ -322,9 +354,21 @@ export const captureImage = (
     const self: { -readonly [K in keyof ProgramImage]: ProgramImage[K] } = {
       id: images.nextId(),
       images,
-      parent,
+      // A keyframe holds what it needs, so nothing before it is kept for
+      // it: an image a caller let go of is collected.
+      parent: null,
       keyframe: null!,
       depth: 0,
+      reached: reachedSet,
+      previous: parent ? new WeakRef(parent) : null,
+      bridge: parent
+        ? {
+            counts: new Set(tracker.counts),
+            globals: new Set(tracker.globals),
+            tables: new Set(tracker.tables),
+            cells: new Set(tracker.cells),
+          }
+        : null,
       table: root.table,
       generation: root.generation,
       engine,
@@ -372,6 +416,9 @@ export const captureImage = (
       parent,
       keyframe: parent!.keyframe,
       depth: parent!.depth + 1,
+      reached: null,
+      previous: null,
+      bridge: null,
       table: root.table,
       generation: root.generation,
       engine,
@@ -521,19 +568,21 @@ export const restoreImage = (
   }
   const images = tracker.images;
   images.stats.restores += 1;
-  if (
-    tracker.base === image &&
-    image.engine === engine &&
-    image.generation === state.root.generation
-  ) {
-    // The state is the image with what was marked since: only that goes
-    // back, which costs what changed since the image.
-    restoreMarked(state, tracker, image);
+  const keys =
+    image.engine === engine && image.generation === state.root.generation
+      ? keysBetween(tracker, image)
+      : null;
+  if (keys) {
+    // The state and the image descend from one keyframe: only what the
+    // images between them wrote and what was marked since goes back, which
+    // costs the changes along that path.
+    restoreKeys(state, images, image, keys);
     state.installPositional(placed);
     state.ResetCountDeltaTracking();
     tracker.reset(image);
     return true;
   }
+  images.stats.wholeRestores += 1;
   const keyed = keyedStateOf(image);
   for (const table of images.writtenTables()) {
     const copy = keyed.tables.get(table) ?? images.pristineTable(table);
@@ -568,46 +617,159 @@ export const restoreImage = (
   return true;
 };
 
-// Puts back, as `image` holds them, the counts, globals, tables and cells
-// the tracker marked since the state was `image`.
-const restoreMarked = (
-  state: ProgramStoryState,
-  tracker: ImageTracker,
-  image: ProgramImage,
-): void => {
-  const chain = chainOf(image).reverse();
-  const keyframe = image.keyframe;
-  for (const id of tracker.counts) {
-    let visits = keyframe.visits![id] ?? 0;
-    let turn = keyframe.turns![id] ?? NEVER_VISITED;
-    for (const at of chain) {
-      const i = at.countIds ? at.countIds.indexOf(id) : -1;
-      if (i >= 0) {
-        visits = at.countVisits![i]!;
-        turn = at.countTurns![i]!;
-        break;
-      }
+// The images an image's view of a key is read from: itself first, then each
+// image before it back to its keyframe, which holds the counts and globals
+// whole.
+const viewChain = (image: ProgramImage): ProgramImage[] =>
+  chainOf(image).reverse();
+
+const countIn = (chain: readonly ProgramImage[], id: number): [number, number] => {
+  for (const at of chain) {
+    const i = at.countIds ? at.countIds.indexOf(id) : -1;
+    if (i >= 0) {
+      return [at.countVisits![i]!, at.countTurns![i]!];
     }
+  }
+  const keyframe = chain[chain.length - 1]!;
+  return [keyframe.visits![id] ?? 0, keyframe.turns![id] ?? NEVER_VISITED];
+};
+
+const globalIn = (
+  chain: readonly ProgramImage[],
+  name: string,
+): InkObject | undefined => {
+  for (const at of chain) {
+    if (at.globals.has(name)) return at.globals.get(name);
+  }
+  return undefined;
+};
+
+// A table's content as the chain holds it, or its pristine copy: a table
+// the chain never copied was not written before the image, or was not
+// reached by its keyframe's state, and is no part of the image.
+const tableIn = (
+  chain: readonly ProgramImage[],
+  table: ObjectValue,
+  images: ProgramImages,
+): TableCopy | undefined => {
+  for (const at of chain) {
+    const copy = at.tables.get(table);
+    if (copy) return copy;
+  }
+  return images.pristineTable(table);
+};
+
+const cellIn = (
+  chain: readonly ProgramImage[],
+  cell: VariablePointerValue,
+  images: ProgramImages,
+): CellCopy | undefined => {
+  for (const at of chain) {
+    const copy = at.cells.get(cell);
+    if (copy) return copy;
+  }
+  return images.pristineCell(cell);
+};
+
+/** The keys a set of deltas holds. */
+interface Keys {
+  counts: Set<number>;
+  globals: Set<string>;
+  tables: Set<ObjectValue>;
+  cells: Set<VariablePointerValue>;
+}
+
+const keysOf = (deltas: readonly ProgramImage[], into?: Keys): Keys => {
+  const keys = into ?? {
+    counts: new Set<number>(),
+    globals: new Set<string>(),
+    tables: new Set<ObjectValue>(),
+    cells: new Set<VariablePointerValue>(),
+  };
+  for (const delta of deltas) {
+    delta.countIds?.forEach((id) => keys.counts.add(id));
+    for (const name of delta.globals.keys()) keys.globals.add(name);
+    for (const table of delta.tables.keys()) keys.tables.add(table);
+    for (const cell of delta.cells.keys()) keys.cells.add(cell);
+  }
+  return keys;
+};
+
+/**
+ * The keys that can differ between the state, which is the tracker's base
+ * with what was marked since, and `image`, when both descend from one
+ * keyframe: what the deltas from the base back to the image's chain wrote,
+ * what the deltas from there down to the image wrote, and what was marked.
+ * Nothing when they do not share a keyframe, which a restore then takes
+ * whole.
+ */
+const keysBetween = (tracker: ImageTracker, image: ProgramImage): Keys | null => {
+  const onImageChain = new Set(chainOf(image));
+  const up: ProgramImage[] = [];
+  const bridges: Keys[] = [];
+  let at: ProgramImage | null = tracker.base;
+  // Up from the base to the image's chain: through the deltas, and across
+  // each keyframe to the image it was taken on, while something holds it.
+  while (at && !onImageChain.has(at)) {
+    if (at.keyframe === at) {
+      if (!at.bridge) {
+        return null;
+      }
+      bridges.push(at.bridge);
+      at = at.previous?.deref() ?? null;
+    } else {
+      up.push(at);
+      at = at.parent;
+    }
+  }
+  if (!at) {
+    return null;
+  }
+  const meet = at;
+  const down: ProgramImage[] = [];
+  for (let d: ProgramImage = image; d !== meet; d = d.parent!) {
+    down.push(d);
+  }
+  const keys = keysOf([...up, ...down]);
+  for (const bridge of bridges) {
+    for (const id of bridge.counts) keys.counts.add(id);
+    for (const name of bridge.globals) keys.globals.add(name);
+    for (const table of bridge.tables) keys.tables.add(table);
+    for (const cell of bridge.cells) keys.cells.add(cell);
+  }
+  for (const id of tracker.counts) keys.counts.add(id);
+  for (const name of tracker.globals) keys.globals.add(name);
+  for (const table of tracker.tables) keys.tables.add(table);
+  for (const cell of tracker.cells) keys.cells.add(cell);
+  return keys;
+};
+
+// Gives `keys` the values `image` holds for them.
+const restoreKeys = (
+  state: ProgramStoryState,
+  images: ProgramImages,
+  image: ProgramImage,
+  keys: Keys,
+): void => {
+  const chain = viewChain(image);
+  for (const id of keys.counts) {
+    const [visits, turn] = countIn(chain, id);
     state.SetCount(id, visits, turn);
   }
   const variables = state.variablesState;
-  for (const name of tracker.globals) {
-    const holder = chain.find((at) => at.globals.has(name)) ?? keyframe;
-    variables.RestoreGlobal(name, holder.globals.get(name));
+  for (const name of keys.globals) {
+    variables.RestoreGlobal(name, globalIn(chain, name));
   }
-  const images = tracker.images;
-  for (const table of tracker.tables) {
-    const copy =
-      chain.find((at) => at.tables.has(table))?.tables.get(table) ??
-      images.pristineTable(table);
+  for (const table of keys.tables) {
+    const copy = tableIn(chain, table, images);
     if (copy) putTable(table, copy);
   }
-  for (const cell of tracker.cells) {
-    const copy =
-      chain.find((at) => at.cells.has(cell))?.cells.get(cell) ??
-      images.pristineCell(cell);
+  for (const cell of keys.cells) {
+    const copy = cellIn(chain, cell, images);
     if (copy) putCell(cell, copy);
   }
+  images.stats.restoredKeys +=
+    keys.counts.size + keys.globals.size + keys.tables.size + keys.cells.size;
 };
 
 // The counts of an image of another table generation, by the count ids of
@@ -643,19 +805,21 @@ const remapCounts = (
 
 /**
  * A digest of the state an image holds, equal for two images of equal states
- * however each was reached: a route search claims a fork site by it, as it
- * claimed one by the hash of the state's JSON (`planRoute`, `claimForkSite`).
- * It costs what the image's chain changed, not the size of the state: the
- * positional state, and of the keyed state only what differs from the
- * chain's keyframe, which the digest names. A table is read by its content,
- * as the JSON did, so two tables made apart that hold the same read the same.
- * The digest reads tables as they stand, so it is taken right after the
- * image is.
+ * however each was reached from one keyframe: a route search claims a fork
+ * site by it, as it claimed one by the hash of the state's JSON (`planRoute`,
+ * `claimForkSite`). It costs what the image's chain changed, not the size of
+ * the state: the positional state, and of the keyed state only what differs
+ * from the chain's keyframe. A table or a cell the keyframe's state reached
+ * is read by its identity, so two arrivals that changed two different tables
+ * to the same content read apart, and its content enters the digest only when
+ * it changed since the keyframe; one made since is read by its content, with
+ * a second reference to it read as a reference, as the JSON's `objref` did.
  */
 export const imageDigest = (image: ProgramImage): string => {
   const out = new DigestStream();
-  const values = new ValueHasher();
-  out.add(`k${image.keyframe.id}`);
+  const keyframe = image.keyframe;
+  const values = new ValueHasher(image.images, keyframe.reached);
+  out.add(`k${keyframe.id}`);
   const p = image.positional;
   const position = (at: PositionCopy | null) =>
     out.add(at ? `${at.chunk}:${at.entry}:${at.offset}:${at.sequence}` : "-");
@@ -702,22 +866,12 @@ export const imageDigest = (image: ProgramImage): string => {
     position(choice.target);
     thread(choice.thread);
   }
-  // The keyed state, where it differs from the keyframe's.
-  const keyframe = image.keyframe;
-  const keyed = keyedStateOf(image);
-  const counts = new Set<number>();
-  const globals = new Set<string>();
-  const tables = new Set<ObjectValue>();
-  const cells = new Set<VariablePointerValue>();
-  for (const delta of chainOf(image).slice(1)) {
-    delta.countIds?.forEach((id) => counts.add(id));
-    for (const name of delta.globals.keys()) globals.add(name);
-    for (const table of delta.tables.keys()) tables.add(table);
-    for (const cell of delta.cells.keys()) cells.add(cell);
-  }
-  for (const id of [...counts].sort((a, b) => a - b)) {
-    const visits = keyed.visits[id] ?? 0;
-    const turn = keyed.turns[id] ?? NEVER_VISITED;
+  // The keyed state the chain changed, where it differs from the
+  // keyframe's, each key read once, from the newest image that holds it.
+  const keys = keysOf(chainOf(image).slice(1));
+  const chain = viewChain(image);
+  for (const id of [...keys.counts].sort((a, b) => a - b)) {
+    const [visits, turn] = countIn(chain, id);
     if (
       visits !== (keyframe.visits![id] ?? 0) ||
       turn !== (keyframe.turns![id] ?? NEVER_VISITED)
@@ -725,30 +879,33 @@ export const imageDigest = (image: ProgramImage): string => {
       out.add(`#${id}:${visits}:${turn}`);
     }
   }
-  for (const name of [...globals].sort()) {
-    const now = keyed.globals.get(name);
+  for (const name of [...keys.globals].sort()) {
+    const now = globalIn(chain, name);
     const then = keyframe.globals.get(name);
     if (now !== then && values.hash(now) !== values.hash(then)) {
       out.add(`g${name}=${values.hash(now)}`);
     }
   }
   const changed: string[] = [];
-  for (const table of tables) {
-    const now = keyed.tables.get(table)!;
+  for (const table of keys.tables) {
+    const now = tableIn(chain, table, image.images);
     const then = keyframe.tables.get(table) ?? image.images.pristineTable(table);
-    if (!then || !sameTable(now, then, values)) {
-      changed.push(values.hash(table));
+    if (now && (!then || !sameTable(now, then, values))) {
+      changed.push(`t${image.images.identityOf(table)}=${values.copy(now)}`);
     }
   }
-  for (const cell of cells) {
-    const now = keyed.cells.get(cell)!;
+  for (const cell of keys.cells) {
+    const now = cellIn(chain, cell, image.images);
     const then = keyframe.cells.get(cell) ?? image.images.pristineCell(cell);
     if (
-      !then ||
-      now.closed !== then.closed ||
-      values.hash(now.value) !== values.hash(then.value)
+      now &&
+      (!then ||
+        now.closed !== then.closed ||
+        values.hash(now.value) !== values.hash(then.value))
     ) {
-      changed.push(`c${values.hash(cell)}`);
+      changed.push(
+        `c${image.images.identityOf(cell)}=${now.closed}:${values.hash(now.value)}`,
+      );
     }
   }
   for (const entry of changed.sort()) out.add(entry);
@@ -775,44 +932,38 @@ const sameTable = (a: TableCopy, b: TableCopy, values: ValueHasher): boolean => 
   return true;
 };
 
-// Hashes values by what they hold: a table by its content, its length hints,
-// its frozen flag and its metatable, and a cell by its state, each table and
-// cell once, with a cycle read as a back reference.
+// Hashes values: a table or a cell the keyframe's state reached by its
+// identity, and one made since by what it holds (a table's content, length
+// hints, frozen flag and metatable, a cell's state), each once, with a
+// second reference read as a reference.
 class ValueHasher {
   protected _seen = new Map<object, string>();
   protected _next = 0;
+
+  constructor(
+    protected _images: ProgramImages,
+    protected _stable: WeakSet<object> | null,
+  ) {}
 
   hash(obj: InkObject | null | undefined): string {
     if (obj === null || obj === undefined) {
       return "nil";
     }
-    if (obj instanceof ObjectValue) {
+    if (obj instanceof ObjectValue || obj instanceof VariablePointerValue) {
+      if (this._stable?.has(obj)) {
+        return `#${this._images.identityOf(obj)}`;
+      }
       const seen = this._seen.get(obj);
       if (seen !== undefined) {
         return seen;
       }
       this._seen.set(obj, `@${this._next++}`);
-      const out = new DigestStream();
-      const map = obj.value as (Map<string, AbstractValue> & Hints) | null;
-      out.add(`T${obj.isFrozen}:${map?.__luauCapacity}:${map?.__luauBoundary}`);
-      for (const [key, value] of map ?? []) {
-        out.add(key);
-        out.add(this.hash(value));
-      }
-      out.add(`m${this.hash(obj.metatable)}`);
-      const hash = out.digest();
-      this._seen.set(obj, hash);
-      return hash;
-    }
-    if (obj instanceof VariablePointerValue) {
-      const seen = this._seen.get(obj);
-      if (seen !== undefined) {
-        return seen;
-      }
-      this._seen.set(obj, `@${this._next++}`);
-      const hash = obj.isClosed
-        ? `C(${this.hash(obj.closedValue)})`
-        : `V(${obj.variableName}:${obj.contextIndex}:${obj.scopeIndex})`;
+      const hash =
+        obj instanceof ObjectValue
+          ? this.copy(copyTable(obj))
+          : obj.isClosed
+            ? `C(${this.hash(obj.closedValue)})`
+            : `V(${obj.variableName}:${obj.contextIndex}:${obj.scopeIndex})`;
       this._seen.set(obj, hash);
       return hash;
     }
@@ -821,6 +972,18 @@ class ValueHasher {
       return `M(${(multi.values as InkObject[]).map((v) => this.hash(v)).join(",")})`;
     }
     return `${obj.constructor.name}:${String(obj)}`;
+  }
+
+  /** The hash of what a copy of a table holds. */
+  copy(copy: TableCopy): string {
+    const out = new DigestStream();
+    out.add(`T${copy.frozen}:${copy.capacity}:${copy.boundary}`);
+    for (const [key, value] of copy.entries ?? []) {
+      out.add(key);
+      out.add(this.hash(value));
+    }
+    out.add(`m${this.hash(copy.metatable)}`);
+    return out.digest();
   }
 }
 

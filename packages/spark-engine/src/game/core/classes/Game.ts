@@ -1921,9 +1921,15 @@ export class Game<T extends M = {}> {
       const json = this._checkpoints.getJson(index);
       return json ? this.load(json) : false;
     }
+    const image = entry.image as ProgramImage;
+    // Placed before anything of the game changes: an unplaced checkpoint
+    // leaves the preview and the line in progress as they are.
+    if (!story.canRestore(image)) {
+      return false;
+    }
     this.cancelPreview();
     this.discardOpenStoryLine();
-    if (!story.restore(entry.image as ProgramImage)) {
+    if (!story.restore(image)) {
       return false;
     }
     this.restoreReactiveTracking();

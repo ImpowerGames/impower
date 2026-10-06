@@ -10,9 +10,11 @@
 // digest (`imageDigest`) and restored in place (`ProgramStory.restore`). Each
 // candidate runs scene MAIN of the chunks scene from its top to its end on the
 // program engine, taking the first choice whenever the story stops at one, and
-// after every line does what one search node does: forks the state, claims the
-// fork site by the state's key, and restores the state it forked. Only the
-// nodes are timed. Each reports a digest of every line it produced, which
+// after every line does what a search node and its sibling do: forks the state
+// and claims the fork site by the state's key, runs on to the next line and
+// forks there, and restores the first fork to run the sibling from it, so that
+// a restore undoes a run as a sibling's does. Only the forks and the restores
+// are timed. Each reports a digest of every line it produced, which
 // engine-bench.mjs requires to be equal, so that neither candidate changed what
 // the story did.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
@@ -21,7 +23,7 @@ import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { extendSeq } from "../../packages/sparkdown/src/compiler/utils/planRoute";
-import { imageDigest } from "../../packages/sparkdown/src/program/ProgramImages";
+import { imageDigest, type ProgramImage } from "../../packages/sparkdown/src/program/ProgramImages";
 import { ProgramStory } from "../../packages/sparkdown/src/program/ProgramStory";
 import { MAIN_URI, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
 
@@ -75,19 +77,33 @@ function main() {
       while (story.canContinue) {
         story.Continue();
         lines.push(story.currentText ?? "");
-        // One search node: fork the state, claim the site by its key, and
-        // run from it.
-        const t0 = performance.now();
+        // One search node and its sibling: fork the state and claim the
+        // site by its key; run the node on to the next line and fork there;
+        // then run the sibling from the first fork, which restores it with
+        // the node's run to undo. Only the forks and the restore are timed.
+        if (!story.canContinue) break;
+        let t0 = performance.now();
+        let fork: unknown;
         if (images) {
           const image = story.capture();
           keys.add(imageDigest(image));
-          story.restore(image);
           held += image.globals.size + image.tables.size + (image.countIds?.length ?? 0);
+          fork = image;
         } else {
           const json = story.state.toJson();
           keys.add(extendSeq("", json));
-          story.state.LoadJson(json);
           held += json.length;
+          fork = json;
+        }
+        nodeMs += performance.now() - t0;
+        story.Continue();
+        t0 = performance.now();
+        if (images) {
+          keys.add(imageDigest(story.capture()));
+          story.restore(fork as ProgramImage);
+        } else {
+          keys.add(extendSeq("", story.state.toJson()));
+          story.state.LoadJson(fork as string);
         }
         nodeMs += performance.now() - t0;
         nodes += 1;

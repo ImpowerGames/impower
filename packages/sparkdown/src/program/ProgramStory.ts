@@ -404,6 +404,16 @@ export class ProgramStory {
     return true;
   }
 
+  /** Whether `restore` would place `image` in this engine's root: false
+   *  for an image of another game's engines, or one that names a chunk or a
+   *  sequence the root does not hold. Changes nothing. */
+  canRestore(image: ProgramImage): boolean {
+    return (
+      image.images === this.images &&
+      this._state.placePositional(image.positional) !== undefined
+    );
+  }
+
   /** The header of the last save `loadSave` read, or nothing. */
   loadedSaveHeader: SaveHeader | null = null;
 

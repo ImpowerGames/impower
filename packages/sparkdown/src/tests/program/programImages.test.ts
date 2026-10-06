@@ -7,7 +7,11 @@ import { describe, expect, it } from "vitest";
 import { lastSearchStats, planRoute } from "../../compiler/utils/planRoute";
 import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../inkjs/engine/Value";
-import { MAX_DELTA_DEPTH, ProgramImages } from "../../program/ProgramImages";
+import {
+  MAX_DELTA_DEPTH,
+  ProgramImages,
+  imageDigest,
+} from "../../program/ProgramImages";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { countIdOf } from "../../program/ProgramSymbols";
@@ -445,6 +449,7 @@ describe("a route search on the program engine", () => {
         deltas: stats.deltas - before.deltas,
         globals: stats.globals - before.globals,
         restores: stats.restores - before.restores,
+        wholeRestores: stats.wholeRestores - before.wholeRestores,
         globalsInProgram: story.variablesState.globalEntries.size,
       };
     };
@@ -463,6 +468,8 @@ describe("a route search on the program engine", () => {
     // A delta copies the globals its run assigned, never all of them.
     expect(images.globals - images.globalsInProgram).toBeLessThan(images.deltas);
     expect(images.restores).toBe(images.search.nodesExpanded);
+    // Every node restores by what changed since the image it forked from.
+    expect(images.wholeRestores).toBe(0);
   });
 });
 
@@ -479,6 +486,8 @@ describe("images along a long run", () => {
     expect(taken.length).toBeGreaterThan(MAX_DELTA_DEPTH + 10);
     const keyframes = taken.filter(({ image }) => image.keyframe === image);
     expect(keyframes.length).toBeGreaterThan(1);
+    // A keyframe keeps nothing before it alive.
+    for (const { image } of keyframes) expect(image.parent).toBeNull();
     // Each restored out of order, so that none is the image the state was
     // last restored from or taken at.
     const order = taken.map((_, i) => (i * 37) % taken.length);
@@ -486,5 +495,101 @@ describe("images along a long run", () => {
       expect(s.restore(taken[i]!.image)).toBe(true);
       expect(s.state.toJson()).toBe(taken[i]!.json);
     }
+  });
+});
+
+// Round 1 of the review of #1579 (report 6016969769).
+describe("the digest and restores a route search reads", () => {
+  // Two tables that hold the same, and a decision that writes one or the
+  // other: the two arrivals at the line after it differ only in which.
+  const TWO_TABLES = [
+    "store a = { x = 0 }",
+    "store b = { x = 0 }",
+    "store pick = 0",
+    "",
+    "-> start",
+    "",
+    "scene start",
+    "  Begin.",
+    "  if pick == 0 then",
+    "    & a.x = 1",
+    "  else",
+    "    & b.x = 1",
+    "  end",
+    "  Same {a.x + b.x}.",
+    "  Then {a.x}.",
+    "end",
+    "",
+  ].join("\n");
+
+  // A route simulator that forces every decision to `verdict`.
+  const forcing = (verdict: boolean) => ({
+    forceCondition: () => verdict,
+    forceChoice: () => null,
+    willForceCondition: () => true,
+    willForceChoice: () => false,
+    saveSnapshot: () => ({ conditionPointer: {}, choicePointer: {} }),
+  });
+
+  it("reads a table the keyframe reached by its identity, so two arrivals that wrote two tables apart differ", () => {
+    const s = story(TWO_TABLES);
+    expect(next(s, 1)).toEqual(["Begin."]);
+    const keyframe = s.capture(true);
+    const arrive = (verdict: boolean) => {
+      expect(s.restore(keyframe)).toBe(true);
+      s.simulator = forcing(verdict);
+      expect(next(s, 1)).toEqual(["Same 1."]);
+      s.simulator = null;
+      return imageDigest(s.capture());
+    };
+    const left = arrive(true);
+    const right = arrive(false);
+    expect(right).not.toBe(left);
+    // The same arrival reads the same.
+    expect(arrive(true)).toBe(left);
+    // And they do differ: the next line reads `a.x`.
+    arrive(false);
+    expect(next(s, 1)).toEqual(["Then 0."]);
+  });
+
+  it("restores a sibling's fork from a descendant of it by what changed between them, never whole", () => {
+    const s = story(WRITES);
+    const stats = s.images.stats;
+    expect(next(s, 1)).toEqual(["First 3 0."]);
+    const fork = s.capture(true);
+    const json = s.state.toJson();
+    const before = stats.wholeRestores;
+    for (let i = 0; i < 3; i += 1) {
+      expect(s.restore(fork)).toBe(true);
+      expect(s.state.toJson()).toBe(json);
+      next(s, 2);
+      s.capture();
+      next(s, 1);
+      s.capture();
+    }
+    expect(s.restore(fork)).toBe(true);
+    expect(s.state.toJson()).toBe(json);
+    expect(stats.wholeRestores).toBe(before);
+  });
+
+  it("restores a fork across the keyframe a long run took after it by what changed since, never whole", () => {
+    const s = story(WRITES.replace("if hits < 3 then", "if hits < 40 then"));
+    const stats = s.images.stats;
+    expect(next(s, 1)).toEqual(["First 3 0."]);
+    const fork = s.capture();
+    const json = s.state.toJson();
+    const keyframes = stats.keyframes;
+    const before = stats.wholeRestores;
+    while (stats.keyframes === keyframes && s.canContinue) {
+      next(s, 1);
+      s.capture();
+    }
+    // The run took a keyframe of its own on top of the fork's chain.
+    expect(stats.keyframes).toBe(keyframes + 1);
+    next(s, 2);
+    s.capture();
+    expect(s.restore(fork)).toBe(true);
+    expect(s.state.toJson()).toBe(json);
+    expect(stats.wholeRestores).toBe(before);
   });
 });

@@ -11,7 +11,10 @@ import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { SAVE_FORMAT, SaveRefused } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { compileScript, programSession } from "./programHarness";
+import { LOOP_TUNNEL_SCRIPT, SAVE_MARKER } from "./programSaveScripts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, "..", "runtime", "fixtures");
@@ -554,36 +557,36 @@ describe("a save's header", () => {
 const session = programSession;
 
 describe("a save in another process", () => {
-  // A tunnel's frame, called from a loop's body, whose owner inlines a
-  // constant: a position the save names is in the loop's body, and the
-  // frame returns inside the tunnel statement's code.
-  const SCRIPT = [
-    "const K = 1",
-    "store total = 0",
-    "store fns = {}",
-    "",
-    "-> start",
-    "",
-    "scene early",
-    "  Early.",
-    "end",
-    "",
-    "scene helper",
-    "  Inside {total}.",
-    "  ->->",
-    "end",
-    "",
-    "scene start",
-    '  Begin {cycle|"a"|"b"}.',
-    "  & fns.f = function() return total end",
-    "  while total < K do",
-    "    -> helper ->",
-    "    total = total + 1",
-    "  end",
-    "  After {total} {fns.f()} {start}.",
-    "end",
-    "",
-  ].join("\n");
+  const SCRIPT = LOOP_TUNNEL_SCRIPT;
+
+  // Round 1 of the review of #1579 (report 6016969769): the test below
+  // loads in the process that wrote the save; this one does not.
+  it("written by another process, which reseeded its table, loads here and continues as the writer's run would", () => {
+    const writer = join(HERE, "programSaveWriter.ts");
+    const viteNode = createRequire(import.meta.url).resolve("vite-node/vite-node.mjs");
+    const run = spawnSync(process.execPath, [viteNode, writer], {
+      cwd: join(HERE, "..", "..", ".."),
+      encoding: "utf-8",
+      timeout: 240_000,
+      windowsHide: true,
+    });
+    expect(run.status, run.stderr).toBe(0);
+    const line = run.stdout.split("\n").find((l) => l.startsWith(SAVE_MARKER));
+    expect(line).toBeDefined();
+    const save = line!.slice(SAVE_MARKER.length);
+    // This process compiles the program once, with no reseed.
+    const here = session(SCRIPT);
+    const rest = (() => {
+      const story = engine(here.root);
+      nextBeat(story);
+      nextBeat(story);
+      return play(story);
+    })();
+    const loaded = engine(here.root);
+    loaded.loadSave(save);
+    expect(play(loaded)).toEqual(rest);
+    expect(rest.beats).toEqual(["After 1 1 1."]);
+  });
 
   it("loads at the same statement after the table is reseeded and the program compiled again, every id differing", () => {
     const played = session(SCRIPT);

@@ -276,8 +276,15 @@ describe("the checkpoints of a game on the program engine", () => {
     // An edit to the statement the checkpoint rests at emits it again.
     const at = edit(3, 6, "  Three".length, " again");
     game.updateProgram(at.program, at.story);
-    const before = (game.story as unknown as ProgramStory).state.toJson();
+    // With a line in progress (round 1 of the review of #1579, report
+    // 6016969769): the unplaced checkpoint cancels nothing.
+    const engine = game.story as unknown as ProgramStory;
+    engine.ChoosePathString("MAIN");
+    engine.ContinueAsync();
+    expect(engine.asyncContinueComplete).toBe(false);
+    const before = engine.state.toJson();
     expect(game.restoreCheckpoint(two)).toBe(false);
-    expect((game.story as unknown as ProgramStory).state.toJson()).toBe(before);
+    expect(engine.asyncContinueComplete).toBe(false);
+    expect(engine.state.toJson()).toBe(before);
   });
 });
