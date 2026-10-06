@@ -165,6 +165,18 @@ describe("rebinding a top-level named function (#1591)", () => {
           runAfterEdit(rebound, "& f = function() return 2 end", "& x = 1", programChunks),
         ).toEqual({ text: "f is 7.\n", errors: [] });
       });
+      it("a nested function's write to a captured local keeps the call held to the function's parameters", () => {
+        const text =
+          "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
+        const { errors } = run(text, programChunks);
+        expect(errors).toHaveLength(1);
+        expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
+      });
+      it("a nested function's write to a captured local leaves the function alone", () => {
+        const text =
+          "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
+        expect(run(text, programChunks)).toEqual({ text: "f is 7.\n", errors: [] });
+      });
       it("an edit that adds the assignment releases the call from the original's parameters", () => {
         const before = "function f() return 7 end\n& x = 1\nf is {f(2)}.\n";
         expect(run(before, programChunks).errors).toHaveLength(1);

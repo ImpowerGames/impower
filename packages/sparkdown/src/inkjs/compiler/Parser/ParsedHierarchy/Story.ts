@@ -8,7 +8,8 @@ import { ControlCommand as RuntimeControlCommand } from "../../../engine/Control
 import type { ErrorHandler } from "../../../engine/Error";
 import { ErrorType } from "../ErrorType";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
-import { FlowBase } from "./Flow/FlowBase";
+import { FlowBase, isWithin } from "./Flow/FlowBase";
+import { DivertTarget } from "./Divert/DivertTarget";
 import { FlowLevel } from "./Flow/FlowLevel";
 import { IncludedFile } from "./IncludedFile";
 import { ListDefinition } from "./List/ListDefinition";
@@ -205,33 +206,69 @@ export class Story extends FlowBase {
    *  parameter of the name certainly binds writes that binding, not the
    *  global, and is left out; the parse tree gives both the same node.
    *  `FlowBase.IsBoundLocallyAt` decides it: a `local` declared later, or in
-   *  a block that has closed, does not bind the assignment, and neither does
-   *  a closure's upvalue parameter, since a write through it lands on
-   *  whatever the enclosing scope resolved the name to, which may be the
-   *  global. A name this set holds needlessly costs a call of a top-level
-   *  function of that name a read of the unset global, which leads back to
-   *  the function, so where the decision is unsure the name is kept. Walked
-   *  once per export, on first use, for {@link builtinGlobalDiverts}'s
-   *  severity and for which calls of a top-level function read the global
-   *  that rebinds it (`Divert`). */
+   *  a block that has closed, does not bind the assignment, and a write
+   *  through a closure's upvalue parameter lands on whatever the name
+   *  resolves to where the closure is made or called, which may be the
+   *  global. A name this set holds needlessly makes a call of a top-level
+   *  function of that name read the unset global, which leads back to the
+   *  function, but the call is then not held to the function's parameters,
+   *  and a divert to the name is reported as a warning. Walked once per
+   *  export, on first use, for {@link builtinGlobalDiverts}'s severity and
+   *  for which calls of a top-level function read the global that rebinds
+   *  it (`Divert`). */
   public globalAssignmentNames(): ReadonlySet<string> {
     if (this._globalAssignmentNames) {
       return this._globalAssignmentNames;
     }
-    const names = new Set<string>();
+    // The assignments, and each function's sites by name: where a function
+    // value names it, and where a call names it. A site counts for a
+    // function only inside the flow the function is written in, since a
+    // nested function's name means it only there.
+    const assignments: VariableAssignment[] = [];
+    const sitesByName = new Map<string, ParsedObject[]>();
+    const addSite = (name: string | null | undefined, site: ParsedObject) => {
+      if (name) {
+        const sites = sitesByName.get(name) ?? [];
+        sites.push(site);
+        sitesByName.set(name, sites);
+      }
+    };
+    const seen = new Set<ParsedObject>();
     const visit = (obj: ParsedObject): void => {
-      for (const child of obj.content ?? []) {
-        if (
-          child instanceof VariableAssignment &&
-          !child.isDeclaration &&
-          !this.IsBoundLocallyAt(child.variableName, child)
-        ) {
-          names.add(child.variableName);
+      const children =
+        obj instanceof FunctionCall
+          ? [...(obj.content ?? []), ...(obj.args ?? [])]
+          : (obj.content ?? []);
+      for (const child of children) {
+        if (seen.has(child)) {
+          continue;
+        }
+        seen.add(child);
+        if (child instanceof VariableAssignment && !child.isDeclaration) {
+          assignments.push(child);
+        } else if (child instanceof DivertTarget && child.isFunctionValue) {
+          addSite(child.divert.target?.dotSeparatedComponents, child);
+        } else if (child instanceof FunctionCall) {
+          addSite(child.name, child);
         }
         visit(child);
       }
     };
     visit(this);
+    const sitesOf = (flow: FlowBase): readonly ParsedObject[] => {
+      const around = asOrNull(ClosestFlowBase(flow), FlowBase);
+      return (sitesByName.get(flow.identifier?.name ?? "") ?? []).filter(
+        (site) => !around || isWithin(site, around),
+      );
+    };
+    const names = new Set<string>();
+    for (const assignment of assignments) {
+      if (
+        !this.IsBoundLocallyAt(assignment.variableName, assignment, sitesOf)
+      ) {
+        names.add(assignment.variableName);
+      }
+    }
     this._globalAssignmentNames = names;
     return names;
   }
