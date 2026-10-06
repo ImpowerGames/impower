@@ -380,10 +380,21 @@ export class ProgramStory {
       }
       return writeSave(this._state, gameVersion);
     }
-    // The beat before the menu, put in place to be written, and the state
-    // as it stands put back.
+    return this.saveOfImage(held, gameVersion)!;
+  }
+
+  /** The durable save of an image this engine, or the engine of an earlier
+   *  program of the same game, took (`toSave`): the image is put in place to
+   *  be written, and the state as it stands put back. Nothing, and nothing
+   *  changed, when the image names a position this engine's root does not
+   *  hold. */
+  saveOfImage(image: ProgramImage, gameVersion = ""): string | null {
+    this.IfAsyncWeCant("save");
+    const held = this._state.beatImage;
     const live = this.capture();
-    this.restore(held);
+    if (!this.restore(image)) {
+      return null;
+    }
     try {
       return writeSave(this._state, gameVersion);
     } finally {

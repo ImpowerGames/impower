@@ -12,6 +12,7 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
+import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import {
   buildRouteSimulator,
   lastSearchStats,
@@ -443,6 +444,17 @@ export class Game<T extends M = {}> {
   // engine (`GameConfiguration.programChunks`).
   protected _programChunks = false;
 
+  // The game's own version string (`GameConfiguration.version`).
+  protected _version = "";
+
+  /** The story when it is the program engine's, which keeps images of its
+   *  beats: the checkpoints are its images, and a save is its durable save
+   *  (docs/engine/binary-program.md, section 7). */
+  get programStory(): ProgramStory | null {
+    const story: unknown = this._story;
+    return story instanceof ProgramStory ? story : null;
+  }
+
   constructor(
     options: { program: SparkProgram; story?: Story } & GameConfiguration &
       SystemConfiguration & {
@@ -452,6 +464,7 @@ export class Game<T extends M = {}> {
       },
   ) {
     this._programChunks = options.programChunks ?? false;
+    this._version = options.version ?? "";
     this._program = this.updateProgram(options.program, options.story);
 
     // Create connection for sending and receiving messages
@@ -482,8 +495,21 @@ export class Game<T extends M = {}> {
     }
     this._executionStepsRemaining = this._executionStepLimit;
 
+    const game = this;
     this._checkpoints = new CheckpointStore(
       {
+        // A story that keeps images is checkpointed by its beats' images.
+        get captureImage() {
+          const story = game.programStory;
+          return story
+            ? (keyframe: boolean) => story.captureBeat(keyframe)
+            : undefined;
+        },
+        saveWithoutStory: (omitDeltaState) =>
+          this.buildSave(omitDeltaState, false),
+        storyOfImage: (image) =>
+          this.programStory?.saveOfImage(image as ProgramImage, this._version) ??
+          null,
         save: () => this.save(),
         saveDeltaBody: () => this.saveDeltaBody(),
         snapshotCounts: () => ({
@@ -607,16 +633,27 @@ export class Game<T extends M = {}> {
 
     if (chunks) {
       // The program engine presents the members of `Story` this game reads
-      // on the paths it runs (see `ProgramStory`).
-      this._story = new ProgramStory(chunks, {
-        locate: (path) => {
-          const location = pathLocation(this._program.pathLocations, path);
-          const uri = location ? this._scripts[location[0]] : undefined;
-          return location && uri
-            ? { uri, line: location[1], column: location[2] }
-            : undefined;
+      // on the paths it runs (see `ProgramStory`). It shares the pristine
+      // copies its images read with the engine of the program before, so a
+      // checkpoint taken there restores here for every statement this
+      // program kept (`restoreCheckpoint`), and it keeps the image of each
+      // beat, which a checkpoint and a save at a menu hold.
+      const previous = this.programStory;
+      const engine = new ProgramStory(
+        chunks,
+        {
+          locate: (path) => {
+            const location = pathLocation(this._program.pathLocations, path);
+            const uri = location ? this._scripts[location[0]] : undefined;
+            return location && uri
+              ? { uri, line: location[1], column: location[2] }
+              : undefined;
+          },
         },
-      }) as unknown as Story;
+        { images: previous?.images },
+      );
+      engine.keepBeatImages = true;
+      this._story = engine as unknown as Story;
     } else if (story) {
       this._story = story;
     } else if (compiled) {
@@ -1780,12 +1817,20 @@ export class Game<T extends M = {}> {
     return this.buildSave(true);
   }
 
-  protected buildSave(omitDeltaState: boolean): string {
+  protected buildSave(omitDeltaState: boolean, withStory = true): string {
     let story = "";
     try {
-      story = omitDeltaState
-        ? this._story.state.ToJsonWithoutCounts()
-        : this._story.state.toJson();
+      const program = this.programStory;
+      if (!withStory) {
+        story = "";
+      } else if (program) {
+        // The program engine's durable save of the current beat.
+        story = program.toSave(this._version);
+      } else {
+        story = omitDeltaState
+          ? this._story.state.ToJsonWithoutCounts()
+          : this._story.state.toJson();
+      }
     } catch (e: any) {
       this.Error(e.message, ErrorType.Error);
     }
@@ -1833,7 +1878,14 @@ export class Game<T extends M = {}> {
         // dropping the text and the `display()` table that decide how the
         // beat is displayed.
         this.discardOpenStoryLine();
-        this._story.state.LoadJson(saveData.story);
+        const program = this.programStory;
+        if (program) {
+          // A durable save, placed in this program or refused, naming the
+          // flow (`SaveRefused`).
+          program.loadSave(saveData.story);
+        } else {
+          this._story.state.LoadJson(saveData.story);
+        }
         this.restoreReactiveTracking();
       }
       if (saveData.runtime) {
@@ -1848,6 +1900,42 @@ export class Game<T extends M = {}> {
       this.log(e, "error");
     }
     return false;
+  }
+
+  /**
+   * Restores checkpoint `index` in place: the story's image of the beat, and
+   * the module state and runtime collections saved beside it. Within a
+   * session an image taken before a compile restores after it for every
+   * statement the compile kept; one that names a statement it emitted again
+   * is unplaced, and nothing changes, so that the caller replays
+   * (docs/engine/binary-program.md, sections 7 and 8). A checkpoint of the
+   * current engine loads from its full save.
+   */
+  restoreCheckpoint(index: number): boolean {
+    const entry = this._checkpoints.imageAt(index);
+    const story = this.programStory;
+    if (!entry || !story) {
+      const json = this._checkpoints.getJson(index);
+      return json ? this.load(json) : false;
+    }
+    this.cancelPreview();
+    this.discardOpenStoryLine();
+    if (!story.restore(entry.image as ProgramImage)) {
+      return false;
+    }
+    this.restoreReactiveTracking();
+    const saveData = entry.save as SaveData;
+    for (const k of this._moduleNames) {
+      this._modules[k]?.load(saveData.modules[k]);
+    }
+    if (saveData.runtime) {
+      this._runtimeState = RuntimeState.fromJSON(saveData.runtime);
+    }
+    if (saveData.simulatedFrom) {
+      this._simulation = "success";
+      this._simulatePath = saveData.simulatedFrom;
+    }
+    return true;
   }
 
   async onReceive(
