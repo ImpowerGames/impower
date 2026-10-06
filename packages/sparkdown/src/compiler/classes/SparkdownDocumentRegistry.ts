@@ -3,13 +3,12 @@ Range,
 TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 
-import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
-
 import { type ChangeSpec, Text } from "@codemirror/state";
-import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type ChangedRange, Tree, TreeFragment } from "@lezer/common";
 import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
+import { createSparkdownParser } from "../utils/createSparkdownParser";
 import { profile } from "../utils/profile";
 import {
   type SparkdownAnnotatorConfigs,
@@ -35,9 +34,7 @@ interface TextDocumentState {
 }
 
 export class SparkdownDocumentRegistry {
-  protected _parser: TextmateGrammarParser = new TextmateGrammarParser(
-    GRAMMAR_DEFINITION,
-  );
+  protected _parser: TextmateGrammarParser = createSparkdownParser();
   get parser() {
     return this._parser;
   }
