@@ -298,6 +298,10 @@ interface ChunkInfo {
   /** The locals each function the statement writes declares at its entry
    *  (`hoistedOf`). */
   hoisted: string;
+  /** Whether the statement stands in a body or in a flow or a declaration
+   *  sequence, which decides the source range the compile gives it
+   *  (`placementOf`). */
+  placement: string;
   /** The parameters the entry of each function the statement writes or runs
    *  in place binds (`paramsOf`). */
   params: string;
@@ -537,6 +541,7 @@ export class ChunkStore {
         statements.push(statement);
         if (owner) {
           owners.set(statement, owner);
+          this._inBody.add(statement);
         }
         collectBodies(statement);
       }
@@ -1290,10 +1295,22 @@ export class ChunkStore {
     this._plans.set(statement, plan);
     const functions = bodies.flatMap((body, k) => (body.fn ? [k] : []));
     if (statement.defines !== undefined) {
+      // A function declared at the top level is the part its name names,
+      // which its symbol goes with; its body goes with it too when the
+      // definition is emitted again in place, as when its header is edited,
+      // as a body goes with the part that heads it (section 2).
       const symbol = internSymbol(this.table, statement.defines);
-      for (const k of functions) {
+      const inherited = this._inherit.get(statement);
+      const old = inherited ? this._info.get(inherited) : undefined;
+      const oldParts = old?.defines === statement.defines ? old.parts : [];
+      functions.forEach((k, i) => {
         plan.symbols[k] = symbol;
-      }
+        const part = oldParts[i];
+        if (part) {
+          plan.oldBlocks[k] = part.block;
+          plan.how[k] = "aligned";
+        }
+      });
     } else if (chunk) {
       const parts = this._info.get(chunk)?.parts ?? [];
       functions.forEach((k, i) => {
@@ -1571,6 +1588,7 @@ export class ChunkStore {
       heads: headed.map((k, i) => ({ fingerprint: headPrints[i]!, block: k })),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
       hoisted: hoistedOf(statement),
+      placement: this.placementOf(statement),
       params: paramsOf(statement),
       generation: this.table.generation,
     });
@@ -2550,6 +2568,20 @@ export class ChunkStore {
     );
   }
 
+  /** Where a statement stands, which the chunk it keeps must have been
+   *  emitted for: in a body, or in a flow or a declaration sequence. The
+   *  compile gives a statement of a flow the source range of its lowered
+   *  block and a statement of a body the range of its first object, and the
+   *  first row of a chunk's line table is that range, so a statement an edit
+   *  moves into a body or out of one, with its text and column as they were,
+   *  is emitted again as a cold compile emits it there. */
+  protected placementOf(statement: StatementSource): string {
+    return this._inBody.has(statement) ? "body" : "sequence";
+  }
+
+  // The statements of the build in progress that stand in a body.
+  protected _inBody = new WeakSet<StatementSource>();
+
   // The values each statement of the build in progress reads as, and each
   // chunk recorded (`statementValues`, `chunkValues`).
   protected _statementValues = new WeakMap<StatementSource, string>();
@@ -2571,6 +2603,7 @@ export class ChunkStore {
         assignedNames(statement) ?? null,
         statement.defines ?? null,
         hoistedOf(statement),
+        this.placementOf(statement),
         paramsOf(statement),
         compilerNamedTexts(statement.objects, exclude),
         resolutionsOf([...statement.objects, ...hoistedLocals(statement)], exclude),
@@ -2598,6 +2631,7 @@ export class ChunkStore {
         info.globals ?? null,
         info.defines ?? null,
         info.hoisted,
+        info.placement,
         info.params,
         info.emitReads,
         info.resolutions,

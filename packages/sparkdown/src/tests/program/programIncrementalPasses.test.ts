@@ -444,6 +444,36 @@ describe("a hazard of reuse", () => {
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
   });
 
+  it("a function declared at the top level keeps its body's id when its header is edited", () => {
+    const text = [
+      "scene MAIN",
+      "  Got {bump(1)}.",
+      "end",
+      "",
+      "function bump(x)",
+      "  local y = x + 1",
+      "  return y",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const before = s.root;
+    const definition = before.flowNamed("bump")!.arrays.chunks[0]!;
+    const body = blockField(definition, 0, B_SEQUENCE);
+    const statements = [...before.sequence(body)!.arrays.chunks];
+    const after = s.edit("function bump(x)", "function bump(x, z)")!;
+    const edited = after.flowNamed("bump")!.arrays.chunks[0]!;
+    expect(edited).not.toBe(definition);
+    expect(blockField(edited, 0, B_SEQUENCE)).toBe(body);
+    expect(s.store.handedOnLastBuild).toEqual([
+      { sequenceId: body, part: "function", how: "aligned" },
+    ]);
+    // The body's statements read the parameters they did, and keep their
+    // chunks; the call reads the parameters, and is emitted again.
+    expect([...after.sequence(body)!.arrays.chunks]).toEqual(statements);
+    expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
+  });
+
   it("a reference whose target moved emits nothing again", () => {
     const text = [
       "scene MAIN",
