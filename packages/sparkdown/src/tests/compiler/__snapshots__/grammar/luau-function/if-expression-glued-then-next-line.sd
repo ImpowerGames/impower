@@ -1,0 +1,23 @@
+function f(c, ...)
+  local a = if (c)then
+    1
+  else 2
+  local b = if "a"then
+    2
+  else 3
+  local d = if ...then
+    3
+  else
+    4
+  local e = if @/x/githen
+    5
+  elseif (c)then
+    6
+  else 7
+  local g = if c[1]then -x else -1
+  local h = if (c)then
+  return a
+end
+
+local s = if (c)then
+local t = 1

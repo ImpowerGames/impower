@@ -32,6 +32,7 @@ import {
   buildOrderedDisplayCall,
 } from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
+import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -207,6 +208,12 @@ export function lowerChoice(
 
   const choice = new Choice(startContent, choiceOnlyContent, innerContent);
   choice.startEcho = echo?.startEcho ?? null;
+  if (choice.startEcho) {
+    choice.startEcho.choice = choice;
+  }
+  // The choice's own source, which its count symbol and its body are
+  // aligned by when its `choose` statement is emitted again.
+  recordAlternatorSource(ctx, choice, nodeRef.node);
   choice.repeatsStartContent = echo?.repeatsStartContent ?? true;
   choice.onceOnly = onceOnly;
   choice.hasWeaveStyleInlineBrackets = hasWeaveStyleInlineBrackets;

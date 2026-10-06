@@ -305,15 +305,15 @@ sparkdown [0..297]
  │   │       │       │       │       │   │       └─ LuauSparkdownExplicitTernaryExpressionCondition_end_c2 91
  │   │       │       │       │       │   ├─ LuauSparkdownExplicitThenExpression [91..99]
  │   │       │       │       │       │   │   ├─ LuauSparkdownExplicitThenExpression_begin 91
- │   │       │       │       │       │   │   │   └─ LuauSparkdownExplicitThenExpression_begin_c1 91
  │   │       │       │       │       │   │   ├─ LuauSparkdownExplicitThenExpression_content [91..99]
  │   │       │       │       │       │   │   │   ├─ LuauSparkdownExplicitThenOperator [91..96]
  │   │       │       │       │       │   │   │   │   ├─ LuauSparkdownExplicitThenOperator_begin [91..96]
  │   │       │       │       │       │   │   │   │   │   ├─ LuauSparkdownExplicitThenOperator_begin_c1 [91..95]
  │   │       │       │       │       │   │   │   │   │   │   └─ LuauThenKeyword [91..95]: "then"
- │   │       │       │       │       │   │   │   │   │   └─ LuauSparkdownExplicitThenOperator_begin_c2 [95..96]
- │   │       │       │       │       │   │   │   │   │       └─ LuauSparkdownExplicitThenOperator_begin_c2 [95..96]
- │   │       │       │       │       │   │   │   │   │           └─ OptionalWhitespace [95..96]: " "
+ │   │       │       │       │       │   │   │   │   │   ├─ LuauSparkdownExplicitThenOperator_begin_c2 [95..96]
+ │   │       │       │       │       │   │   │   │   │   │   └─ LuauSparkdownExplicitThenOperator_begin_c2 [95..96]
+ │   │       │       │       │       │   │   │   │   │   │       └─ OptionalWhitespace [95..96]: " "
+ │   │       │       │       │       │   │   │   │   │   └─ LuauSparkdownExplicitThenOperator_begin_c3 96
  │   │       │       │       │       │   │   │   │   └─ LuauSparkdownExplicitThenOperator_end 96
  │   │       │       │       │       │   │   │   └─ LuauSparkdownExplicitAccessPath [96..99]
  │   │       │       │       │       │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 96

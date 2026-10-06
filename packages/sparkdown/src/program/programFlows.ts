@@ -176,6 +176,15 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
           close();
           block = owner;
         }
+        if (obj instanceof Weave && obj.isChooseBlock && obj.assembledFrom) {
+          // A `choose` block that ends its chunk: the assembly placed a weave
+          // of its own in place of the block's, which goes on to hold the
+          // content of the chunks after it, as statements after the block.
+          // The block's statement is the weave its chunk lowered.
+          objects.push(obj.assembledFrom);
+          visit(obj.content.slice(obj.assembledFrom.content.length));
+          return;
+        }
         objects.push(...(obj instanceof Statement ? obj.content : [obj]));
       });
     };

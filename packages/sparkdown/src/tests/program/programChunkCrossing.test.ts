@@ -622,28 +622,34 @@ describe("statements whose recorded values an edit changes", () => {
   });
 
   it("are emitted again in lookups linear in their number when their functions' hoisted locals change", () => {
-    const n = 128;
-    const section = (name: string) =>
-      ["f = function()", `  function ${name}() return 7 end`, "  return 2", "end"].join("\n");
-    const text = ["store f = nil", ...Array(n).fill(section("g")), "done", ""].join("\n");
-    const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
-    expect(c.compile().program.fallback).toBeUndefined();
-    const count = counted(c);
-    const document = c.compiler.documents.get(MAIN_URI)!;
-    c.compiler.updateDocument({
-      textDocument: { uri: MAIN_URI, version: 2 },
-      contentChanges: [
-        {
-          range: {
-            start: document.positionAt(text.indexOf("f = function()")),
-            end: document.positionAt(text.lastIndexOf("done")),
+    // The lookups of the whole compile, at n and 2n assignments: doubling
+    // the assignments at most doubles them, with room for constant work.
+    const lookupsFor = (n: number) => {
+      const section = (name: string) =>
+        ["f = function()", `  function ${name}() return 7 end`, "  return 2", "end"].join("\n");
+      const text = ["store f = nil", ...Array(n).fill(section("g")), "done", ""].join("\n");
+      const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+      expect(c.compile().program.fallback).toBeUndefined();
+      const count = counted(c);
+      const document = c.compiler.documents.get(MAIN_URI)!;
+      c.compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version: 2 },
+        contentChanges: [
+          {
+            range: {
+              start: document.positionAt(text.indexOf("f = function()")),
+              end: document.positionAt(text.lastIndexOf("done")),
+            },
+            text: Array(n).fill(section("h")).join("\n") + "\n",
           },
-          text: Array(n).fill(section("h")).join("\n") + "\n",
-        },
-      ],
-    });
-    expect(c.compile().program.fallback).toBeUndefined();
-    expect(count.lookups).toBeLessThan(40 * n);
+        ],
+      });
+      expect(c.compile().program.fallback).toBeUndefined();
+      return count.lookups;
+    };
+    const small = lookupsFor(64);
+    const large = lookupsFor(128);
+    expect(large).toBeLessThan(2.5 * small);
   });
 });
 
@@ -820,6 +826,8 @@ describe("block statements an edit reorders", () => {
           anonymousReferences: [],
           hoisted: "",
           params: "",
+          choices: [],
+          thenBlocks: [],
           generation: this.table.generation,
         });
         return chunk;

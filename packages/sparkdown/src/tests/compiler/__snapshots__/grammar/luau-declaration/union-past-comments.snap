@@ -979,15 +979,15 @@ sparkdown [0..492]
  │   │       │   │   │       │   │       └─ LuauTernaryExpressionCondition_end_c2 379
  │   │       │   │   │       │   ├─ LuauThenExpression [379..392]
  │   │       │   │   │       │   │   ├─ LuauThenExpression_begin 379
- │   │       │   │   │       │   │   │   └─ LuauThenExpression_begin_c1 379
  │   │       │   │   │       │   │   ├─ LuauThenExpression_content [379..392]
  │   │       │   │   │       │   │   │   ├─ LuauThenOperator [379..390]
  │   │       │   │   │       │   │   │   │   ├─ LuauThenOperator_begin [379..383]
  │   │       │   │   │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [379..383]
  │   │       │   │   │       │   │   │   │   │   │   └─ LuauThenKeyword [379..383]: "then"
- │   │       │   │   │       │   │   │   │   │   └─ LuauThenOperator_begin_c2 383
- │   │       │   │   │       │   │   │   │   │       └─ LuauThenOperator_begin_c2 383
- │   │       │   │   │       │   │   │   │   │           └─ OptionalWhitespace 383
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 383
+ │   │       │   │   │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 383
+ │   │       │   │   │       │   │   │   │   │   │       └─ OptionalWhitespace 383
+ │   │       │   │   │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 383
  │   │       │   │   │       │   │   │   │   ├─ LuauThenOperator_content [383..390]
  │   │       │   │   │       │   │   │   │   │   ├─ Newline [383..384]: "\n"
  │   │       │   │   │       │   │   │   │   │   └─ ExtraWhitespace [384..390]: "      "

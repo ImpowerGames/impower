@@ -55,9 +55,7 @@ export const B_BREAK = 2;
 export const B_SCOPES_FLAGS = 3;
 export const B_HEAD_LINES = 4;
 
-/** A block row's flag for a loop's body, which a `Leave` stops at. The flags
- *  a choice's body and a `then` clause take (section 1) come with the slices
- *  that emit them. */
+/** A block row's flag for a loop's body, which a `Leave` stops at. */
 export const BLOCK_LOOP = 1;
 /** A block row's flag for a loop body that runs each pass in a scope of its
  *  own, as a `while` body does: the owner opens the scope right before
@@ -68,6 +66,11 @@ export const BLOCK_PASS_SCOPE = 2;
  *  enters after binding its parameters (section 10). The owner resumes after
  *  the body at the function's return of nothing. */
 export const BLOCK_FUNCTION = 4;
+/** A block row's flag for a choice's body, which the choice's entry code
+ *  enters (section 4). */
+export const BLOCK_CHOICE = 8;
+/** A block row's flag for a `choose` block's `then` clause. */
+export const BLOCK_THEN = 16;
 export const BLOCK_FLAGS_MASK = 0xff;
 export const BLOCK_SCOPE_SHIFT = 8;
 

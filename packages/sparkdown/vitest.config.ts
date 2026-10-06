@@ -12,6 +12,8 @@ const DIFFERENTIAL = "src/tests/differential/**";
 const ON_PROGRAM_ENGINE = [
   "src/tests/luau-conformance/**/*.test.ts",
   "src/tests/runtime/LoopNewlinesInString.test.ts",
+  "src/tests/runtime/ChooseBlockEnd.test.ts",
+  "src/tests/runtime/Choices.test.ts",
 ];
 const differential = process.env["SPARKDOWN_DIFFERENTIAL"] === "1";
 

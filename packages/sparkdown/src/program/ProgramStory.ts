@@ -21,6 +21,7 @@ import {
   callValueAsFunction,
   callVariableTarget,
   captureString,
+  captureTag,
   extractClosureTarget,
   indexValue,
   isFunctionReference,
@@ -71,6 +72,13 @@ import {
   CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
   CALL_TUNNEL,
+  CHOICE_CONDITION,
+  CHOICE_DECISION,
+  CHOICE_INVISIBLE_DEFAULT,
+  CHOICE_ONCE,
+  CHOICE_ONLY,
+  CHOICE_START,
+  DONE_HOLD,
   COUNT_TURNS,
   ConstValue,
   JUMP_DECISION,
@@ -95,6 +103,7 @@ import {
   isAnonymousSymbol,
 } from "./ProgramSymbols";
 import {
+  ProgramChoice,
   ProgramStoryState,
   blockStackOf,
   type BlockEntry,
@@ -188,9 +197,10 @@ interface SuspendedStep {
  * instructions, run a preview compile's program and evaluate a function
  * (`HasFunction`, `EvaluateFunction`), and the members the builtins read
  * (`CallLuauFunction`, `CallLuauFunctionProtected`, `CallStackTrace`, ...),
- * under the same names. What it does not present yet belongs to later slices
- * of #692: choices (#697), images and saves across compiles (#699), addresses
- * (#700) and the debugger (#702).
+ * under the same names, and the choices a `choose` block raises
+ * (`currentChoices`, `ChooseChoiceIndex`). What it does not present yet
+ * belongs to later slices of #692: images and saves across compiles (#699),
+ * addresses (#700) and the debugger (#702).
  *
  * Each engine keeps its own copy of the current engine's story of the same
  * compile (`ProgramRoot.runtimeStory`, `Story.CopyWithOwnState`), which runs
@@ -304,8 +314,17 @@ export class ProgramStory {
     return this._state.currentDisplayInstructions;
   }
 
-  get currentChoices(): never[] {
-    return [];
+  /** The choices waiting to be taken, without the invisible defaults, each
+   *  with its index among them (`Story.currentChoices`). */
+  get currentChoices(): ProgramChoice[] {
+    const choices: ProgramChoice[] = [];
+    for (const choice of this._state.currentChoices) {
+      if (!choice.isInvisibleDefault) {
+        choice.index = choices.length;
+        choices.push(choice);
+      }
+    }
+    return choices;
   }
 
   get continueShowedSomething(): boolean {
@@ -428,6 +447,8 @@ export class ProgramStory {
     if (resetCallstack) {
       this.ResetCallstack();
     }
+    // Changing direction drops the choices waiting (`SetChosenPath`).
+    this._state.generatedChoices.length = 0;
     this._state.DiscardLineEnd();
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
@@ -441,7 +462,51 @@ export class ProgramStory {
   }
 
   ChooseChoiceIndex(choiceIdx: number): void {
-    throw new Error(`choice out of range: ${choiceIdx}`);
+    const choices = this.currentChoices;
+    if (choiceIdx < 0 || choiceIdx >= choices.length) {
+      throw new Error("choice out of range");
+    }
+    this.ChooseChoice(choices[choiceIdx]!);
+  }
+
+  /** Takes a choice (`Story.ChooseChoice`): the story runs on from the
+   *  choice's entry in the thread it was raised in, a new turn, and the flows
+   *  the entry is in that the flow last run in is not are counted
+   *  (docs/engine/binary-program.md, section 5). */
+  ChooseChoice(choice: ProgramChoice): void {
+    if (this.onMakeChoice !== null) this.onMakeChoice(choice);
+    const left = this._state.previousFlow;
+    // What a choice leads to starts a new box, so no line before the choice
+    // is one a `..` after it joins.
+    this._state.lineJoinable = false;
+    this.takeChoice(choice, left, true);
+  }
+
+  /** Runs on from `choice`'s entry, counting the flows it enters from the
+   *  flow `left`, in a new turn when `newTurn` is set. */
+  protected takeChoice(choice: ProgramChoice, left: number, newTurn: boolean): void {
+    const state = this._state;
+    this._stateIsPristine = false;
+    state.TakeChoice(choice);
+    if (newTurn) {
+      state.currentTurnIndex += 1;
+    }
+    this.countEntered(choice.target.sequence, left);
+  }
+
+  /** Takes the first choice when every choice waiting is an invisible
+   *  default, as the current engine does when the flow can no longer
+   *  continue (`Story.TryFollowDefaultInvisibleChoice`): in the same turn,
+   *  entered from the flow it was raised in. */
+  protected tryFollowDefaultInvisibleChoice(): boolean {
+    const all = this._state.currentChoices;
+    const invisible = all.filter((choice) => choice.isInvisibleDefault);
+    if (invisible.length === 0 || all.length > invisible.length) {
+      return false;
+    }
+    const choice = invisible[0]!;
+    this.takeChoice(choice, choice.previousFlow, false);
+    return true;
   }
 
   /** Whether a scene or a function declared at the top level has the name,
@@ -989,6 +1054,29 @@ export class ProgramStory {
 
     this._recursiveContinueCount--;
     this.reportErrors();
+    // A route simulation takes the choice its route forces at the menu, as
+    // the current engine does, asked by the address of the instruction that
+    // stopped the flow.
+    const running = this._running;
+    if (
+      this.simulator &&
+      running &&
+      !this.canContinue &&
+      state.currentChoices.length > 0
+    ) {
+      const chunk = running.sequence.arrays.chunks[running.entry];
+      if (chunk) {
+        const forcedSource = this.simulator.forceChoice(
+          ProgramStory.addressOf(chunk, running.offset),
+        );
+        const forced = state.currentChoices.find(
+          (choice) => choice.sourcePath === forcedSource,
+        );
+        if (forced) {
+          this.ChooseChoice(forced);
+        }
+      }
+    }
   }
 
   /** Hands the errors and warnings the continue raised to `onError`, or
@@ -1030,6 +1118,9 @@ export class ProgramStory {
     if (state.outputCut !== null) {
       if (this.canContinue) return true;
       state.CloseOutputCut();
+    }
+    if (!this.canContinue && !state.callStack.elementIsEvaluateFromGame) {
+      this.tryFollowDefaultInvisibleChoice();
     }
     return !state.inStringEvaluation && state.outputStreamEndsInNewline;
   }
@@ -1118,10 +1209,95 @@ export class ProgramStory {
     }
   }
 
-  // Whether the instruction at `offset` is a decision.
+  // Whether the instruction at `offset` is a decision: a conditional's jump,
+  // or a choice with a condition.
   protected pausesAt(chunk: StatementChunk, offset: number): boolean {
     const w0 = chunk[HEADER_WORDS + offset]!;
-    return opOf(w0) === Op.JumpIfFalse && (flagsOf(w0) & JUMP_DECISION) !== 0;
+    const op = opOf(w0);
+    return (
+      (op === Op.JumpIfFalse && (flagsOf(w0) & JUMP_DECISION) !== 0) ||
+      (op === Op.Choice && (flagsOf(w0) & CHOICE_DECISION) !== 0)
+    );
+  }
+
+  /**
+   * `Choice` (`Story.ProcessChoice`): pops the condition, the choice-only
+   * text and the start text, each with the tags below it, as the flags say,
+   * and raises a choice unless the condition is false or a once-only
+   * choice's count, the symbol of the `Visit` its entry opens with, is not
+   * zero. The choice holds a copy of the current thread, its entry `arg`
+   * words past the instruction (the position has moved past it), and the
+   * blocks the entry is inside; its identity is the instruction's address.
+   */
+  protected raiseChoice(
+    chunk: StatementChunk,
+    position: ProgramPosition,
+    flags: number,
+    arg: number,
+  ): void {
+    const state = this._state;
+    const at = position.offset - 2;
+    let show = true;
+    if (flags & CHOICE_CONDITION) {
+      if (flags & CHOICE_DECISION && this.simulator) {
+        const forced = this.simulator.forceCondition(
+          ProgramStory.addressOf(chunk, at),
+        );
+        // A null verdict means the route says nothing about this choice, so
+        // the evaluated value stands.
+        if (forced != null) {
+          state.PopEvaluationStack();
+          state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+        }
+      }
+      const value = state.PopEvaluationStack();
+      const truthy = this.isTruthy(value);
+      if (this.onEvaluateCondition) {
+        this.onEvaluateCondition(truthy);
+      }
+      if (!truthy) {
+        show = false;
+      }
+    }
+    const tags: string[] = [];
+    const choiceOnly = flags & CHOICE_ONLY ? this.popChoiceText(tags) : "";
+    const start = flags & CHOICE_START ? this.popChoiceText(tags) : "";
+    const entry = position.offset + arg;
+    if (flags & CHOICE_ONCE) {
+      const w0 = chunk[HEADER_WORDS + entry];
+      if (w0 === undefined || opOf(w0) !== Op.Visit) {
+        this.Error("A choice's entry does not count it.");
+      }
+      if (state.VisitCount(this.countId(chunk[HEADER_WORDS + entry + 1]!)) > 0) {
+        show = false;
+      }
+    }
+    if (!show) {
+      return;
+    }
+    const choice = new ProgramChoice(
+      { sequence: position.sequence, entry: position.entry, offset: entry },
+      state.blockStack.slice(),
+      chunk,
+      position.sequence.flow,
+    );
+    choice.sourcePath = ProgramStory.addressOf(chunk, at);
+    choice.isInvisibleDefault = (flags & CHOICE_INVISIBLE_DEFAULT) !== 0;
+    choice.threadAtGeneration = state.ForkChoiceThread();
+    choice.tags = tags.reverse();
+    choice.text = this.CleanOutputWhitespace(start + choiceOnly);
+    state.generatedChoices.push(choice);
+  }
+
+  /** Pops a choice's captured text, and the tags below it into `tags`
+   *  (`Story.PopChoiceStringAndTags`). */
+  protected popChoiceText(tags: string[]): string {
+    const state = this._state;
+    const text = asOrThrows(state.PopEvaluationStack(), StringValue);
+    while (state.PeekEvaluationStack() instanceof Tag) {
+      tags.push((state.PopEvaluationStack() as Tag).text);
+    }
+    return text.value ?? "";
   }
 
   /** Runs the instruction at the position, which `fetch` found in `chunk`. */
@@ -1151,7 +1327,12 @@ export class ProgramStory {
         state.PushToOutputStream(ControlCommand.BeginTag());
         break;
       case Op.EndTag:
-        state.PushToOutputStream(ControlCommand.EndTag());
+        if (state.inStringEvaluation) {
+          // A tag inside a choice's text goes with the choice.
+          captureTag(this, (text) => this.CleanOutputWhitespace(text));
+        } else {
+          state.PushToOutputStream(ControlCommand.EndTag());
+        }
         break;
       case Op.Out: {
         // Functions may evaluate to Void, in which case nothing is output.
@@ -1335,7 +1516,18 @@ export class ProgramStory {
         );
         break;
       case Op.Done:
+        // The end of a `choose` block's presentation stops only for a choice
+        // the block raised.
+        if (
+          flags & DONE_HOLD &&
+          !state.generatedChoices.some((choice) => choice.chunk === chunk)
+        ) {
+          break;
+        }
         this.done();
+        break;
+      case Op.Choice:
+        this.raiseChoice(chunk, position, flags, arg);
         break;
       case Op.End:
         state.ForceEnd();
@@ -1754,6 +1946,7 @@ export class ProgramStory {
     state.didSafeExit = true;
   }
 
+
   /** Moves to `target` in the current frame (docs/engine/binary-program.md,
    *  section 5): the frame's block stack is rebuilt from the root's sequence
    *  and chunk tables, and its scope depth becomes the target's. The scopes
@@ -1800,7 +1993,12 @@ export class ProgramStory {
       if (chunk) {
         scopes += scopesBefore(chunk, target.offset);
       }
-      while (frame.temporaryScopes.length < scopes) {
+      // The scopes past the shared blocks are opened. A shared block's count
+      // is the most its owner can have open, which a `choose` block's entry
+      // has fewer of when a branch gating an earlier choice did not run
+      // (section 4): the frame's own are kept as they are, and no empty one
+      // is opened in their place, as the current engine opens none.
+      for (let open = kept; open < scopes; open += 1) {
         frame.PushScope();
       }
     }

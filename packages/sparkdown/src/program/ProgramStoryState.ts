@@ -20,7 +20,13 @@ import {
 } from "../inkjs/engine/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { UNDEFINED_KIND, countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
-import { BLOCK_FUNCTION, blockFlags, chunkId } from "./StatementChunk";
+import {
+  BLOCK_FUNCTION,
+  blockFlags,
+  chunkId,
+  type StatementChunk,
+} from "./StatementChunk";
+import { Choice } from "../inkjs/engine/Choice";
 
 /** Where the engine stands: an entry of a sequence and an offset into that
  *  entry's code. An offset past the end of a chunk's code is the start of the
@@ -84,6 +90,24 @@ interface SuspendedThread {
   position: ProgramPosition | null;
   blocks: BlockEntry[];
   previousFlow: number;
+}
+
+/** A choice the program engine raised (`Choice`): as the current engine's
+ *  choice, with its text, tags, index, whether it is an invisible default and
+ *  the thread it holds, and in place of paths, the address of its `Choice`
+ *  instruction as `sourcePath`, its identity (docs/engine/binary-program.md,
+ *  section 4), and where it leads: its entry, the blocks the entry is inside,
+ *  and the chunk that raised it. `previousFlow` is the flow the choice was
+ *  raised in, which an invisible default taken by itself is entered from. */
+export class ProgramChoice extends Choice {
+  constructor(
+    readonly target: ProgramPosition,
+    readonly blocks: BlockEntry[],
+    readonly chunk: StatementChunk,
+    readonly previousFlow: number,
+  ) {
+    super();
+  }
 }
 
 /** The turn a count id that was never visited holds. */
@@ -365,13 +389,42 @@ export class ProgramStoryState {
     this._raisedWarnings = [];
   }
 
-  // Choices are not emitted yet, so none is ever raised.
-  get currentChoices(): never[] {
-    return [];
+  /** The choices raised and waiting, in the order they were raised; none
+   *  while the story can continue, since choices come at the end of a
+   *  continue (`StoryState.currentChoices`). */
+  get currentChoices(): ProgramChoice[] {
+    return this.canContinue ? [] : this.generatedChoices;
   }
 
-  get generatedChoices(): never[] {
-    return [];
+  /** Every choice raised since the last one was taken. */
+  generatedChoices: ProgramChoice[] = [];
+
+  /** A copy of the current thread, frames and temporaries included, for a
+   *  choice to hold: taking the choice runs on in it
+   *  (`CallStack.ForkThread`). */
+  ForkChoiceThread(): CallStack.Thread {
+    const original = this.callStack.currentThread;
+    const fork = this.callStack.ForkThread();
+    original.callstack.forEach((element, i) => {
+      const frame = this._frames.get(element);
+      const copy = fork.callstack[i];
+      if (frame && copy) {
+        this._frames.set(copy, copyFrame(frame));
+      }
+    });
+    return fork;
+  }
+
+  /** Makes the thread a choice holds the only thread, and clears the
+   *  choices: the story runs on in the thread the choice was raised in
+   *  (`Story.ChooseChoice`, `StoryState.SetChosenPath`). The choice's thread
+   *  is used once, since the choices are cleared with it. */
+  TakeChoice(choice: ProgramChoice): void {
+    this.callStack.currentThread = choice.threadAtGeneration!;
+    this.generatedChoices.length = 0;
+    this.position = { ...choice.target };
+    this.blockStack = choice.blocks.slice();
+    this.didSafeExit = false;
   }
 
   // The engine runs one flow at a time.
@@ -715,6 +768,7 @@ export class ProgramStoryState {
   ForceEnd(): void {
     this.callStack.Reset();
     this.DiscardLineEnd();
+    this.generatedChoices.length = 0;
     this.position = null;
     this.blockStack = [];
     this.previousFlow = -1;
@@ -934,7 +988,12 @@ export class ProgramStoryState {
    *  sequence alone. The blocks a position is inside are not written: they
    *  follow from its sequence. A position holds within a session, for as
    *  long as a root holds its chunk or, past the last statement, its
-   *  sequence. */
+   *  sequence. `ToJson` is the same, under the current engine's other name
+   *  for it (`StoryState.ToJson`). */
+  ToJson(): string {
+    return this.toJson();
+  }
+
   toJson(withCounts = true): string {
     const writer = new SimpleJson.Writer();
     JsonSerialisation.SetWriterAnchors(
@@ -987,6 +1046,35 @@ export class ProgramStoryState {
           this.writePreviousFlow(w, this._suspended.get(thread)?.previousFlow ?? -1);
           w.WriteProperty("frames", (fw) =>
             this.writeFrames(fw, thread.callstack),
+          );
+          w.WriteObjectEnd();
+        }
+        w.WriteArrayEnd();
+      });
+    }
+    // The choices waiting, each with what it shows, its identity, its entry
+    // and the frames of the thread it holds (`StoryState`'s `WriteChoice`).
+    if (this.generatedChoices.length > 0) {
+      writer.WriteProperty("choices", (w) => {
+        w.WriteArrayStart();
+        for (const choice of this.generatedChoices) {
+          w.WriteObjectStart();
+          w.WriteProperty("text", choice.text);
+          w.WriteProperty("tags", (tw) => {
+            tw.WriteArrayStart();
+            for (const tag of choice.tags ?? []) {
+              tw.Write(tag);
+            }
+            tw.WriteArrayEnd();
+          });
+          w.WriteProperty("sourcePath", choice.sourcePath);
+          w.WriteProperty("isInvisibleDefault", choice.isInvisibleDefault);
+          w.WritePropertyStart("target");
+          writePosition(w, choice.target);
+          w.WritePropertyEnd();
+          this.writePreviousFlow(w, choice.previousFlow);
+          w.WriteProperty("frames", (fw) =>
+            this.writeFrames(fw, choice.threadAtGeneration?.callstack ?? []),
           );
           w.WriteObjectEnd();
         }
@@ -1108,6 +1196,7 @@ export class ProgramStoryState {
       throw new Error("The save was not written by the program engine.");
     }
     this._noteChanged();
+    this.generatedChoices.length = 0;
     // A fresh identity registry for this load, as `StoryState.LoadJsonObj`
     // opens one: a table reference resolves against the tables this load
     // reads, never a previous load's.
@@ -1163,6 +1252,32 @@ export class ProgramStoryState {
       this.callStack.currentThread.callstack.length = 1;
     }
     this.readFrames(frames);
+    // Each waiting choice's thread is read as a thread of the stack, which
+    // the choice then holds apart from it.
+    const choices = Array.isArray(obj["choices"]) ? obj["choices"] : [];
+    for (const saved of choices as Record<string, any>[]) {
+      const target = this.placePosition(saved["target"]);
+      if (!target) {
+        continue;
+      }
+      this.callStack.PushThread();
+      const thread = this.callStack.currentThread;
+      thread.callstack.length = 1;
+      this.readFrames(Array.isArray(saved["frames"]) ? saved["frames"] : []);
+      this.callStack._threads.pop();
+      const choice = new ProgramChoice(
+        target,
+        this.blocksOf(target),
+        target.sequence.arrays.chunks[target.entry]!,
+        this.readPreviousFlow(saved),
+      );
+      choice.text = String(saved["text"] ?? "");
+      choice.tags = Array.isArray(saved["tags"]) ? saved["tags"].map(String) : [];
+      choice.sourcePath = String(saved["sourcePath"] ?? "");
+      choice.isInvisibleDefault = saved["isInvisibleDefault"] === true;
+      choice.threadAtGeneration = thread;
+      this.generatedChoices.push(choice);
+    }
     this.visits = new Uint32Array(0);
     this.turns = new Int32Array(0);
     this.ResetCountDeltaTracking();
