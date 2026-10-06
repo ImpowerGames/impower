@@ -14,7 +14,7 @@ Expected, all five PASS (the Playwright line names the executable it launched an
 
 ```
 PASS  disk headroom  — 61.5 GB free (need ~6 GB for a fresh worktree install)
-PASS  playwright chromium  — launches C:\...\ms-playwright\chromium-1228\chrome-win64\chrome.exe (pinned by the installed playwright)
+PASS  playwright chromium  — launches C:\...\ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-headless-shell.exe (pinned by the installed playwright)
 PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 PASS  node_modules  — esbuild and vitest both run

@@ -322,7 +322,9 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
 
 // Which Chromium the driver launches, and why. In order:
 //   1. IMPOWER_DRIVER_CHROMIUM, an explicit executable (refused if missing);
-//   2. the build the installed `playwright` pins (`chromium.executablePath()`);
+//   2. the build the installed `playwright` pins and would launch itself
+//      (`expected`: for a headless launch, its headless shell; see
+//      pinnedExecutable), then the pinned full build (`full`) when that differs;
 //   3. another chromium-N build in PLAYWRIGHT_BROWSERS_PATH: a sandbox can
 //      pre-install a revision other than the pinned one, and npm install
 //      skips the download (see CLAUDE.md), so the pinned one never arrives;
@@ -340,7 +342,7 @@ const CACHE_REL_PATHS = [
   "chrome-win64/chrome.exe",
   "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
 ];
-export function resolveChromium({ expected, env = process.env, platform = process.platform, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
+export function resolveChromium({ expected, full, env = process.env, platform = process.platform, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
   const p = platform === "win32" ? path.win32 : path.posix;
   const explicit = env.IMPOWER_DRIVER_CHROMIUM;
   if (explicit) {
@@ -350,6 +352,10 @@ export function resolveChromium({ expected, env = process.env, platform = proces
   if (expected && exists(expected)) return { executablePath: expected, source: "playwright", reason: "pinned by the installed playwright" };
   const missing = expected ? `pinned build ${expected} is missing` : "playwright names no pinned build";
   const looked = ["IMPOWER_DRIVER_CHROMIUM (unset)", expected ? `${expected} (pinned)` : "no pinned build"];
+  if (full && full !== expected) {
+    if (exists(full)) return { executablePath: full, source: "pinned-full", reason: `${missing}; using the pinned full build` };
+    looked.push(`${full} (pinned full build)`);
+  }
   const base = env.PLAYWRIGHT_BROWSERS_PATH;
   if (base) {
     looked.push(p.join(base, "chromium-*"));
@@ -387,10 +393,28 @@ let chromiumChoice;
 export function chromiumChoiceLine(choice = chromiumChoice) {
   return choice ? `${choice.executablePath} (${choice.reason})` : "not resolved";
 }
+// The executable Playwright itself launches. `chromium.executablePath()`
+// names the full build (`chromium-<rev>/chrome-<platform>/...`), but a
+// headless launch with no executablePath runs the separate headless shell,
+// `chromium_headless_shell-<rev>/chrome-headless-shell-<platform>/
+// chrome-headless-shell`, and that is the build a container can lack while
+// the full one is present (#1470). A layout this does not recognise keeps
+// the full build's path.
+export function pinnedExecutable(full, { headless, platform = process.platform } = {}) {
+  if (!headless || !full) return full;
+  const p = platform === "win32" ? path.win32 : path.posix;
+  const parts = full.split(/[\\/]/);
+  const i = parts.findIndex((s) => /^chromium-\d+$/.test(s));
+  const plat = i >= 0 ? parts[i + 1]?.match(/^chrome-(.+)$/) : null;
+  if (!plat) return full;
+  const exe = "chrome-headless-shell" + (platform === "win32" ? ".exe" : "");
+  return p.join(parts.slice(0, i).join(p.sep) || p.sep, parts[i].replace("chromium-", "chromium_headless_shell-"), `chrome-headless-shell-${plat[1]}`, exe);
+}
 // Callers spread `executablePath` into Playwright's launch options; undefined
 // keeps Playwright's own default, so the normal path is unchanged.
-function resolveChromiumExecutablePath(chromium) {
-  chromiumChoice = resolveChromium({ expected: chromium.executablePath() });
+function resolveChromiumExecutablePath(chromium, { headless } = {}) {
+  const full = chromium.executablePath();
+  chromiumChoice = resolveChromium({ expected: pinnedExecutable(full, { headless }), full });
   return chromiumChoice.source === "playwright" ? undefined : chromiumChoice.executablePath;
 }
 
@@ -727,7 +751,7 @@ async function preflight(args = []) {
   if (toolingOnly) console.log("SKIP  playwright chromium  — --tooling-only: nothing to boot");
   else try {
     const { chromium } = await importPlaywright();
-    const executablePath = resolveChromiumExecutablePath(chromium);
+    const executablePath = resolveChromiumExecutablePath(chromium, { headless: true });
     const b = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
     await b.close();
     say(true, "playwright chromium", `launches ${chromiumChoiceLine()}`);
@@ -839,7 +863,7 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   if (tooDeep) throw new Error(tooDeep);
   claimProfile(dir);
   const { chromium } = await playwright();
-  const executablePath = resolveChromiumExecutablePath(chromium);
+  const executablePath = resolveChromiumExecutablePath(chromium, { headless });
   log(`browser: ${chromiumChoiceLine()}`);
   return chromium.launchPersistentContext(dir, {
     headless,

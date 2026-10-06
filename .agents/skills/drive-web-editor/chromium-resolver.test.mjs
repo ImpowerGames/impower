@@ -7,7 +7,7 @@
 // Every case is an in-memory file layout; nothing is downloaded or launched.
 
 import assert from "node:assert/strict";
-import { resolveChromium } from "./driver.mjs";
+import { pinnedExecutable, resolveChromium } from "./driver.mjs";
 
 const PINNED = "/home/agent/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell";
 
@@ -62,6 +62,27 @@ function resolve(files, env = {}) {
   assert.equal(r.source, "explicit");
   assert.equal(r.executablePath, "/opt/my/chrome");
   assert.throws(() => resolve([PINNED], { IMPOWER_DRIVER_CHROMIUM: "/opt/missing" }), /IMPOWER_DRIVER_CHROMIUM.*\/opt\/missing/);
+}
+
+// A headless launch runs the pinned headless shell, not the full build that
+// chromium.executablePath() names, so that is the path checked first.
+{
+  const FULL = "/home/agent/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome";
+  assert.equal(pinnedExecutable(FULL, { headless: true, platform: "linux" }), PINNED);
+  assert.equal(pinnedExecutable(FULL, { headless: false, platform: "linux" }), FULL);
+  assert.equal(
+    pinnedExecutable("C:\\cache\\chromium-1228\\chrome-win64\\chrome.exe", { headless: true, platform: "win32" }),
+    "C:\\cache\\chromium_headless_shell-1228\\chrome-headless-shell-win64\\chrome-headless-shell.exe",
+  );
+  assert.equal(pinnedExecutable("/opt/odd/chrome", { headless: true, platform: "linux" }), "/opt/odd/chrome");
+  // Full build present, headless shell missing: the full build, said so.
+  const r = resolveChromium({ expected: PINNED, full: FULL, env: { PATH: "/usr/bin" }, platform: "linux", ...layout([FULL, "/usr/bin/chromium"]) });
+  assert.equal(r.source, "pinned-full");
+  assert.equal(r.executablePath, FULL);
+  assert.match(r.reason, /chromium_headless_shell-1228/);
+  // Both missing: on to the system build, and the failure names both.
+  assert.equal(resolveChromium({ expected: PINNED, full: FULL, env: { PATH: "/usr/bin" }, platform: "linux", ...layout(["/usr/bin/chromium"]) }).source, "system");
+  assert.throws(() => resolveChromium({ expected: PINNED, full: FULL, env: {}, platform: "linux", ...layout([]) }), (e) => e.message.includes(FULL) && e.message.includes(PINNED));
 }
 
 // Neither present: one clear line naming every place that was looked at.

@@ -300,7 +300,7 @@ async function pageHeapMB(page) {
 export function privateLaunch(deps, dir) {
   return async ({ headless }) => {
     const { chromium } = await deps.importPlaywright();
-    const executablePath = deps.resolveChromiumExecutablePath(chromium);
+    const executablePath = deps.resolveChromiumExecutablePath(chromium, { headless });
     if (deps.chromiumChoiceLine) deps.log(`browser: ${deps.chromiumChoiceLine()}`);
     return chromium.launchPersistentContext(dir, {
       headless,
