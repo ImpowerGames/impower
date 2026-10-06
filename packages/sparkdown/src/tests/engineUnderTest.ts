@@ -135,15 +135,13 @@ export function testCompiler(): SparkdownCompiler {
  * of a block's preamble gates and a choice inside a `do` block or a loop of a
  * block's preamble, which the writer leaves to the current engine (#697); an included script's top-level content, a `run`
  * statement's call among it, which the design leaves to the current engine
- * (docs/engine/binary-program.md, What is built); and an assignment the
- * parser left without its value, which the writer never emits.
+ * (docs/engine/binary-program.md, What is built).
  */
 const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
   "Choice",
   "a label between choices an if gates",
   "a choice inside a block of a presentation",
   "IncludedFile",
-  "an assignment without a value",
 ]);
 
 /** The story of a compile's `program.compiled`: on the program engine, the

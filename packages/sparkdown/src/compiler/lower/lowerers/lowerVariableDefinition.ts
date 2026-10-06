@@ -119,15 +119,14 @@ export function lowerVariableDefinition(
   //   unpack, authors should use a local intermediate.
   if (targets.length > 1) {
     if (scope === "local") {
-      // Bare multi-declaration (`local a, b` with no `= …`): give
-      // UnpackTuple one NullExpression to unpack — it pads the
-      // remaining slots with nil. With zero expressions it would pop
-      // whatever junk happened to be on the eval stack.
+      // No value (`local a, b`, or `local a, b =` whose value the parser
+      // could not read, which the type checker reports): give UnpackTuple
+      // one NullExpression to unpack — it pads the remaining slots with
+      // nil. With zero expressions it would pop whatever happened to be on
+      // the eval stack. The names are still declared, so the statements
+      // after them read and assign these locals.
       const multiExprs =
-        expressions.length === 0 && !hasEquals
-          ? [new NullExpression()]
-          : expressions;
-      if (multiExprs.length === 0) return {};
+        expressions.length === 0 ? [new NullExpression()] : expressions;
       // Each local hides a variadic function of its name for the rest of
       // its block, the statements after it on its line included.
       for (const target of targetIdentifiers) {
@@ -152,13 +151,17 @@ export function lowerVariableDefinition(
   // Single target. If there are multiple RHS expressions (`local x = a, b`),
   // Lua truncates to the first value.
   //
-  // Bare declaration (`local x` with no `= …`) is also handled here:
-  // we synthesize a `NullExpression` so the runtime gets a `NullValue`
-  // pushed before the `RuntimeVariableAssignment`. Without the
-  // synthetic init, the binding bytecode would pop whatever junk
-  // happened to be on the eval stack.
-  const expr = expressions[0] ?? (hasEquals ? null : new NullExpression());
+  // A local with no value (`local x`, or `local x =` whose value the
+  // parser could not read, which the type checker reports) gets a
+  // synthesized `NullExpression`, so the runtime gets a `NullValue` pushed
+  // before the `RuntimeVariableAssignment`. Without it, the binding
+  // bytecode would pop whatever happened to be on the eval stack, or
+  // nothing, and the local would hold no value at all. A `store` with no
+  // value is a global declaration, which the story initializes itself.
   const isTemp = scope === "local";
+  const expr =
+    expressions[0] ??
+    (isTemp || !hasEquals ? new NullExpression() : null);
   const va = new VariableAssignment({
     variableIdentifier: lastIdentifier,
     assignedExpression: expr ?? undefined,

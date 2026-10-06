@@ -1047,13 +1047,16 @@ describe("the fallback", () => {
     }
   });
 
-  it("names an assignment the parser left without its value", () => {
-    const { program } = compileScript("local a = \nHello.\n", { programChunks: true });
-    expect(program.fallback).toEqual({
-      construct: "an assignment without a value",
-      uri: MAIN_URI,
-      line: 0,
-    });
+  // A value the parser could not read is reported once by the compiler; the
+  // assignment assigns nothing and the local is declared nil, so the program
+  // emits the story and runs it as the current engine does (#1433).
+  it.each([
+    ["an assignment", "store x = 0\n& x =\nx is {x}.\n", ["x is 0.\n"]],
+    ["a compound assignment", "store x = 1\n& x +=\nx is {x}.\n", ["x is 1.\n"]],
+    ["a local", "local a = \nHello {a == nil}.\n", ["Hello true.\n"]],
+    ["several locals", "local a, b =\nb = 2\nHello {a == nil} {b}.\n", ["Hello true 2.\n"]],
+  ])("emits and runs %s the parser left without its value", (_name, text, beats) => {
+    expect(storyBeats(new ProgramStory(chunked(text))).beats.map((b) => b.text)).toEqual(beats);
   });
 
   // `MakeTable`'s pair count is the instruction's 32-bit operand.
