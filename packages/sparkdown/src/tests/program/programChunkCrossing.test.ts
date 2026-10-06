@@ -572,6 +572,55 @@ describe("statements whose recorded values an edit changes", () => {
     expect(describeRoot(after.chunks!)).toEqual(describeRoot(cold.compile().program.chunks!));
   });
 
+  it("build no identity during alignment for an inserted statement no old chunk reads as", () => {
+    // `Anchor.` keeps its chunk, and the inserted assignment reads `n`
+    // names, which building its identity would sort; no old chunk has its
+    // syntax, so alignment builds none.
+    const n = 512;
+    const text = "Anchor.\n";
+    const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+    expect(c.compile().program.fallback).toBeUndefined();
+    const names = Array.from({ length: n }, (_, k) => `v${String((k * 7919) % n).padStart(6, "0")}`);
+    const prototype = ChunkStore.prototype as unknown as {
+      align: (...args: unknown[]) => unknown;
+      statementValues: (...args: unknown[]) => unknown;
+    };
+    const { align, statementValues } = prototype;
+    let aligning = false;
+    let built = 0;
+    prototype.align = function (this: unknown, ...args: unknown[]) {
+      aligning = true;
+      try {
+        return align.apply(this, args);
+      } finally {
+        aligning = false;
+      }
+    };
+    prototype.statementValues = function (this: unknown, ...args: unknown[]) {
+      if (aligning && (args[0] as StatementSource).syntax().includes("items")) {
+        built += 1;
+      }
+      return statementValues.apply(this, args);
+    };
+    try {
+      c.compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version: 2 },
+        contentChanges: [
+          {
+            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+            text: `items = {${names.join(", ")}}\n`,
+          },
+        ],
+      });
+      expect(c.compile().program.fallback).toBeUndefined();
+    } finally {
+      prototype.align = align;
+      prototype.statementValues = statementValues;
+    }
+    expect(c.compiler.chunkStore!.emittedLastBuild).toBe(1);
+    expect(built).toBe(0);
+  });
+
   it("are emitted again in lookups linear in their number when their functions' hoisted locals change", () => {
     const n = 128;
     const section = (name: string) =>

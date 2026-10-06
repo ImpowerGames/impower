@@ -1295,9 +1295,19 @@ export class ChunkStore {
     // Whether the statement can keep the old chunk, whoever holds it now: the
     // two read the same in everything a kept chunk depends on
     // (`statementIdentity`, `chunkIdentity`), and the chunk's facts hold.
-    const fits = (i: number, o: number): boolean =>
-      this.chunkIdentity(old[o]!) === this.statementIdentity(statements[i]!) &&
-      factsHold(old[o]!);
+    // Syntax and lowering reads are compared first, so a statement's full
+    // identity is built only for a chunk it can match.
+    const fits = (i: number, o: number): boolean => {
+      const info = this._info.get(old[o]!);
+      const statement = statements[i]!;
+      return (
+        !!info &&
+        info.syntax === statement.syntax() &&
+        info.reads === statement.reads &&
+        this.chunkIdentity(old[o]!) === this.statementIdentity(statement) &&
+        factsHold(old[o]!)
+      );
+    };
     // Pairs a statement with an old chunk of its syntax: it keeps the chunk
     // when it can, and is otherwise emitted again in place, taking what
     // belongs to the old chunk's parts (`_inherit`).
@@ -1538,14 +1548,19 @@ export class ChunkStore {
     // filed again, and its identity, whose length grows with its bodies, is
     // not looked up again.
     const chunkLists = new Map<number, { free: number[]; held: Held } | null>();
+    // The syntax and lowering reads of the old chunks filed, so a statement
+    // that no old chunk reads as builds no identity.
+    const readAs = new Set<string>();
     const listOf = (o: number) => {
       const known = chunkLists.get(o);
       if (known !== undefined) {
         return known ?? undefined;
       }
+      const info = this._info.get(old[o]!);
       const identity = this.chunkIdentity(old[o]!);
       let lists: { free: number[]; held: Held } | undefined;
-      if (identity !== undefined && factsHold(old[o]!)) {
+      if (info && identity !== undefined && factsHold(old[o]!)) {
+        readAs.add(`${info.syntax}\u0000${info.reads}`);
         lists = byIdentity.get(identity);
         if (!lists) {
           lists = { free: [], held: { bySyntax: new Map(), bodied: [], alternating: [] } };
@@ -1602,7 +1617,11 @@ export class ChunkStore {
       }
       let lists = listsOf.get(i);
       if (!lists) {
-        lists = byIdentity.get(this.statementIdentity(statements[i]!));
+        const statement = statements[i]!;
+        if (!readAs.has(`${statement.syntax()}\u0000${statement.reads}`)) {
+          continue;
+        }
+        lists = byIdentity.get(this.statementIdentity(statement));
         if (lists) {
           listsOf.set(i, lists);
         }
