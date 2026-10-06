@@ -140,6 +140,22 @@ export const loopOf = new WeakMap<ParsedObject, LoopShape>();
 /** Whether a divert is a `break` or a `continue` of the innermost loop. */
 export const loopExitOf = new WeakMap<ParsedObject, "break" | "continue">();
 
+/** How many scoped blocks a `break` or `continue` closes before it leaves
+ *  (the `EndScope`s its lowering writes before the divert), by the divert. */
+export const loopExitUnwind = new WeakMap<ParsedObject, number>();
+
+/** The bodies of `do` blocks and loops that are not blocks of their
+ *  statement but its own code: a `choose` block's preamble raises the
+ *  choices they hold (`inlineChoiceBranches`). */
+export const inlinedBodies = new WeakSet<BodyShape>();
+
+/** The loop each `break` or `continue` leaves, for a loop whose body is its
+ *  statement's own code (`inlinedBodies`), by the divert. The writer jumps
+ *  within the chunk for one written in that body, and names one left in a
+ *  block of the statement (a choice's body, a `then` clause), which runs
+ *  after the loop has ended. */
+export const inlineExitOf = new WeakMap<ParsedObject, LoopShape>();
+
 // The labels a loop's lowering made for its own head, step and exits, and the
 // diverts to them, which the binary program's writer emits as the loop's
 // chunk and never as a label or a jump.
@@ -367,6 +383,13 @@ export const recordChoiceBody = (part: ParsedObject, body: BodyShape): void => {
  * code too, and the statements after it up to the next choice, which the
  * current engine's weave nests in the choice, are the choice's body, a block
  * of the statement as the body of any other choice is.
+ *
+ * The body of a `do` block or a loop that offers choices is made the
+ * statement's own code the same way (#1503), so that a choice is never
+ * raised from a body's own chunk, which would not hold its entry
+ * (`inlinedBodies`). Inside such a loop's body, a block that leaves the loop
+ * by a `break` or `continue` is the statement's code too, and the exit is a
+ * jump of the chunk (`inlineExitOf`).
  */
 export const inlineChoiceBranches = (
   ctx: LowerContext,
@@ -421,17 +444,69 @@ export const inlineChoiceBranches = (
       owner.bodies.push(...statement.bodies);
     });
   };
+  const holdsInlineExit = (obj: ParsedObject): boolean =>
+    inlineExitOf.has(obj) || (obj.content ?? []).some(holdsInlineExit);
+  const objectsOf = (body: BodyShape) =>
+    body.statements.flatMap((statement) => statement.objects);
+  // Records the loop each `break` and `continue` of `loop` inside `obj`
+  // leaves, by the labels the lowering made for the loop, which they divert
+  // to.
+  const recordExits = (loop: LoopShape, obj: ParsedObject): void => {
+    const labels = new Set<string>();
+    for (const label of loop.objects) {
+      const name = (label as { name?: unknown }).name;
+      if (isLoopInternal(label) && typeof name === "string") {
+        labels.add(name);
+      }
+    }
+    const walk = (part: ParsedObject): void => {
+      const name = loopExitOf.has(part) ? exitTargetName(part) : undefined;
+      if (name !== undefined && labels.has(name)) {
+        inlineExitOf.set(part, loop);
+      }
+      (part.content ?? []).forEach(walk);
+    };
+    walk(obj);
+  };
+  // A body is made the statement's own code when it offers choices, or when
+  // it leaves a loop whose body is (its `break` or `continue` is then a jump
+  // of the statement's chunk).
+  const inlines = (held: readonly ParsedObject[]) =>
+    held.some(holdsChoice) || held.some(holdsInlineExit);
+  const branchesSeen = new WeakSet<ParsedObject>();
   const visit = (obj: ParsedObject) => {
     const branches = (obj as { branches?: ParsedObject[] }).branches;
     for (const branch of branches ?? []) {
+      branchesSeen.add(branch);
       const body = bodyOfBlock.get(branch);
       // A branch whose body is still the statement's: one inside a choice's
       // body is that body's statement's, which a choice cannot stand in.
       const owned = owner.bodies.some((shape) => shape === body);
-      if (body && owned && holdsChoice(branch)) {
+      if (body && owned && inlines([branch])) {
         bodyOfBlock.delete(branch);
         hoist(body);
       }
+    }
+    // A `do` block (by its `BeginScope`) or a loop (by its first object)
+    // whose body offers choices: its body is the statement's own code, as
+    // an `if` branch's is, so the choices it raises are the statement's and
+    // their entries are in its chunk (section 4). A loop's exits are
+    // recorded first, so a block inside its body that leaves it is made the
+    // statement's code too, and its `break` or `continue` is a jump of the
+    // chunk.
+    const loop = loopOf.get(obj);
+    const body =
+      loop?.body ?? (branchesSeen.has(obj) ? undefined : bodyOfBlock.get(obj));
+    if (
+      body &&
+      owner.bodies.some((shape) => shape === body) &&
+      inlines(objectsOf(body))
+    ) {
+      if (loop) {
+        objectsOf(body).forEach((part) => recordExits(loop, part));
+      }
+      inlinedBodies.add(body);
+      hoist(body);
     }
     for (const child of obj.content ?? []) {
       visit(child);
@@ -439,6 +514,11 @@ export const inlineChoiceBranches = (
   };
   objects.forEach(visit);
 };
+
+/** The label a `break` or `continue` diverts to. */
+const exitTargetName = (divert: ParsedObject): string | undefined =>
+  (divert as { target?: { dotSeparatedComponents?: string } | null }).target
+    ?.dotSeparatedComponents;
 
 /** The single statement of an evaluator's body, `return <expr>`, recorded
  *  on `body` as the statement the syntax nodes `first` to `last` lower to:

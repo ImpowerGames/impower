@@ -2230,6 +2230,91 @@ export class ChunkStore {
       (writesAlternators(statement) &&
         (this._info.get(chunk)?.alternators.length ?? 0) > 0) ||
       (raisesChoices(statement) && (this._info.get(chunk)?.choices.length ?? 0) > 0);
+    // Of the statements a run leaves on one side, in order, the ones no other
+    // of them contains. The side's statements are in pre-order, so each
+    // contains the statements from it to the last of its descendants (its
+    // `end`), found on first use from each statement's nearest owner on the
+    // side with one owner query per statement or owner; a pass over the
+    // left statements then keeps those of their containers open. A side
+    // whose owners do not precede what they own is walked owner by owner.
+    const outermostOf = <T>(
+      items: readonly T[],
+      owner: ((of: T) => T | undefined) | undefined,
+    ) => {
+      let ends: Int32Array | null | undefined;
+      const findEnds = (owner: (of: T) => T | undefined): Int32Array | null => {
+        const index = new Map<T, number>();
+        items.forEach((item, i) => index.set(item, i));
+        // The nearest listed owner of each unlisted owner walked through.
+        const listedAbove = new Map<T, number>();
+        const nearest = (of: T | undefined): number => {
+          const path: T[] = [];
+          let found = -1;
+          for (let at = of; at !== undefined; at = owner(at)) {
+            const known = index.get(at) ?? listedAbove.get(at);
+            if (known !== undefined) {
+              found = known;
+              break;
+            }
+            path.push(at);
+          }
+          for (const at of path) {
+            listedAbove.set(at, found);
+          }
+          return found;
+        };
+        const parent = new Int32Array(items.length);
+        const end = new Int32Array(items.length);
+        for (let i = 0; i < items.length; i += 1) {
+          parent[i] = nearest(owner(items[i]!));
+          if (parent[i]! >= i) {
+            return null;
+          }
+          end[i] = i;
+        }
+        for (let i = items.length - 1; i >= 0; i -= 1) {
+          const p = parent[i]!;
+          if (p >= 0 && end[i]! > end[p]!) {
+            end[p] = end[i]!;
+          }
+        }
+        return end;
+      };
+      return (left: readonly number[]): number[] => {
+        if (!owner || left.length < 2) {
+          return left.slice();
+        }
+        if (ends === undefined) {
+          ends = findEnds(owner);
+        }
+        if (ends === null) {
+          const held = new Set(left.map((index) => items[index]!));
+          return left.filter((index) => {
+            for (let at = owner(items[index]!); at; at = owner(at)) {
+              if (held.has(at)) {
+                return false;
+              }
+            }
+            return true;
+          });
+        }
+        const end = ends;
+        const open: number[] = [];
+        const outer: number[] = [];
+        for (const index of left) {
+          while (open.length && end[open[open.length - 1]!]! < index) {
+            open.pop();
+          }
+          if (open.length === 0) {
+            outer.push(index);
+          }
+          open.push(index);
+        }
+        return outer;
+      };
+    };
+    const outermostNew = outermostOf(statements, nesting?.owner);
+    const outermostOld = outermostOf(old, nesting?.oldOwner);
     const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
       const candidates: number[] = [];
       for (let i = newFrom; i < newTo; i += 1) {
@@ -2300,31 +2385,10 @@ export class ChunkStore {
       }
       // A statement edited in place: one left on each side, counting the
       // outermost of those left.
-      const outermost = <T>(
-        left: readonly number[],
-        item: (index: number) => T,
-        owner: ((of: T) => T | undefined) | undefined,
-      ): number[] => {
-        const held = new Set(left.map(item));
-        return left.filter((index) => {
-          for (let at = owner?.(item(index)); at; at = owner?.(at)) {
-            if (held.has(at)) {
-              return false;
-            }
-          }
-          return true;
-        });
-      };
-      const leftNew = outermost(
+      const leftNew = outermostNew(
         candidates.filter((i) => !result[i] && !this._inherit.has(statements[i]!)),
-        (i) => statements[i]!,
-        nesting?.owner,
       );
-      const leftOld = outermost(
-        olds.filter((k) => !used.has(old[k]!)),
-        (k) => old[k]!,
-        nesting?.oldOwner,
-      );
+      const leftOld = outermostOld(olds.filter((k) => !used.has(old[k]!)));
       if (leftNew.length === 1 && leftOld.length === 1) {
         const i = leftNew[0]!;
         const k = leftOld[0]!;
@@ -2494,24 +2558,23 @@ export class ChunkStore {
       }
     });
     // Each statement's lists, kept once found: a statement an exchange pairs
-    // again is visited again, and reads the same lists. Its identity is
-    // built once per build (`statementIdentity`).
-    const listsOf = new Map<number, NonNullable<ReturnType<typeof listOf>>>();
+    // again is visited again, and reads the same lists, or, when it has none,
+    // none (`null`): every old chunk is filed before the first visit, so a
+    // statement with no lists finds none later. Its identity is built once
+    // per build (`statementIdentity`).
+    const listsOf = new Map<number, NonNullable<ReturnType<typeof listOf>> | null>();
     for (let n = 0; n < queue.length; n += 1) {
       const i = queue[n]!;
       if (result[i]) {
         continue;
       }
       let lists = listsOf.get(i);
-      if (!lists) {
+      if (lists === undefined) {
         const statement = statements[i]!;
-        if (!readAs.has(`${statement.syntax()}\u0000${statement.reads}`)) {
-          continue;
-        }
-        lists = byIdentity.get(this.statementIdentity(statement));
-        if (lists) {
-          listsOf.set(i, lists);
-        }
+        lists = readAs.has(`${statement.syntax()}\u0000${statement.reads}`)
+          ? (byIdentity.get(this.statementIdentity(statement)) ?? null)
+          : null;
+        listsOf.set(i, lists);
       }
       if (!lists) {
         continue;

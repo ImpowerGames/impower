@@ -23,7 +23,6 @@ import {
   CALL_TUNNEL,
   ConstValue,
   JUMP_ARGUMENTS,
-  LEAVE_CONTINUE,
   Op,
 } from "../../../../../program/ProgramInstructions";
 import {
@@ -122,7 +121,8 @@ export class Divert extends ParsedObject {
   // The two built-in targets are instructions of their own, as they are
   // control commands of the runtime tree. A `break` or `continue`, which the
   // lowering writes as a divert to a label of its loop, leaves the blocks up
-  // to the loop's body. Any other divert is a jump to its target's symbol, or
+  // to the loop's body, or jumps within the chunk when the loop's body is the
+  // chunk's own code (`emitLoopExit`). Any other divert is a jump to its target's symbol, or
   // to the symbol value a variable holds (`JumpSym`, `JumpVar`); a tunnel
   // calls its target (`Call`, `CallVar` with the tunnel flag); and a thread
   // forks around its jump, the original resuming after it when the fork
@@ -138,7 +138,7 @@ export class Divert extends ParsedObject {
       return;
     }
     if (exit) {
-      emitter.emit(Op.Leave, 0, 0, exit === "continue" ? LEAVE_CONTINUE : 0);
+      emitter.emitLoopExit(this, exit);
       return;
     }
     if (this._runtimeDivert?.isExternal) {

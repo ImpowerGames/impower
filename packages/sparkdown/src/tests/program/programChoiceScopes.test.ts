@@ -10,88 +10,13 @@
 // and the chunk's code.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { BinaryProgramReader } from "../../program/BinaryProgramReader";
-import { Op } from "../../program/ProgramInstructions";
-import { ProgramStory } from "../../program/ProgramStory";
-import { blockScopes } from "../../program/StatementChunk";
-import { compileScript } from "./programHarness";
-
-const silence = <T>(run: () => T): T => {
-  const { warn, error } = console;
-  console.warn = console.error = () => {};
-  try {
-    return run();
-  } finally {
-    console.warn = warn;
-    console.error = error;
-  }
-};
-
-const programStory = (text: string) =>
-  silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
-    return new ProgramStory(program.chunks!);
-  });
-
-/** The depth of scopes the position's frame has by the block stack and the
- *  chunk's code: one for the frame, each owner's count where it enters the
- *  block the frame is inside, and the `BeginScope`s less the `EndScope`s the
- *  chunk at the position has before its offset (section 1). */
-const derivedDepth = (story: ProgramStory): number | null => {
-  const state = story.state;
-  const position = state.position;
-  if (!position) {
-    return null;
-  }
-  let depth = 1;
-  for (const block of state.blockStack) {
-    depth += blockScopes(block.sequence.arrays.chunks[block.entry]!, block.block);
-  }
-  const chunk = position.sequence.arrays.chunks[position.entry];
-  if (chunk) {
-    for (let offset = 0; offset < position.offset; offset += 2) {
-      const op = BinaryProgramReader.instructionAt(chunk, offset).op;
-      depth += op === Op.BeginScope ? 1 : op === Op.EndScope ? -1 : 0;
-    }
-  }
-  return depth;
-};
-
-/** Asserts that the frame holds exactly the scopes its position derives. */
-const expectExactDepth = (story: ProgramStory, where: string) => {
-  const derived = derivedDepth(story);
-  if (derived !== null && story.state.callstackDepth === 1) {
-    expect(story.state.frame!.temporaryScopes.length, where).toBe(derived);
-  }
-};
-
-/** The beats a story shows, taking the choices `picks` names in turn (the
- *  first at every menu past them), the menus it raised, and the depth of
- *  scopes checked after every step. */
-const play = (story: ProgramStory, picks: number[] = []) => {
-  const beats: string[] = [];
-  const menus: string[][] = [];
-  for (;;) {
-    while (story.canContinue) {
-      const text = (story.Continue() ?? "").trim();
-      if (text) {
-        beats.push(text);
-      }
-      expectExactDepth(story, `after ${JSON.stringify(text)}`);
-    }
-    const choices = story.currentChoices;
-    if (choices.length === 0) {
-      return { beats, menus };
-    }
-    menus.push(choices.map((choice) => choice.text));
-    story.ChooseChoiceIndex(picks[menus.length - 1] ?? 0);
-    expectExactDepth(story, "after a choice is taken");
-  }
-};
-
-const run = (text: string, picks: number[] = []) =>
-  silence(() => play(programStory(text), picks));
+import {
+  expectExactDepth,
+  play,
+  programStory,
+  run,
+  silence,
+} from "./programScopes";
 
 describe("a gated choice's branch on the program engine", () => {
   // The branch's `local open` is visible in the branch, to the choices it
