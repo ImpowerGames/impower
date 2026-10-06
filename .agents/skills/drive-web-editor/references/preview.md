@@ -6,6 +6,8 @@ All commands run from the worktree root unless stated otherwise.
 
 `verify` reads the active document and sends selection notifications through the editor protocol. It refuses a scrub unless the player reports preview mode, and reports the previous and requested preview source positions.
 
+Every `verify` reloads, so the compile it shows is a cold one. To see an edit made in the running page (an incremental compile) and then the preview, use `ui --sd repro.sd --insert <line>:<col>=<text> --scrub <N> --shot out.png`: `--scrub` is this same scrub, with the same `route`, `visible` and `scrubCheck` fields, and fails its step when the selection did not run or `scrubCheck` is `elsewhere`. To capture the running game, `ui ... --scrub <N> --play start --shot play.png --play stop`; `--play` waits for the player to report the game running and fails otherwise (see [ui](ui.md)).
+
 
 ## Game preview
 

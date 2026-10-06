@@ -35,8 +35,11 @@ Each request reopens the browser from the session's persistent profile. The edit
 | `click` | `value`: `next`, `prev`, `select`, `replace`, `replaceAll`, `close`, `submit` |
 | `toggle` | `value`: `case`, `re`, `word` |
 | `screen` | `value`: `logic`, `assets`, `share`, `main`, `scripts`, `files`, `urls`, `game`, `screenplay` |
-| `hover` | Positive `line` and `column`, each at most 100000 |
+| `hover` | Positive `line` and `column`, each at most 100000; also reports the `diagnostics` at the position and the lint `diagnosticTooltip`, so a `hover` shot after it captures a diagnostic |
 | `complete` | Positive `line` and `column`, plus nonempty `text` up to 4096 characters; types into the script and reads completion |
+| `insert` | Positive `line` and `column`, plus nonempty `text` up to 4096 characters (a newline in `text` is a line break); inserts at the position as one edit, without auto-closing, and reports `textMatches` and `readBack`, failing when the document differs |
+| `scrub` | Positive `line`; moves the preview to that line as `verify`'s `line` does and reports `route`, `visible` and `scrubCheck`, failing when the scrub did not land |
+| `play` | `value`: `start` or `stop`; clicks the preview's PLAY or Stop control and reports `launchState` and `running`, failing when the game did not start or stop |
 | `press` | `value`: `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, arrow keys, `Home`, `End`, `Control+Home`, `Control+End`, `Control+a`, `Control+s` (format on save), `Shift+Alt+f` (Format Document), `Control+z`, `Control+Shift+z`, or `Shift+` with an arrow key. The script editor is focused before the key; the step reports `version` (`before`, `after`) and `textChanged`, with the document `text` read back when it changed |
 | `shot` | `target`: `page`, `editor`, `find`, `goto`, `hover`, `completion`; at most four extra screenshots |
 
