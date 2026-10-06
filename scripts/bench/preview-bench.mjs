@@ -22,6 +22,11 @@
 //                       construct, which ones make the program fall back to
 //                       the current engine (programCoverage.ts, #694); it
 //                       needs no --line or --word
+//   --chunks            compile with the binary program's statement chunks on
+//                       (`programChunks`, #694) and time the compile alone,
+//                       since the worker's route search reads runtime paths;
+//                       prints what each pass of the chunk store visited per
+//                       sample (`ChunkStore.passesLastBuild`, #701)
 //   --samples <K>       measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json

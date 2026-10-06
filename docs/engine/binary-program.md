@@ -825,3 +825,20 @@ The `program` mode runs the program engine beside the current engine on the scen
 | One call per line | 16.84 / 20.08 / 25.84 ms; 22.5 / 26.9 / 34.5 microseconds per line | 4.08 / 5.31 / 8.66 ms; 5.5 / 7.1 / 11.6 microseconds per line |
 
 A display beat is 8 instructions here, where the engine steps through 21 runtime objects, and a line costs the program engine about a quarter of what it costs the engine by the medians. The comparison covers stepping alone: the program engine starts from a compile that has already built its chunks, and the time a compile spends building them is part of the compile's `program/chunks` profile.
+
+```bash
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 3515 --word concerned --mode edit
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 3515 --word concerned --mode edit --chunks
+```
+
+An edit inside one beat at `main.sd` line 3515 (#701), the current engine and the program's chunks in one sitting, 2026-10-06 on the same machine, 12 samples after 4 warm-up, medians in milliseconds per sample. The line stands in the `then` clause of the `choose` at line 2449, which the incremental parse lowers again whole on such an edit (#656), so the store reads the identity of the 306 statements of that block and of no other; it emits one chunk, places one and writes two rows each of the definition arrays and the chunk table.
+
+| Phase | Current engine | Program chunks, before #701 | Program chunks |
+| --- | --- | --- | --- |
+| `ink/compile` | 53.1 | 54.8 | 34.1 |
+| `program/chunks` | | 24.0 | 10.7 |
+| `populateLocations` | 24.4 | 26.5 | 25.8 |
+| `sortPathLocations` | 6.3 | 5.6 | 5.2 |
+| Together | 83.8 | 110.9 | 75.8 |
+
+The column before #701 is a run of the same command at 37471715b, taken earlier the same day. The current engine's `ink/compile` includes the collision index of this change, which it shares. The 15 ms #701 set for these phases is not met: on this path `ink/compile` is still the current engine's generation of the flows it does not reuse and its resolution of every parsed object, and `populateLocations` and `sortPathLocations` still build the path locations a game places a line by, which addresses replace (#700).
