@@ -565,6 +565,7 @@ export class ChunkStore {
         this.keep(this._byBlock, statement),
     );
     const old = previous ? this.statementOrderOf(previous) : [];
+    passes.order = old.length;
     const reused = this.align(statements, old, kept, {
       owner: (statement) => owners.get(statement),
       oldOwner: (chunk) => this.oldOwnerOf(previous!, chunk),
@@ -714,6 +715,7 @@ export class ChunkStore {
     const declarationChunks: StatementChunk[] = [];
     const declarationIds = new Map<string, number>();
     const emittedBeforeDeclarations = this._writer.emitted;
+    passes.assembly += declarations.length;
     const byScript = new Map<string, { source: DeclarationSource; chunk: StatementChunk }[]>();
     declarations.forEach((declaration) => {
       let chunk = chunkOf.get(declaration);
@@ -1631,6 +1633,7 @@ export class ChunkStore {
   ): SequenceArrays {
     const chunks: StatementChunk[] = [];
     const lineStarts: number[] = [];
+    this.passesLastBuild.assembly += statements.length;
     // A sequence whose owner an edit moved into a function or out of one is
     // placed whole, as one whose flow changed is, so the function chunks it
     // holds are counted again.
@@ -2830,7 +2833,15 @@ const shareArrays = (
  *  the chunks it emitted, the chunks it placed where the current root does
  *  not hold them (`placement`), and the chunks whose rows of the definition
  *  arrays and of the chunk table it wrote. A build over an edit reads none of
- *  these for a chunk the edit did not affect. */
+ *  these for a chunk the edit did not affect.
+ *
+ *  Two counts are of bookkeeping that is linear in the program, which a
+ *  build still does: the current root's statements it lists to align the
+ *  statements that are not carried with (`order`, which the root it builds
+ *  lists again on the next build), and the entries of the sequences it
+ *  assembles (`assembly`): every flow's, whose entries the compile hands
+ *  over whole (`programFlows`), and those of the bodies it builds again.
+ *  Neither reads a chunk's facts or values, or writes a row. */
 export interface BuildPasses {
   identity: number;
   facts: number;
@@ -2839,6 +2850,8 @@ export interface BuildPasses {
   placement: number;
   definitions: number;
   chunkTable: number;
+  order: number;
+  assembly: number;
 }
 
 const emptyPasses = (): BuildPasses => ({
@@ -2849,6 +2862,8 @@ const emptyPasses = (): BuildPasses => ({
   placement: 0,
   definitions: 0,
   chunkTable: 0,
+  order: 0,
+  assembly: 0,
 });
 
 /** The flow, the kind and the script a sequence belongs to, which its row

@@ -133,9 +133,17 @@ function divergence(incremental: Surface, cold: Surface): string | undefined {
   if (incremental.fallback !== cold.fallback) {
     fields.push(`fallback ${incremental.fallback} vs cold ${cold.fallback}`);
   }
-  // A compile that built no root and names no fallback threw on its way
-  // (a failed `ChunkStore.verifyBuilds`, which the compiler logs and the
-  // tests silence): a root on one side alone is a divergence.
+  // A compile with statement chunks on that built no root and names no
+  // fallback threw on its way (a failed `ChunkStore.verifyBuilds`, which the
+  // compiler logs and the tests silence): that is a failure on either side,
+  // even when both sides fail alike, and a root on one side alone is a
+  // divergence.
+  if (!incremental.chunks && incremental.fallback === "null") {
+    fields.push("incremental compile built no root and named no fallback");
+  }
+  if (!cold.chunks && cold.fallback === "null") {
+    fields.push("cold compile built no root and named no fallback");
+  }
   if (!!incremental.chunks !== !!cold.chunks) {
     fields.push(
       `chunks ${incremental.chunks ? "built" : "missing"} vs cold ${cold.chunks ? "built" : "missing"}`,

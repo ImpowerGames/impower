@@ -853,6 +853,74 @@ describe("a naming collision", () => {
   });
 });
 
+// A compile whose program falls back runs on the current engine, whose
+// runtime tree the switch-on path neither flattens nor counts until then
+// (`Story.FinishForCurrentEngine`), and whose containers a later compile
+// reuses. Through one compiler that goes back and forth between the two,
+// each fallen-back program is the current engine's program of its text.
+describe("a program that falls back after compiles that did not", () => {
+  it("compiles to the current engine's program, however often it goes back and forth", () => {
+    const scene = (name: string, next: string) => [
+      `scene ${name}`,
+      "  label knock",
+      `  Knocked {knock} times in ${name}.`,
+      "  choose",
+      `    * [Once in ${name}]`,
+      "      Once.",
+      `    + [Again in ${name}]`,
+      "      Again.",
+      "  then",
+      `    The door of ${name} closes.`,
+      "    if knock > 1 then",
+      "      Twice.",
+      "    end",
+      "  end",
+      `  -> ${next}`,
+      "end",
+      "",
+    ];
+    const text = [
+      "-> FIRST",
+      "",
+      ...scene("FIRST", "SECOND"),
+      ...scene("SECOND", "THIRD"),
+      ...scene("THIRD", "FIRST"),
+    ].join("\n");
+    // A read of a list builtin, which the writer has no emit path for.
+    const FALL = "\n  Rolled {LIST_RANDOM(knock)}.";
+    const s = session({ [MAIN_URI]: text });
+    expect(s.program.fallback).toBeUndefined();
+    const current = (script: string) =>
+      quietly(
+        () =>
+          programCompiler({ [MAIN_URI]: script }, { seedBuiltinsIntoStory: true }).compile()
+            .program.compiled,
+      );
+    const steps: [string, string][] = [
+      ["  Knocked {knock} times in SECOND.", `  Knocked {knock} times in SECOND.${FALL}`],
+      [FALL, ""],
+      ["    The door of THIRD closes.", `    The door of THIRD closes.${FALL}`],
+      ["    Once.", "    Once, and only once."],
+      [FALL, ""],
+      ["  Knocked {knock} times in FIRST.", `  Knocked {knock} times in FIRST.${FALL}`],
+    ];
+    const outcomes: string[] = [];
+    for (const [find, replace] of steps) {
+      s.edit(find, replace);
+      if (s.program.fallback) {
+        expect(s.program.fallback.construct).toBe("list");
+        expect(s.program.compiled).toBeDefined();
+        expect(s.program.compiled).toEqual(current(s.text));
+        outcomes.push("fell back");
+      } else {
+        expect(describeRoot(s.root)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
+        outcomes.push("chunks");
+      }
+    }
+    expect(outcomes).toEqual(["fell back", "chunks", "fell back", "fell back", "chunks", "fell back"]);
+  });
+});
+
 /** The messages of a program's diagnostics, by script, in order. */
 function messages(program: SparkProgram): string[] {
   return Object.values(program.diagnostics ?? {}).flatMap((list) =>
