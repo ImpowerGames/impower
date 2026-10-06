@@ -587,22 +587,22 @@ function methodMax(params: InkObject[]): InkObject {
   return best;
 }
 
-function methodRandom(params: InkObject[]): InkObject {
-  // Returns a random element from the array portion. Empty table → nil.
-  //
-  // Note: this currently uses `Math.random()` and does NOT honor
-  // `math.randomseed`. For seeded-determinism (needed for save/load
-  // replay), this needs to plumb through the Story's seeded PRNG; the
-  // method dispatch doesn't have a Story reference today. Tracked as a
-  // follow-up; the current behavior is acceptable for narrative use
-  // where save/load doesn't strictly need to replay a `:random()`
-  // pick identically (saves happen between flow points; a `:random()`
-  // result is captured into a `store` and the saved value is what
-  // round-trips, not the random call itself).
+// Returns a random element from the array portion, or nil for an empty
+// one. The element is picked by the story's draw (`drawStoryRandom`), which
+// the story's seed and previous draw decide, as `math.random` and a shuffle
+// are, so a state restored to an earlier point picks again what it picked
+// there. A call with no story to draw from (`draw` absent) picks by
+// `Math.random`.
+function methodRandom(
+  params: InkObject[],
+  draw: (() => number) | null = null,
+): InkObject {
   const t = asTable(params[0], "random", "receiver");
   const arr = arrayPortion(t);
   if (arr.length === 0) return NIL();
-  const idx = Math.floor(Math.random() * arr.length);
+  const idx = draw
+    ? draw() % arr.length
+    : Math.floor(Math.random() * arr.length);
   return arr[idx]!;
 }
 
@@ -775,6 +775,7 @@ export function isBuiltinMethod(name: string): boolean {
 export function callBuiltinMethod(
   fullName: string,
   params: InkObject[],
+  draw: (() => number) | null = null,
 ): InkObject | null {
   if (!fullName.startsWith(METHOD_PREFIX)) return null;
   const methodName = fullName.slice(METHOD_PREFIX.length);
@@ -792,6 +793,9 @@ export function callBuiltinMethod(
     const args = params.slice(1);
     spreadCallArgs(args);
     params = [oneValue(params[0]!), ...args];
+  }
+  if (impl === methodRandom) {
+    return methodRandom(params, draw);
   }
   return impl(params);
 }

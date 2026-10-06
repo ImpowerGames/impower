@@ -29,6 +29,16 @@ function VariablesStateAccessor<T>(): new () => Pick<T, keyof T> {
 
 type VariableStateValue = boolean | string | number | InkList | Path | null;
 
+/** What the program engine's images hear of the keyed state before it is
+ *  written (docs/engine/binary-program.md, section 7, The write barrier): a
+ *  table about to be written, a table a call may write (`prepare`, which
+ *  keeps its content without marking it), and a global assigned. */
+export interface ImageBarrier {
+  table(table: ObjectValue): void;
+  prepare(table: ObjectValue): void;
+  global(name: string): void;
+}
+
 export class VariablesState extends VariablesStateAccessor<
   Record<string, any>
 >() {
@@ -196,6 +206,9 @@ export class VariablesState extends VariablesStateAccessor<
           tokenInkObject instanceof ObjectValue &&
           varValValue instanceof ObjectValue
         ) {
+          // Written in place: an image of the program engine keeps it as it
+          // was first.
+          this.imageBarrier?.prepare(varValValue);
           const target = varValValue.value as Map<string, AbstractValue>;
           for (const [k, v] of tokenInkObject.value as Map<
             string,
@@ -477,8 +490,8 @@ export class VariablesState extends VariablesStateAccessor<
           // Mutating the pointer's `closedValue` lets all closures
           // sharing this pointer see the updated value.
           if (existingPointer.isClosed) {
-            existingPointer.closedValue = value;
             this.CellWriteBarrier(existingPointer);
+            existingPointer.closedValue = value;
             return;
           }
           name = existingPointer.variableName;
@@ -518,6 +531,38 @@ export class VariablesState extends VariablesStateAccessor<
       contextIndex,
       scopeIndex,
     );
+  }
+
+  /** The globals as they stand, by name, which an image copies
+   *  (`ProgramImages`). Read only. */
+  public get globalEntries(): ReadonlyMap<string, InkObject> {
+    return this._globalVariables;
+  }
+
+  /** Puts `globals` in place of the globals, as an image restored in place
+   *  holds them, with no change event and no barrier. */
+  public RestoreGlobals(globals: ReadonlyMap<string, InkObject>) {
+    this._globalVariables.clear();
+    for (const [name, value] of globals) {
+      this._globalVariables.set(name, value);
+    }
+  }
+
+  /** Puts `value` in place of global `name`, or removes the global for
+   *  nothing, as an image restored in place holds it, with no change event
+   *  and no barrier. */
+  public RestoreGlobal(name: string, value: InkObject | undefined) {
+    if (value === undefined) {
+      this._globalVariables.delete(name);
+    } else {
+      this._globalVariables.set(name, value);
+    }
+  }
+
+  /** The compiled value of each constant, which a restore into another
+   *  program's engine keeps (`SetJsonToken`). */
+  public DefaultGlobal(name: string): InkObject | undefined {
+    return this._defaultGlobalVariables.get(name);
   }
 
   public SnapshotDefaultGlobals() {
@@ -700,6 +745,7 @@ export class VariablesState extends VariablesStateAccessor<
     }
 
     this._globalVariables.set(variableName, value);
+    this.imageBarrier?.global(variableName);
 
     // Reactive dep tracking: a global write is a coarse-grained change keyed by
     // name (a binding that read this global re-runs). Cheap no-op when disabled.
@@ -879,22 +925,37 @@ export class VariablesState extends VariablesStateAccessor<
   // and to what the table is beside them (its metatable, its frozen flag, and
   // the length hints `table.clear` and `#` leave on its map); and so does
   // every assignment to a closed upvalue cell, whose frame is gone. The
-  // barrier only marks, while `trackWrites` is set: an image of the state
-  // holds what the marks name since the image before it (#699).
+  // barrier marks, while `trackWrites` is set, and an image barrier, when
+  // the program engine keeps images of its state (#699), hears every write
+  // before it is made, so that it can keep a table's or a cell's content as
+  // it was before the first write (`ProgramImages`). A caller calls the
+  // barrier before it writes; one that learns only after a call whether the
+  // call wrote (`#`, which may leave a new length hint) prepares the table
+  // first (`PrepareTableWrite`) and marks it after.
   // -------------------------------------------------------------------------
   public trackWrites = false;
+  public imageBarrier: ImageBarrier | null = null;
   private _writtenTables = new Set<ObjectValue>();
   private _writtenCells = new Set<VariablePointerValue>();
 
-  /** Marks `table` as written. */
+  /** Marks `table` as written. Called before the write. */
   public WriteBarrier(table: ObjectValue): void {
+    this.imageBarrier?.table(table);
     if (this.trackWrites) {
       this._writtenTables.add(table);
     }
   }
 
-  /** Marks the closed upvalue cell `cell` as written. */
+  /** Keeps `table` as it is before a call that may write it, without
+   *  marking it. */
+  public PrepareTableWrite(table: ObjectValue): void {
+    this.imageBarrier?.prepare(table);
+  }
+
+  /** Marks the closed upvalue cell `cell` as written. Called before the
+   *  write. */
   public CellWriteBarrier(cell: VariablePointerValue): void {
+    this._callStack.cellBarrier?.(cell);
     if (this.trackWrites) {
       this._writtenCells.add(cell);
     }

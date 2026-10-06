@@ -2,7 +2,7 @@ import { oneValue } from "./CallArgs";
 import { ControlCommand } from "./ControlCommand";
 import { getPluralCategory } from "./PluralRules";
 import { StepLimitExceeded, StoryException } from "./StoryException";
-import { PRNG } from "./PRNG";
+import { drawStoryRandom } from "./StoryRandom";
 import { Void } from "./Void";
 import {
   ObjectValue,
@@ -2379,17 +2379,17 @@ function resolveParentType(
     return flat;
   }
   if (rootMeta && !rootMeta.has("__index")) {
-    rootMeta.set("__index", flat);
     writtenIn(story)(displaced.metatable);
+    rootMeta.set("__index", flat);
   }
   return displaced;
 }
 
 // A table a builtin changes in place, or whose metatable, frozen flag or
-// length hints it changes, marked through the write barrier of the story it
-// runs on (`VariablesState.WriteBarrier`, docs/engine/binary-program.md,
-// section 7). Only a pure builtin runs without a story, and none changes a
-// table.
+// length hints it changes, marked before the change through the write
+// barrier of the story it runs on (`VariablesState.WriteBarrier`,
+// docs/engine/binary-program.md, section 7). Only a pure builtin runs
+// without a story, and none changes a table.
 type Written = (table: ObjectValue | null | undefined) => void;
 const writtenIn =
   (story: any): Written =>
@@ -2440,8 +2440,8 @@ function copyStoreDefaults(
     for (const level of chain) {
       const def = (level.value as Map<string, AbstractValue>)?.get(propName);
       if (def != null) {
-        target.value!.set(propName, def);
         written(target);
+        target.value!.set(propName, def);
         break;
       }
     }
@@ -2490,8 +2490,8 @@ function linkStructuralParent(
   written: Written = () => {},
 ): boolean {
   if (chainReaches(parent, child)) return false;
-  metatableMap(child)?.set("__index", parent);
   written(child.metatable);
+  metatableMap(child)?.set("__index", parent);
   const children = structuralChildren.get(parent) ?? [];
   children.push(child);
   structuralChildren.set(parent, children);
@@ -2508,8 +2508,8 @@ function copyStructuralStoreDefaults(
 ): void {
   const map = block.value!;
   const copies = structuralStoreCopies.get(block) ?? [];
-  for (const key of copies) map.delete(key);
   if (copies.length > 0) written(block);
+  for (const key of copies) map.delete(key);
   const own = new Set(map.keys());
   copyStoreDefaults(defineChain(block).slice(1), block, written);
   structuralStoreCopies.set(
@@ -2786,10 +2786,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("math.random: wrong number of arguments");
         return 0;
       }
-      const seed = story.state.storySeed + story.state.previousRandom;
-      const prng = new PRNG(seed);
-      const next = prng.next();
-      story.state.previousRandom = next;
+      const next = drawStoryRandom(story.state);
 
       if (args.length === 0) {
         // `next` is a 32-bit unsigned int — divide by 2^32 to get
@@ -3190,12 +3187,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1, // variadic — actual count comes from compile-site capture
     fn: (story, args) => {
       const payload = args[0];
-      if (
-        payload instanceof ObjectValue &&
-        payload.value &&
-        joinDisplayParts(payload.value)
-      ) {
-        writtenIn(story)(payload);
+      if (payload instanceof ObjectValue && payload.value) {
+        // Whether the parts join is known only once they have.
+        story.state.variablesState.PrepareTableWrite?.(payload);
+        if (joinDisplayParts(payload.value)) {
+          writtenIn(story)(payload);
+        }
       }
       const flag = (key: string) => {
         const value =
@@ -3222,8 +3219,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
           // A divert held the line open.
         } else {
           story.Warning(NOT_JOINED);
-          (payload as ObjectValue).value?.delete("continues");
           writtenIn(story)(payload as ObjectValue);
+          (payload as ObjectValue).value?.delete("continues");
         }
       }
       // The line's author tags go to the stream first, as a tag written on
@@ -3335,15 +3332,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
           return;
         }
       }
-      if (mt == null || mt instanceof NullValue) {
-        t.metatable = null;
-      } else if (mt instanceof ObjectValue) {
-        t.metatable = mt;
-      } else {
+      if (
+        mt != null &&
+        !(mt instanceof NullValue) &&
+        !(mt instanceof ObjectValue)
+      ) {
         story.Error("setmetatable: second argument must be a table or nil");
         return;
       }
       writtenIn(story)(t);
+      t.metatable = mt instanceof ObjectValue ? mt : null;
       return t;
     },
   },
@@ -3739,8 +3737,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.state.variablesState.SetGlobal(key, v as AbstractValue);
         return t;
       }
-      t.value.set(key, v as AbstractValue);
       writtenIn(story)(t);
+      t.value.set(key, v as AbstractValue);
       return t;
     },
   },
@@ -4708,6 +4706,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // negative, NaN — just sets t[pos] = v directly
         // (tables.luau's "out of range insertion" block).
         if (pos >= 1 && pos <= len) {
+          writtenIn(story)(t);
           for (let k = len; k >= pos; k--) {
             const existing = map.get(String(k));
             if (existing !== undefined) {
@@ -4722,8 +4721,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("table.insert: missing value argument");
         return undefined;
       }
-      map.set(String(pos), value);
       writtenIn(story)(t);
+      map.set(String(pos), value);
       return undefined;
     },
   },
@@ -4878,10 +4877,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
       });
       if (aborted) return undefined;
       // Write sorted values back into the map.
+      writtenIn(story)(t);
       for (let k = 1; k <= len; k++) {
         map.set(String(k), arr[k - 1]!);
       }
-      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -4903,10 +4902,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
       let len = 0;
       while (map.has(String(len + 1))) len++;
       const prevCap = (map as any).__luauCapacity ?? 0;
+      writtenIn(story)(t);
       map.clear();
       (map as any).__luauCapacity = Math.max(prevCap, len);
       (map as any).__luauBoundary = 0;
-      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -5065,12 +5064,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
         };
         // Forward unless the ranges overlap within the same table in
         // a way that would clobber unread source slots.
+        writtenIn(story)(a2);
         if (t > e || t <= f || dst !== src) {
           for (let i = 0; i < n; i++) copy(i);
         } else {
           for (let i = n - 1; i >= 0; i--) copy(i);
         }
-        writtenIn(story)(a2);
       }
       return a2;
     },
@@ -5101,8 +5100,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
           return t;
         }
       }
-      t.Freeze();
       writtenIn(story)(t);
+      t.Freeze();
       return t;
     },
   },
@@ -5301,17 +5300,17 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         mt.set("__index", parent);
       }
-      table.metatable = new ObjectValue(mt);
       const written = writtenIn(story);
       written(table);
+      table.metatable = new ObjectValue(mt);
 
       if (parent) {
         const chain = defineChain(parent);
         copyStoreDefaults(chain, table, written);
         // Register into the parent and every ancestor.
         for (const level of chain) {
-          level.value!.set(name, table);
           written(level);
+          level.value!.set(name, table);
         }
         // A structural block declared earlier may be waiting for this define
         // as its `as` parent (`morph child as base` before `define base as
@@ -5360,9 +5359,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
       mt.set(DEFINE_MARKER, new StringValue(name));
       mt.set(DEFINE_PARENT_MARKER, new StringValue(typeName));
       mt.set("__index", typeTable);
-      table.metatable = new ObjectValue(mt);
       const written = writtenIn(story);
       written(table);
+      table.metatable = new ObjectValue(mt);
 
       if (parentName) {
         const member = typeTable.value!.get(parentName) ?? null;
@@ -5383,8 +5382,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
 
       // Register into the type and every ancestor type.
       for (const level of defineChain(typeTable)) {
-        level.value!.set(name, table);
         written(level);
+        level.value!.set(name, table);
       }
       // Link the children that were waiting for this block as their parent.
       linkWaitingStructuralChildren(typeTable, name, table, written);

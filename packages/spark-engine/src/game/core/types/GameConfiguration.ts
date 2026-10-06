@@ -1,5 +1,9 @@
 export interface GameConfiguration {
   restarted?: boolean;
+  /** The game's own version string, which a save of a game on the program
+   *  engine names in its header (docs/engine/binary-program.md, section 7).
+   *  Empty when unset. */
+  version?: string;
   /** How many times one uninterrupted stretch of execution may advance the
    *  story before it is stopped as a runaway (see `Game.step`). Counted in work
    *  rather than elapsed time, so a long scene is not mistaken for an infinite

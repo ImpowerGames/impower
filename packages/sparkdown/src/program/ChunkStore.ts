@@ -48,6 +48,7 @@ import {
   type SequenceRow,
 } from "./ProgramRoot";
 import { Op, opOf } from "./ProgramInstructions";
+import { recordChunkParts } from "./chunkParts";
 import {
   anonymousSymbol,
   internSymbol,
@@ -1274,6 +1275,12 @@ export class ChunkStore {
       hoisted: hoistedOf(statement),
       params: paramsOf(statement),
       generation: this.table.generation,
+    });
+    const info = this._info.get(chunk)!;
+    recordChunkParts(chunk, {
+      functions: info.parts,
+      alternators: info.alternators,
+      choices: info.choices,
     });
     return chunk;
   }

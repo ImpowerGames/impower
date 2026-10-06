@@ -69,6 +69,19 @@ import type { VariablesState } from "../inkjs/engine/VariablesState";
 import { Void } from "../inkjs/engine/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
+  checkSave,
+  readSave,
+  writeSave,
+  type SaveHeader,
+} from "./ProgramSave";
+import {
+  ImageTracker,
+  ProgramImages,
+  captureImage,
+  restoreImage,
+  type ProgramImage,
+} from "./ProgramImages";
+import {
   CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
   CALL_TUNNEL,
@@ -260,15 +273,232 @@ export class ProgramStory {
   protected _stateIsPristine = false;
   protected _runtimeStory: Story;
 
+  /** The pristine copies the images of this engine read, shared with the
+   *  engines of the programs before and after it in one game, so that an
+   *  image one took restores into the next (`restore`). */
+  readonly images: ProgramImages;
+  /** What the write barrier marked since this engine's last capture or
+   *  restore. */
+  protected _tracker: ImageTracker;
+  /** Whether the engine keeps images: the write barrier hears every write
+   *  from the first capture or restore on. */
+  protected _imagesOn = false;
+  /** Whether each continue that starts a line keeps the image of the beat
+   *  before it (`captureBeat`), which a game that checkpoints its beats or
+   *  saves at a menu sets. */
+  keepBeatImages = false;
+
   constructor(
     readonly root: ProgramRoot,
     protected _paths: ProgramPathLocations | null = null,
+    options: { images?: ProgramImages } = {},
   ) {
     this._reader = new BinaryProgramReader(root);
     this._runtimeStory =
       root.runtimeStory?.CopyWithOwnState() ??
       new Story(new Container(), null, null);
+    this.images = options.images ?? new ProgramImages();
+    this._tracker = new ImageTracker(this.images);
     this.ResetState();
+  }
+
+  // ------------------------------------------------------------------ images
+
+  /** Turns on the write barrier of the engine's images
+   *  (docs/engine/binary-program.md, section 7). The first capture after it
+   *  is a keyframe. */
+  enableImages(): void {
+    if (!this._imagesOn) {
+      this._imagesOn = true;
+      this.attachImages();
+    }
+  }
+
+  // The barrier on the state's counts, globals, tables and cells, from a
+  // keyframe on.
+  protected attachImages(): void {
+    const state = this._state;
+    state.images = this._tracker;
+    state.variablesState.imageBarrier = this._tracker;
+    state.callStack.cellBarrier = this._tracker.cell;
+    this._tracker.reset(null);
+  }
+
+  /** An image of the state as it stands: a delta on the image last taken
+   *  or restored, or a keyframe when `keyframe` is set or there is none
+   *  since a reset or a load. A route search takes one at each fork. */
+  capture(keyframe = false): ProgramImage {
+    this.enableImages();
+    const image = captureImage(this._state, this._tracker, this, keyframe);
+    this.notMovedSince(image);
+    return image;
+  }
+
+  // The image the state last was, and whether it has moved since: a step,
+  // a choice taken, a path chosen, a call stack reset, or a write the
+  // barrier marked.
+  protected _stillImage: ProgramImage | null = null;
+  protected _stillAtStep = -1;
+
+  protected notMovedSince(image: ProgramImage | null): void {
+    this._stillImage = image;
+    this._stillAtStep = this.stepCount;
+  }
+
+  // The image the state is, when nothing moved it since it was taken or
+  // restored, which a continue that starts a line keeps rather than taking
+  // another.
+  protected stillImage(): ProgramImage | null {
+    const tracker = this._tracker;
+    const image = this._stillImage;
+    return image &&
+      tracker.base === image &&
+      this._stillAtStep === this.stepCount &&
+      tracker.tables.size === 0 &&
+      tracker.cells.size === 0 &&
+      tracker.globals.size === 0 &&
+      tracker.counts.size === 0
+      ? image
+      : null;
+  }
+
+  /** The image of the current beat (section 7): the state as it stands
+   *  after a continue that ended at its line's newline, after a choice was
+   *  taken, or at the start of a flow; and after a continue that ended with
+   *  choices raised and no newline, the image of the beat before it, which
+   *  holds none of those choices, so that restoring it and continuing raises
+   *  them again, their conditions' effects with them. */
+  captureBeat(keyframe = false): ProgramImage {
+    const held = this._state.beatImage;
+    if (!held) {
+      return this.capture(keyframe);
+    }
+    if (!keyframe) {
+      return held;
+    }
+    // A keyframe of the beat before the menu: that beat is put in place to
+    // be taken whole, and the state as it stands put back.
+    const live = this.capture();
+    this.restore(held);
+    const image = this.capture(true);
+    this.restore(live);
+    this._state.beatImage = image;
+    return image;
+  }
+
+  /** Restores an image in place, which this engine or the engine of an
+   *  earlier program of the same game (`images`) took; or returns false and
+   *  changes nothing when a position it holds names a chunk or a sequence
+   *  this engine's root no longer holds, so that the caller replays
+   *  (section 8). */
+  restore(image: ProgramImage): boolean {
+    // As a load of a state's JSON, a restore runs between the steps of an
+    // asynchronous continue, which a route search drives.
+    this.enableImages();
+    if (!restoreImage(this._state, this._tracker, this, image)) {
+      return false;
+    }
+    this.notMovedSince(image);
+    this._stateIsPristine = false;
+    this._state.beatImage = null;
+    return true;
+  }
+
+  /** Whether `restore` would place `image` in this engine's root: false
+   *  for an image of another game's engines, or one that names a chunk or a
+   *  sequence the root does not hold. Changes nothing. */
+  canRestore(image: ProgramImage): boolean {
+    return (
+      image.images === this.images &&
+      this._state.placePositional(image.positional) !== undefined
+    );
+  }
+
+  /** The header of the last save `loadSave` read, or nothing. */
+  loadedSaveHeader: SaveHeader | null = null;
+
+  /**
+   * The durable save of the current beat (docs/engine/binary-program.md,
+   * sections 7 and 8): the image `captureBeat` gives, every position in the
+   * saved form, with a header naming the format's version, the engine's
+   * and `gameVersion`, the game's own (`GameConfiguration.version`). At a
+   * menu it is the beat before the menu and holds none of the menu's
+   * choices, which needs `keepBeatImages` set while the story ran.
+   */
+  toSave(gameVersion = ""): string {
+    this.IfAsyncWeCant("save");
+    const held = this._state.beatImage;
+    if (!held) {
+      if (!this.canContinue && this._state.currentChoices.length > 0) {
+        throw new Error(
+          "A save at a menu holds the beat before it, which the story keeps only while keepBeatImages is set.",
+        );
+      }
+      return writeSave(this._state, gameVersion);
+    }
+    return this.saveOfImage(held, gameVersion)!;
+  }
+
+  /** The durable save of an image this engine, or the engine of an earlier
+   *  program of the same game, took (`toSave`): the image is put in place to
+   *  be written, and the state as it stands put back. Nothing, and nothing
+   *  changed, when the image names a position this engine's root does not
+   *  hold. */
+  saveOfImage(image: ProgramImage, gameVersion = ""): string | null {
+    this.IfAsyncWeCant("save");
+    const held = this._state.beatImage;
+    const live = this.capture();
+    if (!this.restore(image)) {
+      return null;
+    }
+    try {
+      return writeSave(this._state, gameVersion);
+    } finally {
+      this.restore(live);
+      this._state.beatImage = held;
+    }
+  }
+
+  /**
+   * Loads a durable save `toSave` wrote, into this engine's program, and
+   * returns its header. The program must have every statement the save's
+   * positions name, unchanged: a save that cannot be placed so is refused
+   * (`SaveRefused`), naming the flow, and the state is left as it was. A
+   * save of a newer format version is refused, and one of an older version
+   * goes through its migration.
+   */
+  loadSave(json: string): SaveHeader {
+    if (this._recursiveContinueCount > 0) {
+      throw new Error("Can't load a save from inside a Continue.");
+    }
+    // A save is placed before anything changes; one that fails past that,
+    // on a malformed value, puts back the state as it stood, with a line in
+    // progress still in progress. A load that succeeds ends the line.
+    this.enableImages();
+    const held = this._state.beatImage;
+    const before = this.capture();
+    let header: SaveHeader;
+    try {
+      header = readSave(this._state, json, (symbol) =>
+        this.symbolValue(symbol),
+      );
+    } catch (e) {
+      this.restore(before);
+      this._state.beatImage = held;
+      throw e;
+    }
+    this.CancelAsyncContinue();
+    this._stateIsPristine = false;
+    this.loadedSaveHeader = header;
+    return header;
+  }
+
+  /** Throws what `loadSave` would refuse a save for (`SaveRefused`): a
+   *  format version this engine does not read, another engine's save, or a
+   *  position or function value this program cannot place. Changes
+   *  nothing. */
+  checkSave(json: string): void {
+    checkSave(this._state, json, (symbol) => this.symbolValue(symbol));
   }
 
   // ------------------------------------------------------------- the surface
@@ -376,6 +606,9 @@ export class ProgramStory {
     variablesState.SnapshotDefaultGlobals();
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
+    if (this._imagesOn) {
+      this.attachImages();
+    }
     this._stateIsPristine = true;
   }
 
@@ -386,6 +619,7 @@ export class ProgramStory {
   ResetCallstack(): void {
     this.IfAsyncWeCant("ResetCallstack");
     this._stateIsPristine = false;
+    this._stillImage = null;
     this._state.ForceEnd();
   }
 
@@ -449,6 +683,8 @@ export class ProgramStory {
     }
     // Changing direction drops the choices waiting (`SetChosenPath`).
     this._state.generatedChoices.length = 0;
+    this._state.beatImage = null;
+    this._stillImage = null;
     this._state.DiscardLineEnd();
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
@@ -479,6 +715,9 @@ export class ProgramStory {
     // What a choice leads to starts a new box, so no line before the choice
     // is one a `..` after it joins.
     this._state.lineJoinable = false;
+    // The state after the choice is a beat of its own, which holds the
+    // choice taken.
+    this._state.beatImage = null;
     this.takeChoice(choice, left, true);
   }
 
@@ -487,6 +726,7 @@ export class ProgramStory {
   protected takeChoice(choice: ProgramChoice, left: number, newTurn: boolean): void {
     const state = this._state;
     this._stateIsPristine = false;
+    this._stillImage = null;
     state.TakeChoice(choice);
     if (newTurn) {
       state.currentTurnIndex += 1;
@@ -1007,6 +1247,12 @@ export class ProgramStory {
           "Can't continue - should check canContinue before calling Continue",
         );
       }
+      // The state at the start of a line is the beat before it, which a
+      // continue that ends with choices raised and no newline leaves as the
+      // image of its beat (`captureBeat`).
+      if (this.keepBeatImages && this._recursiveContinueCount == 1) {
+        state.beatImage = this.stillImage() ?? this.capture();
+      }
       state.didSafeExit = false;
       // The step the last continue cut off after its line ended starts this
       // one, with whether its own line still waits for its newline.
@@ -1043,6 +1289,15 @@ export class ProgramStory {
 
     state.CarryOutputPastCut();
 
+    // A continue that ended at its newline, or with the flow ended and no
+    // choice waiting, leaves the state as it stands as its beat's image; one
+    // that ended with choices raised leaves the image of the beat before it.
+    if (
+      outputStreamEndsInNewline ||
+      (!this.canContinue && state.currentChoices.length === 0)
+    ) {
+      state.beatImage = null;
+    }
     if (outputStreamEndsInNewline || !this.canContinue) {
       state.didSafeExit = false;
       if (this._recursiveContinueCount == 1) {
@@ -1143,9 +1398,15 @@ export class ProgramStory {
       this.pausesAt(chunk, position.offset)
     ) {
       // Stopped before the decision: nothing is consumed and the position
-      // does not move.
-      this.pausedBeforeCondition = ProgramStory.addressOf(chunk, position.offset);
-      return;
+      // does not move. A decision the route simulator forces is not one to
+      // stop at: a route search that forked at it runs on through it with
+      // the verdict it forces, which it asks by the decision's address, as
+      // the current engine's search asks by the path it stands at.
+      const address = ProgramStory.addressOf(chunk, position.offset);
+      if (!this.simulator?.willForceCondition(address)) {
+        this.pausedBeforeCondition = address;
+        return;
+      }
     }
     this.pausedBeforeCondition = null;
     this.stepCount++;
@@ -1201,7 +1462,7 @@ export class ProgramStory {
       }
       const owner = top.sequence.arrays.chunks[top.entry]!;
       if (blockFlags(owner, top.block) & BLOCK_PASS_SCOPE) {
-        state.frame?.PopScope();
+        state.frame?.PopScope(state.callStack.cellBarrier);
       }
       position.sequence = top.sequence;
       position.entry = top.entry;
@@ -1448,7 +1709,7 @@ export class ProgramStory {
         state.frame?.PushScope();
         break;
       case Op.EndScope:
-        state.frame?.PopScope();
+        state.frame?.PopScope(state.callStack.cellBarrier);
         break;
       case Op.EnterBlock: {
         const body = this.root.body(chunk, arg);
@@ -1983,7 +2244,7 @@ export class ProgramStory {
         shared += 1;
       }
       while (frame.temporaryScopes.length > kept) {
-        frame.PopScope();
+        frame.PopScope(state.callStack.cellBarrier);
       }
       let scopes = 1;
       for (const block of blocks) {
