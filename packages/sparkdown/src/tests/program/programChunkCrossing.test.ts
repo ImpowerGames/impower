@@ -804,6 +804,144 @@ describe("block statements an edit reorders", () => {
     expect(identityReads).toBeLessThan(20);
   });
 
+  it("screen a repeatedly exchanged owner that keeps no old chunk once", () => {
+    // As above, but the free old `big` owns one body fewer, so it reads as
+    // the new `big` in its syntax and reads but not in its identity, which
+    // has no old chunk. The new `big` is visited again after every
+    // exchange; it is screened and its identity looked up once, and
+    // `reads`, which the screen reads, is read a bounded number of times.
+    const n = 128;
+    const store = new ChunkStore();
+    const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
+    let screens = 0;
+    const big = (bodyCount: number, counted: boolean): StatementSource => {
+      const objects: ParsedObject[] = [];
+      const bodies = Array.from({ length: bodyCount }, () => {
+        const shape = { statements: [], headEnd: 0, nextStart: 0 };
+        const scope = wrapInScope([]);
+        bodyOfBlock.set(scope[0]!, shape as never);
+        objects.push(...scope);
+        return { shape, statements: [], firstLine: 0, span: 1, headLines: 0 };
+      });
+      const statement = { ...plain("big"), objects, bodies } as unknown as StatementSource;
+      if (counted) {
+        Object.defineProperty(statement, "reads", {
+          get() {
+            screens += 1;
+            return "[]";
+          },
+        });
+      }
+      return statement;
+    };
+    const old: StatementSource[] = [];
+    for (let k = 0; k <= n; k += 1) {
+      old.push(owner(`x${k}`), anchors[k]!);
+    }
+    old.push(big(n - 1, false));
+    const before = store.build(flow(old), true).root!.flowNamed("")!.arrays.chunks;
+    const now: StatementSource[] = [big(n, true), anchors[0]!];
+    for (let k = 0; k < n; k += 1) {
+      now.push(owner(`x${k}`), anchors[k + 1]!);
+    }
+    screens = 0;
+    const built = store.build(flow(now), true);
+    expect(built.fallback).toBeUndefined();
+    const after = built.root!.flowNamed("")!.arrays.chunks;
+    for (let k = 0; k < n; k += 1) {
+      expect(after[2 + 2 * k] === before[2 * k]).toBe(true);
+    }
+    expect(screens).toBeLessThan(20);
+  });
+
+  it.each([1, 2])(
+    "classify the ancestry of changed leaves under nested kept owners in owner queries linear in their number (%i per owner)",
+    (perOwner) => {
+      // Old `[o0, a0…, o1, a1…, …]`, where each `oK` owns the next owner and
+      // its own leaves, becomes the same owners with every leaf changed: the
+      // owners keep their chunks, so each run between two of them holds the
+      // owner's changed leaves, each of whose owner chain is N deep. Which
+      // of the leaves a run leaves contain one another is found in owner
+      // queries linear in N, not once per leaf per owner above it.
+      const n = 256;
+      class Measured extends ChunkStore {
+        make(syntax: string) {
+          const chunk = new Int32Array(HEADER_WORDS);
+          this._info.set(chunk, {
+            syntax,
+            reads: "[]",
+            emitReads: [],
+            resolutions: [],
+            parts: [],
+            alternators: [],
+            anonymousReferences: [],
+            hoisted: "",
+            params: "",
+            choices: [],
+            heads: [],
+            facts: new Map(),
+            placement: "sequence",
+            generation: this.table.generation,
+          });
+          return chunk;
+        }
+        run(
+          statements: StatementSource[],
+          old: Int32Array[],
+          kept: (Int32Array | undefined)[],
+          nesting: Parameters<ChunkStore["align"]>[3],
+        ) {
+          this._used = new Set(kept.filter((chunk): chunk is Int32Array => !!chunk));
+          this._inherit = new Map();
+          return this.align(statements, old, kept, nesting);
+        }
+      }
+      const store = new Measured();
+      const now: StatementSource[] = [];
+      const old: Int32Array[] = [];
+      const kept: (Int32Array | undefined)[] = [];
+      const owners = new Map<StatementSource, StatementSource>();
+      const oldOwners = new Map<Int32Array, Int32Array>();
+      let ownerNow: StatementSource | undefined;
+      let ownerOld: Int32Array | undefined;
+      for (let k = 0; k < n; k += 1) {
+        const o = plain(`o${k}`);
+        const chunk = store.make(`o${k}`);
+        if (ownerNow && ownerOld) {
+          owners.set(o, ownerNow);
+          oldOwners.set(chunk, ownerOld);
+        }
+        now.push(o);
+        old.push(chunk);
+        kept.push(chunk);
+        for (let j = 0; j < perOwner; j += 1) {
+          const leaf = plain(`New${j}.`);
+          const oldLeaf = store.make(`Old${j}.`);
+          owners.set(leaf, o);
+          oldOwners.set(oldLeaf, chunk);
+          now.push(leaf);
+          old.push(oldLeaf);
+          kept.push(undefined);
+        }
+        ownerNow = o;
+        ownerOld = chunk;
+      }
+      let queries = 0;
+      const result = store.run(now, old, kept, {
+        owner(statement) {
+          queries += 1;
+          return owners.get(statement);
+        },
+        oldOwner(chunk) {
+          queries += 1;
+          return oldOwners.get(chunk);
+        },
+      });
+      expect(now.every((_, i) => (kept[i] ? result[i] === kept[i] : !result[i]))).toBe(true);
+      expect(queries).toBeLessThan(8 * n * (perOwner + 1));
+    },
+  );
+
   it("look up a large old chunk's identity once while exchanges pass it on", () => {
     // Old `[big, anchor0, x0, anchor1, …, x(N-1), anchorN, bigCopy]` and new
     // `[x0, anchor0, x1, …, changed, anchorN]`, aligned directly: `big`, whose
