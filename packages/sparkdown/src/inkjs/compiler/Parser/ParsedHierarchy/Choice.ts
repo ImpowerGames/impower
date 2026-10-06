@@ -357,7 +357,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
       this.runtimeChoice.pathOnChoice = this._innerContentContainer.path;
 
       if (this.onceOnly) {
-        this._innerContentContainer.visitsShouldBeCounted = true;
+        context.MarkCounted(this._innerContentContainer, true, false);
       }
     }
 

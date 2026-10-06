@@ -44,9 +44,14 @@ export interface SequenceRow {
   readonly block: number;
   /** The script the sequence is written in. */
   readonly uri: string;
-  /** The body's first line in its script, counting from 0. A body's is
-   *  derived from its owner's line and block rows and the spans of the
-   *  bodies above it, and this root keeps it as it derived it. */
+  /** For a flow's own sequence and a declaration sequence, which have no
+   *  owner, the first line of the body in its script, counting from 0; -1
+   *  for a block's body. Where a body starts is the root's to derive
+   *  (`ProgramRoot.firstLineOf`): its owner's line, the lines of the owner's
+   *  parts above it and the spans of the bodies above it. So a body's row
+   *  holds nothing that an edit above its owner moves, and a root built
+   *  after such an edit shares it (docs/engine/binary-program.md, section
+   *  1, The order structure). */
   readonly firstLine: number;
   /** The lines the body spans. */
   readonly span: number;
@@ -154,6 +159,24 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
     entryIndexes.set(arrays, index);
   }
   return index;
+};
+
+/** Whether a sequence's arrays hold `chunk`. */
+export const holdsChunk = (
+  arrays: SequenceArrays,
+  chunk: StatementChunk,
+): boolean => {
+  const entry = entryIndex(arrays).get(chunkId(chunk));
+  return entry !== undefined && arrays.chunks[entry] === chunk;
+};
+
+/** Whether `root` holds `chunk`, in the sequence its chunk table names. */
+export const holdsChunkIn = (
+  root: ProgramRoot,
+  chunk: StatementChunk,
+): boolean => {
+  const at = root.position(chunkId(chunk));
+  return !!at && at.sequence.arrays.chunks[at.entry] === chunk;
 };
 
 /**
@@ -295,6 +318,12 @@ export class ProgramRoot {
     return this._chunks;
   }
 
+  /** Where each symbol is defined, and what as, which the next compile
+   *  writes over where its chunks or flows changed. */
+  get definitionArrays(): DefinitionArrays {
+    return this._definitions;
+  }
+
   /** Where a symbol is defined: its sequence, entry and offset. A function
    *  and a label are defined where a chunk exports them, and a flow at the
    *  start of its sequence. */
@@ -397,6 +426,38 @@ export class ProgramRoot {
     return ids.map((id) => this._sequences.get(id)!);
   }
 
+  // The first line of each body this root has derived (`firstLineOf`).
+  protected _bodyLines = new Map<number, number>();
+
+  /** The first line of a sequence in its script, counting from 0: a flow's
+   *  and a declaration sequence's as its row holds it, and a body's derived
+   *  from where its owner stands (section 1, The order structure): the
+   *  owner's first line, then for each body above it the lines of the
+   *  owner's parts that head that body and the lines it spans, then the
+   *  lines of the parts that head this one. */
+  firstLineOf(sequence: SequenceRow): number {
+    if (sequence.owner < 0) {
+      return sequence.firstLine;
+    }
+    const known = this._bodyLines.get(sequence.id);
+    if (known !== undefined) {
+      return known;
+    }
+    const at = this.position(sequence.owner);
+    if (!at) {
+      return -1;
+    }
+    const chunk = at.sequence.arrays.chunks[at.entry]!;
+    let line = this.lineOf(at.sequence, at.entry);
+    for (let k = 0; k < sequence.block; k += 1) {
+      line += blockField(chunk, k, B_HEAD_LINES);
+      line += this.body(chunk, k)?.span ?? 0;
+    }
+    line += blockField(chunk, sequence.block, B_HEAD_LINES);
+    this._bodyLines.set(sequence.id, line);
+    return line;
+  }
+
   /** The statement a line of a script falls in: the last statement of the
    *  flow holding the line that starts at or above it, and when the line
    *  falls inside one of that statement's bodies, the statement of the body
@@ -414,7 +475,8 @@ export class ProgramRoot {
       let inner: ChunkPosition | undefined;
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = this.body(chunk, k);
-        if (body && body.firstLine <= line && line < body.firstLine + body.span) {
+        const first = body ? this.firstLineOf(body) : -1;
+        if (body && first <= line && line < first + body.span) {
           inner = this.entryAt(body, line);
           break;
         }
@@ -434,7 +496,7 @@ export class ProgramRoot {
     if (starts.length === 0) {
       return undefined;
     }
-    const relative = line - sequence.firstLine;
+    const relative = line - this.firstLineOf(sequence);
     if (starts[0]! > relative) {
       return { sequence, entry: 0 };
     }
@@ -453,7 +515,7 @@ export class ProgramRoot {
 
   /** The absolute first line (counting from 0) of a sequence's entry. */
   lineOf(sequence: SequenceRow, entry: number): number {
-    return sequence.firstLine + (sequence.arrays.lineStarts[entry] ?? 0);
+    return this.firstLineOf(sequence) + (sequence.arrays.lineStarts[entry] ?? 0);
   }
 
   /** The first line of the end of block `block` of the statement at `entry`
@@ -462,7 +524,7 @@ export class ProgramRoot {
     const chunk = sequence.arrays.chunks[entry]!;
     const body = this.body(chunk, block);
     if (body) {
-      return body.firstLine + body.span;
+      return this.firstLineOf(body) + body.span;
     }
     // A body this root does not hold: its lines follow from the block rows.
     let line = this.lineOf(sequence, entry);

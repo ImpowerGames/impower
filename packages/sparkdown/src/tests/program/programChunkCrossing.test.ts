@@ -828,6 +828,7 @@ describe("block statements an edit reorders", () => {
           params: "",
           choices: [],
           heads: [],
+          facts: new Map(),
           generation: this.table.generation,
         });
         return chunk;

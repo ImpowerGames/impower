@@ -347,8 +347,11 @@ export class Story extends FlowBase {
   public readonly ExportRuntime = (
     errorHandler: ErrorHandler | null = null,
     initializeGlobals = true,
+    programMode = false,
   ): RuntimeStory | null => {
     this._errorHandler = errorHandler;
+    this.programMode = programMode;
+    this.deferredCountFlags = [];
 
     // Invalidate every node's diagnostic-dedup state from prior exports in
     // O(1) — the incremental pipeline reuses parsed nodes across compiles, and
@@ -472,6 +475,7 @@ export class Story extends FlowBase {
 
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
+    this._exportedRoot = rootContainer;
 
     // IMPLICIT parent types — a `define X as T` whose parent `T` is
     // never itself `define`d (e.g. `as character`, a builtin engine
@@ -602,8 +606,12 @@ export class Story extends FlowBase {
     // Generation is complete (FlattenContainersIn emits no diagnostics).
     this._generationPhase = false;
 
-    // Optimisation step - inline containers that can be
-    this.FlattenContainersIn(rootContainer);
+    // Optimisation step - inline containers that can be. A program that runs
+    // from statement chunks runs nothing of this tree, so it is flattened
+    // only when the program falls back (`FinishForCurrentEngine`).
+    if (!programMode) {
+      this.FlattenContainersIn(rootContainer);
+    }
 
     // Now that the story has been fulled parsed into a hierarchy,
     // and the derived runtime hierarchy has been built, we can
@@ -624,6 +632,66 @@ export class Story extends FlowBase {
     }
 
     return runtimeStory;
+  };
+
+  /** Set while `ExportRuntime` exports for a program that runs from
+   *  statement chunks (`SparkdownCompilerConfig.programChunks`): the runtime
+   *  tree then runs only when the program falls back, so the passes that
+   *  prepare it for the current engine, the flattening of its containers and
+   *  the count flags resolution sets on them, wait until it does
+   *  (`FinishForCurrentEngine`). The program counts every counted symbol
+   *  (docs/engine/binary-program.md, section 5). */
+  public programMode = false;
+
+  /** The count flags resolution set while `programMode` was on, which
+   *  `FinishForCurrentEngine` sets on their containers. */
+  // The root container the last `ExportRuntime` generated.
+  protected _exportedRoot: RuntimeContainer | null = null;
+
+  public deferredCountFlags: Array<{
+    container: RuntimeContainer;
+    visits: boolean;
+    turns: boolean;
+  }> = [];
+
+  /** Has the current engine count a container's visits or turns, as
+   *  resolution finds that a read count, a divert target or a once-only
+   *  choice needs it; while `programMode` is on, once the program falls
+   *  back. */
+  public readonly MarkCounted = (
+    container: RuntimeContainer,
+    visits: boolean,
+    turns: boolean,
+  ): void => {
+    if (this.programMode) {
+      this.deferredCountFlags.push({ container, visits, turns });
+      return;
+    }
+    if (visits) {
+      container.visitsShouldBeCounted = true;
+    }
+    if (turns) {
+      container.turnIndexShouldBeCounted = true;
+    }
+  };
+
+  /** Prepares a runtime story exported in `programMode` for the current
+   *  engine, when the program falls back to it: its containers flattened,
+   *  with the reconcile of reused containers' count flags that flattening
+   *  makes, and then the count flags resolution found, as `ExportRuntime`
+   *  orders them outside `programMode`. */
+  public readonly FinishForCurrentEngine = (): void => {
+    if (!this.programMode) {
+      return;
+    }
+    this.programMode = false;
+    if (this._exportedRoot) {
+      this.FlattenContainersIn(this._exportedRoot);
+    }
+    for (const { container, visits, turns } of this.deferredCountFlags) {
+      this.MarkCounted(container, visits, turns);
+    }
+    this.deferredCountFlags = [];
   };
 
   /**

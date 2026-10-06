@@ -1,4 +1,5 @@
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
+import { noteResolved } from "../../../../program/StatementWatch";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { DebugMetadata } from "../../../engine/DebugMetadata";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
@@ -314,6 +315,9 @@ export abstract class ParsedObject {
     if (this.content !== null) {
       for (const obj of this.content) {
         obj.ResolveReferences(context);
+        // A chunk kept for the object's statement recorded how the object
+        // resolved; the statement watch reads it again here.
+        noteResolved(obj);
       }
     }
   }
