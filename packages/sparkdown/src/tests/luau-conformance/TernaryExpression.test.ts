@@ -11,6 +11,7 @@ import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
+import { officialSyntaxErrors } from "../compiler/officialSyntax";
 
 function compileAndCapture(source: string): {
   errors: string[];
@@ -73,6 +74,18 @@ function ifDiagnostics(source: string): string[] {
     .map((d: any) => {
       const { start, end } = d.range;
       return `${start.line + 1}:${start.character + 1}-${end.line + 1}:${end.character + 1} ${d.message?.value ?? d.message}`;
+    });
+}
+
+// The official parser's "when parsing" errors, in `ifDiagnostics`'s form. Where
+// Sparkdown ends a statement at a column-0 line, the errors after the first
+// are Luau's recovery reading on into that line, so a row compares the first.
+function officialIfDiagnostics(source: string): string[] {
+  return officialSyntaxErrors(source)
+    .filter((e) => e.message.includes("when parsing"))
+    .map((e) => {
+      const { begin, end } = e.location;
+      return `${begin.line + 1}:${begin.column + 1}-${end.line + 1}:${end.column + 1} ${e.message}`;
     });
 }
 
@@ -655,12 +668,14 @@ describe("if expression without an else", () => {
   // expression, so nothing indented separates the two.
   test.each([
     ["a then arm with only a comment", "  local y = if true\n    then -- still writing\n", `${MISSING_CONDITION}, got 'end'`, "4:1-4:4"],
-    ["no else yet", "  local y = if true\n    then 1\n", MISSING_ELSE, "2:13-2:15"],
+    // A missing else is Luau's error, at the token Luau finds instead (#1501).
+    ["no else yet", "  local y = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
     ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
-    ["a reassignment with no else yet", "  x = if true\n    then 1\n", MISSING_ELSE, "2:7-2:9"],
+    ["a reassignment with no else yet", "  x = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
   ])("%s, right before the function's end: keeps the next function", (_name, body, message, at) => {
     const source = `function f()\n${body}end\nfunction g()\n  return 6\nend\nSum {g()}.\n`;
     expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
+    if (message.startsWith(MISSING_ELSE)) expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
   });
@@ -677,7 +692,8 @@ describe("if expression without an else", () => {
     ["a compound assignment", "+="],
   ])("in %s, followed by a statement at column 0", (_name, op) => {
     const source = `Value {f()}.\nfunction f()\n  local x = 0\n  x ${op} if true\n    then 1\nx = 6\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual([`4:${op.length + 6}-4:${op.length + 8} ${MISSING_ELSE}`]);
+    expect(ifDiagnostics(source)).toEqual([`6:1-6:2 ${MISSING_ELSE}, got 'x'`]);
+    expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source).slice(0, 1));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
@@ -710,7 +726,8 @@ describe("if expression without an else", () => {
     ["a for loop", "for i = 6, 6 do x = i end"],
   ])("in a reassignment, followed by %s at column 0", (_name, next) => {
     const source = `Value {f()}.\nlocal x = 0\nfunction set(v)\n  x = v\nend\nfunction f()\n  x = if true\n    then 1\n${next}\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual([`7:7-7:9 ${MISSING_ELSE}`]);
+    expect(ifDiagnostics(source)).toEqual([expect.stringMatching(/^9:1-9:\d+ Expected 'else' when parsing if then else expression, got '/)]);
+    expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source).slice(0, 1));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });

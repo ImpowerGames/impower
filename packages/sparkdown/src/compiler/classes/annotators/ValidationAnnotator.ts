@@ -329,7 +329,9 @@ function reportedBefore(
 // expression, and `then` and `else` are keywords it expects. It adds the
 // token it found instead, which lies outside the expression, so these leave
 // it out. Where the type checker reads the Luau and Luau finds a value
-// missing too, the checker reports that one with Luau's token and range.
+// missing too, the checker reports that one with Luau's token and range;
+// where it reads on to the token after a missing `else`, that error is
+// Luau's own, with its token and range.
 const IF_EXPRESSION_WITHOUT_VALUE =
   "Expected identifier when parsing expression";
 const IF_EXPRESSION_WITHOUT_THEN =
@@ -1360,7 +1362,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const checkerReportsValue =
         missing?.message === IF_EXPRESSION_WITHOUT_VALUE &&
         typeCheckerReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read, this.statementDocumentText);
-      if (missing && !checkerReportsValue) {
+      // A missing `else` is Luau's error, worded and placed as Luau's reading
+      // of the expression finds it, at the token after the then arm's value
+      // (which may be on the line after `then`, #1501), where the checker
+      // reads the Luau on to that token (`checkerReadsOnTo`).
+      let reportedElse = false;
+      if (missing?.message === IF_EXPRESSION_WITHOUT_ELSE) {
+        const text = this.statementDocumentText();
+        const start = firstDescendant(nodeRef.node, LUAU_IF_KEYWORD)?.from ?? nodeRef.from;
+        const error = readLuauExpressionAfter(start, text, authoredIslandEnd(nodeRef.node)).errors[0];
+        if (error?.message.startsWith(`${IF_EXPRESSION_WITHOUT_ELSE}, got `)) {
+          const from = luauPositionOffset(error.location.begin, text);
+          const to = luauPositionOffset(error.location.end, text);
+          const atEof = error.message.endsWith("got <eof>");
+          if (this.checkerReadsOnTo(nodeRef.node, atEof ? undefined : from)) {
+            this.error(annotations, error.message, from, to);
+            reportedElse = true;
+          }
+        }
+      }
+      if (missing && !checkerReportsValue && !reportedElse) {
         this.error(
           annotations,
           missing.message,
