@@ -18,7 +18,8 @@
  * A line counts as skippable when it is blank, starts with `--` (a Luau
  * comment, or a story line Luau reads as one), or lies inside a comment
  * long bracket (`--[[` to `]]`) that spans lines; an edit inside such a
- * comment is in that comment's skipped text too. Counting a line as
+ * comment is in that comment's skipped text too. Every `--[[` counts as
+ * opening one, even inside a string or another comment. Counting a line as
  * skippable when Luau does not skip it only moves the start further back.
  */
 export function lookaheadContextStart(text: string, pos: number): number {
@@ -33,7 +34,9 @@ export function lookaheadContextStart(text: string, pos: number): number {
     const comment = runningInto(start);
     if (comment) {
       start = lineStart(text, comment.from);
-      if (!skippable(text.slice(start, comment.from))) return start;
+      if (!skippable(text.slice(start, comment.from)) && !runningInto(start)) {
+        return start;
+      }
       continue;
     }
     if (start === 0) return 0;
@@ -54,11 +57,14 @@ function skippable(line: string): boolean {
   return trimmed === "" || trimmed.startsWith("--");
 }
 
-// The comment long brackets (`--[[` to `]]`, `--[=[` to `]=]`...) that
-// start before `pos`, read as Luau's lexer reads them: each opener's comment
-// ends at its first matching close, and an opener inside a comment is part
-// of its text. A comment with no close before `pos` is still open there
-// (`to` is infinite).
+// The spans before `pos` that may be comment long brackets (`--[[` to `]]`,
+// `--[=[` to `]=]`...): one from every opener to its first matching close,
+// whether or not the opener begins a comment. Without lexing the strings
+// and line comments around them, an opener inside a string or another
+// comment cannot be told from a real one, and skipping the text a false
+// span covers could skip a real opener; keeping every span only moves the
+// start further back. A span with no close before `pos` is still open there
+// (`to` is infinite), and covers every later opener.
 function longComments(text: string, pos: number): { from: number; to: number }[] {
   const comments: { from: number; to: number }[] = [];
   const opener = /--\[(=*)\[/g;
@@ -70,7 +76,6 @@ function longComments(text: string, pos: number): { from: number; to: number }[]
       break;
     }
     comments.push({ from: match.index, to: at + close.length });
-    opener.lastIndex = at + close.length;
   }
   return comments;
 }

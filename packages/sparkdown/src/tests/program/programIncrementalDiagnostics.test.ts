@@ -71,6 +71,35 @@ describe("incremental diagnostics agree with a cold compile", () => {
   const COMMENT_BEFORE =
     "  Plain line.\n".repeat(20) + "  local q =\n--[[ a\nb\nc\nd\ne\nf\n]]\n  local r = 1\n  return r\n";
 
+  // A `--[[` that opens no comment (in a string, a line comment or a long
+  // string) before the real comment: its first `]]` is inside the real one.
+  const FALSE_OPENERS = [
+    ["a quoted string", '  local s = "--[["'],
+    ["a line comment", "  -- note --[["],
+    ["a long string", "  local s = [==[ --[[ ]==]"],
+  ];
+  const falseOpenerSource = (line: string) =>
+    "  Plain line.\n".repeat(20) +
+    `${line}\n  local q =\n--[=[ a\nb\n]]\nc\nd\ne\nf\n]=]\n  local r = 1\n  Plain line.\n`;
+
+  for (const programChunks of [true, false]) {
+    for (const [where, line] of FALSE_OPENERS) {
+      it(`reports it there after a --[[ in ${where} above the comment (programChunks=${programChunks})`, () => {
+        const source = falseOpenerSource(line!);
+        const split = source.indexOf("  local r") + 3;
+        const inside = source.indexOf("\ne\n");
+        for (const edit of [
+          { from: split, to: split, text: "\n" },
+          { from: inside, to: inside + 3, text: "\n]=] l\n" },
+        ]) {
+          const { incremental, cold } = compareAfterEdit(source, edit, programChunks);
+          expect(cold.some((d) => d.startsWith("21:10-21:11 Expected identifier when parsing expression"))).toBe(true);
+          expect(incremental).toEqual(cold);
+        }
+      });
+    }
+  }
+
   for (const programChunks of [true, false]) {
     it(`reports a value missing after = where a cold compile does (programChunks=${programChunks})`, () => {
       const at = BEFORE.indexOf("  local q = function") + 3;
