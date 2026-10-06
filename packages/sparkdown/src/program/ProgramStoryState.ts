@@ -377,8 +377,10 @@ export class ProgramStoryState {
   }
 
   /** The addresses the story will come back to, from the outermost thread
-   *  in: where each suspended thread resumes, where each frame of the
-   *  current thread returns to, and the position (`ProgramStory.stackAddresses`). */
+   *  in: for each thread, where each of its frames returns to and, for a
+   *  suspended thread, where it resumes, which runs on into those frames'
+   *  returns; then the position (`ProgramStory.stackAddresses`), as the
+   *  current engine's call stack names every thread's elements. */
   stackAddresses(): number[] {
     const out: number[] = [];
     const add = (position: ProgramPosition | null | undefined) => {
@@ -389,12 +391,11 @@ export class ProgramStoryState {
     };
     const threads = this.callStack._threads;
     threads.forEach((thread, i) => {
-      if (i < threads.length - 1) {
-        add(this._suspended.get(thread)?.position);
-        return;
-      }
       for (const element of thread.callstack) {
         add(this._frames.get(element)?.returnTo);
+      }
+      if (i < threads.length - 1) {
+        add(this._suspended.get(thread)?.position);
       }
     });
     add(this.position);

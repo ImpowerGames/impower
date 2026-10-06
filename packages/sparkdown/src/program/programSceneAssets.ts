@@ -1,6 +1,7 @@
 import {
   createSceneAssetCapture,
   type SceneAssetCapture,
+  type SceneBeat,
 } from "../compiler/types/SceneAssets";
 import { scanAssetDirectives } from "../compiler/utils/scanAssetDirectives";
 import { CALL_TUNNEL, Op, flagsOf, opOf } from "./ProgramInstructions";
@@ -14,6 +15,24 @@ import {
   codeWords,
   type StatementChunk,
 } from "./StatementChunk";
+
+/** Adds what `from` names to `into`, a record of the same beat, each name
+ *  once and in the order the beat names them. */
+const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
+  for (const key of ["image", "audio", "layouts", "loads"] as const) {
+    const names = from[key];
+    if (!names) {
+      continue;
+    }
+    const merged = [...(into[key] ?? [])];
+    for (const name of names) {
+      if (!merged.includes(name)) {
+        merged.push(name);
+      }
+    }
+    into[key] = merged;
+  }
+};
 
 /**
  * What each top-level flow of a program of statement chunks references, as
@@ -58,11 +77,16 @@ export const captureProgramAssets = (
         case Op.Text: {
           const text = strings[arg];
           if (text && (text.includes("[[") || text.includes("(("))) {
-            scanAssetDirectives(
-              text,
-              addressOf(id, beat >= 0 ? beat : offset),
-              capture,
-            );
+            const address = addressOf(id, beat >= 0 ? beat : offset);
+            const before = capture.beats.at(-1);
+            const scanned = scanAssetDirectives(text, address, capture);
+            // The texts of one beat that an interpolation splits name one
+            // beat's assets, under its one address (round 1 of the review
+            // of #1618).
+            if (scanned && before?.address === address) {
+              capture.beats.pop();
+              mergeBeat(before, scanned);
+            }
           }
           break;
         }

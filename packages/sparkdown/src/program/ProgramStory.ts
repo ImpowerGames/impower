@@ -2678,16 +2678,9 @@ export class ProgramStory {
   /** The instruction the last step ran. */
   protected _running: RunningInstruction | null = null;
 
-  /** The position a path names: a flow by its qualified name, the top-level
-   *  content's flow as `""` or `"0"`, or the content a path's location starts
-   *  at. A line can hold several statements (tags written after inline text)
-   *  and several beats (a `>` break), which the location's column tells
-   *  apart: of the statements that start on the line the statement holding
-   *  the location starts on, the last one that starts at or before the
-   *  location, and in it the last `LineStart` at or before the location, or
-   *  the statement's start when none is (a continuation, which joins the beat
-   *  before it, or tags). */
-  /** The start of the flow or label a qualified name names. */
+  /** The start of the flow or label a qualified name names, the top-level
+   *  content's flow as `""` or `"0"`; a position in the source is chosen
+   *  by its address (`ChooseAddress`). */
   protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {

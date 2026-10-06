@@ -357,3 +357,62 @@ describe("two scripts with a statement on the same line", () => {
     ]);
   });
 });
+
+// Round 1 of the review of #1618 (report 6026971997): a suspended thread's
+// frames return too. A tunnel into B forks C, which leaves its inherited
+// tunnel onward into D; D's `done` resumes B, which returns through the
+// tunnel into A, so while D runs, A's return is one the story comes back to.
+describe("the addresses a story will come back to", () => {
+  const TEXT = [
+    "-> A",
+    "",
+    "scene A",
+    "  Before the tunnel.",
+    "  -> B ->",
+    "  After the tunnel.",
+    "  done",
+    "end",
+    "",
+    "scene B",
+    "  In B.",
+    "  <- C",
+    "  ->->",
+    "end",
+    "",
+    "scene C",
+    "  In C.",
+    "  ->-> D",
+    "end",
+    "",
+    "scene D",
+    "  In D.",
+    "  done",
+    "end",
+    "",
+  ].join("\n");
+
+  it("include the returns of a suspended thread's frames", () => {
+    const root = rootOf(TEXT);
+    const story = new ProgramStory(root);
+    const scenesBack: Record<string, string[]> = {};
+    const texts: string[] = [];
+    story.ChoosePathString("A");
+    while (story.canContinue) {
+      const text = quiet(() => story.Continue()) ?? "";
+      texts.push(text);
+      scenesBack[text.trim()] = story
+        .stackAddresses()
+        .map((address) => root.sceneAt(address) ?? "");
+    }
+    expect(texts.map((t) => t.trim()).filter(Boolean)).toEqual([
+      "Before the tunnel.",
+      "In B.",
+      "In C.",
+      "In D.",
+      "After the tunnel.",
+    ]);
+    // While D runs, the suspended thread stands in B and its tunnel frame
+    // returns into A.
+    expect(scenesBack["In D."]).toEqual(expect.arrayContaining(["A", "B"]));
+  });
+});

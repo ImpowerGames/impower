@@ -1277,6 +1277,45 @@ describe("on the program engine", () => {
     expectSameAnswer(after.round, fromTheTop(after.round));
   });
 
+  // Round 1 of the review of #1618 (report 6026971997): a search that keeps
+  // to its scene asks whether the story has left it by the addresses it will
+  // come back to, which left out a suspended thread's frames, so a fork's
+  // tunnel onward out of the scene looked like leaving it for good.
+  test("a route through a fork's tunnel onward comes back to its scene", () => {
+    const lines = [
+      "-> A",
+      "",
+      "scene A",
+      "  Before the tunnel.",
+      "  -> B ->",
+      "  After the tunnel.",
+      "  done",
+      "end",
+      "",
+      "scene B",
+      "  In B.",
+      "  <- C",
+      "  ->->",
+      "end",
+      "",
+      "scene C",
+      "  In C.",
+      "  ->-> D",
+      "end",
+      "",
+      "scene D",
+      "  In D.",
+      "  done",
+      "end",
+      "",
+    ];
+    const session = new Session(lines.join("\n"), PROGRAM);
+    const round = session.compile(lines.indexOf("  After the tunnel."));
+    expect(round.simulation).toBe("success");
+    expect(round.searchSteps).toBeGreaterThan(0);
+    expectSameAnswer(round, fromTheTop(round));
+  });
+
   // A scene with nothing of its own before its first branch enters that
   // branch, by the scene's start binding, not by any statement's code. A
   // branch inserted above the first one changes where the scene starts while

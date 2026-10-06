@@ -129,4 +129,35 @@ describe("a compile with statement chunks", () => {
     expect(beats[0]!.address).toBe(locator.addressAt(MAIN_URI, 3));
     expect(beats[1]!.address).toBe(locator.addressAt(MAIN_URI, 6));
   });
+
+  // Round 1 of the review of #1618 (report 6026971997): an interpolation
+  // splits a beat's text into several literals, each of which named the
+  // beat's address in a record of its own.
+  it("names one record for a beat whose text an interpolation splits", () => {
+    const text = [
+      "store score = 0",
+      "",
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[room]] Hello {score} [[portrait]] and [[room]] again.",
+      "  [[street]] Later.",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      programChunks: true,
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    expect(program.chunks).toBeDefined();
+    const locator = programLocator(program);
+    const beats = program.sceneAssets!["MAIN"]!.beats;
+    expect(beats.map((beat) => beat.image)).toEqual([["room", "portrait"], ["street"]]);
+    expect(beats.map((beat) => beat.address)).toEqual([
+      locator.addressAt(MAIN_URI, 5),
+      locator.addressAt(MAIN_URI, 6),
+    ]);
+  });
 });

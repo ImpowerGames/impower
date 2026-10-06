@@ -228,10 +228,20 @@ describe("the checkpoints of a game on the program engine", () => {
     const executed = (g: Game) =>
       (g as any)._runtimeState.pathsExecutedThisFrame.toArray() as unknown[];
     const store = game.checkpoints;
-    const saves = [game.save(), store.getJson(Math.floor(store.length / 2))!];
+    // A checkpoint whose beat ran statements, restored in place: a continue
+    // starts the record again, so where the run happens to stop says
+    // nothing of it.
+    const ran = Array.from({ length: store.length }, (_, i) => i).filter(
+      (i) => JSON.parse(JSON.parse(store.getJson(i)!).runtime).pathsExecutedThisFrame.length > 0,
+    );
+    expect(ran.length).toBeGreaterThan(2);
+    const mid = ran[Math.floor(ran.length / 2)]!;
+    expect(game.restoreCheckpoint(mid)).toBe(true);
+    expect(executed(game).length).toBeGreaterThan(0);
+    const saves = [game.save(), store.getJson(mid)!];
     for (const save of saves) {
-      expect(executed(game).length).toBeGreaterThan(0);
       const runtime = JSON.parse(JSON.parse(save).runtime);
+      expect(runtime.pathsExecutedThisFrame.length).toBeGreaterThan(0);
       const same = compiler(TEXTS).compile();
       const here = createGame(same.program, same.story);
       here.start();
