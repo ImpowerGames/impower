@@ -428,6 +428,59 @@ describe("a loop of a choose block's preamble that offers choices", () => {
     }
   });
 
+  // A `choose` block written in the loop's body is part of the presentation
+  // too, and a `do` block or a loop of its own preamble is its code, whole.
+  it("runs a do block or a loop of the preamble of a block written in the loop's body", () => {
+    const cases: [readonly string[], string[], string[]][] = [
+      [
+        [
+          "    for i = 1, 2 do",
+          "      choose",
+          "        do",
+          "          local twice = i * 2",
+          "          * Inner {twice}",
+          "            Chose inner {twice}.",
+          "        end",
+          "      end",
+          "    end",
+        ],
+        ["Inner 2", "Inner 4", "Outer"],
+        ["Inner 4", "Chose inner 4.", "After."],
+      ],
+      [
+        [
+          "    for i = 1, 2 do",
+          "      choose",
+          "        for j = 1, 2 do",
+          "          * Inner {i} {j}",
+          "        end",
+          "      then",
+          "        Then {i}.",
+          "      end",
+          "    end",
+        ],
+        ["Inner 1 1", "Inner 1 2", "Inner 2 1", "Inner 2 2", "Outer"],
+        ["Inner 1 2", "Then 1.", "After."],
+      ],
+      [
+        [
+          "    choose",
+          "      local n = 0",
+          "      while n < 2 do",
+          "        n = n + 1",
+          "        * Inner {n}",
+          "      end",
+          "    end",
+        ],
+        ["Inner 1", "Inner 2", "Outer"],
+        ["Inner 2", "After."],
+      ],
+    ];
+    for (const [preamble, menu, beats] of cases) {
+      expect(run(scene(preamble), [1])).toEqual({ beats, menus: [menu] });
+    }
+  });
+
   it("offers a sticky choice once per pass, and a block written in the body with its then clause", () => {
     const sticky = scene([
       "    for i = 1, 2 do",

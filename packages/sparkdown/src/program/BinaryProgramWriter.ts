@@ -912,18 +912,23 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.unsupported("Choice");
     }
     const content = weave.content;
+    // The block's `then` clause is the gather whose body the lowering
+    // recorded; a block whose choices are all inside a loop of its preamble
+    // can end with that loop's own exit label instead.
     const last = content[content.length - 1];
-    const gather = last instanceof Gather ? last : null;
+    const gather =
+      last instanceof Gather && choiceBodyOf.has(last) ? last : null;
     const items = gather ? content.slice(0, -1) : content;
     const presentation = this._choose;
     const outer = presentation.join;
     const scopes = this._scopes;
     const label: ProgramLabel | null = gather ? { offset: -1 } : null;
     presentation.join = label ?? outer;
-    // Each item alone, so that a choice's inline objects stop at the item.
-    for (const item of items) {
-      this.emitObjects([item]);
-    }
+    // The items as one list, as `emitChoose` writes its own, so that a `do`
+    // block or a loop of this block's preamble, whose objects are items of
+    // their own, is written whole (#1503). A choice of the block holds its
+    // body in its own content, so only choices follow it in the list.
+    this.emitObjects(items);
     presentation.join = outer;
     this.expect(this._scopes === scopes, "a block of a presentation");
     if (gather) {
