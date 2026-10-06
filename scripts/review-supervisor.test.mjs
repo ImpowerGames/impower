@@ -72,6 +72,14 @@ try {
     return{jobDir,p,input,host,complete,get sends(){return sends;},get delivered(){return delivered;},disconnect(){state='disconnected';}};
   };
   {
+    // A review entry's lens reaches the launcher plan, which grants the editor for an author-experience lens.
+    const plain=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);
+    assert.equal(Object.hasOwn(readJson(path.join(plain.jobDir,'handoff.json')).steps.correctness,'lens'),false,'a review entry without a lens leaves the launcher step without one');
+    const lensed=await fixture({reviews:[{...plain.input.reviews[0],lens:'author-experience'}]});fs.unlinkSync(worktreePaths(repo).freeze);
+    assert.equal(readJson(path.join(lensed.jobDir,'handoff.json')).steps.correctness.lens,'author-experience','a review entry lens is carried into the launcher step');
+    console.log('PASS: a supervised review entry carries its lens into the launcher plan');
+  }
+  {
     const template=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);
     const foreignDir=path.join(scratch,'foreign-job');fs.mkdirSync(foreignDir);fs.writeFileSync(worktreePaths(repo).freeze,JSON.stringify({jobId:'foreign',jobDir:foreignDir})+'\n');
     const blockedInput={...template.input,jobDir:path.join(scratch,'submit-blocked')};let blockedWorkers=0,blockedMonitors=0;
