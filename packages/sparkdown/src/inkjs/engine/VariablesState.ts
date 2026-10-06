@@ -206,6 +206,9 @@ export class VariablesState extends VariablesStateAccessor<
           tokenInkObject instanceof ObjectValue &&
           varValValue instanceof ObjectValue
         ) {
+          // Written in place: an image of the program engine keeps it as it
+          // was first.
+          this.imageBarrier?.prepare(varValValue);
           const target = varValValue.value as Map<string, AbstractValue>;
           for (const [k, v] of tokenInkObject.value as Map<
             string,

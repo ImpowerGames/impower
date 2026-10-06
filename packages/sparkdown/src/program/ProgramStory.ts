@@ -68,7 +68,12 @@ import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
 import { Void } from "../inkjs/engine/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
-import { readSave, writeSave, type SaveHeader } from "./ProgramSave";
+import {
+  checkSave,
+  readSave,
+  writeSave,
+  type SaveHeader,
+} from "./ProgramSave";
 import {
   ImageTracker,
   ProgramImages,
@@ -365,10 +370,20 @@ export class ProgramStory {
    *  them again, their conditions' effects with them. */
   captureBeat(keyframe = false): ProgramImage {
     const held = this._state.beatImage;
-    if (held && !keyframe) {
+    if (!held) {
+      return this.capture(keyframe);
+    }
+    if (!keyframe) {
       return held;
     }
-    return this.capture(keyframe);
+    // A keyframe of the beat before the menu: that beat is put in place to
+    // be taken whole, and the state as it stands put back.
+    const live = this.capture();
+    this.restore(held);
+    const image = this.capture(true);
+    this.restore(live);
+    this._state.beatImage = image;
+    return image;
   }
 
   /** Restores an image in place, which this engine or the engine of an
@@ -444,12 +459,32 @@ export class ProgramStory {
    */
   loadSave(json: string): SaveHeader {
     this.IfAsyncWeCant("load a save");
-    const header = readSave(this._state, json, (symbol) =>
-      this.symbolValue(symbol),
-    );
+    // A save is placed before anything changes; one that fails past that,
+    // on a malformed value, puts back the state as it stood.
+    this.enableImages();
+    const held = this._state.beatImage;
+    const before = this.capture();
+    let header: SaveHeader;
+    try {
+      header = readSave(this._state, json, (symbol) =>
+        this.symbolValue(symbol),
+      );
+    } catch (e) {
+      this.restore(before);
+      this._state.beatImage = held;
+      throw e;
+    }
     this._stateIsPristine = false;
     this.loadedSaveHeader = header;
     return header;
+  }
+
+  /** Throws what `loadSave` would refuse a save for (`SaveRefused`): a
+   *  format version this engine does not read, another engine's save, or a
+   *  position or function value this program cannot place. Changes
+   *  nothing. */
+  checkSave(json: string): void {
+    checkSave(this._state, json, (symbol) => this.symbolValue(symbol));
   }
 
   // ------------------------------------------------------------- the surface

@@ -1279,8 +1279,16 @@ export class ProgramStoryState {
       w.WriteArrayEnd();
       w.WritePropertyEnd();
       // The cells still open on the frame, by the ids the closures holding
-      // them are written with, as the current engine's frames write them.
+      // them are written with, as the current engine's frames write them,
+      // and the cells it borrowed, closed or not: a waiting choice's thread
+      // borrows the cells of the thread it was copied from, and adopts them
+      // when the choice is taken (`CallStack.Element.Copy`).
       CallStack.Thread.WriteUpvalueCells(w, "upvalues", element.openUpvalues);
+      if (element.borrowedUpvalues.length > 0) {
+        w.WritePropertyStart("borrowedUpvalues");
+        JsonSerialisation.WriteListRuntimeObjs(w, element.borrowedUpvalues);
+        w.WritePropertyEnd();
+      }
       w.WriteObjectEnd();
     }
     w.WriteArrayEnd();
@@ -1316,6 +1324,12 @@ export class ProgramStoryState {
         element.temporaryScopes = [new Map()];
       }
       element.openUpvalues = CallStack.Thread.ReadUpvalueCells(saved["upvalues"]);
+      element.borrowedUpvalues = [];
+      for (const cell of CallStack.Thread.ReadUpvalueCells(
+        saved["borrowedUpvalues"],
+      )) {
+        element.BorrowUpvalue(cell, element);
+      }
     });
   }
 
@@ -1571,12 +1585,21 @@ export class ProgramStoryState {
     // opens one: a table reference resolves against the tables this load
     // reads, never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
-    JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
-      this.variablesState.InitTableAtAnchor(anchor),
-    );
-    JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
-      this.variablesState.InitCellAtAnchor(anchor),
-    );
+    // A table or a cell the program initialized that the load restores saved
+    // content into is written in place, so the images keep it as it was
+    // first, as the write barrier would: an image taken before the load
+    // puts it back.
+    const images = this.images?.images;
+    JsonSerialisation.SetLoadSessionAnchorResolver((anchor) => {
+      const found = this.variablesState.InitTableAtAnchor(anchor);
+      if (found?.restore) images?.keepTable(found.table);
+      return found;
+    });
+    JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) => {
+      const found = this.variablesState.InitCellAtAnchor(anchor);
+      if (found?.restore) images?.keepCell(found.cell);
+      return found;
+    });
     codec.beginRead?.();
     try {
       this.position = codec.place(obj["position"]);

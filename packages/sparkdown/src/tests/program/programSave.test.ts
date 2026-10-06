@@ -261,31 +261,38 @@ describe("a save holds the values of its state", () => {
   });
 });
 
+// A menu whose condition calls an author function that assigns a global,
+// raises a count (the function's) and draws a random number. The condition
+// is an `if` of the block's preamble that gates the first choice: a choice's
+// own `if (...)` does not take a call (the grammar reads the call as the
+// choice's text).
+const MENU_TEXT = [
+  "store calls = 0",
+  "store drawn = 0",
+  "",
+  "function allowed()",
+  "  calls = calls + 1",
+  "  drawn = math.random(1, 1000)",
+  "  return true",
+  "end",
+  "",
+  "-> start",
+  "",
+  "scene start",
+  "  Before the menu.",
+  "  choose",
+  "    if allowed() then",
+  "      * First {calls} {drawn}",
+  "    end",
+  "    * Second {allowed}",
+  "  end",
+  "  After {calls} {drawn} {allowed}.",
+  "end",
+  "",
+].join("\n");
+
 describe("a save taken while choices are waiting", () => {
-  // A menu whose condition calls an author function that assigns a global,
-  // raises a count (the function's) and draws a random number.
-  const MENU = [
-    "store calls = 0",
-    "store drawn = 0",
-    "",
-    "function allowed()",
-    "  calls = calls + 1",
-    "  drawn = math.random(1, 1000)",
-    "  return true",
-    "end",
-    "",
-    "-> start",
-    "",
-    "scene start",
-    "  Before the menu.",
-    "  choose",
-    "    * if allowed() First {calls} {drawn}",
-    "    * Second {allowed}",
-    "  end",
-    "  After {calls} {drawn} {allowed}.",
-    "end",
-    "",
-  ].join("\n");
+  const MENU = MENU_TEXT;
 
   it("holds the beat before the menu and none of its choices, and raises the menu as an uninterrupted run does however many times it is loaded", () => {
     const root = rootOf(MENU)!;
@@ -293,9 +300,15 @@ describe("a save taken while choices are waiting", () => {
     expect(nextBeat(story)).toBe("Before the menu.");
     story.Continue();
     expect(choiceTexts(story)).toHaveLength(2);
+    // The condition ran once: the function's global and its count.
+    const calls = (s: ProgramStory) =>
+      s.variablesState.GetVariableWithName("calls")?.toString();
+    expect(calls(story)).toBe("1");
     const atMenu = story.state.toJson();
     const save = story.toSave();
     expect(JSON.parse(save).choices).toBeUndefined();
+    // The save is the beat before the condition ran.
+    expect(JSON.parse(save).variablesState.calls ?? 0).toBe(0);
     // Saving put back the state as it stands.
     expect(story.state.toJson()).toBe(atMenu);
     const loaded = engine(root);
@@ -658,5 +671,126 @@ describe("a save in another process", () => {
     }
     // And the save as written loads.
     engine(session(SCRIPT).root).loadSave(written);
+  });
+});
+
+// Round 1 of the review of #1579 (report 6016565874).
+describe("a save at the boundaries the first review found", () => {
+  it("keeps the cells a waiting choice's thread borrowed, so a closure and the local it captured stay one variable", () => {
+    const text = [
+      "store f = nil",
+      "",
+      "-> hub",
+      "scene hub",
+      "  You arrive.",
+      "  <- merchant",
+      "  <- guard",
+      "  choose",
+      '    * "Leave"',
+      "      fin",
+      "  end",
+      "end",
+      "scene merchant",
+      "  & local n = 0",
+      "  & f = function() return n end",
+      "  choose",
+      '    * "Ask"',
+      "      & n = 1",
+      "      Got {n} {f()}.",
+      "      fin",
+      "  end",
+      "  done",
+      "end",
+      "scene guard",
+      "  The guard nods.",
+      "  choose",
+      '    * "News"',
+      "      fin",
+      "  end",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    const root = rootOf(text)!;
+    const ask = (story: ProgramStory) =>
+      story.currentChoices.findIndex((c) => c.text === '"Ask"');
+    const story = engine(root);
+    while (story.canContinue) story.Continue();
+    const save = story.toSave();
+    // The image holds the merchant's choice, raised before the guard's line.
+    expect((JSON.parse(save).choices ?? []).map((c: { text: string }) => c.text)).toEqual([
+      '"Ask"',
+    ]);
+    story.ChooseChoiceIndex(ask(story));
+    expect(play(story).beats).toEqual(['"Ask"', "Got 1 1."]);
+    const loaded = engine(rootOf(text)!);
+    loaded.loadSave(save);
+    while (loaded.canContinue) loaded.Continue();
+    loaded.ChooseChoiceIndex(ask(loaded));
+    expect(play(loaded).beats).toEqual(['"Ask"', "Got 1 1."]);
+  });
+
+  it("restores an image taken before a load after the load wrote into a table the program initialized", () => {
+    const text = [
+      "store t = { 1 }",
+      "-> start",
+      "scene start",
+      "  & t[1] = 2",
+      "  Changed {t[1]}.",
+      "end",
+      "",
+    ].join("\n");
+    const root = rootOf(text)!;
+    const first = (story: ProgramStory) =>
+      (story.variablesState.GetVariableWithName("t") as any).value.get("1").value;
+    const a = engine(root);
+    const before = a.capture();
+    const b = engine(root);
+    expect(nextBeat(b)).toBe("Changed 2.");
+    a.loadSave(b.toSave());
+    expect(first(a)).toBe(2);
+    expect(a.restore(before)).toBe(true);
+    expect(first(a)).toBe(1);
+    expect(nextBeat(a)).toBe("Changed 2.");
+  });
+
+  it("leaves the state as it was when a save is malformed past what placement checks", () => {
+    const root = rootOf(MENU_TEXT)!;
+    const story = engine(root);
+    nextBeat(story);
+    const save = JSON.parse(story.toSave());
+    save.counts = [null];
+    const loaded = engine(root);
+    nextBeat(loaded);
+    loaded.Continue();
+    const before = loaded.state.toJson();
+    const choices = choiceTexts(loaded);
+    expect(() => loaded.loadSave(JSON.stringify(save))).toThrow();
+    expect(loaded.state.toJson()).toBe(before);
+    expect(choiceTexts(loaded)).toEqual(choices);
+    // And it runs on as it would have.
+    loaded.ChooseChoiceIndex(0);
+    expect(nextBeat(loaded)).toMatch(/^First 1/);
+  });
+
+  it("takes a keyframe of the beat before a menu, which holds none of the menu's choices", () => {
+    const root = rootOf(MENU_TEXT)!;
+    const story = engine(root);
+    expect(nextBeat(story)).toBe("Before the menu.");
+    const beat = story.state.toJson();
+    story.Continue();
+    expect(choiceTexts(story)).toHaveLength(2);
+    const atMenu = story.state.toJson();
+    const keyframe = story.captureBeat(true);
+    expect(keyframe.keyframe).toBe(keyframe);
+    expect(keyframe.positional.choices).toHaveLength(0);
+    // The state as it stands is put back.
+    expect(story.state.toJson()).toBe(atMenu);
+    const restored = new ProgramStory(root, null, { images: story.images });
+    restored.onError = () => {};
+    expect(restored.restore(keyframe)).toBe(true);
+    expect(restored.state.toJson()).toBe(beat);
+    restored.Continue();
+    expect(restored.state.toJson()).toBe(atMenu);
   });
 });

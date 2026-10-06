@@ -1862,13 +1862,23 @@ export class Game<T extends M = {}> {
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
+      const program = this.programStory;
+      if (program && saveData.story) {
+        // The program engine places the save, or refuses it, before
+        // anything of the game changes: the story first, which puts itself
+        // back when it fails past the placement, then the modules.
+        program.checkSave(saveData.story);
+        this.discardOpenStoryLine();
+        program.loadSave(saveData.story);
+        this.restoreReactiveTracking();
+      }
       for (const k of this._moduleNames) {
         const module = this._modules[k];
         if (module) {
           module.load(saveData.modules[k]);
         }
       }
-      if (saveData.story) {
+      if (saveData.story && !program) {
         // Only once the save has been read and is known to carry a story:
         // letting go of the open line is not reversible, so doing it before
         // the parse would leave a save that turns out to be unreadable — or
@@ -1878,14 +1888,7 @@ export class Game<T extends M = {}> {
         // dropping the text and the `display()` table that decide how the
         // beat is displayed.
         this.discardOpenStoryLine();
-        const program = this.programStory;
-        if (program) {
-          // A durable save, placed in this program or refused, naming the
-          // flow (`SaveRefused`).
-          program.loadSave(saveData.story);
-        } else {
-          this._story.state.LoadJson(saveData.story);
-        }
+        this._story.state.LoadJson(saveData.story);
         this.restoreReactiveTracking();
       }
       if (saveData.runtime) {

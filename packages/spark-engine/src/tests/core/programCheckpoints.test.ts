@@ -211,6 +211,28 @@ describe("the checkpoints of a game on the program engine", () => {
     }
   });
 
+  // Round 1 of the review of #1579 (report 6016565874): a refused save left
+  // the modules it carried loaded.
+  it("refuse a save the story cannot place, leaving every module and the story as they were", () => {
+    const { program, story } = compiler(TEXTS).compile();
+    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    drive(game);
+    const store = game.checkpoints;
+    // An early checkpoint's save, with a module state the game does not
+    // have now and a story of a format this engine does not read.
+    const early = JSON.parse(store.getJson(5)!);
+    const story5 = JSON.parse(early.story);
+    story5.format = 99;
+    early.story = JSON.stringify(story5);
+    early.modules.core = { ...early.modules.core, marker: "from the refused save" };
+    const before = game.save();
+    expect(JSON.stringify(JSON.parse(before).modules)).not.toBe(
+      JSON.stringify(early.modules),
+    );
+    expect(game.load(JSON.stringify(early))).toBe(false);
+    expect(game.save()).toBe(before);
+  });
+
   it("restore in place after a compile for every statement it kept, and report one it emitted again unplaced", () => {
     const text = [
       "store seen = 0",

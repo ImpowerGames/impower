@@ -675,6 +675,33 @@ export const readSave = (
   json: string,
   symbolValue: (symbol: number) => SymbolValue,
 ): SaveHeader => {
+  const { save, format } = parseSave(json);
+  const listings = Array.isArray(save["listings"]) ? save["listings"] : [];
+  state.readState(save, new SaveReader(state, listings, symbolValue));
+  return {
+    format,
+    engine: String(save["engine"]),
+    engineVersion: String(save["engineVersion"] ?? ""),
+    gameVersion: String(save["gameVersion"] ?? ""),
+  };
+};
+
+/** Throws what `readSave` would refuse a save for, and changes nothing. */
+export const checkSave = (
+  state: ProgramStoryState,
+  json: string,
+  symbolValue: (symbol: number) => SymbolValue,
+): void => {
+  const { save } = parseSave(json);
+  const listings = Array.isArray(save["listings"]) ? save["listings"] : [];
+  new SaveReader(state, listings, symbolValue).check(save);
+};
+
+// A save's JSON, of this engine and taken through the migration of each
+// older format version, or a refusal.
+const parseSave = (
+  json: string,
+): { save: Record<string, any>; format: number } => {
   let save = SimpleJson.TextToDictionary(json) as Record<string, any>;
   if (save["engine"] !== "program") {
     throw new SaveRefused("The save was not written by the program engine.");
@@ -695,12 +722,5 @@ export const readSave = (
     }
     save = migrate(save);
   }
-  const listings = Array.isArray(save["listings"]) ? save["listings"] : [];
-  state.readState(save, new SaveReader(state, listings, symbolValue));
-  return {
-    format,
-    engine: String(save["engine"]),
-    engineVersion: String(save["engineVersion"] ?? ""),
-    gameVersion: String(save["gameVersion"] ?? ""),
-  };
+  return { save, format };
 };
