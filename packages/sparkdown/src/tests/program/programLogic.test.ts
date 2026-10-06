@@ -297,14 +297,16 @@ describe("the writer", () => {
     }));
     // The test is a decision; each pass opens the body's scope, which the
     // engine closes when the body runs out; the body resumes at the test and
-    // breaks past the loop.
+    // breaks past the loop. The `EndScope` after the body's `EnterBlock`
+    // never runs and makes the count read in order the depth at the exit
+    // (#1575).
     expect(whileLoop).toEqual({
-      code: ["GetVar n", "Int 3", "Native </2", "Native TRUTHY/1", "JumpIfFalse 16 flags 2", "Newline", "BeginScope", "EnterBlock 0"],
+      code: ["GetVar n", "Int 3", "Native </2", "Native TRUTHY/1", "JumpIfFalse 18 flags 2", "Newline", "BeginScope", "EnterBlock 0", "EndScope"],
       blocks: 1,
       loop: true,
       passScope: true,
       resume: 0,
-      break: 16,
+      break: 18,
       scopes: 1,
     });
     // The hidden index, stop and step have the chunk's names; the body

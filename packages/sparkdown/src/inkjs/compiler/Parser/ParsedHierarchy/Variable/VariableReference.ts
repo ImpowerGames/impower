@@ -185,7 +185,7 @@ export class VariableReference extends Expression {
 
       this.resolvedAs = "count";
       this.countTarget = targetForCount;
-      targetForCount.containerForCounting.visitsShouldBeCounted = true;
+      context.MarkCounted(targetForCount.containerForCounting, true, false);
 
       // If this is an argument to a function that wants a variable to be
       // passed by reference, then the Parsed.Divert will have generated a

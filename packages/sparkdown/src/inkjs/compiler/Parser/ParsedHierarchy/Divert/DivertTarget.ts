@@ -231,11 +231,10 @@ export class DivertTarget extends Expression {
         // Purpose is known: used directly in TURNS_SINCE(-> divTarg)
         const parentFunc = asOrNull(this.parent, FunctionCall);
         if (parentFunc && parentFunc.isTurnsSince) {
-          target.turnIndexShouldBeCounted = true;
+          context.MarkCounted(target, false, true);
         } else {
           // Unknown purpose, count everything
-          target.visitsShouldBeCounted = true;
-          target.turnIndexShouldBeCounted = true;
+          context.MarkCounted(target, true, true);
         }
       }
 

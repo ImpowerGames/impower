@@ -21,6 +21,7 @@ import {
   Op,
 } from "../../../../program/ProgramInstructions";
 import { displayLeavesLineOpen } from "../../../../program/displayCallFlags";
+import { noteResolved } from "../../../../program/StatementWatch";
 
 export class FunctionCall extends Expression {
   public static readonly IsBuiltIn = (name: string): boolean => {
@@ -390,6 +391,7 @@ export class FunctionCall extends Expression {
     if (!this.content.includes(this._proxyDivert) && this.args !== null) {
       for (const arg of this.args) {
         arg.ResolveReferences(context);
+        noteResolved(arg);
       }
     }
 
@@ -418,7 +420,7 @@ export class FunctionCall extends Expression {
           throw new Error();
         }
 
-        targetObject.containerForCounting.turnIndexShouldBeCounted = true;
+        context.MarkCounted(targetObject.containerForCounting, false, true);
       }
     } else if (this._variableReferenceToCount) {
       const runtimeVarRef = this._variableReferenceToCount.runtimeVarRef;

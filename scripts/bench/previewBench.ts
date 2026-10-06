@@ -38,6 +38,9 @@ interface BenchConfig {
   // Where to write, for profile-shares.mjs --gaps, the stretches of each
   // measured sample's worker time that no phase covers.
   gaps?: string;
+  // Whether the compiler builds the binary program's statement chunks
+  // (`programChunks`, #694), whose phases replace the current engine's.
+  chunks?: boolean;
 }
 
 const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
@@ -237,7 +240,10 @@ async function main() {
     searched = { toPath, checkpoint };
   };
   const routeSearches = new RouteSearchLog();
-  compiler.addEventListener("compiler/didCompile", (params: any) => {
+  // A chunked program runs on the program engine, which the worker does not
+  // run yet (its route search reads runtime paths), so with `chunks` only the
+  // compile is measured.
+  if (!config.chunks) compiler.addEventListener("compiler/didCompile", (params: any) => {
     routeSearches.forget();
     const game = updateWorkerGame(params.program, params.story);
     if (params.program.startFrom) {
@@ -250,7 +256,7 @@ async function main() {
       }
     }
   });
-  compiler.addEventListener("compiler/didPreviewCompile", (params: any) => {
+  if (!config.chunks) compiler.addEventListener("compiler/didPreviewCompile", (params: any) => {
     const game = updateWorkerGame(params.program, params.story);
     setStartFrom(game, params.startFrom);
     const toPath = game.startPath;
@@ -262,7 +268,7 @@ async function main() {
   });
 
   const startFrom = { file: mainUri, line: line0 };
-  configurePlayerCompiler(compiler, files, startFrom, { emitCompiledProgram: false });
+  configurePlayerCompiler(compiler, files, startFrom, { emitCompiledProgram: false, ...(config.chunks ? { programChunks: true } : {}) });
   compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
 
   // A preview's display, in the order the worker's display runs it
@@ -327,6 +333,9 @@ async function main() {
     const contentChanges = [{ range: { start: { line: line0, character: start }, end: { line: line0, character: start + current.length } }, text: option }];
     workerGameMs = 0;
     workerGameIntervals = [];
+    // The store counts the declarations' runs over its lifetime; a sample
+    // reports the runs its own compile made.
+    const runsBefore = compiler.chunkStore?.initializerRuns ?? 0;
     const t0 = performance.now();
     if (config.mode === "preview") {
       compiler.previewCompile({ textDocument: { uri: mainUri, version }, contentChanges, root: { uri: mainUri }, startFrom } as any);
@@ -337,6 +346,19 @@ async function main() {
       compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
     }
     const t1 = performance.now();
+    if (config.chunks) {
+      const { sums: phases } = takeMeasures();
+      const store = compiler.chunkStore;
+      if (i >= config.warmup) {
+        samples.push({
+          option,
+          wall: { compile: t1 - t0 },
+          phases,
+          passes: { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null },
+        });
+      }
+      continue;
+    }
     const game = workerGame!;
     const before = residueOf(game);
     lastCheckpoint = searched?.checkpoint ?? "";
@@ -422,6 +444,12 @@ function printReport(report: any) {
       .filter(([, s]: any) => s.max >= 0.3)
       .map(([k, s]: any) => row(k, s)),
   ];
+  const passes = report.perSample?.map((s: any) => s.passes).filter(Boolean);
+  if (passes?.length) {
+    // What each pass of the chunk store visited, per sample
+    // (`ChunkStore.passesLastBuild`).
+    out.push("", "  chunk store passes, per sample:", ...passes.map((p: any) => `    ${JSON.stringify(p)}`));
+  }
   const m = report.messages;
   if (m) {
     out.push(

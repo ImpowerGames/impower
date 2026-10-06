@@ -70,10 +70,19 @@ export interface ProgramEmitter {
    *  another statement can change. A chunk is reused only while its
    *  statement's names resolve as they did. */
   recordResolution(value: string): void;
-  /** Records that the chunk's code depends on the facts about `symbol` (its
-   *  kind, and whether the program defines it). The chunk's reference table
-   *  keeps a hash of them, and the chunk is reused only while the program
-   *  it is reused in gives the same facts. */
+  /** Reads a fact about `symbol` from the symbol table of the program being
+   *  built (`FACT_KIND`, what the program defines it as; `FACT_PARAMS`, the
+   *  kind of each of a function's parameters), as the code about to be
+   *  emitted depends on it. The read is recorded: the chunk's reference
+   *  table keeps a hash of every fact its code read about each symbol, with
+   *  the value read, and the chunk is reused only while the program it is
+   *  reused in gives the same answers. A new dependency is a new read, and
+   *  needs nothing added anywhere else (docs/engine/binary-program.md,
+   *  section 1, Identity). */
+  fact(symbol: number, name: string): string;
+  /** Records that the chunk's code depends on what the program defines
+   *  `symbol` as, or that it does not define it: a read of its
+   *  `FACT_KIND`. */
   reference(symbol: number): void;
   /** Records that the chunk's code refers to `symbol` and depends on no fact
    *  about it: a jump, a count or a symbol value of a scene, a branch or a
