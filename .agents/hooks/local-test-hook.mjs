@@ -83,8 +83,34 @@ const DYNAMIC = /[$%`~]/;
 const REDIRECT_DUP = /^(?:\d+|\*|&)?[<>]{1,2}&[\d-]+$/;
 const REDIRECT_OP = /^(?:\d+|\*|&)?[<>]{1,2}$|^>&$/;
 const REDIRECT_GLUED = /^(?:\d+|\*|&)?[<>]{1,2}&?[^<>&]/;
-// A PowerShell assignment target before its value: `$p =`, `$p +=`, `=`.
-const PS_ASSIGN_TARGET = /^(?:\$\S*)?[+-]?=$|^\$[^=\s]+[+-]?=/;
+// PowerShell assignment pieces: a target with its operator (`$p=`, `$p +=`
+// as one token), a lone operator (`=`, `+=`), and a whole assignment glued
+// into one token (`$p='...'`, which the tokenizer keeps whole when quoted).
+const PS_TARGET_OP = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=$/;
+const PS_OP = /^[+-]?=$/;
+const PS_TARGET = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})$/;
+const PS_GLUED = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=/;
+
+/** Whether a token's source text opens with a quote, so none of its leading text is an operator. */
+const opensQuoted = (tok, command) => (Number.isInteger(tok.start) ? /^["']/.test(command[tok.start] ?? "") : tok.quoted);
+
+/**
+ * Whether the quoted token at index i is the value of a PowerShell
+ * assignment at command position (`$p = '...'`, `$p= '...'`, `$p += '...'`),
+ * or is itself a whole glued assignment (`$p='...'`): a value, not a program.
+ * The assignment target must itself stand at command position, so a lookalike
+ * that a wrapper consumes as an option value (`env -C = 'vitest'`) is not one.
+ */
+function isAssignedValue(seg, i, positions, command) {
+  const tok = seg[i];
+  if (PS_GLUED.test(tok.text) && !opensQuoted(tok, command)) return true;
+  if (!tok.quoted) return false;
+  const prev = seg[i - 1];
+  if (!prev || prev.quoted) return false;
+  if (PS_TARGET_OP.test(prev.text)) return positions.has(i - 1);
+  const target = seg[i - 2];
+  return PS_OP.test(prev.text) && !!target && !target.quoted && PS_TARGET.test(target.text) && positions.has(i - 2);
+}
 
 // Vitest 2.1.9's options that take no value, as its own CLI declares them
 // (options whose cac name has no `<value>` or `[value]`); a `--no-` negation
@@ -237,12 +263,15 @@ function vitestReason(args, dir) {
  * wideReason past MAX_FILES; a shorter list, or one the runner itself
  * will refuse as empty, is left to the runner.
  */
-function suiteRunReason(args) {
+function suiteRunReason(args, command) {
   const files = [];
   for (let i = 0; i < args.length; i++) {
-    const { text, quoted } = args[i];
+    const { text } = args[i];
     if (text === "--wait") { i++; continue; }
-    if (!quoted) {
+    // A token that opens with a quote is a literal argument; one that opens
+    // with an operator is a redirection even when its target is quoted
+    // (`>"my run.log"`), which the tokenizer reports as quoted too.
+    if (!opensQuoted(args[i], command)) {
       if (REDIRECT_DUP.test(text)) continue;
       if (REDIRECT_OP.test(text)) { i++; continue; }
       if (REDIRECT_GLUED.test(text)) continue;
@@ -347,7 +376,7 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
       // A quoted string after an assignment (`$p = '...\vitest.cmd'`) is the
       // variable's value, not a program, so a path that mentions a binary
       // does not run it.
-      if (tok.quoted && i > 0 && !seg[i - 1].quoted && PS_ASSIGN_TARGET.test(seg[i - 1].text)) continue;
+      if (isAssignedValue(seg, i, positions, command)) continue;
       // `npm.cmd`, `vitest.cmd` and `npx.ps1` are the same programs as
       // their bare names on Windows.
       const name = baseName(tok).replace(/\.(?:cmd|bat|ps1)$/i, "");
@@ -403,7 +432,7 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         // The suite runner's first argument is its command; only `start`
         // runs a whole package, and `run` is bounded by how many files it names.
         else if (/test-suite\.mjs$/i.test(target) && /^start$/i.test(scriptArgs[0]?.text ?? "")) reason = START_REASON;
-        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2));
+        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2), command);
       }
       if (reason) return reason;
     }

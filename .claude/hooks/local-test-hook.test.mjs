@@ -161,6 +161,10 @@ const denies = [
   // A genuine extra file is still counted past a redirect or a pipe.
   ["the suite runner past the bound with a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 > run.log 2>&1`],
   ["the suite runner past the bound with a PowerShell redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 *> run.log`],
+  ["a quoted executable after a wrapper option value that looks like an assignment", "env -C = 'vitest' run"],
+  ["a quoted npm test after a wrapper option value that looks like an assignment", "env -C = 'npm' test"],
+  ["a quoted suite runner start after a wrapper option value that looks like an assignment", "env -C = 'node' scripts/test-suite.mjs start packages/sparkdown"],
+  ["the suite runner at the bound plus a literal quoted file", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} "${MANY[0]}" --wait 600 > run.log`],
   ["the suite runner with a file after the redirect pushing it past the bound", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > run.log ${MANY[0]} --wait 600`],
 ];
 
@@ -232,6 +236,11 @@ const allows = [
   // A command that only mentions the vitest binary's path is not a Vitest call.
   ["a PowerShell wait on the installed vitest.cmd", "$p = 'C:/w/node_modules/.bin/vitest.cmd'; $i=0; while (-not (Test-Path $p) -and $i -lt 110) { Start-Sleep 5; $i++ }; Test-Path $p"],
   ["a PowerShell assignment of a double-quoted vitest path", '$p = "C:/w/node_modules/.bin/vitest.cmd"; Test-Path $p'],
+  ["the suite runner at the bound with a glued quoted redirect destination", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 >"my run.log" 2>&1`],
+  ["the suite runner at the bound with a glued quoted descriptor redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 2>"err log.txt"`],
+  ["a glued PowerShell assignment of a quoted vitest path", "$p='C:/w/node_modules/.bin/vitest.cmd'; Write-Output $p"],
+  ["a PowerShell assignment with the operator glued to the target", "$p= 'C:/w/node_modules/.bin/vitest.cmd'; Test-Path $p"],
+  ["a PowerShell append assignment of a quoted vitest path", "$p += 'C:/w/node_modules/.bin/vitest.cmd'"],
   ["Test-Path on the vitest.cmd path", "Test-Path 'C:/w/node_modules/.bin/vitest.cmd'"],
   ["Get-Item on the vitest.cmd path", "Get-Item C:/w/node_modules/.bin/vitest.cmd"],
   ["an empty command", ""],
