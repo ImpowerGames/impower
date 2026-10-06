@@ -17,58 +17,60 @@
  *
  * A line counts as skippable when it is blank, starts with `--` (a Luau
  * comment, or a story line Luau reads as one), or lies inside a comment
- * long bracket (`--[[` to `]]`) that spans lines. Counting a line as
+ * long bracket (`--[[` to `]]`) that spans lines; an edit inside such a
+ * comment is in that comment's skipped text too. Counting a line as
  * skippable when Luau does not skip it only moves the start further back.
  */
 export function lookaheadContextStart(text: string, pos: number): number {
+  const comments = longComments(text, pos);
+  // The comment that opens on an earlier line and runs into the line that
+  // starts at `lineFrom`, if any.
+  const runningInto = (lineFrom: number) =>
+    comments.findLast((c) => c.from < lineFrom && c.to > lineFrom);
   let start = lineStart(text, pos);
-  while (start > 0) {
-    const prev = lineStart(text, start - 1);
-    const line = text.slice(prev, start).replace(/\r?\n$/, "");
-    const opened = spanningCommentStart(text, prev, line);
-    if (opened != null) {
-      // The lines from the comment's opening to this one are inside it.
-      start = lineStart(text, opened);
-      if (text.slice(start, opened).trim() === "") continue;
-      return start;
-    }
-    const trimmed = line.trimStart();
-    if (trimmed === "" || trimmed.startsWith("--")) {
-      start = prev;
+  for (;;) {
+    // The lines from the comment's opening to this one are inside it.
+    const comment = runningInto(start);
+    if (comment) {
+      start = lineStart(text, comment.from);
+      if (!skippable(text.slice(start, comment.from))) return start;
       continue;
     }
-    return prev;
+    if (start === 0) return 0;
+    const prev = lineStart(text, start - 1);
+    if (!skippable(text.slice(prev, start)) && !runningInto(prev)) {
+      return prev;
+    }
+    start = prev;
   }
-  return 0;
 }
 
 function lineStart(text: string, pos: number): number {
   return text.lastIndexOf("\n", pos - 1) + 1;
 }
 
-// The offset of a `--[[` (or `--[=[`...) on an earlier line that opens a
-// comment a long-bracket close on `line` (which starts at `lineFrom`) ends,
-// or null.
-function spanningCommentStart(
-  text: string,
-  lineFrom: number,
-  line: string,
-): number | null {
-  for (const match of line.matchAll(/\](=*)\]/g)) {
-    const at = lineFrom + match.index;
-    const level = match[1]!;
-    // A long bracket ends at its first matching close, so the comment opens
-    // at the earliest opener with no close between it and this one (an
-    // opener inside the comment is part of its text).
-    let opened: number | null = null;
-    for (
-      let open = text.lastIndexOf(`--[${level}[`, at);
-      open >= 0 && text.indexOf(`]${level}]`, open) === at;
-      open = open > 0 ? text.lastIndexOf(`--[${level}[`, open - 1) : -1
-    ) {
-      opened = open;
+function skippable(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed === "" || trimmed.startsWith("--");
+}
+
+// The comment long brackets (`--[[` to `]]`, `--[=[` to `]=]`...) that
+// start before `pos`, read as Luau's lexer reads them: each opener's comment
+// ends at its first matching close, and an opener inside a comment is part
+// of its text. A comment with no close before `pos` is still open there
+// (`to` is infinite).
+function longComments(text: string, pos: number): { from: number; to: number }[] {
+  const comments: { from: number; to: number }[] = [];
+  const opener = /--\[(=*)\[/g;
+  for (let match = opener.exec(text); match && match.index < pos; match = opener.exec(text)) {
+    const close = `]${match[1]}]`;
+    const at = text.indexOf(close, match.index + match[0].length);
+    if (at < 0 || at + close.length > pos) {
+      comments.push({ from: match.index, to: Number.POSITIVE_INFINITY });
+      break;
     }
-    if (opened != null && opened < lineFrom) return opened;
+    comments.push({ from: match.index, to: at + close.length });
+    opener.lastIndex = at + close.length;
   }
-  return null;
+  return comments;
 }

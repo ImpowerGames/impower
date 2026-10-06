@@ -238,6 +238,7 @@ export class TextmateGrammarParse implements PartialParse {
     const to = Math.min(this.region.original.length, this.parsedPos);
     const length = to - start;
 
+    this.compiler.settleReparsedFrom();
     const result = this.compiler.finish(length);
 
     if (result) {

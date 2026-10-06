@@ -6,6 +6,7 @@
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { TreeFragment } from "@lezer/common";
 import { describe, expect, test } from "vitest";
+import { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import { getParser } from "../compiler/grammarSnapshot";
 import { applyEdit, type Edit, editAndReparse, replaceEdit } from "./incremental";
 
@@ -37,6 +38,8 @@ const CASES: [string, string, (src: string) => Edit][] = [
   ["split the keyword after a comment that spans lines", source("\n--[[ a\nb\n]]"), split],
   ["split the keyword after a comment that opens on the operator's line", source(" --[[ a\nb ]]"), split],
   ["delete the next statement", source(""), (s) => replaceEdit(s, "  local r = 1\n", "")],
+  // The edit is inside the comment, whose close is still ahead of it.
+  ["close a comment that spans lines from inside it", source("\n--[[ a\nb\nc\nd\ne\nf\n]]"), (s) => replaceEdit(s, "\ne\n", "\n]] l\n")],
 ];
 
 describe("incremental reparse of an operator whose operand is read from a later line", () => {
@@ -75,5 +78,25 @@ end
       ]),
     );
     expect(printTree(incremental, final)).toBe(printTree(parser.parse(final), final));
+  });
+
+  // The compiler's document serves the parser its text in slices, and a
+  // lookahead sees the end of the input where the last slice read ends. A
+  // parse that restarts just before a slice end has to see it end where a
+  // parse from the start does: here the operator's line ends the first
+  // slice, so neither parse reads the line after it.
+  test("finish a keyword after the operator's line ends a slice of the document", () => {
+    const parser = getParser();
+    const before = "  Plain line.\n".repeat(1170) + "  local q =\n  l\n  Plain line.\n";
+    const edit = insertEdit(before, "  l\n  Plain", 3, "ocal r = 1");
+    const after = applyEdit(before, edit);
+    const document = (text: string) => new SparkdownDocument("inmemory:///main.sd", "sparkdown", 1, text);
+    const incremental = parser.parse(
+      document(after),
+      TreeFragment.applyChanges(TreeFragment.addTree(parser.parse(document(before))), [
+        { fromA: edit.from, toA: edit.to, fromB: edit.from, toB: edit.from + edit.insert.length },
+      ]),
+    );
+    expect(printTree(incremental, after)).toBe(printTree(parser.parse(document(after)), after));
   });
 });
