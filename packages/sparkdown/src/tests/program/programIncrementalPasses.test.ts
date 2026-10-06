@@ -586,6 +586,34 @@ describe("a hazard of reuse", () => {
     });
   }
 
+  it("a name another statement starts to declare changes how a carried statement reads it", () => {
+    // `knock` reads the label's count until a `local knock` is written in
+    // the scene, after which it reads the local. The reading statement's
+    // block is carried: only the statement watch, which reads the resolver's
+    // answer again, finds that its chunk no longer holds.
+    const text = [
+      "scene MAIN",
+      "  label knock",
+      "  if true then",
+      "    Count {knock}.",
+      "  end",
+      ...Array.from({ length: 40 }, (_, i) => `  A line of the scene, ${i}.`),
+      "  Last line.",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const before = s.root;
+    const reader = chunkAt(before, text, "Count {knock}.");
+    expect(describeRoot(before).some((l) => l.includes("GetCount"))).toBe(true);
+    const after = s.edit("  Last line.", "  Last line.\n  local knock = 5")!;
+    expect(chunkAt(after, s.text, "Count {knock}.")).not.toBe(reader);
+    expect(describeRoot(after).some((l) => l.includes("GetCount"))).toBe(false);
+    expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
+    // Most of the scene's statements were carried, and read nothing again.
+    expect(s.store.passesLastBuild.identity).toBeLessThanOrEqual(4);
+  });
+
   it("a function written inside a statement above another keeps the other's symbol", () => {
     const text = [
       "scene MAIN",
