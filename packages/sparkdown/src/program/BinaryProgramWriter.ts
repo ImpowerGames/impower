@@ -43,6 +43,7 @@ import {
   ConstValue,
   DONE_HOLD,
   JUMP_DECISION,
+  JUMP_RESCOPE,
   LEAVE_CONTINUE,
   Op,
   OP_NAMES,
@@ -169,15 +170,18 @@ export interface EmittedStatement {
 // raises, with the label its `Choice` targets, its count symbol, whether that
 // is a named choice's label symbol, and what its entry runs after the
 // choice's own content when its body is no block.
-// A choice of a block written in the preamble whose block has a `then` clause
-// continues at that clause (`join`) rather than at the block's end.
+// A choice an `if` gates has its body in its branch (`body`). An entry runs at
+// the depth of scopes its choice was raised at (`scopes`). A choice of a
+// block written in the preamble whose block has a `then` clause continues at
+// that clause (`join`) rather than at the block's end.
 interface ChooseState {
   entries: {
     choice: Choice;
     label: ProgramLabel;
     symbol: number;
     named: boolean;
-    inline: readonly ParsedObject[];
+    body: object | undefined;
+    scopes: number;
     join: ProgramLabel | null;
   }[];
   join: ProgramLabel | null;
@@ -586,10 +590,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const obj = objects[i]!;
       if (obj instanceof Choice) {
         // A choice is raised by the code of the `choose` block that offers
-        // it. A choice an `if` of the block's preamble gates runs what
-        // follows it in its branch up to the next choice when it is taken,
-        // as the current engine's weave nests that content in the choice:
-        // its body, then what the branch closes (its scope).
+        // it. What follows a choice an `if` of the block's preamble gates in
+        // its branch, up to the next choice, is its body, which the current
+        // engine's weave nests in the choice, and then what the branch
+        // closes (its scope), which the presentation runs (`emitChoicePoint`).
         if (!this._choose) {
           this.unsupported(obj.typeName);
         }
@@ -703,22 +707,25 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._choose = null;
     this.emit(Op.Done, 0, 0, DONE_HOLD);
     this.jumpBack(Op.Jump, end);
-    presentation.entries.forEach((entry, n) => {
+    // The depth the presentation ends at, which the block's end has. An
+    // entry runs at the depth its choice was raised at, which the thread the
+    // choice holds has, and leaves by a jump that closes what is past the
+    // depth of where it goes (`JUMP_RESCOPE`).
+    const depth = this._scopes;
+    presentation.entries.forEach((entry) => {
       this.bind(entry.label);
+      this._scopes = entry.scopes;
       this.withRange(entry.choice.ownDebugMetadata as DebugMetadata | null, () => {
         if (entry.named) {
           this.recordResolution(entry.choice.programResolutionKey);
           this.exportHere(entry.symbol);
         }
         this.emit(Op.Visit, entry.symbol);
-        this.emitChoiceEntry(entry.choice, entry.inline);
+        this.emitChoiceEntry(entry.choice, entry.body);
       });
-      if (entry.join) {
-        this.jumpBack(Op.Jump, entry.join);
-      } else if (n < presentation.entries.length - 1) {
-        this.jumpBack(Op.Jump, end);
-      }
+      this.jumpBack(Op.Jump, entry.join ?? end, JUMP_RESCOPE);
     });
+    this._scopes = depth;
     this.bind(end);
     this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
       if (gather.name) {
@@ -781,16 +788,36 @@ export class BinaryProgramWriter implements ProgramEmitter {
         "a then clause",
       );
     });
-    this.jumpBack(Op.Jump, outer ?? presentation.end);
+    this.jumpBack(Op.Jump, outer ?? presentation.end, JUMP_RESCOPE);
     this.bind(past);
   }
 
   /** A choice's presentation: its start text and its choice-only text, each
    *  captured with its tags, its condition, and the `Choice` that raises it,
-   *  whose target is its entry. `inline` is what its entry runs after its
-   *  own content, for a choice whose body is no block. */
+   *  whose target is its entry. `inline` is what follows a choice an `if`
+   *  gates in its branch, up to the next choice: its body, which its entry
+   *  enters, and then what the branch closes (its scope), which the
+   *  presentation runs, so that the presentation leaves every scope it
+   *  opens. The choice's thread keeps the scope, and its entry closes it when
+   *  it leaves. */
   protected emitChoicePoint(choice: Choice, inline: readonly ParsedObject[]): void {
     const presentation = this._choose!;
+    const body = choiceBodyOf.get(choice);
+    const held = body
+      ? heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0])
+      : [];
+    const inBranch =
+      held.length > 0 && !choice.innerContent.content.includes(held[0]!);
+    this.expect(
+      !inBranch || held.every((part, k) => inline[k] === part),
+      "a choice's body",
+    );
+    const rest = inBranch ? inline.slice(held.length) : inline;
+    this.expect(
+      (body !== undefined || inline.length === 0) &&
+        rest.every((part) => isBeginScope(part) || isEndScope(part)),
+      "a choice's body",
+    );
     this.withRange(choice.ownDebugMetadata as DebugMetadata | null, () => {
       let flags = 0;
       if (choice.startContent.content.length > 0) {
@@ -823,38 +850,31 @@ export class BinaryProgramWriter implements ProgramEmitter {
         label,
         symbol,
         named,
-        inline,
+        body: inBranch ? body : undefined,
+        scopes: this._scopes,
         join: presentation.join,
       });
     });
+    this.emitObjects(rest);
   }
 
   /** A choice's entry after its `Visit`: its own content (the chosen line
    *  and its arrow) and its body as a block. The body of a choice of the
-   *  block's own is the end of its content; the body of a choice an `if`
-   *  gates is the start of `inline`, what follows the choice in its branch,
-   *  whose rest runs after the body. */
-  protected emitChoiceEntry(
-    choice: Choice,
-    inline: readonly ParsedObject[],
-  ): void {
-    const body = choiceBodyOf.get(choice);
+   *  block's own is the end of its content; `branchBody` is the body of a
+   *  choice an `if` gates, which follows it in its branch. */
+  protected emitChoiceEntry(choice: Choice, branchBody: object | undefined): void {
     const content = choice.innerContent.content;
-    const held = body
-      ? heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0])
-      : [];
-    if (!body || held.length === 0 || content.includes(held[0]!)) {
-      this.emitWithBody(content, body, BLOCK_CHOICE, "a choice's body");
-      this.emitObjects(inline);
+    if (!branchBody) {
+      this.emitWithBody(
+        content,
+        choiceBodyOf.get(choice),
+        BLOCK_CHOICE,
+        "a choice's body",
+      );
       return;
     }
-    this.expect(
-      held.every((part, k) => inline[k] === part),
-      "a choice's body",
-    );
     this.emitObjects(content);
-    this.enterBlock(body, BLOCK_CHOICE);
-    this.emitObjects(inline.slice(held.length));
+    this.enterBlock(branchBody, BLOCK_CHOICE);
   }
 
   /** The anonymous symbol that counts a choice of the statement. */

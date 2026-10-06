@@ -304,6 +304,85 @@ describe("choose blocks on the program engine", () => {
     agrees(text, [[0, 1], [1, 1, 1, 0, 1], [2]]);
   });
 
+  // A choice an `if` gates is raised inside the scope its branch opens, and
+  // its thread keeps that scope with the branch's locals while the
+  // presentation goes on and closes it: its body reads them, through a jump
+  // inside the body too, at whatever depth the branches before it left.
+  it("keeps the locals of the branch that gates a choice, through a jump inside its body", () => {
+    agrees(
+      [
+        "-> main",
+        "scene main",
+        "  choose",
+        "    if true then",
+        "      * A",
+        "    end",
+        "    if true then",
+        "      local saved = 7",
+        "      * B",
+        "        -> again",
+        "        label again",
+        "        Value {saved}.",
+        "    end",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+      [[0], [1]],
+    );
+    const text = [
+      "store flag = true",
+      "-> main",
+      "scene main",
+      "  label top",
+      "  local outer = \"o\"",
+      "  choose",
+      "    if flag then",
+      "      local saved = 7",
+      "      * A {saved}",
+      "        -> again_a",
+      "        label again_a",
+      "        Value A {saved} {outer}.",
+      "    end",
+      "    if flag then",
+      "      local saved = 8",
+      "      * B",
+      "        Value B {saved}.",
+      "    end",
+      "    if top > 1 then",
+      "      if true then",
+      "        local deep = 9",
+      "        * Deep",
+      "          -> again_d",
+      "          label again_d",
+      "          Deep {deep}.",
+      "      end",
+      "    end",
+      "    if true then",
+      "      local inner = 3",
+      "      choose",
+      "        * Inner one",
+      "          Inner {inner}.",
+      "      then (inner_then)",
+      "        Inner then {inner} {inner_then}.",
+      "      end",
+      "    end",
+      "    + Leave",
+      "      -> out",
+      "  end",
+      "  -> top",
+      "end",
+      "scene out",
+      "  Out.",
+      "end",
+      "",
+    ].join("\n");
+    const runs = agrees(text, [[0], [1], [1, 2], [2, 0, 1, 2, 3], [0, 1, 2, 3, 4], [4, 3, 2, 1]]);
+    expect(texts(runs[0]!.actual)).toContain("Value A 7 o.");
+    expect(texts(runs[1]!.actual)).toContain("Value B 8.");
+    expect(texts(runs[2]!.actual)).toContain("Deep 9.");
+  });
+
   // A block written in another block's preamble offers its choices with that
   // block's; with a `then` clause of its own, its choices continue there, and
   // the flow then goes on through the rest of the preamble, as the current
