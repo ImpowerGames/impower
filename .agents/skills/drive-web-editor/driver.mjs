@@ -337,22 +337,25 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
 export const SYSTEM_CHROMIUM_NAMES = ["chromium", "chromium-browser", "google-chrome"];
 export const SYSTEM_CHROMIUM_PATHS = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"];
 const CACHE_REL_PATHS = [
-  ["linux", "chrome-linux/chrome"],
-  ["linux", "chrome-linux64/chrome"],
-  ["win32", "chrome-win/chrome.exe"],
-  ["win32", "chrome-win64/chrome.exe"],
-  ["darwin", "chrome-mac/Chromium.app/Contents/MacOS/Chromium"],
-  ["darwin", "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],
-  ["darwin", "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],
-  ["linux", "chrome-headless-shell-linux64/chrome-headless-shell"],
-  ["linux", "chrome-linux/headless_shell"],
-  ["win32", "chrome-headless-shell-win64/chrome-headless-shell.exe"],
-  ["darwin", "chrome-headless-shell-mac-arm64/chrome-headless-shell"],
-  ["darwin", "chrome-headless-shell-mac-x64/chrome-headless-shell"],
+  // [platform, architecture or null for any this platform runs, layout]
+  ["linux", "arm64", "chrome-linux/chrome"],
+  ["linux", "x64", "chrome-linux64/chrome"],
+  ["win32", null, "chrome-win/chrome.exe"],
+  ["win32", null, "chrome-win64/chrome.exe"],
+  ["darwin", null, "chrome-mac/Chromium.app/Contents/MacOS/Chromium"],
+  ["darwin", "arm64", "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],
+  ["darwin", null, "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],
+  ["linux", "x64", "chrome-headless-shell-linux64/chrome-headless-shell"],
+  ["linux", "arm64", "chrome-linux/headless_shell"],
+  ["win32", null, "chrome-headless-shell-win64/chrome-headless-shell.exe"],
+  ["darwin", "arm64", "chrome-headless-shell-mac-arm64/chrome-headless-shell"],
+  ["darwin", null, "chrome-headless-shell-mac-x64/chrome-headless-shell"],
 ];
-// Only this platform's layouts: a cache shared across machines can hold a
-// newer build for another OS, which would be found first and fail to run.
-export function resolveChromium({ expected, full, env = process.env, platform = process.platform, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
+// Only layouts this machine can run: a cache shared across machines can hold
+// a newer build for another OS or CPU, which would be found first and fail.
+// Playwright's registry puts linux-arm64 builds in chrome-linux and x64 in
+// chrome-linux64; Windows and macOS run x64 builds on arm64 by emulation.
+export function resolveChromium({ expected, full, env = process.env, platform = process.platform, arch = process.arch, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
   const p = platform === "win32" ? path.win32 : path.posix;
   const explicit = env.IMPOWER_DRIVER_CHROMIUM;
   if (explicit) {
@@ -374,8 +377,8 @@ export function resolveChromium({ expected, full, env = process.env, platform = 
         .filter((d) => /^chromium(?:_headless_shell)?-\d+$/.test(d))
         .sort((a, b) => Number(b.match(/\d+$/)[0]) - Number(a.match(/\d+$/)[0]));
       for (const dir of dirs) {
-        for (const [os, rel] of CACHE_REL_PATHS) {
-          if (os !== platform) continue;
+        for (const [os, cpu, rel] of CACHE_REL_PATHS) {
+          if (os !== platform || (cpu && cpu !== arch)) continue;
           const candidate = p.join(base, dir, ...rel.split("/"));
           if (exists(candidate)) return { executablePath: candidate, source: "cache", reason: `${missing}; using cached ${dir} from PLAYWRIGHT_BROWSERS_PATH` };
         }

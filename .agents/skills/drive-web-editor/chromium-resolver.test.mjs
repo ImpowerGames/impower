@@ -22,8 +22,8 @@ function layout(files) {
   };
 }
 
-function resolve(files, env = {}) {
-  return resolveChromium({ expected: PINNED, env: { PATH: "/usr/local/bin:/usr/bin", ...env }, platform: "linux", ...layout(files) });
+function resolve(files, env = {}, arch = "x64") {
+  return resolveChromium({ expected: PINNED, env: { PATH: "/usr/local/bin:/usr/bin", ...env }, platform: "linux", arch, ...layout(files) });
 }
 
 // Pinned cache present: Playwright's own build, unchanged default path.
@@ -52,7 +52,7 @@ function resolve(files, env = {}) {
 
 // Another build in the managed cache wins over a system Chromium.
 {
-  const cached = "/cache/chromium-1200/chrome-linux/chrome";
+  const cached = "/cache/chromium-1200/chrome-linux64/chrome";
   const r = resolve([cached, "/usr/bin/chromium"], { PLAYWRIGHT_BROWSERS_PATH: "/cache" });
   assert.equal(r.source, "cache");
   assert.equal(r.executablePath, cached);
@@ -95,7 +95,11 @@ function resolve(files, env = {}) {
   assert.equal(r.executablePath, shell);
   // Playwright's linux-arm64 layout (registry: chrome-linux/headless_shell).
   const arm = "/cache/chromium_headless_shell-1200/chrome-linux/headless_shell";
-  assert.equal(resolve([arm], { PLAYWRIGHT_BROWSERS_PATH: "/cache", PATH: "" }).executablePath, arm);
+  assert.equal(resolve([arm], { PLAYWRIGHT_BROWSERS_PATH: "/cache", PATH: "" }, "arm64").executablePath, arm);
+  // ...and an x64 machine sharing that cache skips it for the system build.
+  const armFull = "/cache/chromium-1300/chrome-linux/chrome";
+  assert.equal(resolve([armFull, arm, "/usr/bin/chromium"], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, "/usr/bin/chromium");
+  assert.equal(resolve([armFull, "/usr/bin/chromium"], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }, "arm64").executablePath, armFull);
   assert.equal(
     pinnedExecutable("/cache/chromium-1228/chrome-linux/chrome", { headless: true, platform: "linux" }),
     "/cache/chromium_headless_shell-1228/chrome-linux/headless_shell",
@@ -106,7 +110,7 @@ function resolve(files, env = {}) {
   assert.equal(resolve([mac, linux, "/usr/bin/chromium"], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, linux);
   assert.equal(resolve([mac, "/usr/bin/chromium"], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, "/usr/bin/chromium");
   // Newest revision first across both kinds of cache directory.
-  const older = "/cache/chromium-1100/chrome-linux/chrome";
+  const older = "/cache/chromium-1100/chrome-linux64/chrome";
   assert.equal(resolve([older, shell], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, shell);
 }
 
