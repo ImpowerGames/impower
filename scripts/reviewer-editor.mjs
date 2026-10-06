@@ -13,7 +13,7 @@ const position = value => Number.isInteger(value) && value > 0 && value <= 10000
 const member = (value, values) => values.includes(value);
 const panels = ["find", "goto"];
 const targets = ["page", "editor", "find", "goto", "hover", "completion"];
-const presses = ["Escape", "Enter", "Tab", "Backspace", "Delete", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Control+Home", "Control+End", "Control+a", "Control+z", "Control+Shift+z", "Shift+ArrowLeft", "Shift+ArrowRight", "Shift+ArrowUp", "Shift+ArrowDown"];
+const presses = ["Escape", "Enter", "Tab", "Backspace", "Delete", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Control+Home", "Control+End", "Control+a", "Control+s", "Shift+Alt+f", "Control+z", "Control+Shift+z", "Shift+ArrowLeft", "Shift+ArrowRight", "Shift+ArrowUp", "Shift+ArrowDown"];
 
 export function validateEditorRequest(value) {
   if (!keys(value, ["requestId", "command", "script", "steps", "line"]) || !name.test(value.requestId ?? "") || !member(value.command, ["ui", "verify"])) throw new Error("Editor request needs requestId and command ui or verify; no paths or extra fields");

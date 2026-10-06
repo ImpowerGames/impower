@@ -62,33 +62,17 @@ export interface SequenceRow {
   /** The script the sequence is written in. */
   readonly uri: string;
   /** For a flow's own sequence and a declaration sequence, which have no
-   *  owner, the first line in their script, counting from 0; -1 for a body.
-   *  Where a body starts is not stored: it follows from its owner's line,
-   *  the owner's block rows and the spans of the bodies above it, which the
-   *  root derives (`ProgramRoot.firstLineOf`), so a row stays true in every
-   *  root that holds it, and an edit above a body or inside a body beside it
-   *  leaves the body's row the same object (docs/engine/binary-program.md,
-   *  section 1, The order structure). */
-  readonly scriptLine: number;
+   *  owner, the first line of the body in its script, counting from 0; -1
+   *  for a block's body. Where a body starts is the root's to derive
+   *  (`ProgramRoot.firstLineOf`): its owner's line, the lines of the owner's
+   *  parts above it and the spans of the bodies above it. So a body's row
+   *  holds nothing that an edit above its owner moves, and a root built
+   *  after such an edit shares it (docs/engine/binary-program.md, section
+   *  1, The order structure). */
+  readonly firstLine: number;
   /** The lines the body spans. */
   readonly span: number;
 }
-
-/** Whether two rows say the same of one sequence, so that a root can hold
- *  the row of the root before it in place of a new one. */
-export const sameRow = (
-  a: SequenceRow,
-  b: Omit<SequenceRow, "id"> & { id: number },
-): boolean =>
-  a.id === b.id &&
-  a.arrays === b.arrays &&
-  a.flow === b.flow &&
-  a.kind === b.kind &&
-  a.owner === b.owner &&
-  a.block === b.block &&
-  a.uri === b.uri &&
-  a.scriptLine === b.scriptLine &&
-  a.span === b.span;
 
 /** A source range as a line table row gives it, with lines and columns
  *  counting from 0 in the statement's script. */
@@ -203,6 +187,24 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
   return index;
 };
 
+/** Whether a sequence's arrays hold `chunk`. */
+export const holdsChunk = (
+  arrays: SequenceArrays,
+  chunk: StatementChunk,
+): boolean => {
+  const entry = entryIndex(arrays).get(chunkId(chunk));
+  return entry !== undefined && arrays.chunks[entry] === chunk;
+};
+
+/** Whether `root` holds `chunk`, in the sequence its chunk table names. */
+export const holdsChunkIn = (
+  root: ProgramRoot,
+  chunk: StatementChunk,
+): boolean => {
+  const at = root.position(chunkId(chunk));
+  return !!at && at.sequence.arrays.chunks[at.entry] === chunk;
+};
+
 /**
  * One version of the whole program (docs/engine/binary-program.md, sections 1
  * and 9): what each sequence id holds, the flows by symbol, each script's
@@ -213,10 +215,6 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
  * which leaves the real one as it was.
  */
 export class ProgramRoot {
-  // Where each body of this root starts, derived on first use
-  // (`firstLineOf`). A root never changes, so neither does a line.
-  protected _bodyLines = new Map<number, number>();
-
   constructor(
     /** The `ProgramTable` the chunks' ids are interned in, as the generation
      *  the root was built in holds it: a reseed installs new arrays on the
@@ -320,18 +318,24 @@ export class ProgramRoot {
    *  statement before the statements of its bodies, then the statements of
    *  the functions the declarations write, in the order the declarations
    *  run, which is the order a compile aligns the next program's statements
-   *  with. */
-  statementOrder(): StatementChunk[] {
+   *  with. `owners`, when given, receives the owner of each statement of a
+   *  body. */
+  statementOrder(
+    owners?: Map<StatementChunk, StatementChunk>,
+  ): StatementChunk[] {
     const out: StatementChunk[] = [];
-    const walk = (row: SequenceRow | undefined) => {
+    const walk = (row: SequenceRow | undefined, owner?: StatementChunk) => {
       for (const chunk of row?.arrays.chunks ?? []) {
         out.push(chunk);
+        if (owner) {
+          owners?.set(chunk, owner);
+        }
         walkBodies(chunk);
       }
     };
     const walkBodies = (chunk: StatementChunk) => {
       for (let k = 0; k < blockCount(chunk); k += 1) {
-        walk(this.body(chunk, k));
+        walk(this.body(chunk, k), chunk);
       }
     };
     for (const row of this.flowSequences()) {
@@ -344,6 +348,12 @@ export class ProgramRoot {
   /** Chunk id to the id of the sequence that holds the chunk. */
   get chunkIndex(): ChunkTable {
     return this._chunks;
+  }
+
+  /** Where each symbol is defined, and what as, which the next compile
+   *  writes over where its chunks or flows changed. */
+  get definitionArrays(): DefinitionArrays {
+    return this._definitions;
   }
 
   /** Where a symbol is defined: its sequence, entry and offset. A function
@@ -448,19 +458,18 @@ export class ProgramRoot {
     return ids.map((id) => this._sequences.get(id)!);
   }
 
-  /** Where a sequence starts in its script, counting from 0: a flow's and a
-   *  declaration sequence's first line as the root holds it, and a body's
-   *  derived from its owner (docs/engine/binary-program.md, section 1, The
-   *  order structure): the owner's line, plus, for each body above it, the
-   *  lines of the owner's parts that head that body (its block row says how
-   *  many) and the lines that body spans (its row in this root says how
-   *  many), plus the lines of the parts that head this one. So no row holds
-   *  a line of its own below the flow, and an edit inside one body moves the
-   *  bodies below it without a row of theirs changing. -1 for a body whose
-   *  owner this root does not hold. */
+  // The first line of each body this root has derived (`firstLineOf`).
+  protected _bodyLines = new Map<number, number>();
+
+  /** The first line of a sequence in its script, counting from 0: a flow's
+   *  and a declaration sequence's as its row holds it, and a body's derived
+   *  from where its owner stands (section 1, The order structure): the
+   *  owner's first line, then for each body above it the lines of the
+   *  owner's parts that head that body and the lines it spans, then the
+   *  lines of the parts that head this one. */
   firstLineOf(sequence: SequenceRow): number {
     if (sequence.owner < 0) {
-      return sequence.scriptLine;
+      return sequence.firstLine;
     }
     const known = this._bodyLines.get(sequence.id);
     if (known !== undefined) {
@@ -470,14 +479,13 @@ export class ProgramRoot {
     if (!at) {
       return -1;
     }
-    const owner = at.sequence.arrays.chunks[at.entry]!;
+    const chunk = at.sequence.arrays.chunks[at.entry]!;
     let line = this.lineOf(at.sequence, at.entry);
-    for (let k = 0; k <= sequence.block; k += 1) {
-      line += blockField(owner, k, B_HEAD_LINES);
-      if (k < sequence.block) {
-        line += this.body(owner, k)?.span ?? 0;
-      }
+    for (let k = 0; k < sequence.block; k += 1) {
+      line += blockField(chunk, k, B_HEAD_LINES);
+      line += this.body(chunk, k)?.span ?? 0;
     }
+    line += blockField(chunk, sequence.block, B_HEAD_LINES);
     this._bodyLines.set(sequence.id, line);
     return line;
   }
@@ -679,11 +687,11 @@ export class ProgramRoot {
   protected scriptEnd(uri: string): number {
     let end = 0;
     for (const flow of this.flows(uri)) {
-      end = Math.max(end, flow.scriptLine + flow.span);
+      end = Math.max(end, flow.firstLine + flow.span);
     }
     const declarations = this.declarations(uri);
     if (declarations) {
-      end = Math.max(end, declarations.scriptLine + declarations.span);
+      end = Math.max(end, declarations.firstLine + declarations.span);
     }
     return end;
   }

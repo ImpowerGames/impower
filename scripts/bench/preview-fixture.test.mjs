@@ -106,6 +106,8 @@ await check("the benchmark's arguments and default replacements", () => {
   assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit, both or coverage/);
   // The coverage report times nothing and edits no line.
   assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "coverage"]), { mode: "coverage", samples: 12, warmup: 4, project: "p" });
+  // The compile with the binary program's statement chunks on (#701).
+  assert.deepEqual(parseBenchArgs(["--fixture", "--mode", "edit", "--chunks"]), { mode: "edit", samples: 12, warmup: 4, fixture: true, chunks: true });
   assert.deepEqual(tokenAround("      [[raffles_concerned:gloves]]", "concerned"), { token: "raffles_concerned", prefix: "raffles_" });
   assert.equal(tokenAround("[[bunny]]", "concerned"), null);
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
@@ -271,7 +273,7 @@ if (!esbuildInstalled) {
     }
   });
 
-  await check("the coverage report counts the fixture's statements and names what its program falls back for", () => {
+  await check("the coverage report counts the fixture's statements, all of which the writer emits", () => {
     // The report is read from the JSON the bench writes, not from its printed
     // sentence, so rewording the summary cannot fail this check.
     const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-coverage-"));
@@ -280,16 +282,14 @@ if (!esbuildInstalled) {
       const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "coverage", "--json", json], { encoding: "utf8", timeout: 600_000, windowsHide: true });
       assert.equal(run.status, 0, run.stdout + run.stderr);
       const report = JSON.parse(fs.readFileSync(`${json}.coverage.json`, "utf8"));
-      assert.ok(report.statements > 100 && report.emitted < report.statements, `${report.emitted} of ${report.statements}`);
-      // The fixture's scene holds a choose, one statement over the last 1,000
-      // lines, which the writer has no emit path for yet, so the program falls
-      // back and the unsupported table counts it.
-      assert.ok(report.fallback, "the program falls back for the choose");
-      assert.equal(report.fallback.construct, "choose");
-      assert.equal(report.fallback.uri, "file:///local/main.sd");
-      assert.ok(Number.isInteger(report.fallback.line) && report.fallback.line >= 0, String(report.fallback.line));
-      assert.equal(report.unsupported.choose, 1);
-      assert.equal(report.unsupportedStatements, report.statements - report.emitted);
+      // The fixture's scene ends in a `choose` whose `then` clause holds its
+      // last 1,000 lines; the writer emits `choose` blocks (#697), and the
+      // statements of the block's bodies count as statements of their own,
+      // so every statement has a chunk and the program does not fall back.
+      assert.ok(report.statements > 1000 && report.emitted === report.statements, `${report.emitted} of ${report.statements}`);
+      assert.equal(report.fallback ?? null, null);
+      assert.deepEqual(report.unsupported, {});
+      assert.equal(report.unsupportedStatements, 0);
     } finally {
       fs.rmSync(scratch, { recursive: true, force: true });
     }

@@ -81,6 +81,9 @@ for (const invalid of [
   { ...authorRequest, steps: Array(31).fill({ action: "open", value: "find" }) },
   { ...authorRequest, steps: Array(5).fill({ action: "shot", target: "page" }) },
 ]) assert.throws(() => validateEditorRequest(invalid));
+// The editor's own format commands reach a delegated reviewer (#1461).
+for (const value of ["Shift+Alt+f", "Control+s"]) validateEditorRequest({ ...authorRequest, steps: [{ action: "press", value }] });
+for (const value of ["Control+S", "Alt+Shift+f", "Control+Shift+s"]) assert.throws(() => validateEditorRequest({ ...authorRequest, steps: [{ action: "press", value }] }), /Unknown or invalid editor step/);
 const editorDirectory = path.join(scratch, "editor"); fs.mkdirSync(editorDirectory);
 const previousBrowserCache = process.env.PLAYWRIGHT_BROWSERS_PATH;
 process.env.PLAYWRIGHT_BROWSERS_PATH = browserCache;

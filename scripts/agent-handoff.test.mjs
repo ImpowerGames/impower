@@ -829,3 +829,58 @@ else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log(
   assert.equal(fs.readdirSync(routeSlots).length, 0, "the failed reviewer's slot is released");
 }
 console.log("PASS: an unanswering reviewer route is refused before slot reservation with its own error, and a reviewer's route failure is named in the blocked row");
+
+// An author-experience lens step gains the editor delegation, and the driver's
+// preflight refuses the plan before any reviewer process or reservation.
+{
+  const lensRepo = path.join(scratch, "lens-repo");
+  fs.mkdirSync(path.join(lensRepo, ".agents", "skills", "drive-web-editor"), { recursive: true });
+  fs.writeFileSync(path.join(lensRepo, ".agents", "skills", "drive-web-editor", "driver.mjs"), "");
+  const lensGit = (...args) => execFileSync("git", args, { cwd: lensRepo, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
+  lensGit("init"); lensGit("add", "."); lensGit("commit", "-m", "lens fixture");
+  const lensChild = path.join(scratch, "lens-child.mjs");
+  fs.writeFileSync(lensChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} fs.writeFileSync(process.argv[2], p); process.exit(1);`);
+  const lensSlots = path.join(scratch, "lens-slots");
+  let calls = 0;
+  const passing = async () => { calls++; return { passed: true, failing: [] }; };
+  const failing = async () => { calls++; return { passed: false, failing: ["FAIL  playwright chromium  — cannot launch"] }; };
+  const run = async (name, step, editorPreflight) => {
+    const seen = path.join(scratch, `lens-${name}.prompt`);
+    const lensPrompt = path.join(scratch, `lens-${name}-prompt.txt`);
+    fs.writeFileSync(lensPrompt, step.heading ? `Report format. Start with the heading \`### Adversarial review — ${step.heading} (<MODEL>)\`.` : "test fixture");
+    delete step.heading;
+    const plan = { worktree: lensRepo, pr: 531, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", completedReviewRound: 0, maxSteps: 1, first: "review", journal: path.join(scratch, `lens-${name}.jsonl`), steps: { review: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [lensChild, seen, "--model", "reviewer-test"], prompt: lensPrompt, next: [null], ...step } } };
+    const planFile = path.join(scratch, `lens-${name}.json`);
+    fs.writeFileSync(planFile, JSON.stringify(plan));
+    let error;
+    try { await handoff(planFile, { jobRoot: scratch, slotRoot: lensSlots, editorPreflight }); } catch (caught) { error = caught; }
+    return { error, prompt: fs.existsSync(seen) ? fs.readFileSync(seen, "utf8") : null, journal: path.join(scratch, `lens-${name}.jsonl`) };
+  };
+
+  let result = await run("refused", { lens: "author-experience" }, failing);
+  assert.match(result.error?.message ?? "", /Editor driver preflight failed.*playwright chromium/s, "a failing preflight names its check");
+  assert.equal(result.prompt, null, "a failing preflight launches no reviewer");
+  assert.equal(fs.existsSync(result.journal), false, "a failing preflight refuses before the journal");
+  assert.equal(fs.existsSync(lensSlots) ? fs.readdirSync(lensSlots).length : 0, 0, "a failing preflight reserves no slot");
+
+  calls = 0;
+  result = await run("granted", { lens: "author-experience (short)", heading: "author-experience (short)" }, passing);
+  assert.equal(calls, 1, "a lens step runs the driver preflight once");
+  assert.match(result.prompt ?? "", /authorized these operations: author\b/, "a lens step gains the author editor operation");
+  assert.match(result.prompt, /Editor delegation:/, "the reviewer prompt names the editor delegation");
+
+  calls = 0;
+  result = await run("declared", { lens: "author-experience", execution: [{ id: "ui", kind: "editor", maxRequests: 2, timeoutSeconds: 60 }] }, passing);
+  assert.match(result.prompt ?? "", /authorized these operations: ui\./, "a declared editor operation is kept as written, without a second grant");
+  assert.equal(calls, 1, "a declared editor operation is also preflighted");
+
+  calls = 0;
+  result = await run("plain", {}, passing);
+  assert.equal(calls, 0, "a step without the lens runs no driver preflight");
+  assert.doesNotMatch(result.prompt ?? "", /Editor delegation|Launcher execution service/, "a step without the lens is unchanged");
+
+  result = await run("mismatch", { lens: "author-experience", heading: "undirected" }, passing);
+  assert.match(result.error?.message ?? "", /lens author-experience disagrees with its prompt heading undirected/, "a lens that disagrees with the prompt heading is refused");
+  assert.equal(result.prompt, null);
+}
+console.log("PASS: an author-experience lens step gains the editor delegation after a passing driver preflight, a failing preflight refuses before launch, and other steps are unchanged");

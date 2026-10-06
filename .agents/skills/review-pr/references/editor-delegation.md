@@ -37,7 +37,7 @@ Each request reopens the browser from the session's persistent profile. The edit
 | `screen` | `value`: `logic`, `assets`, `share`, `main`, `scripts`, `files`, `urls`, `game`, `screenplay` |
 | `hover` | Positive `line` and `column`, each at most 100000 |
 | `complete` | Positive `line` and `column`, plus nonempty `text` up to 4096 characters; types into the script and reads completion |
-| `press` | `value`: `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, arrow keys, `Home`, `End`, `Control+Home`, `Control+End`, `Control+a`, `Control+z`, `Control+Shift+z`, or `Shift+` with an arrow key |
+| `press` | `value`: `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, arrow keys, `Home`, `End`, `Control+Home`, `Control+End`, `Control+a`, `Control+s` (format on save), `Shift+Alt+f` (Format Document), `Control+z`, `Control+Shift+z`, or `Shift+` with an arrow key. The script editor is focused before the key; the step reports `version` (`before`, `after`) and `textChanged`, with the document `text` read back when it changed |
 | `shot` | `target`: `page`, `editor`, `find`, `goto`, `hover`, `completion`; at most four extra screenshots |
 
 For game-preview evidence use `{ "requestId": "preview-first", "command": "verify", "script": "Hello!\n", "line": 1 }`. `script` and the positive `line` are optional; `steps` is not accepted for `verify`. Selection is available by moving between find matches with `next` and `prev`, go-to-line's `line` field and `submit`, and the bounded movement keys. The underlying driver also names a `select` button, but the current find panel does not display it; requesting that button reports a failed attempt. Unsupported tasks remain coverage gaps; do not replace them with custom probes or direct sandbox execution.
