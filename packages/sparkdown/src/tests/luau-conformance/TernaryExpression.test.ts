@@ -680,6 +680,19 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
   });
 
+  // Where Sparkdown's own syntax ends the expression, the missing else is
+  // reported there: a marked `&` statement at its line's end, as its
+  // authored end of file, whatever follows it (#1501); a `store`
+  // declaration, which the checker does not read, on its `if`.
+  test.each([
+    ["an & statement before story", "& x = 0\n& x = if true then 1\nStory follows.\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
+    ["an & statement before another", "& x = 0\n& x = if true then 1\n& x = 2\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
+    ["an & statement before a scene's end", "scene s\n  & x = if true then 1\nend\n", `2:23-2:23 ${MISSING_ELSE}, got <eof>`],
+    ["a store declaration before story", "store x = if true then 1\nStory follows.\n", `1:11-1:13 ${MISSING_ELSE}`],
+  ])("in %s: reports it where Sparkdown ends the expression", (_name, source, diagnostic) => {
+    expect(ifDiagnostics(source)).toEqual([diagnostic]);
+  });
+
   test("an & statement ends before a following narrative then line", () => {
     const source = `& x = 0\n& x = if true\n  then 1\nx = 6\nValue {x}.\n`;
     expect(ifDiagnostics(source)).toEqual([`2:7-2:9 ${MISSING_THEN}`]);
