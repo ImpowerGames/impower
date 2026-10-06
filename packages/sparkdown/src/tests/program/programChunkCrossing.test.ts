@@ -393,6 +393,16 @@ describe.each([
     expect(after[1] === before[2]).toBe(true);
   });
 
+  it("keep the chunks of a long run of one syntax whose ends an edit changed", () => {
+    const n = 2000;
+    const { store, build } = builder();
+    const middle = (k: number) => statement(`x${k % 2}`);
+    const before = build([statement("a"), ...[...Array(n).keys()].map(middle), statement("b")]);
+    const after = build([statement("c"), ...[...Array(n).keys()].map(middle), statement("d")]);
+    expect(store.emittedLastBuild).toBe(2);
+    expect(after.slice(1, -1).every((chunk, k) => chunk === before[k + 1])).toBe(true);
+  });
+
   it("align a long run whose recorded values all changed in lookups linear in its length", () => {
     const n = 512;
     class CountingStore extends ChunkStore {

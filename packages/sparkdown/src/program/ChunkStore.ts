@@ -1256,7 +1256,7 @@ export class ChunkStore {
    * hold then takes it where that leaves nothing behind (#1496): a chunk no
    * statement holds, when the statement holds none or holds one with no
    * parts, or by exchange, the chunk another statement holds to be emitted
-   * again in place, which then takes the one this statement leaves. A
+   * again in place, when that one can take the one this statement leaves. A
    * statement that holds none takes no chunk another statement holds, since
    * that one was edited in place and keeps the parts of its old self, whose
    * ids and symbols a saved state may name; and a statement that holds a
@@ -1367,37 +1367,32 @@ export class ChunkStore {
       }
       // In between, in order, each statement with the next old one that reads
       // the same, found through the positions of each syntax among `olds`
-      // rather than by scanning the run.
-      const at = new Map<string, number[]>();
+      // rather than by scanning the run. The position the pass has reached
+      // only grows, so each syntax's positions are walked once, by a cursor.
+      const at = new Map<string, { positions: number[]; next: number }>();
       for (let k = front; k < olds.length - back; k += 1) {
         const syntax = syntaxOf(olds[k]!);
         if (syntax !== undefined) {
-          const positions = at.get(syntax);
-          if (positions) {
-            positions.push(k);
+          const bucket = at.get(syntax);
+          if (bucket) {
+            bucket.positions.push(k);
           } else {
-            at.set(syntax, [k]);
+            at.set(syntax, { positions: [k], next: 0 });
           }
         }
       }
       let o = front;
       for (let c = front; c < candidates.length - back; c += 1) {
-        const positions = at.get(statements[candidates[c]!]!.syntax());
-        if (!positions) {
+        const bucket = at.get(statements[candidates[c]!]!.syntax());
+        if (!bucket) {
           continue;
         }
-        let lo = 0;
-        let hi = positions.length;
-        while (lo < hi) {
-          const mid = (lo + hi) >> 1;
-          if (positions[mid]! < o) {
-            lo = mid + 1;
-          } else {
-            hi = mid;
-          }
+        while (bucket.next < bucket.positions.length && bucket.positions[bucket.next]! < o) {
+          bucket.next += 1;
         }
-        if (lo < positions.length && take(candidates[c]!, olds[positions[lo]!]!)) {
-          o = positions[lo]! + 1;
+        const k = bucket.positions[bucket.next];
+        if (k !== undefined && take(candidates[c]!, olds[k]!)) {
+          o = k + 1;
         }
       }
       // A statement edited in place: one left on each side, counting the
@@ -1458,24 +1453,24 @@ export class ChunkStore {
     // chunks outside their run: the old chunks no run took are matched with
     // the statements no run matched, in order, by syntax.
     const matchMoved = () => {
-      const unmatched = new Map<string, number[]>();
+      const unmatched = new Map<string, { olds: number[]; next: number }>();
       old.forEach((chunk, o) => {
         const syntax = used.has(chunk) ? undefined : this._info.get(chunk)?.syntax;
         if (syntax !== undefined) {
-          const olds = unmatched.get(syntax);
-          if (olds) {
-            olds.push(o);
+          const bucket = unmatched.get(syntax);
+          if (bucket) {
+            bucket.olds.push(o);
           } else {
-            unmatched.set(syntax, [o]);
+            unmatched.set(syntax, { olds: [o], next: 0 });
           }
         }
       });
       statements.forEach((statement, i) => {
         if (!result[i] && !this._inherit.has(statement)) {
-          const olds = unmatched.get(statement.syntax());
-          const o = olds?.[0];
+          const bucket = unmatched.get(statement.syntax());
+          const o = bucket?.olds[bucket.next];
           if (o !== undefined) {
-            olds!.shift();
+            bucket!.next += 1;
             take(i, o);
           }
         }
@@ -1577,14 +1572,28 @@ export class ChunkStore {
       if (q === undefined) {
         continue;
       }
+      // The other statement takes the chunk this one leaves: it keeps it,
+      // or is emitted again in place from it, as a statement of its syntax
+      // or one whose parts the chunk's carry. A statement that could do
+      // neither keeps its chunk, so no exchange leaves a chunk behind.
+      const takesLeft = (p: number) =>
+        fits(p, q) ||
+        this._info.get(old[q]!)?.syntax === statements[p]!.syntax() ||
+        ownsParts(statements[p]!, old[q]!);
       let o: number | undefined;
+      const passed: number[] = [];
       while (lists.held.length && o === undefined) {
         const c = lists.held.pop()!;
         const p = holder.get(c);
         if (p !== undefined && p !== i) {
-          o = c;
+          if (takesLeft(p)) {
+            o = c;
+          } else {
+            passed.push(c);
+          }
         }
       }
+      lists.held.push(...passed);
       if (o === undefined) {
         continue;
       }
@@ -1592,21 +1601,13 @@ export class ChunkStore {
       unpair(p);
       unpair(i);
       result[i] = old[o]!;
-      const statement = statements[p]!;
       if (fits(p, q)) {
         result[p] = old[q]!;
-      } else if (
-        this._info.get(old[q]!)?.syntax === statement.syntax() ||
-        ownsParts(statement, old[q]!)
-      ) {
+      } else {
         partner.set(p, q);
         holder.set(q, p);
-        this._inherit.set(statement, old[q]!);
+        this._inherit.set(statements[p]!, old[q]!);
         listOf(q)?.held.push(q);
-        queue.push(p);
-      } else {
-        used.delete(old[q]!);
-        listOf(q)?.free.push(q);
         queue.push(p);
       }
     }
