@@ -325,7 +325,8 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
 //   2. the build the installed `playwright` pins and would launch itself
 //      (`expected`: for a headless launch, its headless shell; see
 //      pinnedExecutable), then the pinned full build (`full`) when that differs;
-//   3. another chromium-N build in PLAYWRIGHT_BROWSERS_PATH: a sandbox can
+//   3. another chromium-N or chromium_headless_shell-N build in
+//      PLAYWRIGHT_BROWSERS_PATH, newest revision first: a sandbox can
 //      pre-install a revision other than the pinned one, and npm install
 //      skips the download (see CLAUDE.md), so the pinned one never arrives;
 //   4. a system Chromium on PATH, then at the usual Linux locations, for a
@@ -341,6 +342,10 @@ const CACHE_REL_PATHS = [
   "chrome-win/chrome.exe",
   "chrome-win64/chrome.exe",
   "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+  "chrome-headless-shell-linux64/chrome-headless-shell",
+  "chrome-headless-shell-win64/chrome-headless-shell.exe",
+  "chrome-headless-shell-mac-arm64/chrome-headless-shell",
+  "chrome-headless-shell-mac-x64/chrome-headless-shell",
 ];
 export function resolveChromium({ expected, full, env = process.env, platform = process.platform, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
   const p = platform === "win32" ? path.win32 : path.posix;
@@ -358,11 +363,11 @@ export function resolveChromium({ expected, full, env = process.env, platform = 
   }
   const base = env.PLAYWRIGHT_BROWSERS_PATH;
   if (base) {
-    looked.push(p.join(base, "chromium-*"));
+    looked.push(p.join(base, "chromium-*"), p.join(base, "chromium_headless_shell-*"));
     if (exists(base)) {
       const dirs = readdir(base)
-        .filter((d) => /^chromium-\d+$/.test(d))
-        .sort((a, b) => Number(b.match(/\d+/)[0]) - Number(a.match(/\d+/)[0]));
+        .filter((d) => /^chromium(?:_headless_shell)?-\d+$/.test(d))
+        .sort((a, b) => Number(b.match(/\d+$/)[0]) - Number(a.match(/\d+$/)[0]));
       for (const dir of dirs) {
         for (const rel of CACHE_REL_PATHS) {
           const candidate = p.join(base, dir, ...rel.split("/"));
@@ -3924,6 +3929,7 @@ switch (cmd) {
     await timing(rest, {
       importPlaywright,
       resolveChromiumExecutablePath,
+      chromiumChoiceLine,
       withEditor,
       openEditorPage,
       reloadEditorPage,

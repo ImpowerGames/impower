@@ -7,7 +7,9 @@
 // Every case is an in-memory file layout; nothing is downloaded or launched.
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { pinnedExecutable, resolveChromium } from "./driver.mjs";
+import { privateLaunch } from "./measure.mjs";
 
 const PINNED = "/home/agent/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell";
 
@@ -83,6 +85,40 @@ function resolve(files, env = {}) {
   // Both missing: on to the system build, and the failure names both.
   assert.equal(resolveChromium({ expected: PINNED, full: FULL, env: { PATH: "/usr/bin" }, platform: "linux", ...layout(["/usr/bin/chromium"]) }).source, "system");
   assert.throws(() => resolveChromium({ expected: PINNED, full: FULL, env: {}, platform: "linux", ...layout([]) }), (e) => e.message.includes(FULL) && e.message.includes(PINNED));
+}
+
+// Another cached revision of the headless shell alone is a cached build too.
+{
+  const shell = "/cache/chromium_headless_shell-1200/chrome-headless-shell-linux64/chrome-headless-shell";
+  const r = resolve([shell], { PLAYWRIGHT_BROWSERS_PATH: "/cache", PATH: "" });
+  assert.equal(r.source, "cache");
+  assert.equal(r.executablePath, shell);
+  // Newest revision first across both kinds of cache directory.
+  const older = "/cache/chromium-1100/chrome-linux/chrome";
+  assert.equal(resolve([older, shell], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, shell);
+}
+
+// Every launch path the driver's commands share logs the choice: measure and
+// timing both launch through privateLaunch with the driver's dependencies.
+{
+  const driverSource = fs.readFileSync(new URL("./driver.mjs", import.meta.url), "utf8");
+  for (const command of ["measure", "timing"]) {
+    const call = driverSource.match(new RegExp(`await ${command}\\(rest, \\{([^}]*)\\}`));
+    assert.ok(call, `driver passes dependencies to ${command}`);
+    assert.match(call[1], /\bchromiumChoiceLine\b/, `${command} gets chromiumChoiceLine`);
+  }
+  const logs = [];
+  const launched = await privateLaunch(
+    {
+      importPlaywright: async () => ({ chromium: { launchPersistentContext: async (_dir, options) => options } }),
+      resolveChromiumExecutablePath: () => "/usr/bin/chromium",
+      chromiumChoiceLine: () => "/usr/bin/chromium (system)",
+      log: (line) => logs.push(line),
+    },
+    "/profile",
+  )({ headless: true });
+  assert.equal(launched.executablePath, "/usr/bin/chromium");
+  assert.deepEqual(logs, ["browser: /usr/bin/chromium (system)"]);
 }
 
 // Neither present: one clear line naming every place that was looked at.
