@@ -59,6 +59,12 @@ export interface StatementReads {
  */
 export interface BodyShape {
   statements: StatementShape[];
+  /** The start of the part that heads the body (a branch's condition or its
+   *  `else`, a loop's header, a choice's line, a `then` clause, a function's
+   *  header), relative to the top-level node's start. Its source, up to
+   *  `headEnd`, is what the body is aligned by when its statement is emitted
+   *  again in place (docs/engine/binary-program.md, section 2). */
+  headStart: number;
   /** The end of the part that heads the body, relative to the top-level
    *  node's start. */
   headEnd: number;
@@ -183,11 +189,12 @@ export const topLevelShape = (node: string, from: number, to: number): Statement
 export const currentStatement = (ctx: LowerContext): StatementShape | undefined =>
   ctx.statementStack?.[ctx.statementStack.length - 1];
 
-/** A new body of the running statement, headed by the part that ends at
- *  `headEnd` and followed by the part that starts at `nextStart` (absolute
- *  offsets), or nothing when shapes are not recorded. */
+/** A new body of the running statement, headed by the part that runs from
+ *  `headStart` to `headEnd` and followed by the part that starts at
+ *  `nextStart` (absolute offsets), or nothing when shapes are not recorded. */
 export const openBody = (
   ctx: LowerContext,
+  headStart: number,
   headEnd: number,
   nextStart: number,
 ): BodyShape | undefined => {
@@ -198,6 +205,7 @@ export const openBody = (
   const base = ctx.chunkFrom ?? 0;
   const body: BodyShape = {
     statements: [],
+    headStart: Math.min(headStart, headEnd) - base,
     headEnd: headEnd - base,
     nextStart: nextStart - base,
   };
@@ -235,7 +243,7 @@ export const openFunctionBody = (
       nextStart = child.from;
     }
   }
-  return openBody(ctx, headEnd, nextStart);
+  return openBody(ctx, fn.from, headEnd, nextStart);
 };
 
 // The nodes of a function's header, which stand before its body.
@@ -262,7 +270,12 @@ export const openEvaluatorBody = (
     return undefined;
   }
   const base = ctx.chunkFrom ?? 0;
-  return { statements: [], headEnd: from - base, nextStart: to - base };
+  return {
+    statements: [],
+    headStart: from - base,
+    headEnd: from - base,
+    nextStart: to - base,
+  };
 };
 
 /** Registers `flow`, the function the lowering built for the syntax node
@@ -391,6 +404,7 @@ export const inlineChoiceBranches = (
         }
         choiceBody = {
           statements: [],
+          headStart: statement.from,
           headEnd: statement.to,
           nextStart: statements[next]?.from ?? body.nextStart,
         };

@@ -123,6 +123,7 @@ export function lowerLuauRepeatLoop(
   });
   const body = openBody(
     ctx,
+    node.from,
     bodyContent === node ? node.from : bodyContent.from,
     untilNode.from,
   );

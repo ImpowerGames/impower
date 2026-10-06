@@ -827,7 +827,7 @@ describe("block statements an edit reorders", () => {
           hoisted: "",
           params: "",
           choices: [],
-          thenBlocks: [],
+          heads: [],
           generation: this.table.generation,
         });
         return chunk;

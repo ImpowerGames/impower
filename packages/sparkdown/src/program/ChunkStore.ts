@@ -60,9 +60,7 @@ import {
   type SymbolKindValue,
 } from "./ProgramSymbols";
 import {
-  BLOCK_CHOICE,
   BLOCK_FUNCTION,
-  BLOCK_THEN,
   B_SEQUENCE,
   HEADER_WORDS,
   blockCount,
@@ -130,6 +128,11 @@ export interface BodySource {
   /** The lines of the owner's parts between the body above it (or the
    *  owner's first line) and this body. */
   headLines: number;
+  /** The source of the part that heads the body (a branch's condition or
+   *  its `else`, a loop's header, a `then` clause), by which the body keeps
+   *  its sequence id when the statement is emitted again in place
+   *  (docs/engine/binary-program.md, section 2). */
+  headSource?: () => string;
   /** For a function's body, the function (a `FlowBase`). */
   fn?: ParsedObject;
   /** For a function's body, the function's own source text, which aligns it
@@ -240,6 +243,26 @@ interface ChoicePart {
   block: number;
 }
 
+// One body a chunk's block statement holds that neither a choice nor a
+// function heads: the fingerprint of its heading part, and its block.
+interface HeadPart {
+  fingerprint: string;
+  block: number;
+}
+
+/** How a body of a statement emitted in place got its sequence id: by the
+ *  pass of the alignment (`alignParts`) that paired its heading part with an
+ *  old one (equal and in order, equal wherever it stands, or between two
+ *  matched parts), or a new id. */
+export type HandedOn = "aligned" | "aligned-moved" | "between" | "new";
+
+/** One body id a build handed on (`ChunkStore.handedOnLastBuild`). */
+export interface BodyHandOff {
+  sequenceId: number;
+  part: "function" | "choice" | "head";
+  how: HandedOn;
+}
+
 // What the store knows of a chunk it emitted or reused: the syntax of the
 // statement it was emitted for, the lowering inputs that statement recorded,
 // the values its emission recorded, for a declaration chunk the names of the
@@ -258,9 +281,10 @@ interface ChunkInfo {
   alternators: readonly AlternatorPart[];
   /** The choices the statement raises, in order. */
   choices: readonly ChoicePart[];
-  /** The blocks of the `then` clauses of a `choose` statement, in order: its
-   *  own, and that of a block written in its preamble. */
-  thenBlocks: readonly number[];
+  /** The bodies that neither a choice nor a function heads (a branch's, a
+   *  loop's, a `do` block's, a `then` clause's), each with the fingerprint of
+   *  the part that heads it. */
+  heads: readonly HeadPart[];
   anonymousReferences: readonly number[];
   /** The locals each function the statement writes declares at its entry
    *  (`hoistedOf`). */
@@ -273,10 +297,11 @@ interface ChunkInfo {
 
 // The symbols a build gives the functions a statement writes, by body, and
 // for a statement emitted again in place, the old block each function's body
-// takes its sequence id from.
+// takes its sequence id from, with the pass of the alignment that paired it.
 interface FunctionPlan {
   symbols: (number | undefined)[];
   oldBlocks: (number | undefined)[];
+  how: (HandedOn | undefined)[];
 }
 
 /** The names a declaration assigns, in order, or nothing for a statement of
@@ -322,10 +347,10 @@ const assignedNames = (statement: StatementSource): string | undefined =>
  * its sequence id while its owner keeps its chunk, whose block table names it.
  * A statement whose syntax matches an old statement's but whose chunk cannot
  * be kept, or which is the one statement left on each side of a run, is
- * emitted again in place: its block statement's bodies take the old owner's
- * sequence ids in order, and the functions it writes are aligned with the old
- * chunk's by their own source, each taking the anonymous symbol and the body
- * id of the old function it is aligned with (section 2).
+ * emitted again in place: each of its bodies takes the sequence id of the old
+ * body whose heading part its own aligns with by its source (`alignParts`),
+ * and the functions it writes take the anonymous symbols of the old functions
+ * they align with (section 2).
  */
 export class ChunkStore {
   readonly table: ProgramTable;
@@ -336,6 +361,11 @@ export class ChunkStore {
 
   /** The chunks the last build emitted. */
   emittedLastBuild = 0;
+
+  /** How the last build handed on the sequence id of each body of the
+   *  statements it emitted again in place (section 2): every one through
+   *  the alignment of its heading part, or a new id. */
+  handedOnLastBuild: BodyHandOff[] = [];
 
   /** How many times a compile has run the program's declarations (see
    *  `runDeclarations`). */
@@ -383,6 +413,7 @@ export class ChunkStore {
     const declarations = program.declarations ?? [];
     const previous = this.current;
     const emittedBefore = this._writer.emitted;
+    this.handedOnLastBuild = [];
     const coverage: ProgramCoverage = {
       statements: 0,
       emitted: 0,
@@ -964,6 +995,7 @@ export class ChunkStore {
     const plan: FunctionPlan = {
       symbols: bodies.map(() => undefined),
       oldBlocks: bodies.map(() => undefined),
+      how: bodies.map(() => undefined),
     };
     this._plans.set(statement, plan);
     const functions = bodies.flatMap((body, k) => (body.fn ? [k] : []));
@@ -980,7 +1012,7 @@ export class ChunkStore {
     } else {
       const inherited = this._inherit.get(statement);
       const oldParts = inherited ? (this._info.get(inherited)?.parts ?? []) : [];
-      const pairs = alignParts(
+      const { pairs, how } = alignParts(
         functions.map((k) => fingerprintOf(bodies[k]!)),
         oldParts.map((part) => part.fingerprint),
       );
@@ -989,6 +1021,7 @@ export class ChunkStore {
         if (part && isAnonymousSymbol(this.table, part.symbol)) {
           plan.symbols[k] = part.symbol;
           plan.oldBlocks[k] = part.block;
+          plan.how[k] = how[i];
         }
       });
     }
@@ -1059,9 +1092,8 @@ export class ChunkStore {
 
   /** Emits `statement`'s chunk through `write`, with the blocks of its
    *  bodies: a body keeps the sequence id of the old owner's block it is
-   *  aligned with when the statement is emitted again in place (a block
-   *  statement's bodies in order, a function's by its alignment), and takes
-   *  a new one otherwise. */
+   *  aligned with by the part that heads it when the statement is emitted
+   *  again in place (`alignParts`), and takes a new one otherwise. */
   protected emit(
     statement: StatementSource,
     write: (input: {
@@ -1083,61 +1115,81 @@ export class ChunkStore {
     const inherited = this._inherit.get(statement);
     const oldInfo = inherited ? this._info.get(inherited) : undefined;
     const plan = this._plans.get(statement);
-    // The choices the statement raises keep the count symbols of the old
-    // chunk's that they align with by their own source, and their bodies the
-    // sequence ids of those choices' bodies; the `then` clause keeps the old
-    // clause's (section 2).
+    // Every body takes its sequence id through the one alignment of its
+    // heading part with the old chunk's (section 2), never by position: a
+    // choice's body by the choice's own source, which its count symbol goes
+    // with too; a function's by the function's own source (`planFunctions`);
+    // and any other body (a branch's, a loop's, a `do` block's, a `then`
+    // clause's) by the source of the part that heads it.
     const choices = choicesOf(statement);
     const choicePrints = choices.map((choice) =>
       choiceFingerprint(choice, statement.text),
     );
-    const choicePairs = oldInfo
+    const choiceAlignment = oldInfo
       ? alignParts(
           choicePrints,
           oldInfo.choices.map((part) => part.fingerprint),
         )
-      : [];
-    // The `then` clauses (a block's own, and one of a block written in its
-    // preamble) keep the old clauses' ids in order.
-    let thens = 0;
-    const partBlocks: (number | undefined)[] = bodies.map((body) => {
+      : undefined;
+    const choicePairs = choiceAlignment?.pairs ?? [];
+    const headed = bodies.flatMap((body, k) =>
+      body.fn || partOfBody.get(body.shape as BodyShape) instanceof Choice
+        ? []
+        : [k],
+    );
+    const headPrints = headed.map((k) => headFingerprint(bodies[k]!));
+    const headAlignment = oldInfo
+      ? alignParts(
+          headPrints,
+          oldInfo.heads.map((part) => part.fingerprint),
+        )
+      : undefined;
+    const oldBlocks: (number | undefined)[] = bodies.map(() => undefined);
+    const how: (HandedOn | undefined)[] = bodies.map(() => undefined);
+    bodies.forEach((body, k) => {
+      if (body.fn) {
+        oldBlocks[k] = plan?.oldBlocks[k];
+        how[k] = plan?.how[k];
+        return;
+      }
       const part = partOfBody.get(body.shape as BodyShape);
-      if (!part || !oldInfo) {
-        return undefined;
-      }
       if (part instanceof Choice) {
-        const pair = choicePairs[choices.indexOf(part)];
-        const block = pair === undefined ? -1 : oldInfo.choices[pair]!.block;
-        return block >= 0 ? block : undefined;
-      }
-      return oldInfo.thenBlocks[thens++];
-    });
-    const oldControl: number[] = [];
-    if (inherited) {
-      for (let k = 0; k < blockCount(inherited); k += 1) {
-        if (
-          !(
-            blockFlags(inherited, k) &
-            (BLOCK_FUNCTION | BLOCK_CHOICE | BLOCK_THEN)
-          )
-        ) {
-          oldControl.push(k);
+        const i = choices.indexOf(part);
+        const pair = choicePairs[i];
+        const block = pair === undefined ? -1 : oldInfo!.choices[pair]!.block;
+        if (block >= 0) {
+          oldBlocks[k] = block;
+          how[k] = choiceAlignment!.how[i];
         }
+        return;
       }
-    }
-    let control = 0;
+      const i = headed.indexOf(k);
+      const pair = headAlignment?.pairs[i];
+      if (pair !== undefined) {
+        oldBlocks[k] = oldInfo!.heads[pair]!.block;
+        how[k] = headAlignment!.how[i];
+      }
+    });
     const blocks: BlockInput[] = bodies.map((body, k) => {
-      const oldBlock = body.fn
-        ? plan?.oldBlocks[k]
-        : partOfBody.has(body.shape as BodyShape)
-          ? partBlocks[k]
-          : oldControl[control++];
+      const oldBlock = oldBlocks[k];
+      const kept = inherited && oldBlock !== undefined;
+      const sequenceId = kept
+        ? blockField(inherited, oldBlock, B_SEQUENCE)
+        : this._nextSequenceId++;
+      if (inherited) {
+        this.handedOnLastBuild.push({
+          sequenceId,
+          part: body.fn
+            ? "function"
+            : partOfBody.get(body.shape as BodyShape) instanceof Choice
+              ? "choice"
+              : "head",
+          how: kept ? how[k]! : "new",
+        });
+      }
       return {
         body: body.shape,
-        sequenceId:
-          inherited && oldBlock !== undefined
-            ? blockField(inherited, oldBlock, B_SEQUENCE)
-            : this._nextSequenceId++,
+        sequenceId,
         headLines: body.headLines,
         firstLine: body.firstLine,
         span: body.span,
@@ -1161,7 +1213,7 @@ export class ChunkStore {
     });
     if (inherited) {
       const old = this._info.get(inherited)?.alternators ?? [];
-      const pairs = alignParts(
+      const { pairs } = alignParts(
         fingerprints,
         old.map((part) => part.fingerprint),
       );
@@ -1218,10 +1270,7 @@ export class ChunkStore {
           (body) => partOfBody.get(body.shape as BodyShape) === choice,
         ),
       })),
-      thenBlocks: bodies.flatMap((body, k) => {
-        const part = partOfBody.get(body.shape as BodyShape);
-        return part && !(part instanceof Choice) ? [k] : [];
-      }),
+      heads: headed.map((k, i) => ({ fingerprint: headPrints[i]!, block: k })),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
       hoisted: hoistedOf(statement),
       params: paramsOf(statement),
@@ -2249,13 +2298,16 @@ const fingerprintOf = (body: BodySource): string =>
  * whose fingerprint equals one left on the other side, wherever it stands;
  * then, in each run of parts left between two matched ones, the old are
  * paired with the new in order. Returns, per new part, the index of its old
- * part, or nothing.
+ * part, or nothing, and the pass that paired it. It is the one alignment of
+ * every part of a statement emitted again in place: its functions, its
+ * alternators, its choices and the parts that head its other bodies.
  */
 const alignParts = (
   now: readonly string[],
   was: readonly string[],
-): (number | undefined)[] => {
+): { pairs: (number | undefined)[]; how: (HandedOn | undefined)[] } => {
   const pairs: (number | undefined)[] = now.map(() => undefined);
+  const how: (HandedOn | undefined)[] = now.map(() => undefined);
   const taken = new Set<number>();
   // Equal and in order.
   let from = 0;
@@ -2263,6 +2315,7 @@ const alignParts = (
     for (let o = from; o < was.length; o += 1) {
       if (was[o] === fingerprint) {
         pairs[i] = o;
+        how[i] = "aligned";
         taken.add(o);
         from = o + 1;
         return;
@@ -2277,6 +2330,7 @@ const alignParts = (
     const o = was.findIndex((w, k) => w === fingerprint && !taken.has(k));
     if (o >= 0) {
       pairs[i] = o;
+      how[i] = "aligned-moved";
       taken.add(o);
     }
   });
@@ -2292,12 +2346,26 @@ const alignParts = (
         break;
       }
       pairs[i] = o;
+      how[i] = "between";
       taken.add(o);
       lastOld = o;
       break;
     }
   }
-  return pairs;
+  return { pairs, how };
+};
+
+/** What a body that neither a choice nor a function heads is aligned by
+ *  when its statement is emitted again in place (section 2): the source of
+ *  the part that heads it, normalized (a branch's condition or its `else`,
+ *  a loop's header, a `do`, a `then` clause with its label), and for a `then`
+ *  clause the depth of the `choose` block it closes, which tells a block's
+ *  own clause from that of a block written in its preamble. */
+const headFingerprint = (body: BodySource): string => {
+  const part = partOfBody.get(body.shape as BodyShape);
+  const depth =
+    part instanceof Gather ? `then:${part.indentationDepth}|` : "head|";
+  return `${depth}${normalizeSource(body.headSource?.() ?? "")}`;
 };
 
 /** A flow's qualified name, or nothing for a flow a statement writes. */
