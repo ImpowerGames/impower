@@ -10626,15 +10626,23 @@ repository:
   # as it does after a spaced `then`. Every reader of the arm skips this
   # rule as the clause's keyword, whichever alternative opened it.
   #
+  # A comment after the `then` is read inside the operator, as Luau skips
+  # it, so a `then` followed by a comment that ends its line also takes its
+  # value from the next line (`then -- note`).
+  #
   # lookaround: the second alternative's lookbehind is
   # `LuauThenExpression`'s, and holds only right after that `then`. Its
-  # `(?=$|{{WS}})` keeps it from opening empty before a value glued to the
-  # `then` (`(c)then(1)`), where the end would close it at once and the arm
-  # would open it again at the same position. A separate rule for the
-  # glued case cannot work: the arm's readers would take it for the arm's
-  # value.
+  # `(?=$|{{WS}}|--)` keeps it from opening empty before a value glued to
+  # the `then` (`(c)then(1)`), where the end would close it at once and the
+  # arm would open it again at the same position; a comment glued to the
+  # `then` (`(c)then--x`) opens it, and the end's `--` keeps it open for
+  # the comment. A separate rule for the glued case cannot work: the arm's
+  # readers would take it for the arm's value. The end's `(?!$|{{WS}}|--)`
+  # holds the operator open over the comment, which `LuauComment` reads;
+  # ending at the comment instead leaves the arm empty at the line end.
+  # Luau has no `--` operator, so `--` here always begins a comment.
   LuauThenOperator:
-    begin: ((?:then)\b)({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?=$|{{WS}})({{WS}}*)
+    begin: ((?:then)\b)({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?=$|{{WS}}|--)({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -10655,9 +10663,10 @@ repository:
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
     patterns:
+      - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
+    end: (?={{BEAT}})|(?!$|{{WS}}|--)|{{BEFORE_LUAU_COLUMN_0_LINE}}
 
   LuauElseExpression:
     begin: (?=(?:else)\b)
@@ -10692,10 +10701,13 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
+    # A comment after the `else` is read inside the operator, as for
+    # `LuauThenOperator`, and the end's `--` holds it open for the comment.
     patterns:
+      - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_STATEMENT}}
+    end: (?={{BEAT}})|(?!$|{{WS}}|--)|{{BEFORE_LUAU_COLUMN_0_STATEMENT}}
 
   # ----------------------------------------------------------------------------
   # Alternator Blocks
