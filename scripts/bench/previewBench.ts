@@ -345,7 +345,15 @@ async function main() {
     const t1 = performance.now();
     if (config.chunks) {
       const { sums: phases } = takeMeasures();
-      if (i >= config.warmup) samples.push({ option, wall: { "compile": t1 - t0 }, phases });
+      const store = compiler.chunkStore;
+      if (i >= config.warmup) {
+        samples.push({
+          option,
+          wall: { compile: t1 - t0 },
+          phases,
+          passes: { ...store?.passesLastBuild, initializerRuns: store?.initializerRuns, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null },
+        });
+      }
       continue;
     }
     const game = workerGame!;
@@ -433,6 +441,12 @@ function printReport(report: any) {
       .filter(([, s]: any) => s.max >= 0.3)
       .map(([k, s]: any) => row(k, s)),
   ];
+  const passes = report.perSample?.map((s: any) => s.passes).filter(Boolean);
+  if (passes?.length) {
+    // What each pass of the chunk store visited, per sample
+    // (`ChunkStore.passesLastBuild`).
+    out.push("", "  chunk store passes, per sample:", ...passes.map((p: any) => `    ${JSON.stringify(p)}`));
+  }
   const m = report.messages;
   if (m) {
     out.push(
