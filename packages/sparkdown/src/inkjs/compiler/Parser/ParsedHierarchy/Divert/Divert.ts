@@ -187,6 +187,24 @@ export class Divert extends ParsedObject {
     }
     const variadic = kinds[kinds.length - 1] === PARAM_VARARGS;
     const regular = variadic ? kinds.length - 1 : kinds.length;
+    this.EmitPassedArguments(emitter, kinds);
+    if (variadic) {
+      for (let p = this.args.length; p < regular; p += 1) {
+        emitter.emit(Op.Const, 0, ConstValue.Nil);
+      }
+      emitter.emit(Op.Pack, Math.max(0, this.args.length - regular));
+    }
+    return true;
+  }
+
+  /** Each argument as the parameter it lands in takes it (`kinds`, the
+   *  target's `FACT_PARAMS`): a pointer at the variable for a by-reference
+   *  one, and its value otherwise, as a call and a divert that passes
+   *  arguments both push them. */
+  protected EmitPassedArguments(
+    emitter: ProgramEmitter,
+    kinds: readonly string[],
+  ): void {
     this.args.forEach((arg, i) => {
       if (kinds[i] === PARAM_REFERENCE) {
         const name = asOrNull(arg, VariableReference)?.name;
@@ -198,13 +216,6 @@ export class Divert extends ParsedObject {
         emitter.emitObject(arg);
       }
     });
-    if (variadic) {
-      for (let p = this.args.length; p < regular; p += 1) {
-        emitter.emit(Op.Const, 0, ConstValue.Nil);
-      }
-      emitter.emit(Op.Pack, Math.max(0, this.args.length - regular));
-    }
-    return true;
   }
 
   /** The jump of a divert to its target, or with `tunnelFlags` set, the call
@@ -317,18 +328,7 @@ export class Divert extends ParsedObject {
     const symbol = emitter.functionSymbol(flow);
     emitter.reference(symbol);
     const params = emitter.fact(symbol, FACT_PARAMS);
-    const kinds = params === "" ? [] : params.split(",");
-    this.args.forEach((arg, i) => {
-      if (kinds[i] === PARAM_REFERENCE) {
-        const name = asOrNull(arg, VariableReference)?.name;
-        if (name == null) {
-          emitter.unsupported("a by-reference argument that is no variable");
-        }
-        emitter.emit(Op.VarPtr, emitter.variable(name));
-      } else {
-        emitter.emitObject(arg);
-      }
-    });
+    this.EmitPassedArguments(emitter, params === "" ? [] : params.split(","));
     emitter.emit(Op.Call, symbol, this.args.length);
   }
 

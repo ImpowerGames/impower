@@ -461,9 +461,11 @@ export class FlowEntry extends ParsedObject {
     }
     if (this.start) {
       // The jump the entry ends with, which reads nothing of its target as a
-      // divert's does; the statement's syntax names the target.
+      // divert's does. The entry records no resolution: it holds no parsed
+      // object whose resolution the store could read again, and its syntax
+      // names the target, so a different target is a statement that reads
+      // otherwise.
       const symbol = emitter.targetSymbol(this.start.flow, this.start.name);
-      emitter.recordResolution(`jump:${this.start.name}`);
       emitter.referenceTarget(symbol);
       emitter.emit(Op.JumpSym, symbol);
     }

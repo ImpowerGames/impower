@@ -251,6 +251,87 @@ describe("a flow's parameters on the program engine", () => {
   });
 });
 
+describe("a host entering a scene that takes parameters", () => {
+  const text = [
+    "scene pair(a, b)",
+    "  Pair {a} {b}.",
+    "  done",
+    "end",
+    "scene rest(a, ...)",
+    "  Rest {a} {select(\"#\", ...)}.",
+    "  done",
+    "end",
+    "",
+  ].join("\n");
+
+  // The current engine passes `ChoosePathString`'s arguments as they are,
+  // for the knot's assignments to bind.
+  it("passes ChoosePathString's arguments for the scene to bind, as the current engine does", () => {
+    const run = (story: { ChoosePathString(p: string, r?: boolean, a?: any[]): void; Continue(): string | null }) => {
+      story.ChoosePathString("pair", true, [1, 2]);
+      return story.Continue();
+    };
+    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    expect(program.fallback).toBeUndefined();
+    const current = silence(() => compileScript(text)).story;
+    current.ResetState();
+    const expected = silence(() => run(current as never));
+    const actual = silence(() => run(new ProgramStory(program.chunks!)));
+    expect(actual).toBe(expected);
+    expect(actual).toBe("Pair 1 2.\n");
+  });
+
+  // The current engine arranges `EvaluateFunction`'s arguments for the
+  // knot's parameters when its container binds some.
+  it("arranges EvaluateFunction's arguments for the scene's parameters, as the current engine does", () => {
+    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    const current = silence(() => compileScript(text)).story;
+    current.ResetState();
+    const engine = new ProgramStory(program.chunks!);
+    for (const [name, args] of [
+      ["pair", [1, 2, 3]],
+      ["pair", [1]],
+      ["rest", [1, 2, 3]],
+      ["rest", []],
+    ] as const) {
+      const expected = silence(() => current.EvaluateFunction(name, [...args], true));
+      const actual = silence(() => engine.EvaluateFunction(name, [...args], true));
+      expect(actual, `${name}(${args.join(", ")})`).toEqual(expected);
+    }
+    expect(silence(() => engine.EvaluateFunction("pair", [1, 2, 3], true)).output).toBe(
+      "Pair 1 2.\n",
+    );
+    expect(silence(() => engine.EvaluateFunction("rest", [1, 2, 3], true)).output).toBe(
+      "Rest 1 2.\n",
+    );
+  });
+});
+
+describe("a flow's entry", () => {
+  // The entry of a scene that starts with a branch jumps to it, and keeps
+  // its chunk through an edit of its header that reads the same.
+  it("keeps its chunk when its header is lowered again and reads the same", () => {
+    const s = session(
+      [
+        "-> outer(1)",
+        "scene outer(a)",
+        "  branch inner",
+        "    Inner {a}.",
+        "    done",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(s.first.fallback).toBeUndefined();
+    const entry = s.first.chunks!.flowNamed("outer")!.arrays.chunks[0]!;
+    const edited = s.edit("scene outer(a)", "scene outer( a )");
+    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks!.flowNamed("outer")!.arrays.chunks[0]).toBe(entry);
+    expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold(s.text).chunks!));
+  });
+});
+
 describe("a flow's parameter list", () => {
   const text = [
     "-> start",
