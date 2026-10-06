@@ -133,6 +133,19 @@ function divergence(incremental: Surface, cold: Surface): string | undefined {
   if (incremental.fallback !== cold.fallback) {
     fields.push(`fallback ${incremental.fallback} vs cold ${cold.fallback}`);
   }
+  // A compile that built no root and names no fallback threw on its way
+  // (a failed `ChunkStore.verifyBuilds`, which the compiler logs and the
+  // tests silence): a root on one side alone is a divergence.
+  if (!!incremental.chunks !== !!cold.chunks) {
+    fields.push(
+      `chunks ${incremental.chunks ? "built" : "missing"} vs cold ${cold.chunks ? "built" : "missing"}`,
+    );
+  }
+  if (!!incremental.symbols !== !!cold.symbols) {
+    fields.push(
+      `symbols ${incremental.symbols ? "defined" : "missing"} vs cold ${cold.symbols ? "defined" : "missing"}`,
+    );
+  }
   if (incremental.chunks && cold.chunks) {
     const i = firstDifference(incremental.chunks, cold.chunks);
     if (i >= 0) {

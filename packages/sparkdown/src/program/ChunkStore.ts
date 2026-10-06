@@ -10,6 +10,7 @@ import {
   alternatorSourceOf,
   functionShapeOf,
   isLoopInternal,
+  loopExitOf,
   partOfBody,
   type BodyShape,
 } from "../compiler/lower/utils/statementShape";
@@ -433,6 +434,9 @@ export class ChunkStore {
   >();
   // How many statements each root holds.
   protected _statementCounts = new WeakMap<ProgramRoot, number>();
+  // Whether each sequence of the current root is inside a function, whose
+  // chunks then hold a function's code (`_functionChunks`).
+  protected _sequenceInFunction = new Map<number, boolean>();
 
   /** `table` is the compiler's persistent `ProgramTable`, which the store
    *  interns into and keeps no table of its own (#696); a reseed of it goes
@@ -660,6 +664,7 @@ export class ChunkStore {
       rebuilt: new Map(),
       placed: new Map(),
       live: new Set(),
+      inFunction: new Map(),
       statements: previous ? this.statementCountOf(previous) : 0,
       failed: 0,
       fail: () => {},
@@ -852,7 +857,14 @@ export class ChunkStore {
     );
     this._statementCounts.set(root, build.statements);
     if (ChunkStore.verifyBuilds) {
-      this.verifyRoot(root, previous, flows, symbols, build.statements);
+      this.verifyRoot(
+        root,
+        previous,
+        flows,
+        symbols,
+        build.statements,
+        functionChunks,
+      );
     }
     // The declarations run again when a declaration chunk or a function
     // changed, since an initializer may read another global or call a
@@ -902,6 +914,9 @@ export class ChunkStore {
     this._functionChunks = functionChunks;
     this._committedFacts = new Map(facts);
     this._committedLabels = this._labels;
+    for (const [id, inFunction] of build.inFunction) {
+      this._sequenceInFunction.set(id, inFunction);
+    }
     for (const [block, chunk] of this._placed) {
       this._byBlock.set(block, chunk);
     }
@@ -1616,7 +1631,14 @@ export class ChunkStore {
   ): SequenceArrays {
     const chunks: StatementChunk[] = [];
     const lineStarts: number[] = [];
-    const moved = !before || !sameHome(before, home);
+    // A sequence whose owner an edit moved into a function or out of one is
+    // placed whole, as one whose flow changed is, so the function chunks it
+    // holds are counted again.
+    const moved =
+      !before ||
+      !sameHome(before, home) ||
+      this._sequenceInFunction.get(id) !== inFunction;
+    build.inFunction.set(id, inFunction);
     for (const statement of statements) {
       let chunk = build.chunkOf.get(statement);
       if (!chunk) {
@@ -1945,6 +1967,7 @@ export class ChunkStore {
     flows: readonly FlowSource[],
     symbols: readonly number[],
     statements: number,
+    functionChunks: ReadonlySet<StatementChunk>,
   ): void {
     const fail = (what: string) => {
       throw new Error(`ChunkStore.verifyBuilds: ${what}`);
@@ -1983,6 +2006,34 @@ export class ChunkStore {
       if (!reached.has(row.id)) {
         fail(`row ${row.id} is reached from no flow`);
       }
+    }
+    // The chunks that hold a function's code: every chunk of a sequence inside
+    // a function (a function's own flow, a function body's block and what
+    // they hold) and every chunk that exports a function.
+    const holdingFunctions = new Set<StatementChunk>();
+    const inFunctions = (row: SequenceRow | undefined, inFunction: boolean) => {
+      for (const chunk of row?.arrays.chunks ?? []) {
+        if (inFunction || exportsFunction(chunk)) {
+          holdingFunctions.add(chunk);
+        }
+        for (let k = 0; k < blockCount(chunk); k += 1) {
+          inFunctions(
+            root.body(chunk, k),
+            inFunction || !!(blockFlags(chunk, k) & BLOCK_FUNCTION),
+          );
+        }
+      }
+    };
+    for (const row of root.sequences()) {
+      if (row.owner < 0) {
+        inFunctions(row, row.flow >= 0 && row.kind === SymbolKind.Function);
+      }
+    }
+    if (
+      holdingFunctions.size !== functionChunks.size ||
+      [...holdingFunctions].some((chunk) => !functionChunks.has(chunk))
+    ) {
+      fail(`the build counts ${functionChunks.size} chunks holding a function's code, the root holds ${holdingFunctions.size}`);
     }
     if (count !== statements) {
       fail(`the root holds ${count} statements, the build counted ${statements}`);
@@ -2830,6 +2881,8 @@ interface SequenceBuild {
   placed: Map<StatementChunk, { sequence: number; inFunction: boolean }>;
   /** The ids of the rows the build wrote. */
   live: Set<number>;
+  /** Whether each sequence the build visited is inside a function. */
+  inFunction: Map<number, boolean>;
   /** How many statements the new root holds. */
   statements: number;
   /** How many statements the writer had no emit path for. */
@@ -2883,10 +2936,24 @@ const watchedValueOf = (
   if (obj instanceof FunctionCall) {
     return readCall;
   }
+  // A loop's own labels and the diverts that run it, `break` and `continue`
+  // among them, are no symbols the chunk names: the writer emits the loop's
+  // jumps inside the chunk (`Divert.programJumpKey`, `resolutionsOf`), and the
+  // names the compiler gives them, which an edit above renumbers, are read
+  // by no chunk. A call's divert is read through its call.
   if (obj instanceof Divert) {
-    return readJump;
+    return obj.isFunctionCall ||
+      obj.isEnd ||
+      obj.isDone ||
+      loopExitOf.has(obj) ||
+      isLoopInternal(obj)
+      ? undefined
+      : readJump;
   }
-  if (obj instanceof Gather || obj instanceof Choice) {
+  if (obj instanceof Gather) {
+    return obj.name && !isLoopInternal(obj) ? readLabel : undefined;
+  }
+  if (obj instanceof Choice) {
     return obj.name ? readLabel : undefined;
   }
   if (obj instanceof Text && obj.isCompilerNamed) {

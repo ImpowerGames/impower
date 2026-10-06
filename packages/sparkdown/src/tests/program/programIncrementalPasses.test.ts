@@ -614,6 +614,80 @@ describe("a hazard of reuse", () => {
     expect(s.store.passesLastBuild.identity).toBeLessThanOrEqual(4);
   });
 
+  it("a loop written above renumbers the names of the loops below it, and their statements are read again nowhere", () => {
+    // The compiler names a loop's own labels by document order, so a loop
+    // written in an earlier scene renames those of every loop after it. No
+    // chunk names them: the writer emits a loop's jumps inside its chunk.
+    const scene = (name: string, loops: boolean) => [
+      `scene ${name}`,
+      `  The room ${name} is quiet.`,
+      ...(loops
+        ? [
+            "  store_count = 0",
+            "  while store_count < 3 do",
+            `    Pass {store_count} of ${name}.`,
+            "    store_count = store_count + 1",
+            "    if store_count > 9 then",
+            "      break",
+            "    end",
+            "  end",
+            "  for i = 1, 2 do",
+            `    Step {i} of ${name}.`,
+            "  end",
+          ]
+        : []),
+      ...Array.from({ length: 12 }, (_, i) => `  Line ${i} of ${name}.`),
+      "end",
+      "",
+    ];
+    const text = [
+      ...scene("FIRST", false),
+      ...scene("SECOND", true),
+      ...scene("THIRD", true),
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const loops = ["SECOND", "THIRD"].flatMap((name) => [
+      chunkAt(s.root, text, `Pass {store_count} of ${name}.`),
+      chunkAt(s.root, text, `Step {i} of ${name}.`),
+    ]);
+    const owners = (root: ProgramRoot, script: string) =>
+      ["SECOND", "THIRD"].map((name) => {
+        const lines = script.split("\n");
+        const at = lines.indexOf(`scene ${name}`);
+        const line = lines.findIndex((l, i) => i > at && l === "  while store_count < 3 do");
+        return chunkAtLine(root, line);
+      });
+    const loopOwners = owners(s.root, text);
+    const LOOP = "  for j = 1, 2 do\n    Inner {j}.\n  end\n";
+    // A preview of the loop, then the loop itself.
+    const at = text.indexOf("  Line 11 of FIRST.") + "  Line 11 of FIRST.".length + 1;
+    quietly(() =>
+      s.compiler.previewCompile({
+        textDocument: { uri: MAIN_URI, version: 1 },
+        contentChanges: [
+          { range: { start: posAt(text, at), end: posAt(text, at) }, text: LOOP },
+        ],
+        root: { uri: MAIN_URI },
+      } as never),
+    );
+    const after = s.edit("  Line 11 of FIRST.\nend", `  Line 11 of FIRST.\n${LOOP}end`)!;
+    expect(owners(after, s.text).every((chunk, i) => chunk === loopOwners[i])).toBe(true);
+    expect(
+      ["SECOND", "THIRD"]
+        .flatMap((name) => [
+          chunkAt(after, s.text, `Pass {store_count} of ${name}.`),
+          chunkAt(after, s.text, `Step {i} of ${name}.`),
+        ])
+        .every((chunk, i) => chunk === loops[i]),
+    ).toBe(true);
+    // The new loop and the statements of its body, and nothing of the
+    // scenes below it.
+    const passes = s.store.passesLastBuild;
+    expect(passes.identity).toBeLessThanOrEqual(3);
+    expect(passes.facts).toBeLessThanOrEqual(6);
+    expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
+  });
+
   it("a function written inside a statement above another keeps the other's symbol", () => {
     const text = [
       "scene MAIN",
