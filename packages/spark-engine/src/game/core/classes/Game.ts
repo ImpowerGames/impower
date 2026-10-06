@@ -1904,12 +1904,15 @@ export class Game<T extends M = {}> {
    * nothing of the game changed: everything that can fail is read before
    * anything changes. The save must carry a story (one written while the
    * story could not save, which `buildSave` stores as an empty story, is
-   * refused), its module states and a readable runtime record, and the
-   * story must place it (`ProgramStory.checkSave`). Then the story loads,
-   * which puts itself back, line in progress included, when it fails past
-   * the placement, and ends the line in progress when it succeeds; only
-   * then does a waiting preview go, and the modules and the runtime record
-   * load, which cannot fail.
+   * refused), a state for every module the game has, each an object, as
+   * `save` writes them, and a runtime record of the shape `toJSON` writes
+   * (`RuntimeState.read`), and the story must place it
+   * (`ProgramStory.checkSave`). What a module's state holds is the
+   * module's to read, on either engine. Then the story loads, which puts
+   * itself back, line in progress included, when it fails past the
+   * placement, and ends the line in progress when it succeeds; only then
+   * does a waiting preview go, and the modules and the runtime record load,
+   * which cannot fail.
    */
   protected loadProgramSave(program: ProgramStory, saveJSON: string): boolean {
     try {
@@ -1918,12 +1921,20 @@ export class Game<T extends M = {}> {
       if (typeof saveData?.story !== "string" || !saveData.story) {
         throw new Error("The save holds no story to load");
       }
-      if (typeof saveData.modules !== "object" || saveData.modules === null) {
+      const isRecord = (value: unknown) =>
+        typeof value === "object" && value !== null && !Array.isArray(value);
+      if (!isRecord(saveData.modules)) {
         throw new Error("The save holds no module states to load");
       }
-      const runtime = saveData.runtime
-        ? RuntimeState.fromJSON(saveData.runtime)
-        : null;
+      for (const k of this._moduleNames) {
+        if (this._modules[k] && !isRecord(saveData.modules[k])) {
+          throw new Error(`The save holds no state for the module ${k}`);
+        }
+      }
+      if (typeof saveData.runtime !== "string") {
+        throw new Error("The save holds no runtime record to load");
+      }
+      const runtime = RuntimeState.read(saveData.runtime);
       program.checkSave(saveData.story);
       program.loadSave(saveData.story);
       // A preview waiting for its pictures would display its beat over the
@@ -1936,9 +1947,7 @@ export class Game<T extends M = {}> {
           module.load(saveData.modules[k]);
         }
       }
-      if (runtime) {
-        this._runtimeState = runtime;
-      }
+      this._runtimeState = runtime;
       if (saveData.simulatedFrom) {
         this._simulation = "success";
         this._simulatePath = saveData.simulatedFrom;

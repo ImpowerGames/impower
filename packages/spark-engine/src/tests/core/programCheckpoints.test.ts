@@ -294,6 +294,8 @@ describe("the checkpoints of a game on the program engine", () => {
   // while the story could not save holds an empty story, and a save whose
   // runtime record or module states cannot be read failed only after the
   // story had loaded.
+  // Round 4 (report 6020262053): a module state missing or null, a module
+  // map that is a list, a runtime record missing or of another shape.
   it("refuse a save with no story, or whose runtime record or module states cannot be read, changing nothing", () => {
     const { program, story } = compiler(TEXTS).compile();
     const game = createGame(program, story, { checkpointBaseInterval: 7 });
@@ -310,6 +312,22 @@ describe("the checkpoints of a game on the program engine", () => {
     const unreadableRuntime = { ...JSON.parse(valid), runtime: "{not json" };
     const noModules = JSON.parse(valid);
     delete noModules.modules;
+    expect(Object.keys(JSON.parse(valid).modules)).toContain("interpreter");
+    const noInterpreter = JSON.parse(valid);
+    delete noInterpreter.modules.interpreter;
+    const nullInterpreter = JSON.parse(valid);
+    nullInterpreter.modules.interpreter = null;
+    const listModules = { ...JSON.parse(valid), modules: [] };
+    const noRuntime = JSON.parse(valid);
+    delete noRuntime.runtime;
+    const runtimeOfAnotherShape = {
+      ...JSON.parse(valid),
+      runtime: JSON.stringify({
+        pathsExecutedThisFrame: [],
+        choicesEncountered: {},
+        conditionsEncountered: {},
+      }),
+    };
     const state = engine.state.toJson();
     const core = () => JSON.stringify((game as any)._modules.core?.state);
     const modules = core();
@@ -329,6 +347,11 @@ describe("the checkpoints of a game on the program engine", () => {
       storyless,
       JSON.stringify(unreadableRuntime),
       JSON.stringify(noModules),
+      JSON.stringify(noInterpreter),
+      JSON.stringify(nullInterpreter),
+      JSON.stringify(listModules),
+      JSON.stringify(noRuntime),
+      JSON.stringify(runtimeOfAnotherShape),
     ]) {
       expect(game.load(save)).toBe(false);
       expect(engine.asyncContinueComplete).toBe(false);
