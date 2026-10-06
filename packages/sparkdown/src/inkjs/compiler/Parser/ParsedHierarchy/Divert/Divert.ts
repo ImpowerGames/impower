@@ -558,6 +558,29 @@ export class Divert extends ParsedObject {
     );
   }
 
+  // Whether this is a call of a function written at the top level whose name
+  // a plain assignment anywhere in the story writes to the global scope
+  // (`Story.globalAssignmentNames`). A function nested in another is a value
+  // of that function's scope, which its lowering rebinds itself.
+  private callsReboundFunction(story: Story): boolean {
+    const name = this.target?.firstComponent;
+    if (
+      !this.isFunctionCall ||
+      this.runtimeDivert.variableDivertName != null ||
+      this.target?.numberOfComponents !== 1 ||
+      !name
+    ) {
+      return false;
+    }
+    const flow = asOrNull(this.targetContent, FlowBase);
+    return (
+      !!flow &&
+      flow.isFunction &&
+      ClosestFlowBase(flow) === story &&
+      story.globalAssignmentNames().has(name)
+    );
+  }
+
   public readonly ResolveTargetContent = (): void => {
     if (this.isEmpty || this.isEnd) {
       return;
@@ -630,9 +653,24 @@ export class Divert extends ParsedObject {
       this.ResolveTargetContent();
     }
 
-    if (this.targetContent) {
+    // A call of a top-level function whose name the story also assigns as a
+    // global calls what the global holds when the call runs: Luau's
+    // `function f` is `f = function`, so `f = g` anywhere rebinds `f`. Until
+    // an assignment runs the global is unset, and a call through it reaches
+    // the function of its name (`callVariableTarget`). A story that never
+    // assigns the name keeps the direct call.
+    if (this.callsReboundFunction(context)) {
+      this.runtimeDivert.variableDivertName = this.target!.firstComponent;
+      this._variableDivertEpoch = currentCompileEpoch();
+    }
+
+    if (this.runtimeDivert.variableDivertName != null) {
+      // A reused runtime divert may still hold the path it resolved in a
+      // previous compile; a cold compile gives a variable divert none.
+      this.runtimeDivert.targetPath = null;
+    } else if (this.targetContent) {
       this.runtimeDivert.targetPath = this.targetContent.runtimePath;
-    } else if (this.runtimeDivert.variableDivertName == null) {
+    } else {
       // Re-resolution found no target this compile. A REUSED runtime divert
       // may still hold the path it resolved in a previous compile (e.g. its
       // target flow was since deleted) — restore the fresh-generation state
