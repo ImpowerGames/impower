@@ -1687,7 +1687,12 @@ export class ProgramStory {
       case Op.MakeTable: {
         const stack = state.evaluationStack;
         const between = stack.splice(stack.length - arg * 2, arg * 2);
-        state.PushEvaluationStack(tableFromPairs(between, 0));
+        const table = tableFromPairs(between, 0);
+        if (this._imagesOn && table instanceof ObjectValue) {
+          // No image taken before it reaches it (`ImageTracker.made`).
+          this._tracker.made(table);
+        }
+        state.PushEvaluationStack(table);
         break;
       }
       case Op.Dup:

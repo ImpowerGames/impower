@@ -14,7 +14,9 @@ export interface Walk {
   game: Game;
   story: Story;
   route: RoutePlan;
-  toPath: string;
+  /** The address the route reaches: on the current engine, the runtime path
+   *  the story's pointer names it by. */
+  to: string;
 }
 
 // `hooked` leaves onExecute a function that does nothing, which is what a story
@@ -28,18 +30,21 @@ export function prepareWalk(project: string, line: number, hooked = false): Walk
   // The engine as the page holds it: constructed from the compiled program.
   const game = new Game({ program: cold.program, ...benchSystem } as any);
   game.setStartFrom(startFrom);
-  const toPath = game.startPath;
-  if (!toPath) throw new Error(`line ${line} of main.sd maps to no story path`);
+  const to = game.startAddress;
+  if (to == null) throw new Error(`line ${line} of main.sd maps to no story address`);
+  // The walk drives the current engine's story, whose addresses are its
+  // runtime paths.
+  if (typeof to !== "string") throw new Error(`line ${line} of main.sd maps to ${to}, not a runtime path`);
   const story = game.story as Story;
-  const route = Game.planRoute(story, game.program, Game.getSimulateFromPath(toPath), toPath);
-  if (!route) throw new Error(`no route to ${toPath}`);
+  const route = Game.planRoute(story, game.program, game.routeStartOf(to), to);
+  if (!route) throw new Error(`no route to ${to}`);
   // The game's observers are bookkeeping of its own, as are the planner's.
   story.onError = NOOP as any;
   story.onExecute = hooked ? (NOOP as any) : null;
   story.onMakeChoice = NOOP as any;
   story.onEvaluateCondition = NOOP as any;
   story.onDidContinue = null;
-  return { game, story, route, toPath };
+  return { game, story, route, to };
 }
 
 // Puts the story at the top of the route with the route's decisions forced,
@@ -47,7 +52,7 @@ export function prepareWalk(project: string, line: number, hooked = false): Walk
 export function rewindWalk({ story, route }: Walk) {
   story.CancelAsyncContinue();
   story.ResetState();
-  story.ChoosePathString(route.fromPath);
+  story.ChoosePathString(route.from);
   story.simulator = buildRouteSimulator(route.decisions);
   story.pauseBeforeEvaluatingConditions = false;
 }

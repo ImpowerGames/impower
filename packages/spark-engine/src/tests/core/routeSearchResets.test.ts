@@ -80,8 +80,8 @@ function countGlobalEvaluations(game: Game): () => number {
 
 function planTo(game: Game, program: any, line: number) {
   game.setStartFrom({ file: URI, line });
-  const toPath = (game as any).startPath as string;
-  const fromPath = Game.getSimulateFromPath(toPath);
+  const toPath = game.startAddress as string;
+  const fromPath = game.routeStartOf(toPath);
   // As the player's worker asks for it: the replay that follows installs a
   // state of its own.
   return Game.planRoute(game.story, program, fromPath, toPath, undefined, {

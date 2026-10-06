@@ -88,7 +88,11 @@ export class ProgramImages {
     return this._nextId++;
   }
 
-  /** Keeps `table`'s pristine copy unless it has one. */
+  /** Keeps `table`'s pristine copy unless it has one. A table the engine
+   *  made since the last image it took or restored is not kept when it is
+   *  written (`ImageTracker.isFresh`): no image before it reaches it, and the
+   *  next image holds what was written to it, so its pristine copy would
+   *  never be what a restore reads (#700). */
   keepTable(table: ObjectValue): void {
     if (!this._tables.has(table)) {
       this._tables.set(table, copyTable(table));
@@ -269,15 +273,36 @@ export class ImageTracker implements ImageBarrier {
   readonly globals = new Set<string>();
   readonly counts = new Set<number>();
 
+  /** The tables the engine made since `base`, which no image taken or
+   *  restored before them reaches (`made`). */
+  protected _fresh = new WeakSet<ObjectValue>();
+
   constructor(readonly images: ProgramImages) {}
 
+  /** Notes a table the engine just made (`MakeTable`). */
+  made(table: ObjectValue): void {
+    this._fresh.add(table);
+  }
+
   table(table: ObjectValue): void {
-    this.images.keepTable(table);
+    if (!this._fresh.has(table)) {
+      this.images.keepTable(table);
+    }
     this.tables.add(table);
   }
 
   prepare(table: ObjectValue): void {
-    this.images.keepTable(table);
+    if (!this._fresh.has(table)) {
+      this.images.keepTable(table);
+    }
+  }
+
+  /** Whether the engine made `table` since `base`: a table no image taken
+   *  or restored before it reaches, which the next image holds whole when
+   *  it was written, and which is registered as written only once it is
+   *  written after an image (`ProgramImages.keepTable`). */
+  isFresh(table: ObjectValue): boolean {
+    return this._fresh.has(table);
   }
 
   global(name: string): void {
@@ -300,6 +325,7 @@ export class ImageTracker implements ImageBarrier {
     this.cells.clear();
     this.globals.clear();
     this.counts.clear();
+    this._fresh = new WeakSet();
   }
 }
 
@@ -337,7 +363,11 @@ export const captureImage = (
     const reached = reachedFrom(state, positional);
     const tables = new Map<ObjectValue, TableCopy>();
     for (const table of reached.tables) {
-      if (images.pristineTable(table)) tables.set(table, copyTable(table));
+      // Written: kept as written before, or made and written since the base,
+      // which is not kept (`ImageTracker.isFresh`).
+      if (images.pristineTable(table) || tracker.tables.has(table)) {
+        tables.set(table, copyTable(table));
+      }
     }
     const cells = new Map<VariablePointerValue, CellCopy>();
     for (const cell of reached.cells) {

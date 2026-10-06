@@ -7,7 +7,7 @@ import {
   type SceneAssetCapture,
 } from "../../compiler/types/SceneAssets";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
-import { hasPathLocation } from "../../compiler/utils/pathLocationTable";
+import { programLocator } from "../../compiler/utils/programLocator";
 import { generatePerfScreenplay } from "./perfFixture";
 
 // `program.sceneAssets` is what the engine's asset module predicts and loads
@@ -140,7 +140,7 @@ describe("program.sceneAssets", () => {
     }
   });
 
-  it("lists beats in document order with paths the location map knows", () => {
+  it("lists beats in document order with addresses the program locates", () => {
     const a = sceneAssets["A"]!;
     const kinds = a.beats.map((b) =>
       b.image ? "image" : b.audio ? "audio" : b.layouts ? "layouts" : "loads",
@@ -148,9 +148,10 @@ describe("program.sceneAssets", () => {
     expect(kinds).toEqual(["image", "audio", "layouts", "image", "loads"]);
     expect(a.beats[0]!.image).toEqual(["bunny~hat", "hat"]);
     expect(a.beats[3]!.image).toEqual(["bunny"]);
+    const locator = programLocator(program);
     for (const beat of a.beats) {
-      expect(beat.path.startsWith("A")).toBe(true);
-      expect(hasPathLocation(program.pathLocations, beat.path)).toBe(true);
+      expect(locator.sceneAt(beat.address)).toBe("A");
+      expect(locator.locationOf(beat.address)).toBeDefined();
     }
   });
 });
@@ -178,7 +179,7 @@ describe("populateSceneAssets", () => {
     const captures: Record<string, SceneAssetCapture> = {
       "0": createSceneAssetCapture(),
       A: {
-        beats: [{ path: "A.0", image: ["a1"], audio: ["m"] }],
+        beats: [{ address: "A.0", image: ["a1"], audio: ["m"] }],
         edges: [
           { target: "Helper", call: true },
           { target: "B", call: false },
@@ -188,13 +189,13 @@ describe("populateSceneAssets", () => {
         dynamicBases: [],
       },
       Helper: {
-        beats: [{ path: "Helper.0", image: ["h1", "a1"], layouts: ["hud"] }],
+        beats: [{ address: "Helper.0", image: ["h1", "a1"], layouts: ["hud"] }],
         edges: [{ target: "Deeper", call: true }],
         dynamic: false,
         dynamicBases: [],
       },
       Deeper: {
-        beats: [{ path: "Deeper.0", image: ["d1"] }],
+        beats: [{ address: "Deeper.0", image: ["d1"] }],
         edges: [{ target: "Helper", call: true }],
         dynamic: true,
         dynamicBases: ["d"],

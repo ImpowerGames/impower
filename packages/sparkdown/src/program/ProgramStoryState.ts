@@ -128,6 +128,16 @@ export interface PositionCopy {
   readonly entry: number;
   readonly offset: number;
   readonly sequence: number;
+  /** For a position at the start of a statement that is not its sequence's
+   *  first, or past the last statement, where a statement that ran rests
+   *  (a beat's image at its newline stands there): the id of the chunk
+   *  before it, or -1. The position is placed after that chunk when a root
+   *  still holds it and the statement the position stands at, so a compile
+   *  that inserted a statement after it or appended one to its sequence
+   *  leaves the story to run what now follows the statement that ran (#700).
+   *  A statement at the position that was emitted again leaves the position
+   *  unplaced, as it does with no chunk before it (#699). */
+  readonly after: number;
 }
 
 export const copyPosition = (
@@ -136,12 +146,18 @@ export const copyPosition = (
   if (!position) {
     return null;
   }
-  const chunk = position.sequence.arrays.chunks[position.entry];
+  const chunks = position.sequence.arrays.chunks;
+  const chunk = chunks[position.entry];
+  const before =
+    position.offset === 0 && position.entry > 0
+      ? chunks[position.entry - 1]
+      : undefined;
   return {
     chunk: chunk ? chunkId(chunk) : -1,
     entry: position.entry,
     offset: position.offset,
     sequence: position.sequence.id,
+    after: before ? chunkId(before) : -1,
   };
 };
 
@@ -1470,7 +1486,18 @@ export class ProgramStoryState {
         return null;
       }
       let position: ProgramPosition | null = null;
-      if (saved.chunk < 0) {
+      // The statement the position stands at must still be held, as for any
+      // position (#699); a statement emitted again leaves it unplaced.
+      const held = saved.chunk < 0 || !!root.position(saved.chunk, saved.entry);
+      const after =
+        held && saved.after >= 0
+          ? root.position(saved.after, saved.entry - 1)
+          : undefined;
+      if (after) {
+        // Where the statement that ran rests: after it, whatever follows it
+        // in this root.
+        position = { sequence: after.sequence, entry: after.entry + 1, offset: 0 };
+      } else if (saved.chunk < 0) {
         const sequence = root.sequence(saved.sequence);
         if (sequence) {
           position = { sequence, entry: sequence.arrays.chunks.length, offset: 0 };

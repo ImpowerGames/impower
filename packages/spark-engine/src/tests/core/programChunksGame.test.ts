@@ -14,7 +14,6 @@ import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { storyBeats } from "@impower/sparkdown/src/tests/program/programHarness";
 import { Game } from "../../game/core/classes/Game";
 import { GameEncounteredRuntimeErrorMessage } from "../../game/core/classes/messages/GameEncounteredRuntimeError";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
 
 const MAIN = "file:///local/main.sd";
 
@@ -313,17 +312,22 @@ describe("a game started at a line", () => {
       it(`starts at the ${beat} beat of ${name} as the current engine does`, () => {
         const shown = (programChunks: boolean) => {
           const { program, story } = compile({ [MAIN]: text }, programChunks);
-          const path = findClosestPath(
-            { file: MAIN, line },
-            program.pathLocations,
-            Object.keys(program.scripts),
-            beat,
-          )!;
           const game = createGame(program, story, programChunks, {
             file: MAIN,
             line,
           });
-          return storyBeats(game.story, path);
+          // The beat's address on the engine the game runs: a number on the
+          // program engine, a runtime path on the current one.
+          const address = game.locator.addressAt(MAIN, line, { beat });
+          expect(address).toBeDefined();
+          const engine = game.story as unknown;
+          if (engine instanceof ProgramStory) {
+            expect(typeof address).toBe("number");
+            engine.ChooseAddress(address as number);
+          } else {
+            game.story.ChoosePathString(String(address));
+          }
+          return storyBeats(game.story);
         };
         const chunks = shown(true);
         expect(chunks).toEqual(shown(false));

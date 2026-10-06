@@ -130,7 +130,7 @@ describe("AssetModule", () => {
     const beats = h.game.program.sceneAssets!["A"]!.beats;
     expect(beats.length).toBe(4);
     // From the first beat, inclusive: room, theme, bunny fit the window.
-    h.game.observeScene(beats[0]!.path);
+    h.game.observeScene(beats[0]!.address);
     let prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches).toHaveLength(1);
     expect(itemKeys(prefetches[0])).toEqual([
@@ -142,7 +142,7 @@ describe("AssetModule", () => {
     // spill priority. What was asked for before is asked for again: the page
     // touches a resident key for nothing and re-fetches one it evicted.
     h.reset();
-    (h.game.module.assets as any).predictFrom("A", beats[2]!.path, true);
+    (h.game.module.assets as any).predictFrom("A", beats[2]!.address, true);
     prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches.map((m) => m.params.priority)).toEqual([2, 3]);
     expect(itemKeys(prefetches[0])).toEqual([

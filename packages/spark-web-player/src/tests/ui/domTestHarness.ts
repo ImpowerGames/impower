@@ -26,6 +26,7 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { writeBeatText } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
@@ -47,7 +48,7 @@ export interface DOMHarness {
   /** Preview at a line. A beat with pictures displays once the page
    *  answers the preview's gate, so await the result before reading what
    *  such a beat wrote. */
-  preview(line?: number): Promise<string | null>;
+  preview(line?: number): Promise<ProgramAddress | null>;
   /** Re-render a (possibly edited) source into the same overlay via the same
    *  reconciling UIManager — models a live-preview edit. */
   rerender(newSource: string, line?: number): Promise<void>;
@@ -421,7 +422,7 @@ export function createDOMHarness(
       await flushMicrotasks(10);
     },
     jumpTo(path: string) {
-      (game as any).jumpToPath(path);
+      game.jumpTo(path);
     },
     nextBeat() {
       const interpreter: any = game.module.interpreter;

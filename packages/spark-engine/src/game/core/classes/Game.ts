@@ -11,6 +11,7 @@ import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBin
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
+import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
 import {
   buildRouteSimulator,
   lastSearchStats,
@@ -82,10 +83,28 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
+/** Whether a program engine's image stands right after the statement whose
+ *  instruction ran last, at `address`: where a beat's image rests at its
+ *  newline, and where it is placed after that statement in any program that
+ *  still holds it and the statement after it (`PositionCopy.after`). */
+const restsAfter = (
+  state: unknown,
+  address: ProgramAddress | undefined,
+): boolean => {
+  const position = (state as Partial<ProgramImage> | undefined)?.positional
+    ?.position;
+  return (
+    typeof address === "number" &&
+    position != null &&
+    position.offset === 0 &&
+    position.after === chunkOfAddress(address)
+  );
+};
+
 /** A value the editor can receive and evaluate an expression against: a
  *  primitive, or plain data made of them, as a list or a divert target
  *  reads. */
-const isEvaluable = (value: unknown, depth = 0): boolean => {
+const isEvaluable =(value: unknown, depth = 0): boolean => {
   if (value === undefined || typeof value === "function") {
     return false;
   }
@@ -1361,7 +1380,12 @@ export class Game<T extends M = {}> {
       // in any case, and from no deeper a checkpoint than this one — so trying
       // it first costs a second replay when the route no longer holds, and
       // saves the whole search when it does.
-      replayOnly: route.to === to,
+      // On the program engine the route's own steps are kept only while
+      // every one of them still holds: a step past the valid prefix names a
+      // statement the compile emitted again, whose decisions the route's
+      // forced ones no longer name, so the rest is searched for.
+      replayOnly:
+        route.to === to && (!program || validSteps === route.steps.length),
     };
   }
 
@@ -1494,6 +1518,15 @@ export class Game<T extends M = {}> {
       }
     }
     if (at < 0) {
+      return null;
+    }
+    if (program && at + 1 >= validSteps && !restsAfter(state, standingOn)) {
+      // The step after this one is not one the new program takes the way
+      // the route did (a statement was inserted before it, or it was
+      // emitted again), and the image stands somewhere other than right
+      // after the statement that ran, where it would be placed after that
+      // statement in the new program: restoring it would skip what the new
+      // program runs there.
       return null;
     }
     // A step records the decisions made BEFORE it, so the step the story is

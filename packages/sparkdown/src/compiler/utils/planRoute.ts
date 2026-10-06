@@ -3,7 +3,7 @@ import { ErrorType } from "../../inkjs/engine/Error";
 import { Story } from "../../inkjs/engine/Story";
 import { StepLimitExceeded } from "../../inkjs/engine/StoryException";
 import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
-import type { ProgramRoot } from "../../program/ProgramRoot";
+import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import type { ProgramAddress } from "../types/ProgramAddress";
 
 export interface RoutePlan {
@@ -58,11 +58,11 @@ export interface SearchNode {
  *
  * Only equality is ever asked of a `seq`, so the identity is folded into a
  * fixed-width hash instead: same history in, same value out, constant size.
- * Two 32-bit lanes (cyrb53-style) give ~2^53 distinct values, so across the
+ * Two 32-bit lanes (cyrb53-style) give ~2^64 distinct values, so across the
  * tens of thousands of steps a route can hold, two histories colliding is
  * vanishingly unlikely — and `Game.getCheckpoint` corroborates a match against
- * the step's own path, so even a collision costs a re-simulation rather than
- * resuming from an unrelated position.
+ * the step's own address, so even a collision costs a re-simulation rather
+ * than resuming from an unrelated position.
  *
  * The value is meaningful only WITHIN one session's plans: it is compared
  * between an earlier plan and a re-plan (which is how checkpoint reuse works),
@@ -78,16 +78,15 @@ export const extendSeq = (seq: string, path: ProgramAddress): string => {
   // calls a deep search makes.
   for (let piece = seq ? 0 : 2; piece < 3; piece += 1) {
     if (piece === 2 && typeof path === "number") {
-      // An address (docs/engine/binary-program.md, section 8) is folded by
-      // its decimal digits, least significant first: a fold of the number
-      // with no string made for it.
-      let rest = path;
-      do {
-        const ch = 48 + (rest % 10);
-        h1 = Math.imul(h1 ^ ch, 2654435761);
-        h2 = Math.imul(h2 ^ ch, 1597334677);
-        rest = Math.floor(rest / 10);
-      } while (rest > 0);
+      // An address (docs/engine/binary-program.md, section 8) is folded as
+      // its two 32-bit halves: a fold of the number with no string made for
+      // it.
+      const low = path % 4294967296;
+      const high = (path - low) / 4294967296;
+      h1 = Math.imul(h1 ^ low, 2654435761);
+      h2 = Math.imul(h2 ^ low, 1597334677);
+      h1 = Math.imul(h1 ^ high, 2654435761);
+      h2 = Math.imul(h2 ^ high, 1597334677);
       continue;
     }
     const text = piece === 0 ? seq : piece === 1 ? "|" : (path as string);
@@ -101,8 +100,10 @@ export const extendSeq = (seq: string, path: ProgramAddress): string => {
   h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
   h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  const combined = 4294967296 * (2097151 & h2) + (h1 >>> 0);
-  return combined.toString(36);
+  // The two lanes whole, as four UTF-16 code units: a string of four
+  // characters costs a fraction of a number's text in any radix, and a
+  // search makes one per step.
+  return String.fromCharCode(h1 & 0xffff, h1 >>> 16, h2 & 0xffff, h2 >>> 16);
 };
 
 export type RouteOverride = ConditionOverride | ChoiceOverride;
@@ -312,6 +313,7 @@ interface AddressedStory {
   readonly root: ProgramRoot;
   readonly previousAddress: number;
   readonly currentAddress: number;
+  readonly state: { readonly position: { readonly sequence: SequenceRow } | null };
   stackAddresses(): number[];
 }
 
@@ -346,12 +348,26 @@ const sceneOfAddress = (root: ProgramRoot, address: number): string => {
 const storyPositions = (story: Story): StoryPositions => {
   if (isAddressed(story)) {
     const program = story;
+    // The scene of the sequence the story last stood in, which most steps
+    // share: the scene follows from the sequence alone.
+    let lastSequence: SequenceRow | null = null;
+    let lastScene = "0";
     return {
       previous: () => {
         const address = program.previousAddress;
         return address >= 0 ? address : undefined;
       },
-      knot: () => sceneOfAddress(program.root, program.currentAddress),
+      knot: () => {
+        const sequence = program.state.position?.sequence ?? null;
+        if (!sequence) {
+          return "0";
+        }
+        if (sequence !== lastSequence) {
+          lastSequence = sequence;
+          lastScene = program.root.sceneOf(sequence) ?? "0";
+        }
+        return lastScene;
+      },
       stackHolds: (knot) =>
         program
           .stackAddresses()
@@ -724,6 +740,15 @@ export const planRoute = (
   const prevOnExecute = story.onExecute;
   const prevOnMakeChoice = story.onMakeChoice;
   const prevOnEvaluateCondition = story.onEvaluateCondition;
+  // A story that keeps the image of each beat for its game's checkpoints
+  // (`ProgramStory.keepBeatImages`) keeps none while the search steps it: a
+  // search node holds the images it forks, and a beat's image is the
+  // checkpoint's, which the replay after the search takes.
+  const beatImages = story as unknown as { keepBeatImages?: boolean };
+  const prevKeepBeatImages = beatImages.keepBeatImages;
+  if (prevKeepBeatImages !== undefined) {
+    beatImages.keepBeatImages = false;
+  }
 
   try {
     // Inside the guarded region, and before the hooks are replaced: the start
@@ -849,6 +874,9 @@ export const planRoute = (
       story.onExecute = prevOnExecute;
       story.onMakeChoice = prevOnMakeChoice;
       story.onEvaluateCondition = prevOnEvaluateCondition;
+      if (prevKeepBeatImages !== undefined) {
+        beatImages.keepBeatImages = prevKeepBeatImages;
+      }
     }
   }
 
@@ -1286,23 +1314,20 @@ const isRootLevel = (knot: string): boolean =>
   knot === "0" || /^\d+$/.test(knot);
 
 const exitedKnot = (
-  story: Story,
+  _story: Story,
   positions: StoryPositions,
   knotName: string,
   functions: string[],
 ): boolean => {
-  const ptr = story.state.currentPointer;
-
-  if (!ptr || ptr.isNull) {
-    return false;
-  }
+  // A story that stands nowhere is in the top-level content's flow, `"0"`.
+  // Read first, since a step that stays in its scene is the common case.
   const curKnot = positions.knot();
 
-  if (isRootLevel(curKnot)) {
+  if (curKnot === knotName) {
     return false;
   }
 
-  if (curKnot === knotName) {
+  if (isRootLevel(curKnot)) {
     return false;
   }
 

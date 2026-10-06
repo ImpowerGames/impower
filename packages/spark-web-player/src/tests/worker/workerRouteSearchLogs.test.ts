@@ -30,9 +30,9 @@ const countSearches = (h: any) => {
   const game = h.workerState.gameState.game;
   const searched: string[] = [];
   const routeResumption = game.routeResumption.bind(game);
-  game.routeResumption = (fromPath: string, toPath: string) => {
-    searched.push(toPath);
-    return routeResumption(fromPath, toPath);
+  game.routeResumption = (from: string, to: string) => {
+    searched.push(to);
+    return routeResumption(from, to);
   };
   return searched;
 };

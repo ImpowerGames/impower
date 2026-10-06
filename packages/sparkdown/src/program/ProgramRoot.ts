@@ -738,9 +738,42 @@ export class ProgramRoot {
         }
       }
       if (!body) {
-        return this.addressIn(at.sequence, at.entry, line, beat);
+        return this.addressOnLine(at.sequence, at.entry, line, beat);
       }
       at = this.entryOn(body, line);
+    }
+    return undefined;
+  }
+
+  /** The address of `line` among the statements of `sequence` that start on
+   *  it, of which `last` is the last, or of the statement at `last` when it
+   *  starts above the line. A line can hold several statements (a `..`
+   *  continuation and the tags written after it): the first beat is the
+   *  first statement's that puts an address on the line, and the last beat
+   *  the last one's, at its last beat on the line or at its start, as a
+   *  line's beats and statements run in the order they are written. */
+  protected addressOnLine(
+    sequence: SequenceRow,
+    last: number,
+    line: number,
+    beat: "first" | "last",
+  ): number | undefined {
+    let first = last;
+    if (this.lineOf(sequence, last) === line) {
+      while (first > 0 && this.lineOf(sequence, first - 1) === line) {
+        first -= 1;
+      }
+    }
+    const step = beat === "first" ? 1 : -1;
+    for (
+      let entry = beat === "first" ? first : last;
+      entry >= first && entry <= last;
+      entry += step
+    ) {
+      const address = this.addressIn(sequence, entry, line, beat);
+      if (address !== undefined) {
+        return address;
+      }
     }
     return undefined;
   }
@@ -824,7 +857,17 @@ export class ProgramRoot {
    *  function's, or `"0"` for the top-level content; nothing for a
    *  declaration or a chunk this root does not hold. */
   sceneAt(address: number): string | undefined {
-    const row = this.flowAt(address);
+    const at = this.position(chunkOfAddress(address));
+    return at ? this.sceneOf(at.sequence) : undefined;
+  }
+
+  /** The name of the top-level flow a sequence of this root stands in, as
+   *  `sceneAt` names it. */
+  sceneOf(sequence: SequenceRow): string | undefined {
+    let row: SequenceRow | undefined = sequence;
+    while (row && row.owner >= 0) {
+      row = this.position(row.owner)?.sequence;
+    }
     if (!row || row.flow < 0) {
       return undefined;
     }

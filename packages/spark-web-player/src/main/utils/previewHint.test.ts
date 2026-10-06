@@ -4,13 +4,13 @@
 // is exact (it runs the beat); the hint is issued before anything can run.
 
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
-import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
 import { beatIndexIn } from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
 import { buildAttributeVocabulary } from "@impower/sparkdown/src/attributes";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { describe, expect, it } from "vitest";
 import { resolveImageSrcs } from "./resolveImageSrcs";
 import {
@@ -139,15 +139,11 @@ describe("planPreviewHint", () => {
       `define assets as config with\n  predict_distance = 1\nend\n\n${STORY}`,
     );
     const beats = narrow.sceneAssets!["A"]!.beats;
-    const locations = narrow.pathLocations!;
+    const locator = programLocator(narrow);
     for (let line = 1; line <= 13; line++) {
       const fresh = planPreviewHint(narrow, URI, line + 4, undefined)!;
-      const path = findClosestPath(
-        { file: URI, line: line + 4 },
-        narrow.pathLocations,
-        Object.keys(narrow.scripts ?? {}),
-      );
-      const at = beatIndexIn(beats, locations, path);
+      const address = locator.addressAt(URI, line + 4);
+      const at = beatIndexIn(beats, locator, address);
       const own = srcs(items(narrow, beats[Math.max(0, at)]!.image ?? []));
       const cursor = srcs(fresh.cursor)!;
       const near = new Set(srcs(fresh.near));
@@ -290,7 +286,7 @@ end
     expect(again.state.version).toBe(recompiled.version);
   });
 
-  it("hints nothing for a path the program does not know", () => {
+  it("hints nothing for a line the program places no address at", () => {
     const first = plan(3)!;
     const nowhere = planPreviewHint(program, URI, 999, first.state)!;
     expect(nowhere.cursor).toEqual([]);

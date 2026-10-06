@@ -213,6 +213,8 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /candidate tree-copy:[^]*replace at the middle/);
     assert.match(run.stdout, /candidate records-splice:[^]*copy of the flow's records/);
     assert.match(run.stdout, /images: the 2 candidates produced identical lines \([0-9]{3,} lines\) through [0-9]{3,} search nodes; a node costs [0-9.]+ microseconds on an image against [0-9.]+ on the JSON round trip/);
+    assert.match(run.stdout, /candidate program: a full route search from the top of MAIN to main\.sd line [0-9]+ \(address [0-9]+\)/);
+    assert.match(run.stdout, /search: a full route search to line [0-9]+ costs [0-9.]+ ms on the program engine \([0-9]{3,} steps\) against [0-9.]+ ms on the engine \([0-9]{3,} steps\)/);
   });
 }
 
