@@ -69,6 +69,13 @@ import type { VariablesState } from "../inkjs/engine/VariablesState";
 import { Void } from "../inkjs/engine/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
+  ImageTracker,
+  ProgramImages,
+  captureImage,
+  restoreImage,
+  type ProgramImage,
+} from "./ProgramImages";
+import {
   CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
   CALL_TUNNEL,
@@ -260,15 +267,93 @@ export class ProgramStory {
   protected _stateIsPristine = false;
   protected _runtimeStory: Story;
 
+  /** The pristine copies the images of this engine read, shared with the
+   *  engines of the programs before and after it in one game, so that an
+   *  image one took restores into the next (`restore`). */
+  readonly images: ProgramImages;
+  /** What the write barrier marked since this engine's last capture or
+   *  restore. */
+  protected _tracker: ImageTracker;
+  /** Whether the engine keeps images: the write barrier hears every write
+   *  from the first capture or restore on. */
+  protected _imagesOn = false;
+  /** Whether each continue that starts a line keeps the image of the beat
+   *  before it (`captureBeat`), which a game that checkpoints its beats or
+   *  saves at a menu sets. */
+  keepBeatImages = false;
+
   constructor(
     readonly root: ProgramRoot,
     protected _paths: ProgramPathLocations | null = null,
+    options: { images?: ProgramImages } = {},
   ) {
     this._reader = new BinaryProgramReader(root);
     this._runtimeStory =
       root.runtimeStory?.CopyWithOwnState() ??
       new Story(new Container(), null, null);
+    this.images = options.images ?? new ProgramImages();
+    this._tracker = new ImageTracker(this.images);
     this.ResetState();
+  }
+
+  // ------------------------------------------------------------------ images
+
+  /** Turns on the write barrier of the engine's images
+   *  (docs/engine/binary-program.md, section 7). The first capture after it
+   *  is a keyframe. */
+  enableImages(): void {
+    if (!this._imagesOn) {
+      this._imagesOn = true;
+      this.attachImages();
+    }
+  }
+
+  // The barrier on the state's counts, globals, tables and cells, from a
+  // keyframe on.
+  protected attachImages(): void {
+    const state = this._state;
+    state.images = this._tracker;
+    state.variablesState.imageBarrier = this._tracker;
+    state.callStack.cellBarrier = this._tracker.cell;
+    this._tracker.reset(null);
+  }
+
+  /** An image of the state as it stands: a delta on the image last taken
+   *  or restored, or a keyframe when `keyframe` is set or there is none
+   *  since a reset or a load. A route search takes one at each fork. */
+  capture(keyframe = false): ProgramImage {
+    this.enableImages();
+    return captureImage(this._state, this._tracker, this, keyframe);
+  }
+
+  /** The image of the current beat (section 7): the state as it stands
+   *  after a continue that ended at its line's newline, after a choice was
+   *  taken, or at the start of a flow; and after a continue that ended with
+   *  choices raised and no newline, the image of the beat before it, which
+   *  holds none of those choices, so that restoring it and continuing raises
+   *  them again, their conditions' effects with them. */
+  captureBeat(keyframe = false): ProgramImage {
+    const held = this._state.beatImage;
+    if (held && !keyframe) {
+      return held;
+    }
+    return this.capture(keyframe);
+  }
+
+  /** Restores an image in place, which this engine or the engine of an
+   *  earlier program of the same game (`images`) took; or returns false and
+   *  changes nothing when a position it holds names a chunk or a sequence
+   *  this engine's root no longer holds, so that the caller replays
+   *  (section 8). */
+  restore(image: ProgramImage): boolean {
+    this.IfAsyncWeCant("restore an image");
+    this.enableImages();
+    if (!restoreImage(this._state, this._tracker, this, image)) {
+      return false;
+    }
+    this._stateIsPristine = false;
+    this._state.beatImage = null;
+    return true;
   }
 
   // ------------------------------------------------------------- the surface
@@ -376,6 +461,9 @@ export class ProgramStory {
     variablesState.SnapshotDefaultGlobals();
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
+    if (this._imagesOn) {
+      this.attachImages();
+    }
     this._stateIsPristine = true;
   }
 
@@ -449,6 +537,7 @@ export class ProgramStory {
     }
     // Changing direction drops the choices waiting (`SetChosenPath`).
     this._state.generatedChoices.length = 0;
+    this._state.beatImage = null;
     this._state.DiscardLineEnd();
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
@@ -479,6 +568,9 @@ export class ProgramStory {
     // What a choice leads to starts a new box, so no line before the choice
     // is one a `..` after it joins.
     this._state.lineJoinable = false;
+    // The state after the choice is a beat of its own, which holds the
+    // choice taken.
+    this._state.beatImage = null;
     this.takeChoice(choice, left, true);
   }
 
@@ -1007,6 +1099,12 @@ export class ProgramStory {
           "Can't continue - should check canContinue before calling Continue",
         );
       }
+      // The state at the start of a line is the beat before it, which a
+      // continue that ends with choices raised and no newline leaves as the
+      // image of its beat (`captureBeat`).
+      if (this.keepBeatImages && this._recursiveContinueCount == 1) {
+        state.beatImage = this.capture();
+      }
       state.didSafeExit = false;
       // The step the last continue cut off after its line ended starts this
       // one, with whether its own line still waits for its newline.
@@ -1043,6 +1141,10 @@ export class ProgramStory {
 
     state.CarryOutputPastCut();
 
+    if (outputStreamEndsInNewline) {
+      // The beat is the state as it stands.
+      state.beatImage = null;
+    }
     if (outputStreamEndsInNewline || !this.canContinue) {
       state.didSafeExit = false;
       if (this._recursiveContinueCount == 1) {
@@ -1201,7 +1303,7 @@ export class ProgramStory {
       }
       const owner = top.sequence.arrays.chunks[top.entry]!;
       if (blockFlags(owner, top.block) & BLOCK_PASS_SCOPE) {
-        state.frame?.PopScope();
+        state.frame?.PopScope(state.callStack.cellBarrier);
       }
       position.sequence = top.sequence;
       position.entry = top.entry;
@@ -1448,7 +1550,7 @@ export class ProgramStory {
         state.frame?.PushScope();
         break;
       case Op.EndScope:
-        state.frame?.PopScope();
+        state.frame?.PopScope(state.callStack.cellBarrier);
         break;
       case Op.EnterBlock: {
         const body = this.root.body(chunk, arg);
@@ -1983,7 +2085,7 @@ export class ProgramStory {
         shared += 1;
       }
       while (frame.temporaryScopes.length > kept) {
-        frame.PopScope();
+        frame.PopScope(state.callStack.cellBarrier);
       }
       let scopes = 1;
       for (const block of blocks) {

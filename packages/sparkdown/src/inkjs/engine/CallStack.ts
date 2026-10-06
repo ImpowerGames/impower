@@ -42,7 +42,7 @@ export class CallStack {
     // The threads being replaced end here, so their cells close with their
     // own bindings, as a popped thread's do.
     for (const thread of this._threads) {
-      thread.CloseOpenUpvalues();
+      thread.CloseOpenUpvalues(this.cellBarrier);
     }
     this._threads.length = 0;
     this._threads.push(value);
@@ -51,7 +51,7 @@ export class CallStack {
     // those the thread it was copied from has since closed, and closes them
     // as that thread's scopes would have.
     for (const el of value.callstack) {
-      el.AdoptBorrowedUpvalues();
+      el.AdoptBorrowedUpvalues(this.cellBarrier);
     }
   }
 
@@ -142,7 +142,7 @@ export class CallStack {
       // The cells the thread registered close with the thread's own
       // bindings. A pending choice's thread copied from it still holds them
       // as borrowed, and reopens them if it is taken.
-      this.currentThread.CloseOpenUpvalues();
+      this.currentThread.CloseOpenUpvalues(this.cellBarrier);
       this._threads.splice(this._threads.indexOf(this.currentThread), 1); // should be equivalent to a pop()
     } else {
       throw new Error("Can't pop thread");
@@ -191,7 +191,9 @@ export class CallStack {
     // `closedValue` holds the snapshot of the variable, and subsequent
     // reads/writes via `VariablesState` go through the closed cell
     // rather than chasing a now-defunct contextIndex.
-    this.callStack[this.callStack.length - 1]?.CloseOpenUpvalues();
+    this.callStack[this.callStack.length - 1]?.CloseOpenUpvalues(
+      this.cellBarrier,
+    );
     this.callStack.pop();
   }
 
@@ -311,6 +313,7 @@ export class CallStack {
               ptr.variableName === name &&
               contextElement!.ScopeIndexOf(ptr) === innerIndex
             ) {
+              this.cellBarrier?.(ptr);
               ptr.closedValue = (oldValue.result as InkObject) ?? null;
               continue;
             }
@@ -406,6 +409,11 @@ export class CallStack {
   }
 
   public _threads!: CallStack.Thread[]; // Banged because it's initialized in Reset().
+  /** Hears each upvalue cell this call stack is about to close, reopen or
+   *  write, before it does (docs/engine/binary-program.md, section 7, The
+   *  write barrier): the program engine's images keep a cell's state as it
+   *  was before its first change. */
+  public cellBarrier: ((cell: VariablePointerValue) => void) | null = null;
   public _threadCounter: number = 0;
   public _startOfRoot: Pointer = Pointer.Null;
 }
@@ -495,7 +503,9 @@ export namespace CallStack {
     // dangling null. Upvalues bound in OUTER scopes of this frame stay
     // open (their binding is still alive), even when the popped scope
     // held a same-named `local` that shadowed them.
-    public PopScope() {
+    public PopScope(
+      barrier: ((cell: VariablePointerValue) => void) | null = null,
+    ) {
       if (this.temporaryScopes.length > 1) {
         const poppingIndex = this.temporaryScopes.length - 1;
         const popping = this.temporaryScopes[poppingIndex]!;
@@ -503,6 +513,7 @@ export namespace CallStack {
           const stillOpen: VariablePointerValue[] = [];
           for (const ptr of this.openUpvalues) {
             if (!ptr.isClosed && this.ScopeIndexOf(ptr) === poppingIndex) {
+              barrier?.(ptr);
               ptr.closedValue = popping.get(ptr.variableName) ?? null;
               continue;
             }
@@ -537,10 +548,13 @@ export namespace CallStack {
     // its binding here. A cell whose binding can't be found (shouldn't
     // happen if it was registered correctly) closes holding null, so reads
     // return null rather than chasing a dangling contextIndex.
-    public CloseOpenUpvalues() {
+    public CloseOpenUpvalues(
+      barrier: ((cell: VariablePointerValue) => void) | null = null,
+    ) {
       for (const ptr of this.openUpvalues) {
         if (ptr.isClosed) continue;
         const scope = this.ScopeIndexOf(ptr);
+        barrier?.(ptr);
         ptr.closedValue =
           scope >= 0
             ? (this.temporaryScopes[scope]!.get(ptr.variableName) ?? null)
@@ -594,9 +608,14 @@ export namespace CallStack {
     // would have. A cell the thread copied from has closed since the copy
     // (its block ended, or the thread ended) still names a variable this
     // copy binds, so it reopens and reads this copy's binding.
-    public AdoptBorrowedUpvalues() {
+    public AdoptBorrowedUpvalues(
+      barrier: ((cell: VariablePointerValue) => void) | null = null,
+    ) {
       for (const ptr of this.borrowedUpvalues) {
-        if (ptr.isClosed) ptr.Reopen();
+        if (ptr.isClosed) {
+          barrier?.(ptr);
+          ptr.Reopen();
+        }
         if (!this.openUpvalues.includes(ptr)) {
           this.openUpvalues.push(ptr);
         }
@@ -753,9 +772,11 @@ export namespace CallStack {
 
     // Close the cells registered with this thread's elements, when the
     // thread ends.
-    public CloseOpenUpvalues() {
+    public CloseOpenUpvalues(
+      barrier: ((cell: VariablePointerValue) => void) | null = null,
+    ) {
       for (const el of this.callstack) {
-        el.CloseOpenUpvalues();
+        el.CloseOpenUpvalues(barrier);
       }
     }
 

@@ -10,7 +10,13 @@ import { PushPopType } from "../inkjs/engine/PushPop";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
 import { StringBuilder } from "../inkjs/engine/StringBuilder";
 import { Tag } from "../inkjs/engine/Tag";
-import { ObjectValue, StringValue } from "../inkjs/engine/Value";
+import {
+  ObjectValue,
+  StringValue,
+  type VariablePointerValue,
+} from "../inkjs/engine/Value";
+import { Pointer } from "../inkjs/engine/Pointer";
+import type { ImageTracker, ProgramImage } from "./ProgramImages";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
 import { CallStack } from "../inkjs/engine/CallStack";
 import {
@@ -113,6 +119,108 @@ export class ProgramChoice extends Choice {
 /** The turn a count id that was never visited holds. */
 const NEVER_VISITED = -0x80000000;
 
+/** A position as an image holds it: the chunk's id (-1 past the last
+ *  statement of its sequence), its entry, which is where the chunk is looked
+ *  for first, the offset, and the sequence's id. */
+export interface PositionCopy {
+  readonly chunk: number;
+  readonly entry: number;
+  readonly offset: number;
+  readonly sequence: number;
+}
+
+export const copyPosition = (
+  position: ProgramPosition | null,
+): PositionCopy | null => {
+  if (!position) {
+    return null;
+  }
+  const chunk = position.sequence.arrays.chunks[position.entry];
+  return {
+    chunk: chunk ? chunkId(chunk) : -1,
+    entry: position.entry,
+    offset: position.offset,
+    sequence: position.sequence.id,
+  };
+};
+
+/** A call stack element as an image holds it, with the program frame
+ *  beside it. */
+export interface ElementCopy {
+  readonly type: PushPopType;
+  readonly inExpression: boolean;
+  readonly height: number;
+  readonly start: number;
+  readonly scopes: readonly ReadonlyMap<string, InkObject>[];
+  readonly open: readonly VariablePointerValue[];
+  readonly borrowed: readonly VariablePointerValue[];
+  readonly frame: { returnTo: PositionCopy | null; symbol: number } | null;
+}
+
+/** A thread as an image holds it: its frames and, for a thread a fork
+ *  suspended, where it resumes and its `previousFlow`. */
+export interface ThreadCopy {
+  readonly index: number;
+  readonly elements: readonly ElementCopy[];
+  readonly resume: {
+    position: PositionCopy | null;
+    previousFlow: number;
+  } | null;
+}
+
+/** A waiting choice as an image holds it, with the thread it holds. */
+export interface ChoiceCopy {
+  readonly text: string;
+  readonly tags: readonly string[] | null;
+  readonly index: number;
+  readonly sourcePath: string;
+  readonly isInvisibleDefault: boolean;
+  readonly originalThreadIndex: number;
+  readonly target: PositionCopy;
+  readonly previousFlow: number;
+  readonly thread: ThreadCopy;
+}
+
+/** The positional state an image copies whole (`copyPositional`). */
+export interface PositionalCopy {
+  readonly position: PositionCopy | null;
+  readonly evaluationStack: readonly InkObject[];
+  readonly output: readonly InkObject[];
+  readonly lineEndPending: boolean;
+  readonly lineJoinable: boolean;
+  readonly outputCut: number | null;
+  readonly carried: {
+    output: readonly InkObject[];
+    lineEndPending: boolean;
+  } | null;
+  readonly didSafeExit: boolean;
+  readonly turn: number;
+  readonly seed: number;
+  readonly previousRandom: number;
+  readonly previousFlow: number;
+  /** The threads from the outermost; the last is the current one. */
+  readonly threads: readonly ThreadCopy[];
+  readonly threadCounter: number;
+  readonly choices: readonly ChoiceCopy[];
+  /** How many call stack elements the copy holds. */
+  frames: number;
+}
+
+interface PlacedThread {
+  copy: ThreadCopy;
+  returns: (ProgramPosition | null)[];
+  resume: ProgramPosition | null;
+}
+
+/** A positional copy with its positions placed in a root
+ *  (`placePositional`). */
+export interface PlacedPositional {
+  copy: PositionalCopy;
+  position: ProgramPosition | null;
+  threads: PlacedThread[];
+  choices: { target: ProgramPosition | null; thread: PlacedThread }[];
+}
+
 /** A frame of a thread's copy: the original's, with a position and blocks of
  *  its own, since the engine moves a position in place. */
 const copyFrame = (frame: ProgramFrame): ProgramFrame => ({
@@ -208,10 +316,10 @@ export class ProgramStoryState {
 
   /** The visits of each counted symbol, by count id
    *  (docs/engine/binary-program.md, section 5). */
-  visits = new Uint32Array(0);
+  visits: Uint32Array = new Uint32Array(0);
   /** The turn of each counted symbol's last visit, by count id, or
    *  `NEVER_VISITED`. */
-  turns = new Int32Array(0);
+  turns: Int32Array = new Int32Array(0);
   /** The count ids whose visits, and whose turns, changed since each was
    *  last drained; a checkpoint drains the two apart, as the current
    *  engine's state keeps them. */
@@ -314,6 +422,22 @@ export class ProgramStoryState {
     this.turns[id] = this.currentTurnIndex;
     this._changedVisits.add(id);
     this._changedTurns.add(id);
+    this.images?.count(id);
+  }
+
+  /** The write barrier of the engine's images, when it keeps them
+   *  (`ProgramImages`): a visit marks its count id. */
+  images: ImageTracker | null = null;
+
+  /** The image of the beat before the line in progress, kept from the start
+   *  of a continue that has not yet written its newline
+   *  (`ProgramStory.captureBeat`), or nothing when the state as it stands
+   *  is the beat's. */
+  beatImage: ProgramImage | null = null;
+
+  /** The root the state's positions are in. */
+  get root(): ProgramRoot {
+    return this._root;
   }
 
   /** The visits of count id `id`. */
@@ -1185,6 +1309,230 @@ export class ProgramStoryState {
     });
   }
 
+  // ------------------------------------------------------------------ images
+
+  /** The positional state, copied whole for an image
+   *  (docs/engine/binary-program.md, section 7): the position, the eval
+   *  stack and the output with the line end, the turn and the random state,
+   *  each thread's frames with their temporaries scope by scope, the cells
+   *  open on each frame and the cells it borrowed, and the choices waiting,
+   *  each with its thread. Values are held by reference: a table is keyed
+   *  state, which the image holds apart. A position is held as a chunk id,
+   *  its entry and offset, and its sequence's id, and the blocks it is
+   *  inside are not held: they follow from its sequence. */
+  copyPositional(): PositionalCopy {
+    let frames = 0;
+    const copyThread = (
+      thread: CallStack.Thread,
+      resume: SuspendedThread | undefined,
+    ): ThreadCopy => {
+      frames += thread.callstack.length;
+      return {
+        index: thread.threadIndex,
+        elements: thread.callstack.map((element) => {
+          const frame = this._frames.get(element);
+          return {
+            type: element.type,
+            inExpression: element.inExpressionEvaluation,
+            height: element.evaluationStackHeightWhenPushed,
+            start: element.functionStartInOutputStream,
+            scopes: element.temporaryScopes.map((scope) => new Map(scope)),
+            open: element.openUpvalues.slice(),
+            borrowed: element.borrowedUpvalues.slice(),
+            frame: frame
+              ? { returnTo: copyPosition(frame.returnTo), symbol: frame.symbol }
+              : null,
+          };
+        }),
+        resume: resume
+          ? {
+              position: copyPosition(resume.position),
+              previousFlow: resume.previousFlow,
+            }
+          : null,
+      };
+    };
+    const threads = this.callStack._threads;
+    const copy: PositionalCopy = {
+      position: copyPosition(this.position),
+      evaluationStack: this.evaluationStack.slice(),
+      output: this.outputStream.slice(),
+      lineEndPending: this.lineEndPending,
+      lineJoinable: this.lineJoinable,
+      outputCut: this.outputCut,
+      carried: this.carried
+        ? {
+            output: this.carried.output.slice(),
+            lineEndPending: this.carried.lineEndPending,
+          }
+        : null,
+      didSafeExit: this.didSafeExit,
+      turn: this.currentTurnIndex,
+      seed: this.storySeed,
+      previousRandom: this.previousRandom,
+      previousFlow: this.previousFlow,
+      threads: threads.map((thread, i) =>
+        copyThread(
+          thread,
+          i < threads.length - 1 ? this._suspended.get(thread) : undefined,
+        ),
+      ),
+      threadCounter: this.callStack._threadCounter,
+      choices: this.generatedChoices.map((choice) => ({
+        text: choice.text,
+        tags: choice.tags ? choice.tags.slice() : null,
+        index: choice.index,
+        sourcePath: choice.sourcePath,
+        isInvisibleDefault: choice.isInvisibleDefault,
+        originalThreadIndex: choice.originalThreadIndex,
+        target: copyPosition(choice.target)!,
+        previousFlow: choice.previousFlow,
+        thread: copyThread(choice.threadAtGeneration!, undefined),
+      })),
+      frames: 0,
+    };
+    copy.frames = frames;
+    return copy;
+  }
+
+  /** The positions of a positional copy placed in the root this state runs
+   *  on, with the blocks each is inside, or nothing when one cannot be: a
+   *  chunk the root no longer holds, a sequence it no longer has, or a body
+   *  whose owner it no longer holds. */
+  placePositional(copy: PositionalCopy): PlacedPositional | undefined {
+    const root = this._root;
+    let unplaced = false;
+    const place = (saved: PositionCopy | null): ProgramPosition | null => {
+      if (!saved) {
+        return null;
+      }
+      let position: ProgramPosition | null = null;
+      if (saved.chunk < 0) {
+        const sequence = root.sequence(saved.sequence);
+        if (sequence) {
+          position = { sequence, entry: sequence.arrays.chunks.length, offset: 0 };
+        }
+      } else {
+        const at = root.position(saved.chunk, saved.entry);
+        if (at) {
+          position = { sequence: at.sequence, entry: at.entry, offset: saved.offset };
+        }
+      }
+      if (!position || !blockStackOf(root, position.sequence)) {
+        unplaced = true;
+        return null;
+      }
+      return position;
+    };
+    const placeThread = (thread: ThreadCopy) => ({
+      copy: thread,
+      returns: thread.elements.map((element) =>
+        element.frame ? place(element.frame.returnTo) : null,
+      ),
+      resume: thread.resume ? place(thread.resume.position) : null,
+    });
+    const placed: PlacedPositional = {
+      copy,
+      position: place(copy.position),
+      threads: copy.threads.map(placeThread),
+      choices: copy.choices.map((choice) => ({
+        target: place(choice.target),
+        thread: placeThread(choice.thread),
+      })),
+    };
+    return unplaced ? undefined : placed;
+  }
+
+  /** Puts a placed positional copy in place of the positional state. Each
+   *  thread and frame is made again from the copy, which stays as it was,
+   *  since the engine moves a position and writes a frame's scopes in
+   *  place. */
+  installPositional(placed: PlacedPositional): void {
+    const copy = placed.copy;
+    const blocksOf = (position: ProgramPosition | null): BlockEntry[] =>
+      position ? (blockStackOf(this._root, position.sequence) ?? []) : [];
+    const makeThread = (thread: PlacedThread): CallStack.Thread => {
+      const made = new CallStack.Thread();
+      made.threadIndex = thread.copy.index;
+      thread.copy.elements.forEach((saved, i) => {
+        const element = new CallStack.Element(
+          saved.type,
+          Pointer.Null,
+          saved.inExpression,
+        );
+        element.evaluationStackHeightWhenPushed = saved.height;
+        element.functionStartInOutputStream = saved.start;
+        element.temporaryScopes = saved.scopes.map((scope) => new Map(scope));
+        element.openUpvalues = saved.open.slice();
+        element.borrowedUpvalues = saved.borrowed.slice();
+        if (saved.frame) {
+          const returnTo = thread.returns[i] ?? null;
+          this._frames.set(element, {
+            returnTo,
+            blocks: blocksOf(returnTo),
+            symbol: saved.frame.symbol,
+          });
+        }
+        made.callstack.push(element);
+      });
+      return made;
+    };
+    const threads = placed.threads.map((thread) => {
+      const made = makeThread(thread);
+      if (thread.copy.resume) {
+        this._suspended.set(made, {
+          position: thread.resume,
+          blocks: blocksOf(thread.resume),
+          previousFlow: thread.copy.resume.previousFlow,
+        });
+      }
+      return made;
+    });
+    this.callStack._threads = threads;
+    this.callStack._threadCounter = copy.threadCounter;
+    this.position = placed.position ? { ...placed.position } : null;
+    this.blockStack = blocksOf(this.position);
+    this.evaluationStack = copy.evaluationStack.slice();
+    this.outputStream = copy.output.slice();
+    this.ForgetOpenStrings();
+    this._openStringIndex = -1;
+    this.lineEndPending = copy.lineEndPending;
+    this.lineJoinable = copy.lineJoinable;
+    this.outputCut = copy.outputCut;
+    this.carried = copy.carried
+      ? {
+          output: copy.carried.output.slice(),
+          lineEndPending: copy.carried.lineEndPending,
+        }
+      : null;
+    this.didSafeExit = copy.didSafeExit;
+    this.currentTurnIndex = copy.turn;
+    this.storySeed = copy.seed;
+    this.previousRandom = copy.previousRandom;
+    this.previousFlow = copy.previousFlow;
+    this.generatedChoices = copy.choices.map((saved, i) => {
+      const placedChoice = placed.choices[i]!;
+      const target = placedChoice.target!;
+      const choice = new ProgramChoice(
+        target,
+        blocksOf(target),
+        target.sequence.arrays.chunks[target.entry]!,
+        saved.previousFlow,
+      );
+      choice.text = saved.text;
+      choice.tags = saved.tags ? saved.tags.slice() : null;
+      choice.index = saved.index;
+      choice.sourcePath = saved.sourcePath;
+      choice.isInvisibleDefault = saved.isInvisibleDefault;
+      choice.originalThreadIndex = saved.originalThreadIndex;
+      choice.threadAtGeneration = makeThread(placedChoice.thread);
+      return choice;
+    });
+    this.ResetErrors();
+    this.OutputStreamDirty();
+    this._noteChanged();
+  }
+
   /** Restores a state `toJson` wrote. Each position is placed through the
    *  root, which must still hold the chunk it names, or for a position past
    *  the last statement of its sequence, the sequence; a position in a
@@ -1197,6 +1545,10 @@ export class ProgramStoryState {
     }
     this._noteChanged();
     this.generatedChoices.length = 0;
+    // What was marked since the last image does not reach the loaded state,
+    // so the next image is a keyframe.
+    this.images?.reset(null);
+    this.beatImage = null;
     // A fresh identity registry for this load, as `StoryState.LoadJsonObj`
     // opens one: a table reference resolves against the tables this load
     // reads, never a previous load's.
