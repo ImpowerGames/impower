@@ -1323,9 +1323,20 @@ export class ChunkStore {
     // A block statement keeps its bodies' sequence ids by an edit in place,
     // and a statement that writes alternators keeps their count symbols,
     // which its alternators align with by their own source.
+    // Whether a statement writes alternators, which reads its own objects
+    // past its bodies' statements, so it is found once per statement.
+    const alternating = new Map<StatementSource, boolean>();
+    const writesAlternators = (statement: StatementSource): boolean => {
+      let writes = alternating.get(statement);
+      if (writes === undefined) {
+        writes = alternatorsOf(statement).length > 0;
+        alternating.set(statement, writes);
+      }
+      return writes;
+    };
     const ownsParts = (statement: StatementSource, chunk: StatementChunk) =>
       ((statement.bodies?.length ?? 0) > 0 && blockCount(chunk) > 0) ||
-      (alternatorsOf(statement).length > 0 &&
+      (writesAlternators(statement) &&
         (this._info.get(chunk)?.alternators.length ?? 0) > 0);
     const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
       const candidates: number[] = [];
@@ -1551,7 +1562,7 @@ export class ChunkStore {
       if ((statement.bodies?.length ?? 0) > 0) {
         lists.held.bodied.push(o);
       }
-      if (alternatorsOf(statement).length > 0) {
+      if (writesAlternators(statement)) {
         lists.held.alternating.push(o);
       }
     };

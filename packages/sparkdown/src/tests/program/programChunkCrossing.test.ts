@@ -636,6 +636,66 @@ describe("block statements an edit reorders", () => {
     expect(after.every((chunk, k) => chunk === before[(k + 1) % 3])).toBe(true);
   });
 
+  it("read a large owner's body a bounded number of times when it is exchanged repeatedly", () => {
+    // Old `[x0, anchor0, …, xN, anchorN]` becomes `[changed, anchor0, x0,
+    // anchor1, …]`: the changed owner, which holds N body statements, is
+    // paired with each old `xK` in turn as every requester keeps its own by
+    // exchange. Its body is read a bounded number of times, not once per
+    // exchange.
+    const n = 128;
+    let aligning = false;
+    let reads = 0;
+    class Measured extends ChunkStore {
+      protected override align(...args: Parameters<ChunkStore["align"]>) {
+        aligning = true;
+        try {
+          return super.align(...args);
+        } finally {
+          aligning = false;
+        }
+      }
+    }
+    const store = new Measured();
+    const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
+    const ownerOf = (syntax: string, children: StatementSource[]): StatementSource => {
+      const objects = wrapInScope(children.flatMap((s) => [...s.objects]));
+      const shape = { statements: [], headEnd: 0, nextStart: 0 };
+      bodyOfBlock.set(objects[0]!, shape as never);
+      return {
+        ...plain(syntax),
+        objects,
+        bodies: [{ shape, statements: children, firstLine: 0, span: 1, headLines: 0 }],
+      } as unknown as StatementSource;
+    };
+    const old: StatementSource[] = [];
+    for (let k = 0; k <= n; k += 1) {
+      old.push(ownerOf(`x${k}`, []), anchors[k]!);
+    }
+    store.build(flow(old), true);
+    const children = Array.from({ length: n }, (_, k) => {
+      const child = plain(`child${k}`);
+      const objects = child.objects;
+      Object.defineProperty(child, "objects", {
+        get() {
+          if (aligning) {
+            reads += 1;
+          }
+          return objects;
+        },
+      });
+      return child;
+    });
+    const now: StatementSource[] = [ownerOf("changed", children), anchors[0]!];
+    for (let k = 0; k < n; k += 1) {
+      now.push(ownerOf(`x${k}`, []), anchors[k + 1]!);
+    }
+    const built = store.build(flow(now), true);
+    expect(built.fallback).toBeUndefined();
+    const chunks = built.root!.flowNamed("")!.arrays.chunks;
+    expect(new Set(chunks).size).toBe(chunks.length);
+    expect(reads).toBeLessThan(20 * n);
+  });
+
   it("are aligned in lookups linear in their number when no exchange can be made", () => {
     // N plain statements take the syntax of N old block statements, and N
     // block statements of that syntax, each alone between two anchors, are
