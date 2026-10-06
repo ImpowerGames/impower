@@ -110,11 +110,16 @@ describe.each(["LF", "CRLF"])("Luau's errors after a line-ending operator (%s)",
     expect(compile(lines(source)).errors).toEqual(officialErrors(source));
   });
 
-  test("keeps the missing else of an empty then arm before an assignment", () => {
-    const source = "function f()\n  local a = if true then\n  b = 2\n  return a\nend\n";
-    expect(officialSyntaxErrors(source)).toHaveLength(1);
-    expect(compile(lines(source)).errors).toEqual([{ message: "Expected 'else' when parsing if then else expression", line: 1, column: 12 }]);
-  });
+  // An empty then arm reads the next line's `b` as its value, as Luau does,
+  // so the missing `else` falls on the `=` after it with Luau's wording (#1501).
+  test.each(["if true then", "if (true)then", "if true then -- note"])(
+    "reports the missing else of an empty then arm (%s) at the next assignment's `=`",
+    (opening) => {
+      const source = `function f()\n  local a = ${opening}\n  b = 2\n  return a\nend\n`;
+      expect(officialSyntaxErrors(source)).toHaveLength(1);
+      expect(compile(lines(source)).errors).toEqual(officialErrors(source));
+    },
+  );
 });
 
 describe.each(["LF", "CRLF"])("story after an unfinished marked statement (%s)", (ending) => {
