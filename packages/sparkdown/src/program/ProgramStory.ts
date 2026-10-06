@@ -85,6 +85,7 @@ import {
   CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
   CALL_TUNNEL,
+  JUMP_ARGUMENTS,
   CHOICE_CONDITION,
   CHOICE_DECISION,
   CHOICE_INVISIBLE_DEFAULT,
@@ -1731,6 +1732,9 @@ export class ProgramStory {
         break;
       case Op.Call: {
         if (flags & CALL_TUNNEL) {
+          if (!(flags & JUMP_ARGUMENTS)) {
+            this.padVariadicFlow(arg);
+          }
           this.callTunnel(arg);
           break;
         }
@@ -1794,6 +1798,9 @@ export class ProgramStory {
         state.ForceEnd();
         break;
       case Op.JumpSym:
+        if (!(flags & JUMP_ARGUMENTS)) {
+          this.padVariadicFlow(arg);
+        }
         this.jumpTo(arg);
         break;
       case Op.JumpVar:
@@ -2278,6 +2285,42 @@ export class ProgramStory {
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
+  }
+
+  /** A divert that passes no arguments to a scene or a branch whose last
+   *  parameter is `...` gives it nil for each fixed parameter and an empty
+   *  `...`, as the current engine's divert pushes a `PackTuple(0)` for a
+   *  variadic target, whether it writes arguments or not. The divert's chunk
+   *  reads no fact about its target, so that it stays the same while the
+   *  target disappears and comes back (docs/engine/binary-program.md,
+   *  section 2), and the flow's entry says what it binds: the `SetVar`s its
+   *  first chunk starts with, the first of which binds the last
+   *  parameter. */
+  protected padVariadicFlow(symbol: number): void {
+    const kind = this.root.kindOf(symbol);
+    if (kind !== SymbolKind.Scene && kind !== SymbolKind.Branch) {
+      return;
+    }
+    const place = this.root.place(symbol);
+    const chunk = place?.sequence.arrays.chunks[0];
+    if (!place || place.entry !== 0 || place.offset !== 0 || !chunk) {
+      return;
+    }
+    let bindings = 0;
+    for (let at = 0; at < codeWords(chunk); at += 2) {
+      const w0 = chunk[HEADER_WORDS + at]!;
+      if (opOf(w0) !== Op.SetVar || (bindings === 0 && !(flagsOf(w0) & SET_VARARGS))) {
+        break;
+      }
+      bindings += 1;
+    }
+    if (bindings === 0) {
+      return;
+    }
+    for (let p = 1; p < bindings; p += 1) {
+      this._state.PushEvaluationStack(new NullValue());
+    }
+    packTuple(this, 0);
   }
 
   /** A jump to a label counts too the labels written right before it with

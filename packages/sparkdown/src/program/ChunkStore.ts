@@ -182,10 +182,15 @@ export interface FlowSource {
   /** The lines the body spans. */
   span: number;
   statements: readonly StatementSource[];
-  /** For a scene whose content starts with a branch that takes no
-   *  parameters, that branch's qualified name: entering the scene enters it,
-   *  as the current engine's knot diverts to its first stitch. */
+  /** For a scene that takes no parameters and whose content starts with a
+   *  branch that takes none, that branch's qualified name: entering the
+   *  scene enters it, as the current engine's knot diverts to its first
+   *  stitch. A scene that takes parameters binds them first, and its entry
+   *  jumps to the branch. */
   startsWith?: string;
+  /** For a scene or a branch, the kind of each of its parameters
+   *  (`parameterKinds`), which a divert that passes it arguments reads. */
+  params?: string;
 }
 
 /** What a compile hands the store to build a root from. */
@@ -1238,11 +1243,17 @@ export class ChunkStore {
   }
 
   /** The facts a flow's definition holds, which a chunk that refers to the
-   *  flow's symbol reads through `factOf`: its kind and, for a function, the
-   *  kind of each of its parameters. A definition can hold more than any
-   *  emit path reads; only what a chunk's emission read is recorded, and
-   *  only that is compared. */
+   *  flow's symbol reads through `factOf`: its kind and, for a function, a
+   *  scene or a branch, the kind of each of its parameters. A definition can
+   *  hold more than any emit path reads; only what a chunk's emission read
+   *  is recorded, and only that is compared. */
   protected definitionFacts(flow: FlowSource): Record<string, string> {
+    if (flow.kind === SymbolKind.Scene || flow.kind === SymbolKind.Branch) {
+      return {
+        [FACT_KIND]: String(flow.kind),
+        [FACT_PARAMS]: flow.params ?? "",
+      };
+    }
     if (flow.kind !== SymbolKind.Function) {
       return { [FACT_KIND]: String(flow.kind) };
     }

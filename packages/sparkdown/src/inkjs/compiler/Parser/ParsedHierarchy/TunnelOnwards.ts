@@ -31,18 +31,19 @@ export class TunnelOnwards extends ParsedObject {
     return "TunnelOnwards";
   }
 
-  // The target `->->` goes on to, if any: the symbol value of the target it
-  // names (`Sym`) or the value of the variable it names (`GetVar`), or void
-  // to return to the caller; then `TunnelReturn`
+  // The target `->->` goes on to, if any: the arguments it passes that
+  // target, as its divert passes them (`Divert.EmitArguments`), which stay
+  // on the stack for the flow it enters to bind, as the current engine's
+  // onward return leaves the code it takes from the divert, and the symbol
+  // value of the target it names (`Sym`) or the value of the variable it
+  // names (`GetVar`), or void to return to the caller; then `TunnelReturn`
   // (docs/engine/binary-program.md, section 3).
   public override EmitProgram(emitter: ProgramEmitter): void {
     const after = this.divertAfter;
     if (!after) {
       emitter.emit(Op.Const, 0, ConstValue.Void);
     } else {
-      if (after.args.length > 0) {
-        emitter.unsupported("Argument");
-      }
+      after.EmitArguments(emitter);
       const key = after.programJumpKey;
       if (key !== null) {
         emitter.recordResolution(key);

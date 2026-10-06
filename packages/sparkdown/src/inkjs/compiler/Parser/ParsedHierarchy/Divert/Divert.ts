@@ -21,12 +21,17 @@ import { DivertTarget } from "./DivertTarget";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import {
   CALL_TUNNEL,
+  ConstValue,
+  JUMP_ARGUMENTS,
   LEAVE_CONTINUE,
   Op,
 } from "../../../../../program/ProgramInstructions";
 import {
   FACT_PARAMS,
   PARAM_REFERENCE,
+  PARAM_VARARGS,
+  UNDEFINED_FACT,
+  parameterKinds,
 } from "../../../../../program/ProgramFacts";
 import {
   isLoopInternal,
@@ -139,25 +144,79 @@ export class Divert extends ParsedObject {
     if (this._runtimeDivert?.isExternal) {
       emitter.unsupported("external");
     }
-    if (this.args.length > 0) {
-      // A flow's parameters are not bound yet (`Argument`).
-      emitter.unsupported("Argument");
-    }
+    // The arguments go on the stack before the thread forks, as the current
+    // engine pushes them before `StartThread`, and the flow the jump enters
+    // binds them.
+    const passes = this.EmitArguments(emitter);
     const thread = this.isThread ? emitter.jump(Op.Thread) : null;
-    this.EmitJump(emitter, this.isTunnel ? CALL_TUNNEL : -1);
+    this.EmitJump(
+      emitter,
+      this.isTunnel ? CALL_TUNNEL : -1,
+      passes ? JUMP_ARGUMENTS : 0,
+    );
     if (thread) {
       emitter.bind(thread);
     }
   }
 
+  /** The arguments a divert that is no call passes the flow it enters, as
+   *  `GenerateRuntimeObject` pushes them, for the jump, the tunnel, the
+   *  thread or the onward return that goes there; whether it passes any. A
+   *  fixed target's parameters decide how: a pointer at the variable for a
+   *  by-reference one, and for a variadic flow nil for each fixed parameter
+   *  the divert does not reach and the rest packed into the one value its
+   *  `...` binds. The divert reads them from the symbol table through the
+   *  emitter, which records the read in the chunk's reference table, so a
+   *  change to the flow's parameter list emits this chunk again, as it emits
+   *  a call's (docs/engine/binary-program.md, section 1, Identity). A
+   *  divert that passes nothing reads no fact, and a variable target, whose
+   *  flow is known only when the divert runs, takes its arguments as they
+   *  are, as the current engine's does. */
+  public EmitArguments(emitter: ProgramEmitter): boolean {
+    if (this.args.length === 0) {
+      return false;
+    }
+    let kinds: string[] = [];
+    if (this._runtimeDivert?.variableDivertName == null) {
+      const symbol = emitter.targetSymbol(
+        this.targetContent,
+        this.writtenTargetName,
+      );
+      const params = emitter.fact(symbol, FACT_PARAMS);
+      kinds = params === "" || params === UNDEFINED_FACT ? [] : params.split(",");
+    }
+    const variadic = kinds[kinds.length - 1] === PARAM_VARARGS;
+    const regular = variadic ? kinds.length - 1 : kinds.length;
+    this.args.forEach((arg, i) => {
+      if (kinds[i] === PARAM_REFERENCE) {
+        const name = asOrNull(arg, VariableReference)?.name;
+        if (name == null) {
+          emitter.unsupported("a by-reference argument that is no variable");
+        }
+        emitter.emit(Op.VarPtr, emitter.variable(name));
+      } else {
+        emitter.emitObject(arg);
+      }
+    });
+    if (variadic) {
+      for (let p = this.args.length; p < regular; p += 1) {
+        emitter.emit(Op.Const, 0, ConstValue.Nil);
+      }
+      emitter.emit(Op.Pack, Math.max(0, this.args.length - regular));
+    }
+    return true;
+  }
+
   /** The jump of a divert to its target, or with `tunnelFlags` set, the call
-   *  of its target as a tunnel. The chunk records the jump's resolution
-   *  (`programJumpKey`), and refers to the target's symbol by no fact about
-   *  it: a jump's code is the same whatever the program defines the symbol
-   *  as, or whether it defines it at all, so the chunk is kept while the
-   *  target disappears and comes back (section 2, A symbol that
-   *  disappears). */
-  public EmitJump(emitter: ProgramEmitter, tunnelFlags = -1): void {
+   *  of its target as a tunnel, with `JUMP_ARGUMENTS` among `argFlags` when
+   *  the divert pushed arguments for it. The chunk records the jump's
+   *  resolution (`programJumpKey`), and refers to the target's symbol by no
+   *  fact about it: a jump's code is the same whatever the program defines
+   *  the symbol as, or whether it defines it at all, so the chunk is kept
+   *  while the target disappears and comes back (section 2, A symbol that
+   *  disappears). The arguments a divert passes read the target's
+   *  parameters (`EmitArguments`). */
+  public EmitJump(emitter: ProgramEmitter, tunnelFlags = -1, argFlags = 0): void {
     const key = this.programJumpKey;
     if (key !== null) {
       emitter.recordResolution(key);
@@ -178,9 +237,9 @@ export class Divert extends ParsedObject {
     const symbol = emitter.targetSymbol(target, this.writtenTargetName);
     emitter.referenceTarget(symbol);
     if (tunnelFlags >= 0) {
-      emitter.emit(Op.Call, symbol, 0, tunnelFlags);
+      emitter.emit(Op.Call, symbol, 0, tunnelFlags | argFlags);
     } else {
-      emitter.emit(Op.JumpSym, symbol);
+      emitter.emit(Op.JumpSym, symbol, 0, argFlags);
     }
   }
 
@@ -192,7 +251,9 @@ export class Divert extends ParsedObject {
   /** How the divert's target resolved, as the chunk of its statement records
    *  it: the symbol its jump names, which is the qualified name of the
    *  target it found or, for a target it found none of, the name as written,
-   *  or the variable whose value it jumps to. A divert the program does not
+   *  or the variable whose value it jumps to; for a divert that passes
+   *  arguments to a flow it found, with the kind of each of the flow's
+   *  parameters. A divert the program does not
    *  emit as a jump has none: a call, `done`, `fin`, a loop's own diverts,
    *  and a function held as a value, whose symbol the chunk records apart. */
   get programJumpKey(): string | null {
@@ -213,7 +274,13 @@ export class Divert extends ParsedObject {
     if (target instanceof FlowBase && target.isFunction) {
       return null;
     }
-    return `jump:${target?.programSymbolName ?? this.writtenTargetName}`;
+    const jump = `jump:${target?.programSymbolName ?? this.writtenTargetName}`;
+    // A divert that passes arguments pushes them as its target's parameters
+    // take them (`EmitArguments`), as a call's resolution names its
+    // callee's (`callResolutionKey`).
+    return this.args.length > 0 && target instanceof FlowBase
+      ? `${jump}:${parameterKinds(target.args)}`
+      : jump;
   }
 
   /** A function call's code: its arguments, then the call. A function the

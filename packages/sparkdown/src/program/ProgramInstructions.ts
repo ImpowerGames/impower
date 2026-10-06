@@ -191,6 +191,14 @@ export const LEAVE_CONTINUE = 1;
  *  returns with `TunnelReturn`, rather than a function. */
 export const CALL_TUNNEL = 1;
 
+/** `JumpSym`'s flag, and `Call`'s beside `CALL_TUNNEL`: the divert passed
+ *  arguments, which its code pushed arranged for the flow it enters. A jump
+ *  or a tunnel without it that enters a variadic flow at its start passes
+ *  that flow nil for each fixed parameter and an empty `...`, as the
+ *  current engine's divert pushes them for a variadic target
+ *  (docs/engine/binary-program.md, section 3). */
+export const JUMP_ARGUMENTS = 2;
+
 /** `CountOf`'s flag: push the turns since the last visit, or -1 for none,
  *  rather than the visits. */
 export const COUNT_TURNS = 1;
