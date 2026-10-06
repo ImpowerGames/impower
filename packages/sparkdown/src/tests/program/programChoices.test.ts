@@ -615,8 +615,11 @@ describe("the choose chunk", () => {
     expect(sites[0]).toBe(ProgramStory.addressOf(chunk!, done.offset));
   });
 
-  // Section 4: the code before the `Done` that ends the presentation reads
-  // state and writes only the captured texts.
+  // Section 4: the code the block itself adds before the `Done` that ends the
+  // presentation (its captures, conditions and `Choice`s) reads state and
+  // writes only the captured texts. This block's preamble and choice texts
+  // write nothing of their own; a preamble's statements or an alternator in a
+  // choice's text would run as written.
   it("holds no Visit and no assignment of the writer's own before the Done that ends the presentation", () => {
     const { program } = compileScript(
       [
@@ -937,6 +940,62 @@ describe("a menu restored from the beat before it", () => {
     expect(second.map((c) => c.text)).toEqual(["Wait", ""]);
     story.ChooseChoiceIndex(0);
     expect(menuFromImage()).toEqual(second);
+  });
+});
+
+describe("a state saved at a waiting menu", () => {
+  // The in-session save (`toJson`) writes the choices waiting with the
+  // frames of the threads they hold; the durable image of a menu, the beat
+  // before it, is #699's.
+  it("loads the choices waiting with their threads, and takes one with the thread's locals", () => {
+    const text = [
+      "-> hub",
+      "scene hub",
+      "  local here = \"hub local\"",
+      "  <- side",
+      "  Hub.",
+      "  choose",
+      "    * Hub choice",
+      "      Took the hub with {here}.",
+      "  end",
+      "  Hub after.",
+      "end",
+      "scene side",
+      "  local there = \"side local\"",
+      "  choose",
+      "    * Side choice",
+      "      Took the side with {there}.",
+      "  end",
+      "  Side after.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    const { program } = compileScript(text, { programChunks: true });
+    expect(program.fallback).toBeUndefined();
+    const root = program.chunks!;
+    for (const pick of [0, 1]) {
+      const story = new ProgramStory(root);
+      while (story.canContinue) story.Continue();
+      const saved = story.state.toJson();
+      const loaded = new ProgramStory(root);
+      loaded.state.LoadJson(saved);
+      const menu = (s: ProgramStory) =>
+        s.currentChoices.map((c) => [c.text, c.tags, c.sourcePath]);
+      expect(menu(loaded)).toEqual(menu(story));
+      expect(menu(loaded).map(([t]) => t)).toEqual(["Side choice", "Hub choice"]);
+      const after = (s: ProgramStory) => {
+        s.ChooseChoiceIndex(pick);
+        const shown: string[] = [];
+        while (s.canContinue) shown.push(s.Continue()!.trim());
+        return shown.filter(Boolean);
+      };
+      const expected = after(story);
+      expect(after(loaded)).toEqual(expected);
+      expect(expected[1]).toBe(
+        pick === 0 ? "Took the side with side local." : "Took the hub with hub local.",
+      );
+    }
   });
 });
 
