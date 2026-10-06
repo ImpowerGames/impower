@@ -342,7 +342,10 @@ const CACHE_REL_PATHS = [
   "chrome-win/chrome.exe",
   "chrome-win64/chrome.exe",
   "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+  "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
   "chrome-headless-shell-linux64/chrome-headless-shell",
+  "chrome-linux/headless_shell",
   "chrome-headless-shell-win64/chrome-headless-shell.exe",
   "chrome-headless-shell-mac-arm64/chrome-headless-shell",
   "chrome-headless-shell-mac-x64/chrome-headless-shell",
@@ -412,8 +415,13 @@ export function pinnedExecutable(full, { headless, platform = process.platform }
   const i = parts.findIndex((s) => /^chromium-\d+$/.test(s));
   const plat = i >= 0 ? parts[i + 1]?.match(/^chrome-(.+)$/) : null;
   if (!plat) return full;
+  const root = parts.slice(0, i).join(p.sep) || p.sep;
+  const shellDir = parts[i].replace("chromium-", "chromium_headless_shell-");
+  // Playwright's linux-arm64 builds keep the older layout: the full build in
+  // chrome-linux/chrome and the shell in chrome-linux/headless_shell.
+  if (plat[1] === "linux") return p.join(root, shellDir, "chrome-linux", "headless_shell");
   const exe = "chrome-headless-shell" + (platform === "win32" ? ".exe" : "");
-  return p.join(parts.slice(0, i).join(p.sep) || p.sep, parts[i].replace("chromium-", "chromium_headless_shell-"), `chrome-headless-shell-${plat[1]}`, exe);
+  return p.join(root, shellDir, `chrome-headless-shell-${plat[1]}`, exe);
 }
 // Callers spread `executablePath` into Playwright's launch options; undefined
 // keeps Playwright's own default, so the normal path is unchanged.

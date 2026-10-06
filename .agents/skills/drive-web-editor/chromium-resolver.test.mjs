@@ -93,6 +93,13 @@ function resolve(files, env = {}) {
   const r = resolve([shell], { PLAYWRIGHT_BROWSERS_PATH: "/cache", PATH: "" });
   assert.equal(r.source, "cache");
   assert.equal(r.executablePath, shell);
+  // Playwright's linux-arm64 layout (registry: chrome-linux/headless_shell).
+  const arm = "/cache/chromium_headless_shell-1200/chrome-linux/headless_shell";
+  assert.equal(resolve([arm], { PLAYWRIGHT_BROWSERS_PATH: "/cache", PATH: "" }).executablePath, arm);
+  assert.equal(
+    pinnedExecutable("/cache/chromium-1228/chrome-linux/chrome", { headless: true, platform: "linux" }),
+    "/cache/chromium_headless_shell-1228/chrome-linux/headless_shell",
+  );
   // Newest revision first across both kinds of cache directory.
   const older = "/cache/chromium-1100/chrome-linux/chrome";
   assert.equal(resolve([older, shell], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, shell);
