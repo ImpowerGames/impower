@@ -125,7 +125,7 @@ const TEXTS = {
 };
 // The first line of the fixture's first scene, which the game starts from.
 const FIRST_LINE =
-  TEXTS[MAIN].split("\n").findIndex((line) => line.startsWith("scene ")) + 1;
+  TEXTS[MAIN].split("\n").findIndex((line: string) => line.startsWith("scene ")) + 1;
 
 describe("the checkpoints of a game on the program engine", () => {
   it("are images, a keyframe every base interval beats and deltas between", () => {
