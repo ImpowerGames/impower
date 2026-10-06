@@ -564,6 +564,38 @@ describe("choose blocks on the program engine", () => {
     expect(chooseChunks(root)[0]).toBe(chunk);
   });
 
+  // A choice in a `do` block or a loop of a block's preamble, directly or in
+  // a block written there, would be raised by that body's own statements,
+  // whose chunks do not hold its entry: the program falls back, named, and
+  // runs on the current engine as it did.
+  it("names the fallback for a choice inside a do block or a loop of a block's preamble", () => {
+    const preambles = [
+      ["    do", "      choose", "        * Inner", "          Chose inner.", "      end", "    end"],
+      ["    do", "      local x = 1", "      * Inner {x}", "        Chose inner.", "    end"],
+      ["    local i = 0", "    while i < 1 do", "      i = i + 1", "      * Inner {i}", "    end"],
+    ];
+    for (const preamble of preambles) {
+      const text = [
+        "-> main",
+        "scene main",
+        "  choose",
+        ...preamble,
+        "    * Outer",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+      const { program } = compileScript(text, { programChunks: true });
+      expect(program.chunks).toBeUndefined();
+      expect(program.fallback).toEqual({
+        construct: "a choice inside a block of a presentation",
+        uri: MAIN_URI,
+        line: 2,
+      });
+      expect(program.compiled).toEqual(compileScript(text).program.compiled);
+    }
+  });
+
   it("follows a fallback choice when every other choice is unavailable", () => {
     const text = [
       "store has_key = false",

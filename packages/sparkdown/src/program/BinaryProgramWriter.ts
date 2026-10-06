@@ -476,6 +476,18 @@ export class BinaryProgramWriter implements ProgramEmitter {
     if (k < 0 || this._blockStates[k]?.entered) {
       this.unsupported("a body the statement does not record");
     }
+    // A choice in a block the presentation of a `choose` block enters (the
+    // body of a `do` block or a loop in its preamble) would be raised by
+    // that block's own statements, whose chunks do not hold its entry
+    // (section 4).
+    if (
+      this._choose &&
+      heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0]).some(
+        raisesChoice,
+      )
+    ) {
+      this.unsupported("a choice inside a block of a presentation");
+    }
     const resume: ProgramLabel = { offset: -1 };
     this._blockStates[k] = {
       entered: true,
@@ -1408,6 +1420,13 @@ export const branchContent = (
 ): readonly ParsedObject[] =>
   (branch as unknown as { _innerWeave: { content: ParsedObject[] } | null })
     ._innerWeave?.content ?? [];
+
+/** Whether `obj` raises a choice of the presentation it stands in: it is a
+ *  choice, or holds one outside a `choose` block of its own. */
+const raisesChoice = (obj: ParsedObject): boolean =>
+  obj instanceof Choice ||
+  ((obj as { isChooseBlock?: boolean }).isChooseBlock !== true &&
+    (obj.content ?? []).some(raisesChoice));
 
 /** A multiple assignment's targets: its values unpacked to as many as it
  *  has targets, and each target assigned in order, the first first, as its
