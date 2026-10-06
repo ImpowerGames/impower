@@ -6,7 +6,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { lastSearchStats, planRoute } from "../../compiler/utils/planRoute";
 import type { Story } from "../../inkjs/engine/Story";
-import { ObjectValue } from "../../inkjs/engine/Value";
+import { MultiValue, ObjectValue, StringValue } from "../../inkjs/engine/Value";
 import {
   MAX_DELTA_DEPTH,
   ProgramImages,
@@ -702,5 +702,160 @@ describe("images across engines, aliases and keyframes", () => {
     expect(s.restore(after)).toBe(true);
     expect(s.state.toJson()).toBe(json);
     expect(stats.wholeRestores).toBe(whole);
+  });
+});
+
+// Round 2 of the review of #1579 (report 6018735541): the digest a route
+// search claims a fork site by must read two states apart exactly when they
+// can run apart, and read two equal states the same however each was
+// reached from the keyframe.
+describe("the digest of two arrivals from one keyframe", () => {
+  // A route simulator that forces every decision to `verdict`.
+  const forcing = (verdict: boolean) => ({
+    forceCondition: () => verdict,
+    forceChoice: () => null,
+    willForceCondition: () => true,
+    willForceChoice: () => false,
+    saveSnapshot: () => ({ conditionPointer: {}, choicePointer: {} }),
+  });
+
+  /** Plays `text` to its first beat, keyframes it, and returns a function
+   *  that restores the keyframe, forces the decision after it to `verdict`,
+   *  plays to the line `Same.` and returns the digest of an image there. */
+  const arrivals = (text: string) => {
+    const s = story(text);
+    expect(next(s, 1)).toEqual(["Begin."]);
+    const keyframe = s.capture(true);
+    const arrive = (verdict: boolean) => {
+      expect(s.restore(keyframe)).toBe(true);
+      s.simulator = forcing(verdict);
+      expect(next(s, 1)).toEqual(["Same."]);
+      s.simulator = null;
+      return imageDigest(s.capture());
+    };
+    return { s, arrive };
+  };
+
+  it("reads a table whose key was removed and set again apart, since its keys now iterate in another order", () => {
+    const { s, arrive } = arrivals(
+      [
+        "store t = { a = 1, b = 2 }",
+        "store k = nil",
+        "",
+        "-> start",
+        "",
+        "scene start",
+        "  Begin.",
+        "  if true then",
+        "    & t.a = nil",
+        "    & t.a = 1",
+        "  end",
+        "  Same.",
+        "  & k = next(t)",
+        "  Then {k}.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    const moved = arrive(true);
+    expect(next(s, 1)).toEqual(["Then b."]);
+    const kept = arrive(false);
+    expect(next(s, 1)).toEqual(["Then a."]);
+    expect(moved).not.toBe(kept);
+    expect(arrive(true)).toBe(moved);
+  });
+
+  it("reads the same for a table made and then written since the keyframe, on each arrival", () => {
+    const { s, arrive } = arrivals(
+      [
+        "store t = nil",
+        "",
+        "-> start",
+        "",
+        "scene start",
+        "  Begin.",
+        "  if true then",
+        "    & t = { x = 0 }",
+        "    & t.x = 1",
+        "  end",
+        "  Same.",
+        "  Then {t.x}.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    const first = arrive(true);
+    expect(arrive(true)).toBe(first);
+    expect(next(s, 1)).toEqual(["Then 1."]);
+  });
+
+  it("reads the same for one new table two tables the keyframe reached share, whichever took it first", () => {
+    const { s, arrive } = arrivals(
+      [
+        "store left = { x = 0 }",
+        "store right = { x = 0 }",
+        "",
+        "-> start",
+        "",
+        "scene start",
+        "  Begin.",
+        "  if true then",
+        "    & left.x = { v = 7 }",
+        "    & right.x = left.x",
+        "  else",
+        "    & right.x = { v = 7 }",
+        "    & left.x = right.x",
+        "  end",
+        "  Same.",
+        "  & right.x.v = 8",
+        "  Then {left.x.v}.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    const leftFirst = arrive(true);
+    expect(next(s, 1)).toEqual(["Then 8."]);
+    const rightFirst = arrive(false);
+    expect(next(s, 1)).toEqual(["Then 8."]);
+    expect(rightFirst).toBe(leftFirst);
+  });
+
+  it("reads tuples whose strings would join to the same text apart", () => {
+    const s = story(["-> start", "", "scene start", "  Begin.", "  End.", "end", ""].join("\n"));
+    expect(next(s, 1)).toEqual(["Begin."]);
+    s.capture(true);
+    const digestWith = (values: string[]) => {
+      s.state.PushEvaluationStack(new MultiValue(values.map((v) => new StringValue(v))));
+      const digest = imageDigest(s.capture());
+      s.state.PopEvaluationStack();
+      return digest;
+    };
+    expect(digestWith(["a,StringValue:b"])).not.toBe(digestWith(["a", "b"]));
+    expect(digestWith(["a", "b"])).toBe(digestWith(["a", "b"]));
+  });
+
+  it("of an image holding a table made since the keyframe stays as it was after the table is written", () => {
+    const { s } = arrivals(
+      [
+        "store t = nil",
+        "",
+        "-> start",
+        "",
+        "scene start",
+        "  Begin.",
+        "  & t = { x = 0 }",
+        "  Made.",
+        "  & t.x = 1",
+        "  Written {t.x}.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(next(s, 1)).toEqual(["Made."]);
+    const image = s.capture();
+    const before = imageDigest(image);
+    expect(next(s, 1)).toEqual(["Written 1."]);
+    s.capture();
+    expect(imageDigest(image)).toBe(before);
   });
 });

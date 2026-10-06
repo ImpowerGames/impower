@@ -213,7 +213,7 @@ describe("the checkpoints of a game on the program engine", () => {
 
   // Round 1 of the review of #1579 (report 6016565874): a refused save left
   // the modules it carried loaded.
-  it("refuse a save the story cannot place, leaving every module and the story as they were", () => {
+  it("refuse a save the story cannot place, leaving every module, the story and a waiting preview as they were", () => {
     const { program, story } = compiler(TEXTS).compile();
     const game = createGame(program, story, { checkpointBaseInterval: 7 });
     drive(game);
@@ -229,8 +229,27 @@ describe("the checkpoints of a game on the program engine", () => {
     expect(JSON.stringify(JSON.parse(before).modules)).not.toBe(
       JSON.stringify(early.modules),
     );
+    // A preview waiting for its pictures (round 2 of the review of #1579,
+    // report 6018735541) still waits after the refusal, and a load that
+    // succeeds lets go of it.
+    let cancelled = 0;
+    const waiting = () => ({
+      path: "preview",
+      generation: 0,
+      promise: Promise.resolve(null),
+      abandon: () => {},
+      cancel: () => {
+        cancelled += 1;
+      },
+    });
+    (game as any)._pendingPreview = waiting();
     expect(game.load(JSON.stringify(early))).toBe(false);
     expect(game.save()).toBe(before);
+    expect(cancelled).toBe(0);
+    expect((game as any)._pendingPreview).not.toBeNull();
+    expect(game.load(store.getJson(5)!)).toBe(true);
+    expect(cancelled).toBe(1);
+    expect((game as any)._pendingPreview).toBeNull();
   });
 
   // Round 1 of the review of #1579 (report 6017530237): a save the story

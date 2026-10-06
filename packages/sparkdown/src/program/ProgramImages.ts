@@ -841,13 +841,19 @@ const remapCounts = (
  * from the chain's keyframe. A table or a cell the keyframe's state reached
  * is read by its identity, so two arrivals that changed two different tables
  * to the same content read apart, and its content enters the digest only when
- * it changed since the keyframe; one made since is read by its content, with
- * a second reference to it read as a reference, as the JSON's `objref` did.
+ * it changed since the keyframe; one made since is read by its content, as
+ * the image holds it, with a second reference to it read as a reference, as
+ * the JSON's `objref` did. What it reads is read in an order that does not
+ * depend on the order of the writes or of the allocations that made it: the
+ * positional state, the changed globals by name, then the changed tables
+ * and cells the keyframe reached by identity, each reading the new tables it
+ * reaches where it first reaches them.
  */
 export const imageDigest = (image: ProgramImage): string => {
   const out = new DigestStream();
   const keyframe = image.keyframe;
-  const values = new ValueHasher(image.images, keyframe.reached);
+  const chain = viewChain(image);
+  const values = new ValueHasher(image.images, keyframe.reached, chain);
   out.add(`k${keyframe.id}`);
   const p = image.positional;
   const position = (at: PositionCopy | null) =>
@@ -889,16 +895,17 @@ export const imageDigest = (image: ProgramImage): string => {
   }
   p.threads.forEach(thread);
   for (const choice of p.choices) {
-    out.add(
-      `${choice.text}|${choice.tags?.join("|")}|${choice.sourcePath}|${choice.isInvisibleDefault}|${choice.previousFlow}`,
-    );
+    out.add(choice.text);
+    out.add(`${choice.tags?.length ?? -1}`);
+    for (const tag of choice.tags ?? []) out.add(tag);
+    out.add(`${choice.sourcePath}`);
+    out.add(`${choice.isInvisibleDefault}:${choice.previousFlow}`);
     position(choice.target);
     thread(choice.thread);
   }
   // The keyed state the chain changed, where it differs from the
   // keyframe's, each key read once, from the newest image that holds it.
   const keys = keysOf(chainOf(image).slice(1));
-  const chain = viewChain(image);
   for (const id of [...keys.counts].sort((a, b) => a - b)) {
     const [visits, turn] = countIn(chain, id);
     if (
@@ -911,33 +918,42 @@ export const imageDigest = (image: ProgramImage): string => {
   for (const name of [...keys.globals].sort()) {
     const now = globalIn(chain, name);
     const then = keyframe.globals.get(name);
-    if (!sameValue(now, then, image)) {
+    if (!sameValue(now, then, image, chain)) {
       out.add(`g${name}=${values.hash(now)}`);
     }
   }
-  const changed: string[] = [];
-  for (const table of keys.tables) {
+  // The tables and cells the keyframe reached, by identity, which is the
+  // same object on every arrival from the keyframe: a table made since is
+  // not read here but where the state reaches it, so that neither its
+  // identity nor which write reached it first reads.
+  const reached = keyframe.reached;
+  const byIdentity = <T extends object>(objects: Iterable<T>): T[] =>
+    [...objects]
+      .filter((obj) => reached?.has(obj))
+      .map((obj) => [image.images.identityOf(obj), obj] as const)
+      .sort((a, b) => a[0] - b[0])
+      .map(([, obj]) => obj);
+  for (const table of byIdentity(keys.tables)) {
     const now = tableIn(chain, table, image.images);
     const then = keyframe.tables.get(table) ?? image.images.pristineTable(table);
-    if (now && (!then || !sameTable(now, then, image))) {
-      changed.push(`t${image.images.identityOf(table)}=${values.copy(now)}`);
+    if (now && (!then || !sameTable(now, then, image, chain))) {
+      out.add(`t${image.images.identityOf(table)}=${values.copy(now)}`);
     }
   }
-  for (const cell of keys.cells) {
+  for (const cell of byIdentity(keys.cells)) {
     const now = cellIn(chain, cell, image.images);
     const then = keyframe.cells.get(cell) ?? image.images.pristineCell(cell);
     if (
       now &&
       (!then ||
         now.closed !== then.closed ||
-        !sameValue(now.value, then.value, image))
+        !sameValue(now.value, then.value, image, chain))
     ) {
-      changed.push(
+      out.add(
         `c${image.images.identityOf(cell)}=${now.closed}:${values.hash(now.value)}`,
       );
     }
   }
-  for (const entry of changed.sort()) out.add(entry);
   return out.digest();
 };
 
@@ -948,13 +964,21 @@ const sameValue = (
   a: InkObject | null | undefined,
   b: InkObject | null | undefined,
   image: ProgramImage,
+  chain: readonly ProgramImage[],
 ): boolean =>
   a === b ||
-  new ValueHasher(image.images, image.keyframe.reached).hash(a) ===
-    new ValueHasher(image.images, image.keyframe.reached).hash(b);
+  new ValueHasher(image.images, image.keyframe.reached, chain).hash(a) ===
+    new ValueHasher(image.images, image.keyframe.reached, chain).hash(b);
 
-// Whether two copies of a table hold the same.
-const sameTable = (a: TableCopy, b: TableCopy, image: ProgramImage): boolean => {
+// Whether two copies of a table hold the same, in the same order: `next`
+// and `pairs` read a table's keys in the order they were set, so a key
+// removed and set again makes another table.
+const sameTable = (
+  a: TableCopy,
+  b: TableCopy,
+  image: ProgramImage,
+  chain: readonly ProgramImage[],
+): boolean => {
   if (
     a.metatable !== b.metatable ||
     a.frozen !== b.frozen ||
@@ -964,8 +988,13 @@ const sameTable = (a: TableCopy, b: TableCopy, image: ProgramImage): boolean => 
   ) {
     return false;
   }
-  for (const [key, value] of a.entries ?? []) {
-    if (!sameValue(value, b.entries!.get(key), image)) {
+  if (!a.entries || !b.entries) {
+    return true;
+  }
+  const other = b.entries.entries();
+  for (const [key, value] of a.entries) {
+    const [otherKey, otherValue] = other.next().value!;
+    if (key !== otherKey || !sameValue(value, otherValue, image, chain)) {
       return false;
     }
   }
@@ -973,9 +1002,11 @@ const sameTable = (a: TableCopy, b: TableCopy, image: ProgramImage): boolean => 
 };
 
 // Hashes values: a table or a cell the keyframe's state reached by its
-// identity, and one made since by what it holds (a table's content, length
-// hints, frozen flag and metatable, a cell's state), each once, with a
-// second reference read as a reference.
+// identity, and one made since by what it holds as the image's chain holds
+// it (a table's content, length hints, frozen flag and metatable, a cell's
+// state), each once, with a second reference read as a reference. Every
+// value reads as text that ends where it says it ends, so that no two
+// values, or lists of values, read as one.
 class ValueHasher {
   protected _seen = new Map<object, string>();
   protected _next = 0;
@@ -983,6 +1014,7 @@ class ValueHasher {
   constructor(
     protected _images: ProgramImages,
     protected _stable: WeakSet<object> | null,
+    protected _chain: readonly ProgramImage[],
   ) {}
 
   hash(obj: InkObject | null | undefined): string {
@@ -1003,19 +1035,26 @@ class ValueHasher {
       }
       const ref = `@${this._next++}`;
       this._seen.set(obj, ref);
-      const hash =
-        obj instanceof ObjectValue
-          ? this.copy(copyTable(obj))
-          : obj.isClosed
-            ? `C(${this.hash(obj.closedValue)})`
-            : `V(${obj.variableName}:${obj.contextIndex}:${obj.scopeIndex})`;
+      let hash: string;
+      if (obj instanceof ObjectValue) {
+        hash = this.copy(
+          tableIn(this._chain, obj, this._images) ?? copyTable(obj),
+        );
+      } else {
+        const cell = cellIn(this._chain, obj, this._images) ?? copyCell(obj);
+        hash = cell.closed
+          ? `C(${this.hash(cell.value)})`
+          : `V(${obj.variableName}:${cell.contextIndex}:${cell.scopeIndex})`;
+      }
       return `${ref}=${hash}`;
     }
     const multi = obj as { values?: unknown };
     if (Array.isArray(multi.values)) {
-      return `M(${(multi.values as InkObject[]).map((v) => this.hash(v)).join(",")})`;
+      const parts = (multi.values as InkObject[]).map((v) => this.hash(v));
+      return `M${parts.length}(${parts.map((h) => `${h.length}:${h}`).join("")})`;
     }
-    return `${obj.constructor.name}:${String(obj)}`;
+    const text = String(obj);
+    return `${obj.constructor.name}:${text.length}:${text}`;
   }
 
   /** The hash of what a copy of a table holds. */
@@ -1038,8 +1077,10 @@ class DigestStream {
   protected _h2 = 0x41c6ce57;
 
   add(text: string): void {
-    let h1 = this._h1;
-    let h2 = this._h2;
+    // The length first, so that the strings a stream reads are read apart
+    // whatever characters they hold.
+    let h1 = Math.imul(this._h1 ^ text.length, 2654435761);
+    let h2 = Math.imul(this._h2 ^ text.length, 1597334677);
     for (let i = 0; i < text.length; i += 1) {
       const ch = text.charCodeAt(i);
       h1 = Math.imul(h1 ^ ch, 2654435761);

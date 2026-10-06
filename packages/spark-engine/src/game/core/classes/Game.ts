@@ -1857,12 +1857,16 @@ export class Game<T extends M = {}> {
 
   load(saveJSON: string) {
     // A preview waiting for its pictures would display its beat over the
-    // loaded state, and record a checkpoint of it.
-    this.cancelPreview();
+    // loaded state, and record a checkpoint of it. The program engine lets
+    // go of it only once the save is placed, so that a save it refuses
+    // leaves the preview waiting as it was.
+    const program = this.programStory;
+    if (!program) {
+      this.cancelPreview();
+    }
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
-      const program = this.programStory;
       if (program && saveData.story) {
         // The program engine places the save, or refuses it, before
         // anything of the game changes: the story first, which puts itself
@@ -1870,6 +1874,11 @@ export class Game<T extends M = {}> {
         // placement, and ends the line in progress when it succeeds; then
         // the modules.
         program.checkSave(saveData.story);
+      }
+      if (program) {
+        this.cancelPreview();
+      }
+      if (program && saveData.story) {
         program.loadSave(saveData.story);
         this.restoreReactiveTracking();
       }
