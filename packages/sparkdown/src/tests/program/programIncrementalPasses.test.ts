@@ -391,6 +391,42 @@ describe("the bookkeeping of a build over an edit", () => {
     },
   );
 
+  // `count` scenes, then as many declarations and a declaration whose
+  // initializer writes a function: the declarations' line starts are the
+  // script's own lines, which a line inserted in a scene above moves, and
+  // the function's body is a body of the declaration, whose statements the
+  // order lists after every flow's.
+  const declared = (count: number) =>
+    [
+      scenes(count),
+      ...Array.from({ length: count }, (_, i) => `store v${i} = ${i}`),
+      "store handler = function()",
+      "  return 1",
+      "end",
+      "",
+    ].join("\n");
+  const declarationEdits: [string, (count: number) => Edit][] = [
+    [
+      "a line inserted in a scene above the declarations",
+      (count) => () => [
+        `  First line of S${middle(count)}.`,
+        `  First line of S${middle(count)}.\n  Inserted.`,
+      ],
+    ],
+    ["the body of a declaration's function", () => () => ["  return 1", "  return 2"]],
+  ];
+  it.each(declarationEdits)(
+    "of %s lists and assembles as many entries at either size",
+    (_, edit) => {
+      const [smallCounts] = counted({ [MAIN_URI]: declared(30) }, [edit(30)]);
+      const [largeCounts] = counted({ [MAIN_URI]: declared(120) }, [edit(120)]);
+      expect(largeCounts!.order).toBe(smallCounts!.order);
+      expect(largeCounts!.assembly).toBe(smallCounts!.assembly);
+      expect(largeCounts!.order).toBeLessThan(10);
+      expect(largeCounts!.assembly).toBeLessThan(10);
+    },
+  );
+
   it("builds the same root without the changed blocks, listing every old statement", () => {
     const texts = { [MAIN_URI]: scenes(12) };
     const withChanges = session(texts);
