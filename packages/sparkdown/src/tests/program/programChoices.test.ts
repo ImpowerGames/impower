@@ -305,11 +305,11 @@ describe("choose blocks on the program engine", () => {
   });
 
   // A choice an `if` gates is raised inside the scope its branch opens, which
-  // stays open for the rest of the presentation and which the choice's
-  // content closes after its body, as on the current engine: the body reads
-  // the branch's locals, through a jump inside the body too, whichever
-  // branches before it ran, and the line after the block no longer sees
-  // them.
+  // closes where the branch ends, and its entry runs inside it and closes it
+  // after the body (#1575): the body reads the branch's locals, through a
+  // jump inside the body too, whichever branches before it ran, and the line
+  // after the block no longer sees them. These scripts read no branch's
+  // local outside its branch, so both engines agree on them.
   it("keeps the locals of the branch that gates a choice, through a jump inside its body, and drops them after it", () => {
     agrees(
       [
@@ -411,12 +411,13 @@ describe("choose blocks on the program engine", () => {
     expect(texts(after!.actual)).toEqual(["Pick", "Inside true.", "After false."]);
   });
 
-  // The current engine leaves a gated branch's scope open for the rest of the
-  // presentation (its `EndScope` is the choice's content), so a later
-  // condition finds the branch's local before a global of the same name; the
-  // program engine does the same.
-  it("reads a gated branch's local that shadows a global in a later choice's condition, as the current engine does", () => {
-    const [run] = agrees(
+  // A gated branch's scope closes where the branch ends, as Luau closes a
+  // block's, so a later condition reads the global the branch's local
+  // shadowed (#1575). The current engine leaves the branch's scope open for
+  // the rest of the presentation and finds the local, which is its defect;
+  // `programChoiceScopes.test.ts` asserts the rest of the rule.
+  it("reads the global in a later choice's condition, not the local of the branch that gated an earlier choice", () => {
+    const { actual } = bothEngines(
       [
         "store open = false",
         "-> main",
@@ -431,9 +432,9 @@ describe("choose blocks on the program engine", () => {
         "end",
         "",
       ].join("\n"),
-      [[0], [1]],
+      [0],
     );
-    expect(menuTexts(run!.actual)).toEqual([["First", "Global"]]);
+    expect(menuTexts(actual)).toEqual([["First"]]);
   });
 
   // A block written in another block's preamble offers its choices with that
@@ -500,11 +501,14 @@ describe("choose blocks on the program engine", () => {
     expect(texts(outer!.actual)).toEqual(["Outer", "Outer then."]);
   });
 
-  // A block written in another block's preamble whose choices an `if` gates,
-  // with none of its own: the current engine's weave enters its `then` clause
-  // where it stands, which then continues where the outer block ends, and
-  // its gated choices continue there too. Both forms run from chunks, and an
-  // edit inside the clause keeps the outer block's chunk.
+  // A block written in another block's preamble whose choices an `if` gates:
+  // its gated choices are its own, so they continue at its `then` clause,
+  // which runs after a choice of the block is taken and never while the
+  // choices are presented (#1575). The current engine's weave enters the
+  // clause where it stands when the block has no choice outside an `if`, and
+  // sends a gated choice past it to the outer block's end, which is its
+  // defect. Both forms run from chunks, and an edit inside the clause keeps
+  // the outer block's chunk.
   it("runs a preamble block whose choices an if gates, with its then clause, and keeps the owner through an edit of the clause", () => {
     const nested = [
       "-> main",
@@ -525,8 +529,15 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [run] = agrees(nested, [[0], [1]]);
-    expect(texts(run!.actual)[0]).toBe("Inner then.");
+    const program = (text: string, picks: number[]) => bothEngines(text, picks).actual;
+    expect(menuTexts(program(nested, [0]))).toEqual([["Inner", "Outer"]]);
+    expect(texts(program(nested, [0]))).toEqual([
+      "Inner",
+      "Took inner.",
+      "Inner then.",
+      "Inner then again.",
+    ]);
+    expect(texts(program(nested, [1]))).toEqual(["Outer", "Took outer."]);
     const mixed = [
       "-> main",
       "scene main",
@@ -556,7 +567,39 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    agrees(mixed, [[0], [1], [2], [0, 1, 2, 3], [1, 0, 2, 3], [3, 3]]);
+    expect(texts(program(mixed, [0, 2]))).toEqual([
+      "Caption 1.",
+      "Gated",
+      "Took gated.",
+      "Inner then 1.",
+      "Caption 2.",
+      "Leave",
+      "Out.",
+    ]);
+    expect(texts(program(mixed, [1, 2]))).toEqual([
+      "Caption 1.",
+      "Direct",
+      "Took direct.",
+      "Inner then 1.",
+      "Caption 2.",
+      "Leave",
+      "Out.",
+    ]);
+    expect(texts(program(mixed, [2, 3]))).toEqual([
+      "Caption 1.",
+      "Outer",
+      "Took outer.",
+      "Caption 2.",
+      "Leave",
+      "Out.",
+    ]);
+    // A once-only choice taken is not offered again, and past the gate the
+    // block offers only its own choice.
+    expect(menuTexts(program(mixed, [0, 0, 1]))).toEqual([
+      ["Gated", "Direct", "Outer", "Leave"],
+      ["Direct", "Outer", "Leave"],
+      ["Outer", "Leave"],
+    ]);
     const s = session(nested);
     const [chunk] = chooseChunks(s.first.chunks!);
     const root = s.edit("Inner then again.", "Inner then once more.");
