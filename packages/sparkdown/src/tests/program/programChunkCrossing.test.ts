@@ -168,6 +168,48 @@ describe.each([
     expect(after[4] === before[4]).toBe(true);
   });
 
+  // What the store looks up per statement stays bounded however the
+  // statements of a long run are reordered or changed: a lookup count, not a
+  // time, so the bound holds on any machine.
+  it.each([
+    ["reversed", (n: number) => [...Array(n).keys()].reverse().map((k) => statement(`s${k}`))],
+    ["swapped in pairs", (n: number) => [...Array(n).keys()].map((k) => statement(`s${k ^ 1}`))],
+    ["of one syntax with reads reversed", (n: number) => [...Array(n).keys()].reverse().map((k) => statement("x", `r${k}`))],
+    ["of one syntax with reads changed", (n: number) => [...Array(n).keys()].map((k) => statement("x", `changed${k}`))],
+  ])("align a long run %s in lookups linear in its length", (shape, after) => {
+    const n = 2000;
+    class CountingStore extends ChunkStore {
+      lookups = 0;
+      constructor() {
+        super();
+        const get = this._info.get.bind(this._info);
+        this._info.get = (chunk) => {
+          this.lookups += 1;
+          return get(chunk);
+        };
+      }
+    }
+    const store = new CountingStore();
+    const anchor = statement("anchor");
+    const source = (statements: StatementSource[]) =>
+      declarations
+        ? {
+            flows: [],
+            declarations: statements.map(
+              (s) => ({ ...s, uri: MAIN_URI, globals: [] }) as DeclarationSource,
+            ),
+          }
+        : [{ name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
+    const before = [...Array(n).keys()].map((k) =>
+      shape.startsWith("of one syntax") ? statement("x", `r${k}`) : statement(`s${k}`),
+    );
+    store.build(source([anchor, ...before]), true);
+    store.lookups = 0;
+    store.build(source([anchor, ...after(n)]), true);
+    expect(store.emittedLastBuild).toBe(shape.endsWith("changed") ? n : 0);
+    expect(store.lookups).toBeLessThan(20 * n);
+  });
+
   it("emit again the one whose reads changed", () => {
     const { store, build } = builder();
     const anchor = statement("anchor");

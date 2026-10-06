@@ -1290,6 +1290,11 @@ export class ChunkStore {
       result[i] = chunk;
       return true;
     };
+    // What a statement and an old chunk it keeps read the same in: its syntax
+    // and its recorded lowering inputs. The keep passes index the old chunks
+    // by it, so a statement whose inputs changed looks at no old chunk, and
+    // one among many of its syntax looks only at those that read as it does.
+    const identityOf = (syntax: string, reads: string) => `${syntax}\u0000${reads}`;
     // Whether the statement can keep the old chunk: no statement took it, its
     // syntax and recorded lowering inputs read the same as the statement's,
     // and its recorded values and facts hold.
@@ -1348,23 +1353,25 @@ export class ChunkStore {
         take(candidates[candidates.length - 1 - back]!, olds[olds.length - 1 - back]!);
         back += 1;
       }
-      // The positions among `olds` of each syntax, ascending, so the next old
-      // chunk of a statement's syntax is found without scanning the run.
+      // The positions among `olds` of each identity, ascending, so the next
+      // old chunk a statement may keep is found without scanning the run.
       const at = new Map<string, number[]>();
       for (let k = front; k < olds.length - back; k += 1) {
-        const syntax = this._info.get(old[olds[k]!]!)?.syntax;
-        if (syntax !== undefined) {
-          const positions = at.get(syntax);
+        const info = this._info.get(old[olds[k]!]!);
+        if (info) {
+          const identity = identityOf(info.syntax, info.reads);
+          const positions = at.get(identity);
           if (positions) {
             positions.push(k);
           } else {
-            at.set(syntax, [k]);
+            at.set(identity, [k]);
           }
         }
       }
       let o = front;
       for (let c = front; c < candidates.length - back; c += 1) {
-        const positions = at.get(statements[candidates[c]!]!.syntax());
+        const statement = statements[candidates[c]!]!;
+        const positions = at.get(identityOf(statement.syntax(), statement.reads));
         if (!positions) {
           continue;
         }
@@ -1394,19 +1401,20 @@ export class ChunkStore {
     // into an earlier body is, cross over each other, so matching by
     // position keeps only one of them.
     const keepRange = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
-      const bySyntax = new Map<string, number[]>();
+      const byIdentity = new Map<string, number[]>();
       for (let o = oldFrom; o < oldTo; o += 1) {
         const info = used.has(old[o]!) ? undefined : this._info.get(old[o]!);
         if (info) {
-          const bucket = bySyntax.get(info.syntax);
+          const identity = identityOf(info.syntax, info.reads);
+          const bucket = byIdentity.get(identity);
           if (bucket) {
             bucket.push(o);
           } else {
-            bySyntax.set(info.syntax, [o]);
+            byIdentity.set(identity, [o]);
           }
         }
       }
-      if (bySyntax.size === 0) {
+      if (byIdentity.size === 0) {
         return;
       }
       for (let i = newFrom; i < newTo; i += 1) {
@@ -1414,7 +1422,7 @@ export class ChunkStore {
         if (result[i] || this._inherit.has(statement)) {
           continue;
         }
-        const bucket = bySyntax.get(statement.syntax());
+        const bucket = byIdentity.get(identityOf(statement.syntax(), statement.reads));
         const at = bucket?.findIndex((o) => keeps(i, o)) ?? -1;
         if (at >= 0) {
           take(i, bucket!.splice(at, 1)[0]!);
