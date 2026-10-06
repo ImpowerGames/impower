@@ -25,6 +25,10 @@ import {
   Op,
 } from "../../../../../program/ProgramInstructions";
 import {
+  FACT_PARAMS,
+  PARAM_REFERENCE,
+} from "../../../../../program/ProgramFacts";
+import {
   isLoopInternal,
   loopExitOf,
 } from "../../../../../compiler/lower/utils/statementShape";
@@ -239,10 +243,16 @@ export class Divert extends ParsedObject {
     if (!flow || !flow.isFunction) {
       emitter.unsupported(this.typeName);
     }
-    const params = flow.args ?? [];
+    // How each argument is passed is what the symbol table says of the
+    // callee's parameters, read through the emitter, which records the read
+    // in the chunk's reference table: a change to the parameter list emits
+    // this chunk again (docs/engine/binary-program.md, section 1, Identity).
+    const symbol = emitter.functionSymbol(flow);
+    emitter.reference(symbol);
+    const params = emitter.fact(symbol, FACT_PARAMS);
+    const kinds = params === "" ? [] : params.split(",");
     this.args.forEach((arg, i) => {
-      const param = i < params.length ? params[i]! : null;
-      if (param?.isByReference && !param.isVararg) {
+      if (kinds[i] === PARAM_REFERENCE) {
         const name = asOrNull(arg, VariableReference)?.name;
         if (name == null) {
           emitter.unsupported("a by-reference argument that is no variable");
@@ -252,8 +262,6 @@ export class Divert extends ParsedObject {
         emitter.emitObject(arg);
       }
     });
-    const symbol = emitter.functionSymbol(flow);
-    emitter.reference(symbol);
     emitter.emit(Op.Call, symbol, this.args.length);
   }
 

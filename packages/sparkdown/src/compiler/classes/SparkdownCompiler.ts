@@ -155,6 +155,11 @@ import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMess
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 import { ChunkStore, type ProgramBuild } from "../../program/ChunkStore";
+import {
+  noteResolved,
+  watchStatements,
+  type StatementWatch,
+} from "../../program/StatementWatch";
 import { debugFileName } from "../utils/debugFileName";
 import { runWrapperText, runWrapperUri } from "../utils/runWrapper";
 import {
@@ -2209,6 +2214,9 @@ export class SparkdownCompiler {
     carriedRuntime.record = recording ? this._recordCarried : null;
     activation.reparent = recording ? this._recordParent : null;
     let producedStory: RuntimeStory | undefined;
+    // The statement watch the compile's passes replaced, put back once they
+    // are done (or the compile throws).
+    let restoreWatch: StatementWatch | null | undefined;
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
@@ -2304,6 +2312,12 @@ export class SparkdownCompiler {
         this._unchangedFlowShapeAtRisk = true;
       }
       this._prevCensusKey = censusKey;
+      // The passes below name and resolve the program's parsed objects again,
+      // and report to the chunk store's statement watch each value a kept
+      // chunk recorded that now reads otherwise (`StatementWatch`).
+      const watch = this._config.programChunks ? this._chunkStore?.watch : undefined;
+      watch?.changed.clear();
+      restoreWatch = watchStatements(watch ?? null);
       // Canonicalize offset-derived synthetic names over the fully-assembled
       // tree so incremental compiles emit byte-identical bytecode to cold ones
       // (see method doc) — must run before ExportRuntime resolves references.
@@ -2427,7 +2441,10 @@ export class SparkdownCompiler {
       const story = parsedStory.ExportRuntime(
         onDiagnostic,
         !this._config.programChunks,
+        !!this._config.programChunks,
       );
+      watchStatements(restoreWatch ?? null);
+      restoreWatch = undefined;
       profile("end", this._profilerId, "ink/compile", uri);
       // After ExportRuntime: the diverts it reports are recorded while
       // ExportRuntime resolves references.
@@ -2457,9 +2474,15 @@ export class SparkdownCompiler {
           !!this._config.programChunks &&
           this.buildProgramChunks(parsedStory, story, program, uri);
         if (this._config.programChunks && !chunked) {
-          // The program runs on the current engine, whose story initializes
-          // its globals as `ExportRuntime` would have.
+          // The program runs on the current engine, whose story is flattened,
+          // counts what resolution found it must count and initializes its
+          // globals, as `ExportRuntime` would have made it.
+          parsedStory.FinishForCurrentEngine();
           story.ResetState();
+          // Flattening moves the paths of the containers it inlines, the
+          // reused flows' among them, whose locations the cache holds from
+          // a compile that left them as they were generated.
+          this._locCache = undefined;
         }
         // #345: hosts that never read the bytecode skip SERIALIZATION only.
         // Everything else in this block still has to run — `state.story`, and
@@ -2519,6 +2542,9 @@ export class SparkdownCompiler {
       }
     } catch (e) {
       compileThrew = true;
+      if (restoreWatch !== undefined) {
+        watchStatements(restoreWatch);
+      }
       // Close whichever phase was in flight. This catch swallows the throw and
       // the compiler keeps serving, so a phase left open here produces no
       // measurement at all — losing exactly the compiles worth looking at, and
@@ -4110,6 +4136,8 @@ export class SparkdownCompiler {
       if (next !== group.text) {
         markRenamed(group);
         group.text = next;
+        // A kept chunk recorded the group's name (`StatementWatch`).
+        noteResolved(group);
       }
     }
     for (const { node, next } of matchedUuids) {

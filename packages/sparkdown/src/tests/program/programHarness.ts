@@ -8,6 +8,7 @@ import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../inkjs/engine/Value";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
+import { ChunkStore } from "../../program/ChunkStore";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { isAnonymousSymbol, SymbolKind } from "../../program/ProgramSymbols";
@@ -30,6 +31,10 @@ import {
   lineTableStart,
   referenceTableStart,
 } from "../../program/StatementChunk";
+
+// Every root a test builds is checked against the tables a cold build
+// derives from its sequences (`ChunkStore.verifyBuilds`).
+ChunkStore.verifyBuilds = true;
 
 export const MAIN_URI = "inmemory:///main.sd";
 
@@ -330,7 +335,7 @@ export function describeRoot(root: ProgramRoot): string[] {
       }
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = root.body(chunk, k);
-        out.push(`${indent}  block ${k} first ${body?.firstLine} span ${body?.span}`);
+        out.push(`${indent}  block ${k} first ${body ? root.firstLineOf(body) : undefined} span ${body?.span}`);
         if (body) {
           describeSequence(body, `${indent}    `);
         }
@@ -343,8 +348,12 @@ export function describeRoot(root: ProgramRoot): string[] {
     );
     describeSequence(flow, "  ");
   }
+  // The declaration sequences, by script; the bodies of the functions their
+  // statements write are described with the statements that own them. A
+  // root holds its rows in no order of its own: one built over the previous
+  // root keeps the previous root's.
   const scripts = [...root.sequences()]
-    .filter((row) => row.flow < 0)
+    .filter((row) => row.flow < 0 && row.owner < 0)
     .sort((a, b) => a.uri.localeCompare(b.uri));
   for (const row of scripts) {
     out.push(`declarations ${row.uri} span ${row.span}`);
