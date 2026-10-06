@@ -132,8 +132,10 @@ export function testCompiler(): SparkdownCompiler {
  * The constructs a test's program may fall back for, which then runs on the
  * current engine: a choice outside any `choose` block's code, which a script
  * holds only beside a compile error, and a label between two choices an `if`
- * of a block's preamble gates and a choice inside a `do` block or a loop of a
- * block's preamble, which the writer leaves to the current engine (#697); an included script's top-level content, a `run`
+ * of a block's preamble gates and a choice inside a block of a presentation
+ * that the writer does not make the presentation's own code, which it
+ * leaves to the current engine (#697, #1503); an
+ * included script's top-level content, a `run`
  * statement's call among it, which the design leaves to the current engine
  * (docs/engine/binary-program.md, What is built).
  */

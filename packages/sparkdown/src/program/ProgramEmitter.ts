@@ -42,6 +42,11 @@ export interface ProgramEmitter {
    *  presentation, its choices continuing at its `then` clause when it has
    *  one. */
   emitPreambleChoose(weave: object): void;
+  /** Emits a `break` or `continue` (`divert`, which `exit` names): a jump to
+   *  the loop's exit or its next pass when the loop's body is the chunk's
+   *  own code, and otherwise `Leave`, which leaves the blocks up to the
+   *  loop's body. */
+  emitLoopExit(divert: object, exit: "break" | "continue"): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump to a label the caller already holds, bound or not: a

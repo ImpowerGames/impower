@@ -6,6 +6,9 @@ import {
   bodyOfBlock,
   choiceBodyOf,
   functionShapeOf,
+  inlineExitOf,
+  inlinedBodies,
+  loopExitUnwind,
   loopOf,
   type LoopShape,
 } from "../compiler/lower/utils/statementShape";
@@ -197,6 +200,16 @@ interface ChooseState {
   end: ProgramLabel;
 }
 
+// A loop whose body is the chunk's own code (`inlinedBodies`), while its body
+// is written: the depth of scopes its `break` and `continue` leave at, and
+// the code each jumps to.
+interface InlineLoop {
+  loop: LoopShape;
+  scopes: number;
+  exit: ProgramLabel;
+  next: ProgramLabel;
+}
+
 // A block of the chunk being written, as its `EnterBlock` left it.
 interface BlockState {
   entered: boolean;
@@ -253,6 +266,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _choices: number[] = [];
   /** The `choose` block whose presentation is being emitted. */
   protected _choose: ChooseState | null = null;
+  /** The loops whose bodies are being written as the chunk's own code,
+   *  innermost last. */
+  protected _inlineLoops: InlineLoop[] = [];
 
   /** `facts` gives, for a symbol, what the code that refers to it depends on
    *  (its kind and whether the program defines it); the chunk store reads the
@@ -314,6 +330,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._alternators = [];
     this._choices = [];
     this._choose = null;
+    this._inlineLoops = [];
     this.row(input.range);
   }
 
@@ -383,6 +400,33 @@ export class BinaryProgramWriter implements ProgramEmitter {
   jumpBack(op: number, label: ProgramLabel, flags = 0): void {
     this._fixups.push({ at: this._code.length, label });
     this.emit(op, 0, 0, flags);
+  }
+
+  /** A `break` or `continue`. Inside a loop whose body is the chunk's own
+   *  code, the `EndScope`s before it have closed the scopes down to the
+   *  loop's, and it jumps to the loop's exit or its next pass; the code after
+   *  the jump, which only a jump could reach, is counted at the depth it
+   *  stood at before those `EndScope`s, written where no instruction runs,
+   *  so the depth read in order stays that of the code around it (section 1).
+   *  Elsewhere it is `Leave`, which leaves the blocks up to the loop's
+   *  body. One that leaves such a loop from a block of the statement (a
+   *  choice's body or a `then` clause, which run after the loop has ended)
+   *  is named. */
+  emitLoopExit(divert: object, exit: "break" | "continue"): void {
+    const target = inlineExitOf.get(divert as ParsedObject);
+    if (!target) {
+      this.emit(Op.Leave, 0, 0, exit === "continue" ? LEAVE_CONTINUE : 0);
+      return;
+    }
+    const loop = this._inlineLoops[this._inlineLoops.length - 1];
+    if (loop?.loop !== target) {
+      this.unsupported("a break or continue inside a choice's body");
+    }
+    this.expect(this._scopes === loop.scopes, "a loop exit");
+    const before =
+      this._scopes + (loopExitUnwind.get(divert as ParsedObject) ?? 0);
+    this.jumpBack(Op.Jump, exit === "continue" ? loop.next : loop.exit);
+    this.alignScopes(before);
   }
 
   /** A label bound to the next instruction. */
@@ -482,10 +526,11 @@ export class BinaryProgramWriter implements ProgramEmitter {
     if (k < 0 || this._blockStates[k]?.entered) {
       this.unsupported("a body the statement does not record");
     }
-    // A choice in a block the presentation of a `choose` block enters (the
-    // body of a `do` block or a loop in its preamble) would be raised by
-    // that block's own statements, whose chunks do not hold its entry
-    // (section 4).
+    // A choice is never raised from a body's own chunk, which does not hold
+    // its entry (section 4): the body of a `do` block or a loop of a
+    // `choose` block's preamble that offers choices is the statement's own
+    // code (`inlinedBodies`), and a body that is still a block here is
+    // named.
     if (
       this._choose &&
       heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0]).some(
@@ -657,7 +702,14 @@ export class BinaryProgramWriter implements ProgramEmitter {
           "a do block",
         );
         this.emitObject(obj);
-        this.enterBlock(body);
+        if (inlinedBodies.has(body)) {
+          // A body that offers a presentation's choices, or leaves a loop
+          // whose body is, is the statement's own code (section 4), up to
+          // its end, where the scope's end follows.
+          this.emitObjects(objectsOfBody);
+        } else {
+          this.enterBlock(body);
+        }
         i += objectsOfBody.length;
         continue;
       }
@@ -1061,6 +1113,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
   //   head: cond; JumpIfFalse exit (a decision); Newline; BeginScope;
   //   EnterBlock 0 (a loop body in a pass scope, which resumes at head);
   //   EndScope (never runs); exit:
+  // or, with a body that is the statement's own code (`emitLoopBody`):
+  //   head: cond; JumpIfFalse exit; Newline; BeginScope; BODY; EndScope;
+  //   Jump head; exit:
   protected emitWhile(loop: LoopShape): void {
     const [gather, breakGather] = loop.objects as [Gather, Gather];
     const { body, test } = this.loopParts(loop);
@@ -1077,6 +1132,16 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const head = this.here();
     const exit = this.emitTest(loop.test);
     this.emitObject(begin);
+    if (inlinedBodies.has(loop.body)) {
+      // The body as the chunk's own code: the pass scope closes after it,
+      // and the next pass starts at the test. A `break` or `continue` closes
+      // the pass scope before it leaves.
+      this.emitInlineLoopBody(loop, body, this._scopes - 1, exit, head);
+      this.emit(Op.EndScope);
+      this.jumpBack(Op.Jump, head);
+      this.bind(exit);
+      return;
+    }
     const k = this.enterBlock(loop.body, BLOCK_LOOP | BLOCK_PASS_SCOPE);
     // The pass scope is closed where the owner resumes, by the engine at the
     // body's end or by the body's `break` or `continue`. The `EndScope`
@@ -1094,6 +1159,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
   //   BeginScope; the hidden index, stop and step; head: cond; JumpIfFalse
   //   exit; Newline; i = index; EnterBlock 0 (resumes at step); step: index
   //   += step; Jump head; exit: EndScope
+  // (BODY in place of the `EnterBlock` when it is the statement's own code,
+  // `emitLoopBody`; so for the two loops below, the `for ... in` body then
+  // followed by `Jump head`).
   protected emitFor(loop: LoopShape): void {
     const [begin, , , , loopGather, stepGather, breakGather, end] =
       loop.objects as ParsedObject[];
@@ -1126,13 +1194,12 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const head = this.here();
     const exit = this.emitTest(loop.test);
     this.emitObject(loop.copy!);
-    const k = this.enterBlock(loop.body, BLOCK_LOOP);
-    const next = this.here();
-    this.blockResume(k, next);
+    const next: ProgramLabel = { offset: -1 };
+    this.emitLoopBody(loop, body, exit, next);
+    this.bind(next);
     this.emitObject(loop.step!);
     this.jumpBack(Op.Jump, head);
     this.bind(exit);
-    this.blockBreak(k, exit);
     this.emitObject(end!);
   }
 
@@ -1193,10 +1260,11 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const exit = this.jump(Op.Jump);
     this.bind(next);
     this.emitObject(loop.update!);
-    const k = this.enterBlock(loop.body, BLOCK_LOOP);
-    this.blockResume(k, head);
+    this.emitLoopBody(loop, body, exit, head);
+    if (inlinedBodies.has(loop.body)) {
+      this.jumpBack(Op.Jump, head);
+    }
     this.bind(exit);
-    this.blockBreak(k, exit);
     this.emitObject(end!);
   }
 
@@ -1221,14 +1289,54 @@ export class BinaryProgramWriter implements ProgramEmitter {
     );
     this.emitObject(begin!);
     const head = this.here();
-    const k = this.enterBlock(loop.body, BLOCK_LOOP);
-    const check = this.here();
-    this.blockResume(k, check);
+    const check: ProgramLabel = { offset: -1 };
+    const leave: ProgramLabel = { offset: -1 };
+    this.emitLoopBody(loop, body, leave, check);
+    this.bind(check);
     const exit = this.emitTest(loop.test);
     this.jumpBack(Op.Jump, head);
     this.bind(exit);
-    this.blockBreak(k, exit);
+    this.bind(leave);
     this.emitObject(end!);
+  }
+
+  /** A loop's body: as a loop block whose natural end resumes the owner at
+   *  `next` and whose `break` resumes it at `exit`, or, when the body is the
+   *  statement's own code (`inlinedBodies`, a body of a `choose` block's
+   *  preamble that offers choices), inline, its `break` and `continue`
+   *  jumping to `exit` and `next`. Inline, the body's natural end runs on
+   *  into the code after it, which the caller writes. */
+  protected emitLoopBody(
+    loop: LoopShape,
+    body: readonly ParsedObject[],
+    exit: ProgramLabel,
+    next: ProgramLabel,
+  ): void {
+    if (inlinedBodies.has(loop.body)) {
+      this.emitInlineLoopBody(loop, body, this._scopes, exit, next);
+      return;
+    }
+    const k = this.enterBlock(loop.body, BLOCK_LOOP);
+    this.blockResume(k, next);
+    this.blockBreak(k, exit);
+  }
+
+  /** The objects of a loop's body as the chunk's own code (section 4): a
+   *  choice they raise is raised by this chunk, whose entry it holds. A
+   *  `break` or `continue` of the loop, which closes the scopes down to
+   *  `scopes` first, jumps to `exit` or `next` (`emitLoopExit`). */
+  protected emitInlineLoopBody(
+    loop: LoopShape,
+    body: readonly ParsedObject[],
+    scopes: number,
+    exit: ProgramLabel,
+    next: ProgramLabel,
+  ): void {
+    const depth = this._scopes;
+    this._inlineLoops.push({ loop, scopes, exit, next });
+    this.emitObjects(body);
+    this._inlineLoops.pop();
+    this.expect(this._scopes === depth, "a loop's body");
   }
 
   /** A loop's test: its condition, a jump past the pass when it is false,

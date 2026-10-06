@@ -322,8 +322,19 @@ const luauView = (runs: unknown) =>
 const fullDigest = (runs: unknown) =>
   createHash("sha256").update(stable(runs)).digest("hex").slice(0, 16);
 
-/** The bug filed against the current engine for the scoping #1575 settles. */
+/** The bug filed against the current engine for the scoping #1575 settles,
+ *  which its weave's nesting of what follows a choice in the choice causes:
+ *  a statement after a preamble `do` block's `end`, and the rest of a loop's
+ *  pass, are nested in the block's choice there (#1503). */
 const CURRENT_ENGINE_SCOPING = 1588;
+
+/** The bug filed against the current engine for a choice inside a `repeat`
+ *  or `for ... in` loop, which fails at runtime there (#1503). */
+const CURRENT_ENGINE_LOOP_CHOICE = 1606;
+
+/** The menus of the preamble loop fixtures on the program engine. */
+const LOOP_MENU = ["While 1", "While 2", "For 1", "For 2", "Outer"];
+const REPEAT_MENU = ["Repeat 1", "Repeat 2", "Each a", "Each b", "Outer"];
 
 /** The fixtures the two engines show differently on purpose, by their path
  *  under the fixtures directory: each names the engine that is wrong, the
@@ -331,7 +342,9 @@ const CURRENT_ENGINE_SCOPING = 1588;
  *  fixture, which is the Luau value and is the one expected. The language's
  *  scoping is Luau's, so where the current engine's weave scopes otherwise
  *  the current engine is wrong, and the program engine does not copy it
- *  (#1575); #705 deletes the current engine. An entry whose engines agree
+ *  (#1575); so is a weave that nests the rest of a preamble's block or
+ *  loop in a choice there, or a choice the current engine cannot run
+ *  (#1503); #705 deletes the current engine. An entry whose engines agree
  *  again, or that names a fixture the run does not compare, fails the run. */
 const INTENDED_DIFFERENCES: Record<
   string,
@@ -375,6 +388,52 @@ const INTENDED_DIFFERENCES: Record<
       { beats: ["Outer", "Outer then.", "After."], menus: [["Inner", "Middle", "Outer"]] },
     ],
     digest: "89fa8405816a9699",
+  },
+  // A statement after a preamble `do` block's `end` runs before the choices
+  // are presented, and the block's local is gone there and after (#1503).
+  "scoping/preamble-do-statement-after.sd": {
+    wrong: "current",
+    issue: CURRENT_ENGINE_SCOPING,
+    expected: [
+      {
+        beats: ["Pre global.", "Inner local", "Chose inner local.", "After global."],
+        menus: [["Inner local", "Outer global"]],
+      },
+      {
+        beats: ["Pre global.", "Outer global", "After global."],
+        menus: [["Inner local", "Outer global"]],
+      },
+    ],
+    digest: "05e7971efd92d395",
+  },
+  // A loop of a preamble runs every pass, raising a choice on each, and a
+  // taken one continues at the block's end (#1503).
+  "weaves/preamble-loop-choices.sd": {
+    wrong: "current",
+    issue: CURRENT_ENGINE_SCOPING,
+    expected: [
+      { beats: ["While 1", "Chose while 1.", "After."], menus: [LOOP_MENU] },
+      { beats: ["While 2", "Chose while 2.", "After."], menus: [LOOP_MENU] },
+      { beats: ["For 1", "After."], menus: [LOOP_MENU] },
+      { beats: ["For 2", "After."], menus: [LOOP_MENU] },
+      { beats: ["Outer", "After."], menus: [LOOP_MENU] },
+      // The current engine shows a second menu, whose second choice this
+      // run takes; the program engine shows one, and takes the first.
+      { beats: ["While 1", "Chose while 1.", "After."], menus: [LOOP_MENU] },
+    ],
+    digest: "cec67f1520d3dce5",
+  },
+  "weaves/preamble-repeat-choices.sd": {
+    wrong: "current",
+    issue: CURRENT_ENGINE_LOOP_CHOICE,
+    expected: [
+      { beats: ["Repeat 1", "Chose repeat 1.", "After."], menus: [REPEAT_MENU] },
+      { beats: ["Repeat 2", "Chose repeat 2.", "After."], menus: [REPEAT_MENU] },
+      { beats: ["Each a", "After."], menus: [REPEAT_MENU] },
+      { beats: ["Each b", "After."], menus: [REPEAT_MENU] },
+      { beats: ["Outer", "After."], menus: [REPEAT_MENU] },
+    ],
+    digest: "5fed314e6e774ec9",
   },
 };
 
