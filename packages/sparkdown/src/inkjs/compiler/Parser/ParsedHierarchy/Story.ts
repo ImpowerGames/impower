@@ -347,8 +347,10 @@ export class Story extends FlowBase {
   public readonly ExportRuntime = (
     errorHandler: ErrorHandler | null = null,
     initializeGlobals = true,
+    programMode = false,
   ): RuntimeStory | null => {
     this._errorHandler = errorHandler;
+    this.programMode = programMode;
 
     // Invalidate every node's diagnostic-dedup state from prior exports in
     // O(1) — the incremental pipeline reuses parsed nodes across compiles, and
@@ -472,6 +474,7 @@ export class Story extends FlowBase {
 
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
+    this._exportedRoot = rootContainer;
 
     // IMPLICIT parent types — a `define X as T` whose parent `T` is
     // never itself `define`d (e.g. `as character`, a builtin engine
@@ -602,8 +605,12 @@ export class Story extends FlowBase {
     // Generation is complete (FlattenContainersIn emits no diagnostics).
     this._generationPhase = false;
 
-    // Optimisation step - inline containers that can be
-    this.FlattenContainersIn(rootContainer);
+    // Optimisation step - inline containers that can be. A program that runs
+    // from statement chunks runs nothing of this tree, so it is flattened
+    // only when the program falls back (`FinishForCurrentEngine`).
+    if (!programMode) {
+      this.FlattenContainersIn(rootContainer);
+    }
 
     // Now that the story has been fulled parsed into a hierarchy,
     // and the derived runtime hierarchy has been built, we can
@@ -613,6 +620,14 @@ export class Story extends FlowBase {
     // conventions as the script format, so we resolve to actual objects before
     // translating into an INKPath. (This also allows us to choose whether
     // we want the paths to be absolute)
+    // Every list and struct is declared by now.
+    this._collisionIndex = null;
+    // Resolution makes a global of each name a bare assignment assigns as it
+    // reaches the assignment, so what a read resolves to depends on where it
+    // stands; a resolution again for the current engine starts from here.
+    this._declarationsBeforeResolution = programMode
+      ? new Map(this.variableDeclarations)
+      : null;
     try {
       this.ResolveReferences(this);
     } catch (e) {
@@ -624,6 +639,85 @@ export class Story extends FlowBase {
     }
 
     return runtimeStory;
+  };
+
+  /** Set while `ExportRuntime` exports for a program that runs from
+   *  statement chunks (`SparkdownCompilerConfig.programChunks`): the runtime
+   *  tree then runs only when the program falls back, so the passes that
+   *  prepare it for the current engine, the flattening of its containers and
+   *  the count flags resolution sets on them, wait until it does
+   *  (`FinishForCurrentEngine`). The program counts every counted symbol
+   *  (docs/engine/binary-program.md, section 5). */
+  public programMode = false;
+
+  // The root container the last `ExportRuntime` generated.
+  protected _exportedRoot: RuntimeContainer | null = null;
+
+  // The story's declarations as `ExportRuntime` began resolving, in
+  // `programMode`, which `FinishForCurrentEngine` resolves again from.
+  protected _declarationsBeforeResolution: Map<
+    string,
+    VariableAssignment
+  > | null = null;
+
+  // Set while `FinishForCurrentEngine` resolves the story a second time,
+  // whose diagnostics the first resolution reported.
+  protected _silenced = false;
+
+  /** Has the current engine count a container's visits or turns, as
+   *  resolution finds that a read count, a divert target or a once-only
+   *  choice needs it; outside `programMode` only. */
+  public readonly MarkCounted = (
+    container: RuntimeContainer,
+    visits: boolean,
+    turns: boolean,
+  ): void => {
+    if (this.programMode) {
+      return;
+    }
+    if (visits) {
+      container.visitsShouldBeCounted = true;
+    }
+    if (turns) {
+      container.turnIndexShouldBeCounted = true;
+    }
+  };
+
+  /** Prepares a runtime story exported in `programMode` for the current
+   *  engine, when the program falls back to it, as `ExportRuntime` prepares
+   *  it outside `programMode`: its containers flattened, with the reconcile
+   *  of reused containers' count flags that flattening makes, and then its
+   *  references resolved again against the flattened tree, which writes the
+   *  runtime paths the current engine jumps by and sets the count flags.
+   *  The second resolution reports nothing: the first one reported what it
+   *  found. */
+  public readonly FinishForCurrentEngine = (): void => {
+    if (!this.programMode) {
+      return;
+    }
+    this.programMode = false;
+    if (this._exportedRoot) {
+      this.FlattenContainersIn(this._exportedRoot);
+    }
+    // The paths the first resolution derived are the unflattened tree's, and
+    // a path is cached until the epoch moves.
+    activation.epoch += 1;
+    // From the declarations the first resolution started from, so that each
+    // read resolves as it did then: the globals the first resolution made
+    // of bare assignments are made again as the resolution reaches them.
+    if (this._declarationsBeforeResolution) {
+      this.variableDeclarations = new Map(this._declarationsBeforeResolution);
+      this._declarationsBeforeResolution = null;
+    }
+    this.builtinGlobalDiverts = [];
+    this._silenced = true;
+    try {
+      this.ResolveReferences(this);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this._silenced = false;
+    }
   };
 
   /**
@@ -884,6 +978,9 @@ export class Story extends FlowBase {
     // `source` for the direct callers that don't bubble through a parent.
     raiser?: ParsedObject,
   ) => {
+    if (this._silenced) {
+      return;
+    }
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
     this._hadError = errorType === ErrorType.Error;
@@ -1008,6 +1105,55 @@ export class Story extends FlowBase {
     container._dontFlatten = true;
   };
 
+  // The list and struct declarations by the names a declaration can collide
+  // with them under, built once the export has declared them all.
+  protected _collisionIndex: {
+    lists: Map<string, { list: ListDefinition; item?: ListElementDefinition }[]>;
+    structs: Map<string, StructDefinition[]>;
+  } | null = null;
+
+  /** The program's lists and structs indexed by name, which the naming
+   *  collision check looks a declaration's name up in instead of scanning
+   *  every list and struct for it: each list under its name and each of its
+   *  items under the item's, and each struct under its key and, for a
+   *  `$default`, under the name it is the default of. Each name's entries
+   *  are in the order the declarations were registered, which is the order
+   *  the scans they replace reported collisions in. */
+  protected collisionIndex(): NonNullable<Story["_collisionIndex"]> {
+    if (!this._collisionIndex) {
+      const lists = new Map<
+        string,
+        { list: ListDefinition; item?: ListElementDefinition }[]
+      >();
+      const structs = new Map<string, StructDefinition[]>();
+      const add = <T>(map: Map<string, T[]>, name: string, entry: T) => {
+        const entries = map.get(name);
+        if (entries) {
+          entries.push(entry);
+        } else {
+          map.set(name, [entry]);
+        }
+      };
+      for (const [key, list] of this._listDefs) {
+        add(lists, key, { list });
+        for (const item of list.itemDefinitions) {
+          if (item.name != null) {
+            add(lists, item.name, { list, item });
+          }
+        }
+      }
+      const DEFAULT = ".$default";
+      for (const [key, struct] of this._structDefs) {
+        add(structs, key, struct);
+        if (key.endsWith(DEFAULT)) {
+          add(structs, key.slice(0, -DEFAULT.length), struct);
+        }
+      }
+      this._collisionIndex = { lists, structs };
+    }
+    return this._collisionIndex;
+  }
+
   public readonly NameConflictError = (
     obj: ParsedObject,
     identifier: Identifier,
@@ -1109,24 +1255,22 @@ export class Story extends FlowBase {
       return;
     }
 
-    // Lists
-    for (const [key, value] of this._listDefs) {
-      if (
-        identifier?.name === key &&
-        obj !== value &&
-        value.variableAssignment !== obj
-      ) {
-        this.NameConflictError(obj, identifier, value.identifier || value);
+    // Lists, and their items, found by the name through the index of the
+    // declarations by name (`collisionIndex`), in the order the lists were
+    // declared.
+    const index = this.collisionIndex();
+    for (const { list: value, item } of index.lists.get(identifier?.name ?? "") ??
+      []) {
+      if (!item) {
+        if (obj !== value && value.variableAssignment !== obj) {
+          this.NameConflictError(obj, identifier, value.identifier || value);
+        }
+        continue;
       }
-
       // We don't check for conflicts between individual elements in
       // different lists because they are namespaced.
       if (!(obj instanceof ListElementDefinition)) {
-        for (const item of value.itemDefinitions) {
-          if (identifier?.name === item.name) {
-            this.NameConflictError(obj, identifier, item.indentifier || item);
-          }
-        }
+        this.NameConflictError(obj, identifier, item.indentifier || item);
       }
     }
 
@@ -1134,14 +1278,9 @@ export class Story extends FlowBase {
       return;
     }
 
-    // Structs
-    for (const [key, value] of this._structDefs) {
-      if (
-        (identifier?.name === key ||
-          identifier?.name + "." + "$default" === key) &&
-        obj !== value &&
-        value.variableAssignment !== obj
-      ) {
+    // Structs: those declared under the name, or under the name's default.
+    for (const value of index.structs.get(identifier?.name ?? "") ?? []) {
+      if (obj !== value && value.variableAssignment !== obj) {
         // Same-name structs of DIFFERENT types are namespaced
         // (context[type][name] — e.g. `define raffles as character` +
         // `define raffles as synth`), so they don't conflict. Two of the

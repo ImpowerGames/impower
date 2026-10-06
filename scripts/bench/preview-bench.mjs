@@ -22,6 +22,11 @@
 //                       construct, which ones make the program fall back to
 //                       the current engine (programCoverage.ts, #694); it
 //                       needs no --line or --word
+//   --chunks            compile with the binary program's statement chunks on
+//                       (`programChunks`, #694) and time the compile alone,
+//                       since the worker's route search reads runtime paths;
+//                       prints what each pass of the chunk store visited per
+//                       sample (`ChunkStore.passesLastBuild`, #701)
 //   --samples <K>       measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
@@ -82,6 +87,9 @@ export function parseBenchArgs(args) {
         break;
       case "--cpu-prof":
         out.cpuProf = value(args, i++, name);
+        break;
+      case "--chunks":
+        out.chunks = true;
         break;
       default:
         throw new Error(`unknown argument ${name}`);
@@ -155,7 +163,7 @@ async function main(args) {
     for (const mode of modes) {
       const json = options.json ? path.resolve(`${options.json}.${mode}.json`) : path.join(scratch, `${mode}.json`);
       const gaps = cpuProf ? path.join(cpuProf, `${mode}.gaps.json`) : undefined;
-      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json, gaps };
+      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json, gaps, chunks: !!options.chunks };
       const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
       const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;

@@ -59,7 +59,7 @@ const positions = (root: ProgramRoot): [string, number][] => {
       out.push([sequence.uri, root.lineOf(sequence, entry)]);
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = root.body(chunk, k)!;
-        out.push([body.uri, body.firstLine]);
+        out.push([body.uri, root.firstLineOf(body)]);
         visit(body);
       }
     });

@@ -35,6 +35,7 @@ import type {
   ProgramLabel,
 } from "./ProgramEmitter";
 import { UnsupportedConstruct } from "./ProgramEmitter";
+import { FACT_KIND } from "./ProgramFacts";
 import {
   AUX_MAX,
   CHOICE_CONDITION,
@@ -166,6 +167,9 @@ export interface EmittedStatement {
   /** The resolutions the emission recorded with `recordResolution`,
    *  sorted. */
   resolutions: readonly string[];
+  /** The names of the facts the code read about each symbol it refers to
+   *  (`fact`), which its reference table row hashes with the values read. */
+  facts: ReadonlyMap<number, readonly string[]>;
 }
 
 // The presentation of the `choose` block being written (section 4): each
@@ -247,7 +251,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _rows: number[] = [];
   protected _reads: string[] = [];
   protected _resolutions: string[] = [];
-  protected _references: number[] = [];
+  /** Each symbol the code refers to, in the order it first did, with the
+   *  facts it read about the symbol and the value each read. */
+  protected _references = new Map<number, Map<string, string>>();
   protected _layout: string[] = [];
   protected _firstLine = 0;
   protected _blocks: readonly BlockInput[] = [];
@@ -270,17 +276,17 @@ export class BinaryProgramWriter implements ProgramEmitter {
    *  innermost last. */
   protected _inlineLoops: InlineLoop[] = [];
 
-  /** `facts` gives, for a symbol, what the code that refers to it depends on
-   *  (its kind and whether the program defines it); the chunk store reads the
-   *  same function when it decides whether a chunk can be reused.
-   *  `symbolOf` gives the symbol of a function (a `FlowBase`) of the program
-   *  being built, or nothing for one it does not define. `alternatorOf`
-   *  gives the anonymous symbol of an alternator of the statement being
-   *  written, which the store hands on when the statement is emitted
-   *  again. */
+  /** `facts` reads one fact about a symbol from the symbol table of the
+   *  program being built (its kind, a function's parameters), as `fact`
+   *  records it; the chunk store reads the same function when it decides
+   *  whether a chunk can be reused. `symbolOf` gives the symbol of a
+   *  function (a `FlowBase`) of the program being built, or nothing for one
+   *  it does not define. `alternatorOf` gives the anonymous symbol of an
+   *  alternator of the statement being written, which the store hands on
+   *  when the statement is emitted again. */
   constructor(
     public readonly table: ProgramTable,
-    public facts: (symbol: number) => string = () => "",
+    public facts: (symbol: number, name: string) => string = () => "",
     public symbolOf: (fn: object) => number | undefined = () => undefined,
     public alternatorOf: (sequence: object) => number = () =>
       anonymousSymbol(table),
@@ -314,7 +320,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._rows = [];
     this._reads = [];
     this._resolutions = [];
-    this._references = [];
+    this._references = new Map();
     this._layout = [];
     this._firstLine = input.firstLine;
     this._blocks = input.blocks ?? [];
@@ -352,10 +358,17 @@ export class BinaryProgramWriter implements ProgramEmitter {
     });
     const chunk = this.assemble(input);
     this.emitted += 1;
+    const facts = new Map<number, string[]>();
+    for (const [symbol, read] of this._references) {
+      if (read.size > 0) {
+        facts.set(symbol, [...read.keys()].sort());
+      }
+    }
     return {
       chunk,
       reads: this._reads,
       resolutions: this._resolutions.sort(),
+      facts,
     };
   }
 
@@ -469,22 +482,28 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._resolutions.push(value);
   }
 
-  reference(symbol: number): void {
-    for (let i = 0; i < this._references.length; i += REFERENCE_ROW_WORDS) {
-      if (this._references[i] === symbol) {
-        return;
-      }
+  fact(symbol: number, name: string): string {
+    let read = this._references.get(symbol);
+    if (!read) {
+      read = new Map();
+      this._references.set(symbol, read);
     }
-    this._references.push(symbol, factHash(this.facts(symbol)));
+    let value = read.get(name);
+    if (value === undefined) {
+      value = this.facts(symbol, name);
+      read.set(name, value);
+    }
+    return value;
+  }
+
+  reference(symbol: number): void {
+    this.fact(symbol, FACT_KIND);
   }
 
   referenceTarget(symbol: number): void {
-    for (let i = 0; i < this._references.length; i += REFERENCE_ROW_WORDS) {
-      if (this._references[i] === symbol) {
-        return;
-      }
+    if (!this._references.has(symbol)) {
+      this._references.set(symbol, new Map());
     }
-    this._references.push(symbol, NO_FACTS);
   }
 
   targetSymbol(target: object | null, written: string): number {
@@ -1500,7 +1519,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
         block.headLines,
       );
     });
-    const references = this._references;
+    const references: number[] = [];
+    for (const [symbol, read] of this._references) {
+      references.push(symbol, factHash(factsText(read)));
+    }
     const exports = this._exports;
     const chunk = new Int32Array(
       HEADER_WORDS +
@@ -1606,6 +1628,19 @@ const isConditionalOf = (
 
 /** The hash a reference table row keeps of the facts about its symbol. */
 export const factHash = (facts: string): number => hash64(facts)[1];
+
+/** The facts a chunk's code read about one symbol, as its reference table
+ *  row hashes them: each name read with the value it read, by name, so that
+ *  the hash does not depend on the order the code read them in. */
+export const factsText = (read: ReadonlyMap<string, string>): string => {
+  if (read.size === 0) {
+    return "";
+  }
+  return [...read.keys()]
+    .sort()
+    .map((name) => `${name}=${read.get(name)}`)
+    .join("\n");
+};
 
 /** The hash of a reference whose code depends on no fact about its symbol
  *  (`referenceTarget`): the hash of no facts, which no symbol's facts read
