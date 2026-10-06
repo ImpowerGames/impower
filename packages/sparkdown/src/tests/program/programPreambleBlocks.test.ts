@@ -423,6 +423,80 @@ describe("a loop of a choose block's preamble that offers choices", () => {
     });
   });
 
+  it("leaves a while, repeat or for ... in pass, and an inner loop of the body, by its own exit", () => {
+    const cases: [readonly string[], string[]][] = [
+      [
+        [
+          "    local i = 0",
+          "    while i < 4 do",
+          "      i = i + 1",
+          "      if i % 2 == 0 then",
+          "        continue",
+          "      end",
+          "      * W {i}",
+          "    end",
+        ],
+        ["W 1", "W 3", "Outer"],
+      ],
+      [
+        [
+          "    local i = 0",
+          "    repeat",
+          "      i = i + 1",
+          "      if i > 2 then",
+          "        break",
+          "      end",
+          "      * R {i}",
+          "    until i >= 5",
+        ],
+        ["R 1", "R 2", "Outer"],
+      ],
+      [
+        [
+          '    for _, v in ipairs({"a", "b", "c"}) do',
+          '      if v == "c" then',
+          "        break",
+          "      end",
+          "      * E {v}",
+          "    end",
+        ],
+        ["E a", "E b", "Outer"],
+      ],
+      [
+        [
+          "    for i = 1, 2 do",
+          "      for j = 1, 3 do",
+          "        if j == 2 then",
+          "          break",
+          "        end",
+          "        * C {i} {j}",
+          "      end",
+          "      * D {i}",
+          "    end",
+        ],
+        ["C 1 1", "D 1", "C 2 1", "D 2", "Outer"],
+      ],
+      [
+        [
+          "    if true then",
+          "      local k = 10",
+          "      for i = 1, 2 do",
+          "        * G {k + i}",
+          "      end",
+          "    end",
+        ],
+        ["G 11", "G 12", "Outer"],
+      ],
+    ];
+    for (const [preamble, menu] of cases) {
+      const text = scene(preamble);
+      expect(run(text, [1])).toEqual({
+        beats: [menu[1]!, "After."],
+        menus: [menu],
+      });
+    }
+  });
+
   it("offers a sticky choice once per pass, and a block written in the body with its then clause", () => {
     const sticky = scene([
       "    for i = 1, 2 do",
