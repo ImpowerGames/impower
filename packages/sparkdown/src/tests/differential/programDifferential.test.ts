@@ -8,6 +8,10 @@
 // their chunks are compared, and the run reports the constructs the others
 // fall back for. Both engines take their shuffles' draws from one injected
 // stream per run (`shuffleDraws`), so a shuffle picks the same arms on both.
+// Where the language's rule (Luau's scoping, #1575) makes one engine wrong,
+// the fixture is an intended difference (`INTENDED_DIFFERENCES`), which names
+// the wrong engine and the issue filed against it and expects the Luau value
+// of the other.
 //
 // It also runs randomized incremental edits on the statement chunks, as
 // `incrementalEquivalence` and `incrementalCumulativeEquivalence` run them on
@@ -25,7 +29,7 @@
 //   SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
 import "../../inkjs/engine/Container";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
@@ -55,6 +59,7 @@ import {
   rootChunks,
   storyBeats,
   storyRun,
+  type Beat,
   type Menu,
 } from "../program/programHarness";
 import {
@@ -143,12 +148,20 @@ function differential(text: string): {
       return { current: comparable(currentShown), program: comparable(programShown) };
     };
     // The first choice at every menu, then each other choice at each of the
-    // first menus the current engine shows (#697), so that taking each
-    // choice is compared.
+    // first menus (#697), as many as either engine shows, so that taking
+    // each choice is compared, on a fixture whose engines differ on purpose
+    // too (#1575).
     const runs = [run([])];
-    const menus = (runs[0]!.current as { menus?: Menu[] }).menus ?? [];
+    const menusOf = (shown: unknown) => (shown as { menus?: Menu[] }).menus ?? [];
+    const onCurrent = menusOf(runs[0]!.current);
+    const onProgram = menusOf(runs[0]!.program);
+    const menus = onCurrent.length >= onProgram.length ? onCurrent : onProgram;
     for (let m = 0; m < Math.min(menus.length, 3); m += 1) {
-      for (let c = 1; c < menus[m]!.choices.length && runs.length < 12; c += 1) {
+      const choices = Math.max(
+        onCurrent[m]?.choices.length ?? 0,
+        onProgram[m]?.choices.length ?? 0,
+      );
+      for (let c = 1; c < choices && runs.length < 12; c += 1) {
         runs.push(run([...Array<number>(m).fill(0), c]));
       }
     }
@@ -288,27 +301,108 @@ const SCREENPLAYS = [
   { name: "the choose screenplay", text: () => chooseScreenplay(3), inserts: CHOOSE_INSERTS },
 ];
 
+/** What the runs of a fixture show, as the list of intended differences
+ *  records it: each run's beat texts and its menus' choice texts, and its
+ *  errors when it has any. */
+const luauView = (runs: unknown) =>
+  (runs as ({ beats: Beat[]; menus: Menu[]; errors: string[] } | { threw: string })[]).map(
+    (run) =>
+      "threw" in run
+        ? run
+        : {
+            beats: run.beats.map((beat) => beat.text.trim()),
+            menus: run.menus.map((menu) => menu.choices.map((choice) => choice.text)),
+            ...(run.errors.length > 0 ? { errors: run.errors } : {}),
+          },
+  );
+
+/** The bug filed against the current engine for the scoping #1575 settles. */
+const CURRENT_ENGINE_SCOPING = 1588;
+
+/** The fixtures the two engines show differently on purpose, by their path
+ *  under the fixtures directory: each names the engine that is wrong, the
+ *  issue filed against it, and what the other engine shows in each run of the
+ *  fixture, which is the Luau value and is the one expected. The language's
+ *  scoping is Luau's, so where the current engine's weave scopes otherwise
+ *  the current engine is wrong, and the program engine does not copy it
+ *  (#1575); #705 deletes the current engine. An entry whose engines agree
+ *  again, or that names a fixture the run does not compare, fails the run. */
+const INTENDED_DIFFERENCES: Record<
+  string,
+  {
+    wrong: "current" | "program";
+    issue: number;
+    expected: ReturnType<typeof luauView>;
+  }
+> = {
+  // A gated branch's local is visible to the choices it gates and their
+  // bodies, and not in a later choice's condition or after the block.
+  "scoping/gated-choice-local.sd": {
+    wrong: "current",
+    issue: CURRENT_ENGINE_SCOPING,
+    expected: [
+      { beats: ["A true", "After false."], menus: [["A true", "B true", "Global"]] },
+      { beats: ["B true", "In B true.", "After false."], menus: [["A true", "B true", "Global"]] },
+      { beats: ["", "In global false.", "After false."], menus: [["A true", "B true", "Global"]] },
+    ],
+  },
+  // A `then` clause of a block written in a preamble runs after a choice of
+  // its own block is taken, once, and then the clause of the block around
+  // it, never while the choices are presented.
+  "weaves/preamble-then-clauses.sd": {
+    wrong: "current",
+    issue: CURRENT_ENGINE_SCOPING,
+    expected: [
+      {
+        beats: ["Inner", "Took inner.", "Inner then.", "Middle then.", "Outer then.", "After."],
+        menus: [["Inner", "Middle", "Outer"]],
+      },
+      {
+        beats: ["Middle", "Middle then.", "Outer then.", "After."],
+        menus: [["Inner", "Middle", "Outer"]],
+      },
+      { beats: ["Outer", "Outer then.", "After."], menus: [["Inner", "Middle", "Outer"]] },
+    ],
+  },
+};
+
 describe("the differential run", () => {
   it("shows every shared fixture that has its chunks as the current engine does", () => {
     const fallbacks: Record<string, number> = {};
     const compared: string[] = [];
     const differing: string[] = [];
+    const excepted: string[] = [];
     for (const file of fixtureFiles(FIXTURES)) {
-      const name = relative(FIXTURES, file);
+      const name = relative(FIXTURES, file).split(sep).join("/");
       const result = differential(readFileSync(file, "utf8"));
       if (result.fallback) {
         fallbacks[result.fallback] = (fallbacks[result.fallback] ?? 0) + 1;
         continue;
       }
       compared.push(name);
+      const exception = INTENDED_DIFFERENCES[name];
+      if (exception) {
+        // The engine the list does not name shows the Luau value, and the
+        // engine it names still differs, or the entry is stale.
+        excepted.push(name);
+        const [right, wrong] =
+          exception.wrong === "current"
+            ? [result.program, result.current]
+            : [result.current, result.program];
+        expect(luauView(right), name).toEqual(exception.expected);
+        expect(stable(wrong), `${name} no longer differs`).not.toBe(stable(right));
+        continue;
+      }
       if (stable(result.program) !== stable(result.current)) {
         differing.push(name);
       }
     }
     console.log(
-      `differential: ${compared.length} fixtures compared, fallbacks ${stable(fallbacks)}`,
+      `differential: ${compared.length} fixtures compared, ${excepted.length} of them intended differences, fallbacks ${stable(fallbacks)}`,
     );
     expect(differing).toEqual([]);
+    // Every entry of the list names a fixture the run compares.
+    expect(excepted.sort()).toEqual(Object.keys(INTENDED_DIFFERENCES).sort());
     expect(compared.length).toBeGreaterThan(5);
   });
 
