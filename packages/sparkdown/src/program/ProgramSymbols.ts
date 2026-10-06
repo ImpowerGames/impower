@@ -19,6 +19,10 @@ export const SymbolKind = {
   /** An alternator (a sequence), whose count picks its arm. Its symbol is
    *  anonymous and belongs to the statement that writes it. */
   Alternator: 5,
+  /** A choice's body, whose count a once-only choice reads. Its symbol is
+   *  anonymous and belongs to the `choose` statement that raises the choice;
+   *  a named choice counts under its label's symbol instead. */
+  Choice: 6,
 } as const;
 
 export type SymbolKindValue = (typeof SymbolKind)[keyof typeof SymbolKind];

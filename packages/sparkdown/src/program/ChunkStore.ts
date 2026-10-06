@@ -10,9 +10,12 @@ import {
   alternatorSourceOf,
   functionShapeOf,
   isLoopInternal,
+  partOfBody,
+  type BodyShape,
 } from "../compiler/lower/utils/statementShape";
 import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import type { Story } from "../inkjs/engine/Story";
+import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
@@ -56,7 +59,9 @@ import {
   type SymbolKindValue,
 } from "./ProgramSymbols";
 import {
+  BLOCK_CHOICE,
   BLOCK_FUNCTION,
+  BLOCK_THEN,
   B_SEQUENCE,
   HEADER_WORDS,
   blockCount,
@@ -225,6 +230,15 @@ interface AlternatorPart {
   symbol: number;
 }
 
+// One choice a chunk raises: what it is aligned by, its anonymous count
+// symbol (-1 for a named choice, which counts under its label's), and the
+// block its body is (-1 for a choice whose body is no block).
+interface ChoicePart {
+  fingerprint: string;
+  symbol: number;
+  block: number;
+}
+
 // What the store knows of a chunk it emitted or reused: the syntax of the
 // statement it was emitted for, the lowering inputs that statement recorded,
 // the values its emission recorded, for a declaration chunk the names of the
@@ -241,6 +255,11 @@ interface ChunkInfo {
   defines?: string;
   parts: readonly FunctionPart[];
   alternators: readonly AlternatorPart[];
+  /** The choices the statement raises, in order. */
+  choices: readonly ChoicePart[];
+  /** The blocks of the `then` clauses of a `choose` statement, in order: its
+   *  own, and that of a block written in its preamble. */
+  thenBlocks: readonly number[];
   anonymousReferences: readonly number[];
   /** The locals each function the statement writes declares at its entry
    *  (`hoistedOf`). */
@@ -741,6 +760,11 @@ export class ChunkStore {
             this._labels.set(part.symbol, `${flow}:${part.fingerprint}`);
           }
         }
+        for (const part of this._info.get(chunk)?.choices ?? []) {
+          if (part.symbol >= 0 && part.symbol < defs.kind.length) {
+            defs.kind[part.symbol] = SymbolKind.Choice;
+          }
+        }
       }
     }
     if (failed) {
@@ -788,6 +812,11 @@ export class ChunkStore {
       for (const part of this._info.get(chunk)?.alternators ?? []) {
         live.add(part.symbol);
       }
+      for (const part of this._info.get(chunk)?.choices ?? []) {
+        if (part.symbol >= 0) {
+          live.add(part.symbol);
+        }
+      }
       for (let r = 0; r < exportCount(chunk); r += 1) {
         live.add(exportSymbol(chunk, r));
       }
@@ -807,6 +836,10 @@ export class ChunkStore {
           alternators: info.alternators.map((part) => ({
             ...part,
             symbol: remap.symbols[part.symbol]!,
+          })),
+          choices: info.choices.map((part) => ({
+            ...part,
+            symbol: part.symbol >= 0 ? remap.symbols[part.symbol]! : -1,
           })),
           anonymousReferences: info.anonymousReferences
             .map((symbol) => remap.symbols[symbol]!)
@@ -1045,18 +1078,57 @@ export class ChunkStore {
   ): StatementChunk {
     const bodies = statement.bodies ?? [];
     const inherited = this._inherit.get(statement);
+    const oldInfo = inherited ? this._info.get(inherited) : undefined;
     const plan = this._plans.get(statement);
+    // The choices the statement raises keep the count symbols of the old
+    // chunk's that they align with by their own source, and their bodies the
+    // sequence ids of those choices' bodies; the `then` clause keeps the old
+    // clause's (section 2).
+    const choices = choicesOf(statement);
+    const choicePrints = choices.map((choice) =>
+      choiceFingerprint(choice, statement.text),
+    );
+    const choicePairs = oldInfo
+      ? alignParts(
+          choicePrints,
+          oldInfo.choices.map((part) => part.fingerprint),
+        )
+      : [];
+    // The `then` clauses (a block's own, and one of a block written in its
+    // preamble) keep the old clauses' ids in order.
+    let thens = 0;
+    const partBlocks: (number | undefined)[] = bodies.map((body) => {
+      const part = partOfBody.get(body.shape as BodyShape);
+      if (!part || !oldInfo) {
+        return undefined;
+      }
+      if (part instanceof Choice) {
+        const pair = choicePairs[choices.indexOf(part)];
+        const block = pair === undefined ? -1 : oldInfo.choices[pair]!.block;
+        return block >= 0 ? block : undefined;
+      }
+      return oldInfo.thenBlocks[thens++];
+    });
     const oldControl: number[] = [];
     if (inherited) {
       for (let k = 0; k < blockCount(inherited); k += 1) {
-        if (!(blockFlags(inherited, k) & BLOCK_FUNCTION)) {
+        if (
+          !(
+            blockFlags(inherited, k) &
+            (BLOCK_FUNCTION | BLOCK_CHOICE | BLOCK_THEN)
+          )
+        ) {
           oldControl.push(k);
         }
       }
     }
     let control = 0;
     const blocks: BlockInput[] = bodies.map((body, k) => {
-      const oldBlock = body.fn ? plan?.oldBlocks[k] : oldControl[control++];
+      const oldBlock = body.fn
+        ? plan?.oldBlocks[k]
+        : partOfBody.has(body.shape as BodyShape)
+          ? partBlocks[k]
+          : oldControl[control++];
       return {
         body: body.shape,
         sequenceId:
@@ -1077,6 +1149,13 @@ export class ChunkStore {
       alternatorFingerprint(sequence, statement.text),
     );
     const alternatorPlan = new Map<object, number>();
+    choices.forEach((choice, i) => {
+      const pair = choicePairs[i];
+      const symbol = pair === undefined ? -1 : oldInfo!.choices[pair]!.symbol;
+      if (symbol >= 0 && isAnonymousSymbol(this.table, symbol)) {
+        alternatorPlan.set(choice, symbol);
+      }
+    });
     if (inherited) {
       const old = this._info.get(inherited)?.alternators ?? [];
       const pairs = alignParts(
@@ -1128,6 +1207,17 @@ export class ChunkStore {
         return symbol === undefined
           ? []
           : [{ fingerprint: fingerprints[i]!, symbol }];
+      }),
+      choices: choices.map((choice, i) => ({
+        fingerprint: choicePrints[i]!,
+        symbol: choice.name ? -1 : (alternatorPlan.get(choice) ?? -1),
+        block: bodies.findIndex(
+          (body) => partOfBody.get(body.shape as BodyShape) === choice,
+        ),
+      })),
+      thenBlocks: bodies.flatMap((body, k) => {
+        const part = partOfBody.get(body.shape as BodyShape);
+        return part && !(part instanceof Choice) ? [k] : [];
       }),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
       hoisted: hoistedOf(statement),
@@ -1370,7 +1460,9 @@ export class ChunkStore {
       const ownsParts = (statement: StatementSource, chunk: StatementChunk) =>
         ((statement.bodies?.length ?? 0) > 0 && blockCount(chunk) > 0) ||
         (alternatorsOf(statement).length > 0 &&
-          (this._info.get(chunk)?.alternators.length ?? 0) > 0);
+          (this._info.get(chunk)?.alternators.length ?? 0) > 0) ||
+        (choicesOf(statement).length > 0 &&
+          (this._info.get(chunk)?.choices.length ?? 0) > 0);
       if (
         leftNew.length === 1 &&
         leftOld.length === 1 &&
@@ -1672,6 +1764,47 @@ const alternatorsOf = (statement: StatementSource): Sequence[] => {
   return out;
 };
 
+/** The choices a statement's own code raises, in the order the writer meets
+ *  them: none of its bodies' statements, which are other chunks' code. */
+const choicesOf = (statement: StatementSource): Choice[] => {
+  const out: Choice[] = [];
+  const exclude = bodyObjects(statement);
+  const visit = (obj: ParsedObject) => {
+    if (exclude?.has(obj) || obj instanceof FlowBase) {
+      return;
+    }
+    if (obj instanceof Choice) {
+      out.push(obj);
+    }
+    const children = obj instanceof FunctionCall ? obj.args : obj.content;
+    for (const child of children ?? []) {
+      visit(child);
+    }
+  };
+  statement.objects.forEach(visit);
+  return out;
+};
+
+/** What a choice is aligned by when its statement is emitted again, which
+ *  its count symbol and its body go with (section 2): its own source,
+ *  normalized, read through the statement's `text` from the range its
+ *  lowering recorded, or without one the text of its start and choice-only
+ *  content. */
+const choiceFingerprint = (
+  choice: Choice,
+  source?: (from: number, to: number) => string,
+): string => {
+  const range = alternatorSourceOf.get(choice);
+  if (range && source) {
+    return `choice|${normalizeSource(source(range.from, range.to))}`;
+  }
+  const text = (list: ParsedObject): string =>
+    list.content
+      .map((obj) => (obj instanceof Text ? obj.text : obj.typeName))
+      .join("");
+  return `choice|${normalizeSource(`${text(choice.startContent)}[${text(choice.choiceOnlyContent)}]`)}`;
+};
+
 /** What an alternator is aligned by when its statement is emitted again,
  *  and its shuffle seeded from: its own source, normalized, as a function
  *  part's is (docs/engine/binary-program.md, section 2), read through the
@@ -1881,6 +2014,9 @@ export const resolutionsOf = (
       }
     }
     if (obj instanceof Gather && obj.name && !isLoopInternal(obj)) {
+      out.push(obj.programResolutionKey);
+    }
+    if (obj instanceof Choice && obj.name) {
       out.push(obj.programResolutionKey);
     }
     const children = obj instanceof FunctionCall ? obj.args : obj.content;
