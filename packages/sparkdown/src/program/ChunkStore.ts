@@ -43,6 +43,7 @@ import {
   ChunkTable,
   emptyDefinitions,
   ProgramRoot,
+  sameRow,
   type DefinitionArrays,
   type SequenceArrays,
   type SequenceRow,
@@ -530,23 +531,26 @@ export class ChunkStore {
         failFlow,
         before?.arrays,
         (ownerId, block, body, bodyArrays, seqId) => {
-          sequences.set(seqId, {
-            id: seqId,
-            arrays: bodyArrays,
-            flow: symbol,
-            kind: flow.kind,
-            owner: ownerId,
-            block,
-            uri: flow.uri,
-            firstLine: body.firstLine,
-            span: body.span,
-          });
+          sequences.set(
+            seqId,
+            keptRow(previous, {
+              id: seqId,
+              arrays: bodyArrays,
+              flow: symbol,
+              kind: flow.kind,
+              owner: ownerId,
+              block,
+              uri: flow.uri,
+              scriptLine: -1,
+              span: body.span,
+            }),
+          );
         },
         previous,
         functionChunks,
         flow.kind === SymbolKind.Function,
       );
-      const row: SequenceRow = {
+      const row = keptRow(previous, {
         id,
         arrays,
         flow: symbol,
@@ -554,9 +558,9 @@ export class ChunkStore {
         owner: -1,
         block: -1,
         uri: flow.uri,
-        firstLine: flow.firstLine,
+        scriptLine: flow.firstLine,
         span: flow.span,
-      };
+      });
       sequences.set(row.id, row);
       flowIds.set(symbol, row.id);
       let ids = scriptFlows.get(flow.uri);
@@ -618,17 +622,20 @@ export class ChunkStore {
           fallback ??= { construct, uri: declaration.uri, line };
         },
         (ownerId, block, body, bodyArrays, seqId) => {
-          sequences.set(seqId, {
-            id: seqId,
-            arrays: bodyArrays,
-            flow: -1,
-            kind: SymbolKind.Root,
-            owner: ownerId,
-            block,
-            uri: declaration.uri,
-            firstLine: body.firstLine,
-            span: body.span,
-          });
+          sequences.set(
+            seqId,
+            keptRow(previous, {
+              id: seqId,
+              arrays: bodyArrays,
+              flow: -1,
+              kind: SymbolKind.Root,
+              owner: ownerId,
+              block,
+              uri: declaration.uri,
+              scriptLine: -1,
+              span: body.span,
+            }),
+          );
         },
         previous,
         functionChunks,
@@ -647,17 +654,20 @@ export class ChunkStore {
         before && sameArrays(before.arrays, chunks, lineStarts)
           ? before.arrays
           : { chunks, lineStarts };
-      sequences.set(id, {
+      sequences.set(
         id,
-        arrays,
-        flow: -1,
-        kind: SymbolKind.Root,
-        owner: -1,
-        block: -1,
-        uri,
-        firstLine: 0,
-        span: program.lineCount?.(uri) ?? 0,
-      });
+        keptRow(previous, {
+          id,
+          arrays,
+          flow: -1,
+          kind: SymbolKind.Root,
+          owner: -1,
+          block: -1,
+          uri,
+          scriptLine: 0,
+          span: program.lineCount?.(uri) ?? 0,
+        }),
+      );
       declarationIds.set(uri, id);
     }
 
@@ -681,7 +691,7 @@ export class ChunkStore {
     }
     for (const ids of scriptFlows.values()) {
       ids.sort(
-        (a, b) => sequences.get(a)!.firstLine - sequences.get(b)!.firstLine,
+        (a, b) => sequences.get(a)!.scriptLine - sequences.get(b)!.scriptLine,
       );
     }
     const root = new ProgramRoot(
@@ -2061,6 +2071,19 @@ type AddBody = (
   arrays: SequenceArrays,
   id: number,
 ) => void;
+
+/** The previous root's row for the sequence when it says what `row` says,
+ *  and otherwise `row`: a row holds no line below its flow's first, so the
+ *  row of a body an edit left alone, above it or beside it, stays the same
+ *  object from one root to the next (docs/engine/binary-program.md,
+ *  section 1, The order structure). */
+const keptRow = (
+  previous: ProgramRoot | undefined,
+  row: SequenceRow,
+): SequenceRow => {
+  const before = previous?.sequence(row.id);
+  return before && sameRow(before, row) ? before : row;
+};
 
 const sameArrays = (
   arrays: SequenceArrays,

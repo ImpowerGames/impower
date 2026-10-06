@@ -125,6 +125,9 @@ import {
 } from "./ProgramStoryState";
 import {
   ADDRESS_OFFSETS,
+  addressOf,
+  chunkOfAddress,
+  offsetOfAddress,
   ANCHOR_STATEMENT,
   BLOCK_LOOP,
   BLOCK_PASS_SCOPE,
@@ -142,15 +145,6 @@ import {
   lineRowField,
   type StatementChunk,
 } from "./StatementChunk";
-
-/** What a caller needs to place a runtime path the current engine's path
- *  locations name (`SparkProgram.pathLocations` and `scripts`). */
-export interface ProgramPathLocations {
-  /** Where the content a path names starts: its script, and the line and
-   *  column, counting from 0. A line can hold several beats and statements,
-   *  and the column tells them apart. */
-  locate(path: string): { uri: string; line: number; column: number } | undefined;
-}
 
 type ErrorHandler = (
   message: string,
@@ -231,9 +225,11 @@ export class ProgramStory {
   onDidContinue: (() => void) | null = null;
   onMakeChoice: ((choice: unknown) => void) | null = null;
   onEvaluateCondition: ((value: boolean) => void) | null = null;
-  /** Called with the address of the content that ran, once addresses reach
-   *  the game (#700). */
-  onExecute: ((path: string | undefined) => void) | null = null;
+  /** Called with the address of each instruction as it runs
+   *  (docs/engine/binary-program.md, section 9, The Story surface), when
+   *  set: the game keeps the addresses a beat ran, as it keeps the paths the
+   *  current engine's `onExecute` names. */
+  onExecute: ((address: number) => void) | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
 
   /** Formats the message the `error` builtin raises, as the current engine's
@@ -290,7 +286,6 @@ export class ProgramStory {
 
   constructor(
     readonly root: ProgramRoot,
-    protected _paths: ProgramPathLocations | null = null,
     options: { images?: ProgramImages } = {},
   ) {
     this._reader = new BinaryProgramReader(root);
@@ -658,9 +653,7 @@ export class ProgramStory {
   }
 
   /** Moves to the start of a flow, named by its qualified name (the top-level
-   *  content's flow is `""` or `"0"`), or to the statement a runtime path of
-   *  the current engine's path locations falls in, inside the blocks that
-   *  hold it. */
+   *  content's flow is `""` or `"0"`), or of a label. */
   ChoosePathString(path: string, resetCallstack = true, args: unknown[] = []): void {
     this.IfAsyncWeCant("call ChoosePathString right now");
     if (this.onChoosePathString !== null) this.onChoosePathString(path, args);
@@ -669,10 +662,37 @@ export class ProgramStory {
         "A flow of the binary program takes no arguments yet.",
       );
     }
-    const target = this.placePath(path);
+    const target = this.placeName(path);
     if (!target) {
       throw new StoryException(`Path not found: '${path}'`);
     }
+    this.choose(target, resetCallstack);
+  }
+
+  /** Moves to an address (`ProgramRoot.addressAt`), inside the blocks that
+   *  hold it, with the scopes their owners have open there: the beat a line
+   *  starts, which is where PLAY from the line starts and the route to a
+   *  preview of it ends (docs/engine/binary-program.md, section 8). */
+  ChooseAddress(address: number, resetCallstack = true): void {
+    this.IfAsyncWeCant("call ChooseAddress right now");
+    const at = Number.isInteger(address)
+      ? this.root.position(chunkOfAddress(address))
+      : undefined;
+    const chunk = at?.sequence.arrays.chunks[at.entry];
+    const offset = offsetOfAddress(address);
+    if (!at || !chunk || offset >= Math.max(1, codeWords(chunk))) {
+      throw new StoryException(`Address not found: ${address}`);
+    }
+    this.choose(
+      { position: { sequence: at.sequence, entry: at.entry, offset } },
+      resetCallstack,
+    );
+  }
+
+  protected choose(
+    target: { position: ProgramPosition; symbol?: number },
+    resetCallstack: boolean,
+  ): void {
     // The flows the choice enters are counted from the flow the last
     // instruction ran in, which a save keeps, or from none when the call
     // stack is reset, as the current engine's `ChoosePath` counts them from
@@ -1230,6 +1250,22 @@ export class ProgramStory {
     return String(chunkId(chunk) * ADDRESS_OFFSETS + offset);
   }
 
+  /** The address of the instruction that ran last, which a route step is
+   *  known by and a beat's execution record holds, or -1 when none has run
+   *  since a reset (docs/engine/binary-program.md, section 9, The Story
+   *  surface, `previousAddress`). */
+  get previousAddress(): number {
+    return this._state.previousAddress;
+  }
+
+  /** The address of the instruction that runs next, or -1 when the flow
+   *  has run out. */
+  get currentAddress(): number {
+    const position = this._state.position;
+    const chunk = position?.sequence.arrays.chunks[position.entry];
+    return position && chunk ? addressOf(chunkId(chunk), position.offset) : -1;
+  }
+
   // ------------------------------------------------------------ continuing
 
   /** `stepAtATime` runs one instruction and stays in an asynchronous
@@ -1420,6 +1456,9 @@ export class ProgramStory {
       this.done();
       return;
     }
+    const address = addressOf(chunkId(chunk), position.offset);
+    state.previousAddress = address;
+    if (this.onExecute !== null) this.onExecute(address);
     this.execute(position, chunk);
     // A statement whose last instruction ran rests at the start of the next.
     const current = state.position;
@@ -2630,7 +2669,8 @@ export class ProgramStory {
    *  location, and in it the last `LineStart` at or before the location, or
    *  the statement's start when none is (a continuation, which joins the beat
    *  before it, or tags). */
-  protected placePath(
+  /** The start of the flow or label a qualified name names. */
+  protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {
     const name = path === "0" ? ROOT_FLOW_NAME : path;
@@ -2647,49 +2687,7 @@ export class ProgramStory {
         return { position: place, symbol };
       }
     }
-    const position = this.placeLocation(path);
-    return position ? { position } : undefined;
-  }
-
-  /** The position the content a path's location starts at. */
-  protected placeLocation(path: string): ProgramPosition | undefined {
-    const location = this._paths?.locate(path);
-    if (!location) {
-      return undefined;
-    }
-    const at = this.root.statementAt(location.uri, location.line);
-    if (!at) {
-      return undefined;
-    }
-    const sequence = at.sequence;
-    const atOrBefore = (range: { startLine: number; startColumn: number } | null) =>
-      range !== null &&
-      (range.startLine < location.line ||
-        (range.startLine === location.line && range.startColumn <= location.column));
-    // The statements that start on the same line as the one holding the
-    // location, which the line starts alone cannot order.
-    const line = this.root.lineOf(sequence, at.entry);
-    let first = at.entry;
-    while (first > 0 && this.root.lineOf(sequence, first - 1) === line) {
-      first -= 1;
-    }
-    let entry = first;
-    for (let e = first + 1; e <= at.entry; e++) {
-      if (atOrBefore(this._reader.rangeAt(sequence, e, 0))) {
-        entry = e;
-      }
-    }
-    const chunk = sequence.arrays.chunks[entry]!;
-    let offset = 0;
-    for (const instruction of this._reader.instructions(chunk)) {
-      if (
-        instruction.op === Op.LineStart &&
-        atOrBefore(this._reader.rangeAt(sequence, entry, instruction.offset))
-      ) {
-        offset = instruction.offset;
-      }
-    }
-    return { sequence, entry, offset };
+    return undefined;
   }
 }
 

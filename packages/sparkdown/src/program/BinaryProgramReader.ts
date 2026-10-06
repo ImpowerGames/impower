@@ -1,15 +1,11 @@
 import { describeInstruction } from "./BinaryProgramWriter";
 import { auxOf, flagsOf, opOf } from "./ProgramInstructions";
-import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
+import type { ProgramRoot, SequenceRow, SourceRange } from "./ProgramRoot";
 import {
-  ANCHOR_STATEMENT,
   HEADER_WORDS,
   H_LINE_ROWS,
-  LINE_ROW_WORDS,
   blockCount,
   codeWords,
-  lineRowAt,
-  lineTableStart,
   type StatementChunk,
 } from "./StatementChunk";
 
@@ -23,14 +19,7 @@ export interface Instruction {
   arg: number;
 }
 
-/** A source range as a line table row gives it, with lines and columns
- *  counting from 0 in the statement's script. */
-export interface SourceRange {
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-}
+export type { SourceRange };
 
 /**
  * `BinaryProgramReader` iterates a flow's chunks and a chunk's instructions
@@ -80,28 +69,7 @@ export class BinaryProgramReader {
     entry: number,
     offset: number,
   ): SourceRange | null {
-    const chunk = sequence.arrays.chunks[entry];
-    if (!chunk) {
-      return null;
-    }
-    const row = lineRowAt(chunk, offset);
-    if (row < 0) {
-      return null;
-    }
-    const at = lineTableStart(chunk) + row * LINE_ROW_WORDS;
-    const anchor = chunk[at + 1]!;
-    // A row counts from the statement's first line, or from the end of the
-    // statement's body it stands below.
-    const first =
-      anchor === ANCHOR_STATEMENT
-        ? this.root.lineOf(sequence, entry)
-        : this.root.blockEndLine(sequence, entry, anchor);
-    return {
-      startLine: first + chunk[at + 2]!,
-      startColumn: chunk[at + 3]!,
-      endLine: first + chunk[at + 4]!,
-      endColumn: chunk[at + 5]!,
-    };
+    return this.root.rangeAt(sequence, entry, offset);
   }
 
   /** The instructions of every statement of a sequence, one line of text

@@ -198,6 +198,7 @@ export interface PositionalCopy {
   readonly seed: number;
   readonly previousRandom: number;
   readonly previousFlow: number;
+  readonly previousAddress: number;
   /** The threads from the outermost; the last is the current one. */
   readonly threads: readonly ThreadCopy[];
   readonly threadCounter: number;
@@ -296,6 +297,13 @@ export class ProgramStoryState {
    *  suspends it with the thread it forks, a forced end clears it, and a
    *  save writes it by name, for each thread. */
   previousFlow = -1;
+  /** The address of the instruction that ran last, or -1: what a route step
+   *  is known by (docs/engine/binary-program.md, section 8), as the current
+   *  engine's step is known by its previous pointer. An image copies it with
+   *  the position, so a search node restored from one stands where it stood.
+   *  A durable save does not hold it, since an address names a chunk of the
+   *  program it was taken in. */
+  previousAddress = -1;
 
   protected _currentErrors: string[] | null = null;
   protected _currentWarnings: string[] | null = null;
@@ -896,6 +904,7 @@ export class ProgramStoryState {
     this.position = null;
     this.blockStack = [];
     this.previousFlow = -1;
+    this.previousAddress = -1;
     this.didSafeExit = true;
   }
 
@@ -1159,6 +1168,9 @@ export class ProgramStoryState {
     writer.WriteIntProperty("storySeed", this.storySeed);
     writer.WriteIntProperty("previousRandom", this.previousRandom);
     this.writePreviousFlow(writer, this.previousFlow);
+    if (codec instanceof SessionCodec) {
+      writer.WriteIntProperty("previousAddress", this.previousAddress);
+    }
     writer.WriteProperty("didSafeExit", this.didSafeExit);
     writer.WriteProperty("variablesState", (w) =>
       this.variablesState.WriteJson(w),
@@ -1395,6 +1407,7 @@ export class ProgramStoryState {
       seed: this.storySeed,
       previousRandom: this.previousRandom,
       previousFlow: this.previousFlow,
+      previousAddress: this.previousAddress,
       threads: threads.map((thread, i) =>
         copyThread(
           thread,
@@ -1534,6 +1547,7 @@ export class ProgramStoryState {
     this.storySeed = copy.seed;
     this.previousRandom = copy.previousRandom;
     this.previousFlow = copy.previousFlow;
+    this.previousAddress = copy.previousAddress;
     this.generatedChoices = copy.choices.map((saved, i) => {
       const placedChoice = placed.choices[i]!;
       const target = placedChoice.target!;
@@ -1568,6 +1582,8 @@ export class ProgramStoryState {
       throw new Error("The save was not written by the program engine.");
     }
     this.readState(obj, new SessionCodec(this, true));
+    const previous = obj["previousAddress"];
+    this.previousAddress = typeof previous === "number" ? previous : -1;
   }
 
   /** Restores a state `writeState` wrote with a codec that reads what it
@@ -1622,6 +1638,7 @@ export class ProgramStoryState {
       this.storySeed = obj["storySeed"];
       this.previousRandom = obj["previousRandom"];
       this.previousFlow = this.readPreviousFlow(obj);
+      this.previousAddress = -1;
       this.didSafeExit = obj["didSafeExit"] === true;
       this.variablesState.SetJsonToken(obj["variablesState"]);
       const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];

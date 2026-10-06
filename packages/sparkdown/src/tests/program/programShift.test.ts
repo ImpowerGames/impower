@@ -59,7 +59,7 @@ const positions = (root: ProgramRoot): [string, number][] => {
       out.push([sequence.uri, root.lineOf(sequence, entry)]);
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = root.body(chunk, k)!;
-        out.push([body.uri, body.firstLine]);
+        out.push([body.uri, root.firstLineOf(body)]);
         visit(body);
       }
     });
@@ -69,7 +69,7 @@ const positions = (root: ProgramRoot): [string, number][] => {
     .sort((a, b) => root.table.symbols[a.flow]!.localeCompare(root.table.symbols[b.flow]!));
   for (const flow of flows) {
     if (root.table.symbols[flow.flow] !== "") {
-      out.push([flow.uri, flow.firstLine]);
+      out.push([flow.uri, root.firstLineOf(flow)]);
     }
     visit(flow);
   }

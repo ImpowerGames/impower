@@ -754,7 +754,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     });
     this._scopes = depth;
     this.bind(end);
-    this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
+    this.withRange(this.clauseRangeOf(gather), () => {
       if (gather.name) {
         this.recordResolution(gather.programResolutionKey);
         const symbol = this.labelSymbol(gather);
@@ -822,7 +822,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const own = items.some((item) => item instanceof Choice);
     const past = own ? this.jump(Op.Jump) : null;
     this.bind(label!);
-    this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
+    this.withRange(this.clauseRangeOf(gather), () => {
       if (gather.name) {
         this.recordResolution(gather.programResolutionKey);
         const symbol = this.labelSymbol(gather);
@@ -959,6 +959,32 @@ export class BinaryProgramWriter implements ProgramEmitter {
     );
     this.emitObjects(content.slice(0, start));
     this.enterBlock(body, flags);
+  }
+
+  /** The range a `then` clause's own code stands under: its gather's, or,
+   *  for a gather the parse gave no range of its own, the lines of the part
+   *  that heads the clause (the `then` line, with its label), so that the
+   *  clause's label and its entry have a line table row of their own, which
+   *  counts from the end of the body above it and reports the clause's line
+   *  after an edit inside that body (docs/engine/binary-program.md, section
+   *  1, Layout). The row starts at the line's first column. */
+  protected clauseRangeOf(gather: Gather): DebugMetadata | null {
+    const own = gather.ownDebugMetadata as DebugMetadata | null;
+    if (own) {
+      return own;
+    }
+    const body = choiceBodyOf.get(gather);
+    const block = body ? this._blocks.find((b) => b.body === body) : undefined;
+    if (!block || block.headLines <= 0) {
+      return null;
+    }
+    const last = block.firstLine - 1;
+    return {
+      startLineNumber: block.firstLine - block.headLines + 1,
+      startCharacterNumber: 1,
+      endLineNumber: last + 1,
+      endCharacterNumber: (this._lineEnd?.(last) ?? 0) + 1,
+    } as DebugMetadata;
   }
 
   /** Runs `emit` under a line table row of `range`, when one is given. */

@@ -330,7 +330,7 @@ export function describeRoot(root: ProgramRoot): string[] {
       }
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = root.body(chunk, k);
-        out.push(`${indent}  block ${k} first ${body?.firstLine} span ${body?.span}`);
+        out.push(`${indent}  block ${k} first ${body ? root.firstLineOf(body) : undefined} span ${body?.span}`);
         if (body) {
           describeSequence(body, `${indent}    `);
         }
@@ -339,7 +339,7 @@ export function describeRoot(root: ProgramRoot): string[] {
   };
   for (const flow of flowRows(root)) {
     out.push(
-      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${flow.kind} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
+      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${flow.kind} ${flow.uri} first ${root.firstLineOf(flow)} span ${flow.span}`,
     );
     describeSequence(flow, "  ");
   }

@@ -256,7 +256,7 @@ describe("a fork, a run and a restore", () => {
 /** An engine on `root` that shares the pristine copies of `images`, as the
  *  engine a game builds for each program shares those of the one before. */
 const sharing = (root: ProgramRoot, images?: ProgramImages) =>
-  new ProgramStory(root, null, { images });
+  new ProgramStory(root, { images });
 
 describe("a checkpoint within a session", () => {
   const TEXT = [
