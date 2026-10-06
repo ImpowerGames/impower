@@ -1233,8 +1233,9 @@ export class ChunkStore {
    * program's statements in order, and `kept` holds the chunks of the
    * statements whose block the store emitted a chunk for. The others are
    * aligned with the old chunks: between two statements that kept old chunks,
-   * the old and new statements are matched from both ends and then in order
-   * by their syntax, and a statement matched with one whose syntax and
+   * the old and new statements are matched from both ends, then in order by
+   * their syntax, then out of order by their syntax for the statements an
+   * edit swapped (#1496), and a statement matched with one whose syntax and
    * recorded lowering inputs read the same takes its chunk, while its
    * recorded values and facts hold. A statement matched by its syntax whose
    * old chunk cannot be kept, and the one statement left on each side of a
@@ -1333,6 +1334,25 @@ export class ChunkStore {
             if (take(candidates[c]!, olds[k]!)) {
               o = k + 1;
             }
+            break;
+          }
+        }
+      }
+      // Across: each statement the in-order pass left with the first old one
+      // of the run no statement took that reads the same. Two statements an
+      // edit swapped in the list, as one moved into an earlier body is, cross
+      // over each other, so the in-order pass can match only one of them; the
+      // other is not edited, and pairing it as edited in place below would
+      // emit its chunk again.
+      for (let c = front; c < candidates.length - back; c += 1) {
+        const i = candidates[c]!;
+        if (result[i] || this._inherit.has(statements[i]!)) {
+          continue;
+        }
+        const syntax = statements[i]!.syntax();
+        for (let k = front; k < olds.length - back; k += 1) {
+          if (!used.has(old[olds[k]!]!) && syntaxOf(olds[k]!) === syntax) {
+            take(i, olds[k]!);
             break;
           }
         }
