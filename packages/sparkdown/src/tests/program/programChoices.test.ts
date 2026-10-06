@@ -304,11 +304,13 @@ describe("choose blocks on the program engine", () => {
     agrees(text, [[0, 1], [1, 1, 1, 0, 1], [2]]);
   });
 
-  // A choice an `if` gates is raised inside the scope its branch opens, and
-  // its thread keeps that scope with the branch's locals while the
-  // presentation goes on and closes it: its body reads them, through a jump
-  // inside the body too, at whatever depth the branches before it left.
-  it("keeps the locals of the branch that gates a choice, through a jump inside its body", () => {
+  // A choice an `if` gates is raised inside the scope its branch opens, which
+  // stays open for the rest of the presentation and which the choice's
+  // content closes after its body, as on the current engine: the body reads
+  // the branch's locals, through a jump inside the body too, whichever
+  // branches before it ran, and the line after the block no longer sees
+  // them.
+  it("keeps the locals of the branch that gates a choice, through a jump inside its body, and drops them after it", () => {
     agrees(
       [
         "-> main",
@@ -381,6 +383,32 @@ describe("choose blocks on the program engine", () => {
     expect(texts(runs[0]!.actual)).toContain("Value A 7 o.");
     expect(texts(runs[1]!.actual)).toContain("Value B 8.");
     expect(texts(runs[2]!.actual)).toContain("Deep 9.");
+    // A gate before the choice that does not hold opens no scope, and the
+    // line after the block reads the global again.
+    const [after] = agrees(
+      [
+        "store open = false",
+        "-> main",
+        "scene main",
+        "  choose",
+        "    if false then",
+        "      * Hidden",
+        "    end",
+        "    if true then",
+        "      local open = true",
+        "      * Pick",
+        "        -> again",
+        "        label again",
+        "        Inside {open}.",
+        "    end",
+        "  end",
+        "  After {open}.",
+        "end",
+        "",
+      ].join("\n"),
+      [[0]],
+    );
+    expect(texts(after!.actual)).toEqual(["Pick", "Inside true.", "After false."]);
   });
 
   // The current engine leaves a gated branch's scope open for the rest of the
@@ -410,8 +438,9 @@ describe("choose blocks on the program engine", () => {
 
   // A block written in another block's preamble offers its choices with that
   // block's; with a `then` clause of its own, its choices continue there, and
-  // the flow then goes on through the rest of the preamble, as the current
-  // engine's weave does.
+  // the clause continues at the outer block's end, as the current engine's
+  // weave passes the clause's gather up; three such blocks, one in another's
+  // preamble, continue clause after clause.
   it("runs a block written in another block's preamble, with and without a then clause of its own", () => {
     for (const inner of [
       ["      choose", "        * Inner A", "          Took inner A.", "        * Inner B", "      then (inner_then)", "        Inner then {inner_then}.", "      end"],
@@ -442,6 +471,33 @@ describe("choose blocks on the program engine", () => {
       expect(menuTexts(runs[0]!.actual)[0]).toContain("Inner A");
       expect(menuTexts(runs[0]!.actual)[0]).toContain("Outer");
     }
+    const [inner, middle, outer] = agrees(
+      [
+        "-> main",
+        "scene main",
+        "  choose",
+        "    choose",
+        "      choose",
+        "        * Inner",
+        "      then",
+        "        Inner then.",
+        "      end",
+        "      * Middle",
+        "    then",
+        "      Middle then.",
+        "    end",
+        "    * Outer",
+        "  then",
+        "    Outer then.",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+      [[0], [1], [2]],
+    );
+    expect(texts(inner!.actual)).toEqual(["Inner", "Inner then.", "Middle then.", "Outer then."]);
+    expect(texts(middle!.actual)).toEqual(["Middle", "Middle then.", "Outer then."]);
+    expect(texts(outer!.actual)).toEqual(["Outer", "Outer then."]);
   });
 
   // A block written in another block's preamble whose choices an `if` gates,

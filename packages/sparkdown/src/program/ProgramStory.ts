@@ -1993,7 +1993,12 @@ export class ProgramStory {
       if (chunk) {
         scopes += scopesBefore(chunk, target.offset);
       }
-      while (frame.temporaryScopes.length < scopes) {
+      // The scopes past the shared blocks are opened. A shared block's count
+      // is the most its owner can have open, which a `choose` block's entry
+      // has fewer of when a branch gating an earlier choice did not run
+      // (section 4): the frame's own are kept as they are, and no empty one
+      // is opened in their place, as the current engine opens none.
+      for (let open = kept; open < scopes; open += 1) {
         frame.PushScope();
       }
     }

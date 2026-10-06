@@ -166,14 +166,14 @@ export interface EmittedStatement {
 }
 
 // The presentation of the `choose` block being written: each choice it
-// raises, with the label its `Choice` targets, its count symbol, whether that
-// is a named choice's label symbol, and what its entry runs after the
-// choice's own content when its body is no block.
-// A choice an `if` gates has its body in its branch (`body`), and after it
-// what the branch closes (`rest`). An entry runs at the depth of scopes its
-// choice was raised at (`scopes`). A choice of a
-// block written in the preamble whose block has a `then` clause continues at
-// that clause (`join`) rather than at the block's end.
+// raises, with the label its `Choice` targets, its count symbol and whether
+// that is a named choice's label symbol. A choice an `if` gates has its body
+// in its branch (`body`), and after it what the branch closes (`rest`), which
+// its entry runs after the body. An entry runs at the depth of scopes its
+// choice was raised at (`scopes`). A choice continues at `join` when one is
+// set (the `then` clause of a block written in the preamble), and otherwise
+// at the block's end; `gatherJoin` is where such a clause written in the
+// part being emitted continues.
 interface ChooseState {
   entries: {
     choice: Choice;
@@ -186,6 +186,7 @@ interface ChooseState {
     join: ProgramLabel | null;
   }[];
   join: ProgramLabel | null;
+  gatherJoin: ProgramLabel | null;
   /** The block's end, `T`. */
   end: ProgramLabel;
 }
@@ -594,7 +595,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
         // it. What follows a choice an `if` of the block's preamble gates in
         // its branch, up to the next choice, is its body, which the current
         // engine's weave nests in the choice, and then what the branch
-        // closes (its scope), which the presentation runs (`emitChoicePoint`).
+        // closes (its scope), which the choice's entry runs after the body
+        // (`emitChoicePoint`): the branch's scope stays open for the rest of
+        // the presentation, as on the current engine.
         if (!this._choose) {
           this.unsupported(obj.typeName);
         }
@@ -702,7 +705,12 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.unsupported("a choose block in another's preamble");
     }
     const end: ProgramLabel = { offset: -1 };
-    const presentation: ChooseState = { entries: [], join: null, end };
+    const presentation: ChooseState = {
+      entries: [],
+      join: null,
+      gatherJoin: null,
+      end,
+    };
     this._choose = presentation;
     this.emitObjects(content.slice(0, -1));
     this._choose = null;
@@ -754,13 +762,20 @@ export class BinaryProgramWriter implements ProgramEmitter {
    * A `choose` block written in another block's preamble (a `Weave` that is
    * no block of its own), as part of that block's presentation: its choices
    * are raised with the other block's, and when it has a `then` clause, its
-   * choices continue there, as the current engine's weave diverts their loose
-   * ends to that clause's gather, which the flow does not enter otherwise,
-   * and the clause continues where the other block's choices do, as the
-   * gather's own loose end passes up to the other block:
+   * own choices continue there, as the current engine's weave diverts their
+   * loose ends to that clause's gather, which the flow does not enter
+   * otherwise, and the clause continues where the weave around it sends a
+   * gather (`gatherJoin`): the clause of the preamble block it is written in,
+   * or the block's end:
    *
    *   its own code and its choices; Jump past; J: Visit (the clause's label);
-   *   EnterBlock (the clause); Jump (the other block's end); past:
+   *   EnterBlock (the clause); Jump (where the clause continues); past:
+   *
+   * As the current engine's weave passes them up: a choice of its own with
+   * no clause to continue at continues where the weave around it sends a
+   * choice; a choice an `if` in it gates, where the `choose` block it is part
+   * of ends; and the clause of a block written in such an `if`, at this
+   * block's clause.
    */
   emitPreambleChoose(weaveObject: object): void {
     const weave = weaveObject as ParsedObject;
@@ -773,15 +788,20 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const items = gather ? content.slice(0, -1) : content;
     const presentation = this._choose;
     const outer = presentation.join;
-    const join: ProgramLabel | null = gather ? { offset: -1 } : outer;
-    // Its own choices continue at its clause; a choice an `if` in it gates
-    // continues where the `choose` block it is part of ends, as the current
-    // engine's weave passes such a choice to that block.
+    const outerGather = presentation.gatherJoin;
+    const label: ProgramLabel | null = gather ? { offset: -1 } : null;
+    const choices = label ?? outer;
+    const gathers = label ?? outerGather;
     for (const item of items) {
-      presentation.join = item instanceof Choice ? join : null;
+      const weaveItem =
+        (item as { isPreambleChoose?: boolean }).isPreambleChoose === true;
+      presentation.join =
+        item instanceof Choice || weaveItem ? choices : null;
+      presentation.gatherJoin = gathers;
       this.emitObjects([item]);
     }
     presentation.join = outer;
+    presentation.gatherJoin = outerGather;
     if (!gather) {
       return;
     }
@@ -789,7 +809,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     // clause where it stands, and the clause continues where the block ends.
     const own = items.some((item) => item instanceof Choice);
     const past = own ? this.jump(Op.Jump) : null;
-    this.bind(join!);
+    this.bind(label!);
     this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
       if (gather.name) {
         this.recordResolution(gather.programResolutionKey);
@@ -804,7 +824,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
         "a then clause",
       );
     });
-    this.jumpBack(Op.Jump, outer ?? presentation.end);
+    this.jumpBack(Op.Jump, outerGather ?? presentation.end);
     if (past) {
       this.bind(past);
     }
