@@ -1372,11 +1372,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const start = firstDescendant(nodeRef.node, LUAU_IF_KEYWORD)?.from ?? nodeRef.from;
         const error = readLuauExpressionAfter(start, text, authoredIslandEnd(nodeRef.node)).errors[0];
         if (error?.message.startsWith(`${IF_EXPRESSION_WITHOUT_ELSE}, got `)) {
-          const from = luauPositionOffset(error.location.begin, text);
-          const to = luauPositionOffset(error.location.end, text);
-          const atEof = error.message.endsWith("got <eof>");
+          let from = luauPositionOffset(error.location.begin, text);
+          let to = luauPositionOffset(error.location.end, text);
+          let message = error.message;
+          // The `end` a `run` file's wrapper closes it with is not in the
+          // file, so the token found there is the file's end.
+          if (this.isRunWrapperEnd(from)) {
+            from = to = from - 1;
+            message = `${IF_EXPRESSION_WITHOUT_ELSE}, got <eof>`;
+          }
+          const atEof = message.endsWith("got <eof>");
           if (this.checkerReadsOnTo(nodeRef.node, atEof ? undefined : from)) {
-            this.error(annotations, error.message, from, to);
+            this.error(annotations, message, from, to);
             reportedElse = true;
           }
         }
