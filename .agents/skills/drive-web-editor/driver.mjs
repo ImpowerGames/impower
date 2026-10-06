@@ -2445,6 +2445,40 @@ async function focusEditor(page) {
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range: editor.selection, takeFocus: true });
 }
 
+// Keys whose command edits the document asynchronously (the formatter answers
+// through the language server), so the read-back waits for a new version.
+const DOCUMENT_COMMAND_KEYS = new Set(["Shift+Alt+F", "Control+S", "Meta+S"]);
+const PRESS_TEXT_LIMIT = 8192;
+
+/**
+ * A `ui --press` step: focus the script editor first, so the key reaches the
+ * document rather than a panel or the page (panels have their own `--click`
+ * and `--close` steps), press, then read the document back so the report
+ * says whether the text changed and a reviewer can tell the command ran.
+ */
+export async function pressInEditor(page, combo, { wait = waitForDomQuiet, commandWaitMs = 5_000 } = {}) {
+  const before = await protocolRequest(page, "editor/read");
+  await protocolNotify(page, "editor/select", { textDocument: { uri: before.textDocument.uri }, range: before.selection, takeFocus: true });
+  const n = await pressKey(page, combo);
+  await wait(page, { quiet: 300, timeout: 4_000 });
+  let after = await protocolRequest(page, "editor/read");
+  if (DOCUMENT_COMMAND_KEYS.has(n.combo)) {
+    const deadline = Date.now() + commandWaitMs;
+    while (after.textDocument.version === before.textDocument.version && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      after = await protocolRequest(page, "editor/read");
+    }
+  }
+  const text = after.textDocument.text;
+  const changed = text !== before.textDocument.text;
+  return {
+    press: combo, sent: n.combo, rewritten: n.rewritten,
+    version: { before: before.textDocument.version, after: after.textDocument.version },
+    textChanged: changed,
+    ...(changed ? { text: text.slice(0, PRESS_TEXT_LIMIT), ...(text.length > PRESS_TEXT_LIMIT ? { textTruncated: text.length } : {}) } : {}),
+  };
+}
+
 /** Resolve while the DOM has been still for `quiet` ms, or give up at `timeout`. */
 async function waitForDomQuiet(page, { quiet = 400, timeout = 8_000 } = {}) {
   return page.evaluate(
@@ -3568,9 +3602,7 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
-            const n = await pressKey(page, step.press);
-            await deps.waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
-            result.steps.push({ press: step.press, sent: n.combo, rewritten: n.rewritten });
+            result.steps.push(await pressInEditor(page, step.press, { wait: deps.waitForDomQuiet }));
           } else if (step.click) {
             result.steps.push(await clickSurfaceButton(page, step.click));
           } else if (step.toggle) {

@@ -22,7 +22,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf } from "./driver.mjs";
+import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -565,3 +565,35 @@ if (failures > 0) {
   process.exit(1);
 }
 console.log("\nall passing");
+
+await asyncCheck("a press focuses the script editor first and reports whether the document text changed", async () => {
+  const calls = [];
+  let text = "x=1", version = 1, formatAfterReads = 0;
+  const bridge = { send: async (message) => {
+    calls.push(message.method);
+    if (message.method === "editor/select") { calls.push(`focus:${message.params.takeFocus}`); return; }
+    if (message.method === "editor/read") {
+      // The formatter answers through the language server a few reads later.
+      if (formatAfterReads > 0 && --formatAfterReads === 0) { text = "x = 1"; version += 1; }
+      return { textDocument: { uri: "file://local/main.sd", version, text }, selection: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } } };
+    }
+    throw new Error("Unexpected method: " + message.method);
+  } };
+  const context = vm.createContext({ crypto, window: { __editorProtocol: bridge } });
+  const page = {
+    waitForFunction: async () => {},
+    keyboard: { press: async (key) => { calls.push(`press:${key}`); if (key === "Shift+Alt+F") formatAfterReads = 3; } },
+    evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
+  };
+  const wait = async () => true;
+  const formatted = await pressInEditor(page, "Shift+Alt+f", { wait, commandWaitMs: 2_000 });
+  assert.ok(calls.indexOf("focus:true") < calls.indexOf("press:Shift+Alt+F"), "focus precedes the key");
+  assert.equal(formatted.sent, "Shift+Alt+F");
+  assert.deepEqual(formatted.version, { before: 1, after: 2 });
+  assert.equal(formatted.textChanged, true);
+  assert.equal(formatted.text, "x = 1");
+  const unchanged = await pressInEditor(page, "ArrowLeft", { wait });
+  assert.deepEqual(unchanged.version, { before: 2, after: 2 });
+  assert.equal(unchanged.textChanged, false);
+  assert.equal(unchanged.text, undefined);
+});
