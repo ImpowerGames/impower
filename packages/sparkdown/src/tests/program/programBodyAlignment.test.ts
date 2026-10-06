@@ -264,6 +264,43 @@ describe("a loop and a function emitted again in place", () => {
     expect(bodyWith(s.edit("1, 2 do", "1, 3 do"), "Loop")!.id).toBe(before);
   });
 
+  for (const [kind, loop, before, after] of [
+    ["a while loop", ["  local i = 0", "  while i < 2 do", "    i = i + 1", "    Loop {i}.", "  end"], "i < 2 do", "i < 3 do"],
+    ["a generic for loop", ["  for k, v in ipairs({1, 2}) do", "    Loop {v}.", "  end"], "{1, 2}", "{1, 2, 3}"],
+    ["a repeat loop", ["  local i = 0", "  repeat", "    i = i + 1", "    Loop {i}.", "  until i >= 2"], "i >= 2", "i >= 3"],
+  ] as const) {
+    it(`keeps ${kind}'s body id when its header is edited`, () => {
+      const s = session(
+        ["-> main", "scene main", "  Before.", ...loop, "  After.", "end", ""].join("\n"),
+      );
+      const id = bodyWith(s.first, "Loop")!.id;
+      expect(bodyWith(s.edit(before, after), "Loop")!.id).toBe(id);
+    });
+  }
+
+  it("keeps a do block's body id when a branch is inserted above it in an if", () => {
+    const s = session(
+      [
+        "store n = 1",
+        "-> main",
+        "scene main",
+        "  Before.",
+        "  if n == 1 then",
+        "    do",
+        "      Inside do.",
+        "    end",
+        "  else",
+        "    Other.",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    const before = ids(s.first, ["Inside do.", "Other."]);
+    const edited = s.edit("  else\n", "  elseif n == 2 then\n    Two.\n  else\n");
+    expect(ids(edited, ["Inside do.", "Other."])).toEqual(before);
+  });
+
   it("keeps the body id of a function written inside a statement when the statement is edited", () => {
     const s = session(
       [
