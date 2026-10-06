@@ -146,6 +146,7 @@ export function lowerLuauForLoop(
   });
   const body = openBody(
     ctx,
+    node.from,
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );

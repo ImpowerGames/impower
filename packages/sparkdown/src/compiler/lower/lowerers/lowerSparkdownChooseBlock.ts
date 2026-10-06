@@ -151,7 +151,12 @@ export function lowerSparkdownChooseBlock(
       // are the lines after the choice up to the next part. The choice's
       // node ends where its line does.
       if (currentChoice) {
-        currentBody = openBody(ctx, child.to, nextPartStart(child));
+        currentBody = openBody(
+          ctx,
+          child.from,
+          child.to,
+          nextPartStart(child),
+        );
         if (currentBody) {
           recordChoiceBody(currentChoice, currentBody);
         }
@@ -313,6 +318,7 @@ function buildGatherFromThenClause(
   // The clause's header (`then` and its label) ends where its line does.
   const shape = openBody(
     ctx,
+    thenClause.from,
     header?.to ?? thenClause.from,
     endStart,
   );
