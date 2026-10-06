@@ -294,8 +294,12 @@ export function describeRoot(root: ProgramRoot): string[] {
     );
     describeSequence(flow, "  ");
   }
+  // The declaration sequences, by script; the bodies of the functions their
+  // statements write are described with the statements that own them. A
+  // root holds its rows in no order of its own: one built over the previous
+  // root keeps the previous root's.
   const scripts = [...root.sequences()]
-    .filter((row) => row.flow < 0)
+    .filter((row) => row.flow < 0 && row.owner < 0)
     .sort((a, b) => a.uri.localeCompare(b.uri));
   for (const row of scripts) {
     out.push(`declarations ${row.uri} span ${row.span}`);

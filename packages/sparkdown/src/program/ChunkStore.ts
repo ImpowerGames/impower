@@ -761,10 +761,7 @@ export class ChunkStore {
       const lineStarts = list.map((entry) => entry.source.firstLine);
       const before = previous?.declarations(uri);
       const id = before?.id ?? this._nextSequenceId++;
-      const arrays: SequenceArrays =
-        before && sameArrays(before.arrays, chunks, lineStarts)
-          ? before.arrays
-          : { chunks, lineStarts };
+      const arrays = shareArrays(before?.arrays, chunks, lineStarts);
       this.placeIn(build, id, before, arrays, false, false);
       this.setRow(build, {
         id,
@@ -859,8 +856,12 @@ export class ChunkStore {
     // whose story then raises it as the current engine does.
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
-      this._declarationsFailed = !this.runDeclarations(root);
-      if (this._declarationsFailed) {
+      const failed = !this.runDeclarations(root);
+      // A preview's run leaves the next compile's decision as it was.
+      if (commit) {
+        this._declarationsFailed = failed;
+      }
+      if (failed) {
         return {
           fallback: {
             construct: "initializer error",
@@ -1623,10 +1624,7 @@ export class ChunkStore {
         this.buildBodies(build, statement, chunk, home, inFunction);
       }
     }
-    const arrays =
-      before && sameArrays(before.arrays, chunks, lineStarts)
-        ? before.arrays
-        : { chunks, lineStarts };
+    const arrays = shareArrays(before?.arrays, chunks, lineStarts);
     this.placeIn(build, id, before, arrays, inFunction, moved);
     return arrays;
   }
@@ -2707,19 +2705,38 @@ export class ChunkStore {
   }
 }
 
-const sameArrays = (
-  arrays: SequenceArrays,
-  chunks: readonly StatementChunk[],
-  lineStarts: readonly number[],
-): boolean =>
-  arrays.chunks.length === chunks.length &&
-  arrays.chunks.every((chunk, i) => chunk === chunks[i]) &&
-  arrays.lineStarts.every((line, i) => line === lineStarts[i]);
-
 const sameChunks = (
   a: readonly StatementChunk[],
   b: readonly StatementChunk[],
 ): boolean => a.length === b.length && a.every((chunk, i) => chunk === b[i]);
+
+const sameNumbers = (a: readonly number[], b: readonly number[]): boolean =>
+  a.length === b.length && a.every((n, i) => n === b[i]);
+
+/** A sequence's arrays, sharing with the current root's `before` each array
+ *  that reads the same (docs/engine/binary-program.md, section 1, The order
+ *  structure): the arrays themselves when nothing changed, the chunks when
+ *  only the line starts moved, as they do in a sequence that holds the
+ *  edited one with a statement below it, and the line starts when only the
+ *  chunks changed, as when a statement is emitted again in place. */
+const shareArrays = (
+  before: SequenceArrays | undefined,
+  chunks: StatementChunk[],
+  lineStarts: number[],
+): SequenceArrays => {
+  if (!before) {
+    return { chunks, lineStarts };
+  }
+  const sameChunkArray = sameChunks(before.chunks, chunks);
+  const sameStarts = sameNumbers(before.lineStarts, lineStarts);
+  if (sameChunkArray && sameStarts) {
+    return before;
+  }
+  return {
+    chunks: sameChunkArray ? before.chunks : chunks,
+    lineStarts: sameStarts ? before.lineStarts : lineStarts,
+  };
+};
 
 /** How many chunks each pass of a build visited (`ChunkStore.passesLastBuild`):
  *  the statements whose recorded values it read again (`identity`), the
@@ -2844,15 +2861,33 @@ const watchedValueOf = (
   return undefined;
 };
 
+/** What a name, a call or a jump found, as the symbol its chunk names it by
+ *  reads: a scene, a branch, a label or a function declared at the top level
+ *  by its qualified name, which the compile keeps whatever object stands for
+ *  it; and a function a statement writes by the function itself, whose
+ *  anonymous symbol belongs to that object for as long as its statement is
+ *  kept. */
+const targetOf = (target: ParsedObject | null | undefined): string => {
+  if (!target) {
+    return "-";
+  }
+  const name =
+    target.programSymbolName ??
+    (target instanceof FlowBase && target.parent === target.story
+      ? `flow:${target.identifier?.name ?? ""}`
+      : null);
+  return name ?? `#${identityOf(target)}`;
+};
+
 const readReference = (obj: VariableReference): string =>
-  `${obj.resolutionKey}#${identityOf(obj.countTarget)}`;
+  `${obj.resolutionKey}|${targetOf(obj.countTarget)}`;
 const readAssignment = (obj: VariableAssignment): string => obj.resolutionKey;
 const readCall = (obj: FunctionCall): string =>
   obj.isUserCall
-    ? `${obj.proxyDivert.callResolutionKey}#${identityOf(obj.proxyDivert.targetContent)}`
+    ? `${obj.proxyDivert.callResolutionKey}|${targetOf(obj.proxyDivert.targetContent)}`
     : "native";
 const readJump = (obj: Divert): string =>
-  `${obj.programJumpKey}#${identityOf(obj.targetContent)}`;
+  `${obj.programJumpKey}|${targetOf(obj.targetContent)}`;
 const readLabel = (obj: Gather | Choice): string => obj.programResolutionKey;
 const readText = (obj: Text): string => obj.text;
 
