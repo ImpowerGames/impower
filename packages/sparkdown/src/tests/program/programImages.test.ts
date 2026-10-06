@@ -4,6 +4,8 @@
 // before it, and a restore puts an earlier image back in place.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
+import { lastSearchStats, planRoute } from "../../compiler/utils/planRoute";
+import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../inkjs/engine/Value";
 import { ProgramImages } from "../../program/ProgramImages";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -383,5 +385,83 @@ describe("a reseed of the program table", () => {
     const before = resumed.state.toJson();
     expect(resumed.restore(checkpoint)).toBe(false);
     expect(resumed.state.toJson()).toBe(before);
+  });
+});
+
+describe("a route search on the program engine", () => {
+  // Decisions whose branches meet again, a table written in one of them, a
+  // menu and a decision after it: a search that finds no target goes
+  // everywhere, and a fork site reached twice in the same state is
+  // expanded once.
+  const BRANCHES = [
+    "store a = 0",
+    "store t = { x = 0 }",
+    "",
+    "-> start",
+    "",
+    "scene start",
+    "  Begin.",
+    "  if a == 0 then",
+    "    & t.x = t.x + 1",
+    "    Left.",
+    "  else",
+    "    Right.",
+    "  end",
+    "  if t.x > 0 then",
+    "    Up.",
+    "  else",
+    "    Down.",
+    "  end",
+    "  choose",
+    "    * [one]",
+    "      & a = a + 1",
+    "    * [two]",
+    "  end",
+    "  if a > 0 then",
+    "    More.",
+    "  end",
+    "  if t.x == 1 then",
+    "    Same.",
+    "  end",
+    "  End.",
+    "end",
+    "",
+  ].join("\n");
+
+  it("forks images that are deltas, and expands the nodes the JSON round trip expands", () => {
+    const root = compileScript(BRANCHES, { programChunks: true }).program.chunks!;
+    const search = (stateImages: boolean) => {
+      const story = new ProgramStory(root);
+      const before = { ...story.images.stats };
+      const plan = planRoute(story as unknown as Story, "start", "nowhere", {
+        stateImages,
+        maxNodes: 2000,
+      });
+      const stats = story.images.stats;
+      return {
+        plan,
+        search: { ...lastSearchStats, errors: lastSearchStats.errors.length },
+        keyframes: stats.keyframes - before.keyframes,
+        deltas: stats.deltas - before.deltas,
+        globals: stats.globals - before.globals,
+        restores: stats.restores - before.restores,
+        globalsInProgram: story.variablesState.globalEntries.size,
+      };
+    };
+    const json = search(false);
+    const images = search(true);
+    expect(json.plan).toBeNull();
+    expect(images.plan).toBeNull();
+    expect(json.search.endReason).toBe("exhausted");
+    expect(images.search).toEqual(json.search);
+    expect(json.search.nodesExpanded).toBeGreaterThan(5);
+    expect(json.search.forkSitesSkipped).toBeGreaterThan(0);
+    expect(json.keyframes + json.deltas).toBe(0);
+    // One keyframe where the search starts, and every fork a delta.
+    expect(images.keyframes).toBe(1);
+    expect(images.deltas).toBeGreaterThan(5);
+    // A delta copies the globals its run assigned, never all of them.
+    expect(images.globals - images.globalsInProgram).toBeLessThan(images.deltas);
+    expect(images.restores).toBe(images.search.nodesExpanded);
   });
 });

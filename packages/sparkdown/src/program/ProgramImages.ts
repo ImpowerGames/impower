@@ -10,6 +10,7 @@ import type { ProgramRoot } from "./ProgramRoot";
 import { countIdOf } from "./ProgramSymbols";
 import type {
   PlacedPositional,
+  PositionCopy,
   PositionalCopy,
   ProgramStoryState,
 } from "./ProgramStoryState";
@@ -520,3 +521,216 @@ const remapCounts = (
   });
   return { visits, turns };
 };
+
+/**
+ * A digest of the state an image holds, equal for two images of equal states
+ * however each was reached: a route search claims a fork site by it, as it
+ * claimed one by the hash of the state's JSON (`planRoute`, `claimForkSite`).
+ * It costs what the image's chain changed, not the size of the state: the
+ * positional state, and of the keyed state only what differs from the
+ * chain's keyframe, which the digest names. A table is read by its content,
+ * as the JSON did, so two tables made apart that hold the same read the same.
+ * The digest reads tables as they stand, so it is taken right after the
+ * image is.
+ */
+export const imageDigest = (image: ProgramImage): string => {
+  const out = new DigestStream();
+  const values = new ValueHasher();
+  out.add(`k${image.keyframe.id}`);
+  const p = image.positional;
+  const position = (at: PositionCopy | null) =>
+    out.add(at ? `${at.chunk}:${at.entry}:${at.offset}:${at.sequence}` : "-");
+  const list = (objects: readonly InkObject[]) => {
+    out.add(`[${objects.length}`);
+    for (const obj of objects) out.add(values.hash(obj));
+  };
+  const thread = (t: PositionalCopy["threads"][number]) => {
+    out.add(`t${t.index}`);
+    position(t.resume?.position ?? null);
+    out.add(`${t.resume?.previousFlow ?? ""}`);
+    for (const e of t.elements) {
+      out.add(`e${e.type}:${e.inExpression}:${e.height}:${e.start}`);
+      if (e.frame) {
+        position(e.frame.returnTo);
+        out.add(`f${e.frame.symbol}`);
+      }
+      for (const scope of e.scopes) {
+        out.add(`s${scope.size}`);
+        for (const [name, value] of scope) {
+          out.add(name);
+          out.add(values.hash(value));
+        }
+      }
+      for (const cell of e.open) out.add(`o${values.hash(cell)}`);
+      for (const cell of e.borrowed) out.add(`b${values.hash(cell)}`);
+    }
+  };
+  position(p.position);
+  list(p.evaluationStack);
+  list(p.output);
+  out.add(
+    `${p.lineEndPending}:${p.lineJoinable}:${p.outputCut}:${p.didSafeExit}:${p.turn}:${p.seed}:${p.previousRandom}:${p.previousFlow}:${p.threadCounter}`,
+  );
+  if (p.carried) {
+    out.add(`c${p.carried.lineEndPending}`);
+    list(p.carried.output);
+  }
+  p.threads.forEach(thread);
+  for (const choice of p.choices) {
+    out.add(
+      `${choice.text}|${choice.tags?.join("|")}|${choice.sourcePath}|${choice.isInvisibleDefault}|${choice.previousFlow}`,
+    );
+    position(choice.target);
+    thread(choice.thread);
+  }
+  // The keyed state, where it differs from the keyframe's.
+  const keyframe = image.keyframe;
+  const keyed = keyedStateOf(image);
+  const counts = new Set<number>();
+  const globals = new Set<string>();
+  const tables = new Set<ObjectValue>();
+  const cells = new Set<VariablePointerValue>();
+  for (const delta of chainOf(image).slice(1)) {
+    delta.countIds?.forEach((id) => counts.add(id));
+    for (const name of delta.globals.keys()) globals.add(name);
+    for (const table of delta.tables.keys()) tables.add(table);
+    for (const cell of delta.cells.keys()) cells.add(cell);
+  }
+  for (const id of [...counts].sort((a, b) => a - b)) {
+    const visits = keyed.visits[id] ?? 0;
+    const turn = keyed.turns[id] ?? NEVER_VISITED;
+    if (
+      visits !== (keyframe.visits![id] ?? 0) ||
+      turn !== (keyframe.turns![id] ?? NEVER_VISITED)
+    ) {
+      out.add(`#${id}:${visits}:${turn}`);
+    }
+  }
+  for (const name of [...globals].sort()) {
+    const now = keyed.globals.get(name);
+    const then = keyframe.globals.get(name);
+    if (now !== then && values.hash(now) !== values.hash(then)) {
+      out.add(`g${name}=${values.hash(now)}`);
+    }
+  }
+  const changed: string[] = [];
+  for (const table of tables) {
+    const now = keyed.tables.get(table)!;
+    const then = keyframe.tables.get(table) ?? image.images.pristineTable(table);
+    if (!then || !sameTable(now, then, values)) {
+      changed.push(values.hash(table));
+    }
+  }
+  for (const cell of cells) {
+    const now = keyed.cells.get(cell)!;
+    const then = keyframe.cells.get(cell) ?? image.images.pristineCell(cell);
+    if (
+      !then ||
+      now.closed !== then.closed ||
+      values.hash(now.value) !== values.hash(then.value)
+    ) {
+      changed.push(`c${values.hash(cell)}`);
+    }
+  }
+  for (const entry of changed.sort()) out.add(entry);
+  return out.digest();
+};
+
+// Whether two copies of a table hold the same.
+const sameTable = (a: TableCopy, b: TableCopy, values: ValueHasher): boolean => {
+  if (
+    a.metatable !== b.metatable ||
+    a.frozen !== b.frozen ||
+    a.capacity !== b.capacity ||
+    a.boundary !== b.boundary ||
+    (a.entries?.size ?? -1) !== (b.entries?.size ?? -1)
+  ) {
+    return false;
+  }
+  for (const [key, value] of a.entries ?? []) {
+    const other = b.entries!.get(key);
+    if (other !== value && values.hash(other) !== values.hash(value)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+// Hashes values by what they hold: a table by its content, its length hints,
+// its frozen flag and its metatable, and a cell by its state, each table and
+// cell once, with a cycle read as a back reference.
+class ValueHasher {
+  protected _seen = new Map<object, string>();
+  protected _next = 0;
+
+  hash(obj: InkObject | null | undefined): string {
+    if (obj === null || obj === undefined) {
+      return "nil";
+    }
+    if (obj instanceof ObjectValue) {
+      const seen = this._seen.get(obj);
+      if (seen !== undefined) {
+        return seen;
+      }
+      this._seen.set(obj, `@${this._next++}`);
+      const out = new DigestStream();
+      const map = obj.value as (Map<string, AbstractValue> & Hints) | null;
+      out.add(`T${obj.isFrozen}:${map?.__luauCapacity}:${map?.__luauBoundary}`);
+      for (const [key, value] of map ?? []) {
+        out.add(key);
+        out.add(this.hash(value));
+      }
+      out.add(`m${this.hash(obj.metatable)}`);
+      const hash = out.digest();
+      this._seen.set(obj, hash);
+      return hash;
+    }
+    if (obj instanceof VariablePointerValue) {
+      const seen = this._seen.get(obj);
+      if (seen !== undefined) {
+        return seen;
+      }
+      this._seen.set(obj, `@${this._next++}`);
+      const hash = obj.isClosed
+        ? `C(${this.hash(obj.closedValue)})`
+        : `V(${obj.variableName}:${obj.contextIndex}:${obj.scopeIndex})`;
+      this._seen.set(obj, hash);
+      return hash;
+    }
+    const multi = obj as { values?: unknown };
+    if (Array.isArray(multi.values)) {
+      return `M(${(multi.values as InkObject[]).map((v) => this.hash(v)).join(",")})`;
+    }
+    return `${obj.constructor.name}:${String(obj)}`;
+  }
+}
+
+// Folds strings into a 64-bit hash in two lanes, as `extendSeq` folds a
+// route's paths.
+class DigestStream {
+  protected _h1 = 0xdeadbeef;
+  protected _h2 = 0x41c6ce57;
+
+  add(text: string): void {
+    let h1 = this._h1;
+    let h2 = this._h2;
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    // A separator, so that two strings do not read as one.
+    this._h1 = Math.imul(h1 ^ 0x1f, 2654435761);
+    this._h2 = Math.imul(h2 ^ 0x1f, 1597334677);
+  }
+
+  digest(): string {
+    let h1 = this._h1;
+    let h2 = this._h2;
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+  }
+}

@@ -347,7 +347,8 @@ export class ProgramStory {
    *  this engine's root no longer holds, so that the caller replays
    *  (section 8). */
   restore(image: ProgramImage): boolean {
-    this.IfAsyncWeCant("restore an image");
+    // As a load of a state's JSON, a restore runs between the steps of an
+    // asynchronous continue, which a route search drives.
     this.enableImages();
     if (!restoreImage(this._state, this._tracker, this, image)) {
       return false;
@@ -1303,9 +1304,15 @@ export class ProgramStory {
       this.pausesAt(chunk, position.offset)
     ) {
       // Stopped before the decision: nothing is consumed and the position
-      // does not move.
-      this.pausedBeforeCondition = ProgramStory.addressOf(chunk, position.offset);
-      return;
+      // does not move. A decision the route simulator forces is not one to
+      // stop at: a route search that forked at it runs on through it with
+      // the verdict it forces, which it asks by the decision's address, as
+      // the current engine's search asks by the path it stands at.
+      const address = ProgramStory.addressOf(chunk, position.offset);
+      if (!this.simulator?.willForceCondition(address)) {
+        this.pausedBeforeCondition = address;
+        return;
+      }
     }
     this.pausedBeforeCondition = null;
     this.stepCount++;

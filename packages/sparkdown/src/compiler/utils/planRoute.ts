@@ -2,6 +2,7 @@ import type { Simulator,SimulatorSnapshot } from "../../inkjs/engine/Simulator";
 import { ErrorType, type RaisedError } from "../../inkjs/engine/Error";
 import { Story } from "../../inkjs/engine/Story";
 import { StepLimitExceeded } from "../../inkjs/engine/StoryException";
+import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
 
 export interface RoutePlan {
   /** The path to start from */
@@ -18,9 +19,14 @@ export interface RoutePlan {
   choices: { options: string[]; selected: number }[];
 }
 
+/** The state a search node runs from: an image of the program engine's
+ *  state (docs/engine/binary-program.md, section 7), or the state as
+ *  `story.state.toJson()` writes it. */
+export type SearchState = string | ProgramImage;
+
 export interface SearchNode {
-  /** StoryState serialized via story.state.toJson() */
-  stateJson: string;
+  /** The state the node runs from, which siblings share. */
+  state: SearchState;
   /** Opaque identity of the sequence of paths taken to reach this step
    *  (see {@link extendSeq}) */
   seq: string;
@@ -250,7 +256,59 @@ export interface SearchOptions {
    * answer searches again without this when a resumed search comes back empty.
    */
   resumeFrom?: RouteResumePoint;
+
+  /**
+   * Whether a story that keeps images of its state (the program engine,
+   * `ProgramStory.capture`) forks and restores them, in place of a JSON
+   * round trip of the whole state at every fork and node (default true).
+   * A fork's image is a delta on the image its run started from, and the
+   * fork site is claimed by the digest of the state it holds
+   * (`imageDigest`). Set false to search on the JSON round trip, which
+   * the tests and the bench compare it with.
+   */
+  stateImages?: boolean;
 }
+
+/** How a search forks the story's state and runs a node from it. */
+interface StatePort {
+  /** The state as it stands, and the key a fork site is claimed by. */
+  fork(): { state: SearchState; key: string };
+  restore(state: SearchState): void;
+}
+
+/** The program engine's surface for images, which the current engine
+ *  lacks. */
+interface ImageStory {
+  capture(): ProgramImage;
+  restore(image: ProgramImage): boolean;
+}
+
+const statePort = (story: Story, images: boolean): StatePort => {
+  const imaging = story as unknown as Partial<ImageStory>;
+  if (images && typeof imaging.capture === "function") {
+    const program = imaging as ImageStory;
+    return {
+      fork: () => {
+        const image = program.capture();
+        return { state: image, key: imageDigest(image) };
+      },
+      restore: (state) => {
+        if (typeof state === "string") {
+          story.state.LoadJson(state);
+        } else if (!program.restore(state)) {
+          throw new Error("A search node's image names a position the program does not hold.");
+        }
+      },
+    };
+  }
+  return {
+    fork: () => {
+      const json = story.state.toJson();
+      return { state: json, key: extendSeq("", json) };
+    },
+    restore: (state) => story.state.LoadJson(state as string),
+  };
+};
 
 // Drives the story forward until we either:
 //   - hit a decision site (returns {branches}) OR
@@ -442,11 +500,11 @@ const pendingOverrideSignature = (
 const claimForkSite = (
   budget: SearchBudget,
   sitePath: string,
-  stateJson: string,
+  stateKey: string,
   overrides: RouteOverride[],
   snapshot: SimulatorSnapshot,
 ): boolean => {
-  const key = `${sitePath}|${extendSeq("", stateJson)}|${pendingOverrideSignature(
+  const key = `${sitePath}|${stateKey}|${pendingOverrideSignature(
     overrides,
     snapshot,
   )}`;
@@ -532,6 +590,7 @@ export const planRoute = (
   const startingSteps = budget.stepsRemaining;
   const queue: SearchNode[] = [];
 
+  const port = statePort(story, options?.stateImages !== false);
   const prevOnError = story.onError;
   const prevOnExecute = story.onExecute;
   const prevOnMakeChoice = story.onMakeChoice;
@@ -544,7 +603,7 @@ export const planRoute = (
     queue.push(
       options?.resumeFrom
         ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, fromPath),
+        : makeStartNode(story, fromPath, port),
     );
 
     const raisedErrors = new Set<string>();
@@ -581,6 +640,7 @@ export const planRoute = (
       try {
         const result = runUntilDecisionOrBranch(
           story,
+          port,
           node,
           fromKnotName,
           toPath,
@@ -667,6 +727,7 @@ export const planRoute = (
 
 const runUntilDecisionOrBranch = (
   story: Story,
+  port: StatePort,
   node: SearchNode,
   fromKnotName: string,
   targetPath: string | null, // set null for "enumerate all"
@@ -677,7 +738,7 @@ const runUntilDecisionOrBranch = (
   budget: SearchBudget,
 ): RunResult => {
   // 1) Restore snapshot
-  story.state.LoadJson(node.stateJson);
+  port.restore(node.state);
   story.state.ResetErrors();
 
   const prevPauseBeforeEvaluatingConditions =
@@ -743,14 +804,15 @@ const runUntilDecisionOrBranch = (
           // Pop the last encountered step,
           // because we're going to encounter it again on the next run
           stepsEncountered.pop();
-          // Serialize once and share it with every sibling: they all fork from
-          // this same position.
-          const forkStateJson = story.state.toJson();
+          // Fork once and share the state with every sibling: they all fork
+          // from this same position.
+          const fork = port.fork();
+          const forkState = fork.state;
           if (
             !claimForkSite(
               budget,
               previousPath,
-              forkStateJson,
+              fork.key,
               node.overrides,
               simulator.saveSnapshot(),
             )
@@ -768,7 +830,7 @@ const runUntilDecisionOrBranch = (
               // Fork choice branch
               branches.push(
                 forkChoice(
-                  forkStateJson,
+                  forkState,
                   node,
                   stepsEncountered,
                   {
@@ -794,7 +856,7 @@ const runUntilDecisionOrBranch = (
             // Fork choice branch
             branches.push(
               forkChoice(
-                forkStateJson,
+                forkState,
                 node,
                 stepsEncountered,
                 {
@@ -858,14 +920,15 @@ const runUntilDecisionOrBranch = (
         // because we're going to encounter it again on the next run
         stepsEncountered.pop();
 
-        // Serialize once and share it with both branches: they fork from this
-        // same position.
-        const forkStateJson = story.state.toJson();
+        // Fork once and share the state with both branches: they fork from
+        // this same position.
+        const fork = port.fork();
+        const forkState = fork.state;
         if (
           !claimForkSite(
             budget,
             story.pausedBeforeCondition,
-            forkStateJson,
+            fork.key,
             node.overrides,
             simulator.saveSnapshot(),
           )
@@ -881,7 +944,7 @@ const runUntilDecisionOrBranch = (
         if (favoredConditionalValue != null) {
           // Fork favored branch
           branches.push(
-            forkCondition(forkStateJson, node, stepsEncountered, {
+            forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: favoredConditionalValue,
@@ -889,7 +952,7 @@ const runUntilDecisionOrBranch = (
           );
           // Fork opposite of favored branch
           branches.push(
-            forkCondition(forkStateJson, node, stepsEncountered, {
+            forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: !favoredConditionalValue,
@@ -898,7 +961,7 @@ const runUntilDecisionOrBranch = (
         } else {
           // Fork true branch
           branches.push(
-            forkCondition(forkStateJson, node, stepsEncountered, {
+            forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: true,
@@ -906,7 +969,7 @@ const runUntilDecisionOrBranch = (
           );
           // Fork false branch
           branches.push(
-            forkCondition(forkStateJson, node, stepsEncountered, {
+            forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: false,
@@ -1027,7 +1090,11 @@ const resetStory = (story: Story) => {
   story.ResetState();
 };
 
-const makeStartNode = (story: Story, fromPath: string): SearchNode => {
+const makeStartNode = (
+  story: Story,
+  fromPath: string,
+  port: StatePort,
+): SearchNode => {
   // Start from fresh state, and jump to the knot start.
   //
   // A story that was reset and has not run since is already in that fresh
@@ -1042,7 +1109,7 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
   }
   story.ChoosePathString(fromPath);
   return {
-    stateJson: story.state.toJson(),
+    state: port.fork().state,
     seq: "",
     steps: [],
     decisions: [],
@@ -1056,7 +1123,7 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
  * The search node a resume point stands for.
  *
  * Nothing is done to the story here. A node's state is restored from its own
- * `stateJson` when it runs, so unlike {@link makeStartNode} this neither resets
+ * `state` when it runs, so unlike {@link makeStartNode} this neither resets
  * the story nor moves it.
  *
  * The decisions are handed on as the node's queued overrides in full, exactly as
@@ -1065,7 +1132,7 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
  * happens if it ever did.
  */
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
-  stateJson: resumeFrom.stateJson,
+  state: resumeFrom.stateJson,
   seq: resumeFrom.steps.at(-1)?.seq ?? "",
   steps: [...resumeFrom.steps],
   decisions: [...resumeFrom.decisions],
@@ -1119,13 +1186,13 @@ const exitedKnot = (
 };
 
 const forkCondition = (
-  stateJson: string,
+  state: SearchState,
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ConditionOverride,
 ): SearchNode => {
   return {
-    stateJson,
+    state,
     // Falls back to the PARENT's identity, not to "": a fork commonly happens
     // with `stepsEncountered` empty (the pending step is popped just before
     // forking), and restarting the chain there would give two sibling branches
@@ -1141,14 +1208,14 @@ const forkCondition = (
 };
 
 const forkChoice = (
-  stateJson: string,
+  state: SearchState,
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ChoiceOverride,
   choice: { options: string[]; selected: number },
 ): SearchNode => {
   return {
-    stateJson,
+    state,
     // See forkCondition: the parent's identity, never a fresh chain.
     seq: stepsEncountered.at(-1)?.seq ?? parent.seq,
     steps: [...parent.steps, ...stepsEncountered],
