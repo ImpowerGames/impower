@@ -306,7 +306,12 @@ export class Divert extends ParsedObject {
     // generate here.
     this.ResolveTargetContent();
 
-    this.CheckArgumentValidity();
+    // A function call's arguments are checked against the function it calls
+    // as its references resolve, once the story's assignments say whether it
+    // calls the function or a global that rebinds it.
+    if (!this.isFunctionCall) {
+      this.CheckArgumentValidity();
+    }
 
     // Passing arguments to the knot. A function call arranges its
     // arguments for the function it enters when it runs, whichever
@@ -685,6 +690,13 @@ export class Divert extends ParsedObject {
       // so serialization and diagnostics match a cold compile. (Externals
       // re-derive their path in the external branch below.)
       this.runtimeDivert.targetPath = null;
+    }
+
+    // A call through a variable passes whatever function the variable holds
+    // when it runs the arguments that function takes, so only a direct call
+    // is held to its function's parameters.
+    if (this.isFunctionCall && this.runtimeDivert.variableDivertName == null) {
+      this.CheckArgumentValidity();
     }
 
     // A divert bound to a builtin global's variable (`-> game`, whether the

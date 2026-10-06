@@ -2,6 +2,8 @@
 // and a later assignment to it changes what `f()` calls, on both engines.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import type { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
 import {
   compileScript,
@@ -10,21 +12,32 @@ import {
   storyBeats,
 } from "../program/programHarness";
 
-const run = (text: string, programChunks: boolean) => {
-  const { program, story } = compileScript(text, { programChunks });
-  const errors = Object.values(program.diagnostics ?? {})
+// The text a compiled story runs to on the engine `programChunks` selects,
+// with the compile's error diagnostics and the run's errors.
+const outcome = (
+  { program, story }: { program: SparkProgram; story: Story },
+  programChunks: boolean,
+) => {
+  const diagnostics = Object.values(program.diagnostics ?? {})
     .flat()
     .filter((d) => d.severity === 1)
     .map((d) => d.message);
   if (programChunks) {
     expect(program.fallback).toBeUndefined();
-    const beats = storyBeats(new ProgramStory(program.chunks!));
-    return { text: beats.beats.map((b) => b.text).join(""), errors: [...errors, ...beats.errors] };
+  } else {
+    story.ResetState();
   }
-  story.ResetState();
-  const beats = storyBeats(story);
-  return { text: beats.beats.map((b) => b.text).join(""), errors: [...errors, ...beats.errors] };
+  const beats = storyBeats(
+    programChunks ? new ProgramStory(program.chunks!) : story,
+  );
+  return {
+    text: beats.beats.map((b) => b.text).join(""),
+    errors: [...diagnostics, ...beats.errors],
+  };
 };
+
+const run = (text: string, programChunks: boolean) =>
+  outcome(compileScript(text, { programChunks }), programChunks);
 
 const cases: [string, string, string][] = [
   [
@@ -61,6 +74,16 @@ const cases: [string, string, string][] = [
     "g is 7, f is 2.\n",
   ],
   [
+    "a call passes the rebound function the parameters it takes",
+    "function f() return 7 end\n& f = function(x) return x end\nf is {f(2)}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "a call need not pass the original's parameters",
+    "function f(x) return x end\n& f = function() return 2 end\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
     "a local function value rebinds (control)",
     "local f = function(...) return 7 end\n& f = function(...) return 2 end\nf is {f()}.\n",
     "f is 2.\n",
@@ -92,11 +115,7 @@ const runAfterEdit = (
       },
     ],
   });
-  const { program, story } = c.compile();
-  const target = programChunks ? new ProgramStory(program.chunks!) : story;
-  if (!programChunks) story.ResetState();
-  const beats = storyBeats(target);
-  return beats.beats.map((b) => b.text).join("");
+  return outcome(c.compile(), programChunks);
 };
 
 describe("rebinding a top-level named function (#1591)", () => {
@@ -114,12 +133,19 @@ describe("rebinding a top-level named function (#1591)", () => {
       it("an edit that adds the assignment rebinds the call", () => {
         expect(
           runAfterEdit(fixed, "& x = 1", "& f = function() return 2 end", programChunks),
-        ).toBe("f is 2.\n");
+        ).toEqual({ text: "f is 2.\n", errors: [] });
       });
       it("an edit that removes the assignment calls the function again", () => {
         expect(
           runAfterEdit(rebound, "& f = function() return 2 end", "& x = 1", programChunks),
-        ).toBe("f is 7.\n");
+        ).toEqual({ text: "f is 7.\n", errors: [] });
+      });
+      it("an edit that adds the assignment releases the call from the original's parameters", () => {
+        const before = "function f() return 7 end\n& x = 1\nf is {f(2)}.\n";
+        expect(run(before, programChunks).errors).toHaveLength(1);
+        expect(
+          runAfterEdit(before, "& x = 1", "& f = function(x) return x end", programChunks),
+        ).toEqual({ text: "f is 2.\n", errors: [] });
       });
     });
   }
