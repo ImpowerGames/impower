@@ -25,7 +25,9 @@ console.log(`Scratch repository: ${scratch}`);
 const root = path.join(scratch, "repo"), evidence = path.join(scratch, "evidence");
 fs.mkdirSync(root); fs.mkdirSync(evidence);
 const browserCache = path.join(scratch, "browser-cache");
-const cacheExecutable = path.join(browserCache, "chromium-999999", "chrome-win", "chrome.exe");
+// The driver's resolver only takes this platform's cache layouts (#1470).
+const cacheLayout = { win32: ["chrome-win", "chrome.exe"], darwin: ["chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"] }[process.platform] ?? ["chrome-linux64", "chrome"];
+const cacheExecutable = path.join(browserCache, "chromium-999999", ...cacheLayout);
 fs.mkdirSync(path.dirname(cacheExecutable), { recursive: true }); fs.writeFileSync(cacheExecutable, "fixture");
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true,
   env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } }).trim();
