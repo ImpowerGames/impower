@@ -10,11 +10,11 @@ Run this first, every time. Each check here fails late and expensively if you sk
 node .agents/skills/drive-web-editor/driver.mjs preflight
 ```
 
-Expected, all five PASS (`launches (fallback build: ...)` on the Playwright line is still a pass, and so is `not installed` on the last one before the install below):
+Expected, all five PASS (the Playwright line names the executable it launched and why; any build it names is a pass, and so is `not installed` on the last one before the install below):
 
 ```
 PASS  disk headroom  — 61.5 GB free (need ~6 GB for a fresh worktree install)
-PASS  playwright chromium  — launches
+PASS  playwright chromium  — launches C:\...\ms-playwright\chromium-1228\chrome-win64\chrome.exe (pinned by the installed playwright)
 PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 PASS  node_modules  — esbuild and vitest both run

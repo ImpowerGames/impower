@@ -320,36 +320,78 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
   };
 }
 
-// The sandbox pre-installs a Chromium build under PLAYWRIGHT_BROWSERS_PATH
-// independently of whatever `playwright` version this repo's package.json
-// pins. When those two drift apart, `chromium.executablePath()` points at a
-// revision that was never downloaded (npm install skips the download — see
-// CLAUDE.md — so it never will be) and every launch fails with "Executable
-// doesn't exist". Fall back to whatever Chromium build the cache actually
-// has rather than the exact revision Playwright asked for.
-function resolveChromiumExecutablePath(chromium) {
-  const expected = chromium.executablePath();
-  if (expected && fs.existsSync(expected)) return undefined;
-  const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
-  if (!base || !fs.existsSync(base)) return undefined;
-  const dirs = fs
-    .readdirSync(base)
-    .filter((d) => /^chromium-\d+$/.test(d))
-    .sort((a, b) => Number(b.match(/\d+/)[0]) - Number(a.match(/\d+/)[0]));
-  const relPaths = [
-    "chrome-linux/chrome",
-    "chrome-linux64/chrome",
-    "chrome-win/chrome.exe",
-    "chrome-win64/chrome.exe",
-    "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
-  ];
-  for (const dir of dirs) {
-    for (const rel of relPaths) {
-      const p = path.join(base, dir, ...rel.split("/"));
-      if (fs.existsSync(p)) return p;
+// Which Chromium the driver launches, and why. In order:
+//   1. IMPOWER_DRIVER_CHROMIUM, an explicit executable (refused if missing);
+//   2. the build the installed `playwright` pins (`chromium.executablePath()`);
+//   3. another chromium-N build in PLAYWRIGHT_BROWSERS_PATH: a sandbox can
+//      pre-install a revision other than the pinned one, and npm install
+//      skips the download (see CLAUDE.md), so the pinned one never arrives;
+//   4. a system Chromium on PATH, then at the usual Linux locations, for a
+//      container that ships /usr/bin/chromium but no Playwright cache (#1470).
+// Nothing found throws one line naming every place looked at. The file
+// system, environment and platform are parameters so
+// chromium-resolver.test.mjs can pin the order without a browser.
+export const SYSTEM_CHROMIUM_NAMES = ["chromium", "chromium-browser", "google-chrome"];
+export const SYSTEM_CHROMIUM_PATHS = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"];
+const CACHE_REL_PATHS = [
+  "chrome-linux/chrome",
+  "chrome-linux64/chrome",
+  "chrome-win/chrome.exe",
+  "chrome-win64/chrome.exe",
+  "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+];
+export function resolveChromium({ expected, env = process.env, platform = process.platform, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
+  const p = platform === "win32" ? path.win32 : path.posix;
+  const explicit = env.IMPOWER_DRIVER_CHROMIUM;
+  if (explicit) {
+    if (!exists(explicit)) throw new Error(`IMPOWER_DRIVER_CHROMIUM names ${explicit}, which does not exist; point it at a Chromium executable or unset it`);
+    return { executablePath: explicit, source: "explicit", reason: "set by IMPOWER_DRIVER_CHROMIUM" };
+  }
+  if (expected && exists(expected)) return { executablePath: expected, source: "playwright", reason: "pinned by the installed playwright" };
+  const missing = expected ? `pinned build ${expected} is missing` : "playwright names no pinned build";
+  const looked = ["IMPOWER_DRIVER_CHROMIUM (unset)", expected ? `${expected} (pinned)` : "no pinned build"];
+  const base = env.PLAYWRIGHT_BROWSERS_PATH;
+  if (base) {
+    looked.push(p.join(base, "chromium-*"));
+    if (exists(base)) {
+      const dirs = readdir(base)
+        .filter((d) => /^chromium-\d+$/.test(d))
+        .sort((a, b) => Number(b.match(/\d+/)[0]) - Number(a.match(/\d+/)[0]));
+      for (const dir of dirs) {
+        for (const rel of CACHE_REL_PATHS) {
+          const candidate = p.join(base, dir, ...rel.split("/"));
+          if (exists(candidate)) return { executablePath: candidate, source: "cache", reason: `${missing}; using cached ${dir} from PLAYWRIGHT_BROWSERS_PATH` };
+        }
+      }
     }
   }
-  return undefined;
+  const exe = platform === "win32" ? ".exe" : "";
+  for (const dir of (env.PATH ?? env.Path ?? "").split(platform === "win32" ? ";" : ":").filter(Boolean)) {
+    for (const name of SYSTEM_CHROMIUM_NAMES) {
+      const candidate = p.join(dir, name + exe);
+      if (exists(candidate)) return { executablePath: candidate, source: "system", reason: `${missing}; using system ${name} found on PATH` };
+    }
+  }
+  looked.push(`${SYSTEM_CHROMIUM_NAMES.join(", ")} on PATH`);
+  if (platform !== "win32") {
+    for (const candidate of SYSTEM_CHROMIUM_PATHS) {
+      if (exists(candidate)) return { executablePath: candidate, source: "system", reason: `${missing}; using system Chromium at ${candidate}` };
+    }
+    looked.push(...SYSTEM_CHROMIUM_PATHS);
+  }
+  throw new Error(`no Chromium found; looked at: ${looked.join("; ")}. Set IMPOWER_DRIVER_CHROMIUM to a Chromium executable, or run \`npx playwright install chromium\``);
+}
+
+// The choice the last launch made, for the launch log line.
+let chromiumChoice;
+export function chromiumChoiceLine(choice = chromiumChoice) {
+  return choice ? `${choice.executablePath} (${choice.reason})` : "not resolved";
+}
+// Callers spread `executablePath` into Playwright's launch options; undefined
+// keeps Playwright's own default, so the normal path is unchanged.
+function resolveChromiumExecutablePath(chromium) {
+  chromiumChoice = resolveChromium({ expected: chromium.executablePath() });
+  return chromiumChoice.source === "playwright" ? undefined : chromiumChoice.executablePath;
 }
 
 // ---------------------------------------------------------------- servers ---
@@ -688,7 +730,7 @@ async function preflight(args = []) {
     const executablePath = resolveChromiumExecutablePath(chromium);
     const b = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
     await b.close();
-    say(true, "playwright chromium", executablePath ? `launches (fallback build: ${executablePath})` : "launches");
+    say(true, "playwright chromium", `launches ${chromiumChoiceLine()}`);
   } catch (e) {
     say(false, "playwright chromium", String(e.message).split("\n")[0]);
   }
@@ -798,6 +840,7 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   claimProfile(dir);
   const { chromium } = await playwright();
   const executablePath = resolveChromiumExecutablePath(chromium);
+  log(`browser: ${chromiumChoiceLine()}`);
   return chromium.launchPersistentContext(dir, {
     headless,
     viewport: { width: 1600, height: 1000 },
@@ -3834,6 +3877,7 @@ switch (cmd) {
     await measure(rest, {
       importPlaywright,
       resolveChromiumExecutablePath,
+      chromiumChoiceLine,
       withEditor,
       openEditorPage,
       reloadEditorPage,

@@ -301,6 +301,7 @@ export function privateLaunch(deps, dir) {
   return async ({ headless }) => {
     const { chromium } = await deps.importPlaywright();
     const executablePath = deps.resolveChromiumExecutablePath(chromium);
+    if (deps.chromiumChoiceLine) deps.log(`browser: ${deps.chromiumChoiceLine()}`);
     return chromium.launchPersistentContext(dir, {
       headless,
       viewport: { width: 1600, height: 1000 },
