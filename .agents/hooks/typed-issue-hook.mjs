@@ -72,10 +72,9 @@ const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "p
 // Redirections: a descriptor duplication that takes no target (`2>&1`,
 // `<&0`, `2>&-`), a bare operator whose target is the next token (`>`,
 // `2>`, `>>`, `<`, `&>`, `&>>`, `>&`), and an operator glued to its target.
-// PowerShell's `*>` (all streams) and `n>` spell the same shapes.
-const REDIRECT_DUP = /^(?:\d+|\*|&)?[<>]{1,2}&[\d-]+$/;
-const REDIRECT_OP = /^(?:\d+|\*|&)?[<>]{1,2}$|^>&$/;
-const REDIRECT_GLUED = /^(?:\d+|\*|&)?[<>]{1,2}&?[^<>&]/;
+const REDIRECT_DUP = /^\d*[<>]{1,2}&[\d-]+$/;
+const REDIRECT_OP = /^(\d*[<>]{1,2}|&>>?|>&)$/;
+const REDIRECT_GLUED = /^(\d*[<>]{1,2}&?|&>>?)[^<>&]/;
 // A PowerShell variable assignment target: `$x`, `${x}`, `$x=`, `$x+=`, `$x=value`.
 const PS_ASSIGN = /^\$([A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})([+-]?=(.*))?$/;
 

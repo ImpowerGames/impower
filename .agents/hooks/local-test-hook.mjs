@@ -255,9 +255,9 @@ function vitestReason(args, dir) {
  *
  * - Quotes group a word and make an operator inside them literal.
  * - An escape makes the next character literal and a line continuation
- *   disappears: backslash in Bash (only before whitespace, a quote, an
- *   operator or another backslash, so a Windows path such as `src\tests\a.ts`
- *   stays whole), backtick in PowerShell.
+ *   disappears: backslash in Bash, backtick in PowerShell. A Windows path
+ *   such as `src\tests\a.ts` still reads as one word, which is all the count
+ *   needs. PowerShell also writes a literal quote by doubling it.
  * - Bash ends a word at an operator, so `f.ts> log` and `"My f.ts"> log`
  *   leave the file and redirect. PowerShell starts a redirection only at the
  *   start of a word (`f.ts>` is one literal word there), and `*>` is its
@@ -276,13 +276,31 @@ function wordsWithoutRedirects(raw, shell) {
   let quotedPart = false;
   let i = 0;
   const isOperator = (c) => c === "<" || c === ">";
-  const escapes = (c) =>
-    c === escape && i + 1 < raw.length && (powershell || /[\s"'<>\\]/.test(raw[i + 1]));
-  // Reads a quoted part starting at the quote at i; returns its text.
+  const escapes = (c) => c === escape && i + 1 < raw.length;
+  // Skips an escaped line break at i (an escape then LF or CRLF); true when it did.
+  const skipContinuation = () => {
+    if (raw[i] !== escape) return false;
+    if (raw[i + 1] === "\n") i += 2;
+    else if (raw[i + 1] === "\r" && raw[i + 2] === "\n") i += 3;
+    else return false;
+    return true;
+  };
+  // Reads a quoted part starting at the quote at i; returns its text. A
+  // doubled quote is a literal quote in PowerShell; in double quotes an
+  // escape makes the next character literal and a continuation disappears.
   const readQuoted = () => {
     const q = raw[i++];
     let out = "";
-    while (i < raw.length && raw[i] !== q) {
+    while (i < raw.length) {
+      if (raw[i] === q) {
+        if (powershell && raw[i + 1] === q) {
+          out += q;
+          i += 2;
+          continue;
+        }
+        break;
+      }
+      if (q === '"' && skipContinuation()) continue;
       if (raw[i] === escape && q === '"' && i + 1 < raw.length && (powershell || /["\\]/.test(raw[i + 1]))) i++;
       out += raw[i++];
     }
@@ -333,7 +351,8 @@ function wordsWithoutRedirects(raw, shell) {
         while (/[\d-]/.test(raw[i] ?? "")) i++;
       } else {
         if (raw[i] === "&" || raw[i] === "|") i++;
-        while (/[ \t]/.test(raw[i] ?? "")) i++;
+        // The target may follow blanks and escaped line breaks.
+        while (/[ \t]/.test(raw[i] ?? "") || skipContinuation()) if (/[ \t]/.test(raw[i] ?? "")) i++;
         readWord();
       }
     } else if (c === "'" || c === '"') {
