@@ -84,6 +84,35 @@ for (const invalid of [
 // The editor's own format commands reach a delegated reviewer (#1461).
 for (const value of ["Shift+Alt+f", "Control+s"]) validateEditorRequest({ ...authorRequest, steps: [{ action: "press", value }] });
 for (const value of ["Control+S", "Alt+Shift+f", "Control+Shift+s"]) assert.throws(() => validateEditorRequest({ ...authorRequest, steps: [{ action: "press", value }] }), /Unknown or invalid editor step/);
+// PLAY, insert and scrub reach a delegated reviewer with the driver's bounds (#969).
+const playInsertScrub = [{ action: "play", value: "start" }, { action: "insert", line: 2, column: 1, text: "a\nb" }, { action: "scrub", line: 3 }, { action: "play", value: "stop" }];
+validateEditorRequest({ ...authorRequest, steps: playInsertScrub });
+validateEditorRequest({ ...authorRequest, steps: [{ action: "insert", line: 1, column: 1, text: "x".repeat(4096) }] });
+for (const step of [
+  { action: "play", value: "pause" }, { action: "play" },
+  { action: "insert", line: 1, column: 1, text: "" }, { action: "insert", line: 1, column: 1, text: "x".repeat(4097) },
+  { action: "insert", line: 0, column: 1, text: "x" }, { action: "insert", line: 1, text: "x" },
+  { action: "scrub", line: 0 }, { action: "scrub", line: 1.5 }, { action: "scrub", line: 1, column: 1 },
+]) assert.throws(() => validateEditorRequest({ ...authorRequest, steps: [step] }), /Unknown or invalid editor step/);
+{
+  const { createEditorSession } = await import("./reviewer-editor.mjs");
+  const calls = [];
+  const fakeDirectory = path.join(scratch, "editor-argv"); fs.mkdirSync(fakeDirectory);
+  const session = createEditorSession({ id: "argv", args: ["driver.mjs"], timeoutSeconds: 1 }, root, fakeDirectory, async (command) => { calls.push(command.args); return { exit: 0 }; });
+  await session.run({ requestId: "argv", command: "ui", steps: playInsertScrub });
+  assert.deepEqual(calls[1].slice(1, 9), ["ui", "--play", "start", "--insert", "2:1=a" + String.fromCharCode(92) + "nb", "--scrub", "3", "--play"]);
+  // A literal backslash, and a literal backslash-n, survive the argv
+  // encoding and the driver's decoding unchanged.
+  const { parseUiSteps } = await import("../.agents/skills/drive-web-editor/driver.mjs");
+  const slash = String.fromCharCode(92);
+  for (const text of [slash + "n", "a" + slash + slash + "b\nc" + slash, "x\r\ny"]) {
+    await session.run({ requestId: `argv-${calls.length}`, command: "ui", steps: [{ action: "insert", line: 1, column: 1, text }] });
+    const argv = calls.at(-1);
+    const parsed = parseUiSteps(argv.slice(argv.indexOf("ui") + 1, argv.indexOf("--shot")));
+    assert.equal(parsed[0].text, text.replace(/\r\n/g, "\n"));
+  }
+  await session.close();
+}
 const editorDirectory = path.join(scratch, "editor"); fs.mkdirSync(editorDirectory);
 const previousBrowserCache = process.env.PLAYWRIGHT_BROWSERS_PATH;
 process.env.PLAYWRIGHT_BROWSERS_PATH = browserCache;

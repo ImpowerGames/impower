@@ -22,7 +22,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor } from "./driver.mjs";
+import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -148,13 +148,14 @@ const asyncCheck = async (name, fn) => {
   catch (err) { failures++; console.log(`FAIL: ${name}\n  ${err.stack}`); }
 };
 
-function protocolGlobals({ text = () => "portrait", coordinates = { left: 172, right: 180, top: 40, bottom: 60 }, hover = () => null } = {}) {
+function protocolGlobals({ text = () => "portrait", coordinates = { left: 172, right: 180, top: 40, bottom: 60 }, hover = () => null, diagnostics = () => [] } = {}) {
   const state = { selection: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, messages: [], ignoreSelect: false };
   const bridge = { send: async (message) => {
     state.messages.push(message);
     if (message.method === "editor/select") { if (!state.ignoreSelect) state.selection = message.params.range; return; }
     if (message.method === "editor/read") return { textDocument: { uri: "file://local/main.sd", version: 1, text: text() }, selection: state.selection, coordinates };
     if (message.method === "textDocument/hover") return hover();
+    if (message.method === "textDocument/diagnosticsSettled") return { uri: "file://local/main.sd", version: 1, diagnostics: diagnostics() };
     throw new Error("Unexpected method: " + message.method);
   } };
   return { crypto, window: { __editorProtocol: bridge }, protocolState: state };
@@ -595,6 +596,165 @@ await asyncCheck("a press focuses the script editor first and reports whether th
   const saved = await pressInEditor(page, "Control+s", { wait, commandWaitMs: 2_000 });
   assert.deepEqual(saved.version, { before: 2, after: 3 });
   assert.equal(saved.text, "x = 1");
+});
+
+check("play, insert and scrub steps parse with their bounds (#969)", () => {
+  assert.deepEqual(parseUiSteps(["--play", "start", "--insert", "3:1=a\\nb", "--scrub", "5", "--play", "stop"]), [
+    { play: "start" },
+    { insert: { line: 3, col: 1 }, text: "a\nb" },
+    { scrub: 5 },
+    { play: "stop" },
+  ]);
+  assert.deepEqual(parseUiSteps(["--insert", "1:2=x=y"]), [{ insert: { line: 1, col: 2 }, text: "x=y" }]);
+  // `\\` is a backslash, so a literal backslash-n has a spelling; a lone
+  // backslash before another character is kept.
+  assert.equal(parseUiSteps(["--insert", "1:1=a\\\\nb\\tc"])[0].text, "a\\nb\\tc");
+  assert.throws(() => parseUiSteps(["--play", "pause"]), /start or stop/);
+  for (const v of ["0", "-1", "1.5", "x"]) assert.throws(() => parseUiSteps(["--scrub", v]), /positive line|needs a value/);
+  assert.throws(() => parseUiSteps(["--insert", "1:1="]), /1\.\.4096/);
+  assert.throws(() => parseUiSteps(["--insert", "1:1=" + "a".repeat(4097)]), /1\.\.4096/);
+  assert.equal(parseUiSteps(["--insert", "1:1=" + "a".repeat(4096)])[0].text.length, 4096);
+  assert.throws(() => parseUiSteps(["--insert", "0:1=a"]), /position/);
+  assert.throws(() => parseUiSteps(["--insert", "1:1"]), /line:col=text/);
+});
+
+function playPage(visible) {
+  const clicks = [];
+  return { clicks, page: {
+    locator: (selector) => ({ first: () => ({
+      isVisible: async () => visible(selector),
+      click: async () => clicks.push(selector),
+    }) }),
+  } };
+}
+
+await asyncCheck("play reports the launch state it reached, and a click whose state never comes is a failure", async () => {
+  let launchState = "preview";
+  const { page, clicks } = playPage((sel) => sel.includes(launchState === "play" ? "Stop Game" : "Play Game"));
+  let clock = 0, calls = 0;
+  const request = async () => { if (clicks.length && ++calls > 2) launchState = "play"; return { launchState }; };
+  const opts = { request, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
+  const started = await playPreview(page, "start", opts);
+  assert.equal(started.clicked, true);
+  assert.equal(started.reached, true);
+  assert.equal(started.running, true);
+  assert.equal(started.control, "Stop Game");
+  assert.equal(started.reason, undefined);
+  // A click that never starts the game: the step fails with a reason.
+  clock = 0;
+  const stuck = playPage((sel) => sel.includes("Play Game"));
+  const failed = await playPreview(stuck.page, "start", { ...opts, request: async () => ({ launchState: "preview" }) });
+  assert.equal(failed.clicked, true);
+  assert.equal(failed.reached, false);
+  assert.match(failed.reason, /did not start/);
+  // No control to press: nothing is clicked.
+  const none = await playPreview(playPage(() => false).page, "stop", opts);
+  assert.equal(none.clicked, false);
+  assert.match(none.reason, /Stop Game control is not on screen/);
+});
+
+await asyncCheck("insert puts text at the position, reads it back and reports the preview route", async () => {
+  let doc = "line one\nline two", version = 1, selection = { start: { line: 0, character: 0 } };
+  const inserted = [];
+  const request = async (method) => method === "editor/read" ? { textDocument: { uri: "u", version, text: doc }, selection } : null;
+  const notify = async (_, params) => { selection = params.range; };
+  const page = { keyboard: { insertText: async (t) => {
+    inserted.push(t);
+    const lines = doc.split("\n");
+    const offset = lines.slice(0, selection.start.line).reduce((n, l) => n + l.length + 1, 0) + selection.start.character;
+    doc = doc.slice(0, offset) + t + doc.slice(offset);
+    version++;
+  } }, waitForTimeout: async () => {} };
+  const deps = { request, notify, settle: async () => ({ settled: true }), route: async () => "main : 1 → main : 2", pause: async () => {} };
+  const out = await insertText(page, { line: 2, col: 6 }, "(x\nnew", deps);
+  assert.deepEqual(inserted, ["(x\nnew"]);
+  assert.equal(doc, "line one\nline (x\nnewtwo");
+  assert.equal(out.textMatches, true);
+  assert.equal(out.readBack, "line (x\nnewtwo");
+  assert.deepEqual(out.version, { before: 1, after: 2 });
+  assert.deepEqual(out.preview, { settled: true, route: "main : 1 → main : 2" });
+  assert.equal(out.reason, undefined);
+  const outside = await insertText(page, { line: 9, col: 1 }, "x", deps);
+  assert.equal(outside.inserted, false);
+  assert.match(outside.reason, /outside the open document/);
+  // An insert that lands differently (an auto-closed bracket) fails.
+  page.keyboard.insertText = async (t) => { doc = "(" + t + ")" + doc; version++; };
+  const garbled = await insertText(page, { line: 1, col: 1 }, "(", { ...deps, versionWaitMs: 0 });
+  assert.equal(garbled.textMatches, false);
+  assert.match(garbled.reason, /differs from the requested insert/);
+});
+
+check("a scrub report fails when the click, the position or the rendered text says it did not land", () => {
+  const base = { settle: { settled: true, text: "Hello" }, route: "main : 3", scrubCheck: { outcome: "landed" } };
+  const ok = scrubReport(3, { ...base, scrub: { clicked: true, line: 3, totalLines: 5, position: { line: 2 } } });
+  assert.equal(ok.reason, undefined);
+  assert.equal(ok.route, "main : 3");
+  assert.match(scrubReport(3, { ...base, scrub: { clicked: false, reason: "Stop the running preview before scrubbing" } }).reason, /did not run: Stop the running preview/);
+  assert.match(scrubReport(9, { ...base, scrub: { clicked: true, line: 5, totalLines: 5, position: { line: 4 } } }).reason, /past the end/);
+  assert.match(scrubReport(3, { ...base, scrub: { clicked: true, line: 3, position: { line: 0 } } }).reason, /did not move/);
+  assert.match(scrubReport(3, { ...base, scrub: { clicked: true, line: 3, position: { line: 2 } }, scrubCheck: { outcome: "elsewhere", reason: "showing 1" } }).reason, /not confirmed/);
+  assert.equal(scrubReport(3, { ...base, scrub: { clicked: true, line: 3, position: { line: 2 } }, scrubCheck: { outcome: "inconclusive", reason: "?" } }).reason, undefined);
+});
+
+await asyncCheck("hover reports a diagnostic at the position and its lint tooltip instead of failing on an empty server hover", async () => {
+  const diagnostic = { message: { kind: "markdown", value: "Choice mark must be inside choose" }, severity: 1, range: { start: { line: 6, character: 0 }, end: { line: 6, character: 1 } } };
+  const found = await diagnosticsAt({}, { line: 7, col: 1 }, { diagnostics: async () => ({ diagnostics: [diagnostic, { ...diagnostic, range: { start: { line: 2, character: 0 }, end: { line: 2, character: 4 } } }] }) });
+  assert.deepEqual(found, [{ message: "Choice mark must be inside choose", severity: "error", range: diagnostic.range }]);
+  const moves = [];
+  const context = vm.createContext(protocolGlobals({ text: () => "x\n\n\n\n\n\n* [Go]", diagnostics: () => [diagnostic] }));
+  const page = {
+    keyboard: { press: async () => {} },
+    mouse: { move: async (x, y) => moves.push([x, y]) },
+    waitForFunction: async () => {},
+    evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
+    locator: () => ({ first: () => ({ waitFor: async () => {}, innerText: async () => "Choice mark must be inside choose" }) }),
+  };
+  const hoverDeps = { place: async () => ({ placed: true }), wait: async () => ({}), read: async () => ({ present: false, serverResponse: "empty" }) };
+  const out = await languageSurface(page, "hover", { line: 7, col: 1 }, undefined, hoverDeps);
+  assert.equal(out.reason, undefined, "a diagnostic hover is not a missing hover");
+  assert.equal(out.diagnostics[0].message, "Choice mark must be inside choose");
+  assert.deepEqual(out.diagnosticTooltip, { present: true, text: "Choice mark must be inside choose" });
+  assert.ok(moves.length >= 2, "a second pointer move opens the lint tooltip");
+  assert.deepEqual(out.tooltipPointer, { x: moves[1][0] + 2, y: moves[1][1] }, "inside a mark the second move stays at the position");
+  // At the mark's end edge the right side is excluded by CodeMirror's lint
+  // hover, so the second move aims at the last character inside the mark.
+  const reads = [];
+  const edgeContext = vm.createContext(protocolGlobals({ text: () => "x\n\n\n\n\n\n* [Go]", diagnostics: () => [diagnostic] }));
+  const send = edgeContext.window.__editorProtocol.send;
+  edgeContext.window.__editorProtocol.send = async (message) => {
+    if (message.method === "editor/read" && message.params?.position) {
+      reads.push(message.params.position);
+      const { character } = message.params.position;
+      return { ...(await send(message)), coordinates: { left: 40 + 9 * character, right: 49 + 9 * character, top: 250, bottom: 268 } };
+    }
+    return send(message);
+  };
+  moves.length = 0;
+  const edge = await languageSurface({ ...page, evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, edgeContext)(arg) }, "hover", { line: 7, col: 2 }, undefined, hoverDeps);
+  assert.equal(edge.reason, undefined);
+  assert.deepEqual(reads.at(-1), { line: 6, character: 0 }, "the tooltip move measures the last character inside the mark");
+  assert.deepEqual(edge.tooltipPointer, { x: 42, y: 259 });
+  assert.deepEqual(moves.at(-1), [42, 259]);
+  // A multi-line mark whose exclusive end is column 0 of the next line: the
+  // last character inside it is the end of the line before (round-1 review).
+  const multiline = { ...diagnostic, range: { start: { line: 0, character: 0 }, end: { line: 1, character: 0 } } };
+  const lineContext = vm.createContext(protocolGlobals({ text: () => "abc\nnext", diagnostics: () => [multiline] }));
+  const lineSend = lineContext.window.__editorProtocol.send;
+  lineContext.window.__editorProtocol.send = async (message) => {
+    if (message.method === "editor/read" && message.params?.position) {
+      reads.push(message.params.position);
+      const { character } = message.params.position;
+      return { ...(await lineSend(message)), coordinates: { left: 40 + 9 * character, right: 49 + 9 * character, top: 120, bottom: 138 } };
+    }
+    return lineSend(message);
+  };
+  const wrapped = await languageSurface({ ...page, evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, lineContext)(arg) }, "hover", { line: 2, col: 1 }, undefined, hoverDeps);
+  assert.equal(wrapped.reason, undefined);
+  assert.deepEqual(reads.at(-1), { line: 0, character: 2 }, "an end at column 0 aims at the previous line's last character");
+  assert.deepEqual(wrapped.tooltipPointer, { x: 60, y: 129 });
+  page.locator = () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) });
+  const unseen = await languageSurface(page, "hover", { line: 7, col: 1 }, undefined, hoverDeps);
+  assert.match(unseen.reason, /tooltip did not open/);
 });
 
 if (failures > 0) {
