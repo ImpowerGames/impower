@@ -301,15 +301,18 @@ function buildGatherFromThenClause(
   ctx: LowerContext,
   endStart: number,
 ): Gather {
-  // Optional `(label)` after `then` is captured as a `Label` child by
-  // the begin pattern — find its `LabelDeclarationName` descendant.
-  const label = getDescendent("LabelDeclarationName", thenClause);
-  const identifier = label ? identifierAt(label, ctx) : null;
-
   const header = findChildByName(
     thenClause,
     "LuauSparkdownChooseThenClause_begin",
   );
+  // Optional `(label)` after `then` is captured as a `Label` child by
+  // the begin pattern. Only the header is searched: a `label` statement in
+  // the body names a gather of its own, not the clause (#1604).
+  const label = header
+    ? getDescendent("LabelDeclarationName", header)
+    : null;
+  const identifier = label ? identifierAt(label, ctx) : null;
+
   const body = findChildByName(
     thenClause,
     "LuauSparkdownChooseThenClause_content",
