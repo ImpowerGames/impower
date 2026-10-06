@@ -382,6 +382,7 @@ export class ChunkStore {
     this._functionSymbols = new Map();
     this._labels = new Map();
     this._plans = new Map();
+    this._statementValues = new WeakMap();
     // The program's statements, flow after flow and each block statement
     // before the statements of its bodies, then the statements of the
     // functions the declarations write, are aligned with the previous root's
@@ -1232,24 +1233,36 @@ export class ChunkStore {
    * statement to emit. `statements` and `old` are the new and the previous
    * program's statements in order, and `kept` holds the chunks of the
    * statements whose block the store emitted a chunk for. The others are
-   * aligned with the old chunks: between two statements that kept old chunks,
-   * the old and new statements are matched from both ends and then in order
-   * by their syntax. A statement matched with an old chunk it can keep, one
-   * whose syntax and recorded lowering inputs read the same as its own while
-   * the chunk's recorded values and facts hold, takes it; one matched with an
-   * old chunk it cannot keep is emitted again in place, taking what belongs
-   * to the old chunk's parts (`_inherit`), unless another statement no pass
-   * has matched can keep that chunk, which then waits for it (#1496). The one
-   * statement left on each side of a run keeps the old one when it can, as
-   * two statements an edit swapped do, and is otherwise emitted again in
-   * place; of the statements left, only the outermost count: the statements
-   * of a left statement's bodies are part of it, as the statements of a
-   * function written on its owner's line are, whose columns move when a
-   * function is inserted before it (`nesting`). The statements no run
-   * matched then take the old chunks no run took that they can keep,
-   * wherever those were, as statements an edit moved past an anchor or
-   * swapped among others do (#1221), and are matched with the rest in order
-   * by their syntax.
+   * aligned with the old chunks in two steps.
+   *
+   * By position: between two statements that kept old chunks, the old and
+   * new statements are matched from both ends and then in order by their
+   * syntax, and the one statement left on each side of a run with the one
+   * old statement left; of the statements left, only the outermost count:
+   * the statements of a left statement's bodies are part of it, as the
+   * statements of a function written on its owner's line are, whose columns
+   * move when a function is inserted before it (`nesting`). The statements
+   * no run matched are then matched in order by their syntax with the old
+   * chunks no run took, wherever those were, as statements an edit moved
+   * past an anchor are (#1221). A matched statement keeps the old chunk when
+   * it can, one that reads as it does in its syntax, its recorded lowering
+   * inputs and its recorded values (`statementIdentity`) while the chunk's
+   * own facts hold, and is otherwise emitted again in place, taking what
+   * belongs to the old chunk's parts (`_inherit`); the one statement left on
+   * each side of a run is emitted again in place only when the two have
+   * parts.
+   *
+   * By identity: every statement that can keep an old chunk it does not
+   * hold then takes it where that leaves nothing behind (#1496): a chunk no
+   * statement holds, when the statement holds none or holds one with no
+   * parts, or by exchange, the chunk another statement holds to be emitted
+   * again in place, which then takes the one this statement leaves. A
+   * statement that holds none takes no chunk another statement holds, since
+   * that one was edited in place and keeps the parts of its old self, whose
+   * ids and symbols a saved state may name; and a statement that holds a
+   * chunk with parts keeps it over a chunk no statement holds for the same
+   * reason. A chunk left behind goes to a statement no pass matched, by its
+   * syntax.
    */
   protected align(
     statements: readonly StatementSource[],
@@ -1267,14 +1280,10 @@ export class ChunkStore {
     let lastOld = -1;
     let runStart = 0;
     const result = kept.slice();
-    // What a statement and an old chunk it keeps read the same in: its syntax
-    // and its recorded lowering inputs.
-    const identityOf = (syntax: string, reads: string) => `${syntax}\u0000${reads}`;
     // Whether an old chunk's own recorded facts hold in this build, which no
-    // statement changes (`factsHold`): a chunk whose facts fail is kept by no
-    // statement, so it is checked once.
+    // statement changes, so each chunk is checked once.
     const viable = new Map<StatementChunk, boolean>();
-    const viableChunk = (chunk: StatementChunk): boolean => {
+    const factsHold = (chunk: StatementChunk): boolean => {
       let holds = viable.get(chunk);
       if (holds === undefined) {
         holds = this.factsHold(chunk);
@@ -1282,59 +1291,15 @@ export class ChunkStore {
       }
       return holds;
     };
-    // Whether the statement can keep the old chunk: no statement took it, its
-    // syntax and recorded lowering inputs read the same as the statement's,
-    // and its recorded values and facts hold.
-    const keeps = (i: number, o: number): boolean => {
-      const chunk = old[o]!;
-      const info = this._info.get(chunk);
-      const statement = statements[i]!;
-      return (
-        !!info &&
-        !used.has(chunk) &&
-        info.syntax === statement.syntax() &&
-        info.reads === statement.reads &&
-        viableChunk(chunk) &&
-        this.holds(chunk, statement)
-      );
-    };
-    // The statements no pass has matched yet, by identity, so the statements
-    // that could keep an old chunk are found without scanning the program.
-    const waiting = new Map<string, number[]>();
-    statements.forEach((statement, i) => {
-      if (!result[i]) {
-        const identity = identityOf(statement.syntax(), statement.reads);
-        const bucket = waiting.get(identity);
-        if (bucket) {
-          bucket.push(i);
-        } else {
-          waiting.set(identity, [i]);
-        }
-      }
-    });
-    // Whether a statement other than `by` that no pass has matched can keep
-    // the old chunk.
-    const wanted = (o: number, by: number): boolean => {
-      const chunk = old[o]!;
-      const info = this._info.get(chunk);
-      if (!info || !viableChunk(chunk)) {
-        return false;
-      }
-      const bucket = waiting.get(identityOf(info.syntax, info.reads)) ?? [];
-      return bucket.some(
-        (j) =>
-          j !== by &&
-          !result[j] &&
-          !this._inherit.has(statements[j]!) &&
-          this.holds(chunk, statements[j]!),
-      );
-    };
+    // Whether the statement can keep the old chunk, whoever holds it now: the
+    // two read the same in everything a kept chunk depends on
+    // (`statementIdentity`, `chunkIdentity`), and the chunk's facts hold.
+    const fits = (i: number, o: number): boolean =>
+      this.chunkIdentity(old[o]!) === this.statementIdentity(statements[i]!) &&
+      factsHold(old[o]!);
     // Pairs a statement with an old chunk of its syntax: it keeps the chunk
-    // when it can; otherwise it is emitted again in place, taking what
-    // belongs to the old chunk's parts (`_inherit`), unless another
-    // statement no pass has matched can keep that chunk, which then waits
-    // for it. Pairing a statement by its syntax alone with a chunk another
-    // statement keeps would emit both again (#1496).
+    // when it can, and is otherwise emitted again in place, taking what
+    // belongs to the old chunk's parts (`_inherit`).
     const take = (i: number, o: number): boolean => {
       const chunk = old[o]!;
       const info = this._info.get(chunk);
@@ -1347,44 +1312,44 @@ export class ChunkStore {
       ) {
         return false;
       }
-      if (keeps(i, o)) {
-        used.add(chunk);
-        result[i] = chunk;
-        return true;
-      }
-      if (wanted(o, i)) {
-        return false;
-      }
       used.add(chunk);
-      this._inherit.set(statement, chunk);
+      if (fits(i, o)) {
+        result[i] = chunk;
+      } else {
+        this._inherit.set(statement, chunk);
+      }
       return true;
     };
+    // A block statement keeps its bodies' sequence ids by an edit in place,
+    // and a statement that writes alternators keeps their count symbols,
+    // which its alternators align with by their own source.
+    const ownsParts = (statement: StatementSource, chunk: StatementChunk) =>
+      ((statement.bodies?.length ?? 0) > 0 && blockCount(chunk) > 0) ||
+      (alternatorsOf(statement).length > 0 &&
+        (this._info.get(chunk)?.alternators.length ?? 0) > 0);
     const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
       const candidates: number[] = [];
       for (let i = newFrom; i < newTo; i += 1) {
-        if (!result[i] && !this._inherit.has(statements[i]!)) {
+        if (!result[i]) {
           candidates.push(i);
         }
       }
-      const olds: number[] = [];
-      for (let o = oldFrom; o < oldTo; o += 1) {
-        if (!used.has(old[o]!)) {
-          olds.push(o);
-        }
-      }
-      if (candidates.length === 0 || olds.length === 0) {
+      if (candidates.length === 0 || oldTo <= oldFrom) {
         return;
       }
+      const olds: number[] = [];
+      for (let o = oldFrom; o < oldTo; o += 1) {
+        olds.push(o);
+      }
       const syntaxOf = (o: number) => this._info.get(old[o]!)?.syntax;
-      // From the front, then from the back, while the syntax matches and
-      // the pairing holds.
+      // From the front, then from the back, while the syntax matches.
       let front = 0;
       while (
         front < candidates.length &&
         front < olds.length &&
-        syntaxOf(olds[front]!) === statements[candidates[front]!]!.syntax() &&
-        take(candidates[front]!, olds[front]!)
+        syntaxOf(olds[front]!) === statements[candidates[front]!]!.syntax()
       ) {
+        take(candidates[front]!, olds[front]!);
         front += 1;
       }
       let back = 0;
@@ -1392,12 +1357,12 @@ export class ChunkStore {
         back < candidates.length - front &&
         back < olds.length - front &&
         syntaxOf(olds[olds.length - 1 - back]!) ===
-          statements[candidates[candidates.length - 1 - back]!]!.syntax() &&
+          statements[candidates[candidates.length - 1 - back]!]!.syntax()
+      ) {
         take(
           candidates[candidates.length - 1 - back]!,
           olds[olds.length - 1 - back]!,
-        )
-      ) {
+        );
         back += 1;
       }
       // In between, in order, each statement with the next old one that reads
@@ -1462,23 +1427,16 @@ export class ChunkStore {
         (k) => old[k]!,
         nesting?.oldOwner,
       );
-      // A block statement keeps its bodies' sequence ids that way, and a
-      // statement that writes alternators keeps their count symbols, which
-      // its alternators align with by their own source.
-      const ownsParts = (statement: StatementSource, chunk: StatementChunk) =>
-        ((statement.bodies?.length ?? 0) > 0 && blockCount(chunk) > 0) ||
-        (alternatorsOf(statement).length > 0 &&
-          (this._info.get(chunk)?.alternators.length ?? 0) > 0);
       if (leftNew.length === 1 && leftOld.length === 1) {
         const i = leftNew[0]!;
         const k = leftOld[0]!;
         // Two statements an edit swapped cross over each other, so the
         // passes above match only one of them; the other, left alone with
-        // its own old chunk, keeps it (#1496).
-        if (keeps(i, k)) {
+        // its own old chunk, keeps it.
+        if (fits(i, k)) {
           used.add(old[k]!);
           result[i] = old[k]!;
-        } else if (ownsParts(statements[i]!, old[k]!) && !wanted(k, i)) {
+        } else if (ownsParts(statements[i]!, old[k]!)) {
           used.add(old[k]!);
           this._inherit.set(statements[i]!, old[k]!);
         }
@@ -1497,93 +1455,247 @@ export class ChunkStore {
     }
     // Statements an edit moved past the anchors, as a scene's statements
     // move into the flow above when its header is broken, find their old
-    // chunks outside their run, as do statements an edit swapped among
-    // others: the statements no run matched first take the old chunks no run
-    // took that they can keep, then are matched with the rest in order, by
-    // syntax.
-    const byIdentity = new Map<string, number[]>();
-    const bySyntax = new Map<string, number[]>();
-    const add = (map: Map<string, number[]>, key: string, o: number) => {
-      const bucket = map.get(key);
-      if (bucket) {
-        bucket.push(o);
-      } else {
-        map.set(key, [o]);
-      }
-    };
-    old.forEach((chunk, o) => {
-      const info = used.has(chunk) ? undefined : this._info.get(chunk);
-      if (info) {
-        if (viableChunk(chunk)) {
-          add(byIdentity, identityOf(info.syntax, info.reads), o);
-        }
-        add(bySyntax, info.syntax, o);
-      }
-    });
-    statements.forEach((statement, i) => {
-      if (!result[i] && !this._inherit.has(statement)) {
-        const bucket = byIdentity.get(identityOf(statement.syntax(), statement.reads));
-        const k = bucket?.findIndex((o) => keeps(i, o)) ?? -1;
-        if (k >= 0) {
-          take(i, bucket!.splice(k, 1)[0]!);
-        }
-      }
-    });
-    statements.forEach((statement, i) => {
-      if (!result[i] && !this._inherit.has(statement)) {
-        const bucket = bySyntax.get(statement.syntax());
-        while (bucket?.length) {
-          const o = bucket.shift()!;
-          if (!used.has(old[o]!)) {
-            take(i, o);
-            break;
+    // chunks outside their run: the old chunks no run took are matched with
+    // the statements no run matched, in order, by syntax.
+    const matchMoved = () => {
+      const unmatched = new Map<string, number[]>();
+      old.forEach((chunk, o) => {
+        const syntax = used.has(chunk) ? undefined : this._info.get(chunk)?.syntax;
+        if (syntax !== undefined) {
+          const olds = unmatched.get(syntax);
+          if (olds) {
+            olds.push(o);
+          } else {
+            unmatched.set(syntax, [o]);
           }
         }
+      });
+      statements.forEach((statement, i) => {
+        if (!result[i] && !this._inherit.has(statement)) {
+          const olds = unmatched.get(statement.syntax());
+          const o = olds?.[0];
+          if (o !== undefined) {
+            olds!.shift();
+            take(i, o);
+          }
+        }
+      });
+    };
+    matchMoved();
+
+    // Every statement that can keep an old chunk it does not hold now takes
+    // it where that leaves nothing behind (#1496). The pairing above follows
+    // position, so of statements an edit reordered among others of their
+    // syntax, it can pair one for an edit in place with the chunk another
+    // can keep. A statement paired with no chunk takes an old chunk no
+    // statement holds. A statement paired for an edit in place takes such a
+    // chunk only when the one it leaves has no parts, since the ids and
+    // symbols of a block's bodies, functions and alternators go with the
+    // edit in place and a saved state may name them; and it exchanges
+    // chunks with a statement paired for an edit in place with the chunk it
+    // can keep, which takes the one it leaves, so no chunk is left behind.
+    // A statement paired with no chunk takes none that another statement
+    // holds: that one was edited in place, and keeps the parts of its old
+    // self.
+    const partner = new Map<number, number>();
+    const holder = new Map<number, number>();
+    statements.forEach((statement, i) => {
+      const chunk = result[i] ? undefined : this._inherit.get(statement);
+      const o = chunk ? oldEntry.get(chunk) : undefined;
+      if (o !== undefined) {
+        partner.set(i, o);
+        holder.set(o, i);
       }
     });
+    const unpair = (i: number) => {
+      const o = partner.get(i);
+      if (o !== undefined) {
+        partner.delete(i);
+        holder.delete(o);
+        this._inherit.delete(statements[i]!);
+      }
+    };
+    // The old chunks whose facts hold, by identity: those no statement
+    // holds, and those paired for an edit in place. An entry is checked
+    // when it is taken, since a chunk moves between the two.
+    const byIdentity = new Map<string, { free: number[]; held: number[] }>();
+    const listOf = (o: number) => {
+      const identity = this.chunkIdentity(old[o]!);
+      if (identity === undefined || !factsHold(old[o]!)) {
+        return undefined;
+      }
+      let lists = byIdentity.get(identity);
+      if (!lists) {
+        lists = { free: [], held: [] };
+        byIdentity.set(identity, lists);
+      }
+      return lists;
+    };
+    for (let o = old.length - 1; o >= 0; o -= 1) {
+      if (!used.has(old[o]!)) {
+        listOf(o)?.free.push(o);
+      } else if (holder.has(o)) {
+        listOf(o)?.held.push(o);
+      }
+    }
+    const ownsAny = (chunk: StatementChunk) =>
+      blockCount(chunk) > 0 || (this._info.get(chunk)?.alternators.length ?? 0) > 0;
+    const queue: number[] = [];
+    statements.forEach((_, i) => {
+      if (!result[i]) {
+        queue.push(i);
+      }
+    });
+    for (let n = 0; n < queue.length; n += 1) {
+      const i = queue[n]!;
+      const lists = result[i]
+        ? undefined
+        : byIdentity.get(this.statementIdentity(statements[i]!));
+      if (!lists) {
+        continue;
+      }
+      const q = partner.get(i);
+      if (q === undefined || !ownsAny(old[q]!)) {
+        let o: number | undefined;
+        while (lists.free.length && o === undefined) {
+          const c = lists.free.pop()!;
+          if (!used.has(old[c]!)) {
+            o = c;
+          }
+        }
+        if (o !== undefined) {
+          if (q !== undefined) {
+            unpair(i);
+            used.delete(old[q]!);
+            listOf(q)?.free.push(q);
+          }
+          used.add(old[o]!);
+          result[i] = old[o]!;
+          continue;
+        }
+      }
+      if (q === undefined) {
+        continue;
+      }
+      let o: number | undefined;
+      while (lists.held.length && o === undefined) {
+        const c = lists.held.pop()!;
+        const p = holder.get(c);
+        if (p !== undefined && p !== i) {
+          o = c;
+        }
+      }
+      if (o === undefined) {
+        continue;
+      }
+      const p = holder.get(o)!;
+      unpair(p);
+      unpair(i);
+      result[i] = old[o]!;
+      const statement = statements[p]!;
+      if (fits(p, q)) {
+        result[p] = old[q]!;
+      } else if (
+        this._info.get(old[q]!)?.syntax === statement.syntax() ||
+        ownsParts(statement, old[q]!)
+      ) {
+        partner.set(p, q);
+        holder.set(q, p);
+        this._inherit.set(statement, old[q]!);
+        listOf(q)?.held.push(q);
+        queue.push(p);
+      } else {
+        used.delete(old[q]!);
+        listOf(q)?.free.push(q);
+        queue.push(p);
+      }
+    }
+    // A chunk a statement left for one it keeps goes to a statement no pass
+    // matched, as the statements an edit moved find theirs.
+    matchMoved();
     return result;
   }
 
   /** Whether a chunk's recorded values and facts still hold for `statement`. */
   protected holds(chunk: StatementChunk, statement: StatementSource): boolean {
-    const info = this._info.get(chunk);
-    if (
-      !info ||
-      info.globals !== assignedNames(statement) ||
-      info.defines !== statement.defines ||
-      info.hoisted !== hoistedOf(statement) ||
-      info.params !== paramsOf(statement)
-    ) {
-      return false;
-    }
-    const exclude = bodyObjects(statement);
-    const names = compilerNamedTexts(statement.objects, exclude);
-    if (
-      names.length !== info.emitReads.length ||
-      names.some((name, i) => name !== info.emitReads[i])
-    ) {
-      return false;
-    }
-    const resolutions = resolutionsOf(
-      [...statement.objects, ...hoistedLocals(statement)],
-      exclude,
+    const values = this.chunkValues(chunk);
+    return (
+      values !== undefined &&
+      values === this.statementValues(statement) &&
+      this.factsHold(chunk)
     );
-    if (
-      resolutions.length !== info.resolutions.length ||
-      resolutions.some((value, i) => value !== info.resolutions[i])
-    ) {
-      return false;
+  }
+
+  // The values each statement of the build in progress reads as, and each
+  // chunk recorded (`statementValues`, `chunkValues`).
+  protected _statementValues = new WeakMap<StatementSource, string>();
+  protected _chunkValues = new WeakMap<ChunkInfo, string>();
+
+  /** What a statement reads as in everything a chunk kept for it depends on
+   *  besides its syntax, its lowering reads and the chunk's own facts: the
+   *  globals it assigns, the function it defines, the locals and parameters
+   *  of the functions it writes or runs in place, the texts the compiler
+   *  names by document order, how each name resolves, and which of its
+   *  bodies are functions. A chunk's values (`chunkValues`) read the same
+   *  exactly when they agree. Computed once per build. */
+  protected statementValues(statement: StatementSource): string {
+    let values = this._statementValues.get(statement);
+    if (values === undefined) {
+      const exclude = bodyObjects(statement);
+      values = JSON.stringify([
+        assignedNames(statement) ?? null,
+        statement.defines ?? null,
+        hoistedOf(statement),
+        paramsOf(statement),
+        compilerNamedTexts(statement.objects, exclude),
+        resolutionsOf([...statement.objects, ...hoistedLocals(statement)], exclude),
+        (statement.bodies ?? []).map((body) => !!body.fn),
+      ]);
+      this._statementValues.set(statement, values);
     }
-    const bodies = statement.bodies ?? [];
-    if (
-      bodies.length !== blockCount(chunk) ||
-      bodies.some(
-        (body, k) => !!body.fn !== !!(blockFlags(chunk, k) & BLOCK_FUNCTION),
-      )
-    ) {
-      return false;
+    return values;
+  }
+
+  /** The values a chunk recorded, in the form `statementValues` gives a
+   *  statement's, or nothing for a chunk the store knows nothing of. */
+  protected chunkValues(chunk: StatementChunk): string | undefined {
+    const info = this._info.get(chunk);
+    if (!info) {
+      return undefined;
     }
-    return this.factsHold(chunk);
+    let values = this._chunkValues.get(info);
+    if (values === undefined) {
+      const functions: boolean[] = [];
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        functions.push(!!(blockFlags(chunk, k) & BLOCK_FUNCTION));
+      }
+      values = JSON.stringify([
+        info.globals ?? null,
+        info.defines ?? null,
+        info.hoisted,
+        info.params,
+        info.emitReads,
+        info.resolutions,
+        functions,
+      ]);
+      this._chunkValues.set(info, values);
+    }
+    return values;
+  }
+
+  /** A statement's syntax, lowering reads and values, which a chunk it keeps
+   *  reads the same in (`chunkIdentity`). */
+  protected statementIdentity(statement: StatementSource): string {
+    return `${statement.syntax()}\u0000${statement.reads}\u0000${this.statementValues(statement)}`;
+  }
+
+  /** A chunk's recorded syntax, lowering reads and values, in the form of
+   *  `statementIdentity`. */
+  protected chunkIdentity(chunk: StatementChunk): string | undefined {
+    const info = this._info.get(chunk);
+    return info
+      ? `${info.syntax}\u0000${info.reads}\u0000${this.chunkValues(chunk)}`
+      : undefined;
   }
 
   /** Whether the facts a chunk recorded about itself still hold in the build

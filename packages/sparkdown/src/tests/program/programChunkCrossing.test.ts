@@ -3,10 +3,14 @@
 // moves `function bump(by)` into an earlier body, so it now comes before
 // `function twice(n`, which the edit did not touch. The script is a reduction
 // of a case from the cumulative fuzz in programChunkIdentity.test.ts. The
-// store-level cases below hold the alignment to its identity rule when
-// statements cross: a statement keeps only a chunk it could keep in place.
+// other cases hold the alignment to its rule when statements cross: a
+// statement keeps the old chunk it can keep where that leaves nothing
+// behind, a statement edited in place keeps the parts of its old self, and
+// the work stays linear in the number of statements.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
+import { bodyOfBlock } from "../../compiler/lower/utils/statementShape";
+import { wrapInScope } from "../../compiler/lower/utils/wrapInScope";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import {
@@ -18,8 +22,8 @@ import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
 import { internSymbol, SymbolKind } from "../../program/ProgramSymbols";
-import { exportSymbol } from "../../program/StatementChunk";
-import { MAIN_URI, programCompiler, rootChunks } from "./programHarness";
+import { B_SEQUENCE, blockField, exportSymbol } from "../../program/StatementChunk";
+import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 import { programStatements, uniqueKeys, untouchedChunks } from "./programStatements";
 
 const SCRIPT = [
@@ -369,5 +373,210 @@ describe.each([
     expect(store.emittedLastBuild).toBe(1);
     expect(after[1] === before[2]).toBe(true);
     expect(before.includes(after[2]!)).toBe(false);
+  });
+
+  it("keep the chunk of the one whose own it is when the other one changed", () => {
+    const { store, build } = builder();
+    const before = build([statement("x", "read-a"), statement("x", "read-b")]);
+    const after = build([statement("x", "read-c"), statement("x", "read-a")]);
+    expect(store.emittedLastBuild).toBe(1);
+    expect(after[1] === before[0]).toBe(true);
+    expect(new Set(after).size).toBe(after.length);
+  });
+
+  it("keep the chunk of the unchanged one when its neighbor moves and changes its reads", () => {
+    const { store, build } = builder();
+    const anchor = statement("anchor");
+    const before = build([anchor, statement("x", "read-1"), statement("x", "read-2")]);
+    const after = build([anchor, statement("x", "read-2"), statement("x", "read-3")]);
+    expect(store.emittedLastBuild).toBe(1);
+    expect(after[1] === before[2]).toBe(true);
+  });
+
+  it("align a long run whose recorded values all changed in lookups linear in its length", () => {
+    const n = 512;
+    class CountingStore extends ChunkStore {
+      lookups = 0;
+      constructor() {
+        super();
+        const get = this._info.get.bind(this._info);
+        this._info.get = (chunk) => {
+          this.lookups += 1;
+          return get(chunk);
+        };
+      }
+    }
+    const store = new CountingStore();
+    const defining = (defines: string): StatementSource => ({ ...statement("x"), defines });
+    const source = (statements: StatementSource[]) =>
+      declarations
+        ? {
+            flows: [],
+            declarations: statements.map(
+              (s) => ({ ...s, uri: MAIN_URI, globals: [] }) as DeclarationSource,
+            ),
+          }
+        : [{ name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
+    store.build(source(Array.from({ length: n }, () => defining("before"))), true);
+    store.lookups = 0;
+    store.build(source(Array.from({ length: n }, () => defining("after"))), true);
+    expect(store.emittedLastBuild).toBe(n);
+    expect(store.lookups).toBeLessThan(20 * n);
+  });
+});
+
+describe("an edited function beside an inserted copy of its old version", () => {
+  // The edit gives the function `g` and a new return value, and inserts a
+  // copy of the function as it was after `keep = f`. The edited function is
+  // edited in place and keeps its symbol, so a closure saved before the edit
+  // calls its new code; the copy, which could keep the old chunk, takes a new
+  // one.
+  it("keeps the edited function's symbol for a saved closure", () => {
+    const text = [
+      "f = function()",
+      "  return 1",
+      "end",
+      "keep = f",
+      "done",
+      "function call_keep()",
+      "  return keep()",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+    const before = c.compile().program;
+    expect(before.fallback).toBeUndefined();
+    const first = before.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const story = new ProgramStory(before.chunks!);
+    while (story.canContinue) {
+      story.Continue();
+    }
+    const saved = story.variablesState.GetVariableWithName("keep");
+    expect(story.EvaluateFunction("call_keep")).toBe(1);
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN_URI, version: 2 },
+      contentChanges: [
+        {
+          range: { start: { line: 1, character: 0 }, end: { line: 4, character: 0 } },
+          text: "  function g() return 7 end\n  return 2\nend\nkeep = f\nf = function()\n  return 1\nend\n",
+        },
+      ],
+    });
+    const after = c.compile().program;
+    expect(after.fallback).toBeUndefined();
+    const edited = after.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    expect(exportSymbol(edited, 0)).toBe(exportSymbol(first, 0));
+    const resumed = new ProgramStory(after.chunks!);
+    resumed.variablesState.SetGlobal("keep", saved as never);
+    expect(resumed.EvaluateFunction("call_keep")).toBe(2);
+  });
+});
+
+describe("a block statement that can keep an old chunk another one was paired with", () => {
+  // Old `[x, anchor, y]` becomes `[z, anchor, x]`, each but the anchor a
+  // block statement with one body. By position `z` is edited in place from
+  // `x` and the new `x` from `y`; the new `x` keeps its own old chunk by
+  // exchange, `z` is edited in place from `y`, and no old chunk or body
+  // sequence is left behind.
+  it("keeps every old body sequence and leaves no old chunk unused", () => {
+    const store = new ChunkStore();
+    const owner = (syntax: string, reads: string): StatementSource => {
+      const objects = wrapInScope([]);
+      const shape = { statements: [], headEnd: 0, nextStart: 0 };
+      bodyOfBlock.set(objects[0]!, shape as never);
+      return {
+        block: {},
+        objects,
+        range: null,
+        firstLine: 0,
+        source: () => syntax,
+        syntax: () => syntax,
+        reads,
+        bodies: [{ shape, statements: [], firstLine: 0, span: 1, headLines: 0 }],
+      } as unknown as StatementSource;
+    };
+    const anchor: StatementSource = {
+      block: {},
+      objects: [new Text("anchor")],
+      range: null,
+      firstLine: 0,
+      source: () => "anchor",
+      syntax: () => "anchor",
+      reads: "[]",
+    };
+    const flow = (statements: StatementSource[]) => [
+      { name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements },
+    ];
+    const old = store
+      .build(flow([owner("x", "r0"), anchor, owner("y", "r0")]), true)
+      .root!.flowNamed("")!.arrays.chunks;
+    const now = store
+      .build(flow([owner("z", "r1"), anchor, owner("x", "r0")]), true)
+      .root!.flowNamed("")!.arrays.chunks;
+    expect(store.emittedLastBuild).toBe(1);
+    expect(now[2] === old[0]).toBe(true);
+    const sequences = (chunks: readonly Int32Array[]) =>
+      [chunks[0]!, chunks[2]!].map((chunk) => blockField(chunk, 0, B_SEQUENCE));
+    expect(new Set(sequences(now))).toEqual(new Set(sequences(old)));
+    expect(blockField(now[0]!, 0, B_SEQUENCE)).toBe(blockField(old[2]!, 0, B_SEQUENCE));
+  });
+});
+
+describe("statements whose recorded values an edit changes", () => {
+  const counted = (c: ReturnType<typeof programCompiler>) => {
+    const info = (c.compiler.chunkStore as unknown as { _info: WeakMap<object, unknown> })._info;
+    const get = info.get.bind(info);
+    const count = { lookups: 0 };
+    info.get = (chunk) => {
+      count.lookups += 1;
+      return get(chunk);
+    };
+    return count;
+  };
+
+  it("are emitted again in lookups linear in their number when a scene changes what a name reads", () => {
+    const n = 256;
+    const text = [...Array(n).fill("Seen {extra}."), ""].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+    expect(c.compile().program.fallback).toBeUndefined();
+    const count = counted(c);
+    const added = "scene extra\n  Inside.\nend\n";
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN_URI, version: 2 },
+      contentChanges: [
+        { range: { start: { line: n, character: 0 }, end: { line: n, character: 0 } }, text: added },
+      ],
+    });
+    const after = c.compile().program;
+    expect(after.fallback).toBeUndefined();
+    expect(c.compiler.chunkStore!.emittedLastBuild).toBe(n + 1);
+    expect(count.lookups).toBeLessThan(20 * n);
+    const cold = programCompiler({ [MAIN_URI]: text + added }, { programChunks: true });
+    expect(describeRoot(after.chunks!)).toEqual(describeRoot(cold.compile().program.chunks!));
+  });
+
+  it("are emitted again in lookups linear in their number when their functions' hoisted locals change", () => {
+    const n = 128;
+    const section = (name: string) =>
+      ["f = function()", `  function ${name}() return 7 end`, "  return 2", "end"].join("\n");
+    const text = ["store f = nil", ...Array(n).fill(section("g")), "done", ""].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+    expect(c.compile().program.fallback).toBeUndefined();
+    const count = counted(c);
+    const document = c.compiler.documents.get(MAIN_URI)!;
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN_URI, version: 2 },
+      contentChanges: [
+        {
+          range: {
+            start: document.positionAt(text.indexOf("f = function()")),
+            end: document.positionAt(text.lastIndexOf("done")),
+          },
+          text: Array(n).fill(section("h")).join("\n") + "\n",
+        },
+      ],
+    });
+    expect(c.compile().program.fallback).toBeUndefined();
+    expect(count.lookups).toBeLessThan(40 * n);
   });
 });
