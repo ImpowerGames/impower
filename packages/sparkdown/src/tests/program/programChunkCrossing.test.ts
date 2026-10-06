@@ -144,6 +144,30 @@ describe.each([
     expect(after[3] === before[2]).toBe(true);
   });
 
+  it("keep their own chunks when one of one syntax would match the other's from the back", () => {
+    const { store, build } = builder();
+    const anchor = statement("anchor");
+    const before = build([
+      anchor,
+      statement("x", "read-one"),
+      statement("y"),
+      statement("x", "read-two"),
+      statement("z"),
+    ]);
+    const after = build([
+      anchor,
+      statement("y"),
+      statement("x", "read-two"),
+      statement("x", "read-one"),
+      statement("z"),
+    ]);
+    expect(store.emittedLastBuild).toBe(0);
+    expect(after[1] === before[2]).toBe(true);
+    expect(after[2] === before[3]).toBe(true);
+    expect(after[3] === before[1]).toBe(true);
+    expect(after[4] === before[4]).toBe(true);
+  });
+
   it("emit again the one whose reads changed", () => {
     const { store, build } = builder();
     const anchor = statement("anchor");

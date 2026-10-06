@@ -1232,21 +1232,25 @@ export class ChunkStore {
    * statement to emit. `statements` and `old` are the new and the previous
    * program's statements in order, and `kept` holds the chunks of the
    * statements whose block the store emitted a chunk for. The others are
-   * aligned with the old chunks: between two statements that kept old chunks,
-   * the old and new statements are matched from both ends, then in order by
-   * their syntax, then out of order, for the statements an edit swapped,
-   * with old chunks they can keep (#1496), and a statement matched with one whose syntax and
-   * recorded lowering inputs read the same takes its chunk, while its
-   * recorded values and facts hold. A statement matched by its syntax whose
-   * old chunk cannot be kept, and the one statement left on each side of a
-   * run, is emitted again in place, taking what belongs to the old chunk's
-   * parts (`_inherit`). Of the statements left, only the outermost count:
-   * the statements of a left statement's bodies are part of it, as the
-   * statements of a function written on its owner's line are, whose columns
-   * move when a function is inserted before it (`nesting`). The statements
-   * no run matched are then matched in order by their syntax with the old
-   * chunks no run took, wherever those were, as statements an edit moved
-   * past an anchor are (#1221).
+   * aligned with the old chunks, in the runs between two statements that
+   * kept old chunks (anchors). First each statement takes an old chunk it
+   * can keep: one whose syntax and recorded lowering inputs read the same
+   * as its own, while the chunk's recorded values and facts hold; first in
+   * its run by position, from both ends and then in order, then anywhere in
+   * its run, as two statements an edit swapped find theirs, then anywhere,
+   * as a statement an edit moved past an anchor does (#1496, #1221). Only
+   * then are the statements left paired with the old chunks left to be
+   * emitted again in place, taking what belongs to the old chunk's parts
+   * (`_inherit`): in
+   * each run, matched from both ends and then in order by their syntax, and
+   * the one statement left on each side of a run, counting only the
+   * outermost of those left: the statements of a left statement's bodies
+   * are part of it, as the statements of a function written on its owner's
+   * line are, whose columns move when a function is inserted before it
+   * (`nesting`); then the statements no run matched with the old chunks no
+   * run took, wherever those were, in order by their syntax. Pairing a
+   * statement by its syntax alone before every statement has kept what it
+   * can would take a chunk that another statement of that syntax keeps.
    */
   protected align(
     statements: readonly StatementSource[],
@@ -1286,19 +1290,144 @@ export class ChunkStore {
       result[i] = chunk;
       return true;
     };
-    const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
+    // Whether the statement can keep the old chunk: no statement took it, its
+    // syntax and recorded lowering inputs read the same as the statement's,
+    // and its recorded values and facts hold.
+    const keeps = (i: number, o: number): boolean => {
+      const chunk = old[o]!;
+      const info = this._info.get(chunk);
+      const statement = statements[i]!;
+      return (
+        !!info &&
+        !used.has(chunk) &&
+        info.syntax === statement.syntax() &&
+        info.reads === statement.reads &&
+        this.holds(chunk, statement)
+      );
+    };
+    // The statements of `[newFrom, newTo)` no pass has matched, and the old
+    // chunks of `[oldFrom, oldTo)` no statement took.
+    const left = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
       const candidates: number[] = [];
       for (let i = newFrom; i < newTo; i += 1) {
-        if (!result[i]) {
+        if (!result[i] && !this._inherit.has(statements[i]!)) {
           candidates.push(i);
         }
       }
-      if (candidates.length === 0 || oldTo <= oldFrom) {
-        return;
-      }
       const olds: number[] = [];
       for (let o = oldFrom; o < oldTo; o += 1) {
-        olds.push(o);
+        if (!used.has(old[o]!)) {
+          olds.push(o);
+        }
+      }
+      return { candidates, olds };
+    };
+    // Gives the statements of a run the old chunks of the run they can keep,
+    // matched by position: from the front and from the back while each
+    // statement can keep the old chunk across from it, then in order, each
+    // with the next old chunk it can keep. A statement and an old chunk of
+    // one syntax that it cannot keep are left alone, since of the statements
+    // of that syntax the chunk may be another's.
+    const keepRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
+      const { candidates, olds } = left(newFrom, newTo, oldFrom, oldTo);
+      let front = 0;
+      while (
+        front < candidates.length &&
+        front < olds.length &&
+        keeps(candidates[front]!, olds[front]!)
+      ) {
+        take(candidates[front]!, olds[front]!);
+        front += 1;
+      }
+      let back = 0;
+      while (
+        back < candidates.length - front &&
+        back < olds.length - front &&
+        keeps(candidates[candidates.length - 1 - back]!, olds[olds.length - 1 - back]!)
+      ) {
+        take(candidates[candidates.length - 1 - back]!, olds[olds.length - 1 - back]!);
+        back += 1;
+      }
+      // The positions among `olds` of each syntax, ascending, so the next old
+      // chunk of a statement's syntax is found without scanning the run.
+      const at = new Map<string, number[]>();
+      for (let k = front; k < olds.length - back; k += 1) {
+        const syntax = this._info.get(old[olds[k]!]!)?.syntax;
+        if (syntax !== undefined) {
+          const positions = at.get(syntax);
+          if (positions) {
+            positions.push(k);
+          } else {
+            at.set(syntax, [k]);
+          }
+        }
+      }
+      let o = front;
+      for (let c = front; c < candidates.length - back; c += 1) {
+        const positions = at.get(statements[candidates[c]!]!.syntax());
+        if (!positions) {
+          continue;
+        }
+        let lo = 0;
+        let hi = positions.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (positions[mid]! < o) {
+            lo = mid + 1;
+          } else {
+            hi = mid;
+          }
+        }
+        for (let p = lo; p < positions.length; p += 1) {
+          const k = positions[p]!;
+          if (keeps(candidates[c]!, olds[k]!)) {
+            take(candidates[c]!, olds[k]!);
+            o = k + 1;
+            break;
+          }
+        }
+      }
+    };
+    // Gives each statement of `[newFrom, newTo)` no pass has matched the
+    // first old chunk of `[oldFrom, oldTo)` no statement took that it can
+    // keep, wherever it stands: two statements an edit swapped, as one moved
+    // into an earlier body is, cross over each other, so matching by
+    // position keeps only one of them.
+    const keepRange = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
+      const bySyntax = new Map<string, number[]>();
+      for (let o = oldFrom; o < oldTo; o += 1) {
+        const info = used.has(old[o]!) ? undefined : this._info.get(old[o]!);
+        if (info) {
+          const bucket = bySyntax.get(info.syntax);
+          if (bucket) {
+            bucket.push(o);
+          } else {
+            bySyntax.set(info.syntax, [o]);
+          }
+        }
+      }
+      if (bySyntax.size === 0) {
+        return;
+      }
+      for (let i = newFrom; i < newTo; i += 1) {
+        const statement = statements[i]!;
+        if (result[i] || this._inherit.has(statement)) {
+          continue;
+        }
+        const bucket = bySyntax.get(statement.syntax());
+        const at = bucket?.findIndex((o) => keeps(i, o)) ?? -1;
+        if (at >= 0) {
+          take(i, bucket!.splice(at, 1)[0]!);
+        }
+      }
+    };
+    // Pairs the statements of a run that kept no chunk with the old chunks
+    // of the run no statement took by their syntax, to be emitted again in
+    // place.
+    const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
+      const { candidates, olds } = left(newFrom, newTo, oldFrom, oldTo);
+      if (candidates.length === 0 || olds.length === 0) {
+        return;
       }
       const syntaxOf = (o: number) => this._info.get(old[o]!)?.syntax;
       // From the front, then from the back, while the syntax matches.
@@ -1334,35 +1463,6 @@ export class ChunkStore {
             if (take(candidates[c]!, olds[k]!)) {
               o = k + 1;
             }
-            break;
-          }
-        }
-      }
-      // Across: each statement the in-order pass left with the first old one
-      // of the run no statement took that it can keep, by its syntax, its
-      // recorded reads and what the chunk recorded. Two statements an edit
-      // swapped in the list, as one moved into an earlier body is, cross over
-      // each other, so the in-order pass can match only one of them; the
-      // other is not edited, and pairing it as edited in place below would
-      // emit its chunk again. An old chunk the statement could not keep is
-      // left for the rules below: of two statements of one syntax, it may be
-      // the other's, in this run or past an anchor.
-      for (let c = front; c < candidates.length - back; c += 1) {
-        const i = candidates[c]!;
-        const statement = statements[i]!;
-        if (result[i] || this._inherit.has(statement)) {
-          continue;
-        }
-        const syntax = statement.syntax();
-        for (let k = front; k < olds.length - back; k += 1) {
-          const chunk = old[olds[k]!]!;
-          if (
-            !used.has(chunk) &&
-            syntaxOf(olds[k]!) === syntax &&
-            this._info.get(chunk)!.reads === statement.reads &&
-            this.holds(chunk, statement)
-          ) {
-            take(i, olds[k]!);
             break;
           }
         }
@@ -1410,21 +1510,38 @@ export class ChunkStore {
         this._inherit.set(statements[leftNew[0]!]!, old[leftOld[0]!]!);
       }
     };
+    // The runs between anchors, each as the new and old ranges it spans.
+    const runs: [number, number, number, number][] = [];
     for (let i = 0; i <= kept.length; i += 1) {
       const chunk = kept[i];
       const entry = chunk ? oldEntry.get(chunk) : undefined;
       if (i === kept.length || (entry !== undefined && entry > lastOld)) {
-        matchRun(runStart, i, lastOld + 1, i === kept.length ? old.length : entry!);
+        runs.push([runStart, i, lastOld + 1, i === kept.length ? old.length : entry!]);
         if (entry !== undefined) {
           lastOld = entry;
         }
         runStart = i + 1;
       }
     }
+    // Every statement that can keep an old chunk takes it before any is
+    // paired by its syntax alone to be emitted again in place, which would
+    // take a chunk another statement of that syntax keeps: first within its
+    // run, by position and then wherever it stands in the run, then wherever
+    // the chunk was, as a statement an edit moved past an anchor finds it
+    // (#1496).
+    for (const run of runs) {
+      keepRun(...run);
+      keepRange(...run);
+    }
+    keepRange(0, statements.length, 0, old.length);
+    for (const run of runs) {
+      matchRun(...run);
+    }
     // Statements an edit moved past the anchors, as a scene's statements
-    // move into the flow above when its header is broken, find their old
-    // chunks outside their run: the old chunks no run took are matched with
-    // the statements no run matched, in order, by syntax.
+    // move into the flow above when its header is broken, are paired with
+    // their old chunks outside their run to be emitted again in place: the
+    // old chunks no run took are matched with the statements no run matched,
+    // in order, by syntax.
     const unmatched = new Map<string, number[]>();
     old.forEach((chunk, o) => {
       const syntax = used.has(chunk) ? undefined : this._info.get(chunk)?.syntax;
