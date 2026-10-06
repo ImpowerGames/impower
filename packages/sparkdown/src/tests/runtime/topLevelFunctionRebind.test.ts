@@ -66,6 +66,11 @@ const cases: [string, string, string][] = [
     "f is 2.\n",
   ],
   [
+    "a nested function written after a closed block's local assigns the global",
+    "function f() return 7 end\nfunction swap()\n  if true then\n    local f = function() return 3 end\n  end\n  if true then\n    function h(...)\n      f = function() return 2 end\n    end\n    h()\n  end\nend\n& swap()\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
     "an assignment to a local of the name in scope leaves the function alone",
     "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  f = function() return 2 end\nend\n& swap()\nf is {f()}.\n",
     "f is 7.\n",

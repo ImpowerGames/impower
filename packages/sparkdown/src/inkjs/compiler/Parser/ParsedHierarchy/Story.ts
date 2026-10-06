@@ -201,13 +201,16 @@ export class Story extends FlowBase {
 
   /** The names written to the global scope by a plain assignment
    *  (`game = -> there`) anywhere in the story, callables included: a global
-   *  write is visible from every flow. A plain assignment where a `local` or
-   *  parameter of the name is in scope writes that binding, not the global,
-   *  and is left out; the parse tree gives both the same node. Scope is
-   *  Luau's (`FlowBase.IsBoundLocallyAt`): a `local` declared later, or in a
-   *  block that has closed, does not hide the global. A closure's upvalue
-   *  parameter is no such binding: a write through it lands on whatever the
-   *  enclosing scope resolved the name to, which may be the global. Walked
+   *  write is visible from every flow. A plain assignment that a `local` or
+   *  parameter of the name certainly binds writes that binding, not the
+   *  global, and is left out; the parse tree gives both the same node.
+   *  `FlowBase.IsBoundLocallyAt` decides it: a `local` declared later, or in
+   *  a block that has closed, does not bind the assignment, and neither does
+   *  a closure's upvalue parameter, since a write through it lands on
+   *  whatever the enclosing scope resolved the name to, which may be the
+   *  global. A name this set holds needlessly costs a call of a top-level
+   *  function of that name a read of the unset global, which leads back to
+   *  the function, so where the decision is unsure the name is kept. Walked
    *  once per export, on first use, for {@link builtinGlobalDiverts}'s
    *  severity and for which calls of a top-level function read the global
    *  that rebinds it (`Divert`). */

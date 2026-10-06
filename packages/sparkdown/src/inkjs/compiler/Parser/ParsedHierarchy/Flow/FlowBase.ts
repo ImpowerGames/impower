@@ -397,18 +397,37 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   public VariableResolveResult?: VariableResolveResult | null | undefined;
 
-  // Whether a `local` or a parameter binds `varName` where `fromNode` is
-  // written, as `IsLocalInScopeAt` decides: a `local` declared earlier and
-  // outside any block that has closed, or a parameter of the function around
-  // it. A global of the name binds nothing here.
+  // Whether a `local` or a parameter certainly binds `varName` where
+  // `fromNode` is written: a `local` declared before it in its own flow,
+  // outside any block that has closed (`declaresLocal`), or a parameter of
+  // that flow. A name a nested function captures is an upvalue parameter,
+  // whose call passes a pointer to whatever the name resolves to where the
+  // function is written, the global included, so it binds nothing certain
+  // and answers false. The decision reads only the order of the parsed
+  // content, never source positions, so an incremental compile decides it as
+  // a cold one does.
   public IsBoundLocallyAt = (
     varName: string,
     fromNode: ParsedObject,
   ): boolean => {
-    const parent = fromNode.parent;
+    let node: ParsedObject | null = fromNode.parent;
+    let end = node ? node.content.indexOf(fromNode) : -1;
+    while (node && !(node instanceof FlowBase)) {
+      if (declaresLocal(node.content, end, varName)) {
+        return true;
+      }
+      const child: ParsedObject = node;
+      node = node.parent;
+      end = node ? node.content.indexOf(child) : -1;
+    }
+    const flow = node as FlowBase | null;
+    if (!flow || flow === this.story) {
+      return false;
+    }
     return (
-      parent !== null &&
-      this.IsLocalInScopeAt(varName, parent, parent.content.indexOf(fromNode))
+      flow.args?.some(
+        (a) => !a.isUpvalue && a.identifier?.name === varName,
+      ) ?? false
     );
   };
 
