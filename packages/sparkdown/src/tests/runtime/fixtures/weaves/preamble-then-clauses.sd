@@ -1,0 +1,22 @@
+choose
+  choose
+    choose
+      if true then
+        * Inner
+          Took inner.
+      end
+    then
+      Inner then.
+    end
+    if true then
+      * Middle
+    end
+  then
+    Middle then.
+  end
+  * Outer
+then
+  Outer then.
+end
+After.
+done

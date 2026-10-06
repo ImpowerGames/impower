@@ -169,15 +169,17 @@ export interface EmittedStatement {
   facts: ReadonlyMap<number, readonly string[]>;
 }
 
-// The presentation of the `choose` block being written: each choice it
-// raises, with the label its `Choice` targets, its count symbol and whether
-// that is a named choice's label symbol. A choice an `if` gates has its body
-// in its branch (`body`), and after it what the branch closes (`rest`), which
-// its entry runs after the body. An entry runs at the depth of scopes its
-// choice was raised at (`scopes`). A choice continues at `join` when one is
-// set (the `then` clause of a block written in the preamble), and otherwise
-// at the block's end; `gatherJoin` is where such a clause written in the
-// part being emitted continues.
+// The presentation of the `choose` block being written (section 4): each
+// choice it raises, with the label its `Choice` targets, its count symbol and
+// whether that is a named choice's label symbol. A choice an `if` gates has
+// its body in its branch (`body`). An entry runs at the depth of scopes its
+// choice was raised at (`scopes`), which holds the scopes of the branches
+// around it, and closes them after the body. A choice continues at `join`
+// when one is set, the `then` clause of the innermost block written in the
+// preamble that it belongs to and that has one, and otherwise at the block's
+// end. Each such clause (`clauses`) runs after the entries, at the depth of
+// scopes its block stands at, and continues where a choice of the block
+// around it does.
 interface ChooseState {
   entries: {
     choice: Choice;
@@ -185,12 +187,16 @@ interface ChooseState {
     symbol: number;
     named: boolean;
     body: object | undefined;
-    rest: readonly ParsedObject[];
+    scopes: number;
+    join: ProgramLabel | null;
+  }[];
+  clauses: {
+    label: ProgramLabel;
+    gather: Gather;
     scopes: number;
     join: ProgramLabel | null;
   }[];
   join: ProgramLabel | null;
-  gatherJoin: ProgramLabel | null;
   /** The block's end, `T`. */
   end: ProgramLabel;
 }
@@ -596,7 +602,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const fn = block.fn!;
       this._ranges.push(fn.range);
       this.row(fn.range);
-      this._scopes = 0;
+      // After the `Jump` past the entries or the `Return` of the entry
+      // above, where no instruction runs.
+      this.alignScopes(0);
       this._exports.push(fn.symbol, this._code.length);
       this.emitParameters(fn.params, fn.hoisted);
       this.enterBlock(block.body, BLOCK_FUNCTION);
@@ -626,9 +634,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
         // it. What follows a choice an `if` of the block's preamble gates in
         // its branch, up to the next choice, is its body, which the current
         // engine's weave nests in the choice, and then what the branch
-        // closes (its scope), which the choice's entry runs after the body
-        // (`emitChoicePoint`): the branch's scope stays open for the rest of
-        // the presentation, as on the current engine.
+        // closes (its scope), which closes here, where the branch ends, as
+        // Luau closes a block's scope (`emitChoicePoint`).
         if (!this._choose) {
           this.unsupported(obj.typeName);
         }
@@ -645,7 +652,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
         ) {
           this.unsupported("a label between choices an if gates");
         }
-        this.emitChoicePoint(obj, objects.slice(i + 1, end));
+        this.emitObjects(this.emitChoicePoint(obj, objects.slice(i + 1, end)));
         i = end - 1;
         continue;
       }
@@ -719,8 +726,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
    *
    *   the preamble and each choice's text, condition and `Choice`, an `if`
    *   that gates a choice a jump around it; Done (the hold); Jump T;
-   *   A: Visit #a; the chosen line; EnterBlock (the choice's body); Jump T;
-   *   ...; T: Visit (the `then` label); EnterBlock (the `then` clause)
+   *   A: Visit #a; the chosen line; EnterBlock (the choice's body); the
+   *   scopes of the branches around the choice closed; Jump T; ...; the
+   *   `then` clauses of blocks written in the preamble; T: Visit (the `then`
+   *   label); EnterBlock (the `then` clause)
    *
    * A choice's count is an anonymous symbol of the statement, which the
    * chunk store hands on to the choice it aligns with by its own source, or
@@ -738,8 +747,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const end: ProgramLabel = { offset: -1 };
     const presentation: ChooseState = {
       entries: [],
+      clauses: [],
       join: null,
-      gatherJoin: null,
       end,
     };
     this._choose = presentation;
@@ -747,19 +756,23 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._choose = null;
     this.emit(Op.Done, 0, 0, DONE_HOLD);
     this.jumpBack(Op.Jump, end);
-    // A gated branch leaves its scope open for the rest of the presentation,
-    // as the current engine's does, and its choice's content closes it. The
-    // scopes open at an offset therefore depend on which branches ran, and
-    // what the chunk records is the most there can be: the scopes opened
-    // before the offset and not yet closed on the way there. An entry runs at
-    // the depth its choice was raised at (its body's row records it) and the
-    // block's end at the depth the presentation ends at. A jump inside a
-    // body keeps every scope up to the recorded depth, so it closes none the
-    // thread holds.
+    // A gated branch's scope closes where the branch ends, as Luau closes a
+    // block's, so the scopes open at every offset of the presentation follow
+    // from the code before it. An entry runs at the depth its choice was
+    // raised at (its body's row records it), which holds the scopes of the
+    // branches around the choice: the choice's thread was forked inside
+    // them, so its body reads their locals. The entry closes them after the
+    // body, down to the depth of where it continues: the `then` clause of a
+    // block written in the preamble, at the depth that block stands at, or
+    // the block's end, at the depth the presentation ends at.
     const depth = this._scopes;
+    const depthAt = (join: ProgramLabel | null) =>
+      join
+        ? presentation.clauses.find((clause) => clause.label === join)!.scopes
+        : depth;
     presentation.entries.forEach((entry) => {
+      this.alignScopes(entry.scopes);
       this.bind(entry.label);
-      this._scopes = entry.scopes;
       this.withRange(entry.choice.ownDebugMetadata as DebugMetadata | null, () => {
         if (entry.named) {
           this.recordResolution(entry.choice.programResolutionKey);
@@ -767,12 +780,25 @@ export class BinaryProgramWriter implements ProgramEmitter {
         }
         this.emit(Op.Visit, entry.symbol);
         this.emitChoiceEntry(entry.choice, entry.body);
-        this.emitObjects(entry.rest);
+        this.closeScopes(depthAt(entry.join));
       });
       this.jumpBack(Op.Jump, entry.join ?? end);
     });
-    this._scopes = depth;
+    presentation.clauses.forEach((clause) => {
+      this.alignScopes(clause.scopes);
+      this.bind(clause.label);
+      this.emitThenClause(clause.gather);
+      this.closeScopes(depthAt(clause.join));
+      this.jumpBack(Op.Jump, clause.join ?? end);
+    });
+    this.alignScopes(depth);
     this.bind(end);
+    this.emitThenClause(gather);
+  }
+
+  /** A `then` clause where it runs: the `Visit` its label exports, when it
+   *  has one, and its body as a block. */
+  protected emitThenClause(gather: Gather): void {
     this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
       if (gather.name) {
         this.recordResolution(gather.programResolutionKey);
@@ -789,24 +815,44 @@ export class BinaryProgramWriter implements ProgramEmitter {
     });
   }
 
+  /** Closes the scopes open past `scopes`, the depth of the code a choice's
+   *  entry or a clause continues at. */
+  protected closeScopes(scopes: number): void {
+    this.expect(this._scopes >= scopes, "a choice's scopes");
+    while (this._scopes > scopes) {
+      this.emit(Op.EndScope);
+    }
+  }
+
+  /** Makes the scopes the code before the next instruction opens `scopes`,
+   *  the depth that instruction runs at, by `BeginScope` or `EndScope`
+   *  written where no instruction runs, right after a `Jump` and before the
+   *  label a jump or a choice reaches the instruction by. The depth at an
+   *  offset is the count read in order (section 1), and an entry or a
+   *  clause, which only a jump reaches, runs at the depth of the code that
+   *  jumps there, not that of the code above it. */
+  protected alignScopes(scopes: number): void {
+    while (this._scopes < scopes) {
+      this.emit(Op.BeginScope);
+    }
+    while (this._scopes > scopes) {
+      this.emit(Op.EndScope);
+    }
+  }
+
   /**
    * A `choose` block written in another block's preamble (a `Weave` that is
    * no block of its own), as part of that block's presentation: its choices
-   * are raised with the other block's, and when it has a `then` clause, its
-   * own choices continue there, as the current engine's weave diverts their
-   * loose ends to that clause's gather, which the flow does not enter
-   * otherwise, and the clause continues where the weave around it sends a
-   * gather (`gatherJoin`): the clause of the preamble block it is written in,
-   * or the block's end:
-   *
-   *   its own code and its choices; Jump past; J: Visit (the clause's label);
-   *   EnterBlock (the clause); Jump (where the clause continues); past:
-   *
-   * As the current engine's weave passes them up: a choice of its own with
-   * no clause to continue at continues where the weave around it sends a
-   * choice; a choice an `if` in it gates, where the `choose` block it is part
-   * of ends; and the clause of a block written in such an `if`, at this
-   * block's clause.
+   * are raised with the other block's, as Luau runs a block where it is
+   * written. A choice of its own, or one an `if` of it gates, belongs to it,
+   * and when it has a `then` clause, continues there after its body; the
+   * clause runs after the entries (`emitChoose`), at the depth of scopes the
+   * block stands at, so it reads the locals of the branches around the
+   * block, and continues where a choice of the block around it continues: at
+   * that block's clause, or at the end of the `choose` block it is part of.
+   * A choice of a block with no clause continues where a choice of the
+   * block around it does. Three such blocks, one in another's preamble, run
+   * clause after clause, each once, after a choice of the innermost.
    */
   emitPreambleChoose(weaveObject: object): void {
     const weave = weaveObject as ParsedObject;
@@ -819,45 +865,17 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const items = gather ? content.slice(0, -1) : content;
     const presentation = this._choose;
     const outer = presentation.join;
-    const outerGather = presentation.gatherJoin;
+    const scopes = this._scopes;
     const label: ProgramLabel | null = gather ? { offset: -1 } : null;
-    const choices = label ?? outer;
-    const gathers = label ?? outerGather;
+    presentation.join = label ?? outer;
+    // Each item alone, so that a choice's inline objects stop at the item.
     for (const item of items) {
-      const weaveItem =
-        (item as { isPreambleChoose?: boolean }).isPreambleChoose === true;
-      presentation.join =
-        item instanceof Choice || weaveItem ? choices : null;
-      presentation.gatherJoin = gathers;
       this.emitObjects([item]);
     }
     presentation.join = outer;
-    presentation.gatherJoin = outerGather;
-    if (!gather) {
-      return;
-    }
-    // With no choice of its own, the current engine's weave enters the
-    // clause where it stands, and the clause continues where the block ends.
-    const own = items.some((item) => item instanceof Choice);
-    const past = own ? this.jump(Op.Jump) : null;
-    this.bind(label!);
-    this.withRange(gather.ownDebugMetadata as DebugMetadata | null, () => {
-      if (gather.name) {
-        this.recordResolution(gather.programResolutionKey);
-        const symbol = this.labelSymbol(gather);
-        this.exportHere(symbol);
-        this.emit(Op.Visit, symbol);
-      }
-      this.emitWithBody(
-        gather.content,
-        choiceBodyOf.get(gather),
-        BLOCK_THEN,
-        "a then clause",
-      );
-    });
-    this.jumpBack(Op.Jump, outerGather ?? presentation.end);
-    if (past) {
-      this.bind(past);
+    this.expect(this._scopes === scopes, "a block of a presentation");
+    if (gather) {
+      presentation.clauses.push({ label: label!, gather, scopes, join: outer });
     }
   }
 
@@ -865,10 +883,12 @@ export class BinaryProgramWriter implements ProgramEmitter {
    *  captured with its tags, its condition, and the `Choice` that raises it,
    *  whose target is its entry. `inline` is what follows a choice an `if`
    *  gates in its branch, up to the next choice: its body, which its entry
-   *  enters, and then what the branch closes (its scope), which its entry
-   *  runs after the body, as the current engine's weave nests it in the
-   *  choice. */
-  protected emitChoicePoint(choice: Choice, inline: readonly ParsedObject[]): void {
+   *  enters, and then what the branch closes (its scope), which the caller
+   *  emits where the branch ends and which this returns. */
+  protected emitChoicePoint(
+    choice: Choice,
+    inline: readonly ParsedObject[],
+  ): readonly ParsedObject[] {
     const presentation = this._choose!;
     const body = choiceBodyOf.get(choice);
     const held = body
@@ -919,11 +939,11 @@ export class BinaryProgramWriter implements ProgramEmitter {
         symbol,
         named,
         body: inBranch ? body : undefined,
-        rest,
         scopes: this._scopes,
         join: presentation.join,
       });
     });
+    return rest;
   }
 
   /** A choice's entry after its `Visit`: its own content (the chosen line
@@ -1059,7 +1079,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
   // own:
   //   head: cond; JumpIfFalse exit (a decision); Newline; BeginScope;
   //   EnterBlock 0 (a loop body in a pass scope, which resumes at head);
-  //   exit:
+  //   EndScope (never runs); exit:
   protected emitWhile(loop: LoopShape): void {
     const [gather, breakGather] = loop.objects as [Gather, Gather];
     const { body, test } = this.loopParts(loop);
@@ -1078,8 +1098,12 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObject(begin);
     const k = this.enterBlock(loop.body, BLOCK_LOOP | BLOCK_PASS_SCOPE);
     // The pass scope is closed where the owner resumes, by the engine at the
-    // body's end or by the body's `break` or `continue`.
-    this._scopes -= 1;
+    // body's end or by the body's `break` or `continue`. The `EndScope`
+    // after the `EnterBlock` never runs, since the body resumes the owner at
+    // the test and a `break` at the exit, past it: it makes the count read in
+    // order the depth at the exit (section 1), which code after the loop in
+    // the same chunk, such as a `choose` block's preamble, stands at.
+    this.emit(Op.EndScope);
     this.blockResume(k, head);
     this.bind(exit);
     this.blockBreak(k, exit);

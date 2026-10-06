@@ -124,6 +124,36 @@ const preactCompat = require.resolve("preact/compat", {
 alias["react"] = preactCompat;
 alias["react-dom"] = preactCompat;
 
+// The dev server's ssr.noExternal. Vite externalizes node_modules during
+// ssrLoadModule and loads them with Node, which bypasses the react →
+// preact/compat alias above: an externalized package that imports "react"
+// hits Node's resolver (no react — the app is Preact) and the dev SSG render
+// throws "Cannot find module/package 'react'". Bundling these routes their
+// react import through the alias. (Prod bundles everything, so this only
+// matters for the dev server's ssrLoadModule path.)
+//
+// Every Radix primitive needs the whole list: Dialog pulls in the CommonJS
+// react-remove-scroll, and DropdownMenu, Select and Tooltip pull in
+// @floating-ui/react-dom; with only @radix-ui/* listed, loading any of them
+// fails (#1585). test/build/radixSsr.test.ts loads one component per Radix
+// primitive impower-ui uses through this list.
+const ssrNoExternal: (string | RegExp)[] = [
+  // Any react-named package, in any scope: react, react-dom, react-*,
+  // @tanstack/react-virtual, etc.
+  /(?:^|\/)react(?:-|\/|$)/,
+  /^@radix-ui\//,
+  /^@floating-ui\//,
+  // Radix helpers that import react but aren't react-named.
+  /^use-/,
+  "aria-hidden",
+  "@impower/impower-ui",
+  // The sparkdown-document-views script editor + screenplay preview are
+  // rendered as direct Preact components, so the SSG walker imports their
+  // .tsx — Vite must transform them through the preact/compat pipeline rather
+  // than load them as raw TS via Node's resolver.
+  "@impower/sparkdown-document-views",
+];
+
 // impower-ui's Tailwind entry stylesheet — the SSG runs it through Vite's
 // `?direct` pipeline to inline the editor's utilities. Resolved hoist-robustly
 // (the file is reached via the package dir, not its `exports` map).
@@ -858,6 +888,7 @@ export {
   externalWorkerPaths,
   alias,
   dedupe,
+  ssrNoExternal,
   impowerUiStyleCss,
   PRODUCTION,
   WATCH,
