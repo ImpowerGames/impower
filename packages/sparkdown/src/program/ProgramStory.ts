@@ -324,7 +324,37 @@ export class ProgramStory {
    *  since a reset or a load. A route search takes one at each fork. */
   capture(keyframe = false): ProgramImage {
     this.enableImages();
-    return captureImage(this._state, this._tracker, this, keyframe);
+    const image = captureImage(this._state, this._tracker, this, keyframe);
+    this.notMovedSince(image);
+    return image;
+  }
+
+  // The image the state last was, and whether it has moved since: a step,
+  // a choice taken, a path chosen, a call stack reset, or a write the
+  // barrier marked.
+  protected _stillImage: ProgramImage | null = null;
+  protected _stillAtStep = -1;
+
+  protected notMovedSince(image: ProgramImage | null): void {
+    this._stillImage = image;
+    this._stillAtStep = this.stepCount;
+  }
+
+  // The image the state is, when nothing moved it since it was taken or
+  // restored, which a continue that starts a line keeps rather than taking
+  // another.
+  protected stillImage(): ProgramImage | null {
+    const tracker = this._tracker;
+    const image = this._stillImage;
+    return image &&
+      tracker.base === image &&
+      this._stillAtStep === this.stepCount &&
+      tracker.tables.size === 0 &&
+      tracker.cells.size === 0 &&
+      tracker.globals.size === 0 &&
+      tracker.counts.size === 0
+      ? image
+      : null;
   }
 
   /** The image of the current beat (section 7): the state as it stands
@@ -353,6 +383,7 @@ export class ProgramStory {
     if (!restoreImage(this._state, this._tracker, this, image)) {
       return false;
     }
+    this.notMovedSince(image);
     this._stateIsPristine = false;
     this._state.beatImage = null;
     return true;
@@ -539,6 +570,7 @@ export class ProgramStory {
   ResetCallstack(): void {
     this.IfAsyncWeCant("ResetCallstack");
     this._stateIsPristine = false;
+    this._stillImage = null;
     this._state.ForceEnd();
   }
 
@@ -603,6 +635,7 @@ export class ProgramStory {
     // Changing direction drops the choices waiting (`SetChosenPath`).
     this._state.generatedChoices.length = 0;
     this._state.beatImage = null;
+    this._stillImage = null;
     this._state.DiscardLineEnd();
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
@@ -644,6 +677,7 @@ export class ProgramStory {
   protected takeChoice(choice: ProgramChoice, left: number, newTurn: boolean): void {
     const state = this._state;
     this._stateIsPristine = false;
+    this._stillImage = null;
     state.TakeChoice(choice);
     if (newTurn) {
       state.currentTurnIndex += 1;
@@ -1168,7 +1202,7 @@ export class ProgramStory {
       // continue that ends with choices raised and no newline leaves as the
       // image of its beat (`captureBeat`).
       if (this.keepBeatImages && this._recursiveContinueCount == 1) {
-        state.beatImage = this.capture();
+        state.beatImage = this.stillImage() ?? this.capture();
       }
       state.didSafeExit = false;
       // The step the last continue cut off after its line ended starts this
