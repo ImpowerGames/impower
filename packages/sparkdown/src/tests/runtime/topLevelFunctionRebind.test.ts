@@ -56,6 +56,26 @@ const cases: [string, string, string][] = [
     "f is 3.\n",
   ],
   [
+    "a local of the name in a block that has closed does not hide the global",
+    "function f() return 7 end\nfunction swap()\n  do\n    local f = function() return 3 end\n  end\n  f = function() return 2 end\nend\n& swap()\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "a local of the name declared after the assignment does not hide the global",
+    "function f() return 7 end\nfunction swap()\n  f = function() return 2 end\n  local f = function() return 3 end\nend\n& swap()\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "an assignment to a local of the name in scope leaves the function alone",
+    "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  f = function() return 2 end\nend\n& swap()\nf is {f()}.\n",
+    "f is 7.\n",
+  ],
+  [
+    "an assignment to a parameter of the name leaves the function alone",
+    "function f() return 7 end\nfunction swap(f)\n  f = function() return 2 end\nend\n& swap(1)\nf is {f()}.\n",
+    "f is 7.\n",
+  ],
+  [
     "a function that calls f sees the rebind when it runs",
     "function f() return 7 end\nfunction g() return f() end\n& f = function() return 4 end\ng is {g()}.\n",
     "g is 4.\n",

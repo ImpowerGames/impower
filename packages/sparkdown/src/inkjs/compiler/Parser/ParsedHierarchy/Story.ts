@@ -201,42 +201,27 @@ export class Story extends FlowBase {
 
   /** The names written to the global scope by a plain assignment
    *  (`game = -> there`) anywhere in the story, callables included: a global
-   *  write is visible from every flow. A plain assignment whose name a
-   *  parameter or local of an enclosing flow declares writes that binding,
-   *  not the global, and is left out; the parse tree gives both the same
-   *  node, and the flows' declarations are complete by the time this runs
-   *  (generation fills them, reference resolution reads this). A closure's
-   *  upvalue parameter is not such a declaration: a write through it lands
-   *  on whatever the enclosing scope resolved the name to, which may be the
-   *  global. Walked once per export, on first use, for
-   *  {@link builtinGlobalDiverts}'s severity. */
+   *  write is visible from every flow. A plain assignment where a `local` or
+   *  parameter of the name is in scope writes that binding, not the global,
+   *  and is left out; the parse tree gives both the same node. Scope is
+   *  Luau's (`FlowBase.IsBoundLocallyAt`): a `local` declared later, or in a
+   *  block that has closed, does not hide the global. A closure's upvalue
+   *  parameter is no such binding: a write through it lands on whatever the
+   *  enclosing scope resolved the name to, which may be the global. Walked
+   *  once per export, on first use, for {@link builtinGlobalDiverts}'s
+   *  severity and for which calls of a top-level function read the global
+   *  that rebinds it (`Divert`). */
   public globalAssignmentNames(): ReadonlySet<string> {
     if (this._globalAssignmentNames) {
       return this._globalAssignmentNames;
     }
-    const declaredAround = (obj: ParsedObject, name: string): boolean => {
-      let flow = asOrNull(ClosestFlowBase(obj), FlowBase);
-      while (flow && flow !== this) {
-        if (
-          flow.variableDeclarations.has(name) ||
-          (flow.args?.some(
-            (arg) => !arg.isUpvalue && arg.identifier?.name === name,
-          ) ??
-            false)
-        ) {
-          return true;
-        }
-        flow = asOrNull(ClosestFlowBase(flow), FlowBase);
-      }
-      return false;
-    };
     const names = new Set<string>();
     const visit = (obj: ParsedObject): void => {
       for (const child of obj.content ?? []) {
         if (
           child instanceof VariableAssignment &&
           !child.isDeclaration &&
-          !declaredAround(child, child.variableName)
+          !this.IsBoundLocallyAt(child.variableName, child)
         ) {
           names.add(child.variableName);
         }

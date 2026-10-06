@@ -397,6 +397,21 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   public VariableResolveResult?: VariableResolveResult | null | undefined;
 
+  // Whether a `local` or a parameter binds `varName` where `fromNode` is
+  // written, as `IsLocalInScopeAt` decides: a `local` declared earlier and
+  // outside any block that has closed, or a parameter of the function around
+  // it. A global of the name binds nothing here.
+  public IsBoundLocallyAt = (
+    varName: string,
+    fromNode: ParsedObject,
+  ): boolean => {
+    const parent = fromNode.parent;
+    return (
+      parent !== null &&
+      this.IsLocalInScopeAt(varName, parent, parent.content.indexOf(fromNode))
+    );
+  };
+
   public ResolveVariableWithName = (
     varName: string,
     fromNode: ParsedObject,
