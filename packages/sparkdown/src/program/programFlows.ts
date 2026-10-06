@@ -35,7 +35,7 @@ import type {
 } from "./ChunkStore";
 import type { ProgramEmitter } from "./ProgramEmitter";
 import { parameterKinds } from "./ProgramFacts";
-import { Op, SET_DECLARE, SET_VARARGS } from "./ProgramInstructions";
+import { Op } from "./ProgramInstructions";
 import { ROOT_FLOW_NAME, SymbolKind } from "./ProgramSymbols";
 
 /** What the compile knows of one top-level statement: where it stands, its
@@ -449,16 +449,12 @@ export class FlowEntry extends ParsedObject {
   public readonly GenerateRuntimeObject = () => null;
 
   public override EmitProgram(emitter: ProgramEmitter): void {
-    const params = this.flow.args ?? [];
-    for (let p = params.length - 1; p >= 0; p -= 1) {
-      const param = params[p]!;
-      emitter.emit(
-        Op.SetVar,
-        emitter.variable(param.identifier?.name ?? ""),
-        0,
-        SET_DECLARE | (param.isVararg ? SET_VARARGS : 0),
-      );
-    }
+    emitter.bindParameters(
+      (this.flow.args ?? []).map((arg) => ({
+        name: arg.identifier?.name ?? "",
+        vararg: !!arg.isVararg,
+      })),
+    );
     if (this.start) {
       // The jump the entry ends with, which reads nothing of its target as a
       // divert's does. The entry records no resolution: it holds no parsed
