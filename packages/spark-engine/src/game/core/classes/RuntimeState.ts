@@ -75,8 +75,15 @@ export class RuntimeState {
     });
   }
 
-  toJSON() {
-    return JSON.stringify(this.toSerializable());
+  /** The record as a save holds it, with the executed positions written by
+   *  `entries` when it is given (a durable save on the program engine,
+   *  whose addresses a later process does not give again). */
+  toJSON(entries?: (executed: RecencyEntry[]) => RecencyEntry[]) {
+    const record = this.toSerializable();
+    if (entries) {
+      record.pathsExecutedThisFrame = entries(record.pathsExecutedThisFrame);
+    }
+    return JSON.stringify(record);
   }
 
   /** Like `toJSON()` but with the three unbounded collections emptied. The

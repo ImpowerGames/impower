@@ -23,6 +23,7 @@ import {
   H_LAYOUT_HASH,
   blockFlags,
   chunkId,
+  codeWords,
   type StatementChunk,
 } from "./StatementChunk";
 
@@ -723,4 +724,104 @@ const parseSave = (
     save = migrate(save);
   }
   return { save, format };
+};
+
+/** An address in a form that outlives the process that wrote it: the chain
+ *  of levels from its flow (by qualified name) or its script's declaration
+ *  sequence (by uri) down to its statement, each level the entry's ordinal
+ *  and, below the first, the block of the owner's chunk; the statement's
+ *  fingerprint; and the offset in its code. A game writes the addresses of
+ *  its executed record so (`durableAddress`) in a save, whose chunk ids a
+ *  later compile does not give again (#700). */
+interface DurableAddress {
+  f?: string;
+  d?: string;
+  l: [number, number][];
+  p: string;
+  o: number;
+}
+
+/** The durable form of `address` in `root`, as a string, or nothing for an
+ *  address the root does not hold. */
+export const durableAddress = (
+  root: ProgramRoot,
+  address: number,
+): string | undefined => {
+  const at = root.position(Math.floor(address / ADDRESS_OFFSETS));
+  const chunk = at?.sequence.arrays.chunks[at.entry];
+  if (!at || !chunk) {
+    return undefined;
+  }
+  const levels: [number, number][] = [];
+  let sequence: SequenceRow = at.sequence;
+  let entry = at.entry;
+  for (;;) {
+    levels.unshift([sequence.block, entry]);
+    if (sequence.owner < 0) {
+      break;
+    }
+    const owner = root.position(sequence.owner);
+    if (!owner) {
+      return undefined;
+    }
+    sequence = owner.sequence;
+    entry = owner.entry;
+  }
+  const form: DurableAddress = {
+    l: levels,
+    p: fingerprintOf(chunk),
+    o: address % ADDRESS_OFFSETS,
+  };
+  if (sequence.flow >= 0) {
+    form.f = root.table.symbols[sequence.flow]!;
+  } else {
+    form.d = sequence.uri;
+  }
+  return JSON.stringify(form);
+};
+
+/** The address a durable form names in `root`: the statement at the end of
+ *  its chain, when that statement has the fingerprint it had and its code
+ *  reaches the offset; otherwise nothing, and nothing is matched
+ *  approximately. */
+export const placeDurableAddress = (
+  root: ProgramRoot,
+  saved: string,
+): number | undefined => {
+  let form: DurableAddress;
+  try {
+    form = JSON.parse(saved) as DurableAddress;
+  } catch {
+    return undefined;
+  }
+  if (!form || !Array.isArray(form.l) || form.l.length === 0) {
+    return undefined;
+  }
+  let sequence: SequenceRow | undefined =
+    form.f !== undefined
+      ? root.flowNamed(form.f)
+      : form.d !== undefined
+        ? root.declarations(form.d)
+        : undefined;
+  let chunk: StatementChunk | undefined;
+  for (let i = 0; i < form.l.length; i += 1) {
+    const [block, entry] = form.l[i]!;
+    if (i > 0) {
+      sequence = chunk ? root.body(chunk, block) : undefined;
+    }
+    chunk = sequence?.arrays.chunks[entry];
+    if (!chunk) {
+      return undefined;
+    }
+  }
+  if (
+    !chunk ||
+    fingerprintOf(chunk) !== form.p ||
+    !Number.isInteger(form.o) ||
+    form.o < 0 ||
+    form.o >= codeWords(chunk)
+  ) {
+    return undefined;
+  }
+  return chunkId(chunk) * ADDRESS_OFFSETS + form.o;
 };

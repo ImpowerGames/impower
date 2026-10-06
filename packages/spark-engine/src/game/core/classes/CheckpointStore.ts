@@ -75,6 +75,10 @@ export interface CheckpointHost {
   /** The story's part of a full save, written from a checkpoint's image, or
    *  null when the image cannot be written by the story as it is now. */
   storyOfImage?(image: unknown): string | null;
+  /** The executed positions as a full save written from an image holds
+   *  them: each address in its durable form, since the save may load in
+   *  another process (#700). */
+  durableExecuted?(executed: RecencyEntry[]): RecencyEntry[];
 }
 
 interface ImageEntry {
@@ -341,6 +345,13 @@ export class CheckpointStore {
       }
       const { save } = this.imageAt(index)!;
       save["story"] = story;
+      if (this._host.durableExecuted) {
+        const rt = this.runtimeAt(index);
+        save["runtime"] = runtimeJson({
+          ...rt,
+          pe: this._host.durableExecuted(rt.pe),
+        });
+      }
       return JSON.stringify(save);
     }
 

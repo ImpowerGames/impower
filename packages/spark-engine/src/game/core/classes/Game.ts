@@ -11,6 +11,10 @@ import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBin
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
+import {
+  durableAddress,
+  placeDurableAddress,
+} from "@impower/sparkdown/src/program/ProgramSave";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
 import {
   buildRouteSimulator,
@@ -75,6 +79,7 @@ import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
+import { RecencySet, type RecencyEntry } from "./RecencySet";
 import { RuntimeState } from "./RuntimeState";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -540,6 +545,7 @@ export class Game<T extends M = {}> {
         storyOfImage: (image) =>
           this.programStory?.saveOfImage(image as ProgramImage, this._version) ??
           null,
+        durableExecuted: (executed) => this.durableExecuted(executed),
         save: () => this.save(),
         saveDeltaBody: () => this.saveDeltaBody(),
         snapshotCounts: () => ({
@@ -1849,6 +1855,40 @@ export class Game<T extends M = {}> {
     return this.buildSave(true);
   }
 
+  /** The executed record's positions as a save holds them on the program
+   *  engine: each address in its durable form (`durableAddress`), since a
+   *  chunk id names a statement only in the process that gave it (#700). An
+   *  address the root no longer holds is left out. */
+  protected durableExecuted(executed: RecencyEntry[]): RecencyEntry[] {
+    const root = this.programStory?.root;
+    if (!root) {
+      return executed;
+    }
+    const out: RecencyEntry[] = [];
+    for (const entry of executed) {
+      const form = typeof entry === "number" ? durableAddress(root, entry) : entry;
+      if (form !== undefined) {
+        out.push(form);
+      }
+    }
+    return out;
+  }
+
+  /** The addresses in `root` of a saved executed record's durable
+   *  positions, in their order, without those it cannot place. A bare
+   *  address is another process's and is dropped too. */
+  protected placedExecuted(root: ProgramRoot, saved: RecencyEntry[]): RecencyEntry[] {
+    const out: RecencyEntry[] = [];
+    for (const entry of saved) {
+      const address =
+        typeof entry === "string" ? placeDurableAddress(root, entry) : undefined;
+      if (address !== undefined) {
+        out.push(address);
+      }
+    }
+    return out;
+  }
+
   protected buildSave(omitDeltaState: boolean, withStory = true): string {
     let story = "";
     try {
@@ -1868,7 +1908,9 @@ export class Game<T extends M = {}> {
     }
     const runtime = omitDeltaState
       ? this._runtimeState.toJSONWithoutCollections()
-      : this._runtimeState.toJSON();
+      : this._runtimeState.toJSON(
+          this.programStory ? (executed) => this.durableExecuted(executed) : undefined,
+        );
     const saveData: SaveData = {
       modules: {},
       context: {},
@@ -1968,6 +2010,12 @@ export class Game<T extends M = {}> {
       }
       const runtime = RuntimeState.read(saveData.runtime);
       program.checkSave(saveData.story);
+      // The executed record's positions, written durably (`buildSave`),
+      // placed in this program; one it cannot place is dropped, as a save's
+      // count whose symbol cannot be placed is.
+      runtime.pathsExecutedThisFrame = RecencySet.from(
+        this.placedExecuted(program.root, runtime.pathsExecutedThisFrame.toArray()),
+      );
       program.loadSave(saveData.story);
       // A preview waiting for its pictures would display its beat over the
       // loaded state, and record a checkpoint of it.
