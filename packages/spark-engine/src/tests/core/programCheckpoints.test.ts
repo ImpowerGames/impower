@@ -290,6 +290,59 @@ describe("the checkpoints of a game on the program engine", () => {
     expect((game as any)._pendingPreview).not.toBeNull();
   });
 
+  // Round 3 of the review of #1579 (report 6019804221): a save written
+  // while the story could not save holds an empty story, and a save whose
+  // runtime record or module states cannot be read failed only after the
+  // story had loaded.
+  it("refuse a save with no story, or whose runtime record or module states cannot be read, changing nothing", () => {
+    const { program, story } = compiler(TEXTS).compile();
+    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    drive(game);
+    const valid = game.checkpoints.getJson(5)!;
+    const engine = game.story as unknown as ProgramStory;
+    engine.ChoosePathString("MAIN");
+    engine.ContinueAsync();
+    expect(engine.asyncContinueComplete).toBe(false);
+    // The story cannot save with a line in progress, so the game's save
+    // holds an empty story.
+    const storyless = game.save();
+    expect(JSON.parse(storyless).story).toBe("");
+    const unreadableRuntime = { ...JSON.parse(valid), runtime: "{not json" };
+    const noModules = JSON.parse(valid);
+    delete noModules.modules;
+    const state = engine.state.toJson();
+    const core = () => JSON.stringify((game as any)._modules.core?.state);
+    const modules = core();
+    const runtime = () => (game as any)._runtimeState.toJSON();
+    const runtimeBefore = runtime();
+    let cancelled = 0;
+    (game as any)._pendingPreview = {
+      path: "preview",
+      generation: 0,
+      promise: Promise.resolve(null),
+      abandon: () => {},
+      cancel: () => {
+        cancelled += 1;
+      },
+    };
+    for (const save of [
+      storyless,
+      JSON.stringify(unreadableRuntime),
+      JSON.stringify(noModules),
+    ]) {
+      expect(game.load(save)).toBe(false);
+      expect(engine.asyncContinueComplete).toBe(false);
+      expect(engine.state.toJson()).toBe(state);
+      expect(core()).toBe(modules);
+      expect(runtime()).toBe(runtimeBefore);
+      expect(cancelled).toBe(0);
+    }
+    // The valid save loads, and ends the line and the wait.
+    expect(game.load(valid)).toBe(true);
+    expect(engine.asyncContinueComplete).toBe(true);
+    expect(cancelled).toBe(1);
+  });
+
   it("restore in place after a compile for every statement it kept, and report one it emitted again unplaced", () => {
     const text = [
       "store seen = 0",

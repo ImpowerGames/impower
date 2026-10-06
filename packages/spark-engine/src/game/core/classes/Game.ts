@@ -1856,39 +1856,23 @@ export class Game<T extends M = {}> {
   }
 
   load(saveJSON: string) {
-    // A preview waiting for its pictures would display its beat over the
-    // loaded state, and record a checkpoint of it. The program engine lets
-    // go of it only once the story has loaded, so that a save it refuses,
-    // at its placement or past it, leaves the preview waiting as it was.
     const program = this.programStory;
-    if (!program) {
-      this.cancelPreview();
+    if (program) {
+      return this.loadProgramSave(program, saveJSON);
     }
+    // A preview waiting for its pictures would display its beat over the
+    // loaded state, and record a checkpoint of it.
+    this.cancelPreview();
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
-      if (program && saveData.story) {
-        // The program engine places the save, or refuses it, before
-        // anything of the game changes: the story first, which puts itself
-        // back, line in progress included, when it fails past the
-        // placement, and ends the line in progress when it succeeds; then
-        // the modules.
-        program.checkSave(saveData.story);
-        program.loadSave(saveData.story);
-      }
-      if (program) {
-        this.cancelPreview();
-      }
-      if (program && saveData.story) {
-        this.restoreReactiveTracking();
-      }
       for (const k of this._moduleNames) {
         const module = this._modules[k];
         if (module) {
           module.load(saveData.modules[k]);
         }
       }
-      if (saveData.story && !program) {
+      if (saveData.story) {
         // Only once the save has been read and is known to carry a story:
         // letting go of the open line is not reversible, so doing it before
         // the parse would leave a save that turns out to be unreadable — or
@@ -1903,6 +1887,57 @@ export class Game<T extends M = {}> {
       }
       if (saveData.runtime) {
         this._runtimeState = RuntimeState.fromJSON(saveData.runtime);
+      }
+      if (saveData.simulatedFrom) {
+        this._simulation = "success";
+        this._simulatePath = saveData.simulatedFrom;
+      }
+      return true;
+    } catch (e) {
+      this.log(e, "error");
+    }
+    return false;
+  }
+
+  /**
+   * Loads a save into a game on the program engine, or refuses it with
+   * nothing of the game changed: everything that can fail is read before
+   * anything changes. The save must carry a story (one written while the
+   * story could not save, which `buildSave` stores as an empty story, is
+   * refused), its module states and a readable runtime record, and the
+   * story must place it (`ProgramStory.checkSave`). Then the story loads,
+   * which puts itself back, line in progress included, when it fails past
+   * the placement, and ends the line in progress when it succeeds; only
+   * then does a waiting preview go, and the modules and the runtime record
+   * load, which cannot fail.
+   */
+  protected loadProgramSave(program: ProgramStory, saveJSON: string): boolean {
+    try {
+      const saveData: SaveData =
+        typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
+      if (typeof saveData?.story !== "string" || !saveData.story) {
+        throw new Error("The save holds no story to load");
+      }
+      if (typeof saveData.modules !== "object" || saveData.modules === null) {
+        throw new Error("The save holds no module states to load");
+      }
+      const runtime = saveData.runtime
+        ? RuntimeState.fromJSON(saveData.runtime)
+        : null;
+      program.checkSave(saveData.story);
+      program.loadSave(saveData.story);
+      // A preview waiting for its pictures would display its beat over the
+      // loaded state, and record a checkpoint of it.
+      this.cancelPreview();
+      this.restoreReactiveTracking();
+      for (const k of this._moduleNames) {
+        const module = this._modules[k];
+        if (module) {
+          module.load(saveData.modules[k]);
+        }
+      }
+      if (runtime) {
+        this._runtimeState = runtime;
       }
       if (saveData.simulatedFrom) {
         this._simulation = "success";
