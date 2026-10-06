@@ -21,6 +21,17 @@
 // "stored a full save" — never a corrupted one. With `incremental` off the store
 // is a thin wrapper over the original `string[]` behavior (every entry a full
 // keyframe), so it is a drop-in no-op.
+//
+// A story that keeps images of its state (the program engine, #699,
+// docs/engine/binary-program.md, section 7) is checkpointed by its beats'
+// images instead: a keyframe image every `baseInterval` beats and a delta
+// image between, which holds the count ids, globals, tables and cells written
+// that beat and no JSON, beside the module state and the runtime collections
+// as above. A checkpoint's full save is written from its image when a caller
+// asks for it (`getJson`), and a game restores a checkpoint's image in place
+// (`imageAt`). Images are deltas by construction, so the store keeps them in
+// this way whether or not `incremental` is set, and there is nothing to
+// verify against.
 
 /** Ordered full / per-beat runtime collections (executed paths, choices,
  *  conditions). */
@@ -53,6 +64,26 @@ export interface CheckpointHost {
   snapshotRuntime(): RuntimeCollections;
   /** Runtime-collection changes since the last drain, and advance the marks. */
   drainRuntime(): RuntimeCollections;
+  /** The image of the story's current beat, a keyframe when `keyframe` is
+   *  set, when the story keeps images; the store then keeps images. */
+  captureImage?(keyframe: boolean): unknown;
+  /** SaveData JSON for the current beat with the story left out, and with
+   *  the runtime collections emptied when `omitDeltaState` is set. */
+  saveWithoutStory?(omitDeltaState: boolean): string;
+  /** The story's part of a full save, written from a checkpoint's image, or
+   *  null when the image cannot be written by the story as it is now. */
+  storyOfImage?(image: unknown): string | null;
+}
+
+interface ImageEntry {
+  kind: "image";
+  keyframe: boolean;
+  image: unknown;
+  // SaveData JSON with the story left out, and in a delta the runtime
+  // collections emptied.
+  body: string;
+  // A keyframe's full runtime collections, or a delta's changes this beat.
+  rt: RuntimeCollections;
 }
 
 interface KeyframeEntry {
@@ -76,7 +107,7 @@ interface DeltaEntry {
   rt: RuntimeCollections;
 }
 
-type CheckpointEntry = KeyframeEntry | DeltaEntry;
+type CheckpointEntry = KeyframeEntry | DeltaEntry | ImageEntry;
 
 export class CheckpointStore {
   protected _entries: CheckpointEntry[] = [];
@@ -102,7 +133,7 @@ export class CheckpointStore {
     let keyframes = 0;
     let deltas = 0;
     for (const e of this._entries) {
-      if (e.kind === "keyframe") {
+      if (e.kind === "keyframe" || (e.kind === "image" && e.keyframe)) {
         keyframes++;
       } else {
         deltas++;
@@ -134,6 +165,33 @@ export class CheckpointStore {
   /** Append a checkpoint capturing the host's CURRENT beat state. */
   capture(): void {
     const index = this._entries.length;
+
+    if (this._host.captureImage) {
+      const keyframe = index % this._baseInterval === 0;
+      const image = this._host.captureImage(keyframe);
+      if (keyframe) {
+        this._host.drainCountDeltas();
+        const rt = this._host.snapshotRuntime();
+        this._host.drainRuntime();
+        this._entries.push({
+          kind: "image",
+          keyframe,
+          image,
+          body: this._host.saveWithoutStory!(false),
+          rt,
+        });
+      } else {
+        this._host.drainCountDeltas();
+        this._entries.push({
+          kind: "image",
+          keyframe,
+          image,
+          body: this._host.saveWithoutStory!(true),
+          rt: this._host.drainRuntime(),
+        });
+      }
+      return;
+    }
 
     if (!this._incremental) {
       this._entries.push({ kind: "keyframe", json: this._host.save() });
@@ -224,16 +282,64 @@ export class CheckpointStore {
     return this.reconstruct(i);
   }
 
+  /** Checkpoint `index`'s image, with its save's module state and runtime
+   *  collections, when the store keeps images; or null. */
+  imageAt(index: number): { image: unknown; save: Record<string, any> } | null {
+    const entry = this._entries[index];
+    if (!entry || entry.kind !== "image") {
+      return null;
+    }
+    const save = JSON.parse(entry.body);
+    save["runtime"] = runtimeJson(this.runtimeAt(index));
+    return { image: entry.image, save };
+  }
+
+  // The runtime collections of image entry `index`: its keyframe's, with the
+  // changes of every delta up to it replayed, as `reconstruct` replays them.
+  protected runtimeAt(index: number): RuntimeCollections {
+    let base = index;
+    while (base > 0 && !(this._entries[base] as ImageEntry).keyframe) {
+      base--;
+    }
+    const first = this._entries[base] as ImageEntry;
+    const pe = new Set<string>(first.rt.pe);
+    const ce = first.rt.ce.slice();
+    const cde = first.rt.cde.slice();
+    for (let i = base + 1; i <= index; i++) {
+      const e = this._entries[i] as ImageEntry;
+      for (const p of e.rt.pe) {
+        pe.delete(p);
+        pe.add(p);
+      }
+      ce.push(...e.rt.ce);
+      cde.push(...e.rt.cde);
+    }
+    return { pe: Array.from(pe), ce, cde };
+  }
+
   /** Keep only the first `keepCount` checkpoints (mirrors the old
    *  `_checkpoints.slice(0, keepCount)`). */
   truncate(keepCount: number): void {
     this._entries.length = Math.max(0, Math.min(keepCount, this._entries.length));
   }
 
-  protected reconstruct(index: number): string {
+  protected reconstruct(index: number): string | null {
     const entry = this._entries[index]!;
     if (entry.kind === "keyframe") {
       return entry.json;
+    }
+    if (entry.kind === "image") {
+      // An image the story can no longer place (a compile emitted again a
+      // statement it names) has no save: the caller replays to it, as it
+      // does when `restoreCheckpoint` reports it unplaced, rather than load
+      // its modules beside a story that stands elsewhere.
+      const story = this._host.storyOfImage?.(entry.image) ?? null;
+      if (story === null) {
+        return null;
+      }
+      const { save } = this.imageAt(index)!;
+      save["story"] = story;
+      return JSON.stringify(save);
     }
 
     // Walk back to the nearest keyframe and replay every delta up to `index`
@@ -303,11 +409,15 @@ export class CheckpointStore {
       '"turnIndices":' + JSON.stringify(Object.fromEntries(ti)),
     );
     saveObj.story = story;
-    saveObj.runtime = JSON.stringify({
-      pathsExecutedThisFrame: rt.pe,
-      choicesEncountered: rt.ce,
-      conditionsEncountered: rt.cde,
-    });
+    saveObj.runtime = runtimeJson(rt);
     return JSON.stringify(saveObj);
   }
 }
+
+// The runtime field of a save, as `RuntimeState.toJSON` writes it.
+const runtimeJson = (rt: RuntimeCollections): string =>
+  JSON.stringify({
+    pathsExecutedThisFrame: rt.pe,
+    choicesEncountered: rt.ce,
+    conditionsEncountered: rt.cde,
+  });

@@ -43,6 +43,8 @@ import {
   unwrapArgsForPureStdLibFn,
   type StdLibEntry,
 } from "./StdLib";
+import { callBuiltinMethod, METHOD_PREFIX } from "./MethodDispatch";
+import { drawStoryRandom } from "./StoryRandom";
 import { EXECUTION_WATCH_STEPS, executionWatch } from "./ExecutionWatch";
 import { StepLimitExceeded, StoryException } from "./StoryException";
 import { isLuauTruthy } from "./LuauTruthiness";
@@ -904,13 +906,13 @@ function stepIteratorCall(story: any, iterator: ObjectValue, count: number): voi
   // Args were pushed (state, ctrl) — pops reverse that.
   const iterCtrl = story.state.PopEvaluationStack();
   const iterState = story.state.PopEvaluationStack();
+  // A step moves the iterator's cursor, which it keeps in its table.
+  story.state.variablesState.WriteBarrier(iterator);
   const result = stepBuiltinIterator(
     iterator,
     iterState as AbstractValue,
     iterCtrl as AbstractValue,
   );
-  // A step moves the iterator's cursor, which it keeps in its table.
-  story.state.variablesState.WriteBarrier(iterator);
   story.state.PushEvaluationStack(result);
 }
 
@@ -1360,8 +1362,8 @@ function newindexThroughMetatable(
       if (base.isFrozen) {
         throw new StoryException("attempt to modify a readonly table");
       }
-      base.value.set(keyStr, newVal);
       story.state.variablesState.WriteBarrier(base);
+      base.value.set(keyStr, newVal);
       return true;
     }
     return false;
@@ -1376,8 +1378,8 @@ function newindexThroughMetatable(
       if (base.isFrozen) {
         throw new StoryException("attempt to modify a readonly table");
       }
-      base.value!.set(keyStr, newVal);
       story.state.variablesState.WriteBarrier(base);
+      base.value!.set(keyStr, newVal);
       return true;
     }
     return false;
@@ -1623,12 +1625,12 @@ export function storeIndex(
       // Lua: assigning nil REMOVES the key — a nil-valued
       // entry doesn't exist (`t[k] = nil` is the idiomatic
       // delete; `pairs` must not see the key afterwards).
+      story.state.variablesState.WriteBarrier(storeBase);
       if (val instanceof NullValue) {
         storeBase.value.delete(keyStr);
       } else {
         storeBase.value.set(keyStr, val);
       }
-      story.state.variablesState.WriteBarrier(storeBase);
       // Reactive dep tracking: an in-place table mutation, keyed by the
       // table's backing-Map identity (a binding that read this table
       // re-runs). Cheap no-op when reactive tracking is disabled.
@@ -1860,6 +1862,9 @@ export function readVariable(story: any, name: string | null): InkObject {
   return foundValue;
 }
 
+// The builtin method `t:random()`, which picks by the story's draw.
+const RANDOM_METHOD = `${METHOD_PREFIX}random`;
+
 /** The result of the native function or operator `func` over `funcParams`:
  *  a stdlib namespace a global replaced dispatches the replacement's member,
  *  an operand's metamethod handles the operator, and otherwise the native
@@ -1935,6 +1940,15 @@ export function callNativeFunction(
   // returns more gives first included (`#get()`).
   const table = fname === "LEN" && operand instanceof ObjectValue ? operand : null;
   const hint = table ? (table.value as any)?.__luauBoundary : undefined;
+  if (table) {
+    story.state.variablesState.PrepareTableWrite?.(table);
+  }
+  // `t:random()` picks by the story's draw.
+  if (fname === RANDOM_METHOD) {
+    return callBuiltinMethod(fname, funcParams, () =>
+      drawStoryRandom(story.state),
+    );
+  }
   const result = func.Call(funcParams);
   if (table && (table.value as any)?.__luauBoundary !== hint) {
     story.state.variablesState.WriteBarrier(table);
@@ -3707,7 +3721,9 @@ export class Story extends InkObject {
           // pop the outermost (function-level) frame, which would
           // leave the call-stack element with no scope frames at
           // all and break subsequent temp-var lookups.
-          this.state.callStack.currentElement!.PopScope();
+          this.state.callStack.currentElement!.PopScope(
+            this.state.callStack.cellBarrier,
+          );
           break;
 
         case ControlCommand.CommandType.TurnsSince:

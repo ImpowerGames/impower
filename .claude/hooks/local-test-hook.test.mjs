@@ -35,6 +35,7 @@ const MANY = Array.from({ length: MAX_FILES + 1 }, (_, i) => `src/tests/compiler
 for (const file of MANY) put(`packages/sparkdown/${file}`, "");
 const AT_BOUND = MANY.slice(1).join(" ");
 const PAST_BOUND = MANY.join(" ");
+const SEVEN = MANY.slice(2).join(" ");
 // A package whose test script runs Node's own runner, as
 // scripts/agent-notification-alerts does, and one whose test script hands
 // off to another script.
@@ -158,6 +159,21 @@ const denies = [
   ["the suite runner run past the bound with --wait first", `node scripts/test-suite.mjs run packages/sparkdown --wait 600 ${PAST_BOUND}`],
   ["the suite runner run past the bound through cmd /c", `cmd /c "node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}"`],
   ["the suite runner run past the bound inside bash -c", `bash -c 'node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}'`],
+  // A genuine extra file is still counted past a redirect or a pipe.
+  ["the suite runner past the bound with a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 > run.log 2>&1`],
+  ["the suite runner past the bound with a PowerShell redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 *> run.log`],
+  ["the suite runner past the bound with a redirect attached to the last file", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}> run.log 2>&1`, "bash"],
+  ["the suite runner at the bound plus a quoted word that only looks like a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} ">x.test.ts" --wait 600`],
+  ["the suite runner past the bound with a quoted last file and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} "My file8.test.ts" "More.test.ts"> run.log`, "bash"],
+  ["the suite runner with a Bash escaped apostrophe that is not a quote", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} O\\'Neil.test.ts More.test.ts --wait 600`, "bash"],
+  ["the suite runner at the bound with a Bash star glob before a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} *> /dev/null`, "bash"],
+  ["the suite runner at the bound plus a PowerShell doubled-quote word that only looks like --wait", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} '--wa''it' ${MANY[0]} > run.log`, "powershell"],
+  ["the suite runner at the bound plus a PowerShell word that only ends in an angle bracket", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}> run.log`, "powershell"],
+  ["a quoted executable after a wrapper option value that looks like an assignment", "env -C = 'vitest' run"],
+  ["a quoted npm test after a wrapper option value that looks like an assignment", "env -C = 'npm' test"],
+  ["a quoted suite runner start after a wrapper option value that looks like an assignment", "env -C = 'node' scripts/test-suite.mjs start packages/sparkdown"],
+  ["the suite runner at the bound plus a literal quoted file", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} "${MANY[0]}" --wait 600 > run.log`],
+  ["the suite runner with a file after the redirect pushing it past the bound", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > run.log ${MANY[0]} --wait 600`],
 ];
 
 const allows = [
@@ -216,16 +232,57 @@ const allows = [
   ["the phrase in a comment", "git status # then npm test"],
   ["a grep for vitest", "grep -rn 'vitest run' .agents"],
   ["a process listing that names vitest", "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*vitest*' }"],
+  // Redirections after a bounded run are not test files.
+  ["the suite runner at the bound with a redirect and merged stderr", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > run.log 2>&1`],
+  ["the suite runner at the bound with a redirect, a chained echo and a grep", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > run.log 2>&1; echo exit $?; grep -E "Tests" run.log`],
+  ["the suite runner at the bound with separate stdout and stderr redirects", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 1> out.log 2> err.log`],
+  ["the suite runner at the bound with glued redirect targets", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 >out.log 2>err.log`],
+  ["the suite runner at the bound with a merged-stderr pipe", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 2>&1 | grep -E "Tests"`],
+  ["the suite runner at the bound with a quoted redirect target", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > "my run.log" 2>&1`],
+  ["the suite runner at the bound with a PowerShell all-streams redirect and chained filter", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 900 *> run.log; "exit $LASTEXITCODE"; Select-String -Path run.log -Pattern "Tests"`, "powershell"],
+  ["the suite runner at the bound with a redirect before the files", `node scripts/test-suite.mjs run packages/sparkdown > run.log ${AT_BOUND} --wait 600`],
+  // A command that only mentions the vitest binary's path is not a Vitest call.
+  ["a PowerShell wait on the installed vitest.cmd", "$p = 'C:/w/node_modules/.bin/vitest.cmd'; $i=0; while (-not (Test-Path $p) -and $i -lt 110) { Start-Sleep 5; $i++ }; Test-Path $p"],
+  ["a PowerShell assignment of a double-quoted vitest path", '$p = "C:/w/node_modules/.bin/vitest.cmd"; Test-Path $p'],
+  ["the suite runner at the bound with a glued quoted redirect destination", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 >"my run.log" 2>&1`],
+  ["the suite runner at the bound with a glued quoted descriptor redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 2>"err log.txt"`],
+  ["the suite runner at the bound with a redirect attached to the last file", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}> run.log 2>&1`, "bash"],
+  ["the suite runner at the bound with a redirect and target attached to the last file", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}>run.log`, "bash"],
+  ["the suite runner at the bound with a merged-stderr duplication attached to the last file", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}>&2`, "bash"],
+  ["the suite runner at the bound with a quoted target after an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}> "my run.log"`, "bash"],
+  ["the suite runner at the bound with a redirect attached to the last file before --wait", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600> run.log`, "bash"],
+  ["the suite runner at the bound with a quoted last file and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} "My file8.test.ts"> run.log`, "bash"],
+  ["the suite runner at the bound with a partly quoted last file and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} My" file8".test.ts> run.log`, "bash"],
+  ["the suite runner at the bound with a quoted --wait value and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait "600"> run.log`, "bash"],
+  ["the suite runner at the bound with two redirects in one word", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}>other.log> run.log`, "bash"],
+  ["the suite runner at the bound with a redirect between --wait and its value", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait > run.log 600`],
+  ["the suite runner at the bound with an input redirect and a descriptor duplication", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 < in.txt 2>&1`],
+  ["the suite runner at the bound with a Bash line continuation", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} \\\n${MANY[1]} --wait 600`, "bash"],
+  ["the suite runner at the bound with a PowerShell line continuation", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} \`\n${MANY[1]} --wait 600`, "powershell"],
+  ["the suite runner at the bound with an escaped space in a Bash redirect target", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > my\\ run.log`, "bash"],
+  ["the suite runner at the bound with an escaped space in a PowerShell redirect target", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > my\` run.log`, "powershell"],
+  ["the suite runner at the bound with a Bash redirect target after a continuation", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > \\\n    run.log`, "bash"],
+  ["the suite runner at the bound with a PowerShell redirect target after a continuation", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > \`\n    run.log`, "powershell"],
+  ["the suite runner at the bound with a Bash redirect target after a CRLF continuation", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} > \\\r\n    run.log`, "bash"],
+  ["the suite runner at the bound with a Bash escape before an ordinary letter in --wait", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --w\\ait 600 > run.log`, "bash"],
+  ["the suite runner at the bound with a Bash continuation inside double quotes", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} "--wa\\\nit" 600 > run.log`, "bash"],
+  ["a Bash star redirect that expands to a program-less word before a vitest path argument", "*> run.log C:/w/node_modules/.bin/vitest.cmd", "bash"],
+  ["the suite runner at the bound with a PowerShell star redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} *> run.log`, "powershell"],
+  ["a glued PowerShell assignment of a quoted vitest path", "$p='C:/w/node_modules/.bin/vitest.cmd'; Write-Output $p"],
+  ["a PowerShell assignment with the operator glued to the target", "$p= 'C:/w/node_modules/.bin/vitest.cmd'; Test-Path $p"],
+  ["a PowerShell append assignment of a quoted vitest path", "$p += 'C:/w/node_modules/.bin/vitest.cmd'"],
+  ["Test-Path on the vitest.cmd path", "Test-Path 'C:/w/node_modules/.bin/vitest.cmd'"],
+  ["Get-Item on the vitest.cmd path", "Get-Item C:/w/node_modules/.bin/vitest.cmd"],
   ["an empty command", ""],
   ["a non-string command", null],
 ];
 
-for (const [label, command] of denies) {
-  const reason = decide(command, undefined, tree);
+for (const [label, command, shell] of denies) {
+  const reason = decide(command, shell, tree);
   check(typeof reason === "string" && reason.length > 0, `denied: ${label}`, JSON.stringify(reason));
 }
-for (const [label, command] of allows) {
-  const reason = decide(command, undefined, tree);
+for (const [label, command, shell] of allows) {
+  const reason = decide(command, shell, tree);
   check(reason === null, `allowed: ${label}`, JSON.stringify(reason));
 }
 

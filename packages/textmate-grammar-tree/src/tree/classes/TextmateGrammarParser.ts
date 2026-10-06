@@ -15,6 +15,17 @@ export class TextmateGrammarParser extends Parser {
   /** The set of CodeMirror NodeTypes in the grammar. */
   declare nodeSet: NodeSet;
 
+  /**
+   * For a grammar whose lookaheads read past the end of their line: given
+   * the document and the position of an edit, the earliest position of a
+   * token whose matching can have read the text at that position. An
+   * incremental parse keeps the tokens before its restart point, so it
+   * restarts before this position. Without it, the parse restarts at the
+   * second split point before the edit, which holds only when no token
+   * before that point read the edited text.
+   */
+  lookaheadStart?: (input: Input, pos: number) => number;
+
   constructor(
     grammarDefinition: GrammarDefinition,
     rootNodeType?: NodeType,
@@ -63,6 +74,7 @@ export class TextmateGrammarParser extends Parser {
       input,
       fragments,
       ranges,
+      this.lookaheadStart,
     );
     return parse;
   }

@@ -19,6 +19,15 @@ export function buildBeatsFixture(options?: { lines?: number }): {
   target: { line: number; sceneLines: number };
 };
 
+export function buildChunksFixture(options?: {
+  scenes?: number;
+  linesPerScene?: number;
+  thenLines?: number;
+}): {
+  files: Map<string, string>;
+  target: { line: number; scenes: number; sceneLines: number };
+};
+
 export function writePreviewFixture(
   dir: string,
   fixture?: { files: Map<string, string>; target: PreviewFixtureTarget },

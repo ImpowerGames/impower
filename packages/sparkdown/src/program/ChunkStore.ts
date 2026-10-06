@@ -59,6 +59,7 @@ import {
 } from "./ProgramRoot";
 import { identityOf, StatementWatch } from "./StatementWatch";
 import { Op, opOf } from "./ProgramInstructions";
+import { recordChunkParts } from "./chunkParts";
 import {
   anonymousSymbol,
   internSymbol,
@@ -1608,6 +1609,12 @@ export class ChunkStore {
       placement: this.placementOf(statement),
       params: paramsOf(statement),
       generation: this.table.generation,
+    });
+    const info = this._info.get(chunk)!;
+    recordChunkParts(chunk, {
+      functions: info.parts,
+      alternators: info.alternators,
+      choices: info.choices,
     });
     return chunk;
   }

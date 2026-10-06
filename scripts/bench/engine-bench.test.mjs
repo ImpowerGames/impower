@@ -212,6 +212,7 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /candidate flat-copy: flow MAIN, [0-9]+ records, [0-9]+ statements in [0-9]+ sequences[^]*insert at the bottom/);
     assert.match(run.stdout, /candidate tree-copy:[^]*replace at the middle/);
     assert.match(run.stdout, /candidate records-splice:[^]*copy of the flow's records/);
+    assert.match(run.stdout, /images: the 2 candidates produced identical lines \([0-9]{3,} lines\) through [0-9]{3,} search nodes; a node costs [0-9.]+ microseconds on an image against [0-9.]+ on the JSON round trip/);
   });
 }
 

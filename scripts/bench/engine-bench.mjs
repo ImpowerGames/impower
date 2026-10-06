@@ -12,7 +12,8 @@
 //                     temporary directory and measure its target line
 //   --line <N>        the line of main.sd the route ends at, counting from one
 //   --mode <m,..>     any of kinds, step, proto, program, emit, ready, chunks,
-//                     symbols, order, or all (the default); see MODES below
+//                     symbols, order, images, or all (the default); see MODES
+//                     below
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>      discarded samples first (default 4)
 //   --cpu-prof <dir>  also write a V8 CPU profile of each candidate's process
@@ -50,6 +51,7 @@ export const MODES = {
   order: { entry: "chunkOrderBench.ts", project: "route", candidates: ["flat-copy", "flat-splice", "tree-copy", "records-splice"] },
   emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"] },
   ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"] },
+  images: { entry: "imageBench.ts", project: "chunks", candidates: ["json", "image"] },
 };
 
 export function parseEngineBenchArgs(args) {
@@ -189,6 +191,18 @@ async function main(args) {
         const [symbol, direct] = reports.map((r) => r.nanosecondsPerDivert.median);
         console.log(`symbols: in a table of ${reports[0].symbols} symbols, a divert through the symbol table costs ${(symbol - direct).toFixed(2)} nanoseconds more than one resolved at compile time, by the medians (${symbol.toFixed(2)} against ${direct.toFixed(2)})`);
         console.log("");
+      }
+      if (mode === "images" && reports.length === candidates.length) {
+        const problem = outputMismatch(reports);
+        if (problem) {
+          console.error(`images: ${problem}`);
+          failed = true;
+        } else {
+          const report = (candidate) => reports.find((r) => r.candidate === candidate);
+          const [json, image] = [report("json"), report("image")].map((r) => r.microsecondsPerNode.median);
+          console.log(`images: the 2 candidates produced identical lines (${reports[0].lines} lines) through ${reports[0].nodes} search nodes; a node costs ${image.toFixed(2)} microseconds on an image against ${json.toFixed(2)} on the JSON round trip, by the medians`);
+          console.log("");
+        }
       }
       if (mode === "chunks" && reports.length === candidates.length) {
         const problem = outputMismatch(reports);

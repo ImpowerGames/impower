@@ -130,6 +130,37 @@ export class RuntimeState {
     return;
   }
 
+  /** Reads a runtime record, or throws when it is not one: three lists,
+   *  of paths, of choices met (their options and the one selected) and of
+   *  conditions met (the verdict), as `toJSON` writes them. */
+  static read(json: string): RuntimeState {
+    const record = JSON.parse(json) as Partial<SerializableRuntimeState> | null;
+    const isList = <T>(value: unknown, item: (v: any) => boolean): value is T[] =>
+      Array.isArray(value) && value.every(item);
+    if (
+      typeof record !== "object" ||
+      record === null ||
+      !isList<string>(record.pathsExecutedThisFrame, (p) => typeof p === "string") ||
+      !isList(
+        record.choicesEncountered,
+        (c) =>
+          typeof c === "object" &&
+          c !== null &&
+          isList<string>(c.options, (o) => typeof o === "string") &&
+          typeof c.selected === "number",
+      ) ||
+      !isList(
+        record.conditionsEncountered,
+        (c) => typeof c === "object" && c !== null && typeof c.selected === "boolean",
+      )
+    ) {
+      throw new Error("The runtime record is not one");
+    }
+    const obj = new RuntimeState();
+    obj.fromSerializable(record as SerializableRuntimeState);
+    return obj;
+  }
+
   static clone(state: RuntimeState) {
     const cloned = new RuntimeState();
     if (state) {

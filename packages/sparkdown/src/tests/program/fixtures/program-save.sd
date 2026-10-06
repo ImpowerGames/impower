@@ -1,0 +1,28 @@
+store picks = 0
+store shared = { 1 }
+store alias = nil
+store bump = nil
+store peek = nil
+
+-> start
+
+scene start
+  & alias = shared
+  & local function cell()
+  &   local n = 10
+  &   bump = function() n = n + 1 end
+  &   peek = function() return n end
+  & end
+  & cell()
+  choose
+    * [one]
+      & picks = picks + 1
+      & table.insert(alias, 2)
+      & bump()
+    * [two]
+  end
+  Picked {picks} {shared[1]} {#alias} {peek()}.
+  & bump()
+  Bumped {peek()}.
+  The end.
+end
