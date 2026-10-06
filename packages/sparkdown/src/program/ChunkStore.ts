@@ -1510,10 +1510,18 @@ export class ChunkStore {
         this._inherit.delete(statements[i]!);
       }
     };
-    // The old chunks whose facts hold, by identity: those no statement
-    // holds, and those paired for an edit in place. An entry is checked
-    // when it is taken, since a chunk moves between the two.
-    const byIdentity = new Map<string, { free: number[]; held: number[] }>();
+    // The old chunks whose facts hold, by identity: those no statement holds,
+    // and those paired for an edit in place, filed by what their holder can
+    // take in an exchange (`takesLeft`): its syntax, and whether it has
+    // bodies or writes alternators. An entry is checked when it is taken and
+    // dropped when it no longer applies, since a chunk moves between lists;
+    // each move files it again, so the lists stay linear in all.
+    interface Held {
+      bySyntax: Map<string, number[]>;
+      bodied: number[];
+      alternating: number[];
+    }
+    const byIdentity = new Map<string, { free: number[]; held: Held }>();
     const listOf = (o: number) => {
       const identity = this.chunkIdentity(old[o]!);
       if (identity === undefined || !factsHold(old[o]!)) {
@@ -1521,16 +1529,37 @@ export class ChunkStore {
       }
       let lists = byIdentity.get(identity);
       if (!lists) {
-        lists = { free: [], held: [] };
+        lists = { free: [], held: { bySyntax: new Map(), bodied: [], alternating: [] } };
         byIdentity.set(identity, lists);
       }
       return lists;
+    };
+    const fileHeld = (o: number) => {
+      const lists = listOf(o);
+      const p = holder.get(o);
+      if (!lists || p === undefined) {
+        return;
+      }
+      const statement = statements[p]!;
+      const syntax = statement.syntax();
+      const same = lists.held.bySyntax.get(syntax);
+      if (same) {
+        same.push(o);
+      } else {
+        lists.held.bySyntax.set(syntax, [o]);
+      }
+      if ((statement.bodies?.length ?? 0) > 0) {
+        lists.held.bodied.push(o);
+      }
+      if (alternatorsOf(statement).length > 0) {
+        lists.held.alternating.push(o);
+      }
     };
     for (let o = old.length - 1; o >= 0; o -= 1) {
       if (!used.has(old[o]!)) {
         listOf(o)?.free.push(o);
       } else if (holder.has(o)) {
-        listOf(o)?.held.push(o);
+        fileHeld(o);
       }
     }
     const ownsAny = (chunk: StatementChunk) =>
@@ -1575,25 +1604,37 @@ export class ChunkStore {
       // The other statement takes the chunk this one leaves: it keeps it,
       // or is emitted again in place from it, as a statement of its syntax
       // or one whose parts the chunk's carry. A statement that could do
-      // neither keeps its chunk, so no exchange leaves a chunk behind.
+      // neither keeps its chunk, so no exchange leaves a chunk behind. Only
+      // the lists whose holders can take it are read.
+      const left = old[q]!;
       const takesLeft = (p: number) =>
         fits(p, q) ||
-        this._info.get(old[q]!)?.syntax === statements[p]!.syntax() ||
-        ownsParts(statements[p]!, old[q]!);
+        this._info.get(left)?.syntax === statements[p]!.syntax() ||
+        ownsParts(statements[p]!, left);
+      const candidates: number[][] = [];
+      const same = lists.held.bySyntax.get(this._info.get(left)?.syntax ?? "");
+      if (same) {
+        candidates.push(same);
+      }
+      if (blockCount(left) > 0) {
+        candidates.push(lists.held.bodied);
+      }
+      if ((this._info.get(left)?.alternators.length ?? 0) > 0) {
+        candidates.push(lists.held.alternating);
+      }
       let o: number | undefined;
-      const passed: number[] = [];
-      while (lists.held.length && o === undefined) {
-        const c = lists.held.pop()!;
-        const p = holder.get(c);
-        if (p !== undefined && p !== i) {
-          if (takesLeft(p)) {
+      for (const list of candidates) {
+        while (list.length && o === undefined) {
+          const c = list.pop()!;
+          const p = holder.get(c);
+          if (p !== undefined && p !== i && takesLeft(p)) {
             o = c;
-          } else {
-            passed.push(c);
           }
         }
+        if (o !== undefined) {
+          break;
+        }
       }
-      lists.held.push(...passed);
       if (o === undefined) {
         continue;
       }
@@ -1602,12 +1643,12 @@ export class ChunkStore {
       unpair(i);
       result[i] = old[o]!;
       if (fits(p, q)) {
-        result[p] = old[q]!;
+        result[p] = left;
       } else {
         partner.set(p, q);
         holder.set(q, p);
-        this._inherit.set(statements[p]!, old[q]!);
-        listOf(q)?.held.push(q);
+        this._inherit.set(statements[p]!, left);
+        fileHeld(q);
         queue.push(p);
       }
     }

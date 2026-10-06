@@ -590,3 +590,71 @@ describe("statements whose recorded values an edit changes", () => {
     expect(count.lookups).toBeLessThan(40 * n);
   });
 });
+
+describe("block statements an edit reorders", () => {
+  const plain = (syntax: string, reads = "[]"): StatementSource => ({
+    block: {},
+    objects: [new Text(syntax)],
+    range: null,
+    firstLine: 0,
+    source: () => syntax,
+    syntax: () => syntax,
+    reads,
+  });
+  const owner = (syntax: string, reads = "[]"): StatementSource => {
+    const objects = wrapInScope([]);
+    const shape = { statements: [], headEnd: 0, nextStart: 0 };
+    bodyOfBlock.set(objects[0]!, shape as never);
+    return {
+      ...plain(syntax, reads),
+      objects,
+      bodies: [{ shape, statements: [], firstLine: 0, span: 1, headLines: 0 }],
+    } as unknown as StatementSource;
+  };
+  const flow = (statements: StatementSource[]) => [
+    { name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements },
+  ];
+  class CountingStore extends ChunkStore {
+    lookups = 0;
+    constructor() {
+      super();
+      const get = this._info.get.bind(this._info);
+      this._info.get = (chunk) => {
+        this.lookups += 1;
+        return get(chunk);
+      };
+    }
+  }
+
+  it("keep their chunks and body sequences through a three-way rotation", () => {
+    const store = new ChunkStore();
+    const build = (reads: string[]) =>
+      store.build(flow(reads.map((r) => owner("x", r))), true).root!.flowNamed("")!.arrays.chunks;
+    const before = build(["a", "b", "c"]);
+    const after = build(["b", "c", "a"]);
+    expect(store.emittedLastBuild).toBe(0);
+    expect(after.every((chunk, k) => chunk === before[(k + 1) % 3])).toBe(true);
+  });
+
+  it("are aligned in lookups linear in their number when no exchange can be made", () => {
+    // N plain statements take the syntax of N old block statements, and N
+    // block statements of that syntax, each alone between two anchors, are
+    // paired with other old blocks; every one of them can keep an old `x`
+    // block, but its plain holder cannot take the block it would leave.
+    const n = 128;
+    const store = new CountingStore();
+    const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
+    const old: StatementSource[] = Array.from({ length: n }, () => owner("x"));
+    const now: StatementSource[] = Array.from({ length: n }, () => plain("x", "changed"));
+    for (let k = 0; k < n; k += 1) {
+      old.push(anchors[k]!, owner(`q${k}`));
+      now.push(anchors[k]!, owner("x"));
+    }
+    old.push(anchors[n]!);
+    now.push(anchors[n]!);
+    store.build(flow(old), true);
+    store.lookups = 0;
+    expect(store.build(flow(now), true).fallback).toBeUndefined();
+    expect(store.lookups).toBeLessThan(20 * (3 * n + 1));
+  });
+});
