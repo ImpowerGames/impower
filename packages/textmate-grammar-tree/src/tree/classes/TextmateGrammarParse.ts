@@ -67,6 +67,9 @@ export class TextmateGrammarParse implements PartialParse {
    * @param fragments - The fragments to be used for determining reuse of
    *   previous parses.
    * @param ranges - The ranges of the document to parse.
+   * @param lookaheadStart - The earliest position of a token whose matching
+   *   can have read the text at a position (see
+   *   `TextmateGrammarParser.lookaheadStart`).
    */
   constructor(
     grammar: Grammar,
@@ -74,6 +77,7 @@ export class TextmateGrammarParse implements PartialParse {
     input: Input,
     fragments: readonly TreeFragment[],
     ranges: { from: number; to: number }[],
+    lookaheadStart?: (input: Input, pos: number) => number,
   ) {
     // console.log(
     //   "NEW PARSE",
@@ -112,6 +116,7 @@ export class TextmateGrammarParse implements PartialParse {
             this.region.edit.from,
             this.region.edit.to,
             this.region.edit.offset,
+            lookaheadStart && ((pos) => lookaheadStart(input, pos)),
           );
           if (restartFrom != null) {
             this.region.from = restartFrom;

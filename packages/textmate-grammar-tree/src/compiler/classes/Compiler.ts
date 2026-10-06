@@ -98,7 +98,21 @@ export class Compiler {
    */
   reuseEpoch = 0;
 
-  reuse(editedFrom: number, editedTo: number, editedOffset: number) {
+  /**
+   * Rewinds the packet to a restart point before the edit and keeps the
+   * chunks after it aside to splice back in. Returns the restart position,
+   * or null when nothing can be reused.
+   *
+   * `lookaheadStart` gives, for an edit at a position, the earliest position
+   * whose tokens a lookahead into the edit can have come from (see
+   * `TextmateGrammarParser.lookaheadStart`); the restart point lies before it.
+   */
+  reuse(
+    editedFrom: number,
+    editedTo: number,
+    editedOffset: number,
+    lookaheadStart?: (editedFrom: number) => number,
+  ) {
     // Clear any `reparsedTo` left over from a PREVIOUS incremental parse.
     // `reparsedTo` is only meaningful when this parse reuses chunks AHEAD
     // of the edit (set by `append`). If it isn't reset here, an edit that
@@ -142,7 +156,10 @@ export class Compiler {
     // Every path below mutates the packet — invalidate all other trees
     // holding this compiler (see reuseEpoch).
     this.reuseEpoch++;
-    const splitPointBeforeEdit = this.packet.findBehindSplitPoint(editedFrom);
+    const reparseFrom = lookaheadStart
+      ? Math.min(editedFrom, lookaheadStart(editedFrom))
+      : editedFrom;
+    const splitPointBeforeEdit = this.packet.findBehindSplitPoint(reparseFrom);
     let splitBehind = this.packet.findBehindSplitPoint(
       splitPointBeforeEdit.chunk?.from ?? 0,
     );
