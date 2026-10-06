@@ -606,6 +606,9 @@ check("play, insert and scrub steps parse with their bounds (#969)", () => {
     { play: "stop" },
   ]);
   assert.deepEqual(parseUiSteps(["--insert", "1:2=x=y"]), [{ insert: { line: 1, col: 2 }, text: "x=y" }]);
+  // `\\` is a backslash, so a literal backslash-n has a spelling; a lone
+  // backslash before another character is kept.
+  assert.equal(parseUiSteps(["--insert", "1:1=a\\\\nb\\tc"])[0].text, "a\\nb\\tc");
   assert.throws(() => parseUiSteps(["--play", "pause"]), /start or stop/);
   for (const v of ["0", "-1", "1.5", "x"]) assert.throws(() => parseUiSteps(["--scrub", v]), /positive line|needs a value/);
   assert.throws(() => parseUiSteps(["--insert", "1:1="]), /1\.\.4096/);
@@ -712,6 +715,26 @@ await asyncCheck("hover reports a diagnostic at the position and its lint toolti
   assert.equal(out.diagnostics[0].message, "Choice mark must be inside choose");
   assert.deepEqual(out.diagnosticTooltip, { present: true, text: "Choice mark must be inside choose" });
   assert.ok(moves.length >= 2, "a second pointer move opens the lint tooltip");
+  assert.deepEqual(out.tooltipPointer, { x: moves[1][0] + 2, y: moves[1][1] }, "inside a mark the second move stays at the position");
+  // At the mark's end edge the right side is excluded by CodeMirror's lint
+  // hover, so the second move aims at the last character inside the mark.
+  const reads = [];
+  const edgeContext = vm.createContext(protocolGlobals({ text: () => "x\n\n\n\n\n\n* [Go]", diagnostics: () => [diagnostic] }));
+  const send = edgeContext.window.__editorProtocol.send;
+  edgeContext.window.__editorProtocol.send = async (message) => {
+    if (message.method === "editor/read" && message.params?.position) {
+      reads.push(message.params.position);
+      const { character } = message.params.position;
+      return { ...(await send(message)), coordinates: { left: 40 + 9 * character, right: 49 + 9 * character, top: 250, bottom: 268 } };
+    }
+    return send(message);
+  };
+  moves.length = 0;
+  const edge = await languageSurface({ ...page, evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, edgeContext)(arg) }, "hover", { line: 7, col: 2 }, undefined, hoverDeps);
+  assert.equal(edge.reason, undefined);
+  assert.deepEqual(reads.at(-1), { line: 6, character: 0 }, "the tooltip move measures the last character inside the mark");
+  assert.deepEqual(edge.tooltipPointer, { x: 42, y: 259 });
+  assert.deepEqual(moves.at(-1), [42, 259]);
   page.locator = () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) });
   const unseen = await languageSurface(page, "hover", { line: 7, col: 1 }, undefined, hoverDeps);
   assert.match(unseen.reason, /tooltip did not open/);

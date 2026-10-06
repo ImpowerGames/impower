@@ -101,6 +101,16 @@ for (const step of [
   const session = createEditorSession({ id: "argv", args: ["driver.mjs"], timeoutSeconds: 1 }, root, fakeDirectory, async (command) => { calls.push(command.args); return { exit: 0 }; });
   await session.run({ requestId: "argv", command: "ui", steps: playInsertScrub });
   assert.deepEqual(calls[1].slice(1, 9), ["ui", "--play", "start", "--insert", "2:1=a" + String.fromCharCode(92) + "nb", "--scrub", "3", "--play"]);
+  // A literal backslash, and a literal backslash-n, survive the argv
+  // encoding and the driver's decoding unchanged.
+  const { parseUiSteps } = await import("../.agents/skills/drive-web-editor/driver.mjs");
+  const slash = String.fromCharCode(92);
+  for (const text of [slash + "n", "a" + slash + slash + "b\nc" + slash, "x\r\ny"]) {
+    await session.run({ requestId: `argv-${calls.length}`, command: "ui", steps: [{ action: "insert", line: 1, column: 1, text }] });
+    const argv = calls.at(-1);
+    const parsed = parseUiSteps(argv.slice(argv.indexOf("ui") + 1, argv.indexOf("--shot")));
+    assert.equal(parsed[0].text, text.replace(/\r\n/g, "\n"));
+  }
   await session.close();
 }
 const editorDirectory = path.join(scratch, "editor"); fs.mkdirSync(editorDirectory);

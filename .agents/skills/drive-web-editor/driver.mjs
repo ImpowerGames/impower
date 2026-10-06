@@ -3262,8 +3262,8 @@ const SEVERITY = { 1: "error", 2: "warning", 3: "information", 4: "hint" };
 /**
  * The settled diagnostics whose range covers a one-based position, each
  * with its message as plain text, its severity name and its zero-based LSP
- * range. A range that ends at the position counts, as CodeMirror shows the
- * tooltip at a mark's edge.
+ * range. A range that ends at the position counts (the caret is at its end);
+ * languageSurface then aims the pointer inside the mark.
  */
 export async function diagnosticsAt(page, position, { diagnostics = settledDiagnostics } = {}) {
   const settled = await diagnostics(page);
@@ -3328,8 +3328,20 @@ export async function languageSurface(page, kind, position, text, { place = plac
     if (found.length > 0) {
       // CodeMirror's lint tooltip opens on a real pointer move over the
       // marked range; one move can land before the range is measured, so
-      // a second small move follows, and the tooltip is waited for.
-      await page.mouse.move(out.pointer.x + 2, out.pointer.y, { steps: 2 });
+      // a second small move follows, and the tooltip is waited for. At a
+      // mark's end the pointer sits right of the boundary, a side CodeMirror's
+      // lint hover excludes, so the move aims at the last character inside it.
+      let spot = { x: out.pointer.x + 2, y: out.pointer.y };
+      const { start, end } = found[0].range;
+      const atEnd = end.line === position.line - 1 && end.character === position.col - 1;
+      const nonEmpty = start.line < end.line || start.character < end.character;
+      if (atEnd && nonEmpty && end.character > 0) {
+        const inside = await protocolRequest(page, "editor/read", { position: { line: end.line, character: end.character - 1 } });
+        const rect = inside.coordinates;
+        if (rect) spot = { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+      }
+      out.tooltipPointer = spot;
+      await page.mouse.move(spot.x, spot.y, { steps: 2 });
       out.diagnosticTooltip = await lintTooltip(page);
       if (!out.diagnosticTooltip.present) {
         out.reason = `a diagnostic is at this position (${found[0].message}) but its tooltip did not open under the pointer`;
@@ -3425,7 +3437,9 @@ export function parseUiSteps(args) {
         const spec = value();
         const eq = spec.indexOf("=");
         if (eq < 0) bad("--insert needs line:col=text");
-        const text = spec.slice(eq + 1).replace(/\\n/g, "\n");
+        // `\n` is a line break and `\\` a backslash, so any text, a literal
+        // backslash-n included, has a spelling.
+        const text = spec.slice(eq + 1).replace(/\\([\\n])/g, (_, c) => (c === "n" ? "\n" : "\\"));
         if (!text || text.length > INSERT_TEXT_LIMIT) bad(`--insert text must be 1..${INSERT_TEXT_LIMIT} characters`);
         steps.push({ insert: parsePosition(spec.slice(0, eq)), text });
         break;

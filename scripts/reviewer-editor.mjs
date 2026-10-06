@@ -87,8 +87,9 @@ export function createEditorSession(command, root, directory, run) {
         if (step.action === "type") args.push("--type", `${step.field}=${step.text}`);
         else if (step.action === "hover") args.push("--hover", `${step.line}:${step.column}`);
         else if (step.action === "complete") args.push("--complete", `${step.line}:${step.column}=${step.text}`);
-        // The driver reads the two characters \n in --insert as a line break.
-        else if (step.action === "insert") args.push("--insert", `${step.line}:${step.column}=${step.text.replace(/\r?\n/g, "\\n")}`);
+        // The driver's --insert reads backslash-backslash as a backslash and
+        // backslash-n as a line break; escape both so the text arrives as sent.
+        else if (step.action === "insert") args.push("--insert", `${step.line}:${step.column}=${step.text.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n")}`);
         else if (step.action === "scrub") args.push("--scrub", String(step.line));
         else if (step.action === "shot") args.push(...shot(step.target));
         else args.push(`--${step.action}`, step.value);
