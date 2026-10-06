@@ -735,6 +735,23 @@ await asyncCheck("hover reports a diagnostic at the position and its lint toolti
   assert.deepEqual(reads.at(-1), { line: 6, character: 0 }, "the tooltip move measures the last character inside the mark");
   assert.deepEqual(edge.tooltipPointer, { x: 42, y: 259 });
   assert.deepEqual(moves.at(-1), [42, 259]);
+  // A multi-line mark whose exclusive end is column 0 of the next line: the
+  // last character inside it is the end of the line before (round-1 review).
+  const multiline = { ...diagnostic, range: { start: { line: 0, character: 0 }, end: { line: 1, character: 0 } } };
+  const lineContext = vm.createContext(protocolGlobals({ text: () => "abc\nnext", diagnostics: () => [multiline] }));
+  const lineSend = lineContext.window.__editorProtocol.send;
+  lineContext.window.__editorProtocol.send = async (message) => {
+    if (message.method === "editor/read" && message.params?.position) {
+      reads.push(message.params.position);
+      const { character } = message.params.position;
+      return { ...(await lineSend(message)), coordinates: { left: 40 + 9 * character, right: 49 + 9 * character, top: 120, bottom: 138 } };
+    }
+    return lineSend(message);
+  };
+  const wrapped = await languageSurface({ ...page, evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, lineContext)(arg) }, "hover", { line: 2, col: 1 }, undefined, hoverDeps);
+  assert.equal(wrapped.reason, undefined);
+  assert.deepEqual(reads.at(-1), { line: 0, character: 2 }, "an end at column 0 aims at the previous line's last character");
+  assert.deepEqual(wrapped.tooltipPointer, { x: 60, y: 129 });
   page.locator = () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) });
   const unseen = await languageSurface(page, "hover", { line: 7, col: 1 }, undefined, hoverDeps);
   assert.match(unseen.reason, /tooltip did not open/);

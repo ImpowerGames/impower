@@ -3335,10 +3335,28 @@ export async function languageSurface(page, kind, position, text, { place = plac
       const { start, end } = found[0].range;
       const atEnd = end.line === position.line - 1 && end.character === position.col - 1;
       const nonEmpty = start.line < end.line || start.character < end.character;
-      if (atEnd && nonEmpty && end.character > 0) {
-        const inside = await protocolRequest(page, "editor/read", { position: { line: end.line, character: end.character - 1 } });
-        const rect = inside.coordinates;
-        if (rect) spot = { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+      if (atEnd && nonEmpty) {
+        // The last character before the end, stepping back over line breaks
+        // (an end at column 0 belongs to the line before), but not before
+        // the start.
+        const lines = (await protocolRequest(page, "editor/read")).textDocument.text.split("\n");
+        let line = end.line;
+        let character = end.character;
+        let at = null;
+        while (line > start.line || character > start.character) {
+          if (character === 0) {
+            line -= 1;
+            character = (lines[line] ?? "").length;
+            continue;
+          }
+          at = { line, character: character - 1 };
+          break;
+        }
+        if (at) {
+          const inside = await protocolRequest(page, "editor/read", { position: at });
+          const rect = inside.coordinates;
+          if (rect) spot = { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+        }
       }
       out.tooltipPointer = spot;
       await page.mouse.move(spot.x, spot.y, { steps: 2 });
