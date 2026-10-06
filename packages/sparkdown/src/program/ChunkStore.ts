@@ -2930,18 +2930,25 @@ const isOwnJump = (obj: Divert): boolean =>
  *  by its qualified name, which the compile keeps whatever object stands for
  *  it; and a function a statement writes by the function itself, whose
  *  anonymous symbol belongs to that object for as long as its statement is
- *  kept. */
+ *  kept. The compile places a function a statement writes among the story's
+ *  flows too, under a name it gives by document order (`__synth_<n>`), which
+ *  a function written above renumbers: that name is not the symbol. */
 const targetOf = (target: ParsedObject | null | undefined): string => {
   if (!target) {
     return "-";
   }
   const name =
     target.programSymbolName ??
-    (target instanceof FlowBase && target.parent === target.story
+    (target instanceof FlowBase &&
+    target.parent === target.story &&
+    !WRITTEN_FUNCTION_NAME.test(target.identifier?.name ?? "")
       ? `flow:${target.identifier?.name ?? ""}`
       : null);
   return name ?? `#${identityOf(target)}`;
 };
+
+/** The name the compile gives a function a statement writes. */
+const WRITTEN_FUNCTION_NAME = /^__synth_\d+$/;
 
 const readReference = (obj: VariableReference): string =>
   `${obj.resolutionKey}|${targetOf(obj.countTarget)}`;

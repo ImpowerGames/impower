@@ -732,6 +732,64 @@ describe("a hazard of reuse", () => {
     expect(chunkAt(after, s.text, "Got {pair")).toBe(reader);
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
   });
+
+  it("a function written in a scene above renumbers the names of the functions below it, and their statements are read again nowhere", () => {
+    // The compiler names a function a statement writes by document order
+    // (`__synth_<n>`), so one written in an earlier scene renames every one
+    // after it. A chunk names such a function by its anonymous symbol, which
+    // belongs to the function for as long as its statement is kept.
+    const scene = (name: string, closures: boolean) => [
+      `scene ${name}`,
+      `  The room ${name} is quiet.`,
+      ...(closures
+        ? [
+            "  local keep = function() return 1 end",
+            `  Kept {keep()} in ${name}.`,
+            "  local add = function(n) return n + 1 end",
+            `  Added {add(2)} in ${name}.`,
+          ]
+        : []),
+      ...Array.from({ length: 12 }, (_, i) => `  Line ${i} of ${name}.`),
+      "end",
+      "",
+    ];
+    const below = ["SECOND", "THIRD", "FOURTH", "FIFTH"];
+    const text = [...scene("FIRST", false), ...below.flatMap((name) => scene(name, true))].join(
+      "\n",
+    );
+    const s = session({ [MAIN_URI]: text });
+    const closures = (root: ProgramRoot, script: string) =>
+      below.flatMap((name) => [
+        chunkAt(root, script, `Kept {keep()} in ${name}.`),
+        chunkAt(root, script, `Added {add(2)} in ${name}.`),
+      ]);
+    const kept = closures(s.root, text);
+    const insert = (n: number) => `  local extra${n} = function() return ${n} end\n`;
+    // A preview of a function, then the function itself, twice.
+    for (const n of [1, 2]) {
+      const at = s.text.indexOf("  Line 11 of FIRST.") + "  Line 11 of FIRST.".length + 1;
+      quietly(() =>
+        s.compiler.previewCompile({
+          textDocument: { uri: MAIN_URI, version: 1 },
+          contentChanges: [
+            { range: { start: posAt(s.text, at), end: posAt(s.text, at) }, text: insert(n) },
+          ],
+          root: { uri: MAIN_URI },
+        } as never),
+      );
+      const after = s.edit("  Line 11 of FIRST.\n", `  Line 11 of FIRST.\n${insert(n)}`)!;
+      expect(closures(after, s.text).every((chunk, i) => chunk === kept[i])).toBe(true);
+      // The statements the parse read again around the edit: the lines
+      // above it, and on the second edit the function written the first
+      // time, just below it, with its body. None of the sixteen statements
+      // of the scenes below, which write or call functions the new one
+      // renumbered, is read again.
+      const passes = s.store.passesLastBuild;
+      expect(passes.identity).toBeLessThanOrEqual(4);
+      expect(passes.facts).toBeLessThanOrEqual(8);
+      expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
+    }
+  });
 });
 
 // The facts a chunk's reference table records are what its emission read
