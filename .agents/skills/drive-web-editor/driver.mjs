@@ -2440,14 +2440,15 @@ async function pressKey(page, combo) {
 }
 
 /** Focus the CodeMirror view so editor-scoped keymap bindings receive keys. */
-async function focusEditor(page) {
-  const editor = await protocolRequest(page, "editor/read");
+async function focusEditor(page, editor) {
+  editor ??= await protocolRequest(page, "editor/read");
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range: editor.selection, takeFocus: true });
+  return editor;
 }
 
 // Keys whose command edits the document asynchronously (the formatter answers
 // through the language server), so the read-back waits for a new version.
-const DOCUMENT_COMMAND_KEYS = new Set(["Shift+Alt+F", "Control+S", "Meta+S"]);
+const DOCUMENT_COMMAND_KEYS = new Set(["Shift+Alt+F", "Control+s", "Meta+s"]);
 const PRESS_TEXT_LIMIT = 8192;
 
 /**
@@ -2457,8 +2458,7 @@ const PRESS_TEXT_LIMIT = 8192;
  * says whether the text changed and a reviewer can tell the command ran.
  */
 export async function pressInEditor(page, combo, { wait = waitForDomQuiet, commandWaitMs = 5_000 } = {}) {
-  const before = await protocolRequest(page, "editor/read");
-  await protocolNotify(page, "editor/select", { textDocument: { uri: before.textDocument.uri }, range: before.selection, takeFocus: true });
+  const before = await focusEditor(page);
   const n = await pressKey(page, combo);
   await wait(page, { quiet: 300, timeout: 4_000 });
   let after = await protocolRequest(page, "editor/read");

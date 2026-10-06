@@ -576,7 +576,7 @@ await asyncCheck("a press focuses the script editor first and reports whether th
   const context = vm.createContext({ crypto, window: { __editorProtocol: bridge } });
   const page = {
     waitForFunction: async () => {},
-    keyboard: { press: async (key) => { calls.push(`press:${key}`); if (key === "Shift+Alt+F") formatAfterReads = 3; } },
+    keyboard: { press: async (key) => { calls.push(`press:${key}`); if (key === "Shift+Alt+F" || key === "Control+s") formatAfterReads = 3; } },
     evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
   };
   const wait = async () => true;
@@ -590,6 +590,11 @@ await asyncCheck("a press focuses the script editor first and reports whether th
   assert.deepEqual(unchanged.version, { before: 2, after: 2 });
   assert.equal(unchanged.textChanged, false);
   assert.equal(unchanged.text, undefined);
+  // Format on save answers late too; its read-back waits the same way.
+  text = "y=2";
+  const saved = await pressInEditor(page, "Control+s", { wait, commandWaitMs: 2_000 });
+  assert.deepEqual(saved.version, { before: 2, after: 3 });
+  assert.equal(saved.text, "x = 1");
 });
 
 if (failures > 0) {
