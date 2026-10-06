@@ -323,15 +323,22 @@ export class CheckpointStore {
     this._entries.length = Math.max(0, Math.min(keepCount, this._entries.length));
   }
 
-  protected reconstruct(index: number): string {
+  protected reconstruct(index: number): string | null {
     const entry = this._entries[index]!;
     if (entry.kind === "keyframe") {
       return entry.json;
     }
     if (entry.kind === "image") {
+      // An image the story can no longer place (a compile emitted again a
+      // statement it names) has no save: the caller replays to it, as it
+      // does when `restoreCheckpoint` reports it unplaced, rather than load
+      // its modules beside a story that stands elsewhere.
       const story = this._host.storyOfImage?.(entry.image) ?? null;
+      if (story === null) {
+        return null;
+      }
       const { save } = this.imageAt(index)!;
-      save["story"] = story ?? "";
+      save["story"] = story;
       return JSON.stringify(save);
     }
 

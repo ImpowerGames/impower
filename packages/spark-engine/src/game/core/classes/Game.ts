@@ -1858,8 +1858,8 @@ export class Game<T extends M = {}> {
   load(saveJSON: string) {
     // A preview waiting for its pictures would display its beat over the
     // loaded state, and record a checkpoint of it. The program engine lets
-    // go of it only once the save is placed, so that a save it refuses
-    // leaves the preview waiting as it was.
+    // go of it only once the story has loaded, so that a save it refuses,
+    // at its placement or past it, leaves the preview waiting as it was.
     const program = this.programStory;
     if (!program) {
       this.cancelPreview();
@@ -1874,12 +1874,12 @@ export class Game<T extends M = {}> {
         // placement, and ends the line in progress when it succeeds; then
         // the modules.
         program.checkSave(saveData.story);
+        program.loadSave(saveData.story);
       }
       if (program) {
         this.cancelPreview();
       }
       if (program && saveData.story) {
-        program.loadSave(saveData.story);
         this.restoreReactiveTracking();
       }
       for (const k of this._moduleNames) {

@@ -270,10 +270,24 @@ describe("the checkpoints of a game on the program engine", () => {
     const state = engine.state.toJson();
     const core = () => JSON.stringify((game as any)._modules.core?.state);
     const modules = core();
+    // And with a preview waiting for its pictures (round 2 of the review of
+    // #1579, report 6019356082), which still waits.
+    let cancelled = 0;
+    (game as any)._pendingPreview = {
+      path: "preview",
+      generation: 0,
+      promise: Promise.resolve(null),
+      abandon: () => {},
+      cancel: () => {
+        cancelled += 1;
+      },
+    };
     expect(game.load(JSON.stringify(malformed))).toBe(false);
     expect(engine.asyncContinueComplete).toBe(false);
     expect(engine.state.toJson()).toBe(state);
     expect(core()).toBe(modules);
+    expect(cancelled).toBe(0);
+    expect((game as any)._pendingPreview).not.toBeNull();
   });
 
   it("restore in place after a compile for every statement it kept, and report one it emitted again unplaced", () => {
@@ -319,6 +333,12 @@ describe("the checkpoints of a game on the program engine", () => {
     // An edit to the statement the checkpoint rests at emits it again.
     const at = edit(3, 6, "  Three".length, " again");
     game.updateProgram(at.program, at.story);
+    // It has no save (round 2 of the review of #1579, report 6019356082):
+    // one with no story would load the checkpoint's modules beside a story
+    // that stands elsewhere. One whose statements the compile kept has one.
+    expect(game.checkpoints.getJson(two)).toBeNull();
+    expect(game.checkpoints.at(two)).toBeNull();
+    expect(game.checkpoints.getJson(0)).not.toBeNull();
     // With a line in progress (round 1 of the review of #1579, report
     // 6016969769): the unplaced checkpoint cancels nothing.
     const engine = game.story as unknown as ProgramStory;
