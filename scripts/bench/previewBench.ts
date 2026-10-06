@@ -333,6 +333,9 @@ async function main() {
     const contentChanges = [{ range: { start: { line: line0, character: start }, end: { line: line0, character: start + current.length } }, text: option }];
     workerGameMs = 0;
     workerGameIntervals = [];
+    // The store counts the declarations' runs over its lifetime; a sample
+    // reports the runs its own compile made.
+    const runsBefore = compiler.chunkStore?.initializerRuns ?? 0;
     const t0 = performance.now();
     if (config.mode === "preview") {
       compiler.previewCompile({ textDocument: { uri: mainUri, version }, contentChanges, root: { uri: mainUri }, startFrom } as any);
@@ -351,7 +354,7 @@ async function main() {
           option,
           wall: { compile: t1 - t0 },
           phases,
-          passes: { ...store?.passesLastBuild, initializerRuns: store?.initializerRuns, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null },
+          passes: { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null },
         });
       }
       continue;

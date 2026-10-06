@@ -995,15 +995,28 @@ describe("a program that falls back after compiles that did not", () => {
       "",
     ].join("\n");
     const s = session({ [MAIN_URI]: text });
+    // Grow the table past its bound, so that the preview's own compile
+    // reseeds it once it has built the preview's root.
+    const table = s.store.table;
+    const generation = table.generation;
+    const grown = table.strings.length * 2 + 600;
+    for (let i = 0; i < grown; i += 1) {
+      table.strings.push(`unused ${i}`);
+    }
     const at = text.indexOf("    Inside {top}.");
-    quietly(() =>
+    const previewed = text.slice(0, at) + "    Previewed.\n" + text.slice(at);
+    const preview = quietly(() =>
       s.compiler.previewCompile({
         textDocument: { uri: MAIN_URI, version: 1 },
         contentChanges: [{ range: { start: posAt(text, at), end: posAt(text, at) }, text: "    Previewed.\n" }],
         root: { uri: MAIN_URI },
       } as never),
     );
-    s.store.reseed();
+    expect(table.generation).toBe(generation + 1);
+    expect(preview.program?.chunks == null).toBe(false);
+    expect(describeRoot(preview.program!.chunks!)).toEqual(
+      describeRoot(cold({ [MAIN_URI]: previewed }).chunks!),
+    );
     const after = s.edit("  Got {f(1)}.", "  Got {f(2)}.")!;
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
     // The compile after the reseed emitted every chunk; the next one is
