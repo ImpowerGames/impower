@@ -5,7 +5,9 @@ import { pathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocation
 import type {
   ChunkPosition,
   ProgramRoot,
+  SequenceRow,
 } from "@impower/sparkdown/src/program/ProgramRoot";
+import { SymbolKind } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
 
 /**
@@ -99,7 +101,11 @@ export const validRoutePrefixLength = (
  * entered, a flow jumped to), and out of a sequence from its last entry (a
  * body that ran out). The first step whose chunk is gone, or that the new
  * program would reach some other way, ends the prefix: a statement inserted
- * between two kept ones ends it where the new statement would run.
+ * between two kept ones ends it where the new statement would run. A scene
+ * with no content of its own enters its first branch by a binding no chunk
+ * holds, so a step at the top of a branch also ends it when the branch's
+ * scene starts elsewhere in the new root (a branch inserted above the first
+ * one, or content written before it).
  *
  * A step proves its statement's code and not the state it ran on, so a
  * compile that emitted again or dropped a declaration chunk or a function
@@ -161,9 +167,35 @@ export const validAddressPrefixLength = (
         return i;
       }
     }
+    // A step at the top of a branch may have been reached through its
+    // scene's start binding, which no chunk's code holds: a scene with no
+    // content of its own enters its first branch. A route that reached the
+    // branch that way holds only while the scene still starts there.
+    if (
+      place.was.entry === 0 &&
+      sceneStart(before, place.was.sequence) !== sceneStart(after, place.now.sequence)
+    ) {
+      return i;
+    }
     previous = id;
   }
   return steps.length;
+};
+
+/** For a branch's own sequence, the branch its scene enters when the scene
+ *  is entered (`ProgramRoot.startOf`, which applies only while the scene has
+ *  no content of its own), or -1 when it enters none; -2 for any other
+ *  sequence. Symbols keep their ids from one root to the next of a
+ *  generation, which a reseed ends (`ChunkChanges.initializers`). */
+const sceneStart = (root: ProgramRoot, row: SequenceRow): number => {
+  if (row.owner >= 0 || row.kind !== SymbolKind.Branch) {
+    return -2;
+  }
+  const scene = root.parentOf(row.flow);
+  const sceneRow = scene < 0 ? undefined : root.flow(scene);
+  return sceneRow && sceneRow.arrays.chunks.length === 0
+    ? root.startOf(scene)
+    : -1;
 };
 
 /** Whether a move of the route from one chunk to another in the root it ran

@@ -4,6 +4,7 @@ import { Story } from "../../inkjs/engine/Story";
 import { StepLimitExceeded } from "../../inkjs/engine/StoryException";
 import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
+import { chunkOfAddress } from "../../program/StatementChunk";
 import type { ProgramAddress } from "../types/ProgramAddress";
 
 export interface RoutePlan {
@@ -336,7 +337,7 @@ const sceneOfAddress = (root: ProgramRoot, address: number): string => {
     scenes = new Map();
     chunkScenes.set(root, scenes);
   }
-  const id = Math.floor(address / 2 ** 21);
+  const id = chunkOfAddress(address);
   let scene = scenes.get(id);
   if (scene === undefined) {
     scene = root.sceneAt(address) ?? "0";

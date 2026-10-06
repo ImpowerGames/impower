@@ -1277,6 +1277,73 @@ describe("on the program engine", () => {
     expectSameAnswer(after.round, fromTheTop(after.round));
   });
 
+  // A scene with nothing of its own before its first branch enters that
+  // branch, by the scene's start binding, not by any statement's code. A
+  // branch inserted above the first one changes where the scene starts while
+  // every chunk the route ran stays, so a route that entered the old first
+  // branch keeps none of its steps (round 1 of the review of #1618).
+  for (const where of ["the scene's start", "a tunnel into the scene"]) {
+    test(`a branch inserted above a scene's first branch keeps none of a route that entered it (${where})`, () => {
+      const tunnel = where === "a tunnel into the scene";
+      const lines = [
+        "store score = 0",
+        "",
+        tunnel ? "-> LEAD" : "-> MAIN",
+        "",
+        ...(tunnel
+          ? [
+              "scene LEAD",
+              ...Array.from({ length: 4 }, (_, i) => `  Lead ${i}.`),
+              "  -> MAIN ->",
+              ...Array.from({ length: 4 }, (_, i) => `  After ${i}, score {score}.`),
+              "end",
+              "",
+            ]
+          : []),
+        "scene MAIN",
+        "  branch first",
+        ...Array.from({ length: 30 }, (_, i) => `    Beat ${i} of the branch, score {score}.`),
+        ...(tunnel ? ["    ->->"] : []),
+        "  end",
+        "end",
+        "",
+      ];
+      const text = lines.join("\n");
+      const target = tunnel
+        ? lines.indexOf("  After 2, score {score}.")
+        : lines.indexOf("    Beat 25 of the branch, score {score}.");
+      const session = new Session(text, PROGRAM);
+      const first = session.compile(target);
+      expect(first.simulation).toBe("success");
+      const route = session.game!.plannedRoute!;
+      expect(deepestCheckpoint(route)).toBeGreaterThan(0);
+      // The route's first step in the branch: the steps before it ran in
+      // flows the edit leaves alone.
+      const branchLine = lines.indexOf("  branch first");
+      const entered = route.steps.findIndex(
+        (s) => (session.game!.locator.locationOf(s.address)?.startLine ?? -1) > branchLine,
+      );
+      expect(entered).toBeGreaterThanOrEqual(0);
+      if (tunnel) {
+        expect(entered).toBeGreaterThan(0);
+      }
+
+      session.edit(
+        "  branch first",
+        "  branch prologue\n    & score = score + 1\n    -> MAIN.first\n  end\n  branch first",
+      );
+      // The tunnel's target stands above the edit, and the branch's below it.
+      const after = session.compile(tunnel ? target : target + 4);
+
+      expect(after.simulation).toBe("success");
+      expect(after.changes?.chunks?.initializers).toBe(false);
+      // The prologue ran, as it does in a fresh game.
+      expect(session.game!.story.variablesState.$("score")).toBe(1);
+      expectSameAnswer(after, fromTheTop(after));
+      expect(after.resumption.validSteps).toBeLessThanOrEqual(entered);
+    });
+  }
+
   test("a line added at the bottom of the scene searches on from the last checkpoint", () => {
     const { text, at } = screenplay();
     const session = new Session(text, PROGRAM);
