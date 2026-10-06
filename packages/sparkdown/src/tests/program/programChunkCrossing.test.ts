@@ -696,6 +696,52 @@ describe("block statements an edit reorders", () => {
     expect(reads).toBeLessThan(20 * n);
   });
 
+  it("build a repeatedly exchanged owner's identity once", () => {
+    // Old `[x0, anchor0, …, xN, anchorN, big]` becomes `[big, anchor0, x0,
+    // anchor1, …]`, where `big` owns N bodies: the new `big` is paired with
+    // each old `xK` in turn and visited again after every exchange, beside a
+    // free old `big` it reads as but does not take. Its identity, whose
+    // length grows with its bodies, is built once, so each visit is
+    // constant work; `reads` is read when the identity is built.
+    const n = 128;
+    const store = new ChunkStore();
+    const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
+    const big = (counted: boolean): StatementSource => {
+      const objects: ParsedObject[] = [];
+      const bodies = Array.from({ length: n }, () => {
+        const shape = { statements: [], headEnd: 0, nextStart: 0 };
+        const scope = wrapInScope([]);
+        bodyOfBlock.set(scope[0]!, shape as never);
+        objects.push(...scope);
+        return { shape, statements: [], firstLine: 0, span: 1, headLines: 0 };
+      });
+      const statement = { ...plain("big"), objects, bodies } as unknown as StatementSource;
+      if (counted) {
+        Object.defineProperty(statement, "reads", {
+          get() {
+            identityReads += 1;
+            return "[]";
+          },
+        });
+      }
+      return statement;
+    };
+    let identityReads = 0;
+    const old: StatementSource[] = [];
+    for (let k = 0; k <= n; k += 1) {
+      old.push(owner(`x${k}`), anchors[k]!);
+    }
+    old.push(big(false));
+    store.build(flow(old), true);
+    const now: StatementSource[] = [big(true), anchors[0]!];
+    for (let k = 0; k < n; k += 1) {
+      now.push(owner(`x${k}`), anchors[k + 1]!);
+    }
+    identityReads = 0;
+    expect(store.build(flow(now), true).fallback).toBeUndefined();
+    expect(identityReads).toBeLessThan(20);
+  });
+
   it("are aligned in lookups linear in their number when no exchange can be made", () => {
     // N plain statements take the syntax of N old block statements, and N
     // block statements of that syntax, each alone between two anchors, are

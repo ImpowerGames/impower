@@ -383,6 +383,7 @@ export class ChunkStore {
     this._labels = new Map();
     this._plans = new Map();
     this._statementValues = new WeakMap();
+    this._statementIdentities = new WeakMap();
     // The program's statements, flow after flow and each block statement
     // before the statements of its bodies, then the statements of the
     // functions the declarations write, are aligned with the previous root's
@@ -1581,11 +1582,22 @@ export class ChunkStore {
         queue.push(i);
       }
     });
+    // Each statement's lists, kept once found: a statement an exchange pairs
+    // again is visited again, and reads the same lists. Its identity is
+    // built once per build (`statementIdentity`).
+    const listsOf = new Map<number, NonNullable<ReturnType<typeof listOf>>>();
     for (let n = 0; n < queue.length; n += 1) {
       const i = queue[n]!;
-      const lists = result[i]
-        ? undefined
-        : byIdentity.get(this.statementIdentity(statements[i]!));
+      if (result[i]) {
+        continue;
+      }
+      let lists = listsOf.get(i);
+      if (!lists) {
+        lists = byIdentity.get(this.statementIdentity(statements[i]!));
+        if (lists) {
+          listsOf.set(i, lists);
+        }
+      }
       if (!lists) {
         continue;
       }
@@ -1739,16 +1751,33 @@ export class ChunkStore {
   /** A statement's syntax, lowering reads and values, which a chunk it keeps
    *  reads the same in (`chunkIdentity`). */
   protected statementIdentity(statement: StatementSource): string {
-    return `${statement.syntax()}\u0000${statement.reads}\u0000${this.statementValues(statement)}`;
+    let identity = this._statementIdentities.get(statement);
+    if (identity === undefined) {
+      identity = `${statement.syntax()}\u0000${statement.reads}\u0000${this.statementValues(statement)}`;
+      this._statementIdentities.set(statement, identity);
+    }
+    return identity;
   }
+
+  // The identities of the build in progress's statements, and of the
+  // chunks' recorded infos, each built once (`statementIdentity`,
+  // `chunkIdentity`).
+  protected _statementIdentities = new WeakMap<StatementSource, string>();
+  protected _chunkIdentities = new WeakMap<ChunkInfo, string>();
 
   /** A chunk's recorded syntax, lowering reads and values, in the form of
    *  `statementIdentity`. */
   protected chunkIdentity(chunk: StatementChunk): string | undefined {
     const info = this._info.get(chunk);
-    return info
-      ? `${info.syntax}\u0000${info.reads}\u0000${this.chunkValues(chunk)}`
-      : undefined;
+    if (!info) {
+      return undefined;
+    }
+    let identity = this._chunkIdentities.get(info);
+    if (identity === undefined) {
+      identity = `${info.syntax}\u0000${info.reads}\u0000${this.chunkValues(chunk)}`;
+      this._chunkIdentities.set(info, identity);
+    }
+    return identity;
   }
 
   /** Whether the facts a chunk recorded about itself still hold in the build
