@@ -34,6 +34,9 @@ export function validateEditorRequest(value) {
       case "type": valid = keys(step, ["action", "field", "text"]) && member(step.field, ["search", "replace", "line"]) && text(step.text, 4096); break;
       case "hover": valid = keys(step, ["action", "line", "column"]) && position(step.line) && position(step.column); break;
       case "complete": valid = keys(step, ["action", "line", "column", "text"]) && position(step.line) && position(step.column) && text(step.text, 4096) && step.text.length > 0; break;
+      case "play": valid = keys(step, ["action", "value"]) && member(step.value, ["start", "stop"]); break;
+      case "insert": valid = keys(step, ["action", "line", "column", "text"]) && position(step.line) && position(step.column) && text(step.text, 4096) && step.text.length > 0; break;
+      case "scrub": valid = keys(step, ["action", "line"]) && position(step.line); break;
       case "shot": valid = keys(step, ["action", "target"]) && member(step.target, targets); break;
     }
     if (!valid) throw new Error("Unknown or invalid editor step; only bounded built-in UI actions are delegated");
@@ -84,6 +87,10 @@ export function createEditorSession(command, root, directory, run) {
         if (step.action === "type") args.push("--type", `${step.field}=${step.text}`);
         else if (step.action === "hover") args.push("--hover", `${step.line}:${step.column}`);
         else if (step.action === "complete") args.push("--complete", `${step.line}:${step.column}=${step.text}`);
+        // The driver's --insert reads backslash-backslash as a backslash and
+        // backslash-n as a line break; escape both so the text arrives as sent.
+        else if (step.action === "insert") args.push("--insert", `${step.line}:${step.column}=${step.text.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n")}`);
+        else if (step.action === "scrub") args.push("--scrub", String(step.line));
         else if (step.action === "shot") args.push(...shot(step.target));
         else args.push(`--${step.action}`, step.value);
       }

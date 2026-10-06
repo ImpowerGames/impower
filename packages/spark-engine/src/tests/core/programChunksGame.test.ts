@@ -273,6 +273,36 @@ describe("a game that runs statement chunks", () => {
     expect(chunks.flushed).toEqual(current.flushed);
     expect(chunks.flushed.some((f) => f.choices?.length)).toBe(true);
   });
+
+  // A block with no caption: the continue after the beat before the block
+  // returns only the choices (binary-program.md sections 4 and 7), and the
+  // game still presents the menu instead of finishing (#1624).
+  it("shows a `choose` block with no caption as the current engine does", () => {
+    const texts = {
+      [MAIN]: [
+        "scene MAIN",
+        "  Start.",
+        "  Second.",
+        "  choose",
+        "    * Plain",
+        "    * Outer",
+        "  end",
+        "  After.",
+        "end",
+        "",
+      ].join("\n"),
+    };
+    const startFrom = { file: MAIN, line: 1 };
+    const on = compile(texts, true);
+    expect(on.program.fallback).toBeUndefined();
+    const chunks = play(on.program, on.story, true, startFrom);
+    expect(chunks.engine).toBeInstanceOf(ProgramStory);
+    const off = compile(texts, false);
+    const current = play(off.program, off.story, false, startFrom);
+    expect(chunks.finished).toBe(true);
+    expect(chunks.flushed).toEqual(current.flushed);
+    expect(chunks.flushed.some((f) => f.choices?.length === 2)).toBe(true);
+  });
 });
 
 // A line can hold several beats (a `>` break) and several statements (tags

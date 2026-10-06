@@ -7,6 +7,7 @@
 import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { shuffleDraws } from "../../inkjs/engine/Story";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import {
@@ -608,14 +609,15 @@ describe("choose blocks on the program engine", () => {
   });
 
   // A choice in a `do` block or a loop of a block's preamble, directly or in
-  // a block written there, would be raised by that body's own statements,
-  // whose chunks do not hold its entry: the program falls back, named, and
-  // runs on the current engine as it did.
-  it("names the fallback for a choice inside a do block or a loop of a block's preamble", () => {
+  // a block written there, is raised by the block's chunk, whose own code
+  // the body is, so the chunk holds its entry (#1503, section 4): a `do`
+  // block's choices run from chunks as the current engine runs them. A
+  // loop's run every pass, which the current engine's weave does not
+  // (#1588); `programPreambleBlocks.test.ts` covers them.
+  it("runs a choice inside a do block of a block's preamble from chunks as the current engine does", () => {
     const preambles = [
       ["    do", "      choose", "        * Inner", "          Chose inner.", "      end", "    end"],
       ["    do", "      local x = 1", "      * Inner {x}", "        Chose inner.", "    end"],
-      ["    local i = 0", "    while i < 1 do", "      i = i + 1", "      * Inner {i}", "    end"],
     ];
     for (const preamble of preambles) {
       const text = [
@@ -625,17 +627,17 @@ describe("choose blocks on the program engine", () => {
         ...preamble,
         "    * Outer",
         "  end",
+        "  After.",
         "end",
         "",
       ].join("\n");
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.chunks).toBeUndefined();
-      expect(program.fallback).toEqual({
-        construct: "a choice inside a block of a presentation",
-        uri: MAIN_URI,
-        line: 2,
-      });
-      expect(program.compiled).toEqual(compileScript(text).program.compiled);
+      const [inner, outer] = agrees(text, [[0], [1]]);
+      expect(texts(inner!.actual)).toEqual([
+        preamble.length === 6 ? "Inner" : "Inner 1",
+        "Chose inner.",
+        "After.",
+      ]);
+      expect(texts(outer!.actual)).toEqual(["Outer", "After."]);
     }
   });
 
@@ -1335,5 +1337,61 @@ describe("large blocks", () => {
     expect(texts(first!.expected).at(-1)).toBe("A CRASH of thunder.");
     expect(first!.expected.menus).toHaveLength(1);
     expect(other!.actual.menus[0]!.picked).toBe(1);
+  });
+});
+
+// A `label` in the body of a `then` clause is a label of that body, not the
+// clause's own (#1604): the clause names a label only on its `then` line.
+describe("a label in the body of a then clause", () => {
+  const diagnostics = (program: SparkProgram) =>
+    Object.values(program.diagnostics ?? {})
+      .flat()
+      .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+
+  const reentered = [
+    "store back = false",
+    "-> main",
+    "scene main",
+    "  choose",
+    "    * Up",
+    "  then",
+    "    label inner",
+    "    Then.",
+    "  end",
+    "  -> other",
+    "end",
+    "scene other",
+    "  Back.",
+    "  if not back then",
+    "    back = true",
+    "    -> main.inner",
+    "  end",
+    "  done",
+    "end",
+    "",
+  ].join("\n");
+
+  it("is not reported as a duplicate, and the program keeps its chunks", () => {
+    const { program } = silence(() => compileScript(reentered, { programChunks: true }));
+    expect(diagnostics(program)).toEqual([]);
+    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
+    expect(diagnostics(silence(() => compileScript(reentered)).program)).toEqual([]);
+  });
+
+  it("is reached by a divert from another scene on both engines", () => {
+    const [run] = agrees(reentered, [[0]]);
+    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+  });
+
+  it("keeps both names when the clause names its own label", () => {
+    const named = reentered
+      .replace("  then\n", "  then (after)\n")
+      .replace("-> main.inner", "-> main.after");
+    expect(diagnostics(silence(() => compileScript(named)).program)).toEqual([]);
+    const [run] = agrees(named, [[0]]);
+    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+    const [inner] = agrees(named.replace("-> main.after", "-> main.inner"), [[0]]);
+    expect(texts(inner!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
   });
 });
