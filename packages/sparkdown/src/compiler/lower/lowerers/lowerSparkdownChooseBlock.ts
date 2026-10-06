@@ -249,6 +249,7 @@ export function lowerSparkdownChooseBlock(
 
   const weave = new Weave(weaveContent, depth);
   weave.isChooseBlock = !inPreamble;
+  weave.isPreambleChoose = inPreamble;
   const block = wrapInWeave([weave]);
   if (diagnostics.length > 0) {
     block.diagnostics = diagnostics;

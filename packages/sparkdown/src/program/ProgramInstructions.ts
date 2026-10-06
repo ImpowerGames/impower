@@ -205,13 +205,6 @@ export const CHOICE_ONCE = 16;
  *  force, as `JUMP_DECISION` is a conditional's. */
 export const CHOICE_DECISION = 32;
 
-/** `Jump`'s flag: the frame's scopes are cut to the depth its target has,
- *  the blocks it stands in and the scopes its chunk opens before it
- *  (docs/engine/binary-program.md, section 1). A choice's entry jumps to its
- *  block's end with it: the thread a choice an `if` gates holds the scope
- *  the `if`'s branch opened, which the presentation closed after raising it. */
-export const JUMP_RESCOPE = 1;
-
 /** `Done`'s flag: it ends a `choose` block's presentation, and stops only
  *  when a choice the block's chunk raised is waiting; a block that raised
  *  none runs on, as the current engine's hold for choices does. */

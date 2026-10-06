@@ -80,6 +80,10 @@ export class Weave extends ParsedObject {
   // conditional or sequence within it continue at the end of.
   public isChooseBlock = false;
 
+  // The weave of a `choose` block written in another block's preamble, which
+  // offers its choices with that block's.
+  public isPreambleChoose = false;
+
   // For the weave the compiler assembles in place of a chunk's trailing
   // weave, the chunk's own weave, whose content is what the chunk lowered;
   // the assembled one goes on to hold the content of the chunks after it.
@@ -146,7 +150,10 @@ export class Weave extends ParsedObject {
       emitter.emitChoose(this);
       return;
     }
-    if (this.content.some((obj) => obj instanceof Choice)) {
+    if (
+      this.isPreambleChoose ||
+      this.content.some((obj) => obj instanceof Choice)
+    ) {
       emitter.emitPreambleChoose(this);
       return;
     }

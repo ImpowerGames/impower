@@ -383,6 +383,31 @@ describe("choose blocks on the program engine", () => {
     expect(texts(runs[2]!.actual)).toContain("Deep 9.");
   });
 
+  // The current engine leaves a gated branch's scope open for the rest of the
+  // presentation (its `EndScope` is the choice's content), so a later
+  // condition finds the branch's local before a global of the same name; the
+  // program engine does the same.
+  it("reads a gated branch's local that shadows a global in a later choice's condition, as the current engine does", () => {
+    const [run] = agrees(
+      [
+        "store open = false",
+        "-> main",
+        "scene main",
+        "  choose",
+        "    if true then",
+        "      local open = true",
+        "      * First",
+        "    end",
+        "    * if open Global",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+      [[0], [1]],
+    );
+    expect(menuTexts(run!.actual)).toEqual([["First", "Global"]]);
+  });
+
   // A block written in another block's preamble offers its choices with that
   // block's; with a `then` clause of its own, its choices continue there, and
   // the flow then goes on through the rest of the preamble, as the current
@@ -417,6 +442,70 @@ describe("choose blocks on the program engine", () => {
       expect(menuTexts(runs[0]!.actual)[0]).toContain("Inner A");
       expect(menuTexts(runs[0]!.actual)[0]).toContain("Outer");
     }
+  });
+
+  // A block written in another block's preamble whose choices an `if` gates,
+  // with none of its own: the current engine's weave enters its `then` clause
+  // where it stands, which then continues where the outer block ends, and
+  // its gated choices continue there too. Both forms run from chunks, and an
+  // edit inside the clause keeps the outer block's chunk.
+  it("runs a preamble block whose choices an if gates, with its then clause, and keeps the owner through an edit of the clause", () => {
+    const nested = [
+      "-> main",
+      "scene main",
+      "  choose",
+      "    choose",
+      "      if true then",
+      "        * Inner",
+      "          Took inner.",
+      "      end",
+      "    then (inner_then)",
+      "      Inner then.",
+      "      Inner then again.",
+      "    end",
+      "    + Outer",
+      "      Took outer.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const [run] = agrees(nested, [[0], [1]]);
+    expect(texts(run!.actual)[0]).toBe("Inner then.");
+    const mixed = [
+      "-> main",
+      "scene main",
+      "  label top",
+      "  choose",
+      "    Caption {top}.",
+      "    choose",
+      "      if top < 3 then",
+      "        local g = \"gated\"",
+      "        * Gated",
+      "          Took {g}.",
+      "      end",
+      "      * Direct",
+      "        Took direct.",
+      "    then (inner_then)",
+      "      Inner then {inner_then}.",
+      "    end",
+      "    + Outer",
+      "      Took outer.",
+      "    + Leave",
+      "      -> out",
+      "  end",
+      "  -> top",
+      "end",
+      "scene out",
+      "  Out.",
+      "end",
+      "",
+    ].join("\n");
+    agrees(mixed, [[0], [1], [2], [0, 1, 2, 3], [1, 0, 2, 3], [3, 3]]);
+    const s = session(nested);
+    const [chunk] = chooseChunks(s.first.chunks!);
+    const root = s.edit("Inner then again.", "Inner then once more.");
+    expect(s.emitted).toBe(1);
+    expect(chooseChunks(root)[0]).toBe(chunk);
   });
 
   it("follows a fallback choice when every other choice is unavailable", () => {

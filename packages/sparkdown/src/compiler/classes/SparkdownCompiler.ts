@@ -2717,6 +2717,7 @@ export class SparkdownCompiler {
       );
       copy.debugMetadata = weave.ownDebugMetadata;
       copy.isChooseBlock = weave.isChooseBlock;
+      copy.isPreambleChoose = weave.isPreambleChoose;
       copy.assembledFrom = weave;
       return copy;
     };

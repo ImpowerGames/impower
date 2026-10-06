@@ -79,7 +79,6 @@ import {
   CHOICE_ONLY,
   CHOICE_START,
   DONE_HOLD,
-  JUMP_RESCOPE,
   COUNT_TURNS,
   ConstValue,
   JUMP_DECISION,
@@ -1444,9 +1443,6 @@ export class ProgramStory {
         break;
       case Op.Jump:
         position.offset += arg;
-        if (flags & JUMP_RESCOPE) {
-          this.cutScopes(chunk, position.offset);
-        }
         break;
       case Op.BeginScope:
         state.frame?.PushScope();
@@ -1950,23 +1946,6 @@ export class ProgramStory {
     state.didSafeExit = true;
   }
 
-  /** Closes the frame's scopes past the depth `offset` of `chunk` has in the
-   *  blocks the frame stands in: one for the frame, those each owner has
-   *  open where it enters its block, and those the chunk opens before the
-   *  offset (`Jump` with `JUMP_RESCOPE`). */
-  protected cutScopes(chunk: StatementChunk, offset: number): void {
-    const frame = this._state.frame;
-    if (!frame) {
-      return;
-    }
-    let depth = 1 + scopesBefore(chunk, offset);
-    for (const block of this._state.blockStack) {
-      depth += blockScopes(block.sequence.arrays.chunks[block.entry]!, block.block);
-    }
-    while (frame.temporaryScopes.length > depth) {
-      frame.PopScope();
-    }
-  }
 
   /** Moves to `target` in the current frame (docs/engine/binary-program.md,
    *  section 5): the frame's block stack is rebuilt from the root's sequence
