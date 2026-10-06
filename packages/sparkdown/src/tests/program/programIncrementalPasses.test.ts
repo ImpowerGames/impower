@@ -296,6 +296,131 @@ describe("an edit inside one beat", () => {
   });
 });
 
+// The listing of the current root's statements and the assembly of the
+// sequences' entries scale with the edit (#1599): the compile hands the store
+// the lines of the blocks it lowered anew (`ProgramSource.changed`), the
+// alignment reads the old statements only between the carried ones around
+// the statements that are not carried, and a sequence keeps the entries
+// above and below its window as the current root holds them.
+describe("the bookkeeping of a build over an edit", () => {
+  // `count` scenes, each a line, an `if` block and a line, under a top level
+  // that runs them in turn.
+  const scenes = (count: number) =>
+    [
+      ...Array.from({ length: count }, (_, i) => `-> S${i} ->`),
+      "",
+      ...Array.from({ length: count }, (_, i) => [
+        `scene S${i}`,
+        `  First line of S${i}.`,
+        "  if true",
+        `    Inside S${i}.`,
+        "  end",
+        `  Last line of S${i}.`,
+        "end",
+        "",
+      ]).flat(),
+    ].join("\n");
+  // A flat scene of `lines` beats.
+  const beats = (lines: number) => {
+    const { files } = buildBeatsFixture({ lines });
+    return {
+      [MAIN_URI]: files.get("main.sd")!,
+      [CHARACTERS]: files.get("scripts/characters.sd")!,
+    };
+  };
+  // A line of dialogue or action halfway down a beats scene.
+  const middleBeat = (text: string) => {
+    const lines = text.split("\n");
+    return lines.find((l, i) => i >= lines.length / 2 && /^ {4}\S/.test(l))!;
+  };
+  type Edit = (text: string) => [string, string];
+  const counted = (texts: Record<string, string>, edits: readonly Edit[]) => {
+    const s = session(texts);
+    return edits.map((edit) => {
+      const [find, replace] = edit(s.text);
+      const before = s.root;
+      const after = s.edit(find, replace)!;
+      expect(s.program.fallback).toBeUndefined();
+      expect(newChunks(before, after).length).toBeLessThanOrEqual(2);
+      const { order, assembly } = s.store.passesLastBuild;
+      return { order, assembly, statements: after.statementOrder().length };
+    });
+  };
+  const middle = (count: number) => Math.floor(count / 2);
+  const sceneEdits = (count: number): Edit[] => [
+    () => [`  Last line of S${middle(count)}.`, `  Last line of S${middle(count)}, edited.`],
+    () => [`    Inside S${middle(count)}.`, `    Inside S${middle(count)}, edited.`],
+    () => [`  First line of S${middle(count)}.`, `  First line of S${middle(count)}.\n`],
+  ];
+  const beatEdits: Edit[] = [
+    (text) => [middleBeat(text), `${middleBeat(text)} Still.`],
+  ];
+
+  type Sized = [Record<string, string>, readonly Edit[]];
+  const sizes: [string, () => [Sized, Sized]][] = [
+    [
+      "scenes",
+      () => [
+        [{ [MAIN_URI]: scenes(30) }, sceneEdits(30)],
+        [{ [MAIN_URI]: scenes(120) }, sceneEdits(120)],
+      ],
+    ],
+    [
+      "a flat scene of beats",
+      () => [
+        [beats(600), beatEdits],
+        [beats(3000), beatEdits],
+      ],
+    ],
+  ];
+  it.each(sizes)(
+    "of one statement in a program of %s lists and assembles as many entries at either size",
+    (_, programs) => {
+      const [[smallTexts, smallEdits], [largeTexts, largeEdits]] = programs();
+      const smallCounts = counted(smallTexts!, smallEdits!);
+      const largeCounts = counted(largeTexts!, largeEdits!);      smallCounts.forEach((counts, i) => {
+        const largeCount = largeCounts[i]!;
+        expect(largeCount.statements).toBeGreaterThan(3 * counts.statements);
+        expect(counts.statements).toBeGreaterThan(100);
+        // Neither count grows with the program, and both stay a handful.
+        expect(largeCount.order).toBe(counts.order);
+        expect(largeCount.assembly).toBe(counts.assembly);
+        expect(largeCount.order).toBeLessThan(10);
+        expect(largeCount.assembly).toBeLessThan(20);
+      });
+    },
+  );
+
+  it("builds the same root without the changed blocks, listing every old statement", () => {
+    const texts = { [MAIN_URI]: scenes(12) };
+    const withChanges = session(texts);
+    const without = session(texts);
+    const forget = () => {
+      (without.compiler as unknown as { _chunkStoreBlocks?: Set<object> })._chunkStoreBlocks =
+        undefined;
+    };
+    for (const edit of [
+      ...sceneEdits(12),
+      (): [string, string] => ["scene S3\n", "scene S3\n  Inserted.\n"],
+      (): [string, string] => ["  Last line of S9.\n", ""],
+      (): [string, string] => ["  if true\n    Inside S7.", "  if false\n    Inside S7."],
+    ]) {
+      const [find, replace] = edit(withChanges.text);
+      const kept = withChanges.edit(find, replace)!;
+      forget();
+      const old = without.root.statementOrder().length;
+      const listed = without.edit(find, replace)!;
+      expect(withChanges.store.emittedLastBuild).toBe(without.store.emittedLastBuild);
+      expect(describeRoot(kept)).toEqual(describeRoot(listed));
+      expect(storyBeats(new ProgramStory(kept) as never)).toEqual(
+        storyBeats(new ProgramStory(listed) as never),
+      );
+      expect(without.store.passesLastBuild.order).toBe(old);
+      expect(withChanges.store.passesLastBuild.order).toBeLessThan(old / 4);
+    }
+  });
+});
+
 // The worked example of the design of record (section "A statement inserted
 // in the middle of a long `then` clause"), at the size of a test: one line
 // inserted above an `if` inside a `then` clause, and one below it.
