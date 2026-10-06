@@ -61,8 +61,8 @@ export const START_REASON =
 // MAX_RUN_FILES is the same bound, enforced by the runner itself.
 export const MAX_FILES = 8;
 
-export const wideReason = (count) =>
-  `This run names ${count} test files, more than the ${MAX_FILES} a local run may take: a long list of existing files is a ` +
+export const wideReason = (count, names = []) =>
+  `This run names ${count} test files${names.length ? ` (counted: ${names.join(" ")})` : ""}, more than the ${MAX_FILES} a local run may take: a long list of existing files is a ` +
   "package run spelled out, and the suite runner refuses it at the same bound with no override. " + TEST_REASON;
 
 export const TYPECHECK_REASON =
@@ -75,6 +75,34 @@ const GLOB = /[*?[\]{}]/;
 // Text a static reading cannot resolve: a variable, a substitution, a home
 // directory or a PowerShell drive other than a filesystem path.
 const DYNAMIC = /[$%`~]/;
+// PowerShell assignment pieces: a target with its operator (`$p=`, `$p +=`
+// as one token), a lone operator (`=`, `+=`), and a whole assignment glued
+// into one token (`$p='...'`, which the tokenizer keeps whole when quoted).
+const PS_TARGET_OP = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=$/;
+const PS_OP = /^[+-]?=$/;
+const PS_TARGET = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})$/;
+const PS_GLUED = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=/;
+
+/** Whether a token's source text opens with a quote, so none of its leading text is an operator. */
+const opensQuoted = (tok, command) => (Number.isInteger(tok.start) ? /^["']/.test(command[tok.start] ?? "") : tok.quoted);
+
+/**
+ * Whether the quoted token at index i is the value of a PowerShell
+ * assignment at command position (`$p = '...'`, `$p= '...'`, `$p += '...'`),
+ * or is itself a whole glued assignment (`$p='...'`): a value, not a program.
+ * The assignment target must itself stand at command position, so a lookalike
+ * that a wrapper consumes as an option value (`env -C = 'vitest'`) is not one.
+ */
+function isAssignedValue(seg, i, positions, command) {
+  const tok = seg[i];
+  if (PS_GLUED.test(tok.text) && !opensQuoted(tok, command)) return true;
+  if (!tok.quoted) return false;
+  const prev = seg[i - 1];
+  if (!prev || prev.quoted) return false;
+  if (PS_TARGET_OP.test(prev.text)) return positions.has(i - 1);
+  const target = seg[i - 2];
+  return PS_OP.test(prev.text) && !!target && !target.quoted && PS_TARGET.test(target.text) && positions.has(i - 2);
+}
 
 // Vitest 2.1.9's options that take no value, as its own CLI declares them
 // (options whose cac name has no `<value>` or `[value]`); a `--no-` negation
@@ -210,7 +238,7 @@ function vitestReason(args, dir) {
     files.push(t);
   }
   if (files.length === 0) return TEST_REASON;
-  if (files.length > MAX_FILES) return wideReason(files.length);
+  if (files.length > MAX_FILES) return wideReason(files.length, files);
   for (const f of files) {
     if (GLOB.test(f) || !TEST_FILE.test(f)) return TEST_REASON;
     if (isDynamic(f)) continue;
@@ -222,19 +250,145 @@ function vitestReason(args, dir) {
 }
 
 /**
+ * Splits the source text of a program's arguments into shell words and drops
+ * the redirections, under the lexical rules of the shell that reads them:
+ *
+ * - Quotes group a word and make an operator inside them literal.
+ * - An escape makes the next character literal and a line continuation
+ *   disappears: backslash in Bash, backtick in PowerShell. A Windows path
+ *   such as `src\tests\a.ts` still reads as one word, which is all the count
+ *   needs. PowerShell also writes a literal quote by doubling it.
+ * - Bash ends a word at an operator, so `f.ts> log` and `"My f.ts"> log`
+ *   leave the file and redirect. PowerShell starts a redirection only at the
+ *   start of a word (`f.ts>` is one literal word there), and `*>` is its
+ *   all-streams redirect; in Bash `*` is a glob, never a descriptor.
+ * - A redirection takes its target (`> log`, `>"my log"`, `2>err`) or, as a
+ *   duplication, its descriptor (`2>&1`). A word of only digits (or, in
+ *   PowerShell, `*`) or `&` before an operator is that descriptor, not an
+ *   argument.
+ */
+function wordsWithoutRedirects(raw, shell) {
+  const powershell = shell === "powershell";
+  const escape = powershell ? "`" : "\\";
+  const words = [];
+  let word = "";
+  let started = false;
+  let quotedPart = false;
+  let i = 0;
+  const isOperator = (c) => c === "<" || c === ">";
+  const escapes = (c) => c === escape && i + 1 < raw.length;
+  // Skips an escaped line break at i (an escape then LF or CRLF); true when it did.
+  const skipContinuation = () => {
+    if (raw[i] !== escape) return false;
+    if (raw[i + 1] === "\n") i += 2;
+    else if (raw[i + 1] === "\r" && raw[i + 2] === "\n") i += 3;
+    else return false;
+    return true;
+  };
+  // Reads a quoted part starting at the quote at i; returns its text. A
+  // doubled quote is a literal quote in PowerShell; in double quotes an
+  // escape makes the next character literal and a continuation disappears.
+  const readQuoted = () => {
+    const q = raw[i++];
+    let out = "";
+    while (i < raw.length) {
+      if (raw[i] === q) {
+        if (powershell && raw[i + 1] === q) {
+          out += q;
+          i += 2;
+          continue;
+        }
+        break;
+      }
+      if (q === '"' && skipContinuation()) continue;
+      if (raw[i] === escape && q === '"' && i + 1 < raw.length && (powershell || /["\\]/.test(raw[i + 1]))) i++;
+      out += raw[i++];
+    }
+    i++;
+    return out;
+  };
+  // Reads one unquoted-or-quoted word (a redirect target), returning its text.
+  const readWord = () => {
+    let out = "";
+    while (i < raw.length && !/\s/.test(raw[i]) && !isOperator(raw[i])) {
+      if (raw[i] === "'" || raw[i] === '"') out += readQuoted();
+      else if (escapes(raw[i])) {
+        i++;
+        if (raw[i] !== "\n" && raw[i] !== "\r") out += raw[i];
+        i++;
+      } else out += raw[i++];
+    }
+    return out;
+  };
+  const flush = () => {
+    if (started) words.push(word);
+    word = "";
+    started = false;
+    quotedPart = false;
+  };
+  while (i < raw.length) {
+    const c = raw[i];
+    if (/\s/.test(c)) {
+      flush();
+      i++;
+    } else if (escapes(c)) {
+      i++;
+      // An escaped newline joins the lines and is no part of any word.
+      if (raw[i] === "\r" && raw[i + 1] === "\n") i += 2;
+      else if (raw[i] === "\n") i++;
+      else {
+        word += raw[i++];
+        started = true;
+      }
+    } else if (isOperator(c) && !(powershell && started && !(!quotedPart && /^(?:\d+|\*)$/.test(word)))) {
+      if (started && !quotedPart && (powershell ? /^(?:\d+|\*)$/ : /^(?:\d+|&)$/).test(word)) {
+        word = "";
+        started = false;
+      } else flush();
+      while (i < raw.length && isOperator(raw[i])) i++;
+      if (raw[i] === "&" && /[\d-]/.test(raw[i + 1] ?? "")) {
+        i++;
+        while (/[\d-]/.test(raw[i] ?? "")) i++;
+      } else {
+        if (raw[i] === "&" || raw[i] === "|") i++;
+        // The target may follow blanks and escaped line breaks.
+        while (/[ \t]/.test(raw[i] ?? "") || skipContinuation()) if (/[ \t]/.test(raw[i] ?? "")) i++;
+        readWord();
+      }
+    } else if (c === "'" || c === '"') {
+      word += readQuoted();
+      started = true;
+      quotedPart = true;
+    } else {
+      word += c;
+      started = true;
+      i++;
+    }
+  }
+  flush();
+  return words;
+}
+
+/**
  * Checks the arguments after `run <package>` of the suite runner: the
- * positional test files, with `--wait` and its value set aside. Returns
- * wideReason past MAX_FILES; a shorter list, or one the runner itself
+ * positional test files, with redirections removed first so an option's
+ * value is the next real argument, and `--wait` and its value set aside.
+ * Returns wideReason past MAX_FILES; a shorter list, or one the runner itself
  * will refuse as empty, is left to the runner.
  */
-function suiteRunReason(texts) {
-  let files = 0;
-  for (let i = 0; i < texts.length; i++) {
-    const t = texts[i];
-    if (t === "--wait") { i++; continue; }
-    files++;
+function suiteRunReason(args, command, shell) {
+  if (args.length === 0) return null;
+  const located = args.every((a) => Number.isInteger(a.start) && Number.isInteger(a.end));
+  const words = located ? wordsWithoutRedirects(command.slice(args[0].start, args[args.length - 1].end), shell) : args.map((a) => a.text);
+  const files = [];
+  for (let i = 0; i < words.length; i++) {
+    if (words[i] === "--wait") {
+      i++;
+      continue;
+    }
+    files.push(words[i]);
   }
-  return files > MAX_FILES ? wideReason(files) : null;
+  return files.length > MAX_FILES ? wideReason(files.length, files) : null;
 }
 
 /**
@@ -329,6 +483,10 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         if (inner) return inner;
       }
       if (!positions.has(i)) continue;
+      // A quoted string after an assignment (`$p = '...\vitest.cmd'`) is the
+      // variable's value, not a program, so a path that mentions a binary
+      // does not run it.
+      if (isAssignedValue(seg, i, positions, command)) continue;
       // `npm.cmd`, `vitest.cmd` and `npx.ps1` are the same programs as
       // their bare names on Windows.
       const name = baseName(tok).replace(/\.(?:cmd|bat|ps1)$/i, "");
@@ -384,7 +542,7 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         // The suite runner's first argument is its command; only `start`
         // runs a whole package, and `run` is bounded by how many files it names.
         else if (/test-suite\.mjs$/i.test(target) && /^start$/i.test(scriptArgs[0]?.text ?? "")) reason = START_REASON;
-        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2).map((a) => a.text));
+        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2), command, shell);
       }
       if (reason) return reason;
     }

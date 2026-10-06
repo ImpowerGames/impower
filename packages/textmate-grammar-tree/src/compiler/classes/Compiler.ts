@@ -27,6 +27,40 @@ export const COMPILER_ARRAY_INTERVAL = 32768;
 
 export const DEFAULT_MAX_TREE_BUFFER_LENGTH = 1024;
 
+/** What a chunk holds, to compare a reparsed chunk with the one it replaced. */
+type ChunkRecord = {
+  from: number;
+  to: number;
+  startsPure: boolean;
+  compiled: Int32Array;
+};
+
+function chunkRecord(chunk: Chunk): ChunkRecord {
+  return {
+    from: chunk.from,
+    to: chunk.to,
+    startsPure: chunk.startsPure,
+    compiled: chunk.compiled.slice(0, chunk.nodeCount * 4),
+  };
+}
+
+function sameChunk(chunk: Chunk, record: ChunkRecord): boolean {
+  if (
+    chunk.from !== record.from ||
+    chunk.to !== record.to ||
+    chunk.startsPure !== record.startsPure ||
+    chunk.nodeCount * 4 !== record.compiled.length
+  ) {
+    return false;
+  }
+  for (let i = 0; i < record.compiled.length; i++) {
+    if (chunk.compiled[i] !== record.compiled[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export class Compiler {
   declare grammar: Grammar;
   declare packet: Packet;
@@ -44,6 +78,19 @@ export class Compiler {
    * the tokenizer snapshot needed to resume there (consumed by the parse).
    */
   declare resumeState?: TokenizerResume;
+
+  /**
+   * The chunks holding nodes that a parse reparses only for a lookahead
+   * into the edit, as they were before it: from packet index `index` up to
+   * position `to`, where the edit alone would restart. `reparsedFrom` is
+   * what the edit alone gives (see {@link settleReparsedFrom}).
+   */
+  declare retokenized?: {
+    index: number;
+    to: number;
+    chunks: ChunkRecord[];
+    reparsedFrom: number;
+  };
 
   constructor(
     grammar: Grammar,
@@ -98,7 +145,21 @@ export class Compiler {
    */
   reuseEpoch = 0;
 
-  reuse(editedFrom: number, editedTo: number, editedOffset: number) {
+  /**
+   * Rewinds the packet to a restart point before the edit and keeps the
+   * chunks after it aside to splice back in. Returns the restart position,
+   * or null when nothing can be reused.
+   *
+   * `lookaheadStart` gives, for an edit at a position, the earliest position
+   * whose tokens a lookahead into the edit can have come from (see
+   * `TextmateGrammarParser.lookaheadStart`); the restart point lies before it.
+   */
+  reuse(
+    editedFrom: number,
+    editedTo: number,
+    editedOffset: number,
+    lookaheadStart?: (editedFrom: number) => number,
+  ) {
     // Clear any `reparsedTo` left over from a PREVIOUS incremental parse.
     // `reparsedTo` is only meaningful when this parse reuses chunks AHEAD
     // of the edit (set by `append`). If it isn't reset here, an edit that
@@ -110,6 +171,7 @@ export class Compiler {
     // silently dropping every annotation for the newly appended content.
     this.reparsedTo = undefined;
     this.resumeState = undefined;
+    this.retokenized = undefined;
     // A leftover `ahead` from a previous (possibly abandoned) parse is in
     // that parse's coordinates — if it survives here it can be spliced into
     // a future tree at a stale offset, resurrecting deleted text.
@@ -142,19 +204,27 @@ export class Compiler {
     // Every path below mutates the packet — invalidate all other trees
     // holding this compiler (see reuseEpoch).
     this.reuseEpoch++;
-    const splitPointBeforeEdit = this.packet.findBehindSplitPoint(editedFrom);
-    let splitBehind = this.packet.findBehindSplitPoint(
-      splitPointBeforeEdit.chunk?.from ?? 0,
-    );
-    // An in-scope split point is only restartable with its resume snapshot;
-    // without one, restarting there would reparse mid-block with an empty
-    // scope stack (the wrong-tree failure mode). Walk further back.
-    while (
-      splitBehind.chunk &&
-      !splitBehind.chunk.startsPure &&
-      !splitBehind.chunk.resume
-    ) {
-      splitBehind = this.packet.findBehindSplitPoint(splitBehind.chunk.from);
+    const editOnly = this.restartPoint(editedFrom);
+    let splitBehind = editOnly;
+    const earliest = lookaheadStart?.(editedFrom);
+    if (earliest != null && earliest < (editOnly.chunk?.from ?? 0)) {
+      // Tokens from `earliest` on may have read the edit through a
+      // lookahead: restart at or before it.
+      splitBehind = this.restartableSplitPoint(earliest + 1);
+      if (editOnly.index != null && splitBehind.index != null) {
+        // The chunks up to the edit's own restart point are reparsed only
+        // for that lookahead. Keep a copy, so that when they come out the
+        // same the parse reports its changes from where the edit's do.
+        this.retokenized = {
+          index: splitBehind.index,
+          to: editOnly.chunk?.from ?? 0,
+          chunks: this.packet.chunks
+            .slice(splitBehind.index, editOnly.index)
+            .filter((chunk) => chunk.nodeCount > 0)
+            .map(chunkRecord),
+          reparsedFrom: this.packet.chunks[editOnly.index - 1]?.to ?? 0,
+        };
+      }
     }
     if (splitBehind.index != null) {
       const right = this.rewind(splitBehind.index);
@@ -175,6 +245,65 @@ export class Compiler {
       return from;
     }
     return null;
+  }
+
+  /**
+   * The split point a parse restarts from for an edit at `pos`: the second
+   * split point before it, walked back to one that can be restarted from.
+   */
+  private restartPoint(pos: number) {
+    const splitPointBeforeEdit = this.packet.findBehindSplitPoint(pos);
+    return this.restartableSplitPoint(splitPointBeforeEdit.chunk?.from ?? 0);
+  }
+
+  /** The last split point before `pos` that a parse can restart from. */
+  private restartableSplitPoint(pos: number) {
+    let splitBehind = this.packet.findBehindSplitPoint(pos);
+    // An in-scope split point is only restartable with its resume snapshot;
+    // without one, restarting there would reparse mid-block with an empty
+    // scope stack (the wrong-tree failure mode). Walk further back.
+    while (
+      splitBehind.chunk &&
+      !splitBehind.chunk.startsPure &&
+      !splitBehind.chunk.resume
+    ) {
+      splitBehind = this.packet.findBehindSplitPoint(splitBehind.chunk.from);
+    }
+    return splitBehind;
+  }
+
+  /**
+   * After a parse that restarted early for a lookahead (see {@link reuse}),
+   * moves `reparsedFrom` up to where the edit alone would have restarted
+   * when every chunk reparsed before that point came out as it was, so
+   * that what reads `reparsedFrom` redoes only what changed.
+   */
+  settleReparsedFrom() {
+    const retokenized = this.retokenized;
+    this.retokenized = undefined;
+    if (!retokenized) {
+      return;
+    }
+    // Compare the chunks that hold nodes: a restart point's own empty split
+    // chunk is not minted again at the restart.
+    const reparsed: Chunk[] = [];
+    for (
+      let i = retokenized.index;
+      i < this.packet.chunks.length && this.packet.chunks[i]!.from < retokenized.to;
+      i++
+    ) {
+      const chunk = this.packet.chunks[i]!;
+      if (chunk.nodeCount > 0) {
+        reparsed.push(chunk);
+      }
+    }
+    if (
+      reparsed.length !== retokenized.chunks.length ||
+      reparsed.some((chunk, i) => !sameChunk(chunk, retokenized.chunks[i]!))
+    ) {
+      return;
+    }
+    this.reparsedFrom = retokenized.reparsedFrom;
   }
 
   append(aheadBuffer: Packet) {

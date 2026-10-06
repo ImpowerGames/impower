@@ -89,6 +89,7 @@ export function lowerLuauIfBlock(
   // for this frame before diverting out of the enclosing loop.
   const mainShape = openBody(
     ctx,
+    condNode?.from ?? content?.from ?? node.from,
     condNode?.to ?? content?.from ?? node.from,
     partStarts[0]!,
   );
@@ -120,6 +121,7 @@ export function lowerLuauIfBlock(
     }
     const shape = openBody(
       ctx,
+      ec?.from ?? elseifContent?.from ?? elseifNode.from,
       ec?.to ?? elseifContent?.from ?? elseifNode.from,
       partStarts[i + 1]!,
     );
@@ -134,7 +136,12 @@ export function lowerLuauIfBlock(
   // ----- Optional `else` branch -----
   if (elseNode) {
     const elseContent = findChildByName(elseNode, `${elseNodeName}_content`);
-    const shape = openBody(ctx, elseContent?.from ?? elseNode.to, endStart);
+    const shape = openBody(
+      ctx,
+      elseNode.from,
+      elseContent?.from ?? elseNode.to,
+      endStart,
+    );
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(lowerStatements(elseContent, ctx, undefined, shape));
     ctx.scopeDepth--;
