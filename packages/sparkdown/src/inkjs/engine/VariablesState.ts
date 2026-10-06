@@ -545,6 +545,17 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
+  /** Puts `value` in place of global `name`, or removes the global for
+   *  nothing, as an image restored in place holds it, with no change event
+   *  and no barrier. */
+  public RestoreGlobal(name: string, value: InkObject | undefined) {
+    if (value === undefined) {
+      this._globalVariables.delete(name);
+    } else {
+      this._globalVariables.set(name, value);
+    }
+  }
+
   /** The compiled value of each constant, which a restore into another
    *  program's engine keeps (`SetJsonToken`). */
   public DefaultGlobal(name: string): InkObject | undefined {

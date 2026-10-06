@@ -204,6 +204,8 @@ export interface ProgramImage {
   readonly parent: ProgramImage | null;
   /** The keyframe the image's chain starts at: itself for a keyframe. */
   readonly keyframe: ProgramImage;
+  /** How many deltas the chain holds from its keyframe to the image. */
+  readonly depth: number;
   /** The table and generation the count ids are of. */
   readonly table: ProgramTable;
   readonly generation: number;
@@ -272,8 +274,14 @@ export class ImageTracker implements ImageBarrier {
   }
 }
 
-/** Takes an image of `state`: a keyframe when `keyframe` is set or the
- *  tracker has no base, and otherwise a delta on the base. */
+/** The deltas a chain holds at most: the capture after them is a keyframe,
+ *  so that restoring an image, and reading its digest, walks no longer a
+ *  chain than this however long a game or a search runs on. */
+export const MAX_DELTA_DEPTH = 64;
+
+/** Takes an image of `state`: a keyframe when `keyframe` is set, when the
+ *  tracker has no base, or when the base's chain holds `MAX_DELTA_DEPTH`
+ *  deltas, and otherwise a delta on the base. */
 export const captureImage = (
   state: ProgramStoryState,
   tracker: ImageTracker,
@@ -283,7 +291,8 @@ export const captureImage = (
   const images = tracker.images;
   const stats = images.stats;
   const parent = tracker.base;
-  const whole = keyframe || parent === null;
+  const whole =
+    keyframe || parent === null || parent.depth >= MAX_DELTA_DEPTH;
   const positional = state.copyPositional();
   stats.frames += positional.frames;
   stats.outputs += positional.output.length;
@@ -293,13 +302,17 @@ export const captureImage = (
     const globals = new Map<string, InkObject | undefined>(
       state.variablesState.globalEntries,
     );
+    // Every table and cell the state reaches that was ever written: one that
+    // was never written holds what it was made with, and one the state does
+    // not reach is no part of it, nor of any image taken after it.
+    const reached = reachedFrom(state, positional);
     const tables = new Map<ObjectValue, TableCopy>();
-    for (const table of images.writtenTables()) {
-      tables.set(table, copyTable(table));
+    for (const table of reached.tables) {
+      if (images.pristineTable(table)) tables.set(table, copyTable(table));
     }
     const cells = new Map<VariablePointerValue, CellCopy>();
-    for (const cell of images.writtenCells()) {
-      cells.set(cell, copyCell(cell));
+    for (const cell of reached.cells) {
+      if (images.pristineCell(cell)) cells.set(cell, copyCell(cell));
     }
     stats.keyframes += 1;
     stats.counts += state.visits.length;
@@ -311,6 +324,7 @@ export const captureImage = (
       images,
       parent,
       keyframe: null!,
+      depth: 0,
       table: root.table,
       generation: root.generation,
       engine,
@@ -357,6 +371,7 @@ export const captureImage = (
       images,
       parent,
       keyframe: parent!.keyframe,
+      depth: parent!.depth + 1,
       table: root.table,
       generation: root.generation,
       engine,
@@ -373,6 +388,55 @@ export const captureImage = (
   }
   tracker.reset(image);
   return image;
+};
+
+/** The tables and cells the state reaches: from its globals, its eval stack
+ *  and output, and the temporaries and cells of every frame of every thread
+ *  and of every waiting choice's thread, through every table's entries and
+ *  metatable and every closed cell's value. */
+const reachedFrom = (
+  state: ProgramStoryState,
+  positional: PositionalCopy,
+): { tables: Set<ObjectValue>; cells: Set<VariablePointerValue> } => {
+  const tables = new Set<ObjectValue>();
+  const cells = new Set<VariablePointerValue>();
+  const pending: unknown[] = [];
+  const visit = (value: unknown) => {
+    if (value instanceof ObjectValue) {
+      if (!tables.has(value)) {
+        tables.add(value);
+        pending.push(value);
+      }
+    } else if (value instanceof VariablePointerValue) {
+      if (!cells.has(value)) {
+        cells.add(value);
+        if (value.isClosed) visit(value.closedValue);
+      }
+    } else if (value && Array.isArray((value as { values?: unknown }).values)) {
+      for (const inner of (value as { values: unknown[] }).values) visit(inner);
+    }
+  };
+  for (const value of state.variablesState.globalEntries.values()) visit(value);
+  positional.evaluationStack.forEach(visit);
+  positional.output.forEach(visit);
+  positional.carried?.output.forEach(visit);
+  const thread = (copy: PositionalCopy["threads"][number]) => {
+    for (const element of copy.elements) {
+      for (const scope of element.scopes) {
+        for (const value of scope.values()) visit(value);
+      }
+      element.open.forEach(visit);
+      element.borrowed.forEach(visit);
+    }
+  };
+  positional.threads.forEach(thread);
+  for (const choice of positional.choices) thread(choice.thread);
+  while (pending.length > 0) {
+    const table = pending.pop() as ObjectValue;
+    for (const value of table.value?.values() ?? []) visit(value);
+    visit(table.metatable);
+  }
+  return { tables, cells };
 };
 
 /** The turn a count id that was never visited holds
@@ -457,6 +521,19 @@ export const restoreImage = (
   }
   const images = tracker.images;
   images.stats.restores += 1;
+  if (
+    tracker.base === image &&
+    image.engine === engine &&
+    image.generation === state.root.generation
+  ) {
+    // The state is the image with what was marked since: only that goes
+    // back, which costs what changed since the image.
+    restoreMarked(state, tracker, image);
+    state.installPositional(placed);
+    state.ResetCountDeltaTracking();
+    tracker.reset(image);
+    return true;
+  }
   const keyed = keyedStateOf(image);
   for (const table of images.writtenTables()) {
     const copy = keyed.tables.get(table) ?? images.pristineTable(table);
@@ -489,6 +566,48 @@ export const restoreImage = (
   state.ResetCountDeltaTracking();
   tracker.reset(image);
   return true;
+};
+
+// Puts back, as `image` holds them, the counts, globals, tables and cells
+// the tracker marked since the state was `image`.
+const restoreMarked = (
+  state: ProgramStoryState,
+  tracker: ImageTracker,
+  image: ProgramImage,
+): void => {
+  const chain = chainOf(image).reverse();
+  const keyframe = image.keyframe;
+  for (const id of tracker.counts) {
+    let visits = keyframe.visits![id] ?? 0;
+    let turn = keyframe.turns![id] ?? NEVER_VISITED;
+    for (const at of chain) {
+      const i = at.countIds ? at.countIds.indexOf(id) : -1;
+      if (i >= 0) {
+        visits = at.countVisits![i]!;
+        turn = at.countTurns![i]!;
+        break;
+      }
+    }
+    state.SetCount(id, visits, turn);
+  }
+  const variables = state.variablesState;
+  for (const name of tracker.globals) {
+    const holder = chain.find((at) => at.globals.has(name)) ?? keyframe;
+    variables.RestoreGlobal(name, holder.globals.get(name));
+  }
+  const images = tracker.images;
+  for (const table of tracker.tables) {
+    const copy =
+      chain.find((at) => at.tables.has(table))?.tables.get(table) ??
+      images.pristineTable(table);
+    if (copy) putTable(table, copy);
+  }
+  for (const cell of tracker.cells) {
+    const copy =
+      chain.find((at) => at.cells.has(cell))?.cells.get(cell) ??
+      images.pristineCell(cell);
+    if (copy) putCell(cell, copy);
+  }
 };
 
 // The counts of an image of another table generation, by the count ids of

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { lastSearchStats, planRoute } from "../../compiler/utils/planRoute";
 import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../inkjs/engine/Value";
-import { ProgramImages } from "../../program/ProgramImages";
+import { MAX_DELTA_DEPTH, ProgramImages } from "../../program/ProgramImages";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { countIdOf } from "../../program/ProgramSymbols";
@@ -463,5 +463,28 @@ describe("a route search on the program engine", () => {
     // A delta copies the globals its run assigned, never all of them.
     expect(images.globals - images.globalsInProgram).toBeLessThan(images.deltas);
     expect(images.restores).toBe(images.search.nodesExpanded);
+  });
+});
+
+describe("images along a long run", () => {
+  it("restore any earlier image as it was, across the keyframe a long chain takes", () => {
+    const s = story(WRITES.replace("if hits < 3 then", "if hits < 40 then"));
+    const taken: { image: ReturnType<ProgramStory["capture"]>; json: string }[] = [];
+    while (s.canContinue) {
+      s.Continue();
+      taken.push({ image: s.capture(), json: s.state.toJson() });
+    }
+    // More images than a chain holds, so that the run took a keyframe on its
+    // own after the first.
+    expect(taken.length).toBeGreaterThan(MAX_DELTA_DEPTH + 10);
+    const keyframes = taken.filter(({ image }) => image.keyframe === image);
+    expect(keyframes.length).toBeGreaterThan(1);
+    // Each restored out of order, so that none is the image the state was
+    // last restored from or taken at.
+    const order = taken.map((_, i) => (i * 37) % taken.length);
+    for (const i of order) {
+      expect(s.restore(taken[i]!.image)).toBe(true);
+      expect(s.state.toJson()).toBe(taken[i]!.json);
+    }
   });
 });
