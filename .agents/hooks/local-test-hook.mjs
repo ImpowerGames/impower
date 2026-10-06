@@ -41,7 +41,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { REDIRECT_DUP, REDIRECT_GLUED, REDIRECT_OP, baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
+import { baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
 
 const SINGLE_FILE =
   "node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDeclarationValidity.test.ts --wait 600";
@@ -250,44 +250,94 @@ function vitestReason(args, dir) {
 }
 
 /**
+ * Splits the source text of a program's arguments into shell words and drops
+ * the redirections, reading quotes the way a shell does: an operator inside
+ * quotes is literal, one outside them ends the word before it (`f.ts> log`,
+ * `"My f.ts"> log`) and takes its target (`> log`, `>"my log"`, `2>err`,
+ * `*> log`) or, for a duplication, its descriptor (`2>&1`). A word made only
+ * of digits, `*` or `&` before an operator is that operator's descriptor, not
+ * an argument.
+ */
+function wordsWithoutRedirects(raw) {
+  const words = [];
+  let word = "";
+  let started = false;
+  let quotedPart = false;
+  let i = 0;
+  const flush = () => {
+    if (started) words.push(word);
+    word = "";
+    started = false;
+    quotedPart = false;
+  };
+  // Reads one word (quotes honored) starting at i, returning its text.
+  const readWord = () => {
+    let out = "";
+    while (i < raw.length && !/\s/.test(raw[i]) && !"<>".includes(raw[i])) {
+      const c = raw[i];
+      if (c === "'" || c === '"') {
+        const close = raw.indexOf(c, i + 1);
+        const end = close < 0 ? raw.length : close;
+        out += raw.slice(i + 1, end);
+        i = end + 1;
+      } else out += raw[i++];
+    }
+    return out;
+  };
+  while (i < raw.length) {
+    const c = raw[i];
+    if (/\s/.test(c)) {
+      flush();
+      i++;
+    } else if (c === "<" || c === ">") {
+      if (started && !quotedPart && /^(?:\d+|\*|&)$/.test(word)) {
+        word = "";
+        started = false;
+      } else flush();
+      while (i < raw.length && (raw[i] === "<" || raw[i] === ">")) i++;
+      if (raw[i] === "&" && /[\d-]/.test(raw[i + 1] ?? "")) {
+        i++;
+        while (/[\d-]/.test(raw[i] ?? "")) i++;
+      } else {
+        if (raw[i] === "&" || raw[i] === "|") i++;
+        while (/\s/.test(raw[i] ?? "")) i++;
+        readWord();
+      }
+    } else if (c === "'" || c === '"') {
+      const close = raw.indexOf(c, i + 1);
+      const end = close < 0 ? raw.length : close;
+      word += raw.slice(i + 1, end);
+      started = true;
+      quotedPart = true;
+      i = end + 1;
+    } else {
+      word += c;
+      started = true;
+      i++;
+    }
+  }
+  flush();
+  return words;
+}
+
+/**
  * Checks the arguments after `run <package>` of the suite runner: the
- * positional test files, with `--wait` and its value set aside. Returns
- * wideReason past MAX_FILES; a shorter list, or one the runner itself
+ * positional test files, with redirections removed first so an option's
+ * value is the next real argument, and `--wait` and its value set aside.
+ * Returns wideReason past MAX_FILES; a shorter list, or one the runner itself
  * will refuse as empty, is left to the runner.
  */
 function suiteRunReason(args, command) {
+  if (args.length === 0) return null;
+  const located = args.every((a) => Number.isInteger(a.start) && Number.isInteger(a.end));
+  const words = located ? wordsWithoutRedirects(command.slice(args[0].start, args[args.length - 1].end)) : args.map((a) => a.text);
   const files = [];
-  for (let i = 0; i < args.length; i++) {
-    const { text } = args[i];
-    if (text === "--wait") {
+  for (let i = 0; i < words.length; i++) {
+    if (words[i] === "--wait") {
       i++;
-      // The value may carry an attached redirection (`--wait 600> log`).
-      const value = args[i];
-      if (value && !opensQuoted(value, command) && /^[^<>]+?(?:\d+|\*|&)?[<>]{1,2}$/.test(value.text)) i++;
       continue;
     }
-    // A token that opens with a quote is a literal argument; one that opens
-    // with an operator is a redirection even when its target is quoted
-    // (`>"my run.log"`), which the tokenizer reports as quoted too.
-    let word = text;
-    if (!opensQuoted(args[i], command)) {
-      // An operator attached to the argument before it (`f.test.ts> log`,
-      // `f.test.ts>log`) leaves that argument and starts a redirection. A
-      // token whose source holds a quote anywhere is one literal word.
-      const raw = Number.isInteger(args[i].start) && Number.isInteger(args[i].end) ? command.slice(args[i].start, args[i].end) : text;
-      const whole = REDIRECT_DUP.test(text) || REDIRECT_OP.test(text) || REDIRECT_GLUED.test(text);
-      const attached = whole || /["']/.test(raw) ? null : text.match(/^([^<>]+?)((?:\d+|\*|&)?[<>].*)$/);
-      const op = attached ? attached[2] : text;
-      if (attached) word = attached[1];
-      if (REDIRECT_DUP.test(op) || REDIRECT_GLUED.test(op)) {
-        if (!attached) continue;
-      } else if (REDIRECT_OP.test(op)) {
-        if (attached) files.push(word);
-        i++;
-        continue;
-      }
-    }
-    files.push(word);
+    files.push(words[i]);
   }
   return files.length > MAX_FILES ? wideReason(files.length, files) : null;
 }

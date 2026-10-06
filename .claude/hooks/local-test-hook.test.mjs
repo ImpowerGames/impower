@@ -35,6 +35,7 @@ const MANY = Array.from({ length: MAX_FILES + 1 }, (_, i) => `src/tests/compiler
 for (const file of MANY) put(`packages/sparkdown/${file}`, "");
 const AT_BOUND = MANY.slice(1).join(" ");
 const PAST_BOUND = MANY.join(" ");
+const SEVEN = MANY.slice(2).join(" ");
 // A package whose test script runs Node's own runner, as
 // scripts/agent-notification-alerts does, and one whose test script hands
 // off to another script.
@@ -162,6 +163,8 @@ const denies = [
   ["the suite runner past the bound with a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 > run.log 2>&1`],
   ["the suite runner past the bound with a PowerShell redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 *> run.log`],
   ["the suite runner past the bound with a redirect attached to the last file", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}> run.log 2>&1`],
+  ["the suite runner at the bound plus a quoted word that only looks like a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} ">x.test.ts" --wait 600`],
+  ["the suite runner past the bound with a quoted last file and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} "My file8.test.ts" "More.test.ts"> run.log`],
   ["a quoted executable after a wrapper option value that looks like an assignment", "env -C = 'vitest' run"],
   ["a quoted npm test after a wrapper option value that looks like an assignment", "env -C = 'npm' test"],
   ["a quoted suite runner start after a wrapper option value that looks like an assignment", "env -C = 'node' scripts/test-suite.mjs start packages/sparkdown"],
@@ -244,6 +247,12 @@ const allows = [
   ["the suite runner at the bound with a merged-stderr duplication attached to the last file", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}>&2`],
   ["the suite runner at the bound with a quoted target after an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}> "my run.log"`],
   ["the suite runner at the bound with a redirect attached to the last file before --wait", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600> run.log`],
+  ["the suite runner at the bound with a quoted last file and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} "My file8.test.ts"> run.log`],
+  ["the suite runner at the bound with a partly quoted last file and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${SEVEN} My" file8".test.ts> run.log`],
+  ["the suite runner at the bound with a quoted --wait value and an attached redirect", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait "600"> run.log`],
+  ["the suite runner at the bound with two redirects in one word", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND}>other.log> run.log`],
+  ["the suite runner at the bound with a redirect between --wait and its value", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait > run.log 600`],
+  ["the suite runner at the bound with an input redirect and a descriptor duplication", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 < in.txt 2>&1`],
   ["a glued PowerShell assignment of a quoted vitest path", "$p='C:/w/node_modules/.bin/vitest.cmd'; Write-Output $p"],
   ["a PowerShell assignment with the operator glued to the target", "$p= 'C:/w/node_modules/.bin/vitest.cmd'; Test-Path $p"],
   ["a PowerShell append assignment of a quoted vitest path", "$p += 'C:/w/node_modules/.bin/vitest.cmd'"],
