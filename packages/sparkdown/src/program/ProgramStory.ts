@@ -1258,6 +1258,14 @@ export class ProgramStory {
     return this._state.previousAddress;
   }
 
+  /** The addresses the story will come back to, from the outermost thread
+   *  in: where each thread a fork suspended resumes, where each frame of the
+   *  current thread returns to, and the position, as the current engine's
+   *  call stack names them by the pointer of each element. */
+  stackAddresses(): number[] {
+    return this._state.stackAddresses();
+  }
+
   /** The address of the instruction that runs next, or -1 when the flow
    *  has run out. */
   get currentAddress(): number {
@@ -2553,6 +2561,11 @@ export class ProgramStory {
     const state = this._state;
     const pause = this.pauseBeforeEvaluatingConditions;
     this.pauseBeforeEvaluatingConditions = false;
+    // The declarations run no story: the game hears none of their
+    // instructions, as the current engine's `global decl` container is
+    // none of the game's executed paths.
+    const onExecute = this.onExecute;
+    this.onExecute = null;
     const depth = state.callStack.elements.length;
     for (const chunk of this.root.initialization) {
       const at = this.root.position(chunkId(chunk));
@@ -2599,8 +2612,10 @@ export class ProgramStory {
       }
     }
     this.pauseBeforeEvaluatingConditions = pause;
+    this.onExecute = onExecute;
     state.position = null;
     state.blockStack = [];
+    state.previousAddress = -1;
     state.evaluationStack.length = 0;
     this.reportErrors();
   }

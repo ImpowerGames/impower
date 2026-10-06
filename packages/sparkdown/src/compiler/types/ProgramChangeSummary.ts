@@ -40,4 +40,34 @@ export interface ProgramChangeSummary {
    * moving.
    */
   confined: boolean;
+  /**
+   * What a compile that built statement chunks (`SparkdownCompilerConfig.
+   * programChunks`) changed, derived from the compile itself: the chunks of
+   * the root it is measured against that its root no longer holds, the
+   * chunks it emitted, the symbols whose definition row moved, and whether a
+   * declaration or function chunk was among the chunks emitted or dropped, or
+   * the declarations run in another order (docs/engine/binary-program.md,
+   * section 1). It is exact, so a client routing on the program engine reads
+   * it in place of `changedFrom` and `confined`, which answer for the current
+   * engine's paths. Absent on a compile that built no chunks.
+   */
+  chunks?: ChunkChanges;
+}
+
+/** What one compile changed in a program's statement chunks. */
+export interface ChunkChanges {
+  /** The ids of the chunks of the root measured against that this root no
+   *  longer holds: the statements it emitted again and those it dropped. */
+  dropped: number[];
+  /** The ids of the chunks this compile emitted. */
+  emitted: number[];
+  /** The symbols whose definition differs from the root measured against:
+   *  defined by another chunk, at another offset or in another sequence, or
+   *  defined in one root and not the other. */
+  moved: number[];
+  /** Whether a declaration chunk or a function chunk was emitted or dropped,
+   *  or the declarations run in another order: the compile ran the
+   *  declarations again (the rule of #695), so no state a game captured
+   *  before it holds the values the new initializers compute. */
+  initializers: boolean;
 }

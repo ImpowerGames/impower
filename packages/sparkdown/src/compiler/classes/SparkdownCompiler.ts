@@ -155,6 +155,9 @@ import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMess
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 import { ChunkStore, type ProgramBuild } from "../../program/ChunkStore";
+import type { ProgramRoot } from "../../program/ProgramRoot";
+import { rootChanges } from "../../program/rootChanges";
+import { captureProgramAssets } from "../../program/programSceneAssets";
 import { debugFileName } from "../utils/debugFileName";
 import { runWrapperText, runWrapperUri } from "../utils/runWrapper";
 import {
@@ -600,6 +603,9 @@ export class SparkdownCompiler {
   // The id stamped on the last program served, which is what the next compile's
   // changes are measured against.
   protected _lastChangeId?: number;
+  // The root of statement chunks of the last program served, which the next
+  // compile's chunk changes are measured against (`ProgramChangeSummary.chunks`).
+  protected _lastChangeRoot?: ProgramRoot;
   // Raised during a compile by any signal that means the changed source lines
   // are NOT the whole difference between this program and the last one.
   // Everything that raises it is a hazard listed on
@@ -1585,7 +1591,10 @@ export class SparkdownCompiler {
    * whose summary a client had already read.
    *
    */
-  protected stampChangeSummary(confined: boolean): ProgramChangeSummary {
+  protected stampChangeSummary(
+    confined: boolean,
+    root?: ProgramRoot,
+  ): ProgramChangeSummary {
     const changedFrom: { [uri: string]: number } = {};
     const earliest = (uri: string, line: number) => {
       const at = Math.max(0, line);
@@ -1606,6 +1615,15 @@ export class SparkdownCompiler {
       changedFrom,
       confined: confined && filesSettled,
     };
+    // A compile that built statement chunks says what it changed exactly,
+    // from the root it built and the root of the program measured against.
+    if (root) {
+      summary.chunks = rootChanges(
+        this._lastChangeId !== undefined ? this._lastChangeRoot : undefined,
+        root,
+      );
+    }
+    this._lastChangeRoot = root;
     this._lastChangeId = summary.id;
     this._changeFilesEpoch = this._filesEpoch;
     // Consumed: this summary reports them, and the next one is measured against
@@ -1967,7 +1985,10 @@ export class SparkdownCompiler {
       //
       // Stamped after any serialization above, so a serialization that raises a
       // hazard raises it against this summary and not a later one.
-      cached.program.changes = this.stampChangeSummary(!this._changeHazard);
+      cached.program.changes = this.stampChangeSummary(
+        !this._changeHazard,
+        cached.program.chunks,
+      );
       const result: {
         textDocument: { uri: string; version: number };
         program: SparkProgram;
@@ -2494,27 +2515,39 @@ export class SparkdownCompiler {
           }
         }
         state.story = story;
-        // Gather source-location maps in a single top-down walk of the
-        // runtime tree (see `populateAllLocations`). Done AFTER `ToJson`
-        // rather than as its `onWriteRuntimeObject` callback so the path of
-        // each object is derived incrementally from the traversal instead of
-        // recomputed per object via the O(n²) `Object.path` getter.
-        profile("start", this._profilerId, "populateLocations", uri);
-        // Precompute uri -> scriptIndex once so `populateLocations` can look
-        // it up in O(1) instead of re-running `Object.keys().indexOf()` per
-        // object.
-        this._scriptIndices = new Map(
-          Object.keys(program.scripts).map((u, i) => [u, i]),
-        );
-        this.populateAllLocations(program, story);
-        this._functionSpans = this.collectFunctionSpans(program, parsedStory);
+        if (chunked) {
+          // A program that runs from statement chunks is located by its root
+          // (`ProgramRoot.addressAt`, `locationOf`), which holds each chunk's
+          // own line table: no runtime path is located and no path-location
+          // table is built (docs/engine/binary-program.md, section 8). What
+          // its flows reference is read from its chunks.
+          this._pathLocationDraft = undefined;
+          this._pathLocationOrder = undefined;
+          this._locCache = undefined;
+          this._flowAssetAccum = captureProgramAssets(program.chunks!);
+        } else {
+          // Gather source-location maps in a single top-down walk of the
+          // runtime tree (see `populateAllLocations`). Done AFTER `ToJson`
+          // rather than as its `onWriteRuntimeObject` callback so the path of
+          // each object is derived incrementally from the traversal instead of
+          // recomputed per object via the O(n²) `Object.path` getter.
+          profile("start", this._profilerId, "populateLocations", uri);
+          // Precompute uri -> scriptIndex once so `populateLocations` can look
+          // it up in O(1) instead of re-running `Object.keys().indexOf()` per
+          // object.
+          this._scriptIndices = new Map(
+            Object.keys(program.scripts).map((u, i) => [u, i]),
+          );
+          this.populateAllLocations(program, story);
+          this._functionSpans = this.collectFunctionSpans(program, parsedStory);
+          profile("end", this._profilerId, "populateLocations", uri);
+        }
         // Carry this compile's chunk-identity set forward so the next compile
         // can tell which chunks are unchanged.
         this._prevCompilationIds = this._compilationIds;
         // Promote this compile's flow-run records (fresh constructions and
         // committed reuses) for the next compile's reuse decisions.
         this._prevFlowRuns = this._nextFlowRuns;
-        profile("end", this._profilerId, "populateLocations", uri);
         producedStory = story;
       }
     } catch (e) {
@@ -2578,7 +2611,11 @@ export class SparkdownCompiler {
 
     this.populateFiles(program);
     this.populateDeclarationLocations(program);
-    this.sortPathLocations(program);
+    if (!program.chunks) {
+      // A program of statement chunks has no path-location table: its root
+      // locates its addresses.
+      this.sortPathLocations(program);
+    }
     if (!compileThrew) {
       // Needs `functionLocations` (just populated) to classify divert edges.
       this.populateSceneAssets(program);
@@ -2607,6 +2644,7 @@ export class SparkdownCompiler {
         flowShapesNoted &&
         !this._changeHazard &&
         !this._unchangedFlowShapeAtRisk,
+      program.chunks,
     );
     // Remember this compile for the no-change short-circuit -- but only if it
     // completed cleanly (a compile that threw may hold a partial program).

@@ -373,7 +373,9 @@ export class ChunkStore {
   initializerRuns = 0;
 
   protected _writer: BinaryProgramWriter;
-  protected _nextChunkId = 0;
+  // From 1, so that no address (`chunkId * 2^21 + offset`) is 0, which a
+  // caller testing an address for presence would read as none.
+  protected _nextChunkId = 1;
   protected _nextSequenceId = 0;
   protected _nextRootId = 0;
   /** The chunk emitted or reused for a statement's block. */

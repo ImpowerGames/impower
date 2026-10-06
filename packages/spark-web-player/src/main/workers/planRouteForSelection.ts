@@ -1,3 +1,4 @@
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { profile } from "../../utils/profile";
 import {
   programIdentity,
@@ -18,7 +19,7 @@ export interface SelectionForRoute extends RouteSearchReportTarget {
  *  be exercised without building a real one. */
 export interface RoutableGame {
   readonly program: IdentifiableProgram | undefined;
-  readonly startPath: string | null | undefined;
+  readonly startAddress: ProgramAddress | null | undefined;
   setStartFrom(
     startFrom: { file: string; line: number },
     beat?: "first" | "last",
@@ -32,8 +33,8 @@ export interface PlanRouteForSelectionContext<G extends RoutableGame> {
   running?: boolean;
   /** Record the selection as the point the next compile starts from. */
   rememberStartFrom(startFrom: { file: string; line: number }): void;
-  /** Plan a route to a story path and replay it, recording the outcome. */
-  searchRouteTo(game: G, toPath: string): void;
+  /** Plan a route to an address and replay it, recording the outcome. */
+  searchRouteTo(game: G, to: ProgramAddress): void;
   routeSearches: RouteSearchLog;
   profilerId: string | undefined;
 }
@@ -41,30 +42,31 @@ export interface PlanRouteForSelectionContext<G extends RoutableGame> {
 /**
  * Point `game` at the `beat` of the line `startFrom` names, in the program it
  * holds, and replay the route there unless `log` already holds the search for
- * that path in that program. Answers the path, which `log` describes after.
+ * that address in that program. Answers the address, which `log` describes
+ * after.
  *
  * The editor re-selects on every cursor move, including one that only moves
- * the column, and a search already run for the path still describes it. The
- * path and the program are what decide that, not the line: a line that `>`
- * breaks resolves to one path for PLAY, which starts at its first beat, and to
- * another for the preview, which shows its last (#721).
+ * the column, and a search already run for the address still describes it.
+ * The address and the program are what decide that, not the line: a line that
+ * `>` breaks resolves to one address for PLAY, which starts at its first beat,
+ * and to another for the preview, which shows its last (#721).
  */
 export function routeGameTo<G extends RoutableGame>(
   game: G,
   startFrom: { file: string; line: number },
   beat: "first" | "last",
   log: RouteSearchLog,
-  search: (game: G, toPath: string) => void,
+  search: (game: G, to: ProgramAddress) => void,
   profilerId: string | undefined,
-): string | null | undefined {
+): ProgramAddress | null | undefined {
   profile("start", profilerId + " " + "game/setStartFrom");
   game.setStartFrom(startFrom, beat);
   profile("end", profilerId + " " + "game/setStartFrom");
-  const toPath = game.startPath;
-  if (toPath && !log.holds(toPath, programIdentity(game.program))) {
-    search(game, toPath);
+  const to = game.startAddress;
+  if (to != null && !log.holds(to, programIdentity(game.program))) {
+    search(game, to);
   }
-  return toPath;
+  return to;
 }
 
 /**
@@ -106,7 +108,7 @@ export function planRouteForSelection<G extends RoutableGame>(
     return;
   }
   // The route ends at the beat the preview shows: a line's last beat.
-  const toPath = routeGameTo(
+  const to = routeGameTo(
     game,
     newStartFrom,
     "last",
@@ -119,5 +121,5 @@ export function planRouteForSelection<G extends RoutableGame>(
   // the newest checkpoint in the store belongs to the last route that was
   // replayed, which is a different line whenever the search since then found
   // no route.
-  ctx.routeSearches.report(params, toPath);
+  ctx.routeSearches.report(params, to);
 }

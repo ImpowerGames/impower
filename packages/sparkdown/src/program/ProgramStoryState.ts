@@ -28,6 +28,7 @@ import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { UNDEFINED_KIND, countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
 import {
   BLOCK_FUNCTION,
+  addressOf,
   blockFlags,
   chunkId,
   type StatementChunk,
@@ -357,6 +358,31 @@ export class ProgramStoryState {
    *  the flow's own element. */
   frameOf(element: CallStack.Element): ProgramFrame | undefined {
     return this._frames.get(element);
+  }
+
+  /** The addresses the story will come back to, from the outermost thread
+   *  in: where each suspended thread resumes, where each frame of the
+   *  current thread returns to, and the position (`ProgramStory.stackAddresses`). */
+  stackAddresses(): number[] {
+    const out: number[] = [];
+    const add = (position: ProgramPosition | null | undefined) => {
+      const chunk = position?.sequence.arrays.chunks[position.entry];
+      if (position && chunk) {
+        out.push(addressOf(chunkId(chunk), position.offset));
+      }
+    };
+    const threads = this.callStack._threads;
+    threads.forEach((thread, i) => {
+      if (i < threads.length - 1) {
+        add(this._suspended.get(thread)?.position);
+        return;
+      }
+      for (const element of thread.callstack) {
+        add(this._frames.get(element)?.returnTo);
+      }
+    });
+    add(this.position);
+    return out;
   }
 
   /** Pushes a call frame of `type`: its element, with the output's length

@@ -6,7 +6,6 @@ import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
-import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import {
   installGameWorker,
@@ -16,6 +15,7 @@ import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
@@ -131,9 +131,9 @@ export function installPlayerWorker(connection: MessageConnection) {
   // the game starts a new one.
   let routeSearches = new RouteSearchLog();
 
-  /** Plan a route to `toPath` and replay it for the real program. */
-  const searchRealRouteTo = (game: Game, toPath: string) =>
-    searchRouteTo(game, toPath, routeSearches, {
+  /** Plan a route to the address `to` and replay it for the real program. */
+  const searchRealRouteTo = (game: Game, to: ProgramAddress) =>
+    searchRouteTo(game, to, routeSearches, {
       config: compiler.config,
       profilerId: compiler.profilerId,
     });
@@ -289,12 +289,12 @@ export function installPlayerWorker(connection: MessageConnection) {
       // The route ends at the beat the preview shows: a line's last beat.
       game.setStartFrom(params.program.startFrom, "last");
       profile("end", compiler.profilerId + " " + "game/setStartFrom");
-      const toPath = game.startPath;
-      if (toPath) {
-        searchRealRouteTo(game, toPath);
+      const to = game.startAddress;
+      if (to != null) {
+        searchRealRouteTo(game, to);
         // Augment with the simulated checkpoint, and with what the search
         // established about this start point.
-        routeSearches.report(params, toPath);
+        routeSearches.report(params, to);
       }
     }
   });
@@ -318,14 +318,14 @@ export function installPlayerWorker(connection: MessageConnection) {
     profile("start", profilerId + " " + "game/setStartFrom");
     game.setStartFrom(params.startFrom, "last");
     profile("end", profilerId + " " + "game/setStartFrom");
-    const toPath = game.startPath;
-    if (toPath) {
-      searchRouteTo(game, toPath, log, {
+    const to = game.startAddress;
+    if (to != null) {
+      searchRouteTo(game, to, log, {
         config: compiler.config,
         profilerId,
         remember: false,
       });
-      log.report(params, toPath);
+      log.report(params, to);
     }
     const entry: DisplayableProgram = {
       id: programIdentity(params.program)!,
@@ -424,33 +424,6 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  the one it shows. */
   let displayErrors: SimulationError[] | undefined;
 
-  /** `message` as `game` sends it to the page. The execution report names
-   *  where a route that failed was simulated from and was headed, which the
-   *  page labels with document locations it cannot look up itself. */
-  const withDocumentLocations = (message: Message, game: Game): Message => {
-    const program = game.program;
-    if (
-      !program ||
-      !GameExecutedMessage.type.isNotification(message) ||
-      message.params.simulation !== "fail"
-    ) {
-      return message;
-    }
-    const { simulatePath, startPath } = message.params;
-    return {
-      ...message,
-      params: {
-        ...message.params,
-        simulateLocation: simulatePath
-          ? (Game.pathToDocumentLocation(program, simulatePath) ?? undefined)
-          : undefined,
-        startLocation: startPath
-          ? (Game.pathToDocumentLocation(program, startPath) ?? undefined)
-          : undefined,
-      },
-    } as Message;
-  };
-
   // Everything the game sends while it displays goes to the page, and
   // nothing while PLAY's game runs: the page shows that game alone, and a
   // stream from this one would supersede it there. A request it makes then
@@ -480,7 +453,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       }
       return;
     }
-    connection.postMessage(withDocumentLocations(message, game), transfer);
+    connection.postMessage(message, transfer);
   };
 
   /** The route to `point`'s `beat` in `entry`, with the game holding the
@@ -492,13 +465,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     point: { file: string; line: number },
     beat: "first" | "last",
   ) => {
-    const toPath = routeGameTo(
+    const to = routeGameTo(
       game,
       point,
       beat,
       entry.log,
-      (searched, path) =>
-        searchRouteTo(searched, path, entry.log, {
+      (searched, address) =>
+        searchRouteTo(searched, address, entry.log, {
           config: compiler.config,
           profilerId: compiler.profilerId,
           remember: entry.log === routeSearches,
@@ -507,12 +480,12 @@ export function installPlayerWorker(connection: MessageConnection) {
     );
     const report: {
       checkpoint?: string;
-      simulatedPath?: string | null;
+      simulatedAddress?: ProgramAddress | null;
       simulatedProgramId?: string;
       simulationFailure?: any;
       simulationErrors?: SimulationError[];
     } = {};
-    entry.log.report(report, toPath);
+    entry.log.report(report, to);
     return report;
   };
 
@@ -643,7 +616,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       ) {
         return;
       }
-      channel.postMessage(withDocumentLocations(message, running));
+      channel.postMessage(message);
     };
 
   /** Build PLAY's game for the program the page names, at the start point
@@ -681,7 +654,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       params.simulationOptions,
       {
         checkpoint: route.checkpoint,
-        path: route.simulatedPath,
+        address: route.simulatedAddress,
         programId: route.simulatedProgramId,
         failure: route.simulationFailure,
         errors: route.simulationErrors,
@@ -755,10 +728,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     notice: (story, busyMs) => {
       let location: DocumentLocation | null = null;
       try {
-        const path = story.state.previousPointer.path?.toString();
         const program = programOf(story);
-        if (path && program) {
-          location = Game.pathToDocumentLocation(program, path);
+        if (program) {
+          location = Game.storyLocation(story as never, program);
         }
       } catch (e) {
         // Where it is matters less than that it is still running.

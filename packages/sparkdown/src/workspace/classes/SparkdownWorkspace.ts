@@ -197,13 +197,13 @@ export abstract class SparkdownWorkspace {
 
   /**
    * When enabled, the `compiler/didCompile` notification relays a SLIM
-   * projection of the program (uri/scripts/files/pathLocations/diagnostics/
-   * version) instead of the whole thing. On a large project the full program
-   * is huge (~9MB for an ~8kloc script) and re-broadcast on EVERY compile —
-   * the receiving thread pays a structured-clone deserialization of all of it
-   * per keystroke. The impower web editor's main thread only ever reads
-   * diagnostics (WorkspaceWindow debug store) and scripts+pathLocations
-   * (PreviewGame PageUp/PageDown source navigation), so it opts in via
+   * projection of the program (uri/scripts/files/version) instead of the
+   * whole thing. On a large project the full program is huge (~9MB for an
+   * ~8kloc script) and re-broadcast on EVERY compile — the receiving thread
+   * pays a structured-clone deserialization of all of it per keystroke. The
+   * impower web editor's main thread only ever reads diagnostics
+   * (WorkspaceWindow debug store) and scripts, and asks the language server
+   * for the PreviewGame's PageUp/PageDown source navigation, so it opts in via
    * initializationOptions. Defaults to false: the vscode extension consumes
    * the full program from this notification (SparkProgramManager).
    */

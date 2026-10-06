@@ -33,10 +33,12 @@
 // this way whether or not `incremental` is set, and there is nothing to
 // verify against.
 
-/** Ordered full / per-beat runtime collections (executed paths, choices,
+import type { RecencyEntry } from "./RecencySet";
+
+/** Ordered full / per-beat runtime collections (executed addresses, choices,
  *  conditions). */
 export interface RuntimeCollections {
-  pe: string[];
+  pe: RecencyEntry[];
   ce: { options: string[]; selected: number }[];
   cde: { selected: boolean }[];
 }
@@ -302,7 +304,7 @@ export class CheckpointStore {
       base--;
     }
     const first = this._entries[base] as ImageEntry;
-    const pe = new Set<string>(first.rt.pe);
+    const pe = new Set<RecencyEntry>(first.rt.pe);
     const ce = first.rt.ce.slice();
     const cde = first.rt.cde.slice();
     for (let i = base + 1; i <= index; i++) {
@@ -361,7 +363,7 @@ export class CheckpointStore {
     const ti = new Map<string, number>(base.ti ?? []);
     // Runtime collections: paths are a recency-ordered set (delete+add replay),
     // choices/conditions are append-only (concat).
-    const pe = new Set<string>(base.rt?.pe ?? []);
+    const pe = new Set<RecencyEntry>(base.rt?.pe ?? []);
     const ce = (base.rt?.ce ?? []).slice();
     const cde = (base.rt?.cde ?? []).slice();
     for (let i = baseIndex + 1; i <= index; i++) {
