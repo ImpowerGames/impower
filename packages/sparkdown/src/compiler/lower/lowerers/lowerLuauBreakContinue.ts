@@ -6,7 +6,11 @@ import { Wrap } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { loopExitOf, recordLoopDepth } from "../utils/statementShape";
+import {
+  loopExitOf,
+  loopExitUnwind,
+  recordLoopDepth,
+} from "../utils/statementShape";
 
 // `break` and `continue` — exit / restart the innermost enclosing
 // loop. Both lower to a `Divert` to the appropriate label, which each
@@ -51,7 +55,9 @@ export function lowerLuauBreakStatement(ctx: LowerContext): CompiledBlock {
   if (!top) return {};
   const divert = new Divert([new Identifier(top.breakLabel)]);
   loopExitOf.set(divert, "break");
-  return wrapInWeave([...scopeUnwind(ctx, top.scopeDepth ?? 0), divert]);
+  const unwind = scopeUnwind(ctx, top.scopeDepth ?? 0);
+  loopExitUnwind.set(divert, unwind.length);
+  return wrapInWeave([...unwind, divert]);
 }
 
 export function lowerLuauContinueStatement(ctx: LowerContext): CompiledBlock {
@@ -59,5 +65,7 @@ export function lowerLuauContinueStatement(ctx: LowerContext): CompiledBlock {
   if (!top) return {};
   const divert = new Divert([new Identifier(top.continueLabel)]);
   loopExitOf.set(divert, "continue");
-  return wrapInWeave([...scopeUnwind(ctx, top.scopeDepth ?? 0), divert]);
+  const unwind = scopeUnwind(ctx, top.scopeDepth ?? 0);
+  loopExitUnwind.set(divert, unwind.length);
+  return wrapInWeave([...unwind, divert]);
 }
