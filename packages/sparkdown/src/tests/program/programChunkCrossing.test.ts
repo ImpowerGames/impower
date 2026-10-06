@@ -2,8 +2,18 @@
 // their chunks (#1496). Turning the text after an earlier `end` into `return `
 // moves `function bump(by)` into an earlier body, so it now comes before
 // `function twice(n`, which the edit did not touch. The script is a reduction
-// of a case from the cumulative fuzz in programChunkIdentity.test.ts.
+// of a case from the cumulative fuzz in programChunkIdentity.test.ts. The
+// store-level cases below hold the alignment to its identity rule when
+// statements cross: a statement keeps only a chunk it could keep in place.
+import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
+import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import {
+  ChunkStore,
+  type DeclarationSource,
+  type StatementSource,
+} from "../../program/ChunkStore";
+import { SymbolKind } from "../../program/ProgramSymbols";
 import { MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 import { programStatements, uniqueKeys, untouchedChunks } from "./programStatements";
 
@@ -51,5 +61,96 @@ describe("statements an edit swaps in the statement list", () => {
       (chunk) => held.has(chunk) && !before.has(chunk),
     );
     expect(again.length).toBe(0);
+  });
+});
+
+// The same alignment, through the store directly, for the statements of a
+// flow and for the declarations, which the store aligns separately. Each
+// statement is a line of text whose syntax and recorded reads are given; a
+// statement re-lowered by a compile has a new block, and the anchor keeps
+// its block, so it keeps its chunk first.
+describe.each([
+  ["flow statements", false],
+  ["declarations", true],
+])("the %s an edit swaps", (_, declarations) => {
+  const statement = (syntax: string, reads = "[]"): StatementSource => ({
+    block: {},
+    objects: [new Text(syntax)],
+    range: null,
+    firstLine: 0,
+    source: () => syntax,
+    syntax: () => syntax,
+    reads,
+  });
+  const builder = () => {
+    const store = new ChunkStore();
+    return {
+      store,
+      build(statements: StatementSource[]) {
+        const root = store.build(
+          declarations
+            ? {
+                flows: [],
+                declarations: statements.map(
+                  (s) => ({ ...s, uri: MAIN_URI, globals: [] }) as DeclarationSource,
+                ),
+              }
+            : [
+                {
+                  name: "",
+                  kind: SymbolKind.Root,
+                  uri: MAIN_URI,
+                  firstLine: 0,
+                  span: 1,
+                  statements,
+                },
+              ],
+          true,
+        ).root!;
+        return declarations ? root.initialization : root.flowNamed("")!.arrays.chunks;
+      },
+    };
+  };
+
+  it("keep their chunks when they cross", () => {
+    const { store, build } = builder();
+    const anchor = statement("anchor");
+    const before = build([anchor, statement("x"), statement("y")]);
+    const after = build([anchor, statement("y"), statement("x")]);
+    expect(store.emittedLastBuild).toBe(0);
+    expect(after[1] === before[2]).toBe(true);
+    expect(after[2] === before[1]).toBe(true);
+  });
+
+  it("keep their own chunks when two of one syntax differ by their reads", () => {
+    const { store, build } = builder();
+    const anchor = statement("anchor");
+    const before = build([
+      statement("b", "read-one"),
+      anchor,
+      statement("b", "read-two"),
+      statement("c"),
+    ]);
+    const after = build([
+      anchor,
+      statement("c"),
+      statement("b", "read-one"),
+      statement("b", "read-two"),
+    ]);
+    expect(store.emittedLastBuild).toBe(0);
+    expect(after[0] === before[1]).toBe(true);
+    expect(after[1] === before[3]).toBe(true);
+    expect(after[2] === before[0]).toBe(true);
+    expect(after[3] === before[2]).toBe(true);
+  });
+
+  it("emit again the one whose reads changed", () => {
+    const { store, build } = builder();
+    const anchor = statement("anchor");
+    const before = build([anchor, statement("x", "read-one"), statement("y")]);
+    const after = build([anchor, statement("y"), statement("x", "read-two")]);
+    expect(store.emittedLastBuild).toBe(1);
+    expect(after[1] === before[2]).toBe(true);
+    expect(before.includes(after[2]!)).toBe(false);
   });
 });

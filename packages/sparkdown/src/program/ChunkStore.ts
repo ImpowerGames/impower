@@ -1234,8 +1234,8 @@ export class ChunkStore {
    * statements whose block the store emitted a chunk for. The others are
    * aligned with the old chunks: between two statements that kept old chunks,
    * the old and new statements are matched from both ends, then in order by
-   * their syntax, then out of order by their syntax for the statements an
-   * edit swapped (#1496), and a statement matched with one whose syntax and
+   * their syntax, then out of order, for the statements an edit swapped,
+   * with old chunks they can keep (#1496), and a statement matched with one whose syntax and
    * recorded lowering inputs read the same takes its chunk, while its
    * recorded values and facts hold. A statement matched by its syntax whose
    * old chunk cannot be kept, and the one statement left on each side of a
@@ -1339,19 +1339,29 @@ export class ChunkStore {
         }
       }
       // Across: each statement the in-order pass left with the first old one
-      // of the run no statement took that reads the same. Two statements an
-      // edit swapped in the list, as one moved into an earlier body is, cross
-      // over each other, so the in-order pass can match only one of them; the
+      // of the run no statement took that it can keep, by its syntax, its
+      // recorded reads and what the chunk recorded. Two statements an edit
+      // swapped in the list, as one moved into an earlier body is, cross over
+      // each other, so the in-order pass can match only one of them; the
       // other is not edited, and pairing it as edited in place below would
-      // emit its chunk again.
+      // emit its chunk again. An old chunk the statement could not keep is
+      // left for the rules below: of two statements of one syntax, it may be
+      // the other's, in this run or past an anchor.
       for (let c = front; c < candidates.length - back; c += 1) {
         const i = candidates[c]!;
-        if (result[i] || this._inherit.has(statements[i]!)) {
+        const statement = statements[i]!;
+        if (result[i] || this._inherit.has(statement)) {
           continue;
         }
-        const syntax = statements[i]!.syntax();
+        const syntax = statement.syntax();
         for (let k = front; k < olds.length - back; k += 1) {
-          if (!used.has(old[olds[k]!]!) && syntaxOf(olds[k]!) === syntax) {
+          const chunk = old[olds[k]!]!;
+          if (
+            !used.has(chunk) &&
+            syntaxOf(olds[k]!) === syntax &&
+            this._info.get(chunk)!.reads === statement.reads &&
+            this.holds(chunk, statement)
+          ) {
             take(i, olds[k]!);
             break;
           }
