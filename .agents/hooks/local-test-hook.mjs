@@ -251,65 +251,95 @@ function vitestReason(args, dir) {
 
 /**
  * Splits the source text of a program's arguments into shell words and drops
- * the redirections, reading quotes the way a shell does: an operator inside
- * quotes is literal, one outside them ends the word before it (`f.ts> log`,
- * `"My f.ts"> log`) and takes its target (`> log`, `>"my log"`, `2>err`,
- * `*> log`) or, for a duplication, its descriptor (`2>&1`). A word made only
- * of digits, `*` or `&` before an operator is that operator's descriptor, not
- * an argument.
+ * the redirections, under the lexical rules of the shell that reads them:
+ *
+ * - Quotes group a word and make an operator inside them literal.
+ * - An escape makes the next character literal and a line continuation
+ *   disappears: backslash in Bash (only before whitespace, a quote, an
+ *   operator or another backslash, so a Windows path such as `src\tests\a.ts`
+ *   stays whole), backtick in PowerShell.
+ * - Bash ends a word at an operator, so `f.ts> log` and `"My f.ts"> log`
+ *   leave the file and redirect. PowerShell starts a redirection only at the
+ *   start of a word (`f.ts>` is one literal word there), and `*>` is its
+ *   all-streams redirect; in Bash `*` is a glob, never a descriptor.
+ * - A redirection takes its target (`> log`, `>"my log"`, `2>err`) or, as a
+ *   duplication, its descriptor (`2>&1`). A word of only digits (or, in
+ *   PowerShell, `*`) or `&` before an operator is that descriptor, not an
+ *   argument.
  */
-function wordsWithoutRedirects(raw) {
+function wordsWithoutRedirects(raw, shell) {
+  const powershell = shell === "powershell";
+  const escape = powershell ? "`" : "\\";
   const words = [];
   let word = "";
   let started = false;
   let quotedPart = false;
   let i = 0;
+  const isOperator = (c) => c === "<" || c === ">";
+  const escapes = (c) =>
+    c === escape && i + 1 < raw.length && (powershell || /[\s"'<>\\]/.test(raw[i + 1]));
+  // Reads a quoted part starting at the quote at i; returns its text.
+  const readQuoted = () => {
+    const q = raw[i++];
+    let out = "";
+    while (i < raw.length && raw[i] !== q) {
+      if (raw[i] === escape && q === '"' && i + 1 < raw.length && (powershell || /["\\]/.test(raw[i + 1]))) i++;
+      out += raw[i++];
+    }
+    i++;
+    return out;
+  };
+  // Reads one unquoted-or-quoted word (a redirect target), returning its text.
+  const readWord = () => {
+    let out = "";
+    while (i < raw.length && !/\s/.test(raw[i]) && !isOperator(raw[i])) {
+      if (raw[i] === "'" || raw[i] === '"') out += readQuoted();
+      else if (escapes(raw[i])) {
+        i++;
+        if (raw[i] !== "\n" && raw[i] !== "\r") out += raw[i];
+        i++;
+      } else out += raw[i++];
+    }
+    return out;
+  };
   const flush = () => {
     if (started) words.push(word);
     word = "";
     started = false;
     quotedPart = false;
   };
-  // Reads one word (quotes honored) starting at i, returning its text.
-  const readWord = () => {
-    let out = "";
-    while (i < raw.length && !/\s/.test(raw[i]) && !"<>".includes(raw[i])) {
-      const c = raw[i];
-      if (c === "'" || c === '"') {
-        const close = raw.indexOf(c, i + 1);
-        const end = close < 0 ? raw.length : close;
-        out += raw.slice(i + 1, end);
-        i = end + 1;
-      } else out += raw[i++];
-    }
-    return out;
-  };
   while (i < raw.length) {
     const c = raw[i];
     if (/\s/.test(c)) {
       flush();
       i++;
-    } else if (c === "<" || c === ">") {
-      if (started && !quotedPart && /^(?:\d+|\*|&)$/.test(word)) {
+    } else if (escapes(c)) {
+      i++;
+      // An escaped newline joins the lines and is no part of any word.
+      if (raw[i] === "\r" && raw[i + 1] === "\n") i += 2;
+      else if (raw[i] === "\n") i++;
+      else {
+        word += raw[i++];
+        started = true;
+      }
+    } else if (isOperator(c) && !(powershell && started && !(!quotedPart && /^(?:\d+|\*)$/.test(word)))) {
+      if (started && !quotedPart && (powershell ? /^(?:\d+|\*)$/ : /^(?:\d+|&)$/).test(word)) {
         word = "";
         started = false;
       } else flush();
-      while (i < raw.length && (raw[i] === "<" || raw[i] === ">")) i++;
+      while (i < raw.length && isOperator(raw[i])) i++;
       if (raw[i] === "&" && /[\d-]/.test(raw[i + 1] ?? "")) {
         i++;
         while (/[\d-]/.test(raw[i] ?? "")) i++;
       } else {
         if (raw[i] === "&" || raw[i] === "|") i++;
-        while (/\s/.test(raw[i] ?? "")) i++;
+        while (/[ \t]/.test(raw[i] ?? "")) i++;
         readWord();
       }
     } else if (c === "'" || c === '"') {
-      const close = raw.indexOf(c, i + 1);
-      const end = close < 0 ? raw.length : close;
-      word += raw.slice(i + 1, end);
+      word += readQuoted();
       started = true;
       quotedPart = true;
-      i = end + 1;
     } else {
       word += c;
       started = true;
@@ -327,10 +357,10 @@ function wordsWithoutRedirects(raw) {
  * Returns wideReason past MAX_FILES; a shorter list, or one the runner itself
  * will refuse as empty, is left to the runner.
  */
-function suiteRunReason(args, command) {
+function suiteRunReason(args, command, shell) {
   if (args.length === 0) return null;
   const located = args.every((a) => Number.isInteger(a.start) && Number.isInteger(a.end));
-  const words = located ? wordsWithoutRedirects(command.slice(args[0].start, args[args.length - 1].end)) : args.map((a) => a.text);
+  const words = located ? wordsWithoutRedirects(command.slice(args[0].start, args[args.length - 1].end), shell) : args.map((a) => a.text);
   const files = [];
   for (let i = 0; i < words.length; i++) {
     if (words[i] === "--wait") {
@@ -493,7 +523,7 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         // The suite runner's first argument is its command; only `start`
         // runs a whole package, and `run` is bounded by how many files it names.
         else if (/test-suite\.mjs$/i.test(target) && /^start$/i.test(scriptArgs[0]?.text ?? "")) reason = START_REASON;
-        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2), command);
+        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2), command, shell);
       }
       if (reason) return reason;
     }
