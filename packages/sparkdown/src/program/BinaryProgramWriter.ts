@@ -583,7 +583,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const fn = block.fn!;
       this._ranges.push(fn.range);
       this.row(fn.range);
-      this._scopes = 0;
+      // After the `Jump` past the entries or the `Return` of the entry
+      // above, where no instruction runs.
+      this.alignScopes(0);
       this._exports.push(fn.symbol, this._code.length);
       this.emitParameters(fn.params, fn.hoisted);
       this.enterBlock(block.body, BLOCK_FUNCTION);
@@ -1058,7 +1060,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
   // own:
   //   head: cond; JumpIfFalse exit (a decision); Newline; BeginScope;
   //   EnterBlock 0 (a loop body in a pass scope, which resumes at head);
-  //   exit:
+  //   EndScope (never runs); exit:
   protected emitWhile(loop: LoopShape): void {
     const [gather, breakGather] = loop.objects as [Gather, Gather];
     const { body, test } = this.loopParts(loop);
@@ -1077,8 +1079,12 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObject(begin);
     const k = this.enterBlock(loop.body, BLOCK_LOOP | BLOCK_PASS_SCOPE);
     // The pass scope is closed where the owner resumes, by the engine at the
-    // body's end or by the body's `break` or `continue`.
-    this._scopes -= 1;
+    // body's end or by the body's `break` or `continue`. The `EndScope`
+    // after the `EnterBlock` never runs, since the body resumes the owner at
+    // the test and a `break` at the exit, past it: it makes the count read in
+    // order the depth at the exit (section 1), which code after the loop in
+    // the same chunk, such as a `choose` block's preamble, stands at.
+    this.emit(Op.EndScope);
     this.blockResume(k, head);
     this.bind(exit);
     this.blockBreak(k, exit);

@@ -28,6 +28,7 @@
 // It is kept out of the ordinary suite (`vitest.config.ts`) and runs alone:
 //   SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
 import "../../inkjs/engine/Container";
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -316,6 +317,11 @@ const luauView = (runs: unknown) =>
           },
   );
 
+/** A digest of everything a fixture's runs show, as the ordinary comparison
+ *  reads it. */
+const fullDigest = (runs: unknown) =>
+  createHash("sha256").update(stable(runs)).digest("hex").slice(0, 16);
+
 /** The bug filed against the current engine for the scoping #1575 settles. */
 const CURRENT_ENGINE_SCOPING = 1588;
 
@@ -333,6 +339,10 @@ const INTENDED_DIFFERENCES: Record<
     wrong: "current" | "program";
     issue: number;
     expected: ReturnType<typeof luauView>;
+    /** The digest of everything the other engine shows (`fullDigest`),
+     *  each beat's tags and display tables and each menu's tags and indexes
+     *  included, which the readable view leaves out. */
+    digest: string;
   }
 > = {
   // A gated branch's local is visible to the choices it gates and their
@@ -345,6 +355,7 @@ const INTENDED_DIFFERENCES: Record<
       { beats: ["B true", "In B true.", "After false."], menus: [["A true", "B true", "Global"]] },
       { beats: ["", "In global false.", "After false."], menus: [["A true", "B true", "Global"]] },
     ],
+    digest: "7352964d89cad2a7",
   },
   // A `then` clause of a block written in a preamble runs after a choice of
   // its own block is taken, once, and then the clause of the block around
@@ -363,6 +374,7 @@ const INTENDED_DIFFERENCES: Record<
       },
       { beats: ["Outer", "Outer then.", "After."], menus: [["Inner", "Middle", "Outer"]] },
     ],
+    digest: "89fa8405816a9699",
   },
 };
 
@@ -390,6 +402,7 @@ describe("the differential run", () => {
             ? [result.program, result.current]
             : [result.current, result.program];
         expect(luauView(right), name).toEqual(exception.expected);
+        expect(fullDigest(right), `${name}: the full result`).toBe(exception.digest);
         expect(stable(wrong), `${name} no longer differs`).not.toBe(stable(right));
         continue;
       }

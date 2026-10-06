@@ -293,50 +293,68 @@ describe("the depth of scopes inside a choose chunk", () => {
       expectExactDepth(story, "at the entry");
       expect((story.Continue() ?? "").trim()).toBe("Pick");
       expectExactDepth(story, "in the entry");
+      const inEntry = story.capture();
       expect((story.Continue() ?? "").trim()).toBe("First true.");
       expectExactDepth(story, "in the body");
-      const image = story.capture();
+      const inBody = story.capture();
       const ran = play(story);
       expect(ran.beats).toEqual(["Second true.", "Third true.", "After false."]);
-      expect(story.restore(image)).toBe(true);
+      expect(story.restore(inBody)).toBe(true);
       expectExactDepth(story, "restored in the body");
       expect(play(story)).toEqual(ran);
+      expect(story.restore(inEntry)).toBe(true);
+      expectExactDepth(story, "restored in the entry");
+      expect(play(story).beats).toEqual(["First true.", ...ran.beats]);
     });
   });
 
-  it("is exact where a jump lands on a named choice's entry and on a then clause's label", () => {
-    const text = [
-      "store open = false",
-      "store n = 0",
-      "-> main",
-      "scene main",
-      "  choose",
-      "    if n > 5 then",
-      "      * Hidden",
-      "    end",
-      "    if true then",
-      "      local open = true",
-      "      * (picked) Pick {open}",
-      "        Picked {open}.",
-      "    end",
-      "  then (joined)",
-      "    Joined {open}.",
-      "  end",
-      "  After {open}.",
-      "  n = n + 1",
-      "  if n == 1 then",
-      "    -> joined",
-      "  end",
-      "end",
-      "",
-    ].join("\n");
-    expect(run(text).beats).toEqual([
-      "Pick true",
-      "Picked true.",
-      "Joined false.",
-      "After false.",
-      "Joined false.",
-      "After false.",
-    ]);
-  });
+  // A jump from after the block lands on the `then` clause's label and on a
+  // named gated choice's entry, whose depth the landing derives; a `while`
+  // loop of the preamble, whose pass scope the engine closes, leaves the
+  // count read in order at the depth after it.
+  for (const preamble of [[], ["    while false do", "      local unused = 0", "    end"]]) {
+    it(`is exact where a jump lands on a named choice's entry and on a then clause's label${preamble.length ? ", after a while loop of the preamble" : ""}`, () => {
+      const text = [
+        "store open = false",
+        "store n = 0",
+        "-> main",
+        "scene main",
+        "  choose",
+        ...preamble,
+        "    if n > 5 then",
+        "      * Hidden",
+        "    end",
+        "    if true then",
+        "      local open = true",
+        "      * (picked) Pick",
+        "        Picked {n}.",
+        "    end",
+        "  then (joined)",
+        "    Joined {open}.",
+        "  end",
+        "  After {open}.",
+        "  n = n + 1",
+        "  if n == 1 then",
+        "    -> joined",
+        "  end",
+        "  if n == 2 then",
+        "    -> picked",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+      expect(run(text).beats).toEqual([
+        "Pick",
+        "Picked 0.",
+        "Joined false.",
+        "After false.",
+        "Joined false.",
+        "After false.",
+        "Pick",
+        "Picked 2.",
+        "Joined false.",
+        "After false.",
+      ]);
+    });
+  }
 });
