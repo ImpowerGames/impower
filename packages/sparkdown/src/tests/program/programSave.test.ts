@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { SAVE_FORMAT, SaveRefused } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
-import { MAIN_URI, compileScript, programCompiler } from "./programHarness";
+import { compileScript, programSession } from "./programHarness";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, "..", "runtime", "fixtures");
@@ -531,44 +531,7 @@ describe("a save's header", () => {
   });
 });
 
-/** A compiler over one script, which `edit` changes and compiles again. */
-const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
-  let current = text;
-  let version = 1;
-  const posAt = (offset: number) => {
-    const before = current.slice(0, offset).split("\n");
-    return { line: before.length - 1, character: before.at(-1)!.length };
-  };
-  return {
-    compiler: c.compiler,
-    root: silence(() => c.compile().program.chunks!),
-    edit(before: string, after: string): ProgramRoot {
-      const at = current.indexOf(before);
-      expect(at, before).toBeGreaterThanOrEqual(0);
-      version += 1;
-      c.compiler.updateDocument({
-        textDocument: { uri: MAIN_URI, version },
-        contentChanges: [
-          { range: { start: posAt(at), end: posAt(at + before.length) }, text: after },
-        ],
-      });
-      current = current.slice(0, at) + after + current.slice(at + before.length);
-      return silence(() => c.compile().program.chunks!);
-    },
-    /** Grows the compiler's table past what it bounds it at, so that it
-     *  reseeds. */
-    reseed() {
-      const compiler = c.compiler as any;
-      const table = compiler._binaryTable;
-      const grown = table.strings.length * 2 + 600;
-      for (let i = 0; i < grown; i += 1) {
-        table.strings.push(`unused ${i}`);
-      }
-      compiler.maybeReseedBinaryTable();
-    },
-  };
-};
+const session = programSession;
 
 describe("a save in another process", () => {
   // A tunnel's frame, called from a loop's body, whose owner inlines a

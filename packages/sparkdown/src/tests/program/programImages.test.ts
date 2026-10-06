@@ -5,8 +5,12 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { ObjectValue } from "../../inkjs/engine/Value";
+import { ProgramImages } from "../../program/ProgramImages";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compileScript } from "./programHarness";
+import { countIdOf } from "../../program/ProgramSymbols";
+import { chunkId } from "../../program/StatementChunk";
+import { compileScript, programSession, rootChunks } from "./programHarness";
 
 const story = (text: string) =>
   new ProgramStory(compileScript(text, { programChunks: true }).program.chunks!);
@@ -240,5 +244,144 @@ describe("a fork, a run and a restore", () => {
     expect(sibling.globals.size).toBe(0);
     expect(sibling.tables.size).toBe(0);
     expect(stats.keyframes).toBe(1);
+  });
+});
+
+/** An engine on `root` that shares the pristine copies of `images`, as the
+ *  engine a game builds for each program shares those of the one before. */
+const sharing = (root: ProgramRoot, images?: ProgramImages) =>
+  new ProgramStory(root, null, { images });
+
+describe("a checkpoint within a session", () => {
+  const TEXT = [
+    "store seen = 0",
+    "",
+    "-> start",
+    "",
+    "scene start",
+    "  One.",
+    "  & seen = seen + 1",
+    "  Two {seen}.",
+    "  Three {start}.",
+    "  Four.",
+    "end",
+    "",
+  ].join("\n");
+
+  it("taken before a compile, loads after it for every statement that was not emitted again, for an edit above and below it", () => {
+    for (const [before, after, shown] of [
+      // Above the checkpoint.
+      ["  One.", "  Zero.\n  One.", ["Three 1.", "Four."]],
+      // Below it.
+      ["  Four.", "  Four.\n  Five.", ["Three 1.", "Four.", "Five."]],
+    ] as const) {
+      const s = programSession(TEXT);
+      const game = sharing(s.root);
+      expect(next(game, 2)).toEqual(["One.", "Two 1."]);
+      const checkpoint = game.captureBeat();
+      const edited = s.edit(before, after);
+      const resumed = sharing(edited, game.images);
+      expect(resumed.restore(checkpoint)).toBe(true);
+      expect(next(resumed, 10)).toEqual(shown);
+    }
+  });
+
+  it("whose position names a chunk the root no longer holds is reported unplaced and never run", () => {
+    const s = programSession(TEXT);
+    const game = sharing(s.root);
+    expect(next(game, 2)).toEqual(["One.", "Two 1."]);
+    // The position rests at the start of the statement after the beat.
+    const checkpoint = game.captureBeat();
+    const edited = s.edit("  Three {start}.", "  Three again {start}.");
+    const resumed = sharing(edited, game.images);
+    const before = resumed.state.toJson();
+    const steps = resumed.stepCount;
+    expect(resumed.restore(checkpoint)).toBe(false);
+    expect(resumed.state.toJson()).toBe(before);
+    expect(resumed.stepCount).toBe(steps);
+  });
+});
+
+describe("a reseed of the program table", () => {
+  const TEXT = [
+    "scene early",
+    "  Early.",
+    "end",
+    "",
+    "store target = -> there",
+    "",
+    "-> here",
+    "",
+    "scene here",
+    '  Here {here} {cycle|"a"|"b"}.',
+    "  -> target",
+    "end",
+    "",
+    "scene there",
+    "  There {there} {here}.",
+    "end",
+    "",
+  ].join("\n");
+
+  it("leaves a running game's counts and symbol values reading the same through the remap", () => {
+    const s = programSession(TEXT);
+    // `early` is gone before the reseed, which drops it, so the ids after it
+    // move.
+    const played = s.edit("scene early\n  Early.\nend\n\n", "");
+    const game = sharing(played);
+    expect(next(game, 10)).toEqual(["Here 1 a.", "There 1 1."]);
+    expect(game.canContinue).toBe(false);
+    const ended = game.capture();
+    const counts = (story: ProgramStory, root: ProgramRoot) =>
+      ["here", "there"].map((name) =>
+        story.state.VisitCount(countIdOf(root.table, root.table.symbolIds.get(name)!)),
+      );
+    expect(counts(game, played)).toEqual([1, 1]);
+    s.reseed();
+    const reseeded = s.edit("  There {there}", "  There! {there}");
+    expect(reseeded.generation).toBe(played.generation + 1);
+    for (const name of ["here", "there"]) {
+      expect(reseeded.table.symbolIds.get(name)).not.toBe(
+        played.table.symbolIds.get(name),
+      );
+    }
+    // The game on its own root reads its counts as it did.
+    expect(counts(game, played)).toEqual([1, 1]);
+    // An image of the ended game, which names no chunk, restores into an
+    // engine on the reseeded root with its counts and symbol values taken
+    // through the remap.
+    const after = sharing(reseeded, game.images);
+    expect(after.restore(ended)).toBe(true);
+    expect(counts(after, reseeded)).toEqual([1, 1]);
+    const target = after.variablesState.GetVariableWithName("target");
+    after.ChoosePathString("here", true);
+    expect(next(after, 10)).toEqual(["Here 2 b.", "There! 2 2."]);
+    expect(after.variablesState.GetVariableWithName("target")).toBe(target);
+  });
+
+  it("gives no chunk id again, and no sequence id to another body, so a checkpoint from before it is reported unplaced", () => {
+    const s = programSession(TEXT.replace("scene early\n  Early.\nend\n\n", ""));
+    const game = sharing(s.root);
+    expect(next(game, 1)).toEqual(["Here 1 a."]);
+    const checkpoint = game.captureBeat();
+    s.reseed();
+    const reseeded = s.edit("  There {there}", "  There! {there}");
+    const chunks = (root: ProgramRoot) => rootChunks(root).map(chunkId);
+    expect(Math.min(...chunks(reseeded))).toBeGreaterThan(Math.max(...chunks(s.root)));
+    // A sequence id goes on naming the body it named: a flow's sequence
+    // keeps its id across the cold compile (section 1).
+    const body = (root: ProgramRoot, id: number) => {
+      const row = root.sequence(id)!;
+      return `${row.flow >= 0 ? root.table.symbols[row.flow] : row.uri}:${row.block}`;
+    };
+    for (const row of reseeded.sequences()) {
+      if (s.root.sequence(row.id)) {
+        expect(body(reseeded, row.id)).toBe(body(s.root, row.id));
+      }
+    }
+    const resumed = sharing(reseeded, game.images);
+    const before = resumed.state.toJson();
+    expect(resumed.restore(checkpoint)).toBe(false);
+    expect(resumed.state.toJson()).toBe(before);
   });
 });
