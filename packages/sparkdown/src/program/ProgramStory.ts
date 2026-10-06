@@ -557,9 +557,15 @@ export class ProgramStory {
     return choices;
   }
 
+  // A menu counts as something shown, as on the current engine's `Story`: a
+  // `choose` block with no caption raises its choices from a continue that
+  // returns no text and no display instruction (binary-program.md sections 4
+  // and 7), and the game queues a beat only when a continue showed something.
   get continueShowedSomething(): boolean {
     return (
-      Boolean(this.currentText) || this.currentDisplayInstructions.length > 0
+      Boolean(this.currentText) ||
+      this.currentDisplayInstructions.length > 0 ||
+      this.currentChoices.length > 0
     );
   }
 
