@@ -748,9 +748,30 @@ export class ChunkStore {
     // Each list's first and last entry that is unsettled is its window
     // (`ListSlot`).
     const unsettled = new Set<StatementSource>();
+    // Each script's declaration window by line (`keptDeclarations`): the
+    // lines of its changed blocks and of its declarations not carried.
+    const declarationWindows = new Map<string, { lo: number; hi: number }>();
+    const widen = (uri: string, from: number, to: number) => {
+      const window = declarationWindows.get(uri);
+      if (window) {
+        window.lo = Math.min(window.lo, from);
+        window.hi = Math.max(window.hi, to);
+      } else {
+        declarationWindows.set(uri, { lo: from, hi: to });
+      }
+    };
+    for (const [uri, ranges] of program.changed ?? []) {
+      for (const [from, to] of ranges) {
+        widen(uri, from, to);
+      }
+    }
     everyStatement.forEach((statement, i) => {
       if (carried.has(statement)) {
         return;
+      }
+      if (i >= statements.length) {
+        const declaration = statement as DeclarationSource;
+        widen(declaration.uri, declaration.firstLine, declaration.firstLine);
       }
       let at: StatementSource | undefined = statement;
       let index: number | undefined = i < statements.length ? i : undefined;
@@ -834,6 +855,10 @@ export class ChunkStore {
     const declarationIds = new Map<string, number>();
     const emittedBeforeDeclarations = this._writer.emitted;
     const byScript = new Map<string, { source: DeclarationSource; chunk: StatementChunk }[]>();
+    // The declarations each script's window holds, and every declaration
+    // chunk of the build, found as the initialization order is listed.
+    const windowed = new Map<string, { source: DeclarationSource; chunk: StatementChunk }[]>();
+    const heldDeclarations = new Set<StatementChunk>();
     declarations.forEach((declaration) => {
       let chunk = chunkOf.get(declaration);
       if (!chunk) {
@@ -864,12 +889,26 @@ export class ChunkStore {
       }
       build.placedFor?.set(declaration, chunk);
       declarationChunks.push(chunk);
+      heldDeclarations.add(chunk);
       let list = byScript.get(declaration.uri);
       if (!list) {
         list = [];
         byScript.set(declaration.uri, list);
       }
       list.push({ source: declaration, chunk });
+      const window = declarationWindows.get(declaration.uri);
+      if (
+        window &&
+        declaration.firstLine >= window.lo &&
+        declaration.firstLine <= window.hi
+      ) {
+        let inWindow = windowed.get(declaration.uri);
+        if (!inWindow) {
+          inWindow = [];
+          windowed.set(declaration.uri, inWindow);
+        }
+        inWindow.push({ source: declaration, chunk });
+      }
       build.fail = (construct, line) => {
         fallback ??= { construct, uri: declaration.uri, line };
       };
@@ -891,10 +930,11 @@ export class ChunkStore {
       const kept =
         before && program.changed
           ? this.keptDeclarations(
-              build,
-              list,
+              list.length,
+              declarationWindows.get(uri),
+              windowed.get(uri) ?? [],
+              heldDeclarations,
               before,
-              program.changed.get(uri) ?? [],
               program.lineCount?.(uri),
             )
           : undefined;
@@ -1934,19 +1974,22 @@ export class ChunkStore {
   /** A script's declaration sequence kept as the current root's `before`
    *  holds it outside the lines the compile changed, or nothing when the
    *  build assembles it whole. Its line starts are the script's own lines,
-   *  so the window is by line: from the first line of the first changed
-   *  block or declaration not carried to the last. The old entries that
-   *  start above the window are kept, and so are those that start below
-   *  it, moved by the lines the script gained (`lineCount` against the
-   *  span the current root's row holds); the declarations that start in
-   *  the window are read and put between. The counts must add up to the
-   *  script's declarations, and the first and last old entry of each kept
-   *  part must be one of them. */
+   *  so the window is by line (`window`): from the first line of the first
+   *  changed block or declaration not carried to the last, which the build
+   *  finds as it marks the statements it does not settle. The old entries
+   *  that start above the window are kept, and so are those that start
+   *  below it, moved by the lines the script gained (`lineCount` against
+   *  the span the current root's row holds); the declarations that start
+   *  in the window (`inWindow`, found as the initialization order is
+   *  listed) are read and put between. The counts must add up to the
+   *  script's `count` declarations, and the first and last old entry of
+   *  each kept part must be one of the build's (`held`). */
   protected keptDeclarations(
-    build: SequenceBuild,
-    list: readonly { source: DeclarationSource; chunk: StatementChunk }[],
+    count: number,
+    window: { lo: number; hi: number } | undefined,
+    inWindow: readonly { source: DeclarationSource; chunk: StatementChunk }[],
+    held: ReadonlySet<StatementChunk>,
     before: SequenceRow,
-    ranges: readonly (readonly [number, number])[],
     lineCount: number | undefined,
   ):
     | {
@@ -1956,26 +1999,15 @@ export class ChunkStore {
     | undefined {
     const old = before.arrays;
     const oldCount = old.chunks.length;
-    let lo = Number.POSITIVE_INFINITY;
-    let hi = Number.NEGATIVE_INFINITY;
-    for (const [start, end] of ranges) {
-      lo = Math.min(lo, start);
-      hi = Math.max(hi, end);
-    }
-    for (const { source } of list) {
-      if (!build.carried.has(source)) {
-        lo = Math.min(lo, source.firstLine);
-        hi = Math.max(hi, source.firstLine);
-      }
-    }
     if (lineCount === undefined) {
       return undefined;
     }
-    if (lo > hi) {
-      return list.length === oldCount && lineCount === before.span
+    if (!window) {
+      return count === oldCount && lineCount === before.span
         ? { arrays: old }
         : undefined;
     }
+    const { lo, hi } = window;
     const delta = lineCount - before.span;
     // The first old entry that starts at `line` or below it.
     const firstFrom = (line: number): number => {
@@ -1993,13 +2025,12 @@ export class ChunkStore {
     };
     const head = firstFrom(lo);
     const tail = Math.max(head, firstFrom(hi - delta + 1));
-    const middle = list
-      .filter(({ source }) => source.firstLine >= lo && source.firstLine <= hi)
-      .sort((a, b) => a.source.firstLine - b.source.firstLine);
-    if (head + middle.length + (oldCount - tail) !== list.length) {
+    const middle = [...inWindow].sort(
+      (a, b) => a.source.firstLine - b.source.firstLine,
+    );
+    if (head + middle.length + (oldCount - tail) !== count) {
       return undefined;
     }
-    const held = new Set(list.map((entry) => entry.chunk));
     for (const entry of [0, head - 1, tail, oldCount - 1]) {
       const kept = entry < head || entry >= tail;
       if (entry >= 0 && entry < oldCount && kept && !held.has(old.chunks[entry]!)) {
@@ -2275,9 +2306,12 @@ export class ChunkStore {
    * as many statements as its old sequence with the same first and last, and
    * each list that holds the window's first statement or the statement after
    * the window, or an owner of one, has the old entries above and below
-   * them; and the declarations whose bodies hold statements are the old
-   * ones, in order, with none of their statements in the window. Then the
-   * old statements between are counted from the old root's count.
+   * them; and of the declarations whose bodies hold statements, which the
+   * order lists after the flows in the order they run, those wholly above
+   * the window are the first of the old ones and those wholly below it the
+   * last, by their chunks, while the window may hold the bodies of
+   * declarations lowered anew, whose old ones the walk below lists. Then
+   * the old statements between are counted from the old root's count.
    */
   protected alignmentWindow(at: {
     previous: ProgramRoot;
