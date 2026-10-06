@@ -6,13 +6,30 @@
 // externalized, import "react" through Node and fail with "Cannot find module
 // 'react'" (#1585).
 import preact from "@preact/preset-vite";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { h, type ComponentType } from "preact";
 import { renderToString } from "preact-render-to-string";
 import { createServer, type ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { alias, dedupe, ssrNoExternal } from "../../vite.config";
 
-const FIXTURE = "/test/build/fixtures/RadixPrimitives.tsx";
+// The fixture lives in impower-ui, the package that declares the Radix
+// dependencies, so its imports resolve the copies the editor's own Radix
+// imports resolve, even where impower-ui's differ from a hoisted copy.
+const FIXTURE = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../packages/impower-ui/test/fixtures/RadixPrimitives.tsx",
+);
+
+const RADIX_PACKAGES = [
+  "@radix-ui/react-dialog",
+  "@radix-ui/react-dropdown-menu",
+  "@radix-ui/react-select",
+  "@radix-ui/react-tabs",
+  "@radix-ui/react-tooltip",
+];
 
 let server: ViteDevServer;
 let fixture: Record<string, ComponentType>;
@@ -39,6 +56,27 @@ afterAll(async () => {
 });
 
 describe("Radix primitives under the dev server's ssrLoadModule", () => {
+  it("resolves each primitive from impower-ui's dependencies", async () => {
+    const fromImpowerUi = createRequire(
+      path.resolve(path.dirname(FIXTURE), "../../package.json"),
+    );
+    // The package directory a resolved entry file belongs to.
+    const packageDir = (file: string, name: string) => {
+      const normalized = path.resolve(file).replace(/\\/g, "/");
+      const marker = `/node_modules/${name}/`;
+      return normalized.slice(0, normalized.lastIndexOf(marker) + marker.length);
+    };
+    for (const name of RADIX_PACKAGES) {
+      const resolved = await server.pluginContainer.resolveId(name, FIXTURE, {
+        ssr: true,
+      });
+      expect(resolved?.id, name).toBeTruthy();
+      expect(packageDir(resolved!.id, name), name).toBe(
+        packageDir(fromImpowerUi.resolve(name), name),
+      );
+    }
+  });
+
   it("renders a portal-mounted Dialog's trigger", () => {
     const html = render("PortalDialog");
     expect(html).toContain('aria-haspopup="dialog"');

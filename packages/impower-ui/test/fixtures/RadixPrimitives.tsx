@@ -1,8 +1,10 @@
 // One server-rendered component per Radix primitive impower-ui depends on
-// (Dialog, DropdownMenu, Select, Tabs, Tooltip). radixSsr.test.ts loads this
-// module through the dev server's ssrLoadModule with the dev server's own
-// resolve and ssr configuration, so a dependency change that breaks the
-// server render of any of them fails there.
+// (Dialog, DropdownMenu, Select, Tabs, Tooltip). impower-dev's
+// test/build/radixSsr.test.ts loads this module through the dev server's
+// ssrLoadModule with the dev server's own resolve and ssr configuration, so a
+// dependency change that breaks the server render of any of them fails there.
+// It lives in impower-ui so its Radix imports resolve from the package that
+// declares them, as the editor's own Radix imports do.
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Select from "@radix-ui/react-select";
