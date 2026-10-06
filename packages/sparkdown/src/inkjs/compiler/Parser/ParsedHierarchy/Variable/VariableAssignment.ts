@@ -170,9 +170,10 @@ export class VariableAssignment extends ParsedObject {
       return;
     }
     emitter.recordResolution(this.resolutionKey);
-    // Every assignment that is not a global declaration has its value: the
-    // lowerers leave out an assignment whose value the parser could not
-    // read, and declare such a local nil.
+    // Every assignment emitted here has its value: the lowerers leave out an
+    // assignment whose value the parser could not read, and declare such a
+    // local nil. The targets of a `MultiVariableAssignment` have no value of
+    // their own and are never emitted here; it writes them itself.
     emitter.emitObject(this.expression!);
     emitter.emit(
       Op.SetVar,
