@@ -44,6 +44,9 @@ interface WriterMemo {
   anchors: Map<object, string> | null;
   // Each closed upvalue cell init built to its anchor.
   cellAnchors: Map<VariablePointerValue, string> | null;
+  // How a binary program's function value is written in a durable save, in
+  // place of its session's symbol id (`SetWriterSymbolEncoder`).
+  symbols: ((value: SymbolValue) => string) | null;
 }
 
 export class JsonSerialisation {
@@ -73,8 +76,32 @@ export class JsonSerialisation {
       cellIds: new Map<VariablePointerValue, number>(),
       anchors: null,
       cellAnchors: null,
+      symbols: null,
     };
     return w.__objGraphMemo;
+  }
+
+  // A durable save of the program engine names a function value by its
+  // qualified name or by the statement and part that own its anonymous
+  // symbol (docs/engine/binary-program.md, section 10), which `encode`
+  // writes as a string and the load session's decoder reads back.
+  public static SetWriterSymbolEncoder(
+    writer: SimpleJson.Writer,
+    encode: (value: SymbolValue) => string,
+  ): void {
+    JsonSerialisation.writerObjectMemo(writer).symbols = encode;
+  }
+
+  private static _loadSessionSymbolDecoder:
+    | ((saved: string) => SymbolValue)
+    | null = null;
+
+  // Reads a function value a durable save wrote; set after
+  // `ResetObjectLoadSession`, which clears it.
+  public static SetLoadSessionSymbolDecoder(
+    decode: (saved: string) => SymbolValue,
+  ): void {
+    this._loadSessionSymbolDecoder = decode;
   }
 
   // ----------------------------------------------------------------
@@ -193,6 +220,7 @@ export class JsonSerialisation {
     this._loadSessionCellsById = new Map();
     this._loadSessionAnchorResolver = null;
     this._loadSessionCellAnchorResolver = null;
+    this._loadSessionSymbolDecoder = null;
     this._pendingDefineRefs = [];
   }
 
@@ -625,6 +653,13 @@ export class JsonSerialisation {
     // session: its id, the table generation of the id, its name (empty for
     // an anonymous symbol) and how it prints.
     if (obj instanceof SymbolValue) {
+      const encode = JsonSerialisation.writerObjectMemo(writer).symbols;
+      if (encode) {
+        writer.WriteObjectStart();
+        writer.WriteProperty("^symsave", encode(obj));
+        writer.WriteObjectEnd();
+        return;
+      }
       const ref = obj.ref;
       writer.WriteObjectStart();
       writer.WritePropertyStart("^sym");
@@ -1096,6 +1131,14 @@ export class JsonSerialisation {
       if (obj["^->"]) {
         propValue = obj["^->"];
         return new DivertTargetValue(new Path(propValue.toString()));
+      }
+
+      // A binary program's function value, as a durable save names it.
+      if (typeof obj["^symsave"] === "string") {
+        if (!this._loadSessionSymbolDecoder) {
+          throw new Error("A function value of a save read without its program.");
+        }
+        return this._loadSessionSymbolDecoder(obj["^symsave"]);
       }
 
       // A binary program's function value.

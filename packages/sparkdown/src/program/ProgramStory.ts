@@ -68,6 +68,7 @@ import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
 import { Void } from "../inkjs/engine/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
+import { readSave, writeSave, type SaveHeader } from "./ProgramSave";
 import {
   ImageTracker,
   ProgramImages,
@@ -354,6 +355,58 @@ export class ProgramStory {
     this._stateIsPristine = false;
     this._state.beatImage = null;
     return true;
+  }
+
+  /** The header of the last save `loadSave` read, or nothing. */
+  loadedSaveHeader: SaveHeader | null = null;
+
+  /**
+   * The durable save of the current beat (docs/engine/binary-program.md,
+   * sections 7 and 8): the image `captureBeat` gives, every position in the
+   * saved form, with a header naming the format's version, the engine's
+   * and `gameVersion`, the game's own (`GameConfiguration.version`). At a
+   * menu it is the beat before the menu and holds none of the menu's
+   * choices, which needs `keepBeatImages` set while the story ran.
+   */
+  toSave(gameVersion = ""): string {
+    this.IfAsyncWeCant("save");
+    const held = this._state.beatImage;
+    if (!held) {
+      if (!this.canContinue && this._state.currentChoices.length > 0) {
+        throw new Error(
+          "A save at a menu holds the beat before it, which the story keeps only while keepBeatImages is set.",
+        );
+      }
+      return writeSave(this._state, gameVersion);
+    }
+    // The beat before the menu, put in place to be written, and the state
+    // as it stands put back.
+    const live = this.capture();
+    this.restore(held);
+    try {
+      return writeSave(this._state, gameVersion);
+    } finally {
+      this.restore(live);
+      this._state.beatImage = held;
+    }
+  }
+
+  /**
+   * Loads a durable save `toSave` wrote, into this engine's program, and
+   * returns its header. The program must have every statement the save's
+   * positions name, unchanged: a save that cannot be placed so is refused
+   * (`SaveRefused`), naming the flow, and the state is left as it was. A
+   * save of a newer format version is refused, and one of an older version
+   * goes through its migration.
+   */
+  loadSave(json: string): SaveHeader {
+    this.IfAsyncWeCant("load a save");
+    const header = readSave(this._state, json, (symbol) =>
+      this.symbolValue(symbol),
+    );
+    this._stateIsPristine = false;
+    this.loadedSaveHeader = header;
+    return header;
   }
 
   // ------------------------------------------------------------- the surface
@@ -1141,8 +1194,13 @@ export class ProgramStory {
 
     state.CarryOutputPastCut();
 
-    if (outputStreamEndsInNewline) {
-      // The beat is the state as it stands.
+    // A continue that ended at its newline, or with the flow ended and no
+    // choice waiting, leaves the state as it stands as its beat's image; one
+    // that ended with choices raised leaves the image of the beat before it.
+    if (
+      outputStreamEndsInNewline ||
+      (!this.canContinue && state.currentChoices.length === 0)
+    ) {
       state.beatImage = null;
     }
     if (outputStreamEndsInNewline || !this.canContinue) {

@@ -1119,16 +1119,26 @@ export class ProgramStoryState {
   }
 
   toJson(withCounts = true): string {
+    return this.writeState(new SessionCodec(this, withCounts));
+  }
+
+  /** The state as JSON, with its positions, its frames' functions, its
+   *  choices' identities and its counts written as `codec` writes them: as
+   *  they are within a session (`toJson`), or in the saved form of a durable
+   *  save (`ProgramSave`). */
+  writeState(codec: StateCodec): string {
     const writer = new SimpleJson.Writer();
     JsonSerialisation.SetWriterAnchors(
       writer,
       this.variablesState.InitTableAnchors(),
       this.variablesState.InitCellAnchors(),
     );
+    codec.begin?.(writer);
     writer.WriteObjectStart();
     writer.WriteProperty("engine", "program");
+    codec.header?.(writer);
     writer.WritePropertyStart("position");
-    writePosition(writer, this.position);
+    codec.position(writer, this.position);
     writer.WritePropertyEnd();
     writer.WriteProperty("evalStack", (w) =>
       JsonSerialisation.WriteListRuntimeObjs(w, this.evaluationStack),
@@ -1154,7 +1164,7 @@ export class ProgramStoryState {
       this.variablesState.WriteJson(w),
     );
     writer.WriteProperty("frames", (w) =>
-      this.writeFrames(w, this.callStack.elements),
+      this.writeFrames(w, this.callStack.elements, codec),
     );
     // The threads a fork suspended, from the outermost: each with the
     // position it resumes at and its frames.
@@ -1165,11 +1175,11 @@ export class ProgramStoryState {
         for (const thread of threads.slice(0, -1)) {
           w.WriteObjectStart();
           w.WritePropertyStart("position");
-          writePosition(w, this._suspended.get(thread)?.position ?? null);
+          codec.position(w, this._suspended.get(thread)?.position ?? null);
           w.WritePropertyEnd();
           this.writePreviousFlow(w, this._suspended.get(thread)?.previousFlow ?? -1);
           w.WriteProperty("frames", (fw) =>
-            this.writeFrames(fw, thread.callstack),
+            this.writeFrames(fw, thread.callstack, codec),
           );
           w.WriteObjectEnd();
         }
@@ -1191,30 +1201,26 @@ export class ProgramStoryState {
             }
             tw.WriteArrayEnd();
           });
-          w.WriteProperty("sourcePath", choice.sourcePath);
+          codec.choiceSource(w, choice);
           w.WriteProperty("isInvisibleDefault", choice.isInvisibleDefault);
           w.WritePropertyStart("target");
-          writePosition(w, choice.target);
+          codec.position(w, choice.target);
           w.WritePropertyEnd();
           this.writePreviousFlow(w, choice.previousFlow);
           w.WriteProperty("frames", (fw) =>
-            this.writeFrames(fw, choice.threadAtGeneration?.callstack ?? []),
+            this.writeFrames(
+              fw,
+              choice.threadAtGeneration?.callstack ?? [],
+              codec,
+            ),
           );
           w.WriteObjectEnd();
         }
         w.WriteArrayEnd();
       });
     }
-    // Without its counts, the state keeps both slots empty, which a
-    // checkpoint fills with the entries it keeps apart
-    // (`CheckpointStore.injectCounts`).
-    writer.WriteIntProperty("countGeneration", this._root.generation);
-    writer.WriteProperty("visitCounts", (w) =>
-      writeCounts(w, withCounts ? this.GetVisitCountEntries() : []),
-    );
-    writer.WriteProperty("turnIndices", (w) =>
-      writeCounts(w, withCounts ? this.GetTurnIndexEntries() : []),
-    );
+    codec.counts(writer);
+    codec.end?.(writer);
     writer.WriteObjectEnd();
     return writer.toString();
   }
@@ -1250,6 +1256,7 @@ export class ProgramStoryState {
   protected writeFrames(
     w: SimpleJson.Writer,
     elements: readonly CallStack.Element[],
+    codec: StateCodec,
   ): void {
     w.WriteArrayStart();
     for (const element of elements) {
@@ -1259,9 +1266,9 @@ export class ProgramStoryState {
       w.WriteIntProperty("start", element.functionStartInOutputStream);
       w.WriteIntProperty("height", element.evaluationStackHeightWhenPushed);
       if (frame) {
-        w.WriteIntProperty("symbol", frame.symbol);
+        codec.frameSymbol(w, frame.symbol);
         w.WritePropertyStart("returnTo");
-        writePosition(w, frame.returnTo);
+        codec.position(w, frame.returnTo);
         w.WritePropertyEnd();
       }
       w.WritePropertyStart("temps");
@@ -1280,16 +1287,19 @@ export class ProgramStoryState {
   }
 
   // Fills the current thread's call stack from saved frames.
-  protected readFrames(frames: readonly Record<string, any>[]): void {
+  protected readFrames(
+    frames: readonly Record<string, any>[],
+    codec: StateCodec,
+  ): void {
     frames.forEach((saved, i) => {
       if (i > 0) {
-        const returnTo = this.placePosition(saved["returnTo"]);
+        const returnTo = codec.place(saved["returnTo"]);
         this.PushFrame(
           Number(saved["type"]) as PushPopType,
           {
             returnTo,
             blocks: this.blocksOf(returnTo),
-            symbol: Number(saved["symbol"] ?? -1),
+            symbol: codec.readFrameSymbol(saved),
           },
           Number(saved["height"] ?? 0),
         );
@@ -1543,6 +1553,14 @@ export class ProgramStoryState {
     if (obj["engine"] !== "program") {
       throw new Error("The save was not written by the program engine.");
     }
+    this.readState(obj, new SessionCodec(this, true));
+  }
+
+  /** Restores a state `writeState` wrote with a codec that reads what it
+   *  wrote. A codec that can check placement first (`check`) refuses a
+   *  state it cannot place before anything changes. */
+  readState(obj: Record<string, any>, codec: StateCodec): void {
+    codec.check?.(obj);
     this._noteChanged();
     this.generatedChoices.length = 0;
     // What was marked since the last image does not reach the loaded state,
@@ -1559,107 +1577,123 @@ export class ProgramStoryState {
     JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
       this.variablesState.InitCellAtAnchor(anchor),
     );
-    this.position = this.placePosition(obj["position"]);
-    this.blockStack = this.blocksOf(this.position);
-    this.evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
-      obj["evalStack"],
-    );
-    this.outputStream = JsonSerialisation.JArrayToRuntimeObjList(obj["output"]);
-    this.ForgetOpenStrings();
-    this.carried = obj["carried"]
-      ? {
-          output: JsonSerialisation.JArrayToRuntimeObjList(obj["carried"]),
-          lineEndPending: obj["carriedLineEndPending"] === true,
+    codec.beginRead?.();
+    try {
+      this.position = codec.place(obj["position"]);
+      this.blockStack = this.blocksOf(this.position);
+      this.evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
+        obj["evalStack"],
+      );
+      this.outputStream = JsonSerialisation.JArrayToRuntimeObjList(obj["output"]);
+      this.ForgetOpenStrings();
+      this.carried = obj["carried"]
+        ? {
+            output: JsonSerialisation.JArrayToRuntimeObjList(obj["carried"]),
+            lineEndPending: obj["carriedLineEndPending"] === true,
+          }
+        : null;
+      this.lineEndPending = obj["lineEndPending"] === true;
+      this.lineJoinable = obj["lineJoinable"] === true;
+      this.outputCut = null;
+      this.currentTurnIndex = obj["turnIdx"];
+      this.storySeed = obj["storySeed"];
+      this.previousRandom = obj["previousRandom"];
+      this.previousFlow = this.readPreviousFlow(obj);
+      this.didSafeExit = obj["didSafeExit"] === true;
+      this.variablesState.SetJsonToken(obj["variablesState"]);
+      const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];
+      const threads = Array.isArray(obj["threads"]) ? obj["threads"] : [];
+      this.callStack.Reset();
+      // The suspended threads from the outermost, each with where it
+      // resumes, then the current one.
+      threads.forEach((saved: Record<string, any>, i: number) => {
+        if (i > 0) {
+          this.callStack.PushThread();
+          this.callStack.currentThread.callstack.length = 1;
         }
-      : null;
-    this.lineEndPending = obj["lineEndPending"] === true;
-    this.lineJoinable = obj["lineJoinable"] === true;
-    this.outputCut = null;
-    this.currentTurnIndex = obj["turnIdx"];
-    this.storySeed = obj["storySeed"];
-    this.previousRandom = obj["previousRandom"];
-    this.previousFlow = this.readPreviousFlow(obj);
-    this.didSafeExit = obj["didSafeExit"] === true;
-    this.variablesState.SetJsonToken(obj["variablesState"]);
-    const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];
-    const threads = Array.isArray(obj["threads"]) ? obj["threads"] : [];
-    this.callStack.Reset();
-    // The suspended threads from the outermost, each with where it resumes,
-    // then the current one.
-    threads.forEach((saved: Record<string, any>, i: number) => {
-      if (i > 0) {
+        this.readFrames(
+          Array.isArray(saved["frames"]) ? saved["frames"] : [],
+          codec,
+        );
+        const resume = codec.place(saved["position"]);
+        this._suspended.set(this.callStack.currentThread, {
+          position: resume,
+          blocks: this.blocksOf(resume),
+          previousFlow: this.readPreviousFlow(saved),
+        });
+      });
+      if (threads.length > 0) {
         this.callStack.PushThread();
         this.callStack.currentThread.callstack.length = 1;
       }
-      this.readFrames(Array.isArray(saved["frames"]) ? saved["frames"] : []);
-      const resume = this.placePosition(saved["position"]);
-      this._suspended.set(this.callStack.currentThread, {
-        position: resume,
-        blocks: this.blocksOf(resume),
-        previousFlow: this.readPreviousFlow(saved),
+      this.readFrames(frames, codec);
+      // Each waiting choice's thread is read as a thread of the stack,
+      // which the choice then holds apart from it.
+      const choices = Array.isArray(obj["choices"]) ? obj["choices"] : [];
+      for (const saved of choices as Record<string, any>[]) {
+        const target = codec.place(saved["target"]);
+        if (!target) {
+          continue;
+        }
+        this.callStack.PushThread();
+        const thread = this.callStack.currentThread;
+        thread.callstack.length = 1;
+        this.readFrames(
+          Array.isArray(saved["frames"]) ? saved["frames"] : [],
+          codec,
+        );
+        this.callStack._threads.pop();
+        const choice = new ProgramChoice(
+          target,
+          this.blocksOf(target),
+          target.sequence.arrays.chunks[target.entry]!,
+          this.readPreviousFlow(saved),
+        );
+        choice.text = String(saved["text"] ?? "");
+        choice.tags = Array.isArray(saved["tags"])
+          ? saved["tags"].map(String)
+          : [];
+        choice.sourcePath = codec.readChoiceSource(saved, target);
+        choice.isInvisibleDefault = saved["isInvisibleDefault"] === true;
+        choice.threadAtGeneration = thread;
+        this.generatedChoices.push(choice);
+      }
+      this.visits = new Uint32Array(0);
+      this.turns = new Int32Array(0);
+      this.ResetCountDeltaTracking();
+      codec.readCounts(obj);
+      // A `new`-instance table saved with its class's name links again to
+      // the live class global, now that the globals are loaded.
+      JsonSerialisation.RelinkPendingDefineRefs((className) => {
+        const value = this.variablesState.GetVariableWithName(className);
+        return value instanceof ObjectValue ? value : null;
       });
-    });
-    if (threads.length > 0) {
-      this.callStack.PushThread();
-      this.callStack.currentThread.callstack.length = 1;
+    } finally {
+      codec.endRead?.();
     }
-    this.readFrames(frames);
-    // Each waiting choice's thread is read as a thread of the stack, which
-    // the choice then holds apart from it.
-    const choices = Array.isArray(obj["choices"]) ? obj["choices"] : [];
-    for (const saved of choices as Record<string, any>[]) {
-      const target = this.placePosition(saved["target"]);
-      if (!target) {
-        continue;
-      }
-      this.callStack.PushThread();
-      const thread = this.callStack.currentThread;
-      thread.callstack.length = 1;
-      this.readFrames(Array.isArray(saved["frames"]) ? saved["frames"] : []);
-      this.callStack._threads.pop();
-      const choice = new ProgramChoice(
-        target,
-        this.blocksOf(target),
-        target.sequence.arrays.chunks[target.entry]!,
-        this.readPreviousFlow(saved),
-      );
-      choice.text = String(saved["text"] ?? "");
-      choice.tags = Array.isArray(saved["tags"]) ? saved["tags"].map(String) : [];
-      choice.sourcePath = String(saved["sourcePath"] ?? "");
-      choice.isInvisibleDefault = saved["isInvisibleDefault"] === true;
-      choice.threadAtGeneration = thread;
-      this.generatedChoices.push(choice);
-    }
-    this.visits = new Uint32Array(0);
-    this.turns = new Int32Array(0);
-    this.ResetCountDeltaTracking();
-    const generation = Number(obj["countGeneration"] ?? this._root.generation);
-    for (const [key, visits] of Object.entries(obj["visitCounts"] ?? {})) {
-      const id = this.countIdOfKey(key, generation);
-      if (id >= 0) {
-        this.growCounts(id);
-        this.visits[id] = Number(visits);
-      }
-    }
-    for (const [key, turn] of Object.entries(obj["turnIndices"] ?? {})) {
-      const id = this.countIdOfKey(key, generation);
-      if (id >= 0) {
-        this.growCounts(id);
-        this.turns[id] = Number(turn);
-      }
-    }
-    // A `new`-instance table saved with its class's name links again to the
-    // live class global, now that the globals are loaded.
-    JsonSerialisation.RelinkPendingDefineRefs((className) => {
-      const value = this.variablesState.GetVariableWithName(className);
-      return value instanceof ObjectValue ? value : null;
-    });
     this.ResetErrors();
     this.OutputStreamDirty();
   }
 
-  // The position a saved `[chunk id, entry, offset, sequence id]` names.
-  protected placePosition(saved: unknown): ProgramPosition | null {
+  /** Sets the visits and the turn of count id `id`, as a load reads
+   *  them. */
+  SetCount(id: number, visits: number | null, turn: number | null): void {
+    if (id < 0) {
+      return;
+    }
+    this.growCounts(id);
+    if (visits !== null) this.visits[id] = visits;
+    if (turn !== null) this.turns[id] = turn;
+  }
+
+  /** The count id a saved key names (`countIdOfKey`). */
+  CountIdOfKey(key: string, generation: number): number {
+    return this.countIdOfKey(key, generation);
+  }
+
+  /** The position a saved `[chunk id, entry, offset, sequence id]` names
+   *  in the root. */
+  placePosition(saved: unknown): ProgramPosition | null {
     if (!Array.isArray(saved)) {
       return null;
     }
@@ -1687,8 +1721,8 @@ export class ProgramStoryState {
     return { sequence: placed.sequence, entry: placed.entry, offset };
   }
 
-  // The blocks a position is inside, which follow from its sequence.
-  protected blocksOf(position: ProgramPosition | null): BlockEntry[] {
+  /** The blocks a position is inside, which follow from its sequence. */
+  blocksOf(position: ProgramPosition | null): BlockEntry[] {
     if (!position) {
       return [];
     }
@@ -1699,6 +1733,95 @@ export class ProgramStoryState {
       );
     }
     return blocks;
+  }
+}
+
+/**
+ * How a state's positions, its frames' functions, its choices' identities
+ * and its counts are written and read (`ProgramStoryState.writeState`,
+ * `readState`): within a session, by chunk id and symbol id
+ * (`SessionCodec`), or in the saved form of a durable save
+ * (`ProgramSave`).
+ */
+export interface StateCodec {
+  /** Called with the state's writer before anything is written. */
+  begin?(writer: SimpleJson.Writer): void;
+  /** Writes what the codec puts at the head of the state's object. */
+  header?(writer: SimpleJson.Writer): void;
+  /** Writes what the codec puts at the end of the state's object. */
+  end?(writer: SimpleJson.Writer): void;
+  position(writer: SimpleJson.Writer, position: ProgramPosition | null): void;
+  frameSymbol(writer: SimpleJson.Writer, symbol: number): void;
+  choiceSource(writer: SimpleJson.Writer, choice: ProgramChoice): void;
+  counts(writer: SimpleJson.Writer): void;
+  /** Places every position of a saved state, and throws when one cannot
+   *  be, before the load changes anything. */
+  check?(obj: Record<string, any>): void;
+  beginRead?(): void;
+  endRead?(): void;
+  place(saved: unknown): ProgramPosition | null;
+  readFrameSymbol(saved: Record<string, any>): number;
+  readChoiceSource(saved: Record<string, any>, target: ProgramPosition): string;
+  readCounts(obj: Record<string, any>): void;
+}
+
+/** A state as it holds within a session: positions as chunk ids, a frame's
+ *  function by the root's symbol id, a count keyed by its symbol's name or
+ *  `#<id>` for an anonymous symbol of the root's table generation, and a
+ *  choice by the address of its `Choice`. */
+class SessionCodec implements StateCodec {
+  constructor(
+    protected _state: ProgramStoryState,
+    protected _withCounts: boolean,
+  ) {}
+
+  position(writer: SimpleJson.Writer, position: ProgramPosition | null): void {
+    writePosition(writer, position);
+  }
+
+  frameSymbol(writer: SimpleJson.Writer, symbol: number): void {
+    writer.WriteIntProperty("symbol", symbol);
+  }
+
+  choiceSource(writer: SimpleJson.Writer, choice: ProgramChoice): void {
+    writer.WriteProperty("sourcePath", choice.sourcePath);
+  }
+
+  // Without its counts, the state keeps both slots empty, which a
+  // checkpoint fills with the entries it keeps apart
+  // (`CheckpointStore.injectCounts`).
+  counts(writer: SimpleJson.Writer): void {
+    const state = this._state;
+    writer.WriteIntProperty("countGeneration", state.root.generation);
+    writer.WriteProperty("visitCounts", (w) =>
+      writeCounts(w, this._withCounts ? state.GetVisitCountEntries() : []),
+    );
+    writer.WriteProperty("turnIndices", (w) =>
+      writeCounts(w, this._withCounts ? state.GetTurnIndexEntries() : []),
+    );
+  }
+
+  place(saved: unknown): ProgramPosition | null {
+    return this._state.placePosition(saved);
+  }
+
+  readFrameSymbol(saved: Record<string, any>): number {
+    return Number(saved["symbol"] ?? -1);
+  }
+
+  readChoiceSource(saved: Record<string, any>): string {
+    return String(saved["sourcePath"] ?? "");
+  }
+
+  readCounts(obj: Record<string, any>): void {
+    const state = this._state;
+    const generation = Number(obj["countGeneration"] ?? state.root.generation);
+    for (const [key, visits] of Object.entries(obj["visitCounts"] ?? {})) {
+      state.SetCount(state.CountIdOfKey(key, generation), Number(visits), null);
+    }
+    for (const [key, turn] of Object.entries(obj["turnIndices"] ?? {})) {
+      state.SetCount(state.CountIdOfKey(key, generation), null, Number(turn));
+    }
   }
 }
 
