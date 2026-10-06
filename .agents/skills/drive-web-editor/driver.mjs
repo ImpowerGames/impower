@@ -320,36 +320,121 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
   };
 }
 
-// The sandbox pre-installs a Chromium build under PLAYWRIGHT_BROWSERS_PATH
-// independently of whatever `playwright` version this repo's package.json
-// pins. When those two drift apart, `chromium.executablePath()` points at a
-// revision that was never downloaded (npm install skips the download — see
-// CLAUDE.md — so it never will be) and every launch fails with "Executable
-// doesn't exist". Fall back to whatever Chromium build the cache actually
-// has rather than the exact revision Playwright asked for.
-function resolveChromiumExecutablePath(chromium) {
-  const expected = chromium.executablePath();
-  if (expected && fs.existsSync(expected)) return undefined;
-  const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
-  if (!base || !fs.existsSync(base)) return undefined;
-  const dirs = fs
-    .readdirSync(base)
-    .filter((d) => /^chromium-\d+$/.test(d))
-    .sort((a, b) => Number(b.match(/\d+/)[0]) - Number(a.match(/\d+/)[0]));
-  const relPaths = [
-    "chrome-linux/chrome",
-    "chrome-linux64/chrome",
-    "chrome-win/chrome.exe",
-    "chrome-win64/chrome.exe",
-    "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
-  ];
-  for (const dir of dirs) {
-    for (const rel of relPaths) {
-      const p = path.join(base, dir, ...rel.split("/"));
-      if (fs.existsSync(p)) return p;
+// Which Chromium the driver launches, and why. In order:
+//   1. IMPOWER_DRIVER_CHROMIUM, an explicit executable (refused if missing);
+//   2. the build the installed `playwright` pins and would launch itself
+//      (`expected`: for a headless launch, its headless shell; see
+//      pinnedExecutable), then the pinned full build (`full`) when that differs;
+//   3. another chromium-N or chromium_headless_shell-N build in
+//      PLAYWRIGHT_BROWSERS_PATH, newest revision first: a sandbox can
+//      pre-install a revision other than the pinned one, and npm install
+//      skips the download (see CLAUDE.md), so the pinned one never arrives;
+//   4. a system Chromium on PATH, then at the usual Linux locations, for a
+//      container that ships /usr/bin/chromium but no Playwright cache (#1470).
+// Nothing found throws one line naming every place looked at. The file
+// system, environment and platform are parameters so
+// chromium-resolver.test.mjs can pin the order without a browser.
+export const SYSTEM_CHROMIUM_NAMES = ["chromium", "chromium-browser", "google-chrome"];
+export const SYSTEM_CHROMIUM_PATHS = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"];
+const CACHE_REL_PATHS = [
+  // [platform, architecture or null for any this platform runs, layout]
+  ["linux", "arm64", "chrome-linux/chrome"],
+  ["linux", "x64", "chrome-linux64/chrome"],
+  ["win32", null, "chrome-win/chrome.exe"],
+  ["win32", null, "chrome-win64/chrome.exe"],
+  ["darwin", null, "chrome-mac/Chromium.app/Contents/MacOS/Chromium"],
+  ["darwin", "arm64", "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],
+  ["darwin", null, "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],
+  ["linux", "x64", "chrome-headless-shell-linux64/chrome-headless-shell"],
+  ["linux", "arm64", "chrome-linux/headless_shell"],
+  ["win32", null, "chrome-headless-shell-win64/chrome-headless-shell.exe"],
+  ["darwin", "arm64", "chrome-headless-shell-mac-arm64/chrome-headless-shell"],
+  ["darwin", null, "chrome-headless-shell-mac-x64/chrome-headless-shell"],
+];
+// Only layouts this machine can run: a cache shared across machines can hold
+// a newer build for another OS or CPU, which would be found first and fail.
+// Playwright's registry puts linux-arm64 builds in chrome-linux and x64 in
+// chrome-linux64; Windows and macOS run x64 builds on arm64 by emulation.
+export function resolveChromium({ expected, full, env = process.env, platform = process.platform, arch = process.arch, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
+  const p = platform === "win32" ? path.win32 : path.posix;
+  const explicit = env.IMPOWER_DRIVER_CHROMIUM;
+  if (explicit) {
+    if (!exists(explicit)) throw new Error(`IMPOWER_DRIVER_CHROMIUM names ${explicit}, which does not exist; point it at a Chromium executable or unset it`);
+    return { executablePath: explicit, source: "explicit", reason: "set by IMPOWER_DRIVER_CHROMIUM" };
+  }
+  if (expected && exists(expected)) return { executablePath: expected, source: "playwright", reason: "pinned by the installed playwright" };
+  const missing = expected ? `pinned build ${expected} is missing` : "playwright names no pinned build";
+  const looked = ["IMPOWER_DRIVER_CHROMIUM (unset)", expected ? `${expected} (pinned)` : "no pinned build"];
+  if (full && full !== expected) {
+    if (exists(full)) return { executablePath: full, source: "pinned-full", reason: `${missing}; using the pinned full build` };
+    looked.push(`${full} (pinned full build)`);
+  }
+  const base = env.PLAYWRIGHT_BROWSERS_PATH;
+  if (base) {
+    looked.push(p.join(base, "chromium-*"), p.join(base, "chromium_headless_shell-*"));
+    if (exists(base)) {
+      const dirs = readdir(base)
+        .filter((d) => /^chromium(?:_headless_shell)?-\d+$/.test(d))
+        .sort((a, b) => Number(b.match(/\d+$/)[0]) - Number(a.match(/\d+$/)[0]));
+      for (const dir of dirs) {
+        for (const [os, cpu, rel] of CACHE_REL_PATHS) {
+          if (os !== platform || (cpu && cpu !== arch)) continue;
+          const candidate = p.join(base, dir, ...rel.split("/"));
+          if (exists(candidate)) return { executablePath: candidate, source: "cache", reason: `${missing}; using cached ${dir} from PLAYWRIGHT_BROWSERS_PATH` };
+        }
+      }
     }
   }
-  return undefined;
+  const exe = platform === "win32" ? ".exe" : "";
+  for (const dir of (env.PATH ?? env.Path ?? "").split(platform === "win32" ? ";" : ":").filter(Boolean)) {
+    for (const name of SYSTEM_CHROMIUM_NAMES) {
+      const candidate = p.join(dir, name + exe);
+      if (exists(candidate)) return { executablePath: candidate, source: "system", reason: `${missing}; using system ${name} found on PATH` };
+    }
+  }
+  looked.push(`${SYSTEM_CHROMIUM_NAMES.join(", ")} on PATH`);
+  if (platform !== "win32") {
+    for (const candidate of SYSTEM_CHROMIUM_PATHS) {
+      if (exists(candidate)) return { executablePath: candidate, source: "system", reason: `${missing}; using system Chromium at ${candidate}` };
+    }
+    looked.push(...SYSTEM_CHROMIUM_PATHS);
+  }
+  throw new Error(`no Chromium found; looked at: ${looked.join("; ")}. Set IMPOWER_DRIVER_CHROMIUM to a Chromium executable, or run \`npx playwright install chromium\``);
+}
+
+// The choice the last launch made, for the launch log line.
+let chromiumChoice;
+export function chromiumChoiceLine(choice = chromiumChoice) {
+  return choice ? `${choice.executablePath} (${choice.reason})` : "not resolved";
+}
+// The executable Playwright itself launches. `chromium.executablePath()`
+// names the full build (`chromium-<rev>/chrome-<platform>/...`), but a
+// headless launch with no executablePath runs the separate headless shell,
+// `chromium_headless_shell-<rev>/chrome-headless-shell-<platform>/
+// chrome-headless-shell`, and that is the build a container can lack while
+// the full one is present (#1470). A layout this does not recognise keeps
+// the full build's path.
+export function pinnedExecutable(full, { headless, platform = process.platform } = {}) {
+  if (!headless || !full) return full;
+  const p = platform === "win32" ? path.win32 : path.posix;
+  const parts = full.split(/[\\/]/);
+  const i = parts.findIndex((s) => /^chromium-\d+$/.test(s));
+  const plat = i >= 0 ? parts[i + 1]?.match(/^chrome-(.+)$/) : null;
+  if (!plat) return full;
+  const root = parts.slice(0, i).join(p.sep) || p.sep;
+  const shellDir = parts[i].replace("chromium-", "chromium_headless_shell-");
+  // Playwright's linux-arm64 builds keep the older layout: the full build in
+  // chrome-linux/chrome and the shell in chrome-linux/headless_shell.
+  if (plat[1] === "linux") return p.join(root, shellDir, "chrome-linux", "headless_shell");
+  const exe = "chrome-headless-shell" + (platform === "win32" ? ".exe" : "");
+  return p.join(root, shellDir, `chrome-headless-shell-${plat[1]}`, exe);
+}
+// Callers spread `executablePath` into Playwright's launch options; undefined
+// keeps Playwright's own default, so the normal path is unchanged.
+function resolveChromiumExecutablePath(chromium, { headless } = {}) {
+  const full = chromium.executablePath();
+  chromiumChoice = resolveChromium({ expected: pinnedExecutable(full, { headless }), full });
+  return chromiumChoice.source === "playwright" ? undefined : chromiumChoice.executablePath;
 }
 
 // ---------------------------------------------------------------- servers ---
@@ -685,10 +770,10 @@ async function preflight(args = []) {
   if (toolingOnly) console.log("SKIP  playwright chromium  — --tooling-only: nothing to boot");
   else try {
     const { chromium } = await importPlaywright();
-    const executablePath = resolveChromiumExecutablePath(chromium);
+    const executablePath = resolveChromiumExecutablePath(chromium, { headless: true });
     const b = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
     await b.close();
-    say(true, "playwright chromium", executablePath ? `launches (fallback build: ${executablePath})` : "launches");
+    say(true, "playwright chromium", `launches ${chromiumChoiceLine()}`);
   } catch (e) {
     say(false, "playwright chromium", String(e.message).split("\n")[0]);
   }
@@ -797,7 +882,8 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   if (tooDeep) throw new Error(tooDeep);
   claimProfile(dir);
   const { chromium } = await playwright();
-  const executablePath = resolveChromiumExecutablePath(chromium);
+  const executablePath = resolveChromiumExecutablePath(chromium, { headless });
+  log(`browser: ${chromiumChoiceLine()}`);
   return chromium.launchPersistentContext(dir, {
     headless,
     viewport: { width: 1600, height: 1000 },
@@ -2235,16 +2321,10 @@ async function verify(args, deps = liveDeps) {
 
       if (line) {
         const target = Number(line);
-        result.scrub = await deps.clickLine(page, target);
-        // A line CodeMirror has not rendered yet can refuse the first attempt;
-        // giving the view time to catch up and asking once more is cheap.
-        if (!result.scrub.clicked) {
-          await page.waitForTimeout(1500);
-          result.scrub = await deps.clickLine(page, target);
-        }
-
-        settle = await deps.waitForPreviewSettle(page);
-        result.route = await deps.routeLabel(page);
+        const scrubbed = await scrubPreview(page, target, deps);
+        result.scrub = scrubbed.scrub;
+        settle = scrubbed.settle;
+        result.route = scrubbed.route;
 
         // There is deliberately no "did the preview move" field here. Every
         // `verify` reloads the page, so the preview always starts at the top and
@@ -2254,11 +2334,7 @@ async function verify(args, deps = liveDeps) {
 
         // Whether the scrub landed is decided from the rendered text, not from
         // the route number. See classifyScrub.
-        result.scrubCheck = classifyScrub(
-          await deps.documentLines(page),
-          target,
-          settle.text,
-        );
+        result.scrubCheck = scrubbed.scrubCheck;
 
         if (result.scrubCheck.outcome !== "landed") {
           const scrub = result.scrub;
@@ -2440,9 +2516,164 @@ async function pressKey(page, combo) {
 }
 
 /** Focus the CodeMirror view so editor-scoped keymap bindings receive keys. */
-async function focusEditor(page) {
-  const editor = await protocolRequest(page, "editor/read");
+async function focusEditor(page, editor) {
+  editor ??= await protocolRequest(page, "editor/read");
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range: editor.selection, takeFocus: true });
+  return editor;
+}
+
+// Keys whose command edits the document asynchronously (the formatter answers
+// through the language server), so the read-back waits for a new version.
+const DOCUMENT_COMMAND_KEYS = new Set(["Shift+Alt+F", "Control+s", "Meta+s"]);
+const PRESS_TEXT_LIMIT = 8192;
+
+/**
+ * A `ui --press` step: focus the script editor first, so the key reaches the
+ * document rather than a panel or the page (panels have their own `--click`
+ * and `--close` steps), press, then read the document back so the report
+ * says whether the text changed and a reviewer can tell the command ran.
+ */
+export async function pressInEditor(page, combo, { wait = waitForDomQuiet, commandWaitMs = 5_000 } = {}) {
+  const before = await focusEditor(page);
+  const n = await pressKey(page, combo);
+  await wait(page, { quiet: 300, timeout: 4_000 });
+  let after = await protocolRequest(page, "editor/read");
+  if (DOCUMENT_COMMAND_KEYS.has(n.combo)) {
+    const deadline = Date.now() + commandWaitMs;
+    while (after.textDocument.version === before.textDocument.version && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      after = await protocolRequest(page, "editor/read");
+    }
+  }
+  const text = after.textDocument.text;
+  const changed = text !== before.textDocument.text;
+  return {
+    press: combo, sent: n.combo, rewritten: n.rewritten,
+    version: { before: before.textDocument.version, after: after.textDocument.version },
+    textChanged: changed,
+    ...(changed ? { text: text.slice(0, PRESS_TEXT_LIMIT), ...(text.length > PRESS_TEXT_LIMIT ? { textTruncated: text.length } : {}) } : {}),
+  };
+}
+
+const INSERT_TEXT_LIMIT = 4096;
+const PLAY_BUDGET_MS = 30_000;
+
+// Poll `preview/gameState` until `reached` holds or the budget runs out.
+async function waitGameState(request, reached, { timeout, now = Date.now, pause }) {
+  const end = now() + timeout;
+  let state = await request("preview/gameState");
+  while (!reached(state) && now() < end) {
+    await pause(100);
+    state = await request("preview/gameState");
+  }
+  return state;
+}
+
+/**
+ * A `ui --play start|stop` step: click the preview's PLAY or Stop control
+ * with a real pointer (as timing.mjs's startPlay does), then wait for the
+ * game's launch state to say it is running (`play` or `pause`) or back in
+ * `preview`, and for the opposite control to be on screen. A click whose
+ * state never arrives is a failed step, so `clicked: true` alone is never
+ * the evidence.
+ */
+export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
+  const start = action === "start";
+  const label = start ? "Play Game" : "Stop Game";
+  const other = start ? "Stop Game" : "Play Game";
+  const reached = (s) => (start ? s?.launchState === "play" || s?.launchState === "pause" : s?.launchState === "preview");
+  const before = await request("preview/gameState");
+  const out = { play: action, clicked: false, reached: false, launchStateBefore: before?.launchState ?? null };
+  const button = page.locator(`[aria-label="${label}"]`).first();
+  if (!(await button.isVisible().catch(() => false))) {
+    return { ...out, launchState: out.launchStateBefore, reason: `the ${label} control is not on screen (launch state ${out.launchStateBefore}); ${start ? "the game may already be running, or the preview pane is not showing" : "the game is not running"}` };
+  }
+  await button.click();
+  out.clicked = true;
+  const state = await waitGameState(request, reached, { timeout, now, pause });
+  out.launchState = state?.launchState ?? null;
+  out.running = out.launchState === "play" || out.launchState === "pause";
+  out.control = (await page.locator(`[aria-label="${other}"]`).first().isVisible().catch(() => false)) ? other : label;
+  out.reached = reached(state) && out.control === other;
+  if (!out.reached) out.reason = `PLAY was clicked but the game did not ${start ? "start" : "stop"} within ${seconds(timeout)} (launch state ${out.launchState}, control showing ${out.control})`;
+  return out;
+}
+
+/**
+ * A `ui --insert line:col=text` step: put the caret at the position and
+ * insert the text through the page's input path as one edit (Playwright's
+ * insertText, so no key handler auto-closes a bracket or opens completion),
+ * then read the document back and compare it with the expected splice. The
+ * edit is incremental, unlike a `--sd` reload, so it is how a check of the
+ * running editor's incremental compile is made; the preview's route after
+ * it settles is reported as `verify` reports it.
+ */
+export async function insertText(page, position, text, { request = (method, params) => protocolRequest(page, method, params), notify = (method, params) => protocolNotify(page, method, params), settle = waitForPreviewSettle, route = routeLabel, versionWaitMs = 5_000, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
+  const out = { insert: position, inserted: false, textMatches: false };
+  const before = await request("editor/read");
+  const source = before.textDocument.text;
+  const lines = source.split("\n");
+  if (position.line > lines.length || position.col > lines[position.line - 1].length + 1) {
+    return { ...out, reason: `position ${position.line}:${position.col} is outside the open document (${lines.length} lines); choose a line and column within its text` };
+  }
+  const point = { line: position.line - 1, character: position.col - 1 };
+  await notify("editor/select", { textDocument: { uri: before.textDocument.uri }, range: { start: point, end: point }, takeFocus: true, scrollIntoView: "center" });
+  const caret = await request("editor/read");
+  const at = { line: caret.selection.start.line + 1, col: caret.selection.start.character + 1 };
+  if (at.line !== position.line || at.col !== position.col) return { ...out, caret: at, reason: "the editor did not put the caret at the requested position" };
+  await page.keyboard.insertText(text);
+  out.inserted = true;
+  let after = await request("editor/read");
+  const end = now() + versionWaitMs;
+  while (after.textDocument.version === before.textDocument.version && now() < end) {
+    await pause(100);
+    after = await request("editor/read");
+  }
+  const offset = lines.slice(0, point.line).reduce((n, l) => n + l.length + 1, 0) + point.character;
+  const expected = source.slice(0, offset) + text + source.slice(offset);
+  const got = after.textDocument.text;
+  out.version = { before: before.textDocument.version, after: after.textDocument.version };
+  out.textMatches = got === expected;
+  const span = text.split("\n").length;
+  out.readBack = got.split("\n").slice(point.line, point.line + span).join("\n");
+  if (!out.textMatches) {
+    out.reason = out.version.after === out.version.before
+      ? "the document did not change after the insert; the editor may not have had focus"
+      : "the document read back differs from the requested insert; inspect readBack for auto-inserted characters";
+    return out;
+  }
+  const settled = await settle(page);
+  out.preview = { settled: settled.settled, route: await route(page) };
+  return out;
+}
+
+/**
+ * The scrub `verify --line` runs and the `ui --scrub` step reuses: move the
+ * editor cursor to the line through the same notifications a real click
+ * sends (clickLine), retrying once for a line the view had not rendered,
+ * then let the preview settle and classify the rendered text against it.
+ */
+export async function scrubPreview(page, target, deps) {
+  let scrub = await deps.clickLine(page, target);
+  if (!scrub.clicked && !/Stop the running preview/.test(scrub.reason ?? "")) {
+    await page.waitForTimeout(1500);
+    scrub = await deps.clickLine(page, target);
+  }
+  const settle = await deps.waitForPreviewSettle(page);
+  const route = await deps.routeLabel(page);
+  const scrubCheck = classifyScrub(await deps.documentLines(page), target, settle.text);
+  return { scrub, settle, route, scrubCheck };
+}
+
+/** The `ui --scrub <line>` step's report, built from scrubPreview. */
+export function scrubReport(target, { scrub, settle, route, scrubCheck }) {
+  const out = { scrub: target, ...scrub, route, settled: settle.settled, visible: settle.text, scrubCheck };
+  delete out.reason;
+  if (!scrub.clicked) out.reason = `the scrub to line ${target} did not run: ${scrub.reason}`;
+  else if (scrub.line !== target) out.reason = `line ${target} is past the end of the document (${scrub.totalLines} lines)`;
+  else if (scrub.position?.line !== scrub.line - 1) out.reason = `the preview did not move to line ${scrub.line} (position ${JSON.stringify(scrub.position)})`;
+  else if (scrubCheck.outcome === "elsewhere") out.reason = `the scrub to line ${target} is not confirmed by the rendered text: ${scrubCheck.reason}`;
+  return out;
 }
 
 /** Resolve while the DOM has been still for `quiet` ms, or give up at `timeout`. */
@@ -3112,7 +3343,37 @@ export async function waitLanguageSurface(page, kind, { read = readLanguageSurfa
   return surface;
 }
 
-export async function languageSurface(page, kind, position, text, { place = placeCaret, read = readLanguageSurface, wait = waitLanguageSurface, timeout = 15_000 } = {}) {
+const SEVERITY = { 1: "error", 2: "warning", 3: "information", 4: "hint" };
+
+/**
+ * The settled diagnostics whose range covers a one-based position, each
+ * with its message as plain text, its severity name and its zero-based LSP
+ * range. A range that ends at the position counts (the caret is at its end);
+ * languageSurface then aims the pointer inside the mark.
+ */
+export async function diagnosticsAt(page, position, { diagnostics = settledDiagnostics } = {}) {
+  const settled = await diagnostics(page);
+  const line = position.line - 1;
+  const character = position.col - 1;
+  const before = (a, b) => a.line < b.line || (a.line === b.line && a.character <= b.character);
+  const at = { line, character };
+  return (settled?.diagnostics ?? [])
+    .filter((d) => before(d.range.start, at) && before(at, d.range.end))
+    .map((d) => ({
+      message: typeof d.message === "string" ? d.message : d.message?.value ?? "",
+      severity: SEVERITY[d.severity] ?? d.severity ?? null,
+      range: d.range,
+    }));
+}
+
+// The lint tooltip CodeMirror shows for a diagnostic under the pointer.
+async function lintTooltip(page, timeout = 5_000) {
+  const selector = ".sparkdown-script-editor-root .cm-tooltip-lint";
+  const shown = await page.locator(selector).first().waitFor({ state: "visible", timeout }).then(() => true, () => false);
+  return { present: shown, text: shown ? await page.locator(selector).first().innerText() : null };
+}
+
+export async function languageSurface(page, kind, position, text, { place = placeCaret, read = readLanguageSurface, wait = waitLanguageSurface, timeout = 15_000, diagnostics = settledDiagnostics } = {}) {
   const empty = kind === "hover" ? { present: false } : { popupPresent: false, options: [], selected: null, infoPanelPresent: false };
   const out = { [kind]: position, ...empty };
   await page.keyboard.press("Escape");
@@ -3147,6 +3408,51 @@ export async function languageSurface(page, kind, position, text, { place = plac
     }, { kind, selectors: LANGUAGE_TARGETS }, { timeout: 10_000 }).catch(() => {});
   }
   Object.assign(out, await read(page, kind));
+  if (kind === "hover") {
+    const found = await diagnosticsAt(page, position, { diagnostics });
+    out.diagnostics = found;
+    if (found.length > 0) {
+      // CodeMirror's lint tooltip opens on a real pointer move over the
+      // marked range; one move can land before the range is measured, so
+      // a second small move follows, and the tooltip is waited for. At a
+      // mark's end the pointer sits right of the boundary, a side CodeMirror's
+      // lint hover excludes, so the move aims at the last character inside it.
+      let spot = { x: out.pointer.x + 2, y: out.pointer.y };
+      const { start, end } = found[0].range;
+      const atEnd = end.line === position.line - 1 && end.character === position.col - 1;
+      const nonEmpty = start.line < end.line || start.character < end.character;
+      if (atEnd && nonEmpty) {
+        // The last character before the end, stepping back over line breaks
+        // (an end at column 0 belongs to the line before), but not before
+        // the start.
+        const lines = (await protocolRequest(page, "editor/read")).textDocument.text.split("\n");
+        let line = end.line;
+        let character = end.character;
+        let at = null;
+        while (line > start.line || character > start.character) {
+          if (character === 0) {
+            line -= 1;
+            character = (lines[line] ?? "").length;
+            continue;
+          }
+          at = { line, character: character - 1 };
+          break;
+        }
+        if (at) {
+          const inside = await protocolRequest(page, "editor/read", { position: at });
+          const rect = inside.coordinates;
+          if (rect) spot = { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+        }
+      }
+      out.tooltipPointer = spot;
+      await page.mouse.move(spot.x, spot.y, { steps: 2 });
+      out.diagnosticTooltip = await lintTooltip(page);
+      if (!out.diagnosticTooltip.present) {
+        out.reason = `a diagnostic is at this position (${found[0].message}) but its tooltip did not open under the pointer`;
+      }
+      return out;
+    }
+  }
   if (!(kind === "hover" ? out.present : out.popupPresent)) {
     out.serverResponse ??= "unobserved";
     out.reason = kind === "hover" ? "The language server returned no hover at this position" : "Completion did not appear; inspect the screenshot and requested position";
@@ -3229,6 +3535,29 @@ export function parseUiSteps(args) {
         const eq = spec.indexOf("=");
         if (eq < 0 || !spec.slice(eq + 1)) bad("--complete needs position=text with non-empty text");
         steps.push({ complete: parsePosition(spec.slice(0, eq)), text: spec.slice(eq + 1) });
+        break;
+      }
+      case "--insert": {
+        const spec = value();
+        const eq = spec.indexOf("=");
+        if (eq < 0) bad("--insert needs line:col=text");
+        // `\n` is a line break and `\\` a backslash, so any text, a literal
+        // backslash-n included, has a spelling.
+        const text = spec.slice(eq + 1).replace(/\\([\\n])/g, (_, c) => (c === "n" ? "\n" : "\\"));
+        if (!text || text.length > INSERT_TEXT_LIMIT) bad(`--insert text must be 1..${INSERT_TEXT_LIMIT} characters`);
+        steps.push({ insert: parsePosition(spec.slice(0, eq)), text });
+        break;
+      }
+      case "--play": {
+        const v = value();
+        if (v !== "start" && v !== "stop") bad(`--play takes start or stop, got "${v}"`);
+        steps.push({ play: v });
+        break;
+      }
+      case "--scrub": {
+        const v = value();
+        if (!/^\d+$/.test(v) || !Number.isSafeInteger(Number(v)) || Number(v) < 1) bad(`--scrub needs a positive line number, got "${v}"`);
+        steps.push({ scrub: Number(v) });
         break;
       }
       case "--sd":
@@ -3330,6 +3659,9 @@ function gatedStep(step, reason) {
   if (step.shotOf) return { of: step.shotOf, screenshot: null, ...gated };
   if (step.hover) return { hover: step.hover, present: false, ...gated };
   if (step.complete) return { completion: step.complete, popupPresent: false, ...gated };
+  if (step.play) return { play: step.play, clicked: false, reached: false, ...gated };
+  if (step.insert) return { insert: step.insert, inserted: false, textMatches: false, ...gated };
+  if (step.scrub) return { scrub: step.scrub, clicked: false, ...gated };
   return { ...step, ...gated };
 }
 
@@ -3568,9 +3900,16 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
-            const n = await pressKey(page, step.press);
-            await deps.waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
-            result.steps.push({ press: step.press, sent: n.combo, rewritten: n.rewritten });
+            result.steps.push(await pressInEditor(page, step.press, { wait: deps.waitForDomQuiet }));
+          } else if (step.play || step.insert || step.scrub) {
+            const ready = await requireEditor(page, step.play ? "PLAY" : step.insert ? "insert" : "scrub", stepNo);
+            if (ready.ok === false) {
+              result.steps.push(gatedStep(step, ready.reason));
+              continue;
+            }
+            if (step.play) result.steps.push(await playPreview(page, step.play));
+            else if (step.insert) result.steps.push(await insertText(page, step.insert, step.text, { settle: deps.waitForPreviewSettle, route: deps.routeLabel }));
+            else result.steps.push(scrubReport(step.scrub, await scrubPreview(page, step.scrub, deps)));
           } else if (step.click) {
             result.steps.push(await clickSurfaceButton(page, step.click));
           } else if (step.toggle) {
@@ -3834,6 +4173,7 @@ switch (cmd) {
     await measure(rest, {
       importPlaywright,
       resolveChromiumExecutablePath,
+      chromiumChoiceLine,
       withEditor,
       openEditorPage,
       reloadEditorPage,
@@ -3856,6 +4196,7 @@ switch (cmd) {
     await timing(rest, {
       importPlaywright,
       resolveChromiumExecutablePath,
+      chromiumChoiceLine,
       withEditor,
       openEditorPage,
       reloadEditorPage,
