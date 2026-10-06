@@ -76,6 +76,45 @@ export function validateReviewRecovery(config) {
 
 const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
 
+// A review step's lens is the value scripts/build-review-prompt.mjs received.
+// An author-experience lens needs the editor, so a lens step that declares no
+// editor operation gains the author grant here, before the plan is validated.
+export const authorExperienceLenses = ["author-experience", "author-experience (short)"];
+export const authorEditorGrant = Object.freeze({ id: "author", kind: "editor", maxRequests: 20, timeoutSeconds: 600 });
+export function applyLensEditorGrant(config) {
+  for (const [name, step] of Object.entries(config.steps ?? {})) {
+    if (!step || typeof step !== "object" || step.lens === undefined) continue;
+    if (step.role !== "review") throw new Error(`Step ${name} lens is only supported on review steps`);
+    if (typeof step.lens !== "string" || !step.lens.trim()) throw new Error(`Step ${name} lens must be the non-empty lens its prompt was built with`);
+    if (typeof step.prompt === "string" && fs.existsSync(step.prompt)) {
+      const heading = /### Adversarial review — (.+?) \(<MODEL>\)/.exec(fs.readFileSync(step.prompt, "utf8"))?.[1];
+      if (heading !== undefined && heading !== step.lens) throw new Error(`Step ${name} lens ${step.lens} disagrees with its prompt heading ${heading}`);
+    }
+    const lenses = step.lens.split(",").map((lens) => lens.trim());
+    if (!lenses.some((lens) => authorExperienceLenses.includes(lens))) continue;
+    if (step.execution !== undefined && !Array.isArray(step.execution)) continue;
+    if ((step.execution ?? []).some((op) => op?.kind === "editor")) continue;
+    step.execution = [...(step.execution ?? []), { ...authorEditorGrant }];
+  }
+}
+
+// The coordinator environment runs the delegated editor, so its driver
+// preflight must pass before a reviewer is spent discovering it cannot.
+export async function driverPreflight({ cwd, env }) {
+  const driver = path.join(cwd, ".agents", "skills", "drive-web-editor", "driver.mjs");
+  return await new Promise((resolve) => {
+    let output = "";
+    const child = spawn(process.execPath, [driver, "preflight"], { cwd, env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    child.stdout.on("data", (chunk) => { output += chunk; });
+    child.stderr.on("data", (chunk) => { output += chunk; });
+    child.on("error", (error) => resolve({ passed: false, failing: [`driver preflight did not start: ${error.message}`] }));
+    child.on("close", (code) => {
+      const failing = output.split(/\r?\n/).filter((line) => /^FAIL\b/.test(line.trim())).map((line) => line.trim());
+      resolve({ passed: code === 0 && !failing.length, failing: failing.length ? failing : code === 0 ? [] : [`driver preflight exited ${code}`] });
+    });
+  });
+}
+
 // Checks the fields the chain reads only later, so a malformed plan is refused
 // before any lock, journal, slot or child exists.
 export function validatePlanShape(config) {
@@ -341,8 +380,9 @@ export async function runHandoff(configFile, options = {}) {
   finally { withheld.restore(); }
 }
 
-async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs } = {}, withheld) {
+async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs, editorPreflight = driverPreflight } = {}, withheld) {
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
+  applyLensEditorGrant(config);
   validatePlanShape(config);
   const cwd = fs.realpathSync.native(config.worktree);
   const journal = path.resolve(config.journal);
@@ -394,8 +434,12 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     } else throw new Error("Launch must explicitly select its model or a checked pinned agent definition");
     if (!Array.isArray(step.next) || !step.next.length || !step.next.every((name) => name === null || Object.hasOwn(config.steps, name))) throw new Error("Each step needs declared next transitions");
   }
+  if (Object.values(config.steps).some((step) => step.execution?.some((op) => op.kind === "editor"))) {
+    const preflight = await editorPreflight({ cwd, env: probeEnv });
+    if (!preflight?.passed) throw new Error(`Editor driver preflight failed before launch: ${(preflight?.failing ?? []).join("; ") || "no passing result"}; repair the coordinator environment (run node .agents/skills/drive-web-editor/driver.mjs preflight) before granting an editor operation`);
+  }
   fs.mkdirSync(path.dirname(journal), { recursive: true });
-  const lock = git(cwd,['rev-parse','--path-format=absolute','--git-path','agent-handoff.lock']);
+  const lock =git(cwd,['rev-parse','--path-format=absolute','--git-path','agent-handoff.lock']);
   let owner;
   try { owner = fs.openSync(lock, "wx"); }
   catch(error) {
@@ -491,7 +535,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       };
       const executionClient = executionClientCommand(cwd);
       const executionPrompt = step.execution ? `\nLauncher execution service: the caller authorized these operations: ${step.execution.map(op => op.id).join(", ")}. Use the command ${executionClient} with no argument to list their exact commands. For tests and benchmarks, one operation ID requests and awaits its fixed-input result; each such ID runs once and later requests return its retained result. Editor operations instead require the bounded request JSON described below, with a separate requestId for each attempt. Requests execute outside the reviewer sandbox through the coordinator, against reviewed head ${head}; Vitest retains its machine-wide reservation and process census. Read the actual test summaries or benchmark report in output; exit zero alone does not establish coverage. Do not print the service environment token. Other commands, arbitrary flags, external projects and reviewer-authored probes are not delegated.\n` : "";
-      const accessPrompt = step.nativeResult === "codex-jsonl" && codexReviewMode(step) === "full-access" ? `\nExecution access: you run without a sandbox, as the user, under the repository's shared hook policy (typed issues, shared stash, local test runs, write hazards). The reviewed checkout ${cwd} is frozen: do not modify it. For executable evidence, clone reviewed head ${head} into your private directory, install dependencies there with PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1, and run tests, including probes you write, only through node scripts/test-suite.mjs run <package> <test-file> [test-file ...] --wait <seconds>, which takes the machine-wide reservation. Record each command and its result in your report.\n` : "";
+      const accessPrompt = step.nativeResult === "codex-jsonl" && codexReviewMode(step) === "full-access" ? `\nExecution access: you run without a sandbox, as the user, under the repository's shared hook policy (typed issues, shared stash, local test runs, write hazards). The reviewed checkout ${cwd} is frozen: do not modify it. For executable evidence, clone reviewed head ${head} into your private directory, install dependencies there with PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1, and run tests, including probes you write, only through node scripts/test-suite.mjs run <package> <test-file> [test-file ...] --wait <seconds>, which takes the machine-wide reservation. Record each command and its result in your report.${step.execution?.some(op => op.kind === "editor") ? ` For the editor, the delegated operation described below is the primary route. As a secondary route, the drive-web-editor skill is at ${path.join(cwd, ".agents", "skills", "drive-web-editor", "SKILL.md")}; running its driver from the frozen checkout is permitted, because driver state and the browser profile live outside the checkout.` : ""}\n` : "";
       const editorPrompt = step.execution?.some(op => op.kind === "editor") ? `\nEditor delegation: read ${path.join(cwd, ".agents/skills/review-pr/references/editor-delegation.md")}. For an editor operation, use ${executionClient} <operation-id> <absolute-request.json>. Write that JSON with your editor tool in your private directory. The coordinator starts the supported editor/player driver, applies bounded UI data and returns its transcript. The client saves PNG copies in your current private directory; open and inspect those images. Each requestId runs once; use a fresh requestId for a new attempt and repeat the identical request to retrieve retained evidence. The operation's maxRequests bounds attempts. The coordinator owns and stops this separate session after your process exits. Do not run up/down directly for this delegation or claim the lens was performed without inspecting successful task evidence and screenshots.\n` : "";
       try {
         if (step.execution) {
