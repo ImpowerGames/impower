@@ -103,13 +103,11 @@ describe.each(["LF", "CRLF"])("Luau's errors after a line-ending operator (%s)",
     expect(compile(lines(source)).errors.map((e) => e.message)).toContain("Expected identifier when parsing expression, got <eof>");
   });
 
-  // A comment after the arm leaves it empty: the next line's assignment is
-  // still not read as its value. Only the error's line is compared; its
-  // wording there differs from Luau's for a reason this change does not touch.
-  test("keeps an empty else arm with a comment after it apart from the next assignment", () => {
+  // A comment after `else` is skipped as Luau skips it: the arm reads the
+  // next line's `b` and the error falls on its `=` with Luau's wording (#1432).
+  test("reports an else arm with a comment after it at the next assignment's `=`", () => {
     const source = "function f()\n  local a = if true then 1 else -- note\n  b = 2\n  return a\nend\n";
-    expect(officialSyntaxErrors(source)).toHaveLength(1);
-    expect(compile(lines(source)).errors.map((e) => e.line)).toEqual([1]);
+    expect(compile(lines(source)).errors).toEqual(officialErrors(source));
   });
 
   test("keeps the missing else of an empty then arm before an assignment", () => {
