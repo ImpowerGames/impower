@@ -1534,16 +1534,25 @@ export class ChunkStore {
       alternating: number[];
     }
     const byIdentity = new Map<string, { free: number[]; held: Held }>();
+    // Each old chunk's lists, found once: a chunk an exchange passes on is
+    // filed again, and its identity, whose length grows with its bodies, is
+    // not looked up again.
+    const chunkLists = new Map<number, { free: number[]; held: Held } | null>();
     const listOf = (o: number) => {
+      const known = chunkLists.get(o);
+      if (known !== undefined) {
+        return known ?? undefined;
+      }
       const identity = this.chunkIdentity(old[o]!);
-      if (identity === undefined || !factsHold(old[o]!)) {
-        return undefined;
+      let lists: { free: number[]; held: Held } | undefined;
+      if (identity !== undefined && factsHold(old[o]!)) {
+        lists = byIdentity.get(identity);
+        if (!lists) {
+          lists = { free: [], held: { bySyntax: new Map(), bodied: [], alternating: [] } };
+          byIdentity.set(identity, lists);
+        }
       }
-      let lists = byIdentity.get(identity);
-      if (!lists) {
-        lists = { free: [], held: { bySyntax: new Map(), bodied: [], alternating: [] } };
-        byIdentity.set(identity, lists);
-      }
+      chunkLists.set(o, lists ?? null);
       return lists;
     };
     const fileHeld = (o: number) => {

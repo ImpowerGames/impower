@@ -22,7 +22,14 @@ import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
 import { internSymbol, SymbolKind } from "../../program/ProgramSymbols";
-import { B_SEQUENCE, blockField, exportSymbol } from "../../program/StatementChunk";
+import {
+  BLOCK_ROW_WORDS,
+  B_SEQUENCE,
+  blockField,
+  exportSymbol,
+  HEADER_WORDS,
+  H_BLOCK_ROWS,
+} from "../../program/StatementChunk";
 import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 import { programStatements, uniqueKeys, untouchedChunks } from "./programStatements";
 
@@ -740,6 +747,92 @@ describe("block statements an edit reorders", () => {
     identityReads = 0;
     expect(store.build(flow(now), true).fallback).toBeUndefined();
     expect(identityReads).toBeLessThan(20);
+  });
+
+  it("look up a large old chunk's identity once while exchanges pass it on", () => {
+    // Old `[big, anchor0, x0, anchor1, …, x(N-1), anchorN, bigCopy]` and new
+    // `[x0, anchor0, x1, …, changed, anchorN]`, aligned directly: `big`, whose
+    // N bodies make its identity long, is paired with `x0` by position and
+    // passed on by each exchange in which a requester keeps its own `xK`.
+    // The identity of `big` is looked up once, not once per exchange.
+    const n = 1024;
+    class Measured extends ChunkStore {
+      longKeys = 0;
+      make(syntax: string, bodies: number) {
+        const chunk = new Int32Array(HEADER_WORDS + bodies * BLOCK_ROW_WORDS);
+        chunk[H_BLOCK_ROWS] = bodies;
+        this._info.set(chunk, {
+          syntax,
+          reads: "[]",
+          emitReads: [],
+          resolutions: [],
+          parts: [],
+          alternators: [],
+          anonymousReferences: [],
+          hoisted: "",
+          params: "",
+          generation: this.table.generation,
+        });
+        return chunk;
+      }
+      run(
+        statements: StatementSource[],
+        old: Int32Array[],
+        kept: (Int32Array | undefined)[],
+      ) {
+        this._used = new Set(kept.filter((chunk): chunk is Int32Array => !!chunk));
+        this._inherit = new Map();
+        const get = Map.prototype.get;
+        const self = this;
+        Map.prototype.get = function (this: Map<unknown, unknown>, key: unknown) {
+          if (typeof key === "string" && key.length > 5 * n) {
+            self.longKeys += 1;
+          }
+          return get.call(this, key);
+        };
+        try {
+          return this.align(statements, old, kept);
+        } finally {
+          Map.prototype.get = get;
+        }
+      }
+    }
+    const source = (syntax: string, bodies: number): StatementSource => ({
+      block: {},
+      objects: [],
+      range: null,
+      firstLine: 0,
+      source: () => syntax,
+      syntax: () => syntax,
+      reads: "[]",
+      bodies: Array.from({ length: bodies }, () => ({
+        shape: {},
+        statements: [],
+        firstLine: 0,
+        span: 1,
+        headLines: 0,
+      })),
+    }) as unknown as StatementSource;
+    const store = new Measured();
+    const old: Int32Array[] = [store.make("big", n)];
+    const now: StatementSource[] = [];
+    const kept: (Int32Array | undefined)[] = [];
+    const xs: Int32Array[] = [];
+    for (let k = 0; k <= n; k += 1) {
+      now.push(source(k < n ? `x${k}` : "changed", 1), source(`anchor${k}`, 0));
+      const anchor = store.make(`anchor${k}`, 0);
+      old.push(anchor);
+      kept.push(undefined, anchor);
+      if (k < n) {
+        const x = store.make(`x${k}`, 1);
+        xs.push(x);
+        old.push(x);
+      }
+    }
+    old.push(store.make("big", n));
+    const result = store.run(now, old, kept);
+    expect(xs.every((x, k) => result[2 * k] === x)).toBe(true);
+    expect(store.longKeys).toBeLessThan(5);
   });
 
   it("are aligned in lookups linear in their number when no exchange can be made", () => {
