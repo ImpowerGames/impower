@@ -233,6 +233,30 @@ describe("the checkpoints of a game on the program engine", () => {
     expect(game.save()).toBe(before);
   });
 
+  // Round 1 of the review of #1579 (report 6017530237): a save the story
+  // places but cannot read ended the line in progress before it failed.
+  it("refuse a save malformed past its placement with a line in progress, which stays in progress", () => {
+    const { program, story } = compiler(TEXTS).compile();
+    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    drive(game);
+    const malformed = JSON.parse(game.checkpoints.getJson(5)!);
+    const inner = JSON.parse(malformed.story);
+    inner.counts = [null];
+    malformed.story = JSON.stringify(inner);
+    malformed.modules.core = { ...malformed.modules.core, marker: "from the refused save" };
+    const engine = game.story as unknown as ProgramStory;
+    engine.ChoosePathString("MAIN");
+    engine.ContinueAsync();
+    expect(engine.asyncContinueComplete).toBe(false);
+    const state = engine.state.toJson();
+    const core = () => JSON.stringify((game as any)._modules.core?.state);
+    const modules = core();
+    expect(game.load(JSON.stringify(malformed))).toBe(false);
+    expect(engine.asyncContinueComplete).toBe(false);
+    expect(engine.state.toJson()).toBe(state);
+    expect(core()).toBe(modules);
+  });
+
   it("restore in place after a compile for every statement it kept, and report one it emitted again unplaced", () => {
     const text = [
       "store seen = 0",

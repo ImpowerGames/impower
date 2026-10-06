@@ -613,7 +613,15 @@ export const restoreImage = (
   }
   state.installPositional(placed);
   state.ResetCountDeltaTracking();
-  tracker.reset(image);
+  // An image of this engine and generation is the state's base. One of
+  // another engine (whose compiled constants the restore replaced) or of an
+  // older table generation (whose count ids it remapped) holds keyed state
+  // the state does not, so the next capture is a keyframe.
+  tracker.reset(
+    image.engine === engine && image.generation === root.generation
+      ? image
+      : null,
+  );
   return true;
 };
 
@@ -704,44 +712,65 @@ const keysOf = (deltas: readonly ProgramImage[], into?: Keys): Keys => {
  * whole.
  */
 const keysBetween = (tracker: ImageTracker, image: ProgramImage): Keys | null => {
-  const onImageChain = new Set(chainOf(image));
-  const up: ProgramImage[] = [];
-  const bridges: Keys[] = [];
-  let at: ProgramImage | null = tracker.base;
-  // Up from the base to the image's chain: through the deltas, and across
-  // each keyframe to the image it was taken on, while something holds it.
-  while (at && !onImageChain.has(at)) {
-    if (at.keyframe === at) {
-      if (!at.bridge) {
-        return null;
-      }
-      bridges.push(at.bridge);
-      at = at.previous?.deref() ?? null;
-    } else {
-      up.push(at);
-      at = at.parent;
-    }
-  }
-  if (!at) {
+  if (!tracker.base) {
     return null;
   }
-  const meet = at;
-  const down: ProgramImage[] = [];
-  for (let d: ProgramImage = image; d !== meet; d = d.parent!) {
-    down.push(d);
+  // Each side's ancestry, up through its deltas, and across each keyframe
+  // to the image it was taken on, while something holds it, walked a step
+  // at a time on both sides until one reaches an image the other passed,
+  // so that the walk costs the path between them.
+  const sides = [tracker.base, image].map((start) => ({
+    at: start as ProgramImage | null,
+    steps: [] as ProgramImage[],
+    seen: new Map<ProgramImage, number>(),
+  }));
+  let meet: { side: number; other: number } | null = null;
+  while (!meet && (sides[0]!.at || sides[1]!.at)) {
+    for (let s = 0; s < 2 && !meet; s += 1) {
+      const side = sides[s]!;
+      const at = side.at;
+      if (!at) continue;
+      const other = sides[1 - s]!.seen.get(at);
+      if (other !== undefined) {
+        meet = { side: s, other };
+        break;
+      }
+      side.seen.set(at, side.steps.length);
+      side.steps.push(at);
+      side.at = stepBefore(at);
+    }
   }
-  const keys = keysOf([...up, ...down]);
-  for (const bridge of bridges) {
-    for (const id of bridge.counts) keys.counts.add(id);
-    for (const name of bridge.globals) keys.globals.add(name);
-    for (const table of bridge.tables) keys.tables.add(table);
-    for (const cell of bridge.cells) keys.cells.add(cell);
+  if (!meet) {
+    return null;
+  }
+  const keys = keysOf([]);
+  const self = sides[meet.side]!.steps;
+  const other = sides[1 - meet.side]!.steps.slice(0, meet.other);
+  for (const at of [...self, ...other]) {
+    addKeys(keys, at.keyframe === at ? at.bridge : keysOf([at]));
   }
   for (const id of tracker.counts) keys.counts.add(id);
   for (const name of tracker.globals) keys.globals.add(name);
   for (const table of tracker.tables) keys.tables.add(table);
   for (const cell of tracker.cells) keys.cells.add(cell);
   return keys;
+};
+
+// The image before `image` on its ancestry: a delta's parent, or the image a
+// keyframe was taken on while something holds it.
+const stepBefore = (image: ProgramImage): ProgramImage | null =>
+  image.keyframe === image
+    ? image.bridge
+      ? (image.previous?.deref() ?? null)
+      : null
+    : image.parent;
+
+const addKeys = (into: Keys, keys: Keys | null): void => {
+  if (!keys) return;
+  for (const id of keys.counts) into.counts.add(id);
+  for (const name of keys.globals) into.globals.add(name);
+  for (const table of keys.tables) into.tables.add(table);
+  for (const cell of keys.cells) into.cells.add(cell);
 };
 
 // Gives `keys` the values `image` holds for them.
@@ -882,7 +911,7 @@ export const imageDigest = (image: ProgramImage): string => {
   for (const name of [...keys.globals].sort()) {
     const now = globalIn(chain, name);
     const then = keyframe.globals.get(name);
-    if (now !== then && values.hash(now) !== values.hash(then)) {
+    if (!sameValue(now, then, image)) {
       out.add(`g${name}=${values.hash(now)}`);
     }
   }
@@ -890,7 +919,7 @@ export const imageDigest = (image: ProgramImage): string => {
   for (const table of keys.tables) {
     const now = tableIn(chain, table, image.images);
     const then = keyframe.tables.get(table) ?? image.images.pristineTable(table);
-    if (now && (!then || !sameTable(now, then, values))) {
+    if (now && (!then || !sameTable(now, then, image))) {
       changed.push(`t${image.images.identityOf(table)}=${values.copy(now)}`);
     }
   }
@@ -901,7 +930,7 @@ export const imageDigest = (image: ProgramImage): string => {
       now &&
       (!then ||
         now.closed !== then.closed ||
-        values.hash(now.value) !== values.hash(then.value))
+        !sameValue(now.value, then.value, image))
     ) {
       changed.push(
         `c${image.images.identityOf(cell)}=${now.closed}:${values.hash(now.value)}`,
@@ -912,8 +941,20 @@ export const imageDigest = (image: ProgramImage): string => {
   return out.digest();
 };
 
+// Whether two values are the same: the same object, or two that read the
+// same, each read by a hasher of its own so that neither's references
+// change how the other reads.
+const sameValue = (
+  a: InkObject | null | undefined,
+  b: InkObject | null | undefined,
+  image: ProgramImage,
+): boolean =>
+  a === b ||
+  new ValueHasher(image.images, image.keyframe.reached).hash(a) ===
+    new ValueHasher(image.images, image.keyframe.reached).hash(b);
+
 // Whether two copies of a table hold the same.
-const sameTable = (a: TableCopy, b: TableCopy, values: ValueHasher): boolean => {
+const sameTable = (a: TableCopy, b: TableCopy, image: ProgramImage): boolean => {
   if (
     a.metatable !== b.metatable ||
     a.frozen !== b.frozen ||
@@ -924,8 +965,7 @@ const sameTable = (a: TableCopy, b: TableCopy, values: ValueHasher): boolean => 
     return false;
   }
   for (const [key, value] of a.entries ?? []) {
-    const other = b.entries!.get(key);
-    if (other !== value && values.hash(other) !== values.hash(value)) {
+    if (!sameValue(value, b.entries!.get(key), image)) {
       return false;
     }
   }
@@ -953,19 +993,23 @@ class ValueHasher {
       if (this._stable?.has(obj)) {
         return `#${this._images.identityOf(obj)}`;
       }
+      // The first reference reads as the reference and what it holds, and
+      // every later one as the reference, as `objid` and `objref` read in
+      // the JSON: one table two variables hold reads apart from two tables
+      // that hold the same.
       const seen = this._seen.get(obj);
       if (seen !== undefined) {
         return seen;
       }
-      this._seen.set(obj, `@${this._next++}`);
+      const ref = `@${this._next++}`;
+      this._seen.set(obj, ref);
       const hash =
         obj instanceof ObjectValue
           ? this.copy(copyTable(obj))
           : obj.isClosed
             ? `C(${this.hash(obj.closedValue)})`
             : `V(${obj.variableName}:${obj.contextIndex}:${obj.scopeIndex})`;
-      this._seen.set(obj, hash);
-      return hash;
+      return `${ref}=${hash}`;
     }
     const multi = obj as { values?: unknown };
     if (Array.isArray(multi.values)) {

@@ -1866,9 +1866,10 @@ export class Game<T extends M = {}> {
       if (program && saveData.story) {
         // The program engine places the save, or refuses it, before
         // anything of the game changes: the story first, which puts itself
-        // back when it fails past the placement, then the modules.
+        // back, line in progress included, when it fails past the
+        // placement, and ends the line in progress when it succeeds; then
+        // the modules.
         program.checkSave(saveData.story);
-        this.discardOpenStoryLine();
         program.loadSave(saveData.story);
         this.restoreReactiveTracking();
       }

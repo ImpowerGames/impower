@@ -468,9 +468,12 @@ export class ProgramStory {
    * goes through its migration.
    */
   loadSave(json: string): SaveHeader {
-    this.IfAsyncWeCant("load a save");
+    if (this._recursiveContinueCount > 0) {
+      throw new Error("Can't load a save from inside a Continue.");
+    }
     // A save is placed before anything changes; one that fails past that,
-    // on a malformed value, puts back the state as it stood.
+    // on a malformed value, puts back the state as it stood, with a line in
+    // progress still in progress. A load that succeeds ends the line.
     this.enableImages();
     const held = this._state.beatImage;
     const before = this.capture();
@@ -484,6 +487,7 @@ export class ProgramStory {
       this._state.beatImage = held;
       throw e;
     }
+    this.CancelAsyncContinue();
     this._stateIsPristine = false;
     this.loadedSaveHeader = header;
     return header;

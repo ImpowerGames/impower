@@ -593,3 +593,114 @@ describe("the digest and restores a route search reads", () => {
     expect(stats.wholeRestores).toBe(before);
   });
 });
+
+// Round 1 of the review of #1579 (report 6017530237).
+describe("images across engines, aliases and keyframes", () => {
+  it("takes a keyframe after restoring an image of an older table generation, so the counts it remapped stay remapped", () => {
+    const text = [
+      "scene early",
+      "  Early.",
+      "end",
+      "",
+      "-> here",
+      "",
+      "scene here",
+      "  Here {here}.",
+      "end",
+      "",
+    ].join("\n");
+    const s = programSession(text);
+    const played = s.edit("scene early\n  Early.\nend\n\n", "");
+    const game = sharing(played);
+    expect(next(game, 10)).toEqual(["Here 1."]);
+    const ended = game.capture();
+    s.reseed();
+    const reseeded = s.edit("  Here {here}.", "  Here! {here}.");
+    expect(reseeded.table.symbolIds.get("here")).not.toBe(
+      played.table.symbolIds.get("here"),
+    );
+    const after = sharing(reseeded, game.images);
+    expect(after.restore(ended)).toBe(true);
+    const visits = () =>
+      after.state.VisitCount(
+        countIdOf(reseeded.table, reseeded.table.symbolIds.get("here")!),
+      );
+    expect(visits()).toBe(1);
+    const mark = after.capture();
+    expect(mark.keyframe).toBe(mark);
+    after.ChoosePathString("here", true);
+    expect(next(after, 10)).toEqual(["Here! 2."]);
+    expect(visits()).toBe(2);
+    expect(after.restore(mark)).toBe(true);
+    expect(visits()).toBe(1);
+  });
+
+  it("reads one table two globals hold apart from two tables that hold the same, both made since the keyframe", () => {
+    const text = [
+      "store a = nil",
+      "store b = nil",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  Begin.",
+      "  if true then",
+      "    & a = { x = 0 }",
+      "    & b = a",
+      "  else",
+      "    & a = { x = 0 }",
+      "    & b = { x = 0 }",
+      "  end",
+      "  Same.",
+      "  & a.x = 1",
+      "  Then {b.x}.",
+      "end",
+      "",
+    ].join("\n");
+    const forcing = (verdict: boolean) => ({
+      forceCondition: () => verdict,
+      forceChoice: () => null,
+      willForceCondition: () => true,
+      willForceChoice: () => false,
+      saveSnapshot: () => ({ conditionPointer: {}, choicePointer: {} }),
+    });
+    const s = story(text);
+    expect(next(s, 1)).toEqual(["Begin."]);
+    const keyframe = s.capture(true);
+    const arrive = (verdict: boolean) => {
+      expect(s.restore(keyframe)).toBe(true);
+      s.simulator = forcing(verdict);
+      expect(next(s, 1)).toEqual(["Same."]);
+      s.simulator = null;
+      return imageDigest(s.capture());
+    };
+    const shared = arrive(true);
+    expect(next(s, 1)).toEqual(["Then 1."]);
+    const apart = arrive(false);
+    expect(next(s, 1)).toEqual(["Then 0."]);
+    expect(apart).not.toBe(shared);
+    expect(arrive(true)).toBe(shared);
+  });
+
+  it("restores forward across a keyframe the run took, by the keys written between, never whole", () => {
+    const s = story(WRITES.replace("if hits < 3 then", "if hits < 40 then"));
+    const stats = s.images.stats;
+    expect(next(s, 1)).toEqual(["First 3 0."]);
+    // The first image is a keyframe; the chain grows from the next.
+    expect(s.capture().depth).toBe(0);
+    let before = s.capture();
+    expect(before.depth).toBe(1);
+    let after = before;
+    while (after.keyframe !== after) {
+      before = after;
+      next(s, 1);
+      after = s.capture();
+    }
+    const json = s.state.toJson();
+    const whole = stats.wholeRestores;
+    expect(s.restore(before)).toBe(true);
+    expect(s.restore(after)).toBe(true);
+    expect(s.state.toJson()).toBe(json);
+    expect(stats.wholeRestores).toBe(whole);
+  });
+});
