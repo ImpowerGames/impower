@@ -208,21 +208,28 @@ const choiceTexts = (story: ProgramStory) =>
   story.currentChoices.map((choice) => choice.text);
 
 describe("a save holds the values of its state", () => {
-  it("keeps a table two variables refer to, a define, a symbol value and closures that share a captured variable", () => {
+  it("keeps a table two variables refer to, a define and an instance of one, a symbol value and closures that share a captured variable", () => {
     const text = [
       "store first = { 1, 2 }",
       "store second = nil",
       "store target = -> there",
       "store inc = nil",
       "store get = nil",
+      "store pet = nil",
       "define hero as character with",
       '  name = "Hero"',
+      "end",
+      "define Bird with",
+      '  kind = "bird"',
+      "  store wings = 2",
       "end",
       "",
       "-> start",
       "",
       "scene start",
       "  & second = first",
+      "  & pet = new Bird()",
+      "  & pet.wings = 3",
       "  & local function make()",
       "  &   local n = 10",
       "  &   inc = function() n = n + 1 end",
@@ -233,7 +240,7 @@ describe("a save holds the values of its state", () => {
       "  Saved {get()} {#first} {character.hero.name}.",
       "  & table.insert(second, 3)",
       "  & inc()",
-      "  Then {get()} {#first} {first == second}.",
+      "  Then {get()} {#first} {first == second} {pet.kind} {pet.wings}.",
       "  -> target",
       "end",
       "",
@@ -249,7 +256,7 @@ describe("a save holds the values of its state", () => {
     loaded.loadSave(save);
     const vars = loaded.variablesState;
     expect(vars.GetVariableWithName("second")).toBe(vars.GetVariableWithName("first"));
-    expect(nextBeat(loaded)).toBe("Then 12 3 true.");
+    expect(nextBeat(loaded)).toBe("Then 12 3 true bird 3.");
     expect(nextBeat(loaded)).toBe("There.");
   });
 });
