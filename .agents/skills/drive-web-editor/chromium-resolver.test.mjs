@@ -100,6 +100,11 @@ function resolve(files, env = {}) {
     pinnedExecutable("/cache/chromium-1228/chrome-linux/chrome", { headless: true, platform: "linux" }),
     "/cache/chromium_headless_shell-1228/chrome-linux/headless_shell",
   );
+  // A newer build for another OS in a shared cache is skipped, not chosen.
+  const mac = "/cache/chromium-1300/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+  const linux = "/cache/chromium-1200/chrome-linux64/chrome";
+  assert.equal(resolve([mac, linux, "/usr/bin/chromium"], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, linux);
+  assert.equal(resolve([mac, "/usr/bin/chromium"], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, "/usr/bin/chromium");
   // Newest revision first across both kinds of cache directory.
   const older = "/cache/chromium-1100/chrome-linux/chrome";
   assert.equal(resolve([older, shell], { PLAYWRIGHT_BROWSERS_PATH: "/cache" }).executablePath, shell);
