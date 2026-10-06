@@ -17,6 +17,7 @@ import noUnreferencedVariable from "./rules/no-unreferenced-variable.ts";
 import noRepeatedFragment from "./rules/no-repeated-fragment.ts";
 import nameLongPatternParts from "./rules/name-long-pattern-parts.ts";
 import scopedEndHasBailout from "./rules/scoped-end-has-bailout.ts";
+import noLineCrossingClass from "./rules/no-line-crossing-class.ts";
 
 // Rules whose existing findings are baselined, keyed by rule name, then by
 // owner (`repository.Name`, `variables.NAME` or `patterns`) with the
@@ -30,6 +31,7 @@ export const BASELINED_RULES = [
   "no-repeated-fragment",
   "name-long-pattern-parts",
   "scoped-end-has-bailout",
+  "no-line-crossing-class",
 ] as const;
 
 const baseline = JSON.parse(readFileSync(BASELINE_FILE, "utf8")) as Record<
@@ -56,6 +58,7 @@ const plugin = {
     "no-repeated-fragment": noRepeatedFragment,
     "name-long-pattern-parts": nameLongPatternParts,
     "scoped-end-has-bailout": scopedEndHasBailout,
+    "no-line-crossing-class": noLineCrossingClass,
   },
   configs: {} as Record<string, unknown>,
 };
@@ -88,6 +91,9 @@ plugin.configs["recommended"] = {
     ),
     "sparkdown-grammar/scoped-end-has-bailout": withBaseline(
       "scoped-end-has-bailout",
+    ),
+    "sparkdown-grammar/no-line-crossing-class": withBaseline(
+      "no-line-crossing-class",
     ),
   },
 };

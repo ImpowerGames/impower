@@ -520,7 +520,14 @@ variables:
   # Restored value/selector highlighting helpers (pre-Luau-port leaf rules).
   INTEGER: "[0-9]+"
   NUMBER: (?:[-]?(?:\d*[.])?\d+)
-  QUOTED_STRING: (?:["](?:\\.|[^"\r\n])*["])
+  # One character inside quotes or a command's brackets: an escape, or any
+  # character but the closer and a line break, so the text stays on its
+  # line (GRAMMAR.md §11.5).
+  DOUBLE_QUOTED_CHAR: (?:\\.|[^"\r\n])
+  SINGLE_QUOTED_CHAR: (?:\.|[^'\r\n])
+  IMAGE_COMMAND_CHAR: (?:\\.|[^\]\r\n])
+  AUDIO_COMMAND_CHAR: (?:\\.|[^)\r\n])
+  QUOTED_STRING: (?:["]{{DOUBLE_QUOTED_CHAR}}*["])
   STRICT_PROPERTY_IDENTIFIER: (?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
@@ -1676,7 +1683,7 @@ repository:
     #      it by name (§6.4) — `Choice_begin_c6` would otherwise be
     #      auto-generated and unstable.
     #   7: optional trailing newline
-    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:[(][^()]*[)]|{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*))(?={{WS}}|$))?(\r\n|\r|\n)?
+    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()\r\n]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:[(][^()\r\n]*[)]|{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*))(?={{WS}}|$))?(\r\n|\r|\n)?
     beginCaptures:
       1:
         patterns:
@@ -1716,7 +1723,7 @@ repository:
 
   ChoiceConditional:
     name: entity.choice.sd
-    match: ^({{WS}}*)((?:[{][^{}]*[}]{{WS}}*)+)(\r\n|\r|\n)
+    match: ^({{WS}}*)((?:[{][^{}\r\n]*[}]{{WS}}*)+)(\r\n|\r|\n)
     captures:
       1:
         patterns:
@@ -2866,7 +2873,7 @@ repository:
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*)({{WS}}[(][^()]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*)({{WS}}[(][^()\r\n]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
     captures:
       1:
         patterns:
@@ -2902,7 +2909,7 @@ repository:
   DialogueCharacterParenthetical:
     tag: escape
     name: constant.character.escape.dialogue.character.parenthetical.sd
-    match: ({{WS}})([(])({{WS}}*)([^()]*?)({{WS}}*)([)])({{WS}}*)
+    match: ({{WS}})([(])({{WS}}*)([^()\r\n]*?)({{WS}}*)([)])({{WS}}*)
     captures:
       1:
         patterns:
@@ -3107,7 +3114,7 @@ repository:
     # alternative inside a star makes a failing match explore every partition
     # of a whitespace run (catastrophic backtracking: ~15s on a line with 28
     # leading spaces). See issue #280 and grammarRegexSafety.test.ts.
-    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()\r\n]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
     captures:
       1:
         patterns:
@@ -3137,7 +3144,7 @@ repository:
   ParentheticalLineContent:
     tag: escape
     name: constant.character.escape.sd
-    match: ({{WS}}*)([(])({{WS}}*)([^()]*?)({{WS}}*)([)])({{WS}}*)
+    match: ({{WS}}*)([(])({{WS}}*)([^()\r\n]*?)({{WS}}*)([)])({{WS}}*)
     captures:
       1:
         patterns:
@@ -3274,7 +3281,7 @@ repository:
   ########## Commands ##########
 
   ImageLine:
-    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|{{WS}}+)+)({{EOL}})
+    match: ^({{WS}}*)(?=\S)((?:\[\[{{IMAGE_COMMAND_CHAR}}*?\]\]|{{WS}}+)+)({{EOL}})
     captures:
       1:
         patterns:
@@ -3288,7 +3295,7 @@ repository:
           - { include: "#EndOfLine" }
 
   AudioLine:
-    match: ^({{WS}}*)(?=\S)((?:[(][(](?:\\.|[^)])*?[)][)]|{{WS}}+)+)({{EOL}})
+    match: ^({{WS}}*)(?=\S)((?:[(][(]{{AUDIO_COMMAND_CHAR}}*?[)][)]|{{WS}}+)+)({{EOL}})
     captures:
       1:
         patterns:
@@ -3302,7 +3309,7 @@ repository:
           - { include: "#EndOfLine" }
 
   ImageAndAudioLine:
-    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|{{WS}}+)+)({{EOL}})
+    match: ^({{WS}}*)(?=\S)((?:\[\[{{IMAGE_COMMAND_CHAR}}*?\]\]|[(][(]{{AUDIO_COMMAND_CHAR}}*?[)][)]|{{WS}}+)+)({{EOL}})
     captures:
       1:
         patterns:
@@ -3350,7 +3357,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   ImageCommandContent:
-    match: ((?:\\.|[^\]])*?)(?=$|{{WS}}*\]\])
+    match: ({{IMAGE_COMMAND_CHAR}}*?)(?=$|{{WS}}*\]\])
     captures:
       1:
         patterns:
@@ -3384,7 +3391,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   AudioCommandContent:
-    match: ((?:\\.|[^)])*?)(?=$|{{WS}}*[)][)])
+    match: ({{AUDIO_COMMAND_CHAR}}*?)(?=$|{{WS}}*[)][)])
     captures:
       1:
         patterns:
@@ -3542,7 +3549,7 @@ repository:
   TextCommand:
     tag: macroName
     name: meta.text.sd
-    match: ([<](?!{{WS}}))((?:\\.|[^>])*?)((?<![-])[>])
+    match: ([<](?!{{WS}}))((?:\\.|[^>\r\n])*?)((?<![-])[>])
     captures:
       1:
         tag: keyword
@@ -3555,7 +3562,7 @@ repository:
         name: keyword.operator.expression.end.tag.sd
 
   TextCommandContent:
-    match: ({{WS}}*)([^ :]+)({{WS}}*)(?:([:])({{WS}}*)(.*))?
+    match: ({{WS}}*)([^ :\r\n]+)({{WS}}*)(?:([:])({{WS}}*)(.*))?
     captures:
       1:
         patterns:
@@ -4687,7 +4694,7 @@ repository:
   StringFieldValue:
     tag: string
     name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])({{WS}}*)$
+    match: (["])({{DOUBLE_QUOTED_CHAR}}*)(["])({{WS}}*)$
     captures:
       1:
         patterns:
@@ -4717,7 +4724,7 @@ repository:
   StringFieldValueInterpolated:
     tag: string
     name: string.quoted.double.sd
-    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
+    begin: (["])(?=(?:[^"{\\\r\n]|\\.)*\{)
     beginCaptures:
       1:
         patterns:
@@ -5101,7 +5108,7 @@ repository:
     name: punctuation.definition.string.begin.sd
 
   PlainStringContent:
-    match: ((?:\\.|[^"])*?)(?=$|")
+    match: ({{DOUBLE_QUOTED_CHAR}}*?)(?=$|")
     captures:
       1:
         patterns:
@@ -5563,7 +5570,7 @@ repository:
     match: ({{COMPARISON_OPERATOR}})
 
   StringContent:
-    match: ((?:\\.|[^"])*?)(?=$|")
+    match: ({{DOUBLE_QUOTED_CHAR}}*?)(?=$|")
     captures:
       1:
         patterns:
@@ -5706,7 +5713,7 @@ repository:
   InlinePropQuotedValue:
     tag: string
     name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])
+    match: (["])({{DOUBLE_QUOTED_CHAR}}*)(["])
     captures:
       1:
         patterns:
@@ -5756,7 +5763,7 @@ repository:
   LuauElementContentStringInterpolated:
     tag: string
     name: string.quoted.double.sd
-    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
+    begin: (["])(?=(?:[^"{\\\r\n]|\\.)*\{)
     beginCaptures:
       1:
         patterns:
@@ -5778,7 +5785,7 @@ repository:
   LuauElementContentStringPlain:
     tag: string
     name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])
+    match: (["])({{DOUBLE_QUOTED_CHAR}}*)(["])
     captures:
       1:
         patterns:
@@ -10428,7 +10435,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSparkdownChooseThenClause:
-    begin: ({{WS}}*)(then)\b({{WS}}*)([(][^()]*[)]{{WS}}*)?
+    begin: ({{WS}}*)(then)\b({{WS}}*)([(][^()\r\n]*[)]{{WS}}*)?
     beginCaptures:
       1:
         patterns:
@@ -10920,7 +10927,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()]*[)]{{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()\r\n]*[)]{{WS}}*[|])
     beginCaptures:
       1:
         patterns:
@@ -13864,7 +13871,7 @@ repository:
     name: storage.type.attribute.luau
 
   SparkleRichTextTag:
-    match: (</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)("[^"]*"|[^>]*))?(>)
+    match: (</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)("[^"\r\n]*"|[^>\r\n]*))?(>)
     captures:
       "1":
         tag: keyword
@@ -13885,7 +13892,7 @@ repository:
         name: punctuation.definition.tag.end.sd
 
   SparkleRichTextTagUnknown:
-    match: (</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)("[^"]*"|[^>]*))?(>)
+    match: (</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)("[^"\r\n]*"|[^>\r\n]*))?(>)
     captures:
       "1":
         tag: invalid
@@ -13968,7 +13975,7 @@ repository:
   LuauRegexEscapedCharacterClass:
     tag: escape
     name: constant.other.character-class.regexp.sd
-    match: \\[dDwWsShHvVnrtfv0]|\\[pP]\{[^}]*\}|\\u\{[0-9A-Fa-f]+\}|\\x[0-9A-Fa-f]{2}|\\[0-9]+|\.
+    match: \\[dDwWsShHvVnrtfv0]|\\[pP]\{[^}\r\n]*\}|\\u\{[0-9A-Fa-f]+\}|\\x[0-9A-Fa-f]{2}|\\[0-9]+|\.
 
   LuauRegexAnchor:
     tag: controlKeyword
@@ -13998,12 +14005,12 @@ repository:
   LuauRegexText:
     tag: regexp
     name: string.regexp.sd
-    match: "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
+    match: "[^\\\\\\[\\]()|*+?{}^$\\r\\n-]+|[\\s\\S]"
 
   LuauElementContentStringSingleQuoted:
     tag: string
     name: string.quoted.single.sd
-    match: (['])((?:\.|[^'])*)(['])
+    match: (['])({{SINGLE_QUOTED_CHAR}}*)(['])
     captures:
       "1":
         patterns:
@@ -14016,7 +14023,7 @@ repository:
           - include: "#PunctuationStringClose"
 
   PlainStringContentSingleQuoted:
-    match: ((?:\.|[^'])*?)(?=$|')
+    match: ({{SINGLE_QUOTED_CHAR}}*?)(?=$|')
     captures:
       "1":
         patterns:

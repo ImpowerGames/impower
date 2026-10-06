@@ -351,6 +351,10 @@
     "variables.STRUCT_BLOCK_LITERAL": 1,
     "variables.STRUCT_BLOCK_QUOTED": 1
   },
+  "no-line-crossing-class": {
+    "variables.LUAU_TYPE_END_BEFORE_OPTIONAL": 1,
+    "variables._LUAU_TRIVIA_AHEAD_": 1
+  },
   "no-repeated-fragment": {
     "repository.BlockDialogue": 1,
     "repository.BlockWrite": 1,

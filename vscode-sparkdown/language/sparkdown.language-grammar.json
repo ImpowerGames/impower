@@ -449,7 +449,11 @@
     "STYLE_PROPERTY_NAME": "(?:[a-zA-Z_][a-zA-Z0-9_-]*)",
     "INTEGER": "[0-9]+",
     "NUMBER": "(?:[-]?(?:\\d*[.])?\\d+)",
-    "QUOTED_STRING": "(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])",
+    "DOUBLE_QUOTED_CHAR": "(?:\\\\.|[^\"\\r\\n])",
+    "SINGLE_QUOTED_CHAR": "(?:\\.|[^'\\r\\n])",
+    "IMAGE_COMMAND_CHAR": "(?:\\\\.|[^\\]\\r\\n])",
+    "AUDIO_COMMAND_CHAR": "(?:\\\\.|[^)\\r\\n])",
+    "QUOTED_STRING": "(?:[\"]{{DOUBLE_QUOTED_CHAR}}*[\"])",
     "STRICT_PROPERTY_IDENTIFIER": "(?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
     "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
@@ -1431,7 +1435,7 @@
     },
     "Choice": {
       "name": "entity.choice.sd",
-      "begin": "((?:[^\\S\\n\\r])*)((?:[*](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))+|(?:[+](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))+)([(][^()]*[)](?:[^\\S\\n\\r])*)?(?:(if)\\b((?:[^\\S\\n\\r])+)((?:not\\b(?:[^\\S\\n\\r])+)?(?:[(][^()]*[)]|(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[.](?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*))(?=(?:[^\\S\\n\\r])|$))?(\\r\\n|\\r|\\n)?",
+      "begin": "((?:[^\\S\\n\\r])*)((?:[*](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))+|(?:[+](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))+)([(][^()\\r\\n]*[)](?:[^\\S\\n\\r])*)?(?:(if)\\b((?:[^\\S\\n\\r])+)((?:not\\b(?:[^\\S\\n\\r])+)?(?:[(][^()\\r\\n]*[)]|(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[.](?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*))(?=(?:[^\\S\\n\\r])|$))?(\\r\\n|\\r|\\n)?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1513,7 +1517,7 @@
     },
     "ChoiceConditional": {
       "name": "entity.choice.sd",
-      "match": "^((?:[^\\S\\n\\r])*)((?:[{][^{}]*[}](?:[^\\S\\n\\r])*)+)(\\r\\n|\\r|\\n)",
+      "match": "^((?:[^\\S\\n\\r])*)((?:[{][^{}\\r\\n]*[}](?:[^\\S\\n\\r])*)+)(\\r\\n|\\r|\\n)",
       "captures": {
         "1": {
           "patterns": [
@@ -3360,7 +3364,7 @@
       "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)"
     },
     "DialogueCharacter": {
-      "match": "((?:[^\\S\\n\\r])*)(.*?)((?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])[(][^()]*?[)])?($|(?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])\\[.*?\\])?((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "((?:[^\\S\\n\\r])*)(.*?)((?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])[(][^()\\r\\n]*?[)])?($|(?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])\\[.*?\\])?((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3430,7 +3434,7 @@
     "DialogueCharacterParenthetical": {
       "tag": "escape",
       "name": "constant.character.escape.dialogue.character.parenthetical.sd",
-      "match": "((?:[^\\S\\n\\r]))([(])((?:[^\\S\\n\\r])*)([^()]*?)((?:[^\\S\\n\\r])*)([)])((?:[^\\S\\n\\r])*)",
+      "match": "((?:[^\\S\\n\\r]))([(])((?:[^\\S\\n\\r])*)([^()\\r\\n]*?)((?:[^\\S\\n\\r])*)([)])((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "patterns": [
@@ -3801,7 +3805,7 @@
       }
     },
     "ParentheticalLine": {
-      "match": "((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)((?:[^\\S\\n\\r])*)([(][^()]*?[)])((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)($|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?=(?:(?:[^\\S\\n\\r])*(?:[>])(?:[^\\S\\n\\r])*))|(?:[\\\\])(?:(?:[^\\S\\n\\r])))",
+      "match": "((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)((?:[^\\S\\n\\r])*)([(][^()\\r\\n]*?[)])((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)($|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?=(?:(?:[^\\S\\n\\r])*(?:[>])(?:[^\\S\\n\\r])*))|(?:[\\\\])(?:(?:[^\\S\\n\\r])))",
       "captures": {
         "1": {
           "patterns": [
@@ -3866,7 +3870,7 @@
     "ParentheticalLineContent": {
       "tag": "escape",
       "name": "constant.character.escape.sd",
-      "match": "((?:[^\\S\\n\\r])*)([(])((?:[^\\S\\n\\r])*)([^()]*?)((?:[^\\S\\n\\r])*)([)])((?:[^\\S\\n\\r])*)",
+      "match": "((?:[^\\S\\n\\r])*)([(])((?:[^\\S\\n\\r])*)([^()\\r\\n]*?)((?:[^\\S\\n\\r])*)([)])((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "patterns": [
@@ -4116,7 +4120,7 @@
       ]
     },
     "ImageLine": {
-      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]\\r\\n])*?\\]\\]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -4145,7 +4149,7 @@
       }
     },
     "AudioLine": {
-      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:[(][(](?:\\\\.|[^)])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:[(][(](?:\\\\.|[^)\\r\\n])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -4174,7 +4178,7 @@
       }
     },
     "ImageAndAudioLine": {
-      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]\\r\\n])*?\\]\\]|[(][(](?:\\\\.|[^)\\r\\n])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -4271,7 +4275,7 @@
       }
     },
     "ImageCommandContent": {
-      "match": "((?:\\\\.|[^\\]])*?)(?=$|(?:[^\\S\\n\\r])*\\]\\])",
+      "match": "((?:\\\\.|[^\\]\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*\\]\\])",
       "captures": {
         "1": {
           "patterns": [
@@ -4335,7 +4339,7 @@
       }
     },
     "AudioCommandContent": {
-      "match": "((?:\\\\.|[^)])*?)(?=$|(?:[^\\S\\n\\r])*[)][)])",
+      "match": "((?:\\\\.|[^)\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*[)][)])",
       "captures": {
         "1": {
           "patterns": [
@@ -4590,7 +4594,7 @@
     "TextCommand": {
       "tag": "macroName",
       "name": "meta.text.sd",
-      "match": "([<](?!(?:[^\\S\\n\\r])))((?:\\\\.|[^>])*?)((?<![-])[>])",
+      "match": "([<](?!(?:[^\\S\\n\\r])))((?:\\\\.|[^>\\r\\n])*?)((?<![-])[>])",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -4610,7 +4614,7 @@
       }
     },
     "TextCommandContent": {
-      "match": "((?:[^\\S\\n\\r])*)([^ :]+)((?:[^\\S\\n\\r])*)(?:([:])((?:[^\\S\\n\\r])*)(.*))?",
+      "match": "((?:[^\\S\\n\\r])*)([^ :\\r\\n]+)((?:[^\\S\\n\\r])*)(?:([:])((?:[^\\S\\n\\r])*)(.*))?",
       "captures": {
         "1": {
           "patterns": [
@@ -6247,7 +6251,7 @@
     "StringFieldValue": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "match": "([\"])((?:\\\\.|[^\"])*)([\"])((?:[^\\S\\n\\r])*)$",
+      "match": "([\"])((?:\\\\.|[^\"\\r\\n])*)([\"])((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -6282,7 +6286,7 @@
     "StringFieldValueInterpolated": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "begin": "([\"])(?=(?:[^\"{\\\\]|\\\\.)*\\{)",
+      "begin": "([\"])(?=(?:[^\"{\\\\\\r\\n]|\\\\.)*\\{)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6965,7 +6969,7 @@
       "name": "punctuation.definition.string.begin.sd"
     },
     "PlainStringContent": {
-      "match": "((?:\\\\.|[^\"])*?)(?=$|\")",
+      "match": "((?:\\\\.|[^\"\\r\\n])*?)(?=$|\")",
       "captures": {
         "1": {
           "patterns": [
@@ -7782,7 +7786,7 @@
       "match": "((?:[~]|[|]|[\\^]|[$]|[*]))"
     },
     "StringContent": {
-      "match": "((?:\\\\.|[^\"])*?)(?=$|\")",
+      "match": "((?:\\\\.|[^\"\\r\\n])*?)(?=$|\")",
       "captures": {
         "1": {
           "patterns": [
@@ -7961,7 +7965,7 @@
     "InlinePropQuotedValue": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "match": "([\"])((?:\\\\.|[^\"])*)([\"])",
+      "match": "([\"])((?:\\\\.|[^\"\\r\\n])*)([\"])",
       "captures": {
         "1": {
           "patterns": [
@@ -8032,7 +8036,7 @@
     "LuauElementContentStringInterpolated": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "begin": "([\"])(?=(?:[^\"{\\\\]|\\\\.)*\\{)",
+      "begin": "([\"])(?=(?:[^\"{\\\\\\r\\n]|\\\\.)*\\{)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -8079,7 +8083,7 @@
     "LuauElementContentStringPlain": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "match": "([\"])((?:\\\\.|[^\"])*)([\"])",
+      "match": "([\"])((?:\\\\.|[^\"\\r\\n])*)([\"])",
       "captures": {
         "1": {
           "patterns": [
@@ -14862,7 +14866,7 @@
       }
     },
     "LuauSparkdownChooseThenClause": {
-      "begin": "((?:[^\\S\\n\\r])*)(then)\\b((?:[^\\S\\n\\r])*)([(][^()]*[)](?:[^\\S\\n\\r])*)?",
+      "begin": "((?:[^\\S\\n\\r])*)(then)\\b((?:[^\\S\\n\\r])*)([(][^()\\r\\n]*[)](?:[^\\S\\n\\r])*)?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -15468,7 +15472,7 @@
       }
     },
     "LuauSparkdownSingleLineConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(][^()]*[)](?:[^\\S\\n\\r])*[|])",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(][^()\\r\\n]*[)](?:[^\\S\\n\\r])*[|])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -19806,7 +19810,7 @@
       "match": "(.+)"
     },
     "SparkleRichTextTag": {
-      "match": "(</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
+      "match": "(</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)(\"[^\"\\r\\n]*\"|[^>\\r\\n]*))?(>)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -19836,7 +19840,7 @@
       }
     },
     "SparkleRichTextTagUnknown": {
-      "match": "(</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
+      "match": "(</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)(\"[^\"\\r\\n]*\"|[^>\\r\\n]*))?(>)",
       "captures": {
         "1": {
           "tag": "invalid",
@@ -19966,7 +19970,7 @@
     "LuauRegexEscapedCharacterClass": {
       "tag": "escape",
       "name": "constant.other.character-class.regexp.sd",
-      "match": "\\\\[dDwWsShHvVnrtfv0]|\\\\[pP]\\{[^}]*\\}|\\\\u\\{[0-9A-Fa-f]+\\}|\\\\x[0-9A-Fa-f]{2}|\\\\[0-9]+|\\."
+      "match": "\\\\[dDwWsShHvVnrtfv0]|\\\\[pP]\\{[^}\\r\\n]*\\}|\\\\u\\{[0-9A-Fa-f]+\\}|\\\\x[0-9A-Fa-f]{2}|\\\\[0-9]+|\\."
     },
     "LuauRegexAnchor": {
       "tag": "controlKeyword",
@@ -19996,12 +20000,12 @@
     "LuauRegexText": {
       "tag": "regexp",
       "name": "string.regexp.sd",
-      "match": "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
+      "match": "[^\\\\\\[\\]()|*+?{}^$\\r\\n-]+|[\\s\\S]"
     },
     "LuauElementContentStringSingleQuoted": {
       "tag": "string",
       "name": "string.quoted.single.sd",
-      "match": "(['])((?:\\.|[^'])*)(['])",
+      "match": "(['])((?:\\.|[^'\\r\\n])*)(['])",
       "captures": {
         "1": {
           "patterns": [
@@ -20027,7 +20031,7 @@
       }
     },
     "PlainStringContentSingleQuoted": {
-      "match": "((?:\\.|[^'])*?)(?=$|')",
+      "match": "((?:\\.|[^'\\r\\n])*?)(?=$|')",
       "captures": {
         "1": {
           "patterns": [
