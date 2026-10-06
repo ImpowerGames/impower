@@ -560,12 +560,6 @@ await asyncCheck("scrubbing refuses playback modes and waits for the selected so
   assert.equal(subscribers.size, 0);
 });
 
-if (failures > 0) {
-  console.log(`\n${failures} failing`);
-  process.exit(1);
-}
-console.log("\nall passing");
-
 await asyncCheck("a press focuses the script editor first and reports whether the document text changed", async () => {
   const calls = [];
   let text = "x=1", version = 1, formatAfterReads = 0;
@@ -597,3 +591,9 @@ await asyncCheck("a press focuses the script editor first and reports whether th
   assert.equal(unchanged.textChanged, false);
   assert.equal(unchanged.text, undefined);
 });
+
+if (failures > 0) {
+  console.log(`\n${failures} failing`);
+  process.exit(1);
+}
+console.log("\nall passing");
