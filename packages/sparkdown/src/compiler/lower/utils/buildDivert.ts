@@ -15,6 +15,7 @@ import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
 
 const CALL_NAMES = ["LuauFunctionCall", "LuauSparkdownExplicitFunctionCall"];
 const PARAMETER_NAMES = [
+  "DivertArguments",
   "LuauFunctionCallParameters",
   "LuauSparkdownExplicitFunctionCallParameters",
 ];
@@ -121,21 +122,14 @@ function lowerDivertArguments(params: SyntaxNode, ctx: LowerContext): Expression
   return args;
 }
 
-/** Report the text a divert target holds after the one argument list it
- *  passes, which the divert would otherwise drop without a word. */
-function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
-  if (extra.length === 0) {
-    return;
-  }
-  const first = extra[0]!;
-  const from = first.from;
-  const to = extra[extra.length - 1]!.to;
-  // value-level: the text is quoted in the message whole, never classified.
-  const text = ctx.read(from, to).trim();
+function reportTargetError(
+  message: string,
+  from: number,
+  to: number,
+  ctx: LowerContext,
+): void {
   ctx.diagnostics?.push({
-    message: PARAMETER_NAMES.includes(first.name)
-      ? `A divert passes one argument list; \`${text}\` is not passed.`
-      : `Unexpected \`${text}\` after this divert's target.`,
+    message,
     severity: ErrorType.Error,
     source: {
       fileName: null,
@@ -148,6 +142,50 @@ function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
   });
 }
 
+/** Where an argument list's text starts: its `(`, after any space its
+ *  `DivertArguments` begin took. */
+function argumentListStart(params: SyntaxNode): number {
+  return getDescendent("PunctuationParenOpen", params)?.from ?? params.from;
+}
+
+/** Report the text a divert target holds after the one argument list it
+ *  passes, which the divert would otherwise drop without a word. */
+function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
+  if (extra.length === 0) {
+    return;
+  }
+  const first = extra[0]!;
+  const isList = PARAMETER_NAMES.includes(first.name);
+  const from = isList ? argumentListStart(first) : first.from;
+  const to = extra[extra.length - 1]!.to;
+  // value-level: the text is quoted in the message whole, never classified.
+  const text = ctx.read(from, to).trim();
+  reportTargetError(
+    isList
+      ? `A divert passes one argument list; \`${text}\` is not passed.`
+      : `Unexpected \`${text}\` after this divert's target.`,
+    from,
+    to,
+    ctx,
+  );
+}
+
+/** Report a dotted target's argument list that its line ends before it is
+ *  closed (`-> a.b(x`): `DivertArguments` ends with the line, so its end
+ *  matched no `)`. */
+function reportUnclosedArguments(params: SyntaxNode, ctx: LowerContext): void {
+  const end = params.lastChild;
+  if (params.name !== "DivertArguments" || !end || end.to > end.from) {
+    return;
+  }
+  reportTargetError(
+    "Expected `)` to close this divert's arguments.",
+    argumentListStart(params),
+    params.to,
+    ctx,
+  );
+}
+
 // Lower a `DivertTarget`, relative (`-> X(arg)`) or dotted
 // (`-> X.Y(arg)`). Returns the path identifiers and any lowered args.
 function lowerTargetWithArgs(
@@ -155,6 +193,9 @@ function lowerTargetWithArgs(
   ctx: LowerContext,
 ): { path: Identifier[]; args: Expression[] } {
   const { nameNode, pathNode, params, extra } = readDivertTarget(targetNode);
+  if (params) {
+    reportUnclosedArguments(params, ctx);
+  }
   reportExtraTargetText(extra, ctx);
   const path = nameNode
     ? [divertPartIdentifier(nameNode, ctx)]

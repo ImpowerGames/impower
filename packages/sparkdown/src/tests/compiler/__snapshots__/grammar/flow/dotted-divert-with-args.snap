@@ -22,16 +22,17 @@ sparkdown [0..213]
  │   │       │   │   │   └─ DivertPart [9..14]
  │   │       │   │   │       └─ DivertPartName [9..14]: "inner"
  │   │       │   │   └─ DivertPath_end 14
- │   │       │   └─ LuauFunctionCallParameters [14..17]
- │   │       │       ├─ LuauFunctionCallParameters_begin [14..15]
- │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [14..15]
+ │   │       │   └─ DivertArguments [14..17]
+ │   │       │       ├─ DivertArguments_begin [14..15]
+ │   │       │       │   ├─ DivertArguments_begin_c1 14
+ │   │       │       │   └─ DivertArguments_begin_c2 [14..15]
  │   │       │       │       └─ PunctuationParenOpen [14..15]: "("
- │   │       │       ├─ LuauFunctionCallParameters_content [15..16]
+ │   │       │       ├─ DivertArguments_content [15..16]
  │   │       │       │   └─ LuauNumericDecimal [15..16]
  │   │       │       │       ├─ LuauNumericDecimal_c1 [15..16]: "1"
  │   │       │       │       └─ LuauNumericDecimal_c2 16
- │   │       │       └─ LuauFunctionCallParameters_end [16..17]
- │   │       │           └─ LuauFunctionCallParameters_end_c1 [16..17]
+ │   │       │       └─ DivertArguments_end [16..17]
+ │   │       │           └─ DivertArguments_end_c1 [16..17]
  │   │       │               └─ PunctuationParenClose [16..17]: ")"
  │   │       └─ DivertTarget_end 17
  │   └─ Divert_end 17
@@ -101,11 +102,12 @@ sparkdown [0..213]
  │   │   │   │   │   │   └─ DivertPart [61..66]
  │   │   │   │   │   │       └─ DivertPartName [61..66]: "visit"
  │   │   │   │   │   └─ DivertPath_end 66
- │   │   │   │   └─ LuauFunctionCallParameters [66..78]
- │   │   │   │       ├─ LuauFunctionCallParameters_begin [66..67]
- │   │   │   │       │   └─ LuauFunctionCallParameters_begin_c1 [66..67]
+ │   │   │   │   └─ DivertArguments [66..78]
+ │   │   │   │       ├─ DivertArguments_begin [66..67]
+ │   │   │   │       │   ├─ DivertArguments_begin_c1 66
+ │   │   │   │       │   └─ DivertArguments_begin_c2 [66..67]
  │   │   │   │       │       └─ PunctuationParenOpen [66..67]: "("
- │   │   │   │       ├─ LuauFunctionCallParameters_content [67..77]
+ │   │   │   │       ├─ DivertArguments_content [67..77]
  │   │   │   │       │   ├─ LuauAccessPath [67..69]
  │   │   │   │       │   │   ├─ LuauAccessPath_begin 67
  │   │   │   │       │   │   ├─ LuauAccessPath_content [67..68]
@@ -150,8 +152,8 @@ sparkdown [0..213]
  │   │   │   │       │           ├─ LuauDoubleQuotedString_end_c1 [76..77]
  │   │   │   │       │           │   └─ PunctuationStringDoubleQuoteClose [76..77]: "\""
  │   │   │   │       │           └─ LuauDoubleQuotedString_end_c2 77
- │   │   │   │       └─ LuauFunctionCallParameters_end [77..78]
- │   │   │   │           └─ LuauFunctionCallParameters_end_c1 [77..78]
+ │   │   │   │       └─ DivertArguments_end [77..78]
+ │   │   │   │           └─ DivertArguments_end_c1 [77..78]
  │   │   │   │               └─ PunctuationParenClose [77..78]: ")"
  │   │   │   └─ DivertTarget_end 78
  │   │   └─ Tunnel [78..81]
@@ -187,12 +189,13 @@ sparkdown [0..213]
  │   │       │   │   │   └─ DivertPart [95..100]
  │   │       │   │   │       └─ DivertPartName [95..100]: "aside"
  │   │       │   │   └─ DivertPath_end 100
- │   │       │   ├─ ExtraWhitespace [100..101]: " "
- │   │       │   └─ LuauFunctionCallParameters [101..108]
- │   │       │       ├─ LuauFunctionCallParameters_begin [101..102]
- │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [101..102]
+ │   │       │   └─ DivertArguments [100..108]
+ │   │       │       ├─ DivertArguments_begin [100..102]
+ │   │       │       │   ├─ DivertArguments_begin_c1 [100..101]
+ │   │       │       │   │   └─ ExtraWhitespace [100..101]: " "
+ │   │       │       │   └─ DivertArguments_begin_c2 [101..102]
  │   │       │       │       └─ PunctuationParenOpen [101..102]: "("
- │   │       │       ├─ LuauFunctionCallParameters_content [102..107]
+ │   │       │       ├─ DivertArguments_content [102..107]
  │   │       │       │   ├─ LuauAccessPath [102..104]
  │   │       │       │   │   ├─ LuauAccessPath_begin 102
  │   │       │       │   │   ├─ LuauAccessPath_content [102..103]
@@ -221,8 +224,8 @@ sparkdown [0..213]
  │   │       │       │       │       ├─ LuauNumericDecimal_c1 [106..107]: "2"
  │   │       │       │       │       └─ LuauNumericDecimal_c2 107
  │   │       │       │       └─ LuauArithmeticOperation_end 107
- │   │       │       └─ LuauFunctionCallParameters_end [107..108]
- │   │       │           └─ LuauFunctionCallParameters_end_c1 [107..108]
+ │   │       │       └─ DivertArguments_end [107..108]
+ │   │       │           └─ DivertArguments_end_c1 [107..108]
  │   │       │               └─ PunctuationParenClose [107..108]: ")"
  │   │       └─ DivertTarget_end 108
  │   └─ Thread_end 108
@@ -250,11 +253,12 @@ sparkdown [0..213]
  │   │       │   │   │   └─ DivertPart [122..128]
  │   │       │   │   │       └─ DivertPartName [122..128]: "second"
  │   │       │   │   └─ DivertPath_end 128
- │   │       │   ├─ LuauFunctionCallParameters [128..149]
- │   │       │   │   ├─ LuauFunctionCallParameters_begin [128..129]
- │   │       │   │   │   └─ LuauFunctionCallParameters_begin_c1 [128..129]
+ │   │       │   ├─ DivertArguments [128..149]
+ │   │       │   │   ├─ DivertArguments_begin [128..129]
+ │   │       │   │   │   ├─ DivertArguments_begin_c1 128
+ │   │       │   │   │   └─ DivertArguments_begin_c2 [128..129]
  │   │       │   │   │       └─ PunctuationParenOpen [128..129]: "("
- │   │       │   │   ├─ LuauFunctionCallParameters_content [129..148]
+ │   │       │   │   ├─ DivertArguments_content [129..148]
  │   │       │   │   │   ├─ LuauAccessPath [129..133]
  │   │       │   │   │   │   ├─ LuauAccessPath_begin 129
  │   │       │   │   │   │   ├─ LuauAccessPath_content [129..133]
@@ -309,19 +313,20 @@ sparkdown [0..213]
  │   │       │   │   │       │       │       └─ DivertPartName [144..148]: "last"
  │   │       │   │   │       │       └─ DivertPath_end 148
  │   │       │   │   │       └─ LuauDivertTargetLiteral_c5 148
- │   │       │   │   └─ LuauFunctionCallParameters_end [148..149]
- │   │       │   │       └─ LuauFunctionCallParameters_end_c1 [148..149]
+ │   │       │   │   └─ DivertArguments_end [148..149]
+ │   │       │   │       └─ DivertArguments_end_c1 [148..149]
  │   │       │   │           └─ PunctuationParenClose [148..149]: ")"
- │   │       │   └─ LuauFunctionCallParameters [149..152]
- │   │       │       ├─ LuauFunctionCallParameters_begin [149..150]
- │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [149..150]
+ │   │       │   └─ DivertArguments [149..152]
+ │   │       │       ├─ DivertArguments_begin [149..150]
+ │   │       │       │   ├─ DivertArguments_begin_c1 149
+ │   │       │       │   └─ DivertArguments_begin_c2 [149..150]
  │   │       │       │       └─ PunctuationParenOpen [149..150]: "("
- │   │       │       ├─ LuauFunctionCallParameters_content [150..151]
+ │   │       │       ├─ DivertArguments_content [150..151]
  │   │       │       │   └─ LuauNumericDecimal [150..151]
  │   │       │       │       ├─ LuauNumericDecimal_c1 [150..151]: "9"
  │   │       │       │       └─ LuauNumericDecimal_c2 151
- │   │       │       └─ LuauFunctionCallParameters_end [151..152]
- │   │       │           └─ LuauFunctionCallParameters_end_c1 [151..152]
+ │   │       │       └─ DivertArguments_end [151..152]
+ │   │       │           └─ DivertArguments_end_c1 [151..152]
  │   │       │               └─ PunctuationParenClose [151..152]: ")"
  │   │       └─ DivertTarget_end 152
  │   └─ Divert_end 152
@@ -386,11 +391,12 @@ sparkdown [0..213]
  │   │       │   │   │   └─ DivertPart [195..199]
  │   │       │   │   │       └─ DivertPartName [195..199]: "last"
  │   │       │   │   └─ DivertPath_end 199
- │   │       │   └─ LuauFunctionCallParameters [199..202]
- │   │       │       ├─ LuauFunctionCallParameters_begin [199..200]
- │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [199..200]
+ │   │       │   └─ DivertArguments [199..202]
+ │   │       │       ├─ DivertArguments_begin [199..200]
+ │   │       │       │   ├─ DivertArguments_begin_c1 199
+ │   │       │       │   └─ DivertArguments_begin_c2 [199..200]
  │   │       │       │       └─ PunctuationParenOpen [199..200]: "("
- │   │       │       ├─ LuauFunctionCallParameters_content [200..201]
+ │   │       │       ├─ DivertArguments_content [200..201]
  │   │       │       │   └─ LuauAccessPath [200..201]
  │   │       │       │       ├─ LuauAccessPath_begin 200
  │   │       │       │       ├─ LuauAccessPath_content [200..201]
@@ -400,8 +406,8 @@ sparkdown [0..213]
  │   │       │       │       │               └─ LuauVariableName [200..201]: "n"
  │   │       │       │       └─ LuauAccessPath_end 201
  │   │       │       │           └─ LuauAccessPath_end_c1 201
- │   │       │       └─ LuauFunctionCallParameters_end [201..202]
- │   │       │           └─ LuauFunctionCallParameters_end_c1 [201..202]
+ │   │       │       └─ DivertArguments_end [201..202]
+ │   │       │           └─ DivertArguments_end_c1 [201..202]
  │   │       │               └─ PunctuationParenClose [201..202]: ")"
  │   │       └─ DivertTarget_end 202
  │   └─ Divert_end 202

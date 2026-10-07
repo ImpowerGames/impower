@@ -30,6 +30,10 @@ const LINES = [
   "queue | -> a.b(1) | c end",
   "HERO: Go -> a.b(1)",
   "+ [Go] -> a.b(1)",
+  "-> a.b #tag",
+  "-> a.b(x",
+  "<- a.b(x, ",
+  "scene a\n  branch b\n    -> a.c(1, \"s\"\n  end\n  branch c(n, s)\n    done\n  end\nend",
 ];
 
 /** The names of a line's `DivertTarget` children, in order, for each
@@ -73,20 +77,20 @@ describe("the grammar reads a dotted target's arguments", () => {
   });
 
   test.each([
-    ["-> a.b(x + 1, \"s\")", [["DivertPath", "LuauFunctionCallParameters"]]],
-    ["-> a.b (x)", [["DivertPath", "ExtraWhitespace", "LuauFunctionCallParameters"]]],
-    ["<- a.b(x)", [["DivertPath", "LuauFunctionCallParameters"]]],
-    ["->-> a.b(x)", [["DivertPath", "LuauFunctionCallParameters"]]],
+    ["-> a.b(x + 1, \"s\")", [["DivertPath", "DivertArguments"]]],
+    ["-> a.b (x)", [["DivertPath", "DivertArguments"]]],
+    ["<- a.b(x)", [["DivertPath", "DivertArguments"]]],
+    ["->-> a.b(x)", [["DivertPath", "DivertArguments"]]],
     [
       "-> a.b(x) -> c.d(y) ->",
       [
-        ["DivertPath", "LuauFunctionCallParameters"],
-        ["DivertPath", "LuauFunctionCallParameters"],
+        ["DivertPath", "DivertArguments"],
+        ["DivertPath", "DivertArguments"],
       ],
     ],
     [
       "-> a.b(x)(y)",
-      [["DivertPath", "LuauFunctionCallParameters", "LuauFunctionCallParameters"]],
+      [["DivertPath", "DivertArguments", "DivertArguments"]],
     ],
     ["-> b(x)", [["LuauFunctionCall"]]],
     ["-> a.b", [["DivertPath"]]],
@@ -184,5 +188,48 @@ describe("text after a divert's one argument list is reported", () => {
     "->-> outer.second(1)",
   ])("%j reports nothing", (line) => {
     expect(errorsOf(script(line))).toEqual([]);
+  });
+});
+
+describe("a dotted target's unclosed argument list is reported on its line", () => {
+  // The list ends with its line, so the flows after it keep their shape:
+  // the only error is the missing `)`, not a scene or branch reported as
+  // missing its `end`.
+  test.each([
+    ["-> outer.second(1", "(1"],
+    ["-> outer.second(1, ", "(1, "],
+    ["<- outer.second(1", "(1"],
+    ["->-> outer.second(f(1)", "(f(1)"],
+  ])("%j reports %j as unclosed", (line, list) => {
+    expect(errorsOf(script(line))).toEqual([
+      {
+        message: "Expected `)` to close this divert's arguments.",
+        line: 2,
+        text: list,
+      },
+    ]);
+  });
+
+  test("in the issue's scene and branches, the scene and its branches still close", () => {
+    const text = [
+      "-> outer.inner(1)",
+      "scene outer",
+      "  branch inner(a)",
+      "    -> outer.second(a + 1, \"b\"",
+      "  end",
+      "  branch second(n, s)",
+      "    Second {n} {s}.",
+      "    done",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    expect(errorsOf(text)).toEqual([
+      {
+        message: "Expected `)` to close this divert's arguments.",
+        line: 3,
+        text: "(a + 1, \"b\"",
+      },
+    ]);
   });
 });

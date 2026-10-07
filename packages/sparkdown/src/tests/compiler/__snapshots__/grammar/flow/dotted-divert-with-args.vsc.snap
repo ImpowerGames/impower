@@ -57,8 +57,8 @@ text.source.sparkdown [0..213]
  │   │   ├─ keyword.control.divert.path.sd [89..94]: "outer"
  │   │   ├─ meta.template.expression.accessor.sd [94..95]: "."
  │   │   └─ keyword.control.divert.path.sd [95..100]: "aside"
- │   ├─ punctuation.whitespace.extra.sd [100..101]: " "
- │   └─ meta.parameter.luau [101..108]
+ │   └─ meta.parameter.luau [100..108]
+ │       ├─ punctuation.whitespace.extra.sd [100..101]: " "
  │       ├─ punctuation.definition.template-expression.begin.sd [101..102]: "("
  │       ├─ variable.other.readwrite.luau [102..103]: "a"
  │       ├─ punctuation.whitespace.optional.sd [103..104]: " "

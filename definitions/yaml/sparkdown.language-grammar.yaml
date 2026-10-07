@@ -2191,25 +2191,45 @@ repository:
           - { include: "#OptionalWhitespace" }
     # A relative call (`-> f(x)`) is a `LuauFunctionCall`, whose name cannot
     # span a `.`. A dotted path (`-> a.b(x)`) is a `DivertPath` followed by its
-    # arguments as `LuauFunctionCallParameters`, with the same optional space
-    # before `(` that a relative call allows. A second argument list
-    # (`-> a.b(x)(y)`) stays in the target, as it does in a relative call's
-    # `LuauFunctionCall`, so the compiler can report what it does not pass.
-    # lookaround: the end steps aside only for what continues the target
-    # (`DivertPath`, `LuauFunctionCall`, and `LuauFunctionCallParameters` with
-    # the space before its `(`), leaving the rest of the line to the parent's
-    # `Tunnel`, `SparkdownInlineComment`, `DivertStrayTextSpace` and `Unknown`.
-    # `applyEndPatternLast` with `(?=$|.)` was tried: `ExtraWhitespace` and
-    # `DivertPath` would then take a space and a following name (`-> a b`)
-    # into the target, which is stray text, so the end has to name what
-    # continues a target.
+    # `DivertArguments`, which owns the optional space before its `(` as a
+    # relative call does. The end is tried after the patterns, so the target
+    # goes on exactly as far as one of them continues it: an argument list
+    # (and a second one, `-> a.b(x)(y)`, which the compiler reports as not
+    # passed) stays in the target, and anything else (a space before `->`,
+    # `//` or stray text) ends it for the parent.
     patterns:
-      - { include: "#Annotation" }
       - { include: "#LuauFunctionCall" }
       - { include: "#DivertPath" }
-      - { include: "#LuauFunctionCallParameters" }
+      - { include: "#DivertArguments" }
+    applyEndPatternLast: true
+    end: (?=$)|(?!{{IDENTIFIER}}|[.^])
+
+  # The argument list after a dotted divert target. It is a call's argument
+  # list on one line: a divert ends its line, so an unclosed `(` ends with the
+  # line, and the compiler reports the missing `)` there rather than the list
+  # reading the next lines as arguments.
+  DivertArguments:
+    tag: meta
+    name: meta.parameter.luau
+    brackets: true
+    begin: ({{WS}}*)([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
-    end: (?=$)|(?!{{IDENTIFIER}}|[.^(]|{{WS}}+[(])
+    end: ([)])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
 
   DivertPath:
     tag: heading
