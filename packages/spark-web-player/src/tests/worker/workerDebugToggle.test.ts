@@ -27,11 +27,16 @@ const FIRST = lineOf("The first line.");
 /** The worker's game that shows the preview. */
 const displayingGame = (h: any) => h.workerState.gameState.game;
 
-/** The lines a game stops at for its source breakpoints. */
-const stopsAt = (game: any) =>
-  Object.values(game._breakpointMap as Record<number, Map<number, unknown>>).flatMap((m) => [
-    ...m.keys(),
-  ]);
+/** Whether a game stops at a source breakpoint on `line`: on the program
+ *  engine, whether the addresses it compares each step with hold the line's
+ *  address; on the current engine, whether its breakpoint map holds the
+ *  line. */
+const stopsAt = (game: any, line: number): boolean =>
+  game.programStory
+    ? (game._lineBreakAddresses as Set<number>).has(game.locator.addressAt(MAIN_URI, line))
+    : Object.values(game._breakpointMap as Record<number, Map<number, unknown>>).some((m) =>
+        m.has(line),
+      );
 
 describe("debugger settings", () => {
   it("gives the game it builds the debugger settings made before it existed", async () => {
@@ -77,7 +82,7 @@ describe("debugger settings", () => {
       expect(game.context.system.debugging).toBe(true);
       // The breakpoint the editor set is one the game now stops at: it
       // resolved to a line of the script it holds.
-      expect(stopsAt(game)).toContain(FIRST);
+      expect(stopsAt(game, FIRST)).toBe(true);
     } finally {
       h.dispose();
     }
@@ -119,7 +124,7 @@ describe("debugger settings", () => {
       // editor made last.
       const game = displayingGame(h);
       expect(game.context.system.debugging).toBeFalsy();
-      expect(stopsAt(game)).not.toContain(FIRST);
+      expect(stopsAt(game, FIRST)).toBe(false);
     } finally {
       h.dispose();
     }

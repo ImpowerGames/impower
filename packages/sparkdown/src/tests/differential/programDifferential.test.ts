@@ -25,8 +25,16 @@
 // equal a cold compile's, and every chunk of a statement the edit did not
 // touch is the chunk it was before.
 //
+// With `SPARKDOWN_PROJECT` naming a project directory that holds `main.sd`,
+// it also runs that whole project on both engines (#703): every scene of
+// `main.sd` from its top to the story's end, taking the first choice at
+// every menu, which is the one the route planner tries first when nothing is
+// favored. A project's text is its author's, so a difference is reported by
+// scene and beat index only.
+//
 // It is kept out of the ordinary suite (`vitest.config.ts`) and runs alone:
 //   SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
+//   SPARKDOWN_DIFFERENTIAL=1 SPARKDOWN_PROJECT=<dir> node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
 import "../../inkjs/engine/Container";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -34,6 +42,13 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
+import {
+  configurePlayerCompiler,
+  loadProjectFiles,
+  MAIN_URI as PROJECT_MAIN_URI,
+} from "../../../../../scripts/bench/benchProject";
+import type { Story } from "../../inkjs/engine/Story";
+import { DivertTargetValue, ObjectValue, SymbolValue } from "../../inkjs/engine/Value";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
@@ -176,6 +191,88 @@ function differential(text: string): {
     quiet();
   }
 }
+
+/** A value as the language reads it: a table by its entries, a divert
+ *  target as it prints (the program engine's holds a symbol where the
+ *  current engine's holds a path, and both print the target's name), and a
+ *  function (and anything else that is not plain data) by its kind. */
+const valueOf = (value: unknown): unknown => {
+  if (value instanceof ObjectValue) {
+    return [...(value.value?.entries() ?? [])].map(([key, v]) => [key, valueOf(v)]);
+  }
+  if (value instanceof DivertTargetValue || value instanceof SymbolValue) {
+    return String(value);
+  }
+  const inner = (value as { valueObject?: unknown } | undefined)?.valueObject;
+  return inner === null || ["string", "number", "boolean", "undefined"].includes(typeof inner)
+    ? inner
+    : (value as object)?.constructor?.name;
+};
+
+/** The globals and the visit counts a run left on a story of either
+ *  engine. */
+const stateOf = (story: { state: unknown }) => {
+  const state = story.state as {
+    variablesState: { globalEntries: ReadonlyMap<string, unknown> };
+    GetVisitCountEntries(): [string, number][];
+    GetTurnIndexEntries(): [string, number][];
+    currentTurnIndex: number;
+  };
+  return {
+    globals: Object.fromEntries(
+      [...state.variablesState.globalEntries].map(([name, v]) => [name, valueOf(v)]),
+    ),
+    counts: new Map(state.GetVisitCountEntries()),
+    // The turn of each counted flow's last visit, and the turn now, which
+    // `count.turns` reads the difference of.
+    turns: new Map(state.GetTurnIndexEntries()),
+    turn: state.currentTurnIndex,
+  };
+};
+
+/** The qualified name a current-engine count key names, or nothing for the
+ *  count of a container no name reaches (a sequence's, a weave's), which the
+ *  language cannot read: the current engine keys a count by its container's
+ *  runtime path, whose numeric segments are content indexes
+ *  (`FLOW_0.0.top` is the label `FLOW_0.top`). */
+const countName = (key: string): string | undefined => {
+  const parts = key.split(".");
+  return /^\d+$/.test(parts.at(-1)!) ? undefined : parts.filter((p) => !/^\d+$/.test(p)).join(".");
+};
+
+/** Where the state a run left differs between the engines (#692's parity
+ *  contract: variable values, and visit counts as the language reads them):
+ *  each global, and each count the current engine keeps under a name (it
+ *  counts a flow only when the program reads its count), which the program
+ *  engine, which counts every flow, must keep under that name with the same
+ *  value. */
+const stateDifferences = (
+  expected: ReturnType<typeof stateOf>,
+  actual: ReturnType<typeof stateOf>,
+): { globals: string[]; counts: string[]; turns: string[] } => {
+  const named = (expectedMap: Map<string, number>, actualMap: Map<string, number>) =>
+    [...expectedMap]
+      .filter(([key, value]) => {
+        const name = countName(key);
+        return name !== undefined && actualMap.get(name) !== value;
+      })
+      .map(([key]) => key);
+  return {
+    globals: [...new Set([...Object.keys(expected.globals), ...Object.keys(actual.globals)])].filter(
+      (name) => stable(expected.globals[name]) !== stable(actual.globals[name]),
+    ),
+    counts: named(expected.counts, actual.counts),
+    // The turns of last visits the language reads, and the turn now.
+    turns: [
+      ...named(expected.turns, actual.turns),
+      ...(expected.turn !== actual.turn ? ["(the current turn)"] : []),
+    ],
+  };
+};
+
+/** How many of a run's counts the comparison reads. */
+const namedCounts = (state: ReturnType<typeof stateOf>) =>
+  [...state.counts.keys()].filter((key) => countName(key) !== undefined).length;
 
 const silence = () => {
   const { warn, error } = console;
@@ -473,6 +570,158 @@ describe("the differential run", () => {
         shuffleDraws.next = null;
         quiet();
       }
+    }
+  });
+
+  // The state comparison the whole-project run makes, on screenplays whose
+  // runs write globals and read counts, so that it is shown to compare
+  // something: each scene of the logic and flow screenplays leaves the same
+  // globals and counts on both engines, and a global the program engine left
+  // otherwise is reported.
+  it("leaves the logic and flow screenplays' globals, counts and turns as the current engine does", () => {
+    let changed = 0;
+    let counted = 0;
+    let turned = 0;
+    for (const text of [logicScreenplay(3), flowScreenplay(3)]) {
+      const quiet = silence();
+      try {
+        const scenes = [...text.matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);
+        const { program } = compileScript(text, { programChunks: true });
+        expect(program.fallback).toBeUndefined();
+        const current = compileScript(text);
+        for (const scene of scenes) {
+          injectDraws();
+          current.story.ResetState();
+          const before = stateOf(current.story);
+          storyRun(current.story, [], { from: scene });
+          const expected = stateOf(current.story);
+          injectDraws();
+          const story = new ProgramStory(program.chunks!);
+          storyRun(story, [], { from: scene });
+          const actual = stateOf(story);
+          expect(stateDifferences(expected, actual), scene).toEqual({ globals: [], counts: [], turns: [] });
+          const written = stateDifferences(before, expected).globals;
+          changed += written.length;
+          counted += namedCounts(expected);
+          // A global the program engine left as it started, a count it kept
+          // one short, a last visit it placed a turn early, and a current
+          // turn it kept one short, are each reported.
+          if (written[0]) {
+            const wrong = { ...actual, globals: { ...actual.globals, [written[0]]: before.globals[written[0]] } };
+            expect(stateDifferences(expected, wrong).globals).toEqual([written[0]]);
+          }
+          const [key] = [...expected.counts.keys()].filter((k) => countName(k) !== undefined);
+          if (key) {
+            const name = countName(key)!;
+            const counts = new Map(actual.counts).set(name, (actual.counts.get(name) ?? 0) - 1);
+            expect(stateDifferences(expected, { ...actual, counts }).counts).toEqual([key]);
+          }
+          const [turnKey] = [...expected.turns.keys()].filter((k) => countName(k) !== undefined);
+          if (turnKey) {
+            turned += 1;
+            const name = countName(turnKey)!;
+            const turns = new Map(actual.turns).set(name, (actual.turns.get(name) ?? 0) - 1);
+            expect(stateDifferences(expected, { ...actual, turns }).turns).toEqual([turnKey]);
+          }
+          expect(stateDifferences(expected, { ...actual, turn: actual.turn - 1 }).turns).toEqual([
+            "(the current turn)",
+          ]);
+        }
+      } finally {
+        shuffleDraws.next = null;
+        quiet();
+      }
+    }
+    expect(changed).toBeGreaterThan(0);
+    expect(counted).toBeGreaterThan(0);
+    expect(turned).toBeGreaterThan(0);
+  });
+
+  const PROJECT = process.env["SPARKDOWN_PROJECT"];
+  it.skipIf(!PROJECT)("shows every scene of the whole project as the current engine does", () => {
+    const quiet = silence();
+    try {
+      const files = loadProjectFiles(PROJECT!);
+      const main = files.find((f) => f.uri === PROJECT_MAIN_URI);
+      expect(main, "the project holds main.sd").toBeDefined();
+      const compileProject = (programChunks: boolean) => {
+        const compiler = new SparkdownCompiler();
+        let story: Story | undefined;
+        compiler.addEventListener("compiler/didCompile", (params) => {
+          story = params.story as Story | undefined;
+        });
+        const startFrom = { file: PROJECT_MAIN_URI, line: 0 };
+        configurePlayerCompiler(compiler, files, startFrom, { programChunks });
+        const { program } = compiler.compile({
+          textDocument: { uri: PROJECT_MAIN_URI },
+          startFrom,
+        } as never);
+        return { program, story };
+      };
+      const { program } = compileProject(true);
+      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
+      const current = compileProject(false).story!;
+      const scenes = [...(main.text as string).matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);
+      expect(scenes.length).toBeGreaterThan(0);
+      const differences: string[] = [];
+      let beats = 0;
+      let menus = 0;
+      let counts = 0;
+      for (const scene of scenes) {
+        injectDraws();
+        current.ResetState();
+        const expected = storyRun(current, [], { from: scene, maxChoices: 10_000 });
+        const expectedState = stateOf(current);
+        injectDraws();
+        const programStory = new ProgramStory(program.chunks!);
+        const actual = storyRun(programStory, [], {
+          from: scene,
+          maxChoices: 10_000,
+        });
+        // The globals and the counts the language reads that the run left.
+        const state = stateDifferences(expectedState, stateOf(programStory));
+        counts += namedCounts(expectedState);
+        if (state.globals.length > 0) {
+          differences.push(`${scene}: ${state.globals.length} globals, the first ${state.globals[0]}`);
+        }
+        if (state.counts.length > 0) {
+          differences.push(`${scene}: ${state.counts.length} counts, the first ${state.counts[0]}`);
+        }
+        if (state.turns.length > 0) {
+          differences.push(`${scene}: ${state.turns.length} turns, the first ${state.turns[0]}`);
+        }
+        beats += expected.beats.length;
+        menus += expected.menus.length;
+        expect(expected.beats.length, `${scene} shows beats`).toBeGreaterThan(0);
+        // Where the runs first part, by beat index, without the author's text.
+        const at = (list: readonly unknown[], other: readonly unknown[]) => {
+          const n = Math.max(list.length, other.length);
+          for (let i = 0; i < n; i += 1) {
+            if (stable(list[i]) !== stable(other[i])) return i;
+          }
+          return -1;
+        };
+        const beat = at(actual.beats, expected.beats);
+        if (beat >= 0) {
+          differences.push(`${scene}: beat ${beat} of ${expected.beats.length} (program engine shows ${actual.beats.length})`);
+        }
+        const menu = at(actual.menus, expected.menus);
+        if (menu >= 0) {
+          differences.push(`${scene}: menu ${menu} of ${expected.menus.length}`);
+        }
+        if (stable(actual.errors) !== stable(expected.errors)) {
+          differences.push(`${scene}: errors ${actual.errors.length} against ${expected.errors.length}`);
+        }
+      }
+      quiet();
+      console.log(
+        `whole project: ${scenes.length} scenes, ${beats} beats, ${menus} menus, the globals, the current turn and ${counts} named counts with their turns compared, ${differences.length} differences`,
+      );
+      expect(differences, differences.join("\n")).toEqual([]);
+    } finally {
+      shuffleDraws.next = null;
+      quiet();
     }
   });
 
