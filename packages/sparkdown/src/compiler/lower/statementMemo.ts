@@ -1,4 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
+import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { AuthorWarning } from "../../inkjs/compiler/Parser/ParsedHierarchy/AuthorWarning";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -23,8 +24,12 @@ import {
   type ContextRecording,
 } from "./recordingContext";
 import { buildDebugMetadata, statementBounds } from "./utils/debugMetadata";
+import type { SparkdownNodeName } from "../types/SparkdownNodeName";
 import type { StatementShape } from "./utils/statementShape";
 import { holdsCheckedBlock } from "./utils/validateBlockEnds";
+
+/** A node of the Sparkdown grammar (LOWERING.md, section 5.0). */
+type SparkdownNode = GrammarSyntaxNode<SparkdownNodeName>;
 
 /**
  * The statement memo (#656; docs/engine/binary-program.md, section 1,
@@ -290,7 +295,7 @@ export class StatementMemoSession {
    *  of the nodes it stands in up to the top (a lowering asks some of them,
    *  as whether it stands in a function's body), the column it starts at and
    *  its text. */
-  syntaxOf(node: SyntaxNode, ctx: LowerContext, to = node.to): string {
+  syntaxOf(node: SparkdownNode, ctx: LowerContext, to = node.to): string {
     const names: string[] = [];
     for (let at: SyntaxNode | null = node; at && at.from < to; at = at.nextSibling) {
       const children: string[] = [];
@@ -322,7 +327,7 @@ export class StatementMemoSession {
    * reported.
    */
   lowerStatement(
-    node: SyntaxNode,
+    node: SparkdownNode,
     owned: LowerContext,
     shape: StatementShape,
     lower: (ctx: LowerContext) => CompiledBlock | undefined,
@@ -366,13 +371,13 @@ export class StatementMemoSession {
 
   /** Whether `node` is the node of a statement the session served that
    *  holds no block `validateBlockEnds` checks, which need not walk it. */
-  servedWithoutBlocks(node: SyntaxNode): boolean {
+  servedWithoutBlocks(node: SparkdownNode): boolean {
     return this._withoutBlocks.get(node.from) === `${node.name}:${node.to}`;
   }
 
   // A statement of a `choose` block's preamble is the block's own code, and
   // one the parse rebuilt is lowered whatever it reads.
-  protected servable(node: SyntaxNode, to: number, ctx: LowerContext): boolean {
+  protected servable(node: SparkdownNode, to: number, ctx: LowerContext): boolean {
     if ((ctx as { inChoosePreamble?: boolean }).inChoosePreamble === true) {
       return false;
     }
@@ -391,7 +396,7 @@ export class StatementMemoSession {
    */
   protected find(
     syntax: string,
-    node: SyntaxNode,
+    node: SparkdownNode,
     to: number,
     ctx: LowerContext,
     shape: StatementShape,
@@ -446,7 +451,7 @@ export class StatementMemoSession {
 
   protected serve(
     entry: StatementMemoEntry,
-    node: SyntaxNode,
+    node: SparkdownNode,
     to: number,
     ctx: LowerContext,
     shape: StatementShape,

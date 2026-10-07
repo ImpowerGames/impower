@@ -6,6 +6,8 @@ import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Ga
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lower, lowerBodyStatement, lowerStatements } from "../lower";
@@ -173,7 +175,7 @@ export function lowerSparkdownChooseBlock(
     const shape = currentBody ? openStatement(ctx, child) : undefined;
     const items: ParsedObject[] = [];
     try {
-      const block = lowerBodyStatement(child, ctx, shape);
+      const block = lowerBodyStatement(child as GrammarSyntaxNode<SparkdownNodeName>, ctx, shape);
       if (block?.diagnostics) {
         diagnostics.push(...block.diagnostics);
       }

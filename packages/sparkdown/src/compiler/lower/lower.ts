@@ -10,6 +10,8 @@ import type {
   LuauSyntaxError,
 } from "../typecheck/readLuauAst";
 import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
+import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import type { SparkdownNodeName } from "../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "./context";
 import {
@@ -459,7 +461,9 @@ export function lowerStatements(
         // is (`lowerBodyStatement`): its syntax runs over every node it reads.
         const memo = shape ? ctx.statementMemo : undefined;
         const block =
-          (memo ? memo.lowerStatement(child, ctx, shape!, lowerRead, last.to) : undefined) ??
+          (memo
+            ? memo.lowerStatement(child as GrammarSyntaxNode<SparkdownNodeName>, ctx, shape!, lowerRead, last.to)
+            : undefined) ??
           lowerRead(ctx);
         if (
           block.content &&
@@ -498,7 +502,7 @@ export function lowerStatements(
           }
         }
       } else {
-        const block = lowerBodyStatement(child, ctx, shape);
+        const block = lowerBodyStatement(child as GrammarSyntaxNode<SparkdownNodeName>, ctx, shape);
         if (block) appendBlockContent(result, block, ctx);
       }
     } finally {
@@ -526,7 +530,7 @@ export function lowerStatements(
  * (`statementMemo.ts`, #656), and otherwise records what it reads.
  */
 export function lowerBodyStatement(
-  child: SyntaxNode,
+  child: GrammarSyntaxNode<SparkdownNodeName>,
   ctx: LowerContext,
   shape: StatementShape | undefined,
 ): CompiledBlock | undefined {

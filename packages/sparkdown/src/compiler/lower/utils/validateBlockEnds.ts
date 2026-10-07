@@ -218,7 +218,7 @@ function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
 export function validateBlockEnds(
   chunk: SyntaxNode,
   ctx: LowerContext,
-  skip?: (node: SyntaxNode) => boolean,
+  skip?: (node: GrammarSyntaxNode<SparkdownNodeName>) => boolean,
 ): InkDiagnostic[] {
   const diagnostics: InkDiagnostic[] = [];
   const cutOff = new Set(
@@ -227,7 +227,7 @@ export function validateBlockEnds(
       .map((block) => block.header.from),
   );
   const visit = (node: SyntaxNode, insideOpenRepeat: boolean) => {
-    if (skip?.(node)) return;
+    if (skip?.(node as GrammarSyntaxNode<SparkdownNodeName>)) return;
     const block = asBlock(node);
     let openRepeat = insideOpenRepeat;
     if (block) {
@@ -256,10 +256,10 @@ export function validateBlockEnds(
 // Whether `node` is, or holds, a block `validateBlockEnds` checks: one that
 // ends at `end`, or a `repeat` loop. A node that holds none gives it nothing
 // to report, whatever stands around it.
-export function holdsCheckedBlock(node: SyntaxNode): boolean {
+export function holdsCheckedBlock(node: GrammarSyntaxNode<SparkdownNodeName>): boolean {
   if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name)) return true;
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (holdsCheckedBlock(child)) return true;
+    if (holdsCheckedBlock(child as GrammarSyntaxNode<SparkdownNodeName>)) return true;
   }
   return false;
 }
