@@ -20,6 +20,7 @@ import { TunnelOnwards } from "./TunnelOnwards";
 import { VariableAssignment } from "./Variable/VariableAssignment";
 import { asOrNull } from "../../../engine/TypeAssertion";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
+import { RecordingMap } from "./ResolutionTap";
 
 type BadTerminationHandler = (terminatingObj: ParsedObject) => void;
 
@@ -66,7 +67,9 @@ export class Weave extends ParsedObject {
   private _unnamedGatherCount: number = 0;
   private _choiceCount: number = 0;
   private _rootContainer: RuntimeContainer | null = null;
-  private _namedWeavePoints: Map<string, IWeavePoint> = new Map();
+  private _namedWeavePoints: Map<string, IWeavePoint> = new RecordingMap(
+    () => "labels",
+  );
   get namedWeavePoints() {
     return this._namedWeavePoints;
   }
@@ -161,15 +164,23 @@ export class Weave extends ParsedObject {
   }
 
   public readonly ResolveWeavePointNaming = (): void => {
-    const namedWeavePoints = [
+    this.NameWeavePoints([
       ...this.FindAll<IWeavePoint>(Gather)(
         (w) => !(w.name === null || w.name === undefined),
       ),
       ...this.FindAll<IWeavePoint>(Choice)(
         (w) => !(w.name === null || w.name === undefined),
       ),
-    ];
-    this._namedWeavePoints = new Map();
+    ]);
+  };
+
+  /** Names the weave's points: every named gather the weave holds at any
+   *  depth, then every named choice, each in the order the weave holds it,
+   *  reporting a label named twice. The program path's resolver passes them
+   *  from what each statement of the weave recorded, so that it does not
+   *  walk the statements it does not resolve again. */
+  public readonly NameWeavePoints = (namedWeavePoints: IWeavePoint[]): void => {
+    this._namedWeavePoints = new RecordingMap(() => "labels");
 
     for (const weavePoint of namedWeavePoints) {
       // Check for weave point naming collisions
@@ -637,14 +648,16 @@ export class Weave extends ParsedObject {
     this.looseEnds.push(childWeaveLooseEnd);
   };
 
-  public override ResolveReferences(context: Story): void {
-    for (const gatherPoint of this.gatherPointsToResolve) {
-      gatherPoint.divert.targetPath = gatherPoint.targetRuntimeObj.path;
+  public override ResolveWith(context: Story, program: boolean): void {
+    if (!program) {
+      for (const gatherPoint of this.gatherPointsToResolve) {
+        gatherPoint.divert.targetPath = gatherPoint.targetRuntimeObj.path;
+      }
     }
 
     this.CheckForWeavePointNamingCollisions();
 
-    super.ResolveReferences(context);
+    super.ResolveWith(context, program);
   }
 
   public readonly WeavePointNamed = (name: string): IWeavePoint | null => {

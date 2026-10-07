@@ -356,6 +356,7 @@ async function main() {
           wall: { compile: t1 - t0 },
           phases,
           passes: { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null },
+          resolver: compiler.programResolver?.passesLastResolve,
         });
       }
       continue;
@@ -450,6 +451,12 @@ function printReport(report: any) {
     // What each pass of the chunk store visited, per sample
     // (`ChunkStore.passesLastBuild`).
     out.push("", "  chunk store passes, per sample:", ...passes.map((p: any) => `    ${JSON.stringify(p)}`));
+  }
+  const resolves = report.perSample?.map((s: any) => s.resolver).filter(Boolean);
+  if (resolves?.length) {
+    // What the program path's resolver visited, per sample
+    // (`ProgramResolver.passesLastResolve`, #1607).
+    out.push("", "  resolver passes, per sample:", ...resolves.map((p: any) => `    ${JSON.stringify(p)}`));
   }
   const m = report.messages;
   if (m) {

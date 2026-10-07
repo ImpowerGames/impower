@@ -118,8 +118,8 @@ export class VariableReference extends Expression {
     container.AddContent(this._runtimeVarRef);
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
 
     // Read-count conversion below (`name = null` + `pathForCount = ...`) is a
     // one-way door on the runtime object. Under incremental container reuse
@@ -127,7 +127,7 @@ export class VariableReference extends Expression {
     // to its generated form first so the conversion is re-derived from the
     // CURRENT tree (a deleted target flow decays back to a plain variable
     // reference exactly like a cold compile).
-    if (this._runtimeVarRef && this._runtimeVarRef.name === null) {
+    if (!program && this._runtimeVarRef && this._runtimeVarRef.name === null) {
       this._runtimeVarRef.name = this.name;
       this._runtimeVarRef.pathForCount = null;
     }
@@ -176,6 +176,15 @@ export class VariableReference extends Expression {
       let targetFlow = asOrNull(targetForCount, FlowBase);
       if (targetFlow && targetFlow.isFunction) {
         this.resolvedAs = "function";
+        return;
+      }
+
+      // The program reads the count of the target's symbol (`GetCount`),
+      // which every counted symbol keeps, and the target's container is
+      // another statement's runtime object.
+      if (program) {
+        this.resolvedAs = "count";
+        this.countTarget = targetForCount;
         return;
       }
 

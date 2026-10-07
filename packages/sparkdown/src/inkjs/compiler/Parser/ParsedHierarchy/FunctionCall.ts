@@ -21,7 +21,7 @@ import {
   Op,
 } from "../../../../program/ProgramInstructions";
 import { displayLeavesLineOpen } from "../../../../program/displayCallFlags";
-import { noteResolved } from "../../../../program/StatementWatch";
+import { resolveChild } from "./Object";
 
 export class FunctionCall extends Expression {
   public static readonly IsBuiltIn = (name: string): boolean => {
@@ -381,8 +381,8 @@ export class FunctionCall extends Expression {
     }
   }
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
 
     // If we aren't using the proxy divert after all (e.g. if
     // it's a native function call), but we still have arguments,
@@ -390,8 +390,7 @@ export class FunctionCall extends Expression {
     // is no longer in the content array.
     if (!this.content.includes(this._proxyDivert) && this.args !== null) {
       for (const arg of this.args) {
-        arg.ResolveReferences(context);
-        noteResolved(arg);
+        resolveChild(arg, context, program);
       }
     }
 
@@ -415,7 +414,9 @@ export class FunctionCall extends Expression {
             `Failed to find target for TURNS_SINCE: \`${divert.target}\``,
           );
         }
-      } else {
+      } else if (!program) {
+        // The program counts every counted symbol, and the target's
+        // container is another statement's runtime object.
         if (!targetObject.containerForCounting) {
           throw new Error();
         }
@@ -428,7 +429,13 @@ export class FunctionCall extends Expression {
         throw new Error();
       }
 
-      if (runtimeVarRef.pathForCount !== null) {
+      // A reference that resolved to a read count: the current engine's
+      // runtime reference holds the count's path, which the program does not
+      // write.
+      const readsCount = program
+        ? this._variableReferenceToCount.resolvedAs === "count"
+        : runtimeVarRef.pathForCount !== null;
+      if (readsCount) {
         this.Error(
           `Should be \`${FunctionCall.name}(-> ${this._variableReferenceToCount.name})\`. Usage without \`->\` only makes sense for variable targets.`,
         );
