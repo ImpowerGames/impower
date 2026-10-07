@@ -926,6 +926,23 @@ The current engine with this change measured 56.5 / 60.0 for `ink/compile` in th
 After the corrections of review round 1 (a constant's readers resolved again when its validity changes, no carried initializer walked or written again), the same commands on 2026-10-07 beside the resolver before them (9cb97b0d1) in one sitting, three rounds (12, 12 and 24 samples after 4 warm-up), medians in milliseconds per round: `program/resolve` and `program/chunks` together 12.5 / 13.3 / 14.2 (resolve 5.3 / 5.6 / 6.0, chunks 7.2 / 7.7 / 8.2) against 13.0 / 14.6 / 13.7 before them, and the current engine's `ink/compile`, `ink/flowShapes`, `populateLocations` and `sortPathLocations` 93.6 / 96.7 together in the first two rounds. The project declares no constant this edit's resolve wrote again (`initialized` 0 before and after), so the two differ by the run's noise; every sample generates and resolves the `choose` block alone and counts 29 objects visited outside any statement, all under the objects the compile adds to the story. With the statement facts that answer a resolution's whole-story lookups (`readFacts`), the same three rounds beside the resolver without them (3d2e691f6): 12.3 / 12.9 / 13.9 together (resolve 4.9 / 5.5 / 6.1) against 18.2 / 13.0 / 13.4 (resolve 7.9 / 5.4 / 5.5), the first round of the latter slowed by load; the current engine's four phases took 79.7 together in the first round.
 
 ```bash
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 3515 --word concerned --mode edit --chunks --samples 24
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 1159 --word panicking --mode edit --chunks --samples 24
+```
+
+With the statement memo (#656), the edit at line 3515 and the same edit at line 1159, an ordinary top-level statement of the same scene, on 2026-10-07 on the same machine, beside main at ea305f7e4 in one sitting with processor load from other sessions, three rounds of 24 samples after 4 warm-up, each round running the memo and main in turn, medians in milliseconds per round. At line 3515 the annotator lowers the edited statement and the clause's last and serves the other 304 statements of the `then` clause; the resolver generates 319 objects and resolves 326 where it generated 2,258 and resolved 2,634, and repeats 304 memos; the store reads the identity of 2 statements where it read 306. At line 1159 nothing is served.
+
+| Phase | Line 3515, main | Line 3515, memo | Line 1159, main | Line 1159, memo |
+| --- | --- | --- | --- | --- |
+| `incrementalParse` | 49.0 / 46.8 / 48.1 | 27.4 / 26.8 / 28.8 | 24.5 / 22.6 / 22.9 | 24.0 / 25.6 / 20.1 |
+| `program/resolve` | 6.9 / 7.0 / 7.5 | 3.2 / 3.8 / 3.6 | 2.7 / 2.6 / 2.3 | 3.4 / 3.0 / 2.7 |
+| `program/chunks` | 8.6 / 7.9 / 8.3 | 5.9 / 5.6 / 6.4 | 4.5 / 4.2 / 4.4 | 5.0 / 5.1 / 4.1 |
+| `ink/canonicalizeSyntheticNames` | 2.6 / 2.6 / 3.4 | 0.6 / 0.6 / 0.7 | 0.4 / 0.3 / 0.4 | 0.4 / 0.4 / 0.3 |
+| Worker compile, game and route, wall clock | 136.9 / 137.6 / 134.6 | 101.7 / 101.7 / 110.5 | 73.4 / 68.4 / 69.4 | 78.0 / 81.1 / 62.1 |
+
+`incrementalParse` at line 3515 is within 5 ms of line 1159 in two rounds of three (3.4, 1.2 and 8.7 ms apart, the third round's line 1159 unusually fast), and 3.4 ms apart by the medians over the rounds, where main's are 24.2 to 25.2 ms apart. What is left of the difference is the parse of the edit's window, the walk over the clause's 306 statements that finds each memo, and the clause's own lowering; the profile charges no single part more than about 1 ms. At line 1159 the memo's recording and bookkeeping cost about half a millisecond each in `program/resolve` and `program/chunks` by the medians, within the runs' noise. A cold compile of the project measured 2,208.5 and 2,185.7 ms by the median of 6 compiles after 2, against main's 2,175.7 and 2,180.0, about 1 percent for the recording. The heap after full collections ends at 193.4 MB against main's 198.2 MB.
+
+```bash
 node scripts/bench/engine-bench.mjs --project <Raffles and Bunny project> --line 3515 --mode search
 ```
 
