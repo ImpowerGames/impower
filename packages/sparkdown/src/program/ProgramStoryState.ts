@@ -299,14 +299,17 @@ export const scopesBefore = (chunk: StatementChunk, offset: number): number => {
 };
 
 /** The scopes a frame has open at `position`: its own, those each owner on
- *  the position's block stack has open where it enters its block, and those
- *  the position's chunk has opened before the offset (section 1). */
+ *  the position's block stack (`blocks`, when the caller has it) has open
+ *  where it enters its block, and those the position's chunk has opened
+ *  before the offset (section 1). A jump lands at this depth
+ *  (`ProgramStory.land`), and a load's cut leaves a frame at it. */
 export const scopeDepthAt = (
   root: ProgramRoot,
   position: ProgramPosition,
+  blocks: readonly BlockEntry[] | undefined = blockStackOf(root, position.sequence),
 ): number => {
   let depth = 1;
-  for (const block of blockStackOf(root, position.sequence) ?? []) {
+  for (const block of blocks ?? []) {
     depth += blockScopes(block.sequence.arrays.chunks[block.entry]!, block.block);
   }
   const chunk = position.sequence.arrays.chunks[position.entry];

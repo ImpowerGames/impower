@@ -1719,7 +1719,7 @@ export const normalizeSource = (source: string): string => {
   for (const raw of source.split("\n")) {
     const line = raw.replace(/\r$/, "");
     if (!open && !LOGIC_LINE.test(line.trimStart())) {
-      const text = line.replace(DISPLAY_COMMENT, "").trim();
+      const text = withoutDisplayComment(line).trim();
       if (text.length > 0) {
         out.push(text);
       }
@@ -1839,8 +1839,38 @@ const JOINED = new Set([
 const LOGIC_LINE =
   /^(?:&|--|(?:if|elseif|else|end|while|for|repeat|until|do|local|function|return|break|continue|store|const|define|choose|then|match|case|type|export)(?![\w]))/;
 
-/** A comment of a displayed line (`SparkdownInlineComment`). */
-const DISPLAY_COMMENT = /(?:^|\s)\/\/(?=\s|$).*$/;
+/** A displayed line without its comment (`SparkdownInlineComment`): a `//`
+ *  that starts the line or follows whitespace and is followed by whitespace
+ *  or the line's end, outside the line's interpolations (`{...}`), where a
+ *  `//` is an operator or, in a string, text. */
+const withoutDisplayComment = (line: string): string => {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i]!;
+    if (quote) {
+      if (c === "\\") i += 1;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (depth > 0 && (c === '"' || c === "'" || c === "`")) {
+      quote = c;
+    } else if (c === "{") {
+      depth += 1;
+    } else if (c === "}" && depth > 0) {
+      depth -= 1;
+    } else if (
+      depth === 0 &&
+      c === "/" &&
+      line[i + 1] === "/" &&
+      (i === 0 || /\s/.test(line[i - 1]!)) &&
+      (i + 2 >= line.length || /\s/.test(line[i + 2]!))
+    ) {
+      return line.slice(0, i);
+    }
+  }
+  return line;
+};
 
 /** The opening of a Luau long bracket, `[[` or `[=[` and so on. */
 const LONG_BRACKET = /^\[(=*)\[/;

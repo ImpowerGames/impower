@@ -124,7 +124,7 @@ import {
   ProgramChoice,
   ProgramStoryState,
   blockStackOf,
-  scopesBefore,
+  scopeDepthAt,
   type BlockEntry,
   type ProgramFrame,
   type ProgramPosition,
@@ -439,7 +439,9 @@ export class ProgramStory {
     this.saveHistory = options.saveHistory ?? 16;
     this.images = options.images ?? new ProgramImages();
     this._tracker = new ImageTracker(this.images);
-    this.ResetState();
+    // The first state, which leaves a history handed on by the engine of
+    // the program before as it is.
+    this.resetState();
   }
 
   // ------------------------------------------------------------------ images
@@ -890,7 +892,14 @@ export class ProgramStory {
   /** A fresh state: the story copy's, with no global initialized, then the
    *  program's declaration chunks run in the order the current engine's
    *  `global decl` container initializes the globals in. */
+  /** Resets the story to its initial state, a fresh playthrough, whose
+   *  history of beats starts empty. */
   ResetState(): void {
+    this.resetState();
+    this.history.replace([], false);
+  }
+
+  protected resetState(): void {
     this.IfAsyncWeCant("ResetState");
     const reactiveDepsEnabled =
       this._state?.variablesState?.reactiveDepsEnabled ?? false;
@@ -2669,14 +2678,7 @@ export class ProgramStory {
       while (frame.temporaryScopes.length > kept) {
         frame.PopScope(state.callStack.cellBarrier);
       }
-      let scopes = 1;
-      for (const block of blocks) {
-        scopes += scopesOf(block);
-      }
-      const chunk = target.sequence.arrays.chunks[target.entry];
-      if (chunk) {
-        scopes += scopesBefore(chunk, target.offset);
-      }
+      const scopes = scopeDepthAt(this.root, target, blocks);
       // The scopes past the shared blocks are opened. Every count is exact,
       // inside a `choose` block's entries and bodies too (section 4), so the
       // frame holds the shared blocks' scopes and keeps their bindings.

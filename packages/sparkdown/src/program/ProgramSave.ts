@@ -2056,7 +2056,6 @@ class SaveReader {
           tracker?.global(String(name));
           variables.RestoreGlobal(String(name), undefined);
         }
-        tail();
         this.readCounts(beat, true);
         for (const token of Array.isArray(beat["tables"]) ? beat["tables"] : []) {
           JsonSerialisation.RedefineLoadSessionTable(token, (table) => tracker?.table(table));
@@ -2073,6 +2072,11 @@ class SaveReader {
             scopeIndex: Number(scopeIndex),
           });
         }
+        // The frames last, so that the cuts of a placement after a
+        // construct close the cells of the scopes they drop on the beat's
+        // own values. A table a frame's temporaries first define is a
+        // placeholder the tables above already filled by its id.
+        tail();
       }
       state.endLoad();
       if (plan.placed) {

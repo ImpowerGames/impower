@@ -561,6 +561,52 @@ describe("the beats of a save loaded into a release that differs", () => {
     expect(play(reloaded).beats).toEqual(["Three."]);
   });
 
+  // Round 1 of the review of #1654 (report 6031983271).
+  it("tell apart two displayed lines that differ inside a string of their interpolation, a `//` included", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", 'Line {"a // b"}.', "End."]),
+      scene(["P1.", "P2.", "P3.", 'Line {"a // c"}.', 'Line {"a // b"}.', "End."]),
+      3,
+      // The `a // b` line was ordinal 3, and is ordinal 4.
+      { flow: "start", entry: 4 },
+      ["Line a // b.", "End."],
+    );
+  });
+
+  it("hold only the beats of the playthrough since the story was last reset", () => {
+    const text = (withNew: boolean) =>
+      [
+        "store gold = 0",
+        "",
+        "scene old",
+        "  Old one.",
+        "  & gold = gold + 1",
+        "  Old two.",
+        "  Old three.",
+        "end",
+        "",
+        ...(withNew ? ["scene new", "  New one.", "  New two.", "end", ""] : []),
+      ].join("\n");
+    const story = engine(rootOf(text(true)));
+    story.ChoosePathString("old");
+    expect(advance(story, 3)).toEqual(["Old one.", "Old two.", "Old three."]);
+    story.ResetState();
+    story.ChoosePathString("new");
+    expect(advance(story, 1)).toEqual(["New one."]);
+    const save = story.toSave();
+    const flows = JSON.parse(save).beats.map((beat: any) => beat.position.st.levels[0].flow);
+    expect(flows).not.toContain("old");
+    const loaded = engine(rootOf(text(false)));
+    let refused: unknown;
+    try {
+      loaded.loadSave(save);
+    } catch (e) {
+      refused = e;
+    }
+    expect(refused).toBeInstanceOf(SaveRefused);
+    expect((refused as SaveRefused).flow).toBe("new");
+  });
+
   it("keep the value of a global the release made a constant, whichever beat assigned it", () => {
     const before = scene(["First.", "& K = 2", "Second.", "Value {K}."], "start", ["store K = 1", ""]);
     const story = engine(rootOf(before));
