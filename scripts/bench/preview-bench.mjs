@@ -23,10 +23,12 @@
 //                       the current engine (programCoverage.ts, #694); it
 //                       needs no --line or --word
 //   --chunks            compile with the binary program's statement chunks on
-//                       (`programChunks`, #694) and time the compile alone,
-//                       since the worker's route search reads runtime paths;
-//                       prints what each pass of the chunk store visited per
-//                       sample (`ChunkStore.passesLastBuild`, #701)
+//                       and run the worker's game on the program engine
+//                       (`programChunks`, #694), as the player's worker ships
+//                       (#703); without it the current engine runs, which a
+//                       measurement pairs with in the same sitting. Prints
+//                       what each pass of the chunk store visited per sample
+//                       (`ChunkStore.passesLastBuild`, #701)
 //   --samples <K>       measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
@@ -165,7 +167,7 @@ async function main(args) {
       const gaps = cpuProf ? path.join(cpuProf, `${mode}.gaps.json`) : undefined;
       const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json, gaps, chunks: !!options.chunks };
       const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
-      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
+      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", "--expose-gc", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;
       console.log("");
     }

@@ -75,21 +75,18 @@ describe("route searches for a selection", () => {
           text: "angry",
         },
       ]);
+      // The parse throws, which any compile runs, on either engine (the
+      // program path, which the worker runs by default since #703, no longer
+      // walks the runtime story's flow shapes after #1607).
       const compiler: any = h.workerState.compilerState.compiler;
-      const kept = {
-        note: compiler.noteFlowShapesWithoutEmitting,
-        serialize: compiler.serializeCompiledProgram,
-      };
-      const fail = () => {
+      const parseIncrementally = compiler.parseIncrementally;
+      compiler.parseIncrementally = () => {
         throw new Error("the compile threw");
       };
-      compiler.noteFlowShapesWithoutEmitting = fail;
-      compiler.serializeCompiledProgram = fail;
       try {
         await h.compile();
       } finally {
-        compiler.noteFlowShapesWithoutEmitting = kept.note;
-        compiler.serializeCompiledProgram = kept.serialize;
+        compiler.parseIncrementally = parseIncrementally;
       }
       expect(h.workerState.compilerState.compiler.isProgramOutdated()).toBe(false);
 
