@@ -8,6 +8,9 @@
 // records. The file was recorded at 99397ed89, the commit before the
 // resolver, where `ExportRuntime` resolved every program:
 //   SPARKDOWN_RECORD_DIAGNOSTICS=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/program/programDiagnosticsParity.test.ts --wait 900
+// A fixture main added since is recorded by the same command once its
+// diagnostics on main's `ExportRuntime` are checked to be the resolver's
+// (`diverts/dotted-divert-targets-with-arguments.sd`, at bbc912833).
 import "../../inkjs/engine/Container";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";

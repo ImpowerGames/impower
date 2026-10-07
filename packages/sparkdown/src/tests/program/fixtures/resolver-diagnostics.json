@@ -284,6 +284,10 @@
    "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":29,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":29,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
   ]
  },
+ "diverts/dotted-divert-targets-with-arguments.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
  "diverts/multi-target-tunnel-chain.sd": {
   "fallback": null,
   "diagnostics": []
