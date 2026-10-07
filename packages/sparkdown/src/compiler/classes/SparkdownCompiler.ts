@@ -161,9 +161,10 @@ import {
   resetSubtreeRuntime,
   type MemoCandidate,
 } from "../../program/ProgramResolver";
-import { MemoizedStatementNeeded } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import { MemoizedStatementNeeded, memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import {
   memosOf,
+  nestedObjects,
   StatementMemoRetry,
   type MemoStats,
   type StatementMemoEntry,
@@ -2752,7 +2753,7 @@ export class SparkdownCompiler {
       }
       const memoRetry =
         e instanceof MemoizedStatementNeeded
-          ? new StatementMemoRetry([e.statement.memo as StatementMemoEntry], e.message)
+          ? new StatementMemoRetry([memoOf(e.statement) as StatementMemoEntry], e.message)
           : e instanceof StatementMemoRetry
             ? e
             : undefined;
@@ -4886,6 +4887,7 @@ export class SparkdownCompiler {
         objects: shape.objects,
         line: record.lineAt(shape.from + skipped) + 1,
         endLine: record.lineAt(shape.to) + 1,
+        nested: shape.bodies.length > 0 ? nestedObjects(shape) : undefined,
       };
       for (const obj of shape.objects) {
         this._memoCandidates.set(obj, candidate);

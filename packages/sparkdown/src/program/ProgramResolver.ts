@@ -34,6 +34,7 @@ import { ReturnType } from "../inkjs/compiler/Parser/ParsedHierarchy/ReturnType"
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { StructDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { memoAssignmentOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Container as RuntimeContainer } from "../inkjs/engine/Container";
@@ -46,7 +47,7 @@ import type {
   MemoResolution,
   StatementMemoEntry,
 } from "../compiler/lower/statementMemo";
-import { MemoizedStatement } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import { memoOf } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 
 /** The parsed objects under `node` that a walk over its subtree visits: its
  *  `content`, and for a call that generated as a builtin, native or stdlib
@@ -320,6 +321,9 @@ export interface MemoCandidate {
   readonly objects: readonly ParsedObject[];
   readonly line: number;
   readonly endLine: number;
+  /** For a block statement, the objects the statements of its bodies hold
+   *  at their tops, at any depth, which their own memos judge. */
+  readonly nested?: ReadonlySet<ParsedObject>;
 }
 
 // What one memo candidate's generation and resolution reported and read.
@@ -330,6 +334,8 @@ interface MemoTally {
   reads: Set<string>;
   context: string | null;
   refused: string | null;
+  /** Whether the plain assignment the candidate is made an auto-global. */
+  autoGlobal: boolean;
 }
 
 const sameMembers = (a: readonly ParsedObject[], b: readonly ParsedObject[]) =>
@@ -1741,8 +1747,9 @@ export class ProgramResolver {
     metadata: SourceMetadata | null,
   ): void {
     this._buffer.push({ message, type, metadata });
-    const frame = this._frames[this._frames.length - 1];
-    if (frame) {
+    // A block statement's memo reports what the statements inside it
+    // report, in the order they report it.
+    for (const frame of this._frames) {
       const { tally } = frame;
       const { line, endLine } = tally.candidate;
       if (
@@ -1751,7 +1758,7 @@ export class ProgramResolver {
         metadata.endLineNumber > endLine
       ) {
         this.refuse(tally, "it reports a position outside itself");
-        return;
+        continue;
       }
       (frame.generated ? tally.generate : tally.resolve).push({
         message,
@@ -1816,6 +1823,7 @@ export class ProgramResolver {
         reads: new Set(),
         context: null,
         refused: null,
+        autoGlobal: false,
       };
       this._tallies.set(candidate.entry, tally);
     }
@@ -1844,8 +1852,22 @@ export class ProgramResolver {
       return undefined;
     }
     const objects = tally.candidate.objects;
+    // A plain assignment stands as an assignment of its name
+    // (`MemoizedAssignment`), which the passes over the whole story read as
+    // they read it; what it holds they read no more of.
+    const assignment =
+      objects.length === 1 &&
+      objects[0] instanceof VariableAssignment &&
+      memoAssignmentOf(objects[0]) !== null;
+    // A block statement holds the objects of the statements of its bodies,
+    // which their own memos judge, and stand-ins of them when it is served.
+    const nested = tally.candidate.nested;
+    const walks = (obj: ParsedObject): boolean =>
+      nested?.has(obj) ? false : holdsWhatTheStoryWalks(obj, nested);
     if (
-      objects.some(holdsWhatTheStoryWalks) ||
+      (assignment
+        ? parsedChildren(objects[0]!).some(walks)
+        : objects.some(walks)) ||
       localsDeclaredIn(objects as ParsedObject[], objects.length).size > 0
     ) {
       return undefined;
@@ -1874,6 +1896,7 @@ export class ProgramResolver {
       context: tally.context,
       resolver: this._id,
       at: this._compile,
+      autoGlobal: tally.autoGlobal,
     };
   }
 
@@ -1883,8 +1906,11 @@ export class ProgramResolver {
    *  statement whose objects hold it. A memo whose names are declared
    *  otherwise, or that stands among other flows, cannot be repeated: it is
    *  marked stale, and the compile lowers it again. */
-  protected repeatMemo(statement: MemoizedStatement, phase: "generate" | "resolve"): void {
-    const entry = statement.memo as StatementMemoEntry;
+  protected repeatMemo(
+    statement: ParsedObject,
+    entry: StatementMemoEntry,
+    phase: "generate" | "resolve",
+  ): void {
     const resolution = entry.resolution;
     const recording = this._recording;
     if (!resolution) {
@@ -1907,6 +1933,13 @@ export class ProgramResolver {
         recording.record.reads.add(name);
       }
     }
+    // A block statement lowered anew reads what a statement inside it
+    // served from its memo read.
+    for (const frame of this._frames) {
+      for (const name of resolution.reads) {
+        frame.tally.reads.add(name);
+      }
+    }
     const at = statement.debugMetadata;
     for (const report of phase === "generate" ? resolution.generate : resolution.resolve) {
       const position = new DebugMetadata();
@@ -1917,6 +1950,24 @@ export class ProgramResolver {
       position.startCharacterNumber = report.startCharacter;
       position.endCharacterNumber = report.endCharacter;
       statement.Error(report.message, position, report.type === ErrorType.Warning);
+    }
+    // The auto-global the assignment made, made again where its resolution
+    // would make it, while no name resolves the assignment's name: the
+    // lookup reads the names, as the resolution's own did.
+    if (phase === "resolve") {
+      // A block statement's stand-in holds the stand-ins of the statements
+      // inside it, whose auto-globals it makes again.
+      for (const held of [statement, ...(entry.owner ? statement.content : [])]) {
+        const autoGlobal =
+          held === statement ? resolution.autoGlobal : (memoOf(held) as StatementMemoEntry | undefined)?.resolution?.autoGlobal;
+        if (
+          autoGlobal &&
+          held instanceof VariableAssignment &&
+          !this._story.ResolveVariableWithName(held.variableName, held).found
+        ) {
+          this.event({ kind: "autoGlobal", assignment: held }, held.RegisterAutoGlobal);
+        }
+      }
     }
   }
 
@@ -2064,8 +2115,8 @@ export class ProgramResolver {
   protected tap: ResolutionTap = {
     read: (key) => {
       this._recording?.record?.reads.add(key);
-      const frame = this._frames[this._frames.length - 1];
-      if (frame) {
+      // A block statement's memo reads what the statements inside it read.
+      for (const frame of this._frames) {
         frame.tally.reads.add(key);
       }
     },
@@ -2086,8 +2137,9 @@ export class ProgramResolver {
       }
     },
     memo: (statement, phase) => {
-      if (statement instanceof MemoizedStatement) {
-        this.repeatMemo(statement, phase);
+      const entry = memoOf(statement);
+      if (entry) {
+        this.repeatMemo(statement, entry as StatementMemoEntry, phase);
       }
     },
     functionValue: (flowName) => {
@@ -2133,7 +2185,20 @@ export class ProgramResolver {
   };
 
   protected event(event: ResolutionEvent, register: () => void): void {
-    if (this._candidates) {
+    const frame = this._frames[this._frames.length - 1];
+    if (
+      event.kind === "autoGlobal" &&
+      frame &&
+      frame.tally.candidate.objects.length === 1 &&
+      frame.tally.candidate.objects[0] === event.assignment
+    ) {
+      // The plain assignment a candidate is makes the auto-global, which
+      // its stand-in makes again (`repeatMemo`).
+      frame.tally.autoGlobal = true;
+    } else if (event.kind === "autoGlobal" && memoOf(event.assignment)) {
+      // A stand-in makes it again, as the block statement that holds it
+      // will (`repeatMemo`).
+    } else if (this._candidates) {
       // A statement that declares anything, which the story keeps for the
       // rest of the compile, is no statement a memo can stand for.
       const declared =
@@ -2163,7 +2228,13 @@ export class ProgramResolver {
  *  `readFacts`): a declaration of any kind, a flow, a label, a return, an
  *  assignment or a function value. A statement served from its memo holds
  *  no objects, so a statement that holds any of these is never remembered. */
-const holdsWhatTheStoryWalks = (obj: ParsedObject): boolean => {
+const holdsWhatTheStoryWalks = (
+  obj: ParsedObject,
+  except?: ReadonlySet<ParsedObject>,
+): boolean => {
+  if (except?.has(obj)) {
+    return false;
+  }
   if (
     obj instanceof FlowBase ||
     obj instanceof VariableAssignment ||
@@ -2178,7 +2249,7 @@ const holdsWhatTheStoryWalks = (obj: ParsedObject): boolean => {
   ) {
     return true;
   }
-  return parsedChildren(obj).some(holdsWhatTheStoryWalks);
+  return parsedChildren(obj).some((child) => holdsWhatTheStoryWalks(child, except));
 };
 
 /** The named gathers, then the named choices, a weave holds at any depth, as

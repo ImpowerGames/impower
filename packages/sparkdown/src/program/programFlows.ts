@@ -15,7 +15,7 @@ import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
 import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
-import { MemoizedStatement } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import { memoOf } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Knot } from "../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -762,7 +762,16 @@ const nestedStatement = (
 ): StatementSource => {
   const firstLine = record.lineAt!(firstNonSpace(record.text!, shape));
   const served = shape.objects[0];
-  if (served instanceof MemoizedStatement && shape.memo) {
+  if (served && memoOf(served) && shape.memo && shape.bodies.length > 0) {
+    // A block statement served from its memo, with the statements of its
+    // bodies, each served too.
+    return {
+      ...statementOf(shape.memo, [], served.ownDebugMetadata, firstLine, shape, record),
+      memo: true,
+      stands: [served],
+    };
+  }
+  if (served && memoOf(served) && shape.memo) {
     // A statement served from its memo holds no objects: it keeps the chunk
     // its memo holds, which the store finds by the memo (`ChunkStore`).
     let source: string | undefined;
@@ -772,6 +781,7 @@ const nestedStatement = (
       block: shape.memo,
       objects: [],
       memo: true,
+      stands: [served],
       range: served.ownDebugMetadata,
       firstLine,
       source: sourceOf,
@@ -787,7 +797,9 @@ const nestedStatement = (
   const range = objects[0]?.ownDebugMetadata ?? null;
   if (shape.bodies.length > 0) {
     return statementOf(
-      shape,
+      // A block statement the memo remembered is known by its memo, as any
+      // statement it remembered is (below).
+      shape.memo ?? shape,
       objects,
       range,
       firstLine,

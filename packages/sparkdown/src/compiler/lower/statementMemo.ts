@@ -5,7 +5,21 @@ import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
-import { MemoizedStatement } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import {
+  MemoizedDivert,
+  memoDivertOf,
+  type MemoDivert,
+} from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/MemoizedDivert";
+import {
+  MemoizedStatement,
+  memoOf,
+} from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import {
+  MemoizedAssignment,
+  memoAssignmentOf,
+  type MemoAssignment,
+} from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
+import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -96,12 +110,57 @@ export class StatementMemoEntry {
     /** Whether its node holds a block `validateBlockEnds` checks, which
      *  then walks it when it is served, as when it is lowered. */
     readonly holdsBlock: boolean,
+    /** For a statement whose objects another pass reads for what they are,
+     *  what it stands as when it is served: a divert (`MemoizedDivert`), a
+     *  plain assignment (`MemoizedAssignment`). Null for one that stands as
+     *  a `MemoizedStatement`. */
+    readonly stand: MemoDivert | MemoAssignment | null = null,
+    /** For a block statement, its bodies and the memos of the statements in
+     *  them, with what their lowerings read of the context outside the
+     *  block statement (`MemoOwner`). */
+    readonly owner: MemoOwner | null = null,
   ) {}
 
   /** Whether the compile completed the memo, so it can be served. */
   get complete(): boolean {
     return this.chunk !== undefined && this.resolution !== undefined;
   }
+}
+
+/** A statement of a body of a block statement remembered with it: its memo,
+ *  its node's name, and where it starts and ends, relative to the start of
+ *  the block statement. */
+export interface MemoNested {
+  readonly entry: StatementMemoEntry;
+  readonly node: string;
+  readonly from: number;
+  readonly to: number;
+}
+
+/** A body of a block statement remembered with it, the parts around it
+ *  relative to the start of the block statement (`BodyShape`). */
+export interface MemoBody {
+  readonly headStart: number;
+  readonly headEnd: number;
+  readonly nextStart: number;
+  readonly statements: readonly MemoNested[];
+}
+
+/**
+ * What the memo of a block statement holds beside a statement's: its bodies,
+ * each with the memos of its statements, and what the lowerings of the
+ * statements at any depth inside it read of the context as the block
+ * statement found it, each from where its statement starts, relative to the
+ * block statement's start. A read of what the block statement's own
+ * lowering set up for its bodies (the scopes and the stacks it pushed) is
+ * not among them: the block statement's own reads decide it, with its
+ * syntax, which is the text of its bodies too.
+ */
+export interface MemoOwner {
+  readonly bodies: readonly MemoBody[];
+  readonly reads: readonly { readonly at: number; readonly reads: readonly ContextRead[] }[];
+  /** The memos of the statements at any depth inside it, in order. */
+  readonly descendants: readonly StatementMemoEntry[];
 }
 
 export interface MemoLoweringRead {
@@ -139,6 +198,10 @@ export interface MemoResolution {
    *  resolves: a name declared otherwise since makes the memo stale. */
   readonly resolver: number;
   readonly at: number;
+  /** Whether its resolution made a global of the name the plain assignment
+   *  it is assigns, which no name resolved (an auto-global), which its
+   *  stand-in makes again while the name is still undeclared. */
+  readonly autoGlobal: boolean;
 }
 
 /** Thrown when a compile meets a statement its memo served that it cannot
@@ -252,6 +315,12 @@ interface Pending {
   line: number;
   endLine: number;
   holdsBlock: boolean;
+  /** For a block statement: the diagnostics pushed onto the context while
+   *  it was lowered, its bodies' included, in order, and what the
+   *  statements inside it read of the context as it found it. */
+  pushed?: InkDiagnostic[];
+  nested?: { at: number; reads: ContextRead[] }[];
+  nestedLoweringReads?: MemoLoweringRead[];
 }
 
 /**
@@ -262,7 +331,7 @@ interface Pending {
  */
 export class StatementMemoSession {
   /** The statements served, in order. */
-  readonly served: MemoizedStatement[] = [];
+  readonly served: ParsedObject[] = [];
   protected _pending: Pending[] = [];
   // The nodes of the statements served that hold no block, by where each
   // starts, as `name:to` (`servedWithoutBlocks`).
@@ -342,6 +411,8 @@ export class StatementMemoSession {
     if (entry) {
       return this.serve(entry, node, to, ctx, shape);
     }
+    const pushedBefore = ctx.diagnostics?.length ?? 0;
+    const pendingBefore = this._pending.length;
     const { ctx: recorded, finish } = recordLowering(ctx, node.from, to);
     const block = lower(recorded);
     if (block?.content?.length) {
@@ -349,6 +420,10 @@ export class StatementMemoSession {
       this.stats.loweredAt.push(node.from);
     }
     const recording = finish();
+    const inside =
+      shape.bodies.length > 0
+        ? this.inside(node, ctx, shape, this._pending.slice(pendingBefore))
+        : undefined;
     // The chunk store keeps the statement's chunk while these read the same
     // (`readsKey`), as the memo serves the statement while they do: the
     // reads as a set, in no order of the lowering's own.
@@ -365,8 +440,98 @@ export class StatementMemoSession {
       endLine: ctx.lineNumber(to),
       // A statement that runs on past its node is walked whatever it holds.
       holdsBlock: to !== node.to || holdsCheckedBlock(node),
+      pushed: inside ? (ctx.diagnostics ?? []).slice(pushedBefore) : undefined,
+      nested: inside?.reads,
+      nestedLoweringReads: inside?.loweringReads,
     });
     return block;
+  }
+
+  /**
+   * What the statements inside the block statement `shape` the node `node`
+   * was just lowered to read, lowered or served, as the block statement
+   * found the context, which is how the context stands again now that it is
+   * lowered: each read that reads the same now, from where its statement
+   * starts, relative to the block statement's start, and the `LoweringRead`s
+   * they reported. A read that reads otherwise now read what the block
+   * statement set up for its bodies. Undefined when a statement inside it
+   * was lowered without the memo.
+   */
+  protected inside(
+    node: SparkdownNode,
+    ctx: LowerContext,
+    shape: StatementShape,
+    pending: readonly Pending[],
+  ):
+    | { reads: { at: number; reads: ContextRead[] }[]; loweringReads: MemoLoweringRead[] }
+    | undefined {
+    const byShape = new Map(pending.map((p) => [p.shape, p]));
+    const base = node.from - shape.from;
+    const reads: { at: number; reads: ContextRead[] }[] = [];
+    const loweringReads: MemoLoweringRead[] = [];
+    // The statements inside a statement served from its memo, which its
+    // memo's reads hold.
+    const covered = new Set<StatementShape>();
+    let known = true;
+    // Asking a read again records the names it consulted on the statement
+    // being lowered, which are not this statement's own.
+    const callable = new Map(shape.reads.callable);
+    const defineType = new Map(shape.reads.defineType);
+    eachStatement(shape, (statement) => {
+      if (covered.has(statement)) {
+        return;
+      }
+      const lowered = byShape.get(statement);
+      const served = !lowered && memoOf(statement.objects[0]) ? statement.memo : undefined;
+      if (!lowered && !served) {
+        known = false;
+        return;
+      }
+      const from = lowered ? lowered.from : base + statement.from;
+      const own = lowered ? lowered.recording.reads : served!.reads;
+      reads.push({
+        at: from - node.from,
+        reads: own.filter((read) => readsHold(ctx, from, [read])),
+      });
+      if (lowered) {
+        for (const read of lowered.recording.loweringReads) {
+          loweringReads.push({
+            kind: read.kind,
+            value: read.value,
+            node: read.node,
+            at: read.from - node.from,
+          });
+        }
+        for (const read of lowered.nestedLoweringReads ?? []) {
+          loweringReads.push({ ...read, at: from - node.from + read.at });
+        }
+        for (const nested of lowered.nested ?? []) {
+          const at = from + nested.at;
+          reads.push({
+            at: at - node.from,
+            reads: nested.reads.filter((read) => readsHold(ctx, at, [read])),
+          });
+        }
+        if (lowered.nested) {
+          eachStatement(statement, (inner) => covered.add(inner));
+        }
+      } else {
+        for (const read of served!.loweringReads) {
+          loweringReads.push({ ...read, at: from - node.from + read.at });
+        }
+        for (const nested of served!.owner?.reads ?? []) {
+          const at = from + nested.at;
+          reads.push({
+            at: at - node.from,
+            reads: nested.reads.filter((read) => readsHold(ctx, at, [read])),
+          });
+        }
+        eachStatement(statement, (inner) => covered.add(inner));
+      }
+    });
+    shape.reads.callable = callable;
+    shape.reads.defineType = defineType;
+    return known ? { reads, loweringReads } : undefined;
   }
 
   /** Whether `node` is the node of a statement the session served that
@@ -382,7 +547,9 @@ export class StatementMemoSession {
       return false;
     }
     const rebuilt = this.rebuilt;
-    return !rebuilt || to < rebuilt.from || node.from > rebuilt.to;
+    // A node that ends where the rebuilt range starts (`to` is past its last
+    // character) holds nothing the parse rebuilt.
+    return !rebuilt || to <= rebuilt.from || node.from > rebuilt.to;
   }
 
   /**
@@ -433,7 +600,7 @@ export class StatementMemoSession {
       entry.loweringReads.every(
         (read) => this.askAgain(read.kind, read.node, node.from + read.at) === read.value,
       );
-    if (!holds) {
+    if (!holds || (entry.owner && !this.insideHolds(entry.owner, node, ctx, shape))) {
       shape.reads.callable = callable;
       shape.reads.defineType = defineType;
       return undefined;
@@ -449,6 +616,83 @@ export class StatementMemoSession {
     return entry;
   }
 
+  /** Whether a block statement's memo can stand for the statements inside
+   *  it: each of their memos is complete and usable, and each read their
+   *  lowerings made of the context as the block statement found it reads
+   *  the same. The names those reads consulted are not recorded on the block
+   *  statement, whose own reads are its record's. */
+  protected insideHolds(
+    owner: MemoOwner,
+    node: SparkdownNode,
+    ctx: LowerContext,
+    shape: StatementShape,
+  ): boolean {
+    if (owner.descendants.some((entry) => entry.stale || !entry.complete || !this.host.usable(entry))) {
+      return false;
+    }
+    const callable = new Map(shape.reads.callable);
+    const defineType = new Map(shape.reads.defineType);
+    const holds = owner.reads.every(({ at, reads }) => readsHold(ctx, node.from + at, reads));
+    shape.reads.callable = callable;
+    shape.reads.defineType = defineType;
+    return holds;
+  }
+
+  /** The object a statement served from `entry` stands as, placed at
+   *  `from` to `to` as `stampStatement` places a statement's objects. */
+  protected standIn(entry: StatementMemoEntry, from: number, to: number, ctx: LowerContext): ParsedObject {
+    const statement =
+      entry.stand?.kind === "divert"
+        ? new MemoizedDivert(entry, entry.stand)
+        : entry.stand?.kind === "assignment"
+          ? new MemoizedAssignment(entry, entry.stand)
+          : new MemoizedStatement(entry);
+    const range = statementBounds(from, to, ctx);
+    statement.debugMetadata = buildDebugMetadata(range.from, range.to, ctx);
+    return statement;
+  }
+
+  /** The bodies of a block statement served from its memo, whose shape
+   *  starts at `start`, relative to the top-level node, and at `base` +
+   *  `start` in the document: each statement's shape, known by its memo,
+   *  and its stand-in, which `placed` collects in order. */
+  protected bodiesOf(
+    owner: MemoOwner,
+    start: number,
+    base: number,
+    ctx: LowerContext,
+    placed: ParsedObject[],
+  ): StatementShape["bodies"] {
+    return owner.bodies.map((body) => ({
+      headStart: start + body.headStart,
+      headEnd: start + body.headEnd,
+      nextStart: start + body.nextStart,
+      statements: body.statements.map((nested): StatementShape => {
+        const from = start + nested.from;
+        const statement = this.standIn(nested.entry, base + from, base + start + nested.to, ctx);
+        placed.push(statement);
+        this.used.add(nested.entry);
+        return {
+          node: nested.node,
+          from,
+          to: start + nested.to,
+          objects: [statement],
+          bodies: nested.entry.owner
+            ? this.bodiesOf(nested.entry.owner, from, base, ctx, placed)
+            : [],
+          reads: {
+            callable: new Map(),
+            defineType: new Map(),
+            other: [...nested.entry.own.other],
+            context: nested.entry.own.context,
+            recorded: nested.entry.own.recorded,
+          },
+          memo: nested.entry,
+        };
+      }),
+    }));
+  }
+
   protected serve(
     entry: StatementMemoEntry,
     node: SparkdownNode,
@@ -456,10 +700,7 @@ export class StatementMemoSession {
     ctx: LowerContext,
     shape: StatementShape,
   ): CompiledBlock {
-    const statement = new MemoizedStatement(entry);
-    // The statement's range, as `stampStatement` gives a statement's objects.
-    const range = statementBounds(node.from, to, ctx);
-    statement.debugMetadata = buildDebugMetadata(range.from, range.to, ctx);
+    const statement = this.standIn(entry, node.from, to, ctx);
     if (!entry.holdsBlock && to === node.to) {
       this._withoutBlocks.set(node.from, `${node.name}:${node.to}`);
     }
@@ -467,6 +708,16 @@ export class StatementMemoSession {
     shape.reads.other = [...entry.own.other];
     shape.reads.context = entry.own.context;
     shape.reads.recorded = entry.own.recorded;
+    if (entry.owner) {
+      // A block statement stands with the statements of its bodies, each as
+      // its memo's stand-in, which its stand-in holds, so that the passes
+      // over the whole story find what they read of them.
+      const placed: ParsedObject[] = [];
+      shape.bodies = this.bodiesOf(entry.owner, shape.from, node.from - shape.from, ctx, placed);
+      statement.AddContent(placed);
+      this.served.push(...placed);
+      this.stats.served += placed.length;
+    }
     const line = ctx.lineNumber(node.from);
     for (const { diagnostic } of entry.diagnostics) {
       ctx.diagnostics?.push(shifted(diagnostic, line));
@@ -493,7 +744,7 @@ export class StatementMemoSession {
     eachStatement(top, (statement) => inBodies.add(statement));
     const servedShapes = new Set<StatementShape>();
     eachStatement(top, (statement) => {
-      if (statement.objects[0] instanceof MemoizedStatement) {
+      if (memoOf(statement.objects[0])) {
         servedShapes.add(statement);
       }
     });
@@ -549,16 +800,40 @@ const remember = (
   inBodies: ReadonlySet<StatementShape>,
 ): StatementMemoEntry | undefined => {
   const { shape, recording } = pending;
+  // A divert statement stands as a divert to the same target, which is what
+  // the weave and the flow's checks read of it, and a plain assignment as an
+  // assignment of the same name, which is what the story's passes over the
+  // whole program read of it.
+  const only = shape.objects.length === 1 ? shape.objects[0] : undefined;
+  const stand =
+    only instanceof Divert
+      ? memoDivertOf(only)
+      : only instanceof VariableAssignment
+        ? memoAssignmentOf(only)
+        : null;
   if (
     recording.unkeyable !== null ||
     !inBodies.has(shape) ||
-    shape.bodies.length > 0 ||
-    shape.objects.length === 0 ||
-    shape.objects.some((obj) => ownerReads(obj, true))
+    shape.objects.length === 0
   ) {
     return undefined;
   }
-  const diagnostics = relative(recording.diagnostics, pending.line, pending.endLine);
+  let owner: MemoOwner | null = null;
+  if (shape.bodies.length > 0) {
+    owner = ownerOf(pending);
+    if (!owner) {
+      return undefined;
+    }
+  } else if (!stand && shape.objects.some((obj) => ownerReads(obj, true))) {
+    return undefined;
+  }
+  // A block statement's diagnostics are every one pushed while it was
+  // lowered, its bodies' included, in order.
+  const diagnostics = relative(
+    owner ? pending.pushed : recording.diagnostics,
+    pending.line,
+    pending.endLine,
+  );
   const blockDiagnostics = relative(pending.block?.diagnostics, pending.line, pending.endLine);
   if (!diagnostics || !blockDiagnostics) {
     return undefined;
@@ -566,12 +841,17 @@ const remember = (
   return new StatementMemoEntry(
     pending.syntax,
     recording.reads,
-    recording.loweringReads.map((read) => ({
-      kind: read.kind,
-      value: read.value,
-      node: read.node,
-      at: read.from - pending.from,
-    })),
+    [
+      ...recording.loweringReads.map((read) => ({
+        kind: read.kind,
+        value: read.value,
+        node: read.node,
+        at: read.from - pending.from,
+      })),
+      // A block statement's memo asks again what the statements inside it
+      // asked, as it reads again what they read.
+      ...(owner ? pending.nestedLoweringReads! : []),
+    ],
     diagnostics,
     blockDiagnostics,
     {
@@ -580,7 +860,74 @@ const remember = (
       recorded: shape.reads.recorded,
     },
     pending.holdsBlock,
+    stand,
+    owner,
   );
+};
+
+/**
+ * What the memo of the block statement `pending` lowered holds of its
+ * bodies (`MemoOwner`), or null when it cannot stand for them: a statement
+ * inside it was not remembered, its own objects (those that are not a
+ * statement's of its bodies) hold what the weave or the story's passes read
+ * of a statement's objects, or it writes a function (`ownerReads`).
+ */
+const ownerOf = (pending: Pending): MemoOwner | null => {
+  const { shape } = pending;
+  if (!pending.nested || !pending.nestedLoweringReads || !pending.pushed) {
+    return null;
+  }
+  const nestedObjects = new Set<ParsedObject>();
+  const descendants: StatementMemoEntry[] = [];
+  let remembered = true;
+  eachStatement(shape, (statement) => {
+    if (!statement.memo) {
+      remembered = false;
+      return;
+    }
+    descendants.push(statement.memo);
+    for (const obj of statement.objects) {
+      nestedObjects.add(obj);
+    }
+  });
+  if (!remembered || shape.objects.some((obj) => ownerReadsOwn(obj, nestedObjects))) {
+    return null;
+  }
+  const at = (offset: number) => offset - shape.from;
+  return {
+    bodies: shape.bodies.map((body) => ({
+      headStart: at(body.headStart),
+      headEnd: at(body.headEnd),
+      nextStart: at(body.nextStart),
+      statements: body.statements.map((statement) => ({
+        entry: statement.memo!,
+        node: statement.node,
+        from: at(statement.from),
+        to: at(statement.to),
+      })),
+    })),
+    reads: pending.nested,
+    descendants,
+  };
+};
+
+/** `ownerReads` of a block statement's own objects, leaving out the objects
+ *  of the statements of its bodies (`nested`), which their memos judge. */
+const ownerReadsOwn = (obj: ParsedObject, nested: ReadonlySet<ParsedObject>): boolean => {
+  if (nested.has(obj)) {
+    return false;
+  }
+  if (
+    obj instanceof Choice ||
+    obj instanceof Gather ||
+    obj instanceof TunnelOnwards ||
+    obj instanceof AuthorWarning ||
+    obj instanceof FlowBase ||
+    (obj instanceof Divert && !obj.isFunctionCall)
+  ) {
+    return true;
+  }
+  return (obj.content ?? []).some((child) => ownerReadsOwn(child, nested));
 };
 
 /** The statements of a body that a block's lowering served from their
@@ -595,8 +942,20 @@ export const memosOf = (
       if (!statement.memo) {
         return;
       }
-      (statement.objects[0] instanceof MemoizedStatement ? served : lowered).push(statement);
+      (memoOf(statement.objects[0]) ? served : lowered).push(statement);
     });
   }
   return { served, lowered };
+};
+
+/** The objects the statements of a block statement's bodies hold at their
+ *  tops, at any depth (`MemoCandidate.nested`). */
+export const nestedObjects = (shape: StatementShape): Set<ParsedObject> => {
+  const out = new Set<ParsedObject>();
+  eachStatement(shape, (statement) => {
+    for (const obj of statement.objects) {
+      out.add(obj);
+    }
+  });
+  return out;
 };

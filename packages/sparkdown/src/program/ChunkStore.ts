@@ -134,6 +134,11 @@ export interface StatementSource {
    *  no objects, and keeps the chunk its memo holds, or the build stops
    *  (`StatementMemoRetry`). */
   memo?: boolean;
+  /** For a statement served from its memo, the object it stands as in its
+   *  owner's objects (`MemoizedStatement`, `MemoizedDivert`), which its
+   *  owner's values leave out as they leave out the objects of every other
+   *  statement of its bodies (`bodyObjects`). */
+  stands?: readonly ParsedObject[];
 }
 
 /** One body of a block statement, or of a function the statement writes. */
@@ -2368,13 +2373,14 @@ export class ChunkStore {
       info.parts.length > 0 ||
       info.alternators.length > 0 ||
       info.choices.length > 0 ||
-      info.heads.length > 0 ||
       info.anonymousReferences.length > 0 ||
       info.defines !== undefined ||
       info.globals !== undefined ||
       info.hoisted !== "" ||
       info.params !== "" ||
-      blockCount(chunk) > 0 ||
+      // A block statement's bodies are blocks its heads head (a branch's, a
+      // loop's), which its served shape holds again; no other block.
+      blockCount(chunk) !== info.heads.length ||
       exportCount(chunk) > 0
     ) {
       return undefined;
@@ -4210,6 +4216,9 @@ const bodyObjects = (
   for (const body of statement.bodies) {
     for (const nested of body.statements) {
       for (const obj of nested.objects) {
+        out.add(obj);
+      }
+      for (const obj of nested.stands ?? []) {
         out.add(obj);
       }
     }

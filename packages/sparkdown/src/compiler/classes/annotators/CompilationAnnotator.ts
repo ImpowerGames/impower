@@ -19,7 +19,6 @@ import {
   type StatementMemoHost,
 } from "../../lower/statementMemo";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
-import type { MemoizedStatement } from "../../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
@@ -104,7 +103,7 @@ export interface CompiledBlock {
   statement?: StatementShape;
   // The statements of its bodies its lowering served from their memos
   // (`statementMemo.ts`), which hold none of their objects.
-  memoized?: MemoizedStatement[];
+  memoized?: ParsedObject[];
 }
 
 // A lowering read as its chunk keeps it: the node that read it by name and by
@@ -633,6 +632,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
         blockEndStack,
+        // The depth of the scoped blocks open around the statement being
+        // lowered, which a block statement raises and puts back: starting it
+        // at 0, as every reader reads it unset, leaves the context as a block
+        // statement found it (`recordLowering`, #656).
+        scopeDepth: 0,
       };
       const session =
         statement && host?.enabled

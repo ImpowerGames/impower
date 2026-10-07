@@ -5,6 +5,40 @@ import { ParsedObject } from "./Object";
 import { resolutionTap } from "./ResolutionTap";
 import type { Story } from "./Story";
 
+// The memo a served statement's stand-in was served from.
+const MEMO = Symbol("statementMemo");
+
+/** The memo (`StatementMemoEntry`) `obj` was served from, when `obj` stands
+ *  for a statement of a block's body the compilation annotator served from
+ *  its memo instead of lowering it (#656), or undefined. */
+export const memoOf = (obj: ParsedObject | null | undefined): object | undefined =>
+  obj ? (obj as unknown as { [MEMO]?: object })[MEMO] : undefined;
+
+/** Marks `obj` as the stand-in of a statement served from `memo`. */
+export const markMemoized = (obj: ParsedObject, memo: object): void => {
+  (obj as unknown as { [MEMO]?: object })[MEMO] = memo;
+};
+
+/** What a stand-in's generation does: the program path's resolver reports
+ *  again what the statement's memo recorded (`ResolutionTap.memo`); with no
+ *  resolver listening, the pass needs the statement's objects. */
+export const memoGenerate = (obj: ParsedObject): void => {
+  const tap = resolutionTap();
+  if (!tap) {
+    throw new MemoizedStatementNeeded(obj);
+  }
+  tap.memo(obj, "generate");
+};
+
+/** What a stand-in's resolution does, as `memoGenerate`. */
+export const memoResolve = (obj: ParsedObject, program: boolean): void => {
+  const tap = resolutionTap();
+  if (!program || !tap) {
+    throw new MemoizedStatementNeeded(obj);
+  }
+  tap.memo(obj, "resolve");
+};
+
 /**
  * A statement of a block's body that the compilation annotator served from
  * its memo instead of lowering it (#656, `compiler/lower/statementMemo.ts`).
@@ -13,6 +47,11 @@ import type { Story } from "./Story";
  * keeps, and what its generation and resolution reported and read, which the
  * program path's resolver reports and reads again where it stands
  * (`ResolutionTap.memo`).
+ *
+ * A statement whose objects another pass reads for what they are (a divert,
+ * whose kind the weave and the flow's checks read) stands as an object of
+ * that class instead, built from what its memo recorded of it, which goes
+ * through the memo the same way (`memoOf`, `MemoizedDivert`).
  *
  * Only a compile with statement chunks on lowers one. A compile that cannot
  * go on without the statement's objects (a program that falls back to the
@@ -25,6 +64,7 @@ export class MemoizedStatement extends ParsedObject {
     readonly memo: object,
   ) {
     super();
+    markMemoized(this, memo);
   }
 
   override get typeName(): string {
@@ -32,20 +72,12 @@ export class MemoizedStatement extends ParsedObject {
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
-    const tap = resolutionTap();
-    if (!tap) {
-      throw new MemoizedStatementNeeded(this);
-    }
-    tap.memo(this, "generate");
+    memoGenerate(this);
     return new RuntimeContainer();
   };
 
   public override ResolveWith(_context: Story, program: boolean): void {
-    const tap = resolutionTap();
-    if (!program || !tap) {
-      throw new MemoizedStatementNeeded(this);
-    }
-    tap.memo(this, "resolve");
+    memoResolve(this, program);
   }
 
   public override EmitProgram(_emitter: ProgramEmitter): void {
@@ -55,7 +87,7 @@ export class MemoizedStatement extends ParsedObject {
 
 /** Thrown where a pass needs the objects of a statement its memo served. */
 export class MemoizedStatementNeeded extends Error {
-  constructor(readonly statement: MemoizedStatement) {
+  constructor(readonly statement: ParsedObject) {
     super("A pass needs the objects of a statement served from its memo");
   }
 }

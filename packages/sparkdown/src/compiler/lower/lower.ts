@@ -1,7 +1,7 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
-import { MemoizedStatement } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import { memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { AstStat, AstStatIf } from "../typecheck/Ast";
@@ -468,7 +468,7 @@ export function lowerStatements(
         if (
           block.content &&
           statements.length === 1 &&
-          !(block.content[0] instanceof MemoizedStatement)
+          !memoOf(block.content[0])
         ) {
           const statement = statements[0]!;
           const range = statementRange(
