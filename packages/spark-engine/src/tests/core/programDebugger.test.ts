@@ -496,6 +496,109 @@ describe("the debugger on the program engine", () => {
     expect([...(game._breakpointMap[0]?.keys() ?? [])]).toEqual([14]);
   });
 
+  it("keeps a temporary's data breakpoint on its binding while an inner block shadows it", () => {
+    const h = debugGame(
+      [
+        "-> main", //                 0
+        "scene main", //              1
+        "  local health = 10", //     2
+        "  First.", //                3
+        "  do", //                    4
+        "    local health = 99", //   5
+        "    Inner {health}.", //     6
+        "  end", //                   7
+        "  health = health - 1", //   8
+        "  Second {health}.", //      9
+        "  done", //                  10
+        "end", //                     11
+        "",
+      ].join("\n"),
+      true,
+    );
+    h.game.start();
+    expect(h.game.setDataBreakpoints([{ dataId: "main.health" }])[0]!.verified).toBe(true);
+    // The inner declaration, and the block's end, write no value to the
+    // outer `health`.
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("Inner 99.\n");
+    expect(h.of("game/hitBreakpoint")).toHaveLength(0);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(8);
+    expect(names(h.game.getTempVariables())).toContain("health=9");
+  });
+
+  // A `local function` in a scene is declared as a function of its own; a
+  // function value is written in its statement's chunk.
+  it.each([["local function bump()"], ["local bump = function()"]])(
+    "fires a data breakpoint on a temporary of a function written inside a scene: %s",
+    (header) => {
+    const text = [
+      "-> main", //                    0
+      "scene main", //                 1
+      `  ${header}`, //                2
+      "    local n = 0", //            3
+      "    n = n + 1", //              4
+      "    return n", //               5
+      "  end", //                      6
+      "  Start.", //                   7
+      "  local r = bump()", //         8
+      "  Got {r}.", //                 9
+      "  done", //                     10
+      "end", //                        11
+      "",
+    ].join("\n");
+    const paused = debugGame(text, true);
+    paused.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    paused.game.start();
+    paused.continueToBreakpoint();
+    expect(paused.stoppedAt()).toBe(4);
+    const n = paused.game.getTempVariables().find((v) => v.name === "n")!;
+    const dataId = `${n.scopePath}.${n.name}`;
+    const h = debugGame(text, true);
+    const set = h.game.setDataBreakpoints([{ dataId }]);
+    expect({ dataId, verified: set[0]!.verified }).toEqual({
+      dataId,
+      verified: true,
+    });
+    expect(set[0]!.location?.range.start.line).toBe(4);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(4);
+    expect(names(h.game.getTempVariables())).toContain("n=1");
+    },
+  );
+
+  it("offers and stops at the lines of a function written in a declaration", () => {
+    const text = [
+      "store handler = function()", // 0
+      "  local x = 1", //               1
+      "  return x + 1", //              2
+      "end", //                         3
+      "-> main", //                     4
+      "scene main", //                  5
+      "  Start.", //                    6
+      "  local v = handler()", //       7
+      "  Got {v}.", //                  8
+      "  done", //                      9
+      "end", //                         10
+      "",
+    ].join("\n");
+    const h = debugGame(text, true);
+    const lines = h.game.possibleBreakpointLines({
+      uri: MAIN,
+      range: { start: { line: 0 }, end: { line: 3 } },
+    });
+    expect(lines).toEqual([1, 2]);
+    const set = h.game.setBreakpoints([{ file: MAIN, line: 1 }]);
+    expect(set[0]!.verified).toBe(true);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(1);
+  });
+
   it("refuses a breakpoint on a declaration, which runs before the story starts", () => {
     const h = debugGame(NESTED, true);
     const set = h.game.setBreakpoints([{ file: MAIN, line: 0 }]);

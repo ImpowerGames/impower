@@ -56,6 +56,7 @@ import {
   programAssignmentAddresses,
   programBreakpointLines,
   programFunctionAddress,
+  runsAfterReset,
 } from "../utils/programBreakpoints";
 import {
   validAddressPrefixLength,
@@ -372,9 +373,14 @@ export class Game<T extends M = {}> {
 
   /** On the program engine, the variables the data breakpoints watch: a
    *  global by its name, or a temporary of the frame named `scope`, with
-   *  the value object each held when the game last looked. */
-  protected _dataWatches: { scope?: string; name: string; last: unknown }[] =
-    [];
+   *  the value object each held when the game last looked and, for a
+   *  temporary, the block scope it was found in (`readWatch`). */
+  protected _dataWatches: {
+    scope?: string;
+    name: string;
+    last: unknown;
+    binding: Map<string, InkObject> | null;
+  }[] = [];
 
   protected _simulation?: "none" | "simulating" | "success" | "fail";
   get simulation() {
@@ -1144,37 +1150,49 @@ export class Game<T extends M = {}> {
       any(this._dataBreakpointMap);
   }
 
-  /** The value object a data breakpoint's variable holds now: a global's,
-   *  or the temporary of that name in the innermost frame named by the
-   *  watch's scope, searched from its innermost block scope out; nothing
-   *  when no such variable is in scope. */
+  /**
+   * The value object a data breakpoint's variable holds now, and whether it
+   * was read from the binding the watch read last. A global is read by its
+   * name. A temporary is read from the block scope that held it when the
+   * watch last found it, while a frame named by the watch's scope still
+   * holds that block scope, so a temporary of the same name declared in an
+   * inner block shadows it without being it; otherwise it is found anew, in
+   * the innermost frame named by the scope, from its innermost block scope
+   * out. Nothing when no such variable is in scope.
+   */
   protected readWatch(
     program: ProgramStory,
-    watch: { scope?: string; name: string },
-  ): unknown {
+    watch: (typeof this._dataWatches)[number],
+  ): { value: unknown; same: boolean } {
     if (watch.scope === undefined) {
-      return (
+      const value =
         program.state.variablesState.GetGlobalVariableValue(watch.name) ??
-        undefined
-      );
+        undefined;
+      return { value, same: true };
     }
     const callStack = program.state.callStack;
-    const frames = program.debugFrames(callStack.currentThread.threadIndex);
-    for (let i = (frames?.length ?? 0) - 1; i >= 0; i -= 1) {
-      const frame = frames![i]!;
-      if (frame.name !== watch.scope) {
-        continue;
-      }
-      const scopes = frame.element.temporaryScopes;
-      for (let s = scopes.length - 1; s >= 0; s -= 1) {
-        const value = scopes[s]!.get(watch.name);
-        if (value !== undefined) {
-          return value;
-        }
-      }
-      return undefined;
+    const frames =
+      program.debugFrames(callStack.currentThread.threadIndex) ?? [];
+    const named = frames.filter((frame) => frame.name === watch.scope);
+    const bound = watch.binding;
+    if (
+      bound &&
+      bound.has(watch.name) &&
+      named.some((frame) => frame.element.temporaryScopes.includes(bound))
+    ) {
+      return { value: bound.get(watch.name), same: true };
     }
-    return undefined;
+    watch.binding = null;
+    const innermost = named.at(-1);
+    const scopes = innermost?.element.temporaryScopes ?? [];
+    for (let s = scopes.length - 1; s >= 0; s -= 1) {
+      const value = scopes[s]!.get(watch.name);
+      if (value !== undefined) {
+        watch.binding = scopes[s]!;
+        return { value, same: false };
+      }
+    }
+    return { value: undefined, same: false };
   }
 
   /** Notes what each data breakpoint's variable holds now, so that only a
@@ -1186,13 +1204,14 @@ export class Game<T extends M = {}> {
       return;
     }
     for (const watch of this._dataWatches) {
-      watch.last = this.readWatch(program, watch);
+      watch.last = this.readWatch(program, watch).value;
     }
   }
 
   /** Whether a data breakpoint's variable holds another value than it did,
-   *  noting what each holds now. A variable that comes into scope, or goes
-   *  out of it, is declared or dropped rather than written. */
+   *  noting what each holds now. A variable that comes into scope, goes out
+   *  of it, or is found in another binding is declared, dropped or shadowed
+   *  rather than written. */
   protected dataWatchesChanged(): boolean {
     const program = this.programStory;
     if (!program) {
@@ -1200,11 +1219,16 @@ export class Game<T extends M = {}> {
     }
     let changed = false;
     for (const watch of this._dataWatches) {
-      const now = this.readWatch(program, watch);
-      if (now !== undefined && watch.last !== undefined && now !== watch.last) {
+      const { value, same } = this.readWatch(program, watch);
+      if (
+        same &&
+        value !== undefined &&
+        watch.last !== undefined &&
+        value !== watch.last
+      ) {
         changed = true;
       }
-      watch.last = now;
+      watch.last = value;
     }
     return changed;
   }
@@ -1282,7 +1306,7 @@ export class Game<T extends M = {}> {
           address === undefined
             ? undefined
             : program.root.position(chunkOfAddress(address));
-        if (at && at.sequence.flow < 0 && at.sequence.owner < 0) {
+        if (at && !runsAfterReset(program.root, at.sequence)) {
           return this.programBreakpoint(
             undefined,
             "A declaration runs before the story starts",
@@ -1384,7 +1408,10 @@ export class Game<T extends M = {}> {
         const { assignments, declarations } = programAssignmentAddresses(
           program.root,
           b.dataId,
-          (flow) => program.flowName(flow),
+          (symbol, isFunction) =>
+            isFunction
+              ? program.root.labelOf(symbol)
+              : program.flowName(symbol),
         );
         const exists =
           scope === undefined
@@ -1396,7 +1423,7 @@ export class Game<T extends M = {}> {
             "No variable found at the breakpoint",
           );
         }
-        watches.push({ scope, name, last: undefined });
+        watches.push({ scope, name, last: undefined, binding: null });
         // A global is placed where it is declared, since a temporary that
         // shadows it is assigned by the same name; a temporary where it is
         // first assigned.
