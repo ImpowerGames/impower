@@ -22,7 +22,11 @@ const runnerDocs = new Set([
   ".agents/skills/references/runner-filing.md",
   ".agents/skills/references/runner-writing.md",
 ]);
-for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f))) {
+// Skills installed from an upstream source are pinned by content hash in
+// skills-lock.json and must stay verbatim, so their text is not ours to reword.
+const vendored = Object.keys(JSON.parse(fs.readFileSync(path.join(root, "skills-lock.json"), "utf8")).skills).map((name) => `.agents/skills/${name}/`);
+const isVendored = (f) => vendored.some((dir) => f.startsWith(dir));
+for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f) && !isVendored(f))) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
   assert.deepEqual(violations(text), [], file);
   // Runner-specific material is reached conditionally through AGENTS.md.
