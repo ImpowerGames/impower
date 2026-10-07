@@ -22,17 +22,37 @@ const runnerDocs = new Set([
   ".agents/skills/references/runner-filing.md",
   ".agents/skills/references/runner-writing.md",
 ]);
-// Skills installed from an upstream source are pinned by content hash in
-// skills-lock.json and must stay verbatim, so their text is not ours to reword.
-const vendored = Object.keys(JSON.parse(fs.readFileSync(path.join(root, "skills-lock.json"), "utf8")).skills).map((name) => `.agents/skills/${name}/`);
-const isVendored = (f) => vendored.some((dir) => f.startsWith(dir));
-for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f) && !isVendored(f))) {
+// A skill copied verbatim from upstream (pinned in skills-lock.json) may name
+// a runner the shared skills otherwise must not. Each allowance lists that
+// file's exact violations, so any added token fails and a stale one is noticed.
+const vendoredAllowances = new Map([
+  [".agents/skills/modern-web-guidance/SKILL.md", ["CLAUDE.md"]],
+  [".agents/skills/modern-web-guidance/guides/built-in-ai/language-model.md", ["haiku"]],
+  [".agents/skills/modern-web-guidance/guides/built-in-ai/prompt-api.md", ["haiku"]],
+  [".agents/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md", ["agent tool"]],
+]);
+export const unexpectedViolations = (file, text) => {
+  const found = violations(text);
+  const allowed = vendoredAllowances.get(file);
+  if (!allowed || JSON.stringify(found) === JSON.stringify(allowed)) return allowed ? [] : found;
+  return found.length ? found : ["stale allowance: " + allowed.join(", ")];
+};
+const scanned = files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f));
+for (const skill of skills) assert.ok(scanned.includes(skill), "the scan covers " + skill);
+for (const file of scanned) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
-  assert.deepEqual(violations(text), [], file);
+  assert.deepEqual(unexpectedViolations(file, text), [], file);
   // Runner-specific material is reached conditionally through AGENTS.md.
 }
 for (const token of ["opus", "sonnet", "haiku", "fable", "claude-x", "gpt-6-test", "Skill tool", "Agent tool", "subagent_type", "Write/Edit", "set_session_title", "scratchpad", "CLAUDE.md"]) assert.ok(violations("instruction " + token).length, token);
 assert.deepEqual(violations("Read the repository's agent instructions; use an editor capability and a private directory."), []);
+// The allowance covers only its own file and only its exact token list.
+for (const file of vendoredAllowances.keys()) assert.ok(files.includes(file), "allowance names a tracked file: " + file);
+const vendoredFile = ".agents/skills/modern-web-guidance/SKILL.md";
+assert.deepEqual(unexpectedViolations(vendoredFile, "a policy in CLAUDE.md"), []);
+assert.ok(unexpectedViolations(vendoredFile, "a policy in CLAUDE.md; call set_session_title").length, "an added token in an allowed file fails");
+assert.ok(unexpectedViolations(vendoredFile, "no runner names").length, "a stale allowance fails");
+assert.ok(unexpectedViolations(".agents/skills/file-task/SKILL.md", "a policy in CLAUDE.md").length, "CLAUDE.md in another skill fails");
 assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
 const reviewFiles = ["SKILL.md", "references/launch.md", "references/reviewer-prompt.md", "references/adjudication.md", "references/later-rounds.md", "HANDOFF.md"];
 const prompt = reviewFiles.map((file) => fs.readFileSync(path.join(root, ".agents/skills/review-pr", file), "utf8")).join("\n");
