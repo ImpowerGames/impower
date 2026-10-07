@@ -205,7 +205,7 @@ describe("a dotted target's unclosed argument list is reported on its line", () 
   ])("%j reports %j as unclosed", (line, list) => {
     expect(errorsOf(script(line))).toEqual([
       {
-        message: "Expected `)` to close this divert's arguments.",
+        message: "Expected `)` to close this divert's arguments before the end of its line.",
         line: 2,
         text: list,
       },
@@ -241,9 +241,21 @@ describe("a dotted target's unclosed argument list is reported on its line", () 
     ].join("\n");
     expect(errorsOf(text)).toEqual([
       {
-        message: "Expected `)` to close this divert's arguments.",
+        message: "Expected `)` to close this divert's arguments before the end of its line.",
         line: 3,
         text: "(a + 1, \"b\"",
+      },
+    ]);
+  });
+
+  test("an argument list written across lines is reported on its first line", () => {
+    // A divert's arguments are written on its line, so a list broken across
+    // lines is reported where it opens rather than passing nothing silently.
+    expect(errorsOf(script("-> outer.second(\n      1\n    )"))).toEqual([
+      {
+        message: "Expected `)` to close this divert's arguments before the end of its line.",
+        line: 2,
+        text: "(",
       },
     ]);
   });

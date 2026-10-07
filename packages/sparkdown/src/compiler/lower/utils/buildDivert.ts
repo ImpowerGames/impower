@@ -8,17 +8,18 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { lowerExpressionFromNodes } from "../expression/lowerExpression";
 import type { LowerContext } from "../context";
 import { buildDisplayCall } from "./displayCall";
 import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
 
-const CALL_NAMES = ["LuauFunctionCall", "LuauSparkdownExplicitFunctionCall"];
-const PARAMETER_NAMES = [
+// Each set also holds its rules' `LuauSparkdownExplicit` counterparts.
+const CALL_NAMES = nodeNameSet(["LuauFunctionCall"]);
+const PARAMETER_NAMES = nodeNameSet([
   "DivertArguments",
   "LuauFunctionCallParameters",
-  "LuauSparkdownExplicitFunctionCallParameters",
-];
+]);
 
 /** The direct children of a begin/content/end node's `_content` wrapper
  *  that hold text; none when the node matched no content. */
@@ -65,10 +66,10 @@ function readDivertTarget(targetNode: SyntaxNode): {
     ) {
       continue;
     }
-    if (!nameNode && !pathNode && CALL_NAMES.includes(child.name)) {
+    if (!nameNode && !pathNode && CALL_NAMES.has(child.name)) {
       nameNode = getDescendent("LuauFunctionName", child) ?? null;
       for (const part of contentChildren(child)) {
-        if (!params && PARAMETER_NAMES.includes(part.name)) {
+        if (!params && PARAMETER_NAMES.has(part.name)) {
           params = part;
         } else if (part.name !== "ExtraWhitespace") {
           extra.push(part);
@@ -80,7 +81,7 @@ function readDivertTarget(targetNode: SyntaxNode): {
       pathNode = child;
       continue;
     }
-    if (pathNode && !params && PARAMETER_NAMES.includes(child.name)) {
+    if (pathNode && !params && PARAMETER_NAMES.has(child.name)) {
       params = child;
       continue;
     }
@@ -95,7 +96,7 @@ function readDivertTarget(targetNode: SyntaxNode): {
 function lowerDivertArguments(params: SyntaxNode, ctx: LowerContext): Expression[] {
   const args: Expression[] = [];
   const content = getDescendent(
-    PARAMETER_NAMES.map((name) => `${name}_content`),
+    [...PARAMETER_NAMES].map((name) => `${name}_content`),
     params,
   );
   if (!content) {
@@ -169,7 +170,7 @@ function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
     return;
   }
   const first = extra[0]!;
-  const isList = PARAMETER_NAMES.includes(first.name);
+  const isList = PARAMETER_NAMES.has(first.name);
   const from = isList ? argumentListStart(first) : first.from;
   const to = extra[extra.length - 1]!.to;
   // value-level: the text is quoted in the message whole, never classified.
@@ -193,7 +194,7 @@ function reportUnclosedArguments(params: SyntaxNode, ctx: LowerContext): void {
     return;
   }
   reportTargetError(
-    "Expected `)` to close this divert's arguments.",
+    "Expected `)` to close this divert's arguments before the end of its line.",
     argumentListStart(params),
     params.to,
     ctx,
