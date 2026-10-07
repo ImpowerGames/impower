@@ -81,12 +81,19 @@ export function compileScript(
 /** A compiler over one script with statement chunks on, its first
  *  program's root, an edit that replaces one occurrence of `before` with
  *  `after` and compiles again, and a reseed of the compiler's table, which
- *  it makes by growing the table past what it bounds it at. The compiler's
- *  console output is left out. */
-export function programSession(text: string) {
+ *  it makes by growing the table past what it bounds it at, with the last
+ *  compile's program and the script's text as the edits left it.
+ *  `configure` runs before the first compile. The compiler's console
+ *  output is left out. */
+export function programSession(
+  text: string,
+  configure?: (compiler: SparkdownCompiler) => void,
+) {
   const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  configure?.(c.compiler);
   let current = text;
   let version = 1;
+  let program: SparkProgram;
   const quiet = <T>(run: () => T): T => {
     const { warn, error, log } = console;
     console.warn = console.error = console.log = () => {};
@@ -102,9 +109,16 @@ export function programSession(text: string) {
     const before = current.slice(0, offset).split("\n");
     return { line: before.length - 1, character: before.at(-1)!.length };
   };
+  const compile = () => quiet(() => (program = c.compile().program));
   return {
     compiler: c.compiler,
-    root: quiet(() => c.compile().program.chunks!),
+    root: compile().chunks!,
+    get program(): SparkProgram {
+      return program;
+    },
+    get text(): string {
+      return current;
+    },
     edit(before: string, after: string): ProgramRoot {
       const at = current.indexOf(before);
       if (at < 0) {
@@ -118,7 +132,7 @@ export function programSession(text: string) {
         ],
       });
       current = current.slice(0, at) + after + current.slice(at + before.length);
-      return quiet(() => c.compile().program.chunks!);
+      return compile().chunks!;
     },
     reseed() {
       const compiler = c.compiler as any;

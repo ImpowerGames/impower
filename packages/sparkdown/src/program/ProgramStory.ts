@@ -85,6 +85,7 @@ import {
   CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
   CALL_TUNNEL,
+  JUMP_ARGUMENTS,
   CHOICE_CONDITION,
   CHOICE_DECISION,
   CHOICE_INVISIBLE_DEFAULT,
@@ -162,6 +163,28 @@ type ErrorHandler = (
 /** The function a symbol names, as the call handlers the two engines share
  *  read it (`FunctionTarget`): where its entry code starts, and what its
  *  entry binds, which the leading `SetVar`s of that code say. */
+/** What the entry code at `offset` of `chunk` binds: the `SetVar`s it starts
+ *  with, the first of which binds the last parameter, and whether that one
+ *  is a variadic flow's or function's `...`. */
+const entryBindings = (
+  chunk: StatementChunk,
+  offset: number,
+): { bindings: number; variadic: boolean } => {
+  let bindings = 0;
+  let variadic = false;
+  for (let at = offset; at < codeWords(chunk); at += 2) {
+    const w0 = chunk[HEADER_WORDS + at]!;
+    if (opOf(w0) !== Op.SetVar) {
+      break;
+    }
+    if (bindings === 0) {
+      variadic = (flagsOf(w0) & SET_VARARGS) !== 0;
+    }
+    bindings += 1;
+  }
+  return { bindings, variadic };
+};
+
 class SymbolTarget implements FunctionTarget {
   constructor(
     readonly symbol: number,
@@ -666,15 +689,12 @@ export class ProgramStory {
   /** Moves to the start of a flow, named by its qualified name (the top-level
    *  content's flow is `""` or `"0"`), or to the statement a runtime path of
    *  the current engine's path locations falls in, inside the blocks that
-   *  hold it. */
-  ChoosePathString(path: string, resetCallstack = true, args: unknown[] = []): void {
+   *  hold it. The host's arguments go on the stack as they are, for the
+   *  entry of a flow that takes parameters to bind, as the current engine's
+   *  `ChoosePathString` passes them to the knot it chooses. */
+  ChoosePathString(path: string, resetCallstack = true, args: any[] = []): void {
     this.IfAsyncWeCant("call ChoosePathString right now");
     if (this.onChoosePathString !== null) this.onChoosePathString(path, args);
-    if (args.length > 0) {
-      throw new StoryException(
-        "A flow of the binary program takes no arguments yet.",
-      );
-    }
     const target = this.placePath(path);
     if (!target) {
       throw new StoryException(`Path not found: '${path}'`);
@@ -692,6 +712,7 @@ export class ProgramStory {
     this._state.beatImage = null;
     this._stillImage = null;
     this._state.DiscardLineEnd();
+    this.passArguments(args);
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
     this.land(target.position, this._state.blockStack);
@@ -809,8 +830,9 @@ export class ProgramStory {
     }
     this.passArguments(args);
     // A function takes the host's arguments as a call gives them
-    // (`arrangeArgsFor`); a scene, which binds nothing, takes them as they
-    // are, as on the current engine.
+    // (`arrangeArgsFor`), and so does a scene that takes parameters, for
+    // what its entry binds (`sceneTargetOf`); a scene that takes none takes
+    // them as they are, as on the current engine.
     if (target.bindings > 0) {
       arrangeArgsFor(this, target, args?.length ?? 0);
     }
@@ -1737,6 +1759,9 @@ export class ProgramStory {
         break;
       case Op.Call: {
         if (flags & CALL_TUNNEL) {
+          if (!(flags & JUMP_ARGUMENTS)) {
+            this.padVariadicFlow(arg);
+          }
           this.callTunnel(arg);
           break;
         }
@@ -1800,6 +1825,9 @@ export class ProgramStory {
         state.ForceEnd();
         break;
       case Op.JumpSym:
+        if (!(flags & JUMP_ARGUMENTS)) {
+          this.padVariadicFlow(arg);
+        }
         this.jumpTo(arg);
         break;
       case Op.JumpVar:
@@ -1968,19 +1996,10 @@ export class ProgramStory {
       target = null;
       const entry = this.root.functionEntry(symbol);
       if (entry) {
-        const chunk = entry.sequence.arrays.chunks[entry.entry]!;
-        let bindings = 0;
-        let variadic = false;
-        for (let at = entry.offset; at < codeWords(chunk); at += 2) {
-          const w0 = chunk[HEADER_WORDS + at]!;
-          if (opOf(w0) !== Op.SetVar) {
-            break;
-          }
-          if (bindings === 0) {
-            variadic = (flagsOf(w0) & SET_VARARGS) !== 0;
-          }
-          bindings += 1;
-        }
+        const { bindings, variadic } = entryBindings(
+          entry.sequence.arrays.chunks[entry.entry]!,
+          entry.offset,
+        );
         target = new SymbolTarget(symbol, entry, variadic, bindings);
       }
       this._targets.set(symbol, target);
@@ -1990,7 +2009,10 @@ export class ProgramStory {
 
   /** The scene `symbol` names, run from the start of its flow, as the
    *  current engine runs a knot a host evaluates as a function; or null when
-   *  `symbol` names no scene. A scene binds no parameters. */
+   *  `symbol` names no scene. A scene that takes parameters binds them at its
+   *  start (`FlowEntry`), and the target says what its entry binds, as the
+   *  current engine's `ContainerTarget` reads the knot's assignments, so the
+   *  host's arguments are arranged for them. */
   protected sceneTargetOf(symbol: number): SymbolTarget | null {
     const flow = this.root.flow(symbol);
     if (flow?.kind !== SymbolKind.Scene) {
@@ -2002,11 +2024,14 @@ export class ProgramStory {
       start >= 0 && flow.arrays.chunks.length === 0
         ? this.root.place(start)
         : undefined;
+    const first = flow.arrays.chunks[0];
+    const { bindings, variadic } =
+      branch || !first ? { bindings: 0, variadic: false } : entryBindings(first, 0);
     return new SymbolTarget(
       symbol,
       branch ?? { sequence: flow, entry: 0, offset: 0 },
-      false,
-      0,
+      variadic,
+      bindings,
     );
   }
 
@@ -2284,6 +2309,35 @@ export class ProgramStory {
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
+  }
+
+  /** A divert that passes no arguments to a scene or a branch whose last
+   *  parameter is `...` gives it nil for each fixed parameter and an empty
+   *  `...`, as the current engine's divert pushes a `PackTuple(0)` for a
+   *  variadic target, whether it writes arguments or not. The divert's chunk
+   *  reads no fact about its target, so that it stays the same while the
+   *  target disappears and comes back (docs/engine/binary-program.md,
+   *  section 2), and the flow's entry says what it binds: the `SetVar`s its
+   *  first chunk starts with, the first of which binds the last
+   *  parameter. */
+  protected padVariadicFlow(symbol: number): void {
+    const kind = this.root.kindOf(symbol);
+    if (kind !== SymbolKind.Scene && kind !== SymbolKind.Branch) {
+      return;
+    }
+    const place = this.root.place(symbol);
+    const chunk = place?.sequence.arrays.chunks[0];
+    if (!place || place.entry !== 0 || place.offset !== 0 || !chunk) {
+      return;
+    }
+    const { bindings, variadic } = entryBindings(chunk, 0);
+    if (!variadic) {
+      return;
+    }
+    for (let p = 1; p < bindings; p += 1) {
+      this._state.PushEvaluationStack(new NullValue());
+    }
+    packTuple(this, 0);
   }
 
   /** A jump to a label counts too the labels written right before it with

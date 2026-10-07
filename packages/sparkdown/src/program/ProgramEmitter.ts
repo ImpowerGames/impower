@@ -32,6 +32,11 @@ export interface ProgramEmitter {
    *  hoisted to the top of its body are declared, and its body runs as a
    *  block of the statement. */
   emitFunctionInPlace(fn: object): void;
+  /** Binds parameters from the evaluation stack, last first as the
+   *  arguments were pushed: a `SetVar` with the declare flag each, the
+   *  `...` with the varargs flag, as a function's entry and a scene's or a
+   *  branch's (`FlowEntry`) bind them. */
+  bindParameters(params: readonly { name: string; vararg: boolean }[]): void;
   /** Emits a `choose` block (a `Weave` that is one) as one chunk: the code
    *  that raises its choices, the `Done` that ends their presentation, each
    *  choice's entry code with its body entered as a block, and its `then`
