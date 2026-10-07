@@ -214,18 +214,18 @@ describe("the engine", () => {
 });
 
 describe("the fallback", () => {
-  // A scene's parameters are not bound yet, and its header names them.
+  // An external function is not carried, and its declaration names it.
   it("names a construct at the top level, and emits the current program", () => {
     const { program } = compileScript(
-      "One.\nTwo.\n-> MAIN(1)\n\nscene MAIN(n)\n  Three {n}.\nend\n",
+      "One.\nTwo.\nexternal message(x)\n\n& message(1)\nThree.\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.compiled).toBeTruthy();
     expect(program.fallback).toEqual({
-      construct: "Argument",
+      construct: "external",
       uri: MAIN_URI,
-      line: 4,
+      line: 2,
     });
   });
 

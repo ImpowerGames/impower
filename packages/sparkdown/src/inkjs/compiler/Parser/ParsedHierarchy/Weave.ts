@@ -473,8 +473,12 @@ export class Weave extends ParsedObject {
     this.AddGeneralRuntimeContent(nestedResult.rootContainer);
 
     // Now there's a deeper indentation level, the previous weave point doesn't
-    // count as a loose end (since it will have content to go to)
-    if (this.previousWeavePoint !== null) {
+    // count as a loose end (since it will have content to go to). A `choose`
+    // block is the exception: its end runs on out of it into what follows it
+    // (`endsChooseBlock`), so it leaves no loose end of its own, and the weave
+    // point it follows keeps its own, as the choice whose body holds it does
+    // when it is written directly in another block (#1622).
+    if (this.previousWeavePoint !== null && !nestedResult.isChooseBlock) {
       const index = this.looseEnds.indexOf(this.previousWeavePoint);
       if (index >= 0) {
         this.looseEnds.splice(index, 1);

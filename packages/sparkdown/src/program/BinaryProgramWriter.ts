@@ -605,13 +605,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.enterBlock(shape.body);
   }
 
-  /** Binds a function's parameters from the evaluation stack, last first as
-   *  the arguments were pushed, and declares the locals the lowering hoisted
-   *  to the top of its body. */
-  protected emitParameters(
-    params: FunctionInput["params"],
-    hoisted: readonly ParsedObject[],
-  ): void {
+  bindParameters(params: FunctionInput["params"]): void {
     for (let p = params.length - 1; p >= 0; p -= 1) {
       const param = params[p]!;
       this.emit(
@@ -621,6 +615,16 @@ export class BinaryProgramWriter implements ProgramEmitter {
         SET_DECLARE | (param.vararg ? SET_VARARGS : 0),
       );
     }
+  }
+
+  /** Binds a function's parameters from the evaluation stack, last first as
+   *  the arguments were pushed, and declares the locals the lowering hoisted
+   *  to the top of its body. */
+  protected emitParameters(
+    params: FunctionInput["params"],
+    hoisted: readonly ParsedObject[],
+  ): void {
+    this.bindParameters(params);
     for (const local of hoisted) {
       this.emitObject(local as ParsedObject);
     }

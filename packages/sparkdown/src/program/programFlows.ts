@@ -17,7 +17,7 @@ import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Knot } from "../inkjs/compiler/Parser/ParsedHierarchy/Knot";
-import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
 import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
@@ -33,6 +33,9 @@ import type {
   ProgramFallback,
   StatementSource,
 } from "./ChunkStore";
+import type { ProgramEmitter } from "./ProgramEmitter";
+import { parameterKinds } from "./ProgramFacts";
+import { Op } from "./ProgramInstructions";
 import { ROOT_FLOW_NAME, SymbolKind } from "./ProgramSymbols";
 
 /** What the compile knows of one top-level statement: where it stands, its
@@ -103,9 +106,10 @@ export interface ProgramFlows {
  * The compiler adds a few objects of its own: the `-> DONE` that ends a flow
  * that does not end itself, and the final gather and `done` of the top level.
  * A sequence that runs out ends its flow as those do, so they are left out.
- * Any other placement the build-out has not reached names a construct: a
- * flow's parameters, top-level content of an included script, and an object
- * no statement placed.
+ * Any other placement the build-out has not reached names a construct:
+ * top-level content of an included script, and an object no statement
+ * placed. A scene or a branch that takes parameters starts with the
+ * statement that binds them (`flowEntry`).
  *
  * The global declarations become the declaration statements of their
  * scripts, each holding the globals it declares in the order the story's
@@ -270,32 +274,45 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       fail(flow.typeName, record.uri, record.line);
       return;
     }
-    if ((flow.args?.length ?? 0) > 0) {
-      fail("Argument", record.uri, record.line);
-    }
     headerLines.push({ uri: record.uri, line: record.line });
     // A scene whose content starts with a branch enters that branch, as the
     // current engine's knot diverts to its first stitch
-    // (`FlowBase.GenerateRuntimeObject`).
+    // (`FlowBase.GenerateRuntimeObject`): one that takes no parameters by
+    // its row in the root, and one that takes some from its entry, after it
+    // binds them.
     const first = flow.content?.[0];
-    const startsWith =
+    const start =
       flow instanceof Knot &&
       first instanceof FlowBase &&
       !first.isFunction &&
       !first.hasParameters
         ? `${name}.${first.identifier?.name ?? ""}`
         : undefined;
+    const statements = statementsOf(
+      flow._rootWeave?.content ?? [],
+      record.uri,
+      record.line,
+    );
+    if (flow.hasParameters) {
+      statements.unshift(
+        flowEntry(
+          flow,
+          name,
+          header!,
+          record,
+          start === undefined ? undefined : { flow: first as FlowBase, name: start },
+        ),
+      );
+    }
+    const startsWith = flow.hasParameters ? undefined : start;
     flows.push({
       name,
       kind: flow instanceof Stitch ? SymbolKind.Branch : SymbolKind.Scene,
       uri: record.uri,
       firstLine: record.line + 1,
       span: 0,
-      statements: statementsOf(
-        flow._rootWeave?.content ?? [],
-        record.uri,
-        record.line,
-      ),
+      statements,
+      params: parameterKinds(flow.args),
       ...(startsWith === undefined ? {} : { startsWith }),
     });
     for (const sub of flow.subFlowsByName.values()) {
@@ -405,6 +422,98 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
   }
   return out;
+};
+
+/**
+ * The code that binds the parameters of a scene or a branch where the flow
+ * is entered (docs/engine/binary-program.md, section 1): a `SetVar` with the
+ * declare flag per parameter, last first as a divert pushed the arguments,
+ * the `...` with the varargs flag, as the current engine's flow container
+ * starts (`FlowBase.GenerateArgumentVariableAssignments`); then, for a scene
+ * whose content starts with a branch that takes no parameters, the jump to
+ * that branch, as the current engine's knot diverts to its first stitch
+ * after it binds.
+ */
+export class FlowEntry extends ParsedObject {
+  constructor(
+    readonly flow: FlowBase,
+    readonly start?: { flow: FlowBase; name: string },
+  ) {
+    super();
+  }
+
+  override get typeName(): string {
+    return "FlowEntry";
+  }
+
+  public readonly GenerateRuntimeObject = () => null;
+
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    emitter.bindParameters(
+      (this.flow.args ?? []).map((arg) => ({
+        name: arg.identifier?.name ?? "",
+        vararg: !!arg.isVararg,
+      })),
+    );
+    if (this.start) {
+      // The jump the entry ends with, which reads nothing of its target as a
+      // divert's does. The entry records no resolution: it holds no parsed
+      // object whose resolution the store could read again, and its syntax
+      // names the target, so a different target is a statement that reads
+      // otherwise.
+      const symbol = emitter.targetSymbol(this.start.flow, this.start.name);
+      emitter.referenceTarget(symbol);
+      emitter.emit(Op.JumpSym, symbol);
+    }
+  }
+}
+
+// The key of each flow entry a header has had, by the entry's syntax, so a
+// header the compile carried keeps its entry's key while the entry reads the
+// same.
+const entryKeys = new WeakMap<object, Map<string, object>>();
+
+/** The statement of a scene or a branch that takes parameters which binds
+ *  them (`FlowEntry`): the first of the flow's sequence, standing on the
+ *  flow's header line, the line before the body's first, so that a jump to
+ *  the flow runs it and a jump to a label of the flow, which the label's own
+ *  chunk exports, does not. Its syntax is the flow's name, its parameters
+ *  and the branch it goes on to, which is everything its code depends on,
+ *  so an edit to its parameter list emits it again. */
+const flowEntry = (
+  flow: FlowBase,
+  name: string,
+  header: object,
+  record: StatementRecord,
+  start?: { flow: FlowBase; name: string },
+): StatementSource => {
+  const params = (flow.args ?? [])
+    .map(
+      (arg) =>
+        `${arg.isByReference ? "ref " : ""}${arg.identifier?.name ?? ""}${arg.isVararg ? "..." : ""}`,
+    )
+    .join(",");
+  const source = `${name}(${params})${start ? ` -> ${start.name}` : ""}`;
+  const syntax = `FlowEntry\u0000${source}`;
+  let keys = entryKeys.get(header);
+  if (!keys) {
+    keys = new Map();
+    entryKeys.set(header, keys);
+  }
+  let block = keys.get(syntax);
+  if (!block) {
+    block = {};
+    keys.set(syntax, block);
+  }
+  return {
+    block,
+    objects: [new FlowEntry(flow, start)],
+    range: null,
+    firstLine: record.line,
+    source: () => source,
+    syntax: () => syntax,
+    reads: "",
+  };
 };
 
 /** The flow of a UI binding's evaluator (`FunctionShape.named`): a function
