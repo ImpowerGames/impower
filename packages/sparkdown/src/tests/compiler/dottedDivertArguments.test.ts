@@ -33,6 +33,8 @@ const LINES = [
   "-> a.b #tag",
   "-> a.b(x",
   "<- a.b(x, ",
+  "-> a.b(1; 2)",
+  "-> a.b(1 ; } 2) -> c",
   "scene a\n  branch b\n    -> a.c(1, \"s\"\n  end\n  branch c(n, s)\n    done\n  end\nend",
 ];
 
@@ -206,6 +208,19 @@ describe("a dotted target's unclosed argument list is reported on its line", () 
         message: "Expected `)` to close this divert's arguments.",
         line: 2,
         text: list,
+      },
+    ]);
+  });
+
+  test.each([
+    ["-> outer.second(1; 2)", ";"],
+    ["-> outer.second(1 ;; 2)", ";;"],
+  ])("%j reports %j inside the list and closes it", (line, stray) => {
+    expect(errorsOf(script(line))).toEqual([
+      {
+        message: `Unexpected \`${stray}\` in this divert's arguments.`,
+        line: 2,
+        text: stray,
       },
     ]);
   });

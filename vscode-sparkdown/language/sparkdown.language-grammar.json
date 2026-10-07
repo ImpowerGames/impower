@@ -2302,6 +2302,9 @@
         },
         {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#DivertArgumentsUnknown"
         }
       ],
       "end": "([)])|(?=$)",
@@ -2314,6 +2317,11 @@
           ]
         }
       }
+    },
+    "DivertArgumentsUnknown": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "match": "([^\\s)])"
     },
     "DivertPath": {
       "tag": "heading",

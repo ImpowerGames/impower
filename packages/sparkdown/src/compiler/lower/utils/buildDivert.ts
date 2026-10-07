@@ -113,6 +113,20 @@ function lowerDivertArguments(params: SyntaxNode, ctx: LowerContext): Expression
   while (arg) {
     if (arg.name === "LuauCommaSeparator") {
       flush();
+    } else if (arg.name === "DivertArgumentsUnknown") {
+      // A run of characters no argument rule reads (`(1; 2)`) is reported
+      // once and ends the argument before it.
+      flush();
+      const from = arg.from;
+      while (arg.nextSibling?.name === "DivertArgumentsUnknown") {
+        arg = arg.nextSibling;
+      }
+      reportTargetError(
+        `Unexpected \`${ctx.read(from, arg.to)}\` in this divert's arguments.`,
+        from,
+        arg.to,
+        ctx,
+      );
     } else {
       group.push(arg);
     }

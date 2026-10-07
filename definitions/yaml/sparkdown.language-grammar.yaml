@@ -2220,16 +2220,27 @@ repository:
       2:
         patterns:
           - { include: "#PunctuationParenOpen" }
+    # `DivertArgumentsUnknown` tiles what no argument rule reads (`(1; 2)`),
+    # so the list reaches its `)` in both engines instead of closing
+    # incomplete at that character (GRAMMAR.md §17).
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#DivertArgumentsUnknown" }
     end: ([)])|(?=$)
     endCaptures:
       1:
         patterns:
           - { include: "#PunctuationParenClose" }
+
+  # A character in a divert's argument list that no argument rule reads. The
+  # compiler reports it.
+  DivertArgumentsUnknown:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    match: ([^\s)])
 
   DivertPath:
     tag: heading
