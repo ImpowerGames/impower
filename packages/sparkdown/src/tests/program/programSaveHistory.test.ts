@@ -506,6 +506,50 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
   });
 
+  // Round 7 of the review of #1654 (report 6044969350): in ordinary play,
+  // the beat a continue ended, which the host wrote to since, taken as a
+  // keyframe and exported.
+  it("a keyframe of the beat a continue ended, taken after the host wrote to it, is that beat, flags included", () => {
+    const story = engine(rootOf(PLAYTHROUGHS(true)));
+    story.ChoosePathString("new");
+    expect(advance(story, 1)).toEqual(["New one."]);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const record = story.beats.at(-1)!;
+    const count = story.beats.length;
+    story.variablesState["gold"] = 5;
+    const keyframe = story.captureBeat(true);
+    expect(keyframe.beat).toBe(record);
+    expect(record.image).toBe(keyframe);
+    expect(JSON.parse(story.saveOfImage(keyframe)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(advance(story, 1)).toEqual(["New two."]);
+    expect(story.beats).toHaveLength(count + 1);
+    expect(story.beats.at(-2)).toBe(record);
+  });
+
+  // Round 7 (report 6044969350, an unverified concern): a restore between
+  // the steps of an asynchronous continue, which then runs on.
+  it("a beat restored between the steps of an asynchronous continue is no longer the current beat once the continue runs on", () => {
+    const story = engine(rootOf(PLAYTHROUGHS(true)));
+    story.ChoosePathString("new");
+    expect(advance(story, 1)).toEqual(["New one."]);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const checkpoint = story.captureBeat();
+    const record = story.beats.at(-1)!;
+    expect(advance(story, 1)).toEqual(["New two."]);
+    story.ContinueAsync();
+    expect(story.restore(checkpoint)).toBe(true);
+    // The continue the restore came between the steps of ends at once with
+    // the restored beat's line, which is that beat, not a second record.
+    expect(story.Continue()?.trim()).toBe("New one.");
+    expect(story.beats.at(-1)).toBe(record);
+    expect(story.beats.filter((r) => r === record || r.image === checkpoint)).toHaveLength(1);
+    expect(story.Continue()?.trim()).toBe("New two.");
+    story.setBeatFlags(BEAT_WAITED | BEAT_DECISIONS_FIXED);
+    expect(story.beats.at(-1)).not.toBe(record);
+    expect(story.beats.at(-1)!.flags).toBe(BEAT_WAITED | BEAT_DECISIONS_FIXED);
+    expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+  });
+
   // Round 6 (report 6043744707, finding 2).
   it("flags set after restoring a checkpoint whose record the history evicted are the restored beat's", () => {
     const script = SAVE_SCENARIOS["long"]!.script;

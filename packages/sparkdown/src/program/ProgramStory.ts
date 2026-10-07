@@ -507,6 +507,8 @@ export class ProgramStory {
    *  the history no longer holds keeps (`ProgramImage.beat`). An image taken
    *  of the state then, however it was taken, is that beat (`adoptBeat`). */
   protected _restoredBeat: BeatRecord | null = null;
+  /** The `stepCount` the restore of `_restoredBeat` happened at. */
+  protected _restoredAtStep = -1;
 
   constructor(
     readonly root: ProgramRoot,
@@ -560,7 +562,9 @@ export class ProgramStory {
 
   /** An image of the state as it stands: a delta on the image last taken
    *  or restored, or a keyframe when `keyframe` is set or there is none
-   *  since a reset or a load. A route search takes one at each fork. */
+   *  since a reset or a load. A route search takes one at each fork. It is
+   *  no beat's image: the image of the current beat, which its history
+   *  record, its flags and a save of it follow, is `captureBeat`'s. */
   capture(keyframe = false): ProgramImage {
     this.enableImages();
     const image = captureImage(this._state, this._tracker, this, keyframe);
@@ -652,6 +656,7 @@ export class ProgramStory {
     // A rewind forgets the beats after the image.
     this.history.truncateTo(image);
     this._restoredBeat = (image.beat as BeatRecord | undefined) ?? null;
+    this._restoredAtStep = this.stepCount;
     const after = image.afterChoice;
     if (after) {
       // The menu's record, which a keyframe taken of it since may hold
@@ -733,21 +738,34 @@ export class ProgramStory {
   setBeatFlags(flags: number): void {
     // After a restore, the restored beat, which the history may no longer
     // hold.
-    const current = this._restoredBeat ?? this.history.newest;
+    const current = this.restoredBeat() ?? this.history.newest;
     if (current) {
       current.flags = flags;
     }
   }
 
+  // The beat a restore left, while no step has run since: a step (the next
+  // continue's, or an asynchronous continue's a restore came between)
+  // moves the story on from it.
+  protected restoredBeat(): BeatRecord | null {
+    return this._restoredBeat && this._restoredAtStep === this.stepCount ? this._restoredBeat : null;
+  }
+
   // Makes `image`, taken of the state as it stands, the image of the beat
-  // the state is at: after a restore, the restored beat, and otherwise the
-  // beat of the image the state still is (`still`), when nothing moved it.
-  // A recapture (a keyframe, a host's write, an image of another engine
-  // that this one cannot take a delta on) is the same beat, which takes the
-  // place of that beat's image when the beat is the history's newest, so
-  // that the next continue takes it once.
+  // the state is at: after a restore, the restored beat; otherwise the beat
+  // of the image the state still is (`still`), when nothing moved it; and
+  // otherwise, while the history's newest record is the beat the last
+  // continue ended (`BeatHistory.provisional`), that beat, which the host
+  // may have written to since. A recapture (a keyframe, after a host's
+  // write, an image of another engine that this one cannot take a delta
+  // on) is the same beat, which takes the place of that beat's image when
+  // the beat is the history's newest, as the next continue would, so that
+  // the next continue takes it once.
   protected adoptBeat(image: ProgramImage, still: ProgramImage | null): void {
-    const beat = this._restoredBeat ?? (still?.beat as BeatRecord | undefined);
+    const beat =
+      this.restoredBeat() ??
+      (still?.beat as BeatRecord | undefined) ??
+      (this.history.provisional && !this._chosenAt ? this.history.newest : undefined);
     if (!beat || image.beat === beat) {
       return;
     }
@@ -1946,7 +1964,11 @@ export class ProgramStory {
       this._recursiveContinueCount == 1 &&
       this.pausedBeforeCondition === null
     ) {
-      this.history.push(this.capture(), BEAT_WAITED, true);
+      // A continue a restore came between the steps of, which ran no step
+      // since, ended the restored beat itself.
+      const ended = this.capture();
+      this.adoptBeat(ended, null);
+      this.history.push(ended, BEAT_WAITED, true);
     }
 
     this._recursiveContinueCount--;
