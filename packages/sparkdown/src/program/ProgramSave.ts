@@ -229,13 +229,15 @@ interface SavedStatement {
 /** A part of a statement: its part listing, its kind and its ordinal. */
 type PartRef = [number, ChunkPartKind, number];
 
-/** An anchor: the statement's start, the end of the sequence, after or at
- *  the break of the body a part heads, the entry of the choice a part is,
- *  or an offset in the statement's code with the statement's layout
- *  hash. */
+/** An anchor: the statement's start, the end of the sequence, the end of
+ *  the statement's code (`"done"`, where a call that is the statement's
+ *  last instruction returns), after or at the break of the body a part
+ *  heads, the entry of the choice a part is, or an offset in the
+ *  statement's code with the statement's layout hash. */
 type SavedAnchor =
   | "start"
   | "end"
+  | "done"
   | [number, string]
   | { after: PartRef }
   | { brk: PartRef }
@@ -298,6 +300,34 @@ const choiceInstructions = (
     }
   }
   return out;
+};
+
+/**
+ * The layout hash of the chunk that bound the parameters of a frame running
+ * `symbol` (docs/engine/binary-program.md, section 8): a function's
+ * definition, the entry of a function written inside a statement, which is
+ * that statement's chunk, or the entry of a scene or a branch that takes
+ * parameters (`FlowEntry`, the statement on the flow's header line, #1436),
+ * whose frame a tunnel pushes; `"none"` for a scene or a branch that binds
+ * nothing, so that a later one that does reads as other code; nothing for
+ * a symbol that is neither.
+ */
+export const bindingLayout = (root: ProgramRoot, symbol: number): string | undefined => {
+  const kind = root.kindOf(symbol);
+  if (kind === SymbolKind.Function) {
+    const place = root.place(symbol);
+    const chunk = place?.sequence.arrays.chunks[place.entry];
+    return chunk ? layoutOf(chunk) : undefined;
+  }
+  if (kind === SymbolKind.Scene || kind === SymbolKind.Branch) {
+    const flow = root.flow(symbol);
+    if (!flow) {
+      return undefined;
+    }
+    const entry = flow.arrays.chunks[0];
+    return entry && flow.arrays.lineStarts[0] === -1 ? layoutOf(entry) : "none";
+  }
+  return undefined;
 };
 
 /** The choices of a chunk whose `Choice` instructions stand one for each
@@ -420,6 +450,11 @@ export class FormWriter {
   protected anchorOf(chunk: StatementChunk, offset: number): SavedAnchor {
     if (offset === 0) {
       return "start";
+    }
+    // Past the statement's last instruction: the statement has run, so no
+    // layout of its code is needed to resume there.
+    if (offset >= codeWords(chunk)) {
+      return "done";
     }
     for (let k = 0; k < blockCount(chunk); k += 1) {
       const resume = blockField(chunk, k, B_RESUME);
@@ -762,7 +797,11 @@ export class FormPlacer {
       const block = j >= 0 ? now[j]!.block : -1;
       return block >= 0 ? this.root.body(chunk, block) : undefined;
     }
-    if (level.block !== undefined && owner.how === "exact" && level.block < blockCount(chunk)) {
+    // A format 1 level names its block by index. Format 1 hashed its
+    // fingerprints before format 2 dropped the spacing between tokens, so
+    // its statements are placed as edited ones, and its blocks are taken as
+    // they stand.
+    if (level.block !== undefined && level.block < blockCount(chunk)) {
       return this.root.body(chunk, level.block);
     }
     return undefined;
@@ -1011,6 +1050,8 @@ export class FormPlacer {
       position = { sequence, entry: sequence.arrays.chunks.length, offset: 0 };
     } else if (a === "start") {
       position = { sequence, entry, offset: 0 };
+    } else if (a === "done") {
+      position = { sequence, entry, offset: codeWords(chunk) };
     } else if (Array.isArray(a)) {
       const [offset, layout] = a;
       // A call that ends its statement returns past the statement's last
@@ -1130,7 +1171,9 @@ export class FormPlacer {
     if (form.pl !== undefined) {
       index = this.partIndex(chunk, [form.pl, form.k, form.i]);
     } else if (form.p !== undefined) {
-      // Format 1: the part by its own hash, the nearest ordinal first.
+      // Format 1: the part by its own hash, the nearest ordinal first, or,
+      // since that hash predates format 2's normalization, the part at its
+      // ordinal.
       const prints = parts.map((part) => partPrint(part.fingerprint));
       let best = Infinity;
       prints.forEach((print, j) => {
@@ -1139,6 +1182,9 @@ export class FormPlacer {
           index = j;
         }
       });
+      if (index < 0 && form.i < parts.length) {
+        index = form.i;
+      }
     }
     const symbol = index >= 0 ? parts[index]!.symbol : -1;
     return symbol >= 0 ? symbol : undefined;
@@ -1263,14 +1309,12 @@ class SaveWriter implements StateCodec {
     writer.WritePropertyStart("fn");
     writer.WriteInjected(this._forms.symbolForm(symbol, this.root.labelOf(symbol)));
     writer.WritePropertyEnd();
-    // The chunk that bound the function's parameters, whose layout says
-    // whether the frame's temporaries mean what they meant.
-    if (this.root.kindOf(symbol) === SymbolKind.Function) {
-      const place = this.root.place(symbol);
-      const chunk = place?.sequence.arrays.chunks[place.entry];
-      if (chunk) {
-        writer.WriteProperty("bound", layoutOf(chunk));
-      }
+    // The chunk that bound the frame's parameters, a function's or a
+    // tunnel's, whose layout says whether the frame's temporaries mean what
+    // they meant.
+    const bound = bindingLayout(this.root, symbol);
+    if (bound !== undefined) {
+      writer.WriteProperty("bound", bound);
     }
   }
 
@@ -1635,16 +1679,11 @@ class SaveReader {
       return true;
     }
     const bound = saved["bound"];
-    if (typeof bound !== "string") {
-      return false;
-    }
-    const place = this.root.place(symbol);
-    const chunk = place?.sequence.arrays.chunks[place.entry];
-    if (chunk && layoutOf(chunk) === bound) {
+    if (typeof bound !== "string" || bindingLayout(this.root, symbol) === bound) {
       return false;
     }
     this._placer.warnings.push(
-      `The frame of ${name} is dropped, since its function binds its parameters in other code; its caller resumes after the statement that called it.`,
+      `The frame of ${name} is dropped, since it binds its parameters in other code; its caller resumes after the statement that called it.`,
     );
     return true;
   }
@@ -1672,6 +1711,16 @@ class SaveReader {
       const saved = (Array.isArray(frames) ? frames : []) as Record<string, any>[];
       const count = Math.max(1, saved.length);
       const forms = (i: number) => (i < count - 1 ? saved[i + 1]?.["returnTo"] : top);
+      // Every position is placed once whatever frames are dropped, so that a
+      // flow its statement was found in under another name renames the
+      // functions the frames name, which `plan` places again with.
+      for (let i = 0; i < count; i += 1) {
+        const form = forms(i);
+        const st = (form as SavedPosition | null | undefined)?.st;
+        if (st) {
+          this._placer.placeStatement(st);
+        }
+      }
       const placed: (Placed | undefined)[] = [];
       const result = planThread(
         count,
@@ -1745,6 +1794,31 @@ class SaveReader {
     if (beats.length === 0) {
       throw new SaveRefused("The save holds no beat.");
     }
+    // Placed once, and again when the placements found a flow under
+    // another name: the renames then name the flows the save's frames and
+    // symbols are in, which the first placement could not read by name.
+    const first = this.select();
+    const before = this._placer.renames.length;
+    this._placer.settleRenames();
+    if (this._placer.renames.length === before) {
+      return this.selected(first);
+    }
+    this._warnings.length = 0;
+    this._placer.warnings.length = 0;
+    this._chosenUnplaced = false;
+    const second = this.select();
+    this._placer.settleRenames();
+    return this.selected(second);
+  }
+
+  // The beat placement chooses (step 6), with every beat up to it placed so
+  // that a flow found under another name in any of them renames the counts
+  // and symbols the beats hold (`settleRenames`); or the newest beat's flow,
+  // when no beat is placed.
+  protected select():
+    | { index: number; plans: (BeatPlan | null)[]; chosen: SavedPosition | null }
+    | { refused: string } {
+    const beats = this.beats;
     const plans: (BeatPlan | null)[] = beats.map(() => null);
     const planOf = (j: number) => (plans[j] ??= this.planBeat(beats[j]!));
     const newest = beats.length - 1;
@@ -1759,19 +1833,35 @@ class SaveReader {
         this._chosenUnplaced = true;
       }
     }
+    const chosenAt = (index: number) => {
+      for (let j = 0; j < index; j += 1) planOf(j);
+      return { index, plans, chosen: index === newest ? chosen : null };
+    };
     let fallback = -1;
     for (let j = newest; j >= 0; j -= 1) {
       const plan = planOf(j);
       if (!plan.placed) continue;
       if (plan.exact) {
-        return { index: j, plans, chosen: j === newest ? chosen : null };
+        return chosenAt(j);
       }
       if (fallback < 0) fallback = j;
     }
     if (fallback >= 0) {
-      return { index: fallback, plans, chosen: fallback === newest ? chosen : null };
+      return chosenAt(fallback);
     }
-    const flow = planOf(newest).flow;
+    return { refused: planOf(newest).flow };
+  }
+
+  // The choice `select` made, or the refusal of step 7.
+  protected selected(
+    choice:
+      | { index: number; plans: (BeatPlan | null)[]; chosen: SavedPosition | null }
+      | { refused: string },
+  ): { index: number; plans: (BeatPlan | null)[]; chosen: SavedPosition | null } {
+    if (!("refused" in choice)) {
+      return choice;
+    }
+    const flow = choice.refused;
     const name = flow === "" ? "the top level" : `'${flow}'`;
     throw new SaveRefused(
       `The save cannot be placed in this program: in ${name}, no beat it holds can be placed.`,
@@ -1909,12 +1999,17 @@ class SaveReader {
       } else {
         const tracker = state.images;
         const globals = beat["globals"] ?? {};
+        // A global the program now declares a constant keeps its compiled
+        // value, as the oldest beat's globals do (`SetJsonToken`); its saved
+        // value is still read, for the tables it defines.
         for (const name of Object.keys(globals)) {
           const value = JsonSerialisation.JTokenToRuntimeObject(globals[name]);
+          if (variables.constantNames.has(name)) continue;
           tracker?.global(name);
           variables.RestoreGlobal(name, value ?? undefined);
         }
         for (const name of Array.isArray(beat["gone"]) ? beat["gone"] : []) {
+          if (variables.constantNames.has(String(name))) continue;
           tracker?.global(String(name));
           variables.RestoreGlobal(String(name), undefined);
         }
@@ -2143,13 +2238,10 @@ export const translatePositional = (
   };
   // Whether a frame's function binds its parameters in other code now.
   const drops = (symbol: number): boolean => {
-    if (symbol < 0 || from.kindOf(symbol) !== SymbolKind.Function) return false;
+    const was = symbol >= 0 ? bindingLayout(from, symbol) : undefined;
+    if (was === undefined) return false;
     const now = remap(symbol);
-    const was = from.place(symbol);
-    const is = now >= 0 ? root.place(now) : undefined;
-    const wasChunk = was?.sequence.arrays.chunks[was.entry];
-    const isChunk = is?.sequence.arrays.chunks[is.entry];
-    return !wasChunk || !isChunk || layoutOf(wasChunk) !== layoutOf(isChunk);
+    return now < 0 || bindingLayout(root, now) !== was;
   };
   const placeThread = (
     thread: ThreadCopy,

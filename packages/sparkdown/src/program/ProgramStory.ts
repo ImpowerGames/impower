@@ -532,8 +532,8 @@ export class ProgramStory {
    *  changes nothing when a position it holds names a chunk or a sequence
    *  this engine's root no longer holds, so that the caller replays
    *  (section 8). */
-  restore(image: ProgramImage): boolean {
-    if (!this.restoreInPlace(image)) {
+  restore(image: ProgramImage, translate = true): boolean {
+    if (!this.restoreInPlace(image, translate)) {
       return false;
     }
     // A rewind to a beat of the history leaves the beats after it.
@@ -543,11 +543,19 @@ export class ProgramStory {
   }
 
   // Restores an image without touching the history of beats.
-  protected restoreInPlace(image: ProgramImage): boolean {
+  protected restoreInPlace(image: ProgramImage, translate = true): boolean {
     // As a load of a state's JSON, a restore runs between the steps of an
     // asynchronous continue, which a route search drives.
     this.enableImages();
-    if (!restoreImage(this._state, this._tracker, this, image, this.translator)) {
+    if (
+      !restoreImage(
+        this._state,
+        this._tracker,
+        this,
+        image,
+        translate ? this.translator : undefined,
+      )
+    ) {
       return false;
     }
     this.notMovedSince(image);
@@ -575,13 +583,14 @@ export class ProgramStory {
 
   /** Whether `restore` would place `image` in this engine's root: false
    *  for an image of another game's engines, or one that names a chunk or a
-   *  sequence the root does not hold and its saved form cannot place.
+   *  sequence the root does not hold and its saved form cannot place, or,
+   *  with `translate` false, that names one the root does not hold at all.
    *  Changes nothing. */
-  canRestore(image: ProgramImage): boolean {
+  canRestore(image: ProgramImage, translate = true): boolean {
     return (
       image.images === this.images &&
       (this._state.placePositional(image.positional) !== undefined ||
-        this.translator(image) !== undefined)
+        (translate && this.translator(image) !== undefined))
     );
   }
 
@@ -648,14 +657,16 @@ export class ProgramStory {
   }
 
   /** The durable save of an image this engine, or the engine of an earlier
-   *  program of the same game, took (`toSave`), with the beats of the
-   *  history before it: each image is put in place to be written, and the
+   *  program of the same game, took (`toSave`): the image's beat alone, as a
+   *  checkpoint's full save is, or with `withHistory` the beats of the
+   *  history up to it. Each image is put in place to be written, and the
    *  state as it stands put back. Nothing, and nothing changed, when the
    *  image names a position this engine's root cannot place. */
-  saveOfImage(image: ProgramImage, gameVersion = ""): string | null {
+  saveOfImage(image: ProgramImage, gameVersion = "", withHistory = false): string | null {
     this.IfAsyncWeCant("save");
+    const record = this.history.recordOf(image) ?? this.recordFor(image);
     return this.saveOf(
-      this.history.upTo(image) ?? [this.recordFor(image)],
+      withHistory ? (this.history.upTo(image) ?? [record]) : [record],
       false,
       gameVersion,
     );

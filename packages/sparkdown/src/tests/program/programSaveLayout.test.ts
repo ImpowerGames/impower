@@ -16,6 +16,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import { normalizeSource } from "../../program/BinaryProgramWriter";
 import { fingerprintOf } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript } from "./programHarness";
@@ -132,6 +133,31 @@ describe("a fingerprint", () => {
     expect(b[2]).toBe(a[2]);
     expect(b[3]).not.toBe(a[3]);
     expect(b[4]).not.toBe(a[4]);
+  });
+
+  // Round 1 of the review of #1654 (report 6030606004): spacing between
+  // tokens includes none, and a long string keeps every line it holds.
+  it("reads a statement written with no space between its tokens as the same, and keeps the lines and edge spaces of a long string", () => {
+    const prints = (lines: string[]) =>
+      rootOf(["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n"))
+        .flowNamed("start")!
+        .arrays.chunks.map(fingerprintOf);
+    const [spaced, packed, unary, joined] = prints([
+      "& x = 1 + 2",
+      "& x=1+2",
+      "& y = 1 - -2",
+      "& y = 1 - 2",
+    ]);
+    expect(packed).toBe(spaced);
+    // `- -2` is not `-2`, and does not read as a comment.
+    expect(unary).not.toBe(joined);
+    // A long string across lines, as the source a fingerprint hashes reads
+    // it: its blank line and its edge spaces are its value.
+    const none = normalizeSource("& s = [[a\nb]]");
+    expect(normalizeSource("& s = [[a\n\nb]]")).not.toBe(none);
+    expect(normalizeSource("& s = [[a \nb]]")).not.toBe(none);
+    expect(normalizeSource("& s = [[a\n  b]]")).not.toBe(none);
+    expect(normalizeSource("&   s  =  [[a\nb]]  -- note")).toBe(none);
   });
 });
 
@@ -255,6 +281,51 @@ describe("a save written by another process", () => {
     expect(shown(loaded)).toBe("In vf");
     expect(play(loaded)).toEqual(["After."]);
     expect(loaded.state.callStack.elements).toHaveLength(1);
+  });
+
+  // Round 1 of the review of #1654 (report 6030606004): a tunnel's frame
+  // holds what its scene's entry bound, as a function's does.
+  it("inside a tunnel whose scene binds its parameters in other code drops the frame and places the caller after the tunnel", () => {
+    const TUNNEL = (params: string) =>
+      [
+        "-> start",
+        "",
+        "scene start",
+        "  Before.",
+        "  -> helper(10, 20, 30) ->",
+        "  After.",
+        "end",
+        "",
+        `scene helper(${params})`,
+        "  Helper {a}.",
+        "  Helper again {a}.",
+        "  ->->",
+        "end",
+        "",
+      ].join("\n");
+    const story = new ProgramStory(rootOf(TUNNEL("a, ...")), { saveHistory: 1 });
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    const beats: string[] = [];
+    while (story.canContinue && beats.length < 2) {
+      story.Continue();
+      if (shown(story)) beats.push(shown(story));
+    }
+    expect(beats).toEqual(["Before.", "Helper 10."]);
+    const save = story.toSave();
+    // The same scene: the frame is kept.
+    const same = engine(rootOf(TUNNEL("a, ...")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    expect(play(same)).toEqual(["Helper again 10.", "After."]);
+    // Another parameter ahead of `a`: `a` and the varargs mean other
+    // values, so the frame is dropped.
+    const loaded = engine(rootOf(TUNNEL("first, a, ...")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'helper' is dropped/);
+    expect(play(loaded)).toEqual(["After."]);
   });
 
   it("inside a closure defined in a loop and run after the loop ended is placed exactly, whatever the loop's layout", () => {

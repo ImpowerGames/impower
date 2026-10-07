@@ -1492,11 +1492,16 @@ export class Game<T extends M = {}> {
       const image = this._checkpoints.imageAt(checkpointIndex)?.image as
         | ProgramImage
         | undefined;
-      if (!image || !program.canRestore(image)) {
+      // A route resumes only from a checkpoint whose positions the new
+      // root holds as they are: the steps after it are judged by their
+      // addresses (`validAddressPrefixLength`), so one placed through its
+      // saved form is not resumed from, and the search goes on from an
+      // earlier one (#700). `restoreCheckpoint` translates.
+      if (!image || !program.canRestore(image, false)) {
         return null;
       }
       this.discardOpenStoryLine();
-      if (!program.restore(image)) {
+      if (!program.restore(image, false)) {
         return null;
       }
       state = image;

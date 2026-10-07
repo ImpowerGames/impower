@@ -652,7 +652,7 @@ describe("a save in another process", () => {
   // that lowers it differently makes it: the save's layout hashes, of the
   // loop whose body the frame is in and of the tunnel statement the frame
   // returns inside, are changed in place of the program's.
-  it("is placed after the loop or the statement a position is inside when its layout hash differs, with a warning", () => {
+  it("is placed after the loop a position is inside when the loop's layout hash differs, with a warning", () => {
     const played = session(SCRIPT);
     // One beat, so that no earlier beat is placed exactly.
     const story = engine(played.root, undefined, 1);
@@ -661,41 +661,29 @@ describe("a save in another process", () => {
     const written = story.toSave();
     const differ = (hash: string) =>
       hash.replace(/^./, (c) => (c === "0" ? "1" : "0"));
-    // The frame the tunnel pushed, which returns inside its statement in
-    // the loop's body.
+    // The frame the tunnel pushed, which returns past its statement's last
+    // instruction, in the loop's body: the statement has run, so its
+    // anchor names no layout (#1429).
     const frameOf = (save: any) =>
       save.beats.at(-1).frames.find((f: { returnTo?: unknown }) => f.returnTo).returnTo;
     const loopOf = (save: any) =>
       frameOf(save).st.levels.find((l: { loop?: string }) => l.loop);
-    expect(Array.isArray(frameOf(JSON.parse(written)).a)).toBe(true);
+    expect(frameOf(JSON.parse(written)).a).toBe("done");
     expect(loopOf(JSON.parse(written))).toBeDefined();
-    for (const [change, beats, warning] of [
-      // After the loop: the tunnel runs to its return, and the loop's
-      // remaining passes are left.
-      [
-        (save: any) => (loopOf(save).loop = differ(loopOf(save).loop)),
-        ["After 0 0 1."],
-        /loop/,
-      ],
-      // After the tunnel's statement: the tunnel runs to its return, and
-      // the loop goes on from the statement after it.
-      [
-        (save: any) => (frameOf(save).a[1] = differ(frameOf(save).a[1])),
-        ["After 1 1 1."],
-        /resumes after it/,
-      ],
-    ] as const) {
-      const save = JSON.parse(written);
-      change(save);
-      const text = JSON.stringify(save);
-      const loaded = engine(session(SCRIPT).root);
-      loaded.loadSave(text);
-      expect(loaded.loadedSaveReport?.exact).toBe(false);
-      expect(loaded.loadedSaveReport?.warnings.join("\n")).toMatch(warning);
-      expect(play(loaded).beats).toEqual(beats);
-    }
+    // After the loop: the tunnel runs to its return, and the loop's
+    // remaining passes are left.
+    const save = JSON.parse(written);
+    loopOf(save).loop = differ(loopOf(save).loop);
+    const loaded = engine(session(SCRIPT).root);
+    loaded.loadSave(JSON.stringify(save));
+    expect(loaded.loadedSaveReport?.exact).toBe(false);
+    expect(loaded.loadedSaveReport?.warnings.join(" ")).toMatch(/loop/);
+    expect(play(loaded).beats).toEqual(["After 0 0 1."]);
     // And the save as written loads.
-    engine(session(SCRIPT).root).loadSave(written);
+    const exact = engine(session(SCRIPT).root);
+    exact.loadSave(written);
+    expect(exact.loadedSaveReport?.exact).toBe(true);
+    expect(play(exact).beats).toEqual(["After 1 1 1."]);
   });
 });
 

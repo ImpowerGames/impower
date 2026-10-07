@@ -1690,15 +1690,20 @@ const numberText = (value: number): string =>
 
 /** The source a fingerprint hashes (docs/engine/binary-program.md, section
  *  1): comments removed, each line trimmed, blank lines left out, and in a
- *  line of logic a run of whitespace between tokens read as one space, with
- *  the text of a string and of a displayed line left as written. So
- *  re-indenting a statement, editing a comment or changing the spacing
- *  between its tokens keeps its fingerprint, and an edit inside a string or
- *  a displayed line does not.
+ *  line of logic the spacing between tokens dropped, with the text of a
+ *  string and of a displayed line left as written. So re-indenting a
+ *  statement, editing a comment or changing the spacing between its tokens
+ *  keeps its fingerprint, and an edit inside a string or a displayed line
+ *  does not.
  *
  *  A line is logic when it starts with `&`, with a comment, or with a
  *  keyword of the language's logic (`LOGIC_LINE`); its comments are Luau's,
- *  `--` to the end of the line and `--[[ ]]` across lines. Any other line is
+ *  `--` to the end of the line and `--[[ ]]` across lines. Whitespace
+ *  between two tokens is kept, as one space, only where dropping it would
+ *  join them into other tokens: two words (`local x`), or two operators
+ *  that read together as another (`- -` against `--`, `. .` against `..`;
+ *  `JOINED`). A long string (`[[ ]]`, `[=[ ]=]`) is kept as written, across
+ *  lines, its blank lines and its edge spaces included. Any other line is
  *  displayed text (a line of narration or dialogue, a choice's line), whose
  *  comment is a `//` that starts the line or follows whitespace and is
  *  followed by whitespace or the line's end, as the grammar reads one
@@ -1720,8 +1725,21 @@ export const normalizeSource = (source: string): string => {
       }
       continue;
     }
+    const startsInString = open !== null && !open.comment;
     let text = "";
     let i = 0;
+    // Whitespace seen since the last token, written as one space only
+    // where the next token would otherwise join the last one.
+    let spaced = false;
+    const emit = (piece: string) => {
+      if (spaced && text.length > 0 && keepsSpace(text[text.length - 1]!, piece[0]!)) {
+        text += " ";
+      }
+      spaced = false;
+      text += piece;
+    };
+    // Reads on to the close of the open long bracket, keeping a string's
+    // text as written; false when it does not close on this line.
     const closeOpen = (): boolean => {
       const close = `]${"=".repeat(open!.level)}]`;
       const at = line.indexOf(close, i);
@@ -1737,7 +1755,9 @@ export const normalizeSource = (source: string): string => {
       return true;
     };
     if (open && !closeOpen()) {
-      if (text.trim().length > 0) out.push(text);
+      if (startsInString) {
+        out.push(text);
+      }
       continue;
     }
     while (i < line.length) {
@@ -1748,7 +1768,7 @@ export const normalizeSource = (source: string): string => {
         while (j < line.length && line[j] !== c) {
           j += line[j] === "\\" ? 2 : 1;
         }
-        text += line.slice(i, Math.min(j + 1, line.length));
+        emit(line.slice(i, Math.min(j + 1, line.length)));
         i = j + 1;
         continue;
       }
@@ -1765,33 +1785,53 @@ export const normalizeSource = (source: string): string => {
           if (!closeOpen()) break;
           // A block comment that closes on its line separates the tokens
           // around it.
-          if (!text.endsWith(" ")) text += " ";
+          spaced = true;
           continue;
         }
         break;
       }
       if (c === "[" && long) {
         open = { comment: false, level: long[1]!.length };
-        text += long[0];
+        emit(long[0]);
         i += long[0].length;
         if (!closeOpen()) break;
         continue;
       }
       if (/\s/.test(c)) {
         while (i < line.length && /\s/.test(line[i]!)) i += 1;
-        if (!text.endsWith(" ")) text += " ";
+        spaced = true;
         continue;
       }
-      text += c;
+      emit(c);
       i += 1;
     }
-    const trimmed = open && !open.comment ? text.trimStart() : text.trim();
-    if (trimmed.length > 0) {
-      out.push(trimmed);
+    const endsInString = open !== null && !(open as { comment: boolean }).comment;
+    let kept = startsInString ? text : text.trimStart();
+    if (!endsInString) {
+      kept = kept.trimEnd();
+    }
+    if (startsInString || endsInString || kept.length > 0) {
+      out.push(kept);
     }
   }
   return out.join("\n");
 };
+
+/** Whether the space between two tokens, the one ending in `before` and
+ *  the one starting with `after`, is kept: between two words, and between
+ *  two operators that would otherwise read as another. */
+const keepsSpace = (before: string, after: string): boolean =>
+  (WORD.test(before) && WORD.test(after)) || JOINED.has(before + after);
+
+const WORD = /[\p{L}\p{N}_]/u;
+
+/** The pairs of operator characters that read as another token when
+ *  written together. */
+const JOINED = new Set([
+  "--", "..", "==", "<=", ">=", "~=", "//", "::", "[[", "]]", "[=", "=]",
+  "->", "<-", "+=", "-=", "*=", "/=", "%=", "^=", "=>", "!=", "&&", "||",
+  "<<", ">>",
+]);
 
 /** A line of logic: one that starts with `&`, with a Luau comment, or with
  *  a keyword of the language's logic, a declaration or a block statement's

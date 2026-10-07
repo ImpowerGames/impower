@@ -43,7 +43,7 @@
       "lineEndPending": false,
       "lineJoinable": false,
       "turnIdx": -1,
-      "storySeed": 24,
+      "storySeed": 64,
       "previousRandom": 0,
       "didSafeExit": false,
       "variablesState": {
@@ -93,7 +93,7 @@
       "lineEndPending": false,
       "lineJoinable": false,
       "turnIdx": 0,
-      "storySeed": 24,
+      "storySeed": 64,
       "previousRandom": 0,
       "previousFlow": "start",
       "didSafeExit": false,
@@ -202,7 +202,7 @@
       "lineEndPending": false,
       "lineJoinable": false,
       "turnIdx": 0,
-      "storySeed": 24,
+      "storySeed": 64,
       "previousRandom": 0,
       "previousFlow": "start",
       "didSafeExit": false,
@@ -317,11 +317,11 @@
       "windows": [
         [
           0,
-          "63797be421f9c8a3",
-          "6eaf029c0114b779",
+          "127b723880ba44dd",
+          "41026c6b71f5d98c",
           "b6fbcd507d421d00",
           "23cf0abac6bc79fd",
-          "511aeffe21f12d4e",
+          "03f0dcd07890d757",
           "64ba264fd625c3a7",
           "e1a32ab0c3ec7a74"
         ]
@@ -341,9 +341,9 @@
       "windows": [
         [
           0,
-          "ad2348bca251a4fd",
-          "2adfeec0ca0a82cb",
-          "b8c4d88600d11f87"
+          "e99d53380ab0d791",
+          "7da8019515acad45",
+          "866c130ca967d7ab"
         ]
       ]
     },
@@ -352,7 +352,7 @@
       "windows": [
         [
           0,
-          "c180510974f96813"
+          "73874776ce5c5be8"
         ]
       ]
     }
@@ -368,19 +368,19 @@
     {
       "k": "functions",
       "l": [
-        "86e045b6a179c50d"
+        "09d9dac047903287"
       ]
     },
     {
       "k": "functions",
       "l": [
-        "229c48a9cf098b82"
+        "151806aa5691d2c1"
       ]
     },
     {
       "k": "functions",
       "l": [
-        "9af7ca6be931db04"
+        "b9a1eb0bc4de3e4b"
       ]
     }
   ]

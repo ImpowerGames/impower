@@ -446,6 +446,12 @@ const comparableCheckpoint = (checkpoint: string | undefined) => {
   const story = reparse(save.story);
   if (story && typeof story === "object") {
     delete (story as Record<string, unknown>)["storySeed"];
+    // A save of the program engine holds its beats apart (#1429), each
+    // with the seed.
+    const beats = (story as Record<string, unknown>)["beats"];
+    for (const beat of Array.isArray(beats) ? beats : []) {
+      if (beat && typeof beat === "object") delete beat["storySeed"];
+    }
   }
   const runtime = reparse(save.runtime);
   if (runtime && typeof runtime === "object") {

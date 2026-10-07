@@ -462,6 +462,91 @@ describe("a save inside a flow that was renamed", () => {
   });
 });
 
+// Round 1 of the review of #1654 (report 6030606004).
+describe("the beats of a save loaded into a release that differs", () => {
+  it("rename a flow that only an older beat stands in, before the counts are read", () => {
+    const ACT = (name: string) =>
+      [
+        `-> ${name}`,
+        "",
+        `scene ${name}`,
+        `  -> ${name}.b`,
+        "  branch b",
+        "    B1.",
+        "    B2.",
+        "    B3.",
+        "    B4.",
+        "    -> report",
+        "  end",
+        "end",
+        "",
+        "scene report",
+        "  R1.",
+        "  R2.",
+        "  R3.",
+        `  Counts {${name}} {${name}.b}.`,
+        "end",
+        "",
+      ].join("\n");
+    const story = engine(rootOf(ACT("ACT")));
+    expect(advance(story, 6)).toEqual(["B1.", "B2.", "B3.", "B4.", "R1.", "R2."]);
+    const save = story.toSave();
+    // The newest beat stands in `report`, which is unchanged.
+    expect(savedAt(save)).toEqual({ flow: "report", entry: 2 });
+    const loaded = engine(rootOf(ACT("PLAY")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.beat).toBe(report.beats - 1);
+    expect(play(loaded).beats).toEqual(["R3.", "Counts 1 1."]);
+  });
+
+  it("keep a tunnel's frame into a renamed flow, whose function is read by its new name", () => {
+    const TUNNEL = (name: string) =>
+      [
+        "-> start",
+        "",
+        "scene start",
+        "  Before.",
+        `  -> ${name}.b ->`,
+        "  After.",
+        "end",
+        "",
+        `scene ${name}`,
+        "  branch b",
+        "    B1.",
+        "    B2.",
+        "    B3.",
+        "    B4.",
+        "    ->->",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+    const story = engine(rootOf(TUNNEL("ACT")));
+    expect(advance(story, 3)).toEqual(["Before.", "B1.", "B2."]);
+    const save = story.toSave();
+    const loaded = engine(rootOf(TUNNEL("PLAY")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.beat).toBe(report.beats - 1);
+    expect(report.exact).toBe(true);
+    expect(placed(loaded)).toEqual({ flow: "PLAY.b", entry: 2 });
+    expect(play(loaded).beats).toEqual(["B3.", "B4.", "After."]);
+  });
+
+  it("keep the value of a global the release made a constant, whichever beat assigned it", () => {
+    const before = scene(["First.", "& K = 2", "Second.", "Value {K}."], "start", ["store K = 1", ""]);
+    const story = engine(rootOf(before));
+    expect(advance(story, 2)).toEqual(["First.", "Second."]);
+    const save = story.toSave();
+    // The beat after the assignment wrote it as a change.
+    expect(JSON.parse(save).beats.at(-1).globals).toHaveProperty("K");
+    const loaded = engine(rootOf(scene(["First.", "Second.", "Value {K}."], "start", ["const K = 10", ""])));
+    loaded.loadSave(save);
+    expect(play(loaded).beats).toEqual(["Value 10."]);
+  });
+});
+
 describe("a save that cannot be placed at its newest beat", () => {
   const TEXT = (deleted: boolean) =>
     [

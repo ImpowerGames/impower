@@ -169,8 +169,12 @@ export class JsonSerialisation {
     const slot = this._loadSessionCellsById.get(id);
     if (slot && slot !== found.cell) return null;
     this._loadSessionCellsById.set(id, found.cell);
+    if (!found.restore) this._loadSessionConstantCells.add(found.cell);
     return found;
   }
+
+  // The cells a constant reaches, which keep their compiled values.
+  private static _loadSessionConstantCells = new Set<VariablePointerValue>();
 
   private static _loadSessionAnchorResolver:
     | ((anchor: string) => { table: ObjectValue; restore: boolean } | null)
@@ -223,6 +227,7 @@ export class JsonSerialisation {
   public static ResetObjectLoadSession(): void {
     this._loadSessionObjectsById = new Map();
     this._loadSessionCellsById = new Map();
+    this._loadSessionConstantCells = new Set();
     this._loadSessionAnchorResolver = null;
     this._loadSessionCellAnchorResolver = null;
     this._loadSessionSymbolDecoder = null;
@@ -374,9 +379,12 @@ export class JsonSerialisation {
     return table;
   }
 
-  /** The upvalue cell this load holds under `id`, or null. */
+  /** The upvalue cell this load holds under `id`, which a load may write,
+   *  or null: none, or one a constant reaches, which keeps its compiled
+   *  value. */
   public static LoadSessionCell(id: number): VariablePointerValue | null {
-    return this._loadSessionCellsById.get(id) ?? null;
+    const cell = this._loadSessionCellsById.get(id) ?? null;
+    return cell && !this._loadSessionConstantCells.has(cell) ? cell : null;
   }
 
   /** Reads every table and cell definition a saved token holds, so that a
