@@ -746,4 +746,40 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
     expect(actual).toEqual(expected);
     expect(run(ungated, [0, 0]).beats).toEqual(["A", "X", "After."]);
   });
+
+  // A nested block that offers no choice ends in an ordinary gather, which
+  // the current engine's weave reaches as a loose end: the lines after the
+  // block are still the choice's body, on both engines.
+  it("runs the lines after a nested block that offers no choice in the gated choice's body", () => {
+    for (const nested of [
+      ["        choose", "          Empty.", "        end"],
+      ["        choose", "          Empty.", "        then", "          Then.", "        end"],
+    ]) {
+      const ungated = scene([
+        "    * A",
+        ...nested.map((line) => line.slice(2)),
+        "      Took.",
+      ]);
+      {
+        const { expected, actual } = bothEngines(ungated, [0]);
+        expect(actual, "ungated").toEqual(expected);
+      }
+      const text = scene([
+        "    if true then",
+        "      * A",
+        ...nested,
+        "        Took.",
+        "    end",
+      ]);
+      const { expected, actual } = bothEngines(text, [0]);
+      expect(actual).toEqual(expected);
+      expect(run(text, [0]).beats).toEqual([
+        "A",
+        "Empty.",
+        ...(nested.length > 3 ? ["Then."] : []),
+        "Took.",
+        "After.",
+      ]);
+    }
+  });
 });
