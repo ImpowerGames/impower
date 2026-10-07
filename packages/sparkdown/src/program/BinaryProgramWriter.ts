@@ -1752,9 +1752,19 @@ const lineEndFrom = (s: string, i: number): number => {
 /** A displayed line from `i` of `s` without its comment, trimmed, and
  *  where the next line starts. An interpolation that runs past the line
  *  takes the lines it runs over; one that never closes keeps the rest of
- *  its line as written. */
+ *  its line as written.
+ *
+ *  The comment is dropped only where nothing before it, outside the
+ *  line's interpolations, is markup whose text a `//` may be part of: a
+ *  raw span (`` ` ` ``), styling, an escape, a parenthetical, a tag, a
+ *  command, an alternator, a break. Before any character but a letter, a
+ *  digit, whitespace or plain punctuation (`PLAIN_TEXT`), the line is
+ *  kept as written to its end, comment and all, so that two lines whose
+ *  text differs never read as one; editing such a line's comment changes
+ *  its fingerprint, which places it as an edited statement. */
 const displayLine = (s: string, i: number): { text: string; next: number } => {
   const start = i;
+  let plain = true;
   while (i < s.length && s[i] !== "\n") {
     const c = s[i]!;
     if (c === "{") {
@@ -1767,6 +1777,7 @@ const displayLine = (s: string, i: number): { text: string; next: number } => {
       continue;
     }
     if (
+      plain &&
       c === "/" &&
       s[i + 1] === "/" &&
       (i === start || /\s/.test(s[i - 1]!)) &&
@@ -1774,10 +1785,18 @@ const displayLine = (s: string, i: number): { text: string; next: number } => {
     ) {
       return { text: s.slice(start, i).trim(), next: lineEndFrom(s, i) + 1 };
     }
+    if (!PLAIN_TEXT.test(c)) {
+      plain = false;
+    }
     i += 1;
   }
   return { text: s.slice(start, i).trim(), next: i + 1 };
 };
+
+/** A character of a displayed line that is text and nothing else: a
+ *  letter, a digit, whitespace, or punctuation no markup of the grammar's
+ *  display text starts or ends with. */
+const PLAIN_TEXT = /^[\p{L}\p{N}\p{Zs}\t.,!?;:'"‘’“”…–—/-]$/u;
 
 /** A line of logic from `i` of `s`, its comments dropped and its spacing
  *  between tokens dropped but where two tokens would join, and where the

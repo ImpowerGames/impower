@@ -404,6 +404,25 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(advance(story, 1)).toEqual(["New two."]);
     expect(story.beats).toHaveLength(count + 1);
   });
+
+  // Round 3 of the review of #1654 (report 6040464865, finding 2).
+  it("a checkpoint whose beat the history no longer holds is exported, and restored and saved, with its beat's flags", () => {
+    const script = SAVE_SCENARIOS["long"]!.script;
+    const story = engine(rootOf(script), { rewindBeats: 2 });
+    expect(advance(story, 1)).toHaveLength(1);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const checkpoint = story.captureBeat();
+    expect(checkpoint.beat?.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(advance(story, 4)).toHaveLength(4);
+    expect(story.beats.some((record) => record.image === checkpoint || record === checkpoint.beat)).toBe(false);
+    const exported = story.saveOfImage(checkpoint)!;
+    expect(JSON.parse(exported).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const loaded = engine(rootOf(script));
+    loaded.loadSave(exported);
+    expect(loaded.beats.at(-1)!.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(story.restore(checkpoint)).toBe(true);
+    expect(JSON.parse(story.toSave()).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+  });
 });
 
 /** Every statement form a save holds, with the listing of each level. */

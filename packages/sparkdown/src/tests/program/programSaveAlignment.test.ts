@@ -675,6 +675,29 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
+  // Round 3 of the review of #1654 (report 6040464865, finding 1): markup
+  // whose text a `//` is part of.
+  it("tell apart two displayed lines that differ after a `//` in a raw span", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", "Line `a // b`.", "End."]),
+      scene(["P1.", "P2.", "P3.", "Line `a // c`.", "Line `a // b`.", "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      // The text the story gives keeps its markup: the `//` is text.
+      ["Line `a // b`.", "End."],
+    );
+  });
+
+  it("tell apart two displayed lines that differ after a `//` in bold text", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", "Line **a // b**.", "End."]),
+      scene(["P1.", "P2.", "P3.", "Line **a // c**.", "Line **a // b**.", "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Line **a // b**.", "End."],
+    );
+  });
+
   it("tell apart two lines of logic that differ inside a regex literal holding a `--`", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", "& local r = @/a--b/", "Shown.", "End."]),

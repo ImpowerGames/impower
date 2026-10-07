@@ -113,6 +113,9 @@ export interface BeatRecord {
   readonly image: ProgramImage;
   flags: number;
   readonly decisions: number[];
+  /** The root the decisions' addresses are in, when a history held the
+   *  record (`BeatHistory.translateTo`). */
+  root?: ProgramRoot;
 }
 
 /** What a save's header says. */

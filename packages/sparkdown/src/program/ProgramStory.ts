@@ -228,17 +228,14 @@ export class BeatHistory {
   /** Puts the decisions' addresses in `root`, each translated through its
    *  saved form in the root they were in (`translateChoiceAddress`); a
    *  decision whose choice `root` no longer holds is forgotten, as a save
-   *  would leave it out. */
+   *  would leave it out. Each record names the root its decisions are in
+   *  (`BeatRecord.root`), which it keeps once the history no longer holds
+   *  it, so that a checkpoint of its beat still reads them. */
   translateTo(root: ProgramRoot): void {
     const from = this.root;
     this.root = root;
-    if (!from || from === root) {
-      return;
-    }
     for (const record of this.records) {
-      const decisions = record.decisions.flatMap((address) => translateChoiceAddress(root, from, address) ?? []);
-      record.decisions.length = 0;
-      record.decisions.push(...decisions);
+      translateDecisions(record, root, from);
     }
   }
 
@@ -260,7 +257,7 @@ export class BeatHistory {
       this.provisional = provisional;
       return newest;
     }
-    const record: BeatRecord = { image, flags, decisions: [] };
+    const record: BeatRecord = { image, flags, decisions: [], ...(this.root ? { root: this.root } : {}) };
     image.beat = record;
     this.records.push(record);
     if (this.records.length > Math.max(1, this.limit)) {
@@ -332,10 +329,25 @@ export class BeatHistory {
     this.records.push(...records.slice(-Math.max(1, this.limit)));
     for (const record of this.records) {
       record.image.beat = record;
+      if (this.root) record.root ??= this.root;
     }
     this.provisional = provisional;
   }
 }
+
+/** Puts `record`'s decisions in `root`, from the root they are in (the
+ *  record's, or else `from`); a decision whose choice `root` no longer
+ *  holds is forgotten. */
+const translateDecisions = (record: BeatRecord, root: ProgramRoot, from: ProgramRoot | null): void => {
+  const was = record.root ?? from;
+  record.root = root;
+  if (!was || was === root) {
+    return;
+  }
+  const decisions = record.decisions.flatMap((address) => translateChoiceAddress(root, was, address) ?? []);
+  record.decisions.length = 0;
+  record.decisions.push(...decisions);
+};
 
 // What a callback suspends of the step that calls it, and gets back when it
 // returns (`ProgramStory.CallLuauFunction`).
@@ -626,11 +638,9 @@ export class ProgramStory {
       // history no longer holds it; the choice's address in this root.
       const menu = after.menu;
       const chosen = this.choiceHere(image);
-      this._chosenAt = this.history.records.find((record) => record.image === menu || record === menu.beat) ?? {
-        image: menu,
-        flags: 0,
-        decisions: chosen === undefined ? [] : [chosen],
-      };
+      this._chosenAt =
+        this.history.records.find((record) => record.image === menu || record === menu.beat) ??
+        this.recordFor(menu, chosen);
       this._chosenAddress = chosen ?? -1;
     } else {
       this._chosenAt = null;
@@ -751,8 +761,21 @@ export class ProgramStory {
   }
 
   // A record for an image that is no beat of the history.
-  protected recordFor(image: ProgramImage): BeatRecord {
-    return { image, flags: 0, decisions: [] };
+  // A record for an image that is no beat of the history: the flags and
+  // decisions of the beat it was taken at, when the history held that beat
+  // once (`ProgramImage.beat`, which the image keeps when the history
+  // forgets it), its decisions put in this root, with `chosen`.
+  protected recordFor(image: ProgramImage, chosen?: number): BeatRecord {
+    const beat = image.beat as BeatRecord | undefined;
+    const record: BeatRecord = { image, flags: beat?.flags ?? 0, decisions: [...(beat?.decisions ?? [])] };
+    if (beat) {
+      const engine = image.engine;
+      translateDecisions(record, this.root, beat.root ?? (engine instanceof ProgramStory ? engine.root : this.root));
+    }
+    if (chosen !== undefined && !record.decisions.includes(chosen)) {
+      record.decisions.push(chosen);
+    }
+    return record;
   }
 
   /** The durable save of an image this engine, or the engine of an earlier
@@ -768,9 +791,7 @@ export class ProgramStory {
     const after = image.afterChoice;
     const beat = after ? after.menu : image;
     const chosen = this.choiceHere(image);
-    const record =
-      this.history.recordOf(beat) ??
-      (after ? { image: beat, flags: 0, decisions: chosen === undefined ? [] : [chosen] } : this.recordFor(beat));
+    const record = this.history.recordOf(beat) ?? this.recordFor(beat, chosen);
     return this.saveOf(withHistory ? (this.history.upTo(beat) ?? [record]) : [record], chosen, gameVersion);
   }
 
