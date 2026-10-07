@@ -246,6 +246,29 @@ export interface ProgramBuild {
   declarationsChanged: boolean;
 }
 
+/** What one build that made a root changed against the current root it was
+ *  built from (`ChunkStore.lastBuild`), from which a compile measured against
+ *  that root derives its change summary (`rootChanges`) in work proportional
+ *  to the edit. */
+export interface BuildRecord {
+  /** The current root the build was built from, or nothing for a first
+   *  build. */
+  previous: ProgramRoot | undefined;
+  /** The root the build made. */
+  root: ProgramRoot;
+  /** The chunks of `previous` that `root` does not hold. */
+  dropped: ReadonlySet<StatementChunk>;
+  /** The chunks placed where `previous` does not hold them: those the build
+   *  emitted, and those it moved to another sequence. */
+  placed: ReadonlySet<StatementChunk>;
+  /** The ids of the sequences the build built again, and of the rows of
+   *  `previous` that left the root. Every other row holds the chunks it held
+   *  in `previous`. */
+  sequences: ReadonlySet<number>;
+  /** `ProgramBuild.declarationsChanged`. */
+  declarationsChanged: boolean;
+}
+
 // One function a chunk writes: the hash of the function's own source, its
 // symbol, and the block its body is.
 interface FunctionPart {
@@ -428,6 +451,9 @@ export class ChunkStore {
   /** How many chunks each pass of the last build visited. */
   passesLastBuild: BuildPasses = emptyPasses();
 
+  /** What the last build changed, when it made a root, committed or not. */
+  lastBuild: BuildRecord | undefined;
+
   /** Derives each root a build makes from nothing but its sequences, and
    *  throws when the tables the build wrote over the current root's differ
    *  (`verifyRoot`). For tests. */
@@ -499,6 +525,7 @@ export class ChunkStore {
     const passes = emptyPasses();
     this.passesLastBuild = passes;
     this.handedOnLastBuild = [];
+    this.lastBuild = undefined;
     const coverage: ProgramCoverage = {
       statements: 0,
       emitted: 0,
@@ -805,6 +832,7 @@ export class ChunkStore {
         previous ? [...previous.sequences()].map((row) => [row.id, row]) : [],
       ),
       rebuilt: new Map(),
+      droppedRows: new Set(),
       placed: new Map(),
       live: new Set(),
       inFunction: new Map(),
@@ -1080,6 +1108,14 @@ export class ChunkStore {
     if (commit) {
       this.commit(root, build, dropped, facts, functionChunks, everyStatement);
     }
+    this.lastBuild = {
+      previous,
+      root,
+      dropped,
+      placed: new Set(build.placed.keys()),
+      sequences: new Set([...build.rebuilt.keys(), ...build.droppedRows]),
+      declarationsChanged,
+    };
     return { root, coverage, declarationsChanged };
   }
 
@@ -2189,6 +2225,7 @@ export class ChunkStore {
         return;
       }
       build.sequences.delete(row.id);
+      build.droppedRows.add(row.id);
       build.statements -= row.arrays.chunks.length;
       for (const chunk of row.arrays.chunks) {
         drop(chunk);
@@ -2664,28 +2701,7 @@ export class ChunkStore {
         fail(`row ${row.id} is reached from no flow`);
       }
     }
-    // The chunks that hold a function's code: every chunk of a sequence inside
-    // a function (a function's own flow, a function body's block and what
-    // they hold) and every chunk that exports a function.
-    const holdingFunctions = new Set<StatementChunk>();
-    const inFunctions = (row: SequenceRow | undefined, inFunction: boolean) => {
-      for (const chunk of row?.arrays.chunks ?? []) {
-        if (inFunction || exportsFunction(chunk)) {
-          holdingFunctions.add(chunk);
-        }
-        for (let k = 0; k < blockCount(chunk); k += 1) {
-          inFunctions(
-            root.body(chunk, k),
-            inFunction || !!(blockFlags(chunk, k) & BLOCK_FUNCTION),
-          );
-        }
-      }
-    };
-    for (const row of root.sequences()) {
-      if (row.owner < 0) {
-        inFunctions(row, row.flow >= 0 && row.kind === SymbolKind.Function);
-      }
-    }
+    const holdingFunctions = functionChunksOf(root);
     if (
       holdingFunctions.size !== functionChunks.size ||
       [...holdingFunctions].some((chunk) => !functionChunks.has(chunk))
@@ -3643,6 +3659,9 @@ interface SequenceBuild {
   /** Under `ChunkStore.verifyBuilds`, the chunk each statement a sequence
    *  read was placed with, which `verifyRoot` compares the rows with. */
   placedFor?: Map<StatementSource, StatementChunk>;
+  /** The ids of the rows of the current root that left the new one
+   *  (`droppedChunks`). */
+  droppedRows: Set<number>;
   /** Each chunk placed where the current root does not hold it, with its
    *  sequence and whether that sequence is inside a function. */
   placed: Map<StatementChunk, { sequence: number; inFunction: boolean }>;
@@ -3819,6 +3838,38 @@ const exportsFunction = (chunk: StatementChunk): boolean => {
     }
   }
   return false;
+};
+
+/**
+ * The chunks of `root` that hold a function's code: every chunk of a sequence
+ * inside a function (a function's own flow, a function body's block and what
+ * they hold) and every chunk that exports a function. A build keeps the set
+ * of its current root as it places chunks (`_functionChunks`), and a compile
+ * that emits or drops one of them, or moves a chunk into a function or out of
+ * one, runs the declarations again (`ProgramBuild.declarationsChanged`, the
+ * rule of #695).
+ */
+export const functionChunksOf = (root: ProgramRoot): Set<StatementChunk> => {
+  const holding = new Set<StatementChunk>();
+  const inFunctions = (row: SequenceRow | undefined, inFunction: boolean) => {
+    for (const chunk of row?.arrays.chunks ?? []) {
+      if (inFunction || exportsFunction(chunk)) {
+        holding.add(chunk);
+      }
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        inFunctions(
+          root.body(chunk, k),
+          inFunction || !!(blockFlags(chunk, k) & BLOCK_FUNCTION),
+        );
+      }
+    }
+  };
+  for (const row of root.sequences()) {
+    if (row.owner < 0) {
+      inFunctions(row, row.flow >= 0 && row.kind === SymbolKind.Function);
+    }
+  }
+  return holding;
 };
 
 /** The alternators (`Sequence`s) a statement's own code writes, in the order
