@@ -161,7 +161,11 @@ variables:
   LUAU_MODULE_KEYWORDS: ["require", "export"]
   LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
-  LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]
+  # The keywords an expression can follow, so an `if` right after one begins
+  # an if expression whether or not its `else` is on the same line: an
+  # operator's or `return`'s operand, a clause's value, and the condition of
+  # `if`, `elseif`, `while` and `until` or the iterated value after `in`.
+  LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else", "if", "elseif", "while", "until", "in"]
   # Statement-boundary keywords that end an `until` condition
   # (`LuauUntilStatement`); `until` itself is left out.
   LUAU_UNTIL_CONDITION_END_KEYWORDS:
