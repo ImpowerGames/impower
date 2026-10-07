@@ -9,7 +9,10 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { lowerExpressionFromNodes } from "../expression/lowerExpression";
+import {
+  containerValueNodes,
+  lowerExpressionFromNodes,
+} from "../expression/lowerExpression";
 import type { LowerContext } from "../context";
 import { buildDisplayCall } from "./displayCall";
 import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
@@ -21,23 +24,10 @@ const PARAMETER_NAMES = nodeNameSet([
   "LuauFunctionCallParameters",
 ]);
 
-/** The direct children of a begin/content/end node's `_content` wrapper
- *  that hold text; none when the node matched no content. */
+/** The nodes a begin/content/end node holds (`containerValueNodes`), less
+ *  any that hold no text. */
 function contentChildren(node: SyntaxNode): SyntaxNode[] {
-  const contentName = `${node.name}_content`;
-  let scan = node.firstChild;
-  while (scan && scan.name !== contentName) {
-    scan = scan.nextSibling;
-  }
-  const children: SyntaxNode[] = [];
-  let child = scan?.firstChild ?? null;
-  while (child) {
-    if (child.to > child.from) {
-      children.push(child);
-    }
-    child = child.nextSibling;
-  }
-  return children;
+  return containerValueNodes(node).filter((child) => child.to > child.from);
 }
 
 /** What a `DivertTarget` names and passes, read from its own children so
