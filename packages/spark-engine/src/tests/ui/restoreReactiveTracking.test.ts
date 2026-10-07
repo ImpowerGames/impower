@@ -13,7 +13,7 @@
 // Without these, a mounted `{binding}` froze for the whole run whenever ANY
 // reset happened after mount: handlers fired and the VM updated, but no
 // change was ever recorded for `refreshLayouts` to react to, so the DOM
-// never moved (#365 — the editor's PLAY takes rewindStory + jumpToPath, TWO
+// never moved (#365 — the editor's PLAY takes rewindStory + jumpTo, TWO
 // resets, and the second one was uncovered).
 
 import { describe, expect, test } from "vitest";
@@ -72,10 +72,10 @@ describe("reactive dependency tracking survives story-state replacement", () => 
     const h = createHarness(SOURCE);
     await h.ready;
     await h.preview();
-    expect((h.game as any).previewedPath).toBeTruthy();
+    expect(h.game.previewedAddress).toBeTruthy();
     const { program } = compileUI(SOURCE);
     (h.game as any).updateProgram(program);
-    expect((h.game as any).previewedPath).toBeUndefined();
+    expect(h.game.previewedAddress).toBeUndefined();
     // The MODE outlives the recompile — modules restored on the next connect
     // must still be able to tell a preview from a real run.
     expect((h.game as any).context.system.previewing).toBeTruthy();
@@ -83,8 +83,8 @@ describe("reactive dependency tracking survives story-state replacement", () => 
 
   test("Story.ResetState itself carries the tracking mode (the choke point)", async () => {
     // Every reset path mints a fresh VariablesState — `rewindStory`,
-    // `jumpToPath`, and any future caller. Per-call-site re-assertion is
-    // whack-a-mole (jumpToPath's reset was the one that froze the editor's
+    // `jumpTo`, and any future caller. Per-call-site re-assertion is
+    // whack-a-mole (jumpTo's reset was the one that froze the editor's
     // PLAY runs, #365), so the STORY preserves the observation mode across
     // the reset.
     const h = createHarness(SOURCE);
@@ -95,7 +95,7 @@ describe("reactive dependency tracking survives story-state replacement", () => 
 
   test("the full PLAY fail-branch flow keeps tracking and paints a clicked refresh", async () => {
     // The editor's PLAY: mount at connect, `start()` with simulation "fail"
-    // → rewindStory → jumpToPath (a SECOND ResetState) → continue. Then a
+    // → rewindStory → jumpTo (a SECOND ResetState) → continue. Then a
     // renderer click round-trips as an EventMessage. Pre-fix, the second
     // reset silently disabled tracking: the handler ran, `hp` changed in
     // the VM, and no ui/update was ever emitted — the alternating "dead

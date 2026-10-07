@@ -1,9 +1,9 @@
 import { Choice } from "@impower/sparkdown/src/inkjs/engine/Choice";
 import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
-import { RecencySet } from "./RecencySet";
+import { RecencySet, type RecencyEntry } from "./RecencySet";
 
 export interface SerializableRuntimeState {
-  pathsExecutedThisFrame: string[];
+  pathsExecutedThisFrame: RecencyEntry[];
   choicesEncountered: {
     options: string[];
     selected: number;
@@ -16,7 +16,7 @@ export interface SerializableRuntimeState {
 /** Per-beat delta of the runtime collections (incremental checkpoints). */
 export interface RuntimeDelta {
   // Paths executed this beat, in recency order (delete-then-add semantics).
-  pe: string[];
+  pe: RecencyEntry[];
   // Choices / conditions appended this beat.
   ce: { options: string[]; selected: number }[];
   cde: { selected: boolean }[];
@@ -44,18 +44,21 @@ export class RuntimeState {
   // stores one beat's worth of paths.
   // `choicesEncountered` / `conditionsEncountered` are append-only, so a
   // slice from a drain mark is exact.
-  executedSinceCheckpoint: Set<string> = new Set();
+  executedSinceCheckpoint: Set<RecencyEntry> = new Set();
   protected _choiceDrainMark = 0;
   protected _conditionDrainMark = 0;
 
-  recordExecution(path: string) {
-    if (!path.startsWith("global ")) {
-      // Both collections keep the most recently executed path last.
+  /** Records the address of a position the story ran: an address of the
+   *  program engine, or a runtime path of the current engine, whose global
+   *  declarations' are none of a beat's. */
+  recordExecution(address: RecencyEntry) {
+    if (typeof address !== "string" || !address.startsWith("global ")) {
+      // Both collections keep the most recently executed address last.
       // `RecencySet.add` moves an existing entry itself; the plain Set still
       // needs the delete-then-add spelling.
-      this.pathsExecutedThisFrame.add(path);
-      this.executedSinceCheckpoint.delete(path);
-      this.executedSinceCheckpoint.add(path);
+      this.pathsExecutedThisFrame.add(address);
+      this.executedSinceCheckpoint.delete(address);
+      this.executedSinceCheckpoint.add(address);
     }
   }
 
@@ -72,8 +75,15 @@ export class RuntimeState {
     });
   }
 
-  toJSON() {
-    return JSON.stringify(this.toSerializable());
+  /** The record as a save holds it, with the executed positions written by
+   *  `entries` when it is given (a durable save on the program engine,
+   *  whose addresses a later process does not give again). */
+  toJSON(entries?: (executed: RecencyEntry[]) => RecencyEntry[]) {
+    const record = this.toSerializable();
+    if (entries) {
+      record.pathsExecutedThisFrame = entries(record.pathsExecutedThisFrame);
+    }
+    return JSON.stringify(record);
   }
 
   /** Like `toJSON()` but with the three unbounded collections emptied. The
@@ -140,7 +150,10 @@ export class RuntimeState {
     if (
       typeof record !== "object" ||
       record === null ||
-      !isList<string>(record.pathsExecutedThisFrame, (p) => typeof p === "string") ||
+      !isList<RecencyEntry>(
+        record.pathsExecutedThisFrame,
+        (p) => typeof p === "string" || typeof p === "number",
+      ) ||
       !isList(
         record.choicesEncountered,
         (c) =>

@@ -84,11 +84,11 @@ const previewLastBeat = (program: unknown, beats: number, limit?: number) => {
   };
 
   game.setStartFrom({ file: URI, line: beats + 1 });
-  const toPath = anyGame.startPath as string;
+  const toPath = anyGame.startAddress as string;
   const route = Game.planRoute(
     game.story,
     program as any,
-    Game.getSimulateFromPath(toPath),
+    anyGame.routeStartOf(toPath),
     toPath,
   );
   if (route) {
@@ -154,11 +154,11 @@ describe("no clock governs execution", () => {
     };
 
     game.setStartFrom({ file: URI, line: beats + 1 });
-    const toPath = anyGame.startPath as string;
+    const toPath = anyGame.startAddress as string;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      anyGame.routeStartOf(toPath),
       toPath,
     );
     expect(route).toBeTruthy();

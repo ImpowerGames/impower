@@ -12,7 +12,7 @@
 //                     temporary directory and measure its target line
 //   --line <N>        the line of main.sd the route ends at, counting from one
 //   --mode <m,..>     any of kinds, step, proto, program, emit, ready, chunks,
-//                     symbols, order, images, or all (the default); see MODES
+//                     symbols, order, images, search, or all (the default); see MODES
 //                     below
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>      discarded samples first (default 4)
@@ -52,6 +52,7 @@ export const MODES = {
   emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"] },
   ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"] },
   images: { entry: "imageBench.ts", project: "chunks", candidates: ["json", "image"] },
+  search: { entry: "routeSearchBench.ts", project: "route", candidates: ["engine", "program"] },
 };
 
 export function parseEngineBenchArgs(args) {
@@ -201,6 +202,18 @@ async function main(args) {
           const report = (candidate) => reports.find((r) => r.candidate === candidate);
           const [json, image] = [report("json"), report("image")].map((r) => r.microsecondsPerNode.median);
           console.log(`images: the 2 candidates produced identical lines (${reports[0].lines} lines) through ${reports[0].nodes} search nodes; a node costs ${image.toFixed(2)} microseconds on an image against ${json.toFixed(2)} on the JSON round trip, by the medians`);
+          console.log("");
+        }
+      }
+      if (mode === "search" && reports.length === candidates.length) {
+        const report = (candidate) => reports.find((r) => r.candidate === candidate);
+        const [engine, program] = [report("engine"), report("program")];
+        if (!engine.found || !program.found) {
+          console.error(`search: ${engine.found ? "the program engine" : "the engine"} found no route`);
+          failed = true;
+        } else {
+          const ratio = program.searchMs.median / engine.searchMs.median;
+          console.log(`search: a full route search to line ${engine.line} costs ${program.searchMs.median.toFixed(1)} ms on the program engine (${program.routeSteps} steps) against ${engine.searchMs.median.toFixed(1)} ms on the engine (${engine.routeSteps} steps), by the medians: ${(ratio * 100).toFixed(1)} percent`);
           console.log("");
         }
       }

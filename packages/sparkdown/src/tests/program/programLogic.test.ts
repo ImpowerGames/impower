@@ -604,8 +604,7 @@ describe("a jump and a save inside a body", () => {
     "end",
     "",
   ].join("\n");
-  // The line of `Pass`, counting from 0, which a path the game resolves
-  // places.
+  // The line of `Pass`, counting from 0, whose address the game jumps to.
   const PASS_LINE = 5;
   const scopeNames = (story: ProgramStory) =>
     story.state.frame!.temporaryScopes.map((scope) => [...scope.keys()]);
@@ -625,13 +624,12 @@ describe("a jump and a save inside a body", () => {
   // with the loop's scope and the branch's open, however often it is made.
   it("opens the scopes of the bodies a jump enters, the same on every jump", () => {
     const root = chunked(text);
-    const story = new ProgramStory(root, {
-      locate: () => ({ uri: MAIN_URI, line: PASS_LINE, column: 6 }),
-    });
-    story.ChoosePathString("pass");
+    const story = new ProgramStory(root);
+    const pass = root.addressAt(MAIN_URI, PASS_LINE)!;
+    story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
     expect(story.state.frame!.temporaryScopes).toHaveLength(3);
-    story.ChoosePathString("pass");
+    story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
     expect(story.state.frame!.temporaryScopes).toHaveLength(3);
   });
@@ -681,14 +679,14 @@ describe("a jump and a save inside a body", () => {
   const WHILE_PASS_LINE = 7;
 
   it("opens a while body's pass scope on a jump into it, the same on every jump", () => {
-    const story = new ProgramStory(chunked(whileText), {
-      locate: () => ({ uri: MAIN_URI, line: WHILE_PASS_LINE, column: 6 }),
-    });
-    story.ChoosePathString("pass");
+    const root = chunked(whileText);
+    const story = new ProgramStory(root);
+    const pass = root.addressAt(MAIN_URI, WHILE_PASS_LINE)!;
+    story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
     // The flow's scope, the pass scope and the branch's.
     expect(story.state.frame!.temporaryScopes).toHaveLength(3);
-    story.ChoosePathString("pass");
+    story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
     expect(story.state.frame!.temporaryScopes).toHaveLength(3);
   });

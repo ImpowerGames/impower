@@ -8,7 +8,6 @@ import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { isResponse } from "@impower/jsonrpc/src/common/utils/isResponse";
 import { Game } from "../game/core/classes/Game";
-import { possibleBreakpointLines } from "../game/core/utils/possibleBreakpointLines";
 import { ConnectGameMessage } from "../game/core/classes/messages/ConnectGameMessage";
 import { ContinueGameMessage } from "../game/core/classes/messages/ContinueGameMessage";
 import { CreateGameMessage } from "../game/core/classes/messages/CreateGameMessage";
@@ -217,8 +216,8 @@ export function installGameWorker(connection: MessageConnection) {
         }
         state.game = createGame({ program, ...options });
         return {
-          simulatePath: state.game.simulatePath,
-          startPath: state.game.startPath,
+          simulateFlow: state.game.simulateFlow ?? null,
+          startAddress: state.game.startAddress ?? null,
         };
       });
       return;
@@ -269,7 +268,7 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         return {
-          previewPath: await state.game.preview(
+          previewAddress: await state.game.preview(
             previewFrom.file,
             previewFrom.line,
           ),
@@ -422,13 +421,7 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         const { search } = message.params;
-        const program = game.program;
-        const lines = possibleBreakpointLines(
-          program.pathLocations,
-          Object.keys(program.scripts),
-          search,
-        );
-        return { lines };
+        return { lines: game.possibleBreakpointLines(search) };
       });
       return;
     }

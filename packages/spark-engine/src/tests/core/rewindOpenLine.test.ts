@@ -255,7 +255,7 @@ describe("letting go of a line the story cannot finish", () => {
     const before = p.advances();
     p.capAdvances(baseline + 100_000);
 
-    expect(() => p.game.jumpToPath("a")).not.toThrow();
+    expect(() => p.game.jumpTo("a")).not.toThrow();
     expect(p.midLine()).toBe(false);
     // A jump re-declares globals like a reset does, and does nothing else.
     expect(p.advances() - before).toBe(baseline);
@@ -265,7 +265,7 @@ describe("letting go of a line the story cannot finish", () => {
   test("loading a save lets go of the line the same way", () => {
     // `load` carries the same discard and is reached by the editor's own
     // checkpoint restore, so it needs its own coverage: with only `rewindStory`
-    // and `jumpToPath` converted, everything else in this file still passes.
+    // and `jumpTo` converted, everything else in this file still passes.
     const save = newGame(compileSrc(UNFINISHABLE_LINE), 5_000).save();
     const p = stoppedMidUnfinishableLine();
     p.capAdvances(200_000);
@@ -358,14 +358,14 @@ describe("the route planner lets go of an open line too", () => {
     };
 
     game.setStartFrom({ file: URI, line: 3 });
-    const toPath = anyGame.startPath as string;
+    const toPath = anyGame.startAddress as string;
     expect(toPath).toBeTruthy();
 
     expect(() =>
       Game.planRoute(
         game.story,
         program as any,
-        Game.getSimulateFromPath(toPath),
+        anyGame.routeStartOf(toPath),
         toPath,
       ),
     ).not.toThrow();
@@ -474,7 +474,7 @@ describe("ordinary content is unaffected", () => {
       return lines;
     };
 
-    game.jumpToPath("start");
+    game.jumpTo("start");
     const first = readAll();
     expect(first).toEqual([
       "The first thing that happens.",
@@ -482,7 +482,7 @@ describe("ordinary content is unaffected", () => {
       "The third thing that happens.",
     ]);
 
-    game.jumpToPath("start");
+    game.jumpTo("start");
     expect(readAll()).toEqual(first);
   }, 300_000);
 });

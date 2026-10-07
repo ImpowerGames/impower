@@ -33,10 +33,12 @@
 // this way whether or not `incremental` is set, and there is nothing to
 // verify against.
 
-/** Ordered full / per-beat runtime collections (executed paths, choices,
+import type { RecencyEntry } from "./RecencySet";
+
+/** Ordered full / per-beat runtime collections (executed addresses, choices,
  *  conditions). */
 export interface RuntimeCollections {
-  pe: string[];
+  pe: RecencyEntry[];
   ce: { options: string[]; selected: number }[];
   cde: { selected: boolean }[];
 }
@@ -73,6 +75,10 @@ export interface CheckpointHost {
   /** The story's part of a full save, written from a checkpoint's image, or
    *  null when the image cannot be written by the story as it is now. */
   storyOfImage?(image: unknown): string | null;
+  /** The executed positions as a full save written from an image holds
+   *  them: each address in its durable form, since the save may load in
+   *  another process (#700). */
+  durableExecuted?(executed: RecencyEntry[]): RecencyEntry[];
 }
 
 interface ImageEntry {
@@ -302,7 +308,7 @@ export class CheckpointStore {
       base--;
     }
     const first = this._entries[base] as ImageEntry;
-    const pe = new Set<string>(first.rt.pe);
+    const pe = new Set<RecencyEntry>(first.rt.pe);
     const ce = first.rt.ce.slice();
     const cde = first.rt.cde.slice();
     for (let i = base + 1; i <= index; i++) {
@@ -339,6 +345,13 @@ export class CheckpointStore {
       }
       const { save } = this.imageAt(index)!;
       save["story"] = story;
+      if (this._host.durableExecuted) {
+        const rt = this.runtimeAt(index);
+        save["runtime"] = runtimeJson({
+          ...rt,
+          pe: this._host.durableExecuted(rt.pe),
+        });
+      }
       return JSON.stringify(save);
     }
 
@@ -361,7 +374,7 @@ export class CheckpointStore {
     const ti = new Map<string, number>(base.ti ?? []);
     // Runtime collections: paths are a recency-ordered set (delete+add replay),
     // choices/conditions are append-only (concat).
-    const pe = new Set<string>(base.rt?.pe ?? []);
+    const pe = new Set<RecencyEntry>(base.rt?.pe ?? []);
     const ce = (base.rt?.ce ?? []).slice();
     const cde = (base.rt?.cde ?? []).slice();
     for (let i = baseIndex + 1; i <= index; i++) {

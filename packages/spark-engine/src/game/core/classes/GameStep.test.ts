@@ -112,7 +112,7 @@ describe("Game flow", () => {
       expect(executed?.params?.["executedLines"]).toEqual({
         "inmemory:///main.sd": { ranges: [0, 0], last: 0 },
       });
-      expect(executed?.params?.["lastExecutedPath"]).toBeTruthy();
+      expect(executed?.params?.["lastExecutedAddress"]).toBeTruthy();
     });
   });
 

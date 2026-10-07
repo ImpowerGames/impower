@@ -83,7 +83,7 @@ function longScene(beats: number): string {
 function targetPathForLine(program: unknown, line: number): string {
   const game = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return (game as any).startPath as string;
+  return game.startAddress as string;
 }
 
 describe("a long scene is not mistaken for an unreachable one", () => {
@@ -102,15 +102,15 @@ describe("a long scene is not mistaken for an unreachable one", () => {
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      newGame(program).routeStartOf(toPath),
       toPath,
     );
 
     expect(route).toBeTruthy();
     // The route really does span the scene rather than stopping early.
     expect(route!.steps.length).toBeGreaterThan(100_000);
-    expect(route!.steps.at(-1)!.path).toBe(toPath);
-    expect(route!.toPath).toBe(toPath);
+    expect(route!.steps.at(-1)!.address).toBe(toPath);
+    expect(route!.to).toBe(toPath);
   }, 300_000);
 });
 
@@ -193,7 +193,7 @@ describe("a budget of N permits N, not N minus one", () => {
       maxNodes: 1,
     });
     expect(route).toBeTruthy();
-    expect(route!.steps.at(-1)!.path).toBe(toPath);
+    expect(route!.steps.at(-1)!.address).toBe(toPath);
   }, 120_000);
 
   test("a budget of zero nodes explores nothing", () => {
@@ -363,19 +363,19 @@ end
       Game.planRoute(
         newGame(program).story,
         program as any,
-        Game.getSimulateFromPath(toPath),
+        newGame(program).routeStartOf(toPath),
         toPath,
       );
 
     const viaTrue = planTo(truePath);
     expect(viaTrue).toBeTruthy();
     expect(viaTrue!.conditions.map((c) => c.selected)).toEqual([true]);
-    expect(viaTrue!.steps.at(-1)!.path).toBe(truePath);
+    expect(viaTrue!.steps.at(-1)!.address).toBe(truePath);
 
     const viaFalse = planTo(falsePath);
     expect(viaFalse).toBeTruthy();
     expect(viaFalse!.conditions.map((c) => c.selected)).toEqual([false]);
-    expect(viaFalse!.steps.at(-1)!.path).toBe(falsePath);
+    expect(viaFalse!.steps.at(-1)!.address).toBe(falsePath);
   }, 120_000);
 
   test("a beat after the branch is still reachable", () => {
@@ -385,10 +385,10 @@ end
     const route = Game.planRoute(
       newGame(program).story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      newGame(program).routeStartOf(toPath),
       toPath,
     );
     expect(route).toBeTruthy();
-    expect(route!.steps.at(-1)!.path).toBe(toPath);
+    expect(route!.steps.at(-1)!.address).toBe(toPath);
   }, 120_000);
 });

@@ -159,11 +159,11 @@ end
       source.split("\n").findIndex((l) => l.includes(text));
     const planTo = (game: any, line: number) => {
       game.setStartFrom({ file: MAIN_URI, line });
-      const toPath = game.startPath as string;
+      const toPath = game.startAddress as string;
       return Game.planRoute(
         game.story,
         game.program,
-        Game.getSimulateFromPath(toPath),
+        game.routeStartOf(toPath),
         toPath,
       )!;
     };
@@ -219,11 +219,11 @@ end
       source.split("\n").findIndex((l) => l.includes(text));
     const planTo = (game: any, line: number) => {
       game.setStartFrom({ file: MAIN_URI, line });
-      const toPath = game.startPath as string;
+      const toPath = game.startAddress as string;
       return Game.planRoute(
         game.story,
         game.program,
-        Game.getSimulateFromPath(toPath),
+        game.routeStartOf(toPath),
         toPath,
       )!;
     };

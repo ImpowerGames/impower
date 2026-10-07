@@ -127,11 +127,11 @@ end
 
   const planTo = (game: Game, program: any, line: number) => {
     game.setStartFrom({ file: URI, line });
-    const toPath = (game as any).startPath as string;
+    const toPath = game.startAddress as string;
     return Game.planRoute(
       game.story,
       program,
-      Game.getSimulateFromPath(toPath),
+      game.routeStartOf(toPath),
       toPath,
     );
   };
@@ -212,7 +212,7 @@ end
     }
     // And the great majority of a simulated route does resolve to one.
     const resolved = route.steps.filter(
-      (s, i) => game.getCheckpoint(s.seq, { path: s.path, index: i }) != null,
+      (s, i) => game.getCheckpoint(s.seq, { address: s.address, index: i }) != null,
     ).length;
     expect(resolved).toBeGreaterThan(route.steps.length / 2);
   });
@@ -252,13 +252,13 @@ end
         }) as any,
       } as any);
       game.setStartFrom({ file: URI, line: 12 });
-      const toPath = (game as any).startPath as string;
+      const toPath = game.startAddress as string;
       const route = Game.planRoute(
         game.story,
         program as any,
-        Game.getSimulateFromPath(toPath),
+        game.routeStartOf(toPath),
         toPath,
-        { [Game.getSimulateFromPath(toPath)]: { favoredConditions: [favored] } },
+        { [game.routeStartOf(toPath)]: { favoredConditions: [favored] } },
       );
       return route?.steps ?? [];
     };
@@ -270,10 +270,10 @@ end
 
     // Wherever the two routes reach the SAME path having taken different
     // branches, their identities must differ.
-    const trueByPath = new Map(viaTrue.map((s) => [s.path, s.seq]));
+    const trueByPath = new Map(viaTrue.map((s) => [s.address, s.seq]));
     let comparedAnySharedPath = false;
     for (const step of viaFalse) {
-      const otherSeq = trueByPath.get(step.path);
+      const otherSeq = trueByPath.get(step.address);
       if (otherSeq == null) {
         continue;
       }
@@ -284,8 +284,8 @@ end
     // At minimum the routes must not be identity-identical end to end.
     const trueTail = viaTrue.at(-1)!.seq;
     const falseTail = viaFalse.at(-1)!.seq;
-    if (JSON.stringify(viaTrue.map((s) => s.path)) !==
-        JSON.stringify(viaFalse.map((s) => s.path))) {
+    if (JSON.stringify(viaTrue.map((s) => s.address)) !==
+        JSON.stringify(viaFalse.map((s) => s.address))) {
       expect(trueTail).not.toBe(falseTail);
       comparedAnySharedPath = true;
     }
@@ -306,11 +306,11 @@ describe("a planned route does not grow quadratically", () => {
     } as any);
     // Target the last beat so the route spans the whole scene.
     game.setStartFrom({ file: URI, line: 400 });
-    const toPath = (game as any).startPath as string;
+    const toPath = game.startAddress as string;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      game.routeStartOf(toPath),
       toPath,
     );
     expect(route).toBeTruthy();

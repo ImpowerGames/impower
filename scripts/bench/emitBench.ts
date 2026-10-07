@@ -98,7 +98,7 @@ function main() {
   const records = buffer.nodes.length / NODE_WIDTH;
   const game = new Game({ program: cold.program, ...benchSystem } as any);
   game.setStartFrom(startFrom);
-  const flow = game.startPath?.split(".")[0];
+  const flow = game.sceneOf(game.startAddress) ?? undefined;
   const index = buildProgramIndex(buffer);
   const flowAt = flow ? index.named.get(index.root)?.get(flow) : undefined;
   const flowRecords = flowAt == null ? undefined : buffer.nodes[flowAt * NODE_WIDTH + 2];

@@ -79,6 +79,21 @@ export const BLOCK_SCOPE_SHIFT = 8;
  *  with this many code words or more would name another chunk's. */
 export const ADDRESS_OFFSETS = 2 ** 21;
 
+/** The address of the instruction at `offset` of the chunk `id`, as a
+ *  consumer outside the engine holds it: one number, which a double holds
+ *  exactly for 2^32 chunk ids and a consumer compares with `===`
+ *  (docs/engine/binary-program.md, section 1, Identity). */
+export const addressOf = (id: number, offset: number): number =>
+  id * ADDRESS_OFFSETS + offset;
+
+/** The chunk id an address names. */
+export const chunkOfAddress = (address: number): number =>
+  Math.floor(address / ADDRESS_OFFSETS);
+
+/** The code offset an address names in its chunk. */
+export const offsetOfAddress = (address: number): number =>
+  address % ADDRESS_OFFSETS;
+
 export const codeWords = (chunk: StatementChunk): number =>
   chunk[H_CODE_WORDS]!;
 

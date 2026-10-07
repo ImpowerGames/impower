@@ -69,7 +69,7 @@ const positions = (root: ProgramRoot): [string, number][] => {
     .sort((a, b) => root.table.symbols[a.flow]!.localeCompare(root.table.symbols[b.flow]!));
   for (const flow of flows) {
     if (root.table.symbols[flow.flow] !== "") {
-      out.push([flow.uri, flow.firstLine]);
+      out.push([flow.uri, root.firstLineOf(flow)]);
     }
     visit(flow);
   }

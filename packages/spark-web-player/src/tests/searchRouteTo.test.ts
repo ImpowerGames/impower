@@ -53,39 +53,39 @@ function routeToLeft(overStory: boolean) {
     verifyCheckpoints: false,
   } as never);
   game.setStartFrom({ file: URI, line: SOURCE.split("\n").indexOf("    You went left.") });
-  expect(game.startPath).toBeTruthy();
-  return { game, toPath: game.startPath! };
+  expect(game.startAddress).toBeTruthy();
+  return { game, to: game.startAddress! };
 }
 
 for (const overStory of [false, true]) {
   describe(`a route search (${overStory ? "over the compiler's story" : "over the compiled bytecode"})`, () => {
     test("for the real program remembers the choices its route took", () => {
-      const { game, toPath } = routeToLeft(overStory);
+      const { game, to } = routeToLeft(overStory);
       const config: { simulationOptions?: Record<string, any> } = {};
       const log = new RouteSearchLog();
 
-      const checkpoint = searchRouteTo(game, toPath, log, { config });
+      const checkpoint = searchRouteTo(game, to, log, { config });
 
       expect(checkpoint).toBeTruthy();
-      expect(log.last).toMatchObject({ path: toPath, reachedTarget: true });
+      expect(log.last).toMatchObject({ address: to, reachedTarget: true });
       const favored = Object.values(config.simulationOptions ?? {});
       expect(favored).toHaveLength(1);
       expect(favored[0].favoredChoices).toHaveLength(1);
     });
 
     test("for a suggestion remembers nothing, and still answers", () => {
-      const { game, toPath } = routeToLeft(overStory);
+      const { game, to } = routeToLeft(overStory);
       const config: { simulationOptions?: Record<string, any> } = {};
       const real = new RouteSearchLog();
       const suggestion = new RouteSearchLog();
 
-      const checkpoint = searchRouteTo(game, toPath, suggestion, {
+      const checkpoint = searchRouteTo(game, to, suggestion, {
         config,
         remember: false,
       });
 
       expect(checkpoint).toBeTruthy();
-      expect(suggestion.last).toMatchObject({ path: toPath, reachedTarget: true });
+      expect(suggestion.last).toMatchObject({ address: to, reachedTarget: true });
       expect(config.simulationOptions).toBeUndefined();
       expect(real.last).toBeNull();
     });

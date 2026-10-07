@@ -81,9 +81,9 @@ function fp(game: Game, vars: string[]) {
 
 function planTo(game: Game, program: any, line: number) {
   game.setStartFrom({ file: URI, line });
-  const toPath = (game as any).startPath as string;
-  const fromPath = Game.getSimulateFromPath(toPath);
-  return Game.planRoute(game.story, program, fromPath, toPath)!;
+  const to = game.startAddress!;
+  const from = game.routeStartOf(to);
+  return Game.planRoute(game.story, program, from, to)!;
 }
 
 // ---------------------------------------------------------------------------

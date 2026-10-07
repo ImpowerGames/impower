@@ -40,7 +40,7 @@ const engine = (
   root: ProgramRoot,
   images?: ProgramStory["images"],
 ): ProgramStory => {
-  const story = new ProgramStory(root, null, { images });
+  const story = new ProgramStory(root, { images });
   story.keepBeatImages = true;
   story.onError = () => {};
   return story;
@@ -789,7 +789,7 @@ describe("a save at the boundaries the first review found", () => {
     expect(keyframe.positional.choices).toHaveLength(0);
     // The state as it stands is put back.
     expect(story.state.toJson()).toBe(atMenu);
-    const restored = new ProgramStory(root, null, { images: story.images });
+    const restored = new ProgramStory(root, { images: story.images });
     restored.onError = () => {};
     expect(restored.restore(keyframe)).toBe(true);
     expect(restored.state.toJson()).toBe(beat);

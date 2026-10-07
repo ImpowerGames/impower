@@ -89,9 +89,9 @@ async function playFrom(line: number, count: number) {
   const harness = createHarness(SOURCE, line);
   await harness.ready;
   harness.game.setStartFrom({ file: MAIN_URI, line });
-  const startPath = harness.game.startPath;
-  expect(startPath).toBeTruthy();
-  harness.jumpTo(startPath!);
+  const startAddress = harness.game.startAddress;
+  expect(startAddress).toBeTruthy();
+  harness.jumpTo(startAddress!);
   const beats: string[] = [];
   for (let i = 0; i < count; i++) beats.push(body(harness.nextBeat()));
   return beats;

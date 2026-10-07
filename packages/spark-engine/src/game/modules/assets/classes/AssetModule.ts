@@ -4,7 +4,7 @@ import {
   type SceneBeat,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { Module } from "../../../core/classes/Module";
-import { SceneTracker } from "../../../core/classes/SceneTracker";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { type LoadInstruction } from "../../../core/types/Instruction";
 import { type Instructions } from "../../../core/types/Instructions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
@@ -105,10 +105,10 @@ export class AssetModule extends Module<
 
   protected _warned = new Set<string>();
 
-  /** Per-flow `path -> beat index`, rebuilt when the program changes. */
+  /** Per-flow `address -> beat index`, rebuilt when the program changes. */
   protected _beatIndex?: {
     program: object;
-    byFlow: Map<string, Map<string, number>>;
+    byFlow: Map<string, Map<ProgramAddress, number>>;
   };
 
   protected _destroyed = false;
@@ -183,21 +183,23 @@ export class AssetModule extends Module<
     return !this.previewing;
   }
 
-  /** Where a preview stands: the path the cursor resolved to, which the
-   *  story may not have executed yet. In play, the executing path. */
-  protected get anchorPath(): string | null | undefined {
+  /** Where a preview stands: the address the cursor resolved to, which the
+   *  story may not have executed yet. In play, the executing address. */
+  protected get anchorAddress(): ProgramAddress | null | undefined {
     const previewing = this.context.system.previewing;
-    return typeof previewing === "string"
+    return typeof previewing === "string" || typeof previewing === "number"
       ? previewing
-      : this._game.executingPath;
+      : this._game.executingAddress;
   }
 
-  /** The cursor's path as the window's anchor inside `scene`, or nothing
+  /** The cursor's address as the window's anchor inside `scene`, or nothing
    *  when the cursor is in another scene (a preview whose line diverts on
    *  into the next scene enters it from its first beat). */
-  protected previewAnchorIn(scene: string): string | undefined {
-    const anchor = this.anchorPath;
-    return anchor && SceneTracker.sceneOf(anchor) === scene ? anchor : undefined;
+  protected previewAnchorIn(scene: string): ProgramAddress | undefined {
+    const anchor = this.anchorAddress;
+    return anchor != null && this._game.sceneOf(anchor) === scene
+      ? anchor
+      : undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -583,38 +585,41 @@ export class AssetModule extends Module<
   // Prediction
   // ---------------------------------------------------------------------------
 
-  protected beatIndexFor(flow: string, path: string | null | undefined): number {
-    if (!path) {
+  protected beatIndexFor(
+    flow: string,
+    address: ProgramAddress | null | undefined,
+  ): number {
+    if (address == null || address === "") {
       return -1;
     }
     const program = this._game.program;
     if (!this._beatIndex || this._beatIndex.program !== program) {
       this._beatIndex = { program, byFlow: new Map() };
     }
-    let byPath = this._beatIndex.byFlow.get(flow);
+    let byAddress = this._beatIndex.byFlow.get(flow);
     const beats = program.sceneAssets?.[flow]?.beats ?? [];
-    if (!byPath) {
-      byPath = new Map();
-      beats.forEach((beat, index) => byPath!.set(beat.path, index));
-      this._beatIndex.byFlow.set(flow, byPath);
+    if (!byAddress) {
+      byAddress = new Map();
+      beats.forEach((beat, index) => byAddress!.set(beat.address, index));
+      this._beatIndex.byFlow.set(flow, byAddress);
     }
-    const exact = byPath.get(path);
+    const exact = byAddress.get(address);
     if (exact != null) {
       return exact;
     }
-    // Not a beat path: the last beat at or before the current position in
-    // the source, which is what "the beats after this one" means.
-    return beatIndexIn(beats, program.pathLocations, path);
+    // Not a beat's address: the last beat at or before the current position
+    // in the source, which is what "the beats after this one" means.
+    return beatIndexIn(beats, this._game.locator, address);
   }
 
   /**
-   * Prefetch the assets of the next `predict_distance` beats after `path` in
+   * Prefetch the assets of the next `predict_distance` beats after `address` in
    * `flow`, spilling into the flows it loads and diverts to when the window
-   * runs past the end. With `inclusive`, the beat at `path` is included.
+   * runs past the end. With `inclusive`, the beat at `address` is included.
    */
   protected predictFrom(
     flow: string,
-    path: string | null | undefined,
+    address: ProgramAddress | null | undefined,
     inclusive: boolean,
   ): void {
     const sceneAssets = this._game.program.sceneAssets;
@@ -623,7 +628,7 @@ export class AssetModule extends Module<
       return;
     }
     const distance = this.config.predict_distance;
-    const start = this.beatIndexFor(flow, path) + (inclusive ? 0 : 1);
+    const start = this.beatIndexFor(flow, address) + (inclusive ? 0 : 1);
     let remaining = distance === 0 ? Number.POSITIVE_INFINITY : distance;
     const primary: SceneBeat[] = [];
     for (let i = Math.max(0, start); i < entry.beats.length && remaining > 0; i++) {
@@ -703,7 +708,7 @@ export class AssetModule extends Module<
    */
   protected predictAround(
     flow: string,
-    path: string | null | undefined,
+    address: ProgramAddress | null | undefined,
     wholeScene: boolean,
   ): void {
     const entry = this._game.program.sceneAssets?.[flow];
@@ -711,7 +716,7 @@ export class AssetModule extends Module<
       return;
     }
     const distance = this.config.predict_distance;
-    const index = Math.max(0, this.beatIndexFor(flow, path));
+    const index = Math.max(0, this.beatIndexFor(flow, address));
     const last = this._previewWindow;
     // The last window still covers a cursor that moved less than half its
     // reach, so it is not sent again for that.
@@ -756,7 +761,7 @@ export class AssetModule extends Module<
     if (this.previewing) {
       this.predictAround(flow, this.previewAnchorIn(flow), false);
     } else {
-      this.predictFrom(flow, this._game.executingPath, false);
+      this.predictFrom(flow, this._game.executingAddress, false);
     }
   }
 
@@ -1025,7 +1030,7 @@ export class AssetModule extends Module<
     if (this.previewing) {
       this.predictAround(scene, this.previewAnchorIn(scene), true);
     } else {
-      this.predictFrom(scene, this._game.executingPath, true);
+      this.predictFrom(scene, this._game.executingAddress, true);
     }
   }
 

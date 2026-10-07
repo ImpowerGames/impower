@@ -189,7 +189,7 @@ end
     const route = planRoute(
       new Game({ program: program as any } as any).story,
       "start",
-      locator.startPath as string,
+      locator.startAddress as string,
       { maxSteps: 5000, searchTimeout: Number.MAX_SAFE_INTEGER },
     );
     expect(route).toBeNull();
@@ -217,11 +217,11 @@ end
       return realError(message, ...rest);
     };
     game.setStartFrom({ file: URI, line: source.split("\n").indexOf("  B") });
-    const toPath = anyGame.startPath as string;
+    const toPath = anyGame.startAddress as string;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      anyGame.routeStartOf(toPath),
       toPath,
     );
     expect(route).not.toBeNull();
@@ -337,7 +337,7 @@ end
     const route = planRoute(
       new Game({ program: program as any } as any).story,
       "start",
-      locator.startPath as string,
+      locator.startAddress as string,
       { maxSteps: 5000, searchTimeout: Number.MAX_SAFE_INTEGER },
     );
     expect(route).toBeNull();
@@ -384,7 +384,7 @@ end
     const targetLine = SOURCE.split("\n").indexOf("  C");
     const locator: any = newGame();
     locator.setStartFrom({ file: URI, line: targetLine });
-    const toPath = locator.startPath as string;
+    const toPath = locator.startAddress as string;
 
     const route = Game.planRoute(newGame().story, program, "start", toPath);
     expect(lastSearchStats.endReason).toBe("found");

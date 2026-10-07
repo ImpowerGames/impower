@@ -1,5 +1,5 @@
 /**
- * An insertion-ordered string set whose entries move to the end when re-added,
+ * An insertion-ordered set of addresses (`ProgramAddress`) whose entries move to the end when re-added,
  * so iteration order is "least recently added first".
  *
  * It holds and orders exactly what a `Set` holds when every `add` deletes the
@@ -8,21 +8,24 @@
  * an add or a move is O(1).
  */
 
+/** An address, as the engine that ran it names it. */
+export type RecencyEntry = string | number;
+
 interface RecencyNode {
-  value: string;
+  value: RecencyEntry;
   prev: RecencyNode | null;
   next: RecencyNode | null;
 }
 
-export class RecencySet implements Iterable<string> {
-  protected _nodes = new Map<string, RecencyNode>();
+export class RecencySet implements Iterable<RecencyEntry> {
+  protected _nodes = new Map<RecencyEntry, RecencyNode>();
   protected _head: RecencyNode | null = null;
   protected _tail: RecencyNode | null = null;
 
   /** Build from an ordered list. Duplicates keep their FIRST position, which
    *  is what `new Set(values)` did — deserialization runs through here, so it
    *  must not reorder a saved collection. */
-  static from(values: Iterable<string>): RecencySet {
+  static from(values: Iterable<RecencyEntry>): RecencySet {
     const set = new RecencySet();
     for (const value of values) {
       if (!set.has(value)) {
@@ -36,12 +39,12 @@ export class RecencySet implements Iterable<string> {
     return this._nodes.size;
   }
 
-  has(value: string): boolean {
+  has(value: RecencyEntry): boolean {
     return this._nodes.has(value);
   }
 
   /** Add `value`, or move it to the end when it is already present. */
-  add(value: string): this {
+  add(value: RecencyEntry): this {
     const existing = this._nodes.get(value);
     if (existing) {
       if (existing === this._tail) {
@@ -61,17 +64,17 @@ export class RecencySet implements Iterable<string> {
   // No `delete` or `clear`: nothing removes from this collection. It
   // accumulates for a frame and is replaced wholesale.
 
-  forEach(callback: (value: string) => void): void {
+  forEach(callback: (value: RecencyEntry) => void): void {
     for (const value of this) {
       callback(value);
     }
   }
 
-  toArray(): string[] {
+  toArray(): RecencyEntry[] {
     return Array.from(this);
   }
 
-  *[Symbol.iterator](): IterableIterator<string> {
+  *[Symbol.iterator](): IterableIterator<RecencyEntry> {
     for (let node = this._head; node; node = node.next) {
       yield node.value;
     }

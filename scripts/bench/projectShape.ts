@@ -125,8 +125,8 @@ export function measureProjectShape(project: string, line: number) {
   if (!compiled) throw new Error("the project did not compile");
   const game = new Game({ program: cold.program, ...benchSystem } as any);
   game.setStartFrom(startFrom);
-  const flow = game.startPath?.split(".")[0];
-  if (!flow) throw new Error(`line ${line} of main.sd maps to no story path`);
+  const flow = game.sceneOf(game.startAddress) ?? undefined;
+  if (!flow) throw new Error(`line ${line} of main.sd maps to no story address`);
 
   const buffer = buildProgramBuffer(compiled);
   const index = buildProgramIndex(buffer);

@@ -156,7 +156,12 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
   assert.deepEqual(none.functions, []);
   assert.equal(parseShareArgs(["a.cpuprofile", "--under", "(root)", "--gaps"]).gaps, true);
   const groupOf = (name) => GAPS.find(([, re]) => re.test(name))?.[0];
-  assert.equal(groupOf("pathLocationTable.ts:(anonymous)"), groupOf("findClosestPath.ts:findClosestPath"));
+  // The line lookup goes through the program's accessor on either engine
+  // (#700): the path table's on the current engine, the root's on the
+  // program engine.
+  assert.equal(groupOf("pathLocationTable.ts:(anonymous)"), groupOf("programLocator.ts:addressAt"));
+  assert.equal(groupOf("ProgramRoot.ts:addressAt"), groupOf("Game.ts:setStartFrom"));
+  assert.notEqual(groupOf("Game.ts:setStartFrom"), undefined);
   assert.equal(groupOf("scopeDefineInstances.ts:scopeDefineInstances"), groupOf("SparkdownCompiler.ts:applyBuiltinOverrides"));
   assert.notEqual(groupOf("SparkdownCompiler.ts:populateSceneAssets"), groupOf("SparkdownCompiler.ts:compileStory"));
   assert.equal(groupOf("(vm):(garbage collector)"), "garbage collector");

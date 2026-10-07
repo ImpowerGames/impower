@@ -101,7 +101,7 @@ describe("previewing does not resume the scene's audio", () => {
     const path = await game.preview("inmemory:///main.sd", 0);
     expect(path).toBeTruthy();
     game.markPreviewing(path);
-    game._previewedPath = undefined; // as a recompile leaves it
+    game._previewedAddress = undefined; // as a recompile leaves it
     h.reset();
     expect(await game.preview("inmemory:///main.sd", 0)).toBe(path);
     expect(h.messages.length).toBeGreaterThan(0);

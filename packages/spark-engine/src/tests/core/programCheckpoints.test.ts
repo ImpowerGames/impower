@@ -211,6 +211,67 @@ describe("the checkpoints of a game on the program engine", () => {
     }
   });
 
+  // Round 1 of the review of #1618 (report 6026303325): a save's executed
+  // record held the addresses of the process that wrote it, whose chunk ids
+  // another compile does not give again, so a game that loaded it into such
+  // a program lost the last executed location, or read another statement's.
+  it("write the executed record durably, which a program whose chunk ids differ places", () => {
+    const { program, story } = compiler(TEXTS).compile();
+    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    drive(game);
+    // A program of the same statements whose chunk ids all differ: a scene
+    // above them takes the first ids.
+    const EXTRA = ["scene EXTRA", "  Extra one.", "  Extra two.", "end", ""];
+    const shifted = { ...TEXTS, [MAIN]: [...EXTRA, TEXTS[MAIN]].join("\n") };
+    const lineText = (texts: Record<string, string>, location: any) =>
+      texts[location.uri]!.split("\n")[location.range.start.line];
+    const executed = (g: Game) =>
+      (g as any)._runtimeState.pathsExecutedThisFrame.toArray() as unknown[];
+    const store = game.checkpoints;
+    // A checkpoint whose beat ran statements, restored in place: a continue
+    // starts the record again, so where the run happens to stop says
+    // nothing of it.
+    const ran = Array.from({ length: store.length }, (_, i) => i).filter(
+      (i) => JSON.parse(JSON.parse(store.getJson(i)!).runtime).pathsExecutedThisFrame.length > 0,
+    );
+    expect(ran.length).toBeGreaterThan(2);
+    const mid = ran[Math.floor(ran.length / 2)]!;
+    expect(game.restoreCheckpoint(mid)).toBe(true);
+    expect(executed(game).length).toBeGreaterThan(0);
+    const saves = [game.save(), store.getJson(mid)!];
+    for (const save of saves) {
+      const runtime = JSON.parse(JSON.parse(save).runtime);
+      expect(runtime.pathsExecutedThisFrame.length).toBeGreaterThan(0);
+      const same = compiler(TEXTS).compile();
+      const here = createGame(same.program, same.story);
+      here.start();
+      expect(here.load(save)).toBe(true);
+      const other = compiler(shifted).compile();
+      const there = createGame(other.program, other.story);
+      there.start();
+      expect(there.load(save)).toBe(true);
+      // The last executed location is the same line of the same script.
+      const hereAt = here.getLastExecutedDocumentLocation();
+      const thereAt = there.getLastExecutedDocumentLocation();
+      expect(hereAt).not.toBeNull();
+      expect(thereAt).not.toBeNull();
+      expect(thereAt!.range.start.line - hereAt!.range.start.line).toBe(
+        thereAt!.uri === MAIN ? EXTRA.length : 0,
+      );
+      expect(lineText(shifted, thereAt)).toBe(lineText(TEXTS, hereAt));
+      // Every executed position is placed, at another address, and the save
+      // holds none of the writer's addresses.
+      expect(executed(there).length).toBe(runtime.pathsExecutedThisFrame.length);
+      expect(executed(here).length).toBe(runtime.pathsExecutedThisFrame.length);
+      expect(executed(there)).not.toEqual(executed(here));
+      expect(
+        runtime.pathsExecutedThisFrame.every((e: unknown) => typeof e === "string"),
+      ).toBe(true);
+      // And it saves again as it was written.
+      expect(JSON.parse(there.save()).runtime).toBe(JSON.parse(save).runtime);
+    }
+  });
+
   // Round 1 of the review of #1579 (report 6016565874): a refused save left
   // the modules it carried loaded.
   it("refuse a save the story cannot place, leaving every module, the story and a waiting preview as they were", () => {

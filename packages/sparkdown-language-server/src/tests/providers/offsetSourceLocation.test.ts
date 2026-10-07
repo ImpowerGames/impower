@@ -1,18 +1,14 @@
-// #651 — the editor's previous/next beat navigation counts through the
-// program's path locations, which are now columns searched by binary search
-// rather than an array of entries walked from the top.
-//
-// The keypress must land where it always did, so the walk is kept here as an
-// oracle and the two are compared for every line of a two-script fixture, at
-// every offset the editor uses (the previous beat, the next one) and past the
-// ends of the table.
+// The editor's previous and next beat navigation (PageUp/PageDown), which the
+// language server answers through the program's accessor (#700): the next
+// beat is the first one below the line that starts below it, and the previous
+// one the first one above that starts above it, where a beat is what the
+// accessor gives one address (`ProgramLocator.addressAt`) and starts where
+// `locationOf` says. The same script answers on both engines, from the current
+// engine's path locations and from the program engine's root, and no client
+// holds either.
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import type {
-  PathLocationTable,
-  SparkProgram,
-} from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { locationAtRow } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, test } from "vitest";
 import { getOffsetSourceLocation } from "../../utils/providers/getOffsetSourceLocation";
 
@@ -27,6 +23,10 @@ const MAIN_SRC = [
   "",
   "scene A",
   "  He looks around.",
+  "",
+  "  RAFFLES:",
+  "    (quietly)",
+  "    Nobody here.",
   "",
   "  He looks again.",
   "",
@@ -56,115 +56,104 @@ const script = (uri: string, name: string, text: string) => ({
   languageId: "sparkdown",
 });
 
-const compile = (): SparkProgram => {
+const compile = (programChunks: boolean): SparkProgram => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
+    programChunks,
     files: [
       script(MAIN, "main", MAIN_SRC),
       script(CHAPTER, "chapter", CHAPTER_SRC),
     ],
   } as never);
-  return compiler.compile({ textDocument: { uri: MAIN } } as never).program;
+  const { warn, error } = console;
+  console.warn = console.error = () => {};
+  try {
+    return compiler.compile({ textDocument: { uri: MAIN } } as never).program;
+  } finally {
+    console.warn = warn;
+    console.error = error;
+  }
 };
 
-type Entry = [string, [number, number, number, number, number]];
+const lineOf = (text: string, needle: string) =>
+  text.split(NEWLINE).findIndex((line) => line.includes(needle));
 
-const entriesOf = (table: PathLocationTable): Entry[] =>
-  table.paths.map((path, row) => [
-    path,
-    locationAtRow(table, row) as Entry[1],
-  ]);
+describe.each([
+  { engine: "the current engine", programChunks: false },
+  { engine: "the program engine", programChunks: true },
+])("previous and next beat navigation on $engine", ({ programChunks }) => {
+  const program = compile(programChunks);
+  const at = (file: string, line: number, offset: number) =>
+    getOffsetSourceLocation(program, file, line, offset);
+  const main = (needle: string) => lineOf(MAIN_SRC, needle);
 
-/** The walk over all entries the binary search replaces. */
-const walkOffsetSourceLocation = (
-  files: string[],
-  entries: Entry[],
-  currentFile: string | undefined,
-  currentLine: number,
-  offset: number,
-) => {
-  if (currentFile == null) {
-    return null;
-  }
-  const fileIndex = files.indexOf(currentFile);
-  if (fileIndex < 0) {
-    return null;
-  }
-  let closestIndex: number | null = null;
-  for (let i = 0; i < entries.length; i++) {
-    const [currFileIndex, currStartLine] = entries[i]![1];
-    if (currFileIndex === fileIndex && currStartLine === currentLine) {
-      closestIndex = i;
-      break;
-    }
-    if (currFileIndex === fileIndex && currStartLine > currentLine) {
-      closestIndex = i - 1;
-      break;
-    }
-    if (currFileIndex > fileIndex) {
-      closestIndex = null;
-      break;
-    }
-  }
-  if (closestIndex == null) {
-    return null;
-  }
-  const entry = entries[closestIndex + offset];
-  if (entry == null) {
-    return null;
-  }
-  const [fileIdx, lineIdx] = entry[1];
-  const file = files[fileIdx];
-  if (!file) {
-    return null;
-  }
-  return { file, line: lineIdx };
-};
-
-describe("previous and next beat navigation", () => {
-  const program = compile();
-  const files = Object.keys(program.scripts);
-  const entries = entriesOf(program.pathLocations!);
-  const sources: Record<string, string> = {
-    [MAIN]: MAIN_SRC,
-    [CHAPTER]: CHAPTER_SRC,
-  };
-
-  test("the fixture has both scripts and beats in each", () => {
-    expect(files).toEqual(expect.arrayContaining([MAIN, CHAPTER]));
-    expect(entries.length).toBeGreaterThan(4);
+  test("compiles the program the engine runs", () => {
+    expect(program.chunks !== undefined).toBe(programChunks);
+    expect(program.pathLocations !== undefined).toBe(!programChunks);
   });
 
-  test.each([-1, 1, -3, 3])(
-    "an offset of %s lands where the walk lands, from every line",
-    (offset) => {
-      for (const file of [MAIN, CHAPTER]) {
-        const lineCount = sources[file]!.split(NEWLINE).length;
-        for (let line = 0; line <= lineCount + 2; line++) {
-          expect({
-            file,
-            line,
-            at: getOffsetSourceLocation(program, file, line, offset),
-          }).toEqual({
-            file,
-            line,
-            at: walkOffsetSourceLocation(files, entries, file, line, offset),
-          });
-        }
-      }
-    },
-  );
+  test("goes to the next beat from a beat's line, a blank line and a line inside a beat", () => {
+    expect(at(MAIN, main("He looks around."), 1)).toEqual({
+      file: MAIN,
+      line: main("(quietly)"),
+    });
+    expect(at(MAIN, main("He looks around.") + 1, 1)).toEqual({
+      file: MAIN,
+      line: main("(quietly)"),
+    });
+    expect(at(MAIN, main("Nobody here."), 1)).toEqual({
+      file: MAIN,
+      line: main("He looks again."),
+    });
+  });
+
+  test("goes to the previous beat's start, and from inside a beat to its own start", () => {
+    expect(at(MAIN, main("He looks again."), -1)).toEqual({
+      file: MAIN,
+      line: main("(quietly)"),
+    });
+    expect(at(MAIN, main("Nobody here."), -1)).toEqual({
+      file: MAIN,
+      line: main("(quietly)"),
+    });
+    expect(at(MAIN, main("(quietly)"), -1)).toEqual({
+      file: MAIN,
+      line: main("He looks around."),
+    });
+  });
+
+  test("counts several beats at once", () => {
+    expect(at(MAIN, main("He looks around."), 2)).toEqual({
+      file: MAIN,
+      line: main("He looks again."),
+    });
+    expect(at(MAIN, main("He looks again."), -2)).toEqual({
+      file: MAIN,
+      line: main("He looks around."),
+    });
+  });
+
+  test("stays in its script, and lands nowhere past either end", () => {
+    const bunny = lineOf(CHAPTER_SRC, "Bunny arrives.");
+    expect(at(CHAPTER, bunny, 1)).toEqual({
+      file: CHAPTER,
+      line: lineOf(CHAPTER_SRC, "Bunny leaves."),
+    });
+    // A scene's header is a path location of its own on the current engine,
+    // as it was before (#700), and holds no statement on the program engine.
+    expect(at(CHAPTER, bunny, -1)).toEqual(
+      programChunks ? null : { file: CHAPTER, line: 0 },
+    );
+    expect(at(MAIN, 0, -1)).toBeNull();
+    expect(at(MAIN, main("end"), 1)).toBeNull();
+    expect(at(MAIN, main("He looks around."), 1000)).toBeNull();
+  });
 
   test("a file the program does not know, and no program at all, land nowhere", () => {
     expect(getOffsetSourceLocation(program, "file://proj/absent.sd", 0, 1)).toBeNull();
     expect(getOffsetSourceLocation(program, undefined, 0, 1)).toBeNull();
     expect(getOffsetSourceLocation(undefined, MAIN, 0, 1)).toBeNull();
-  });
-
-  test("an offset past either end of the table lands nowhere", () => {
-    expect(getOffsetSourceLocation(program, MAIN, 0, -1000)).toBeNull();
-    expect(getOffsetSourceLocation(program, MAIN, 0, 1000)).toBeNull();
   });
 });
