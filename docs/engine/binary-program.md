@@ -895,6 +895,21 @@ The same command after #1599, 2026-10-06, run twice beside the base (f3edc2bd6) 
 
 With addresses (#700), the same two commands on 2026-10-06, after #701 merged, on the same machine: the compile with chunks runs neither `populateLocations` nor `sortPathLocations`, and its `ink/compile` and `program/chunks` take 29.7 and 11.5 ms by the medians, 41.2 together, against the current engine's 53.6, 25.7 and 4.9, 84.2 together.
 
+With the program path's resolver (#1607), the same two commands on 2026-10-07 on the same machine, beside main at bbc912833 in one sitting with processor load from other sessions, three rounds (12, 12 and 24 samples after 4 warm-up; the third round ran the chunks alone), medians in milliseconds per round. The compile with chunks exports no runtime story and notes no flow shapes; its resolve generates and resolves the `choose` block the parse lowered again (2,258 objects generated, 2,634 resolved) and replays the other 2,085 statements.
+
+| Phase | Current engine, main | Program chunks, main | Program chunks, resolver |
+| --- | --- | --- | --- |
+| `ink/compile` | 56.1 / 55.7 | 34.6 / 34.1 / 28.5 | |
+| `program/resolve` | | | 6.0 / 5.6 / 5.4 |
+| `program/chunks` | | 12.4 / 12.6 / 11.4 | 9.6 / 8.9 / 8.1 |
+| `ink/flowShapes` | 5.6 / 5.8 | 7.9 / 7.7 / 7.5 | |
+| `populateLocations` | 26.2 / 29.5 | | |
+| `sortPathLocations` | 5.4 / 5.6 | | |
+| Together | 93.3 / 96.6 | 54.9 / 54.4 / 47.4 | 15.6 / 14.5 / 13.5 |
+| Compile, wall clock | | 133.4 / 134.7 / 129.3 | 94.5 / 92.2 / 90.2 |
+
+The current engine with this change measured 56.5 / 60.0 for `ink/compile` in the same rounds, against main's 56.1 / 55.7: its tables now report the names a lookup reads to a tap that is not listening, and each class resolves through `ResolveWith`.
+
 ```bash
 node scripts/bench/engine-bench.mjs --project <Raffles and Bunny project> --line 3515 --mode search
 ```
