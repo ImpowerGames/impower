@@ -221,7 +221,12 @@
       "or",
       "not",
       "then",
-      "else"
+      "else",
+      "if",
+      "elseif",
+      "while",
+      "until",
+      "in"
     ],
     "LUAU_UNTIL_CONDITION_END_KEYWORDS": [
       "if",
@@ -2257,16 +2262,71 @@
       },
       "patterns": [
         {
-          "include": "#Annotation"
-        },
-        {
           "include": "#LuauFunctionCall"
         },
         {
           "include": "#DivertPath"
+        },
+        {
+          "include": "#DivertArguments"
         }
       ],
+      "applyEndPatternLast": true,
       "end": "(?=$)|(?!(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.^])"
+    },
+    "DivertArguments": {
+      "tag": "meta",
+      "name": "meta.parameter.luau",
+      "brackets": true,
+      "begin": "((?:[^\\S\\n\\r])*)([(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#LuauCommaSeparator"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#DivertArgumentsUnknown"
+        }
+      ],
+      "end": "([)])|(?=$)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "DivertArgumentsUnknown": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "match": "([^\\s)])"
     },
     "DivertPath": {
       "tag": "heading",
@@ -12944,7 +13004,7 @@
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<!^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;)|(?=\\b(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)|(?=^(?:(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|[.](?![.\\d])|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))|^(?:(?:[^\\S\\n\\r])*\\[(?!=*\\[)))"
     },
     "LuauSparkdownExplicitTernaryExpression": {
-      "begin": "(?:(?<=^(?:[^\\S\\n\\r])*|(?:[-+*/%^<>=~(\\[{,]|[.][.]|\\b(?:return|and|or|not|then|else)\\b)(?:[^\\S\\n\\r])*)|(?=(?:[^\\S\\n\\r])*if\\b(?:[^\\n=]|==|~=|<=|>=)*(?:\\belse(?:if)?\\b|\\})))((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
+      "begin": "(?:(?<=^(?:[^\\S\\n\\r])*|(?:[-+*/%^<>=~(\\[{,]|[.][.]|\\b(?:return|and|or|not|then|else|if|elseif|while|until|in)\\b)(?:[^\\S\\n\\r])*)|(?=(?:[^\\S\\n\\r])*if\\b(?:[^\\n=]|==|~=|<=|>=)*(?:\\belse(?:if)?\\b|\\})))((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -14941,7 +15001,7 @@
       "match": "(choose)\\b"
     },
     "LuauTernaryExpression": {
-      "begin": "(?:(?<=^(?:[^\\S\\n\\r])*|(?:[-+*/%^<>=~(\\[{,]|[.][.]|\\b(?:return|and|or|not|then|else)\\b)(?:[^\\S\\n\\r])*)|(?=(?:[^\\S\\n\\r])*if\\b(?:[^\\n=]|==|~=|<=|>=)*(?:\\belse(?:if)?\\b|\\})))((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
+      "begin": "(?:(?<=^(?:[^\\S\\n\\r])*|(?:[-+*/%^<>=~(\\[{,]|[.][.]|\\b(?:return|and|or|not|then|else|if|elseif|while|until|in)\\b)(?:[^\\S\\n\\r])*)|(?=(?:[^\\S\\n\\r])*if\\b(?:[^\\n=]|==|~=|<=|>=)*(?:\\belse(?:if)?\\b|\\})))((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
