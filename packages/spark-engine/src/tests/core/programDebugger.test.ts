@@ -676,6 +676,80 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables())).toContain("n=3");
   });
 
+  // A known limitation (#1664): the game infers from outside the
+  // engine which binding a write reached, and takes a declaration of the
+  // watched name in the watched function's code, run within the same step,
+  // for a new binding. A recursive call of that function inside one builtin
+  // step runs such a declaration in another invocation, so the write to the
+  // watched invocation's `n` is missed. When the engine reports writes to a
+  // watched binding, this case stops, and the expectation below turns red.
+  it("misses a write to a watched temporary when a recursive call in the same step declares its name", () => {
+    const text = [
+      "-> main", //                                0
+      "scene main", //                             1
+      "  Start.", //                               2
+      "  Got {outer(true)}.", //                   3
+      "  done", //                                 4
+      "end", //                                    5
+      "function outer(recurse)", //                6
+      "  local n = 0", //                          7
+      "  if recurse then", //                      8
+      "    local less = function(a, b)", //        9
+      "      n = n + 1", //                        10
+      "      outer(false)", //                     11
+      "      return a < b", //                     12
+      "    end", //                                13
+      "    local t = {2, 1}", //                   14
+      "    table.sort(t, less)", //                15
+      "  end", //                                  16
+      "  return n", //                             17
+      "end", //                                    18
+      "",
+    ].join("\n");
+    const h = debugGame(text, true);
+    h.game.setBreakpoints([{ file: MAIN, line: 15 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(15);
+    expect(h.game.setDataBreakpoints([{ dataId: "outer.n" }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    h.game.continue();
+    // The comparator wrote `outer`'s `n`, and the beat shows it did, but
+    // the continue ran on to that beat: no data breakpoint stop followed
+    // the write.
+    expect(h.game.story.currentText).toMatch(/^Got [1-9]\d*\.\n$/);
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+  });
+
+  it("fires a function breakpoint on a named function written inside another function", () => {
+    const h = debugGame(
+      [
+        "-> main", //                       0
+        "scene main", //                    1
+        "  Start.", //                      2
+        "  Got {outer()}.", //              3
+        "  done", //                        4
+        "end", //                           5
+        "function outer()", //              6
+        "  local function inner()", //      7
+        "    return 1", //                  8
+        "  end", //                         9
+        "  return inner()", //              10
+        "end", //                           11
+        "",
+      ].join("\n"),
+      true,
+    );
+    const set = h.game.setFunctionBreakpoints([{ name: "inner" }, { name: "nope" }]);
+    expect(set.map((b) => b.verified)).toEqual([true, false]);
+    expect(set[0]!.location?.range.start.line).toBe(7);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(7);
+    expect(h.frames().stackFrames[0]?.moduleId).toBe("function");
+  });
+
   it("offers and stops at the lines of a function written in a declaration", () => {
     const text = [
       "store handler = function()", // 0

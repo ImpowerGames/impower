@@ -103,18 +103,49 @@ export const programBreakpointLines = (
   return [...lines].sort((a, b) => a - b);
 };
 
+/** The address where the function `symbol` starts, or nothing when it is no
+ *  function the program defines. */
+const functionStart = (
+  root: ProgramRoot,
+  symbol: number,
+): number | undefined => {
+  const entry = root.functionEntry(symbol);
+  const chunk = entry?.sequence.arrays.chunks[entry.entry];
+  return entry && chunk ? addressOf(chunkId(chunk), entry.offset) : undefined;
+};
+
 /** The address where the function `name` starts, which is where a function
  *  breakpoint on it stops, or nothing when the program defines no such
- *  function. */
+ *  function. A function declared at the top level is found by its name; one
+ *  written inside a statement (a `local function` in a function's body) has
+ *  an anonymous symbol, and is found as the function that starts on the
+ *  line `declared` gives, where the declaration of `name` is written
+ *  (`SparkProgram.functionLocations`). */
 export const programFunctionAddress = (
   root: ProgramRoot,
   name: string,
+  declared?: { uri: string; line: number },
 ): number | undefined => {
   const symbol = root.table.symbolIds.get(name);
-  const entry =
-    symbol === undefined ? undefined : root.functionEntry(symbol);
-  const chunk = entry?.sequence.arrays.chunks[entry.entry];
-  return entry && chunk ? addressOf(chunkId(chunk), entry.offset) : undefined;
+  const named = symbol === undefined ? undefined : functionStart(root, symbol);
+  if (named !== undefined || !declared) {
+    return named;
+  }
+  const symbols = root.table.symbols.length;
+  for (let s = 0; s < symbols; s += 1) {
+    const address = functionStart(root, s);
+    if (address === undefined) {
+      continue;
+    }
+    const location = root.locationOf(address);
+    if (
+      location?.uri === declared.uri &&
+      location.startLine === declared.line
+    ) {
+      return address;
+    }
+  }
+  return undefined;
 };
 
 /**

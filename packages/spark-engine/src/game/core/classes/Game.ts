@@ -1374,7 +1374,14 @@ export class Game<T extends M = {}> {
       this._functionBreakpointMap = {};
       this._functionBreakAddresses = new Set();
       const actual = functionBreakpoints.map((b) => {
-        const address = programFunctionAddress(program.root, b.name);
+        const declared = this._program.functionLocations?.[b.name];
+        const address = programFunctionAddress(
+          program.root,
+          b.name,
+          declared && this._scripts[declared[0]] !== undefined
+            ? { uri: this._scripts[declared[0]]!, line: declared[1] }
+            : undefined,
+        );
         if (address !== undefined) {
           this._functionBreakAddresses.add(address);
         }
