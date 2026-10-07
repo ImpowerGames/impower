@@ -1060,7 +1060,12 @@ export function callVariableTarget(
   varName: string | null,
   callSiteArgCount: number = -1,
 ): FunctionTarget | null {
-  const varContents = story.state.variablesState.GetVariableWithName(varName);
+  // A global the story has not set yet that names a function holds that
+  // function, as a read of the name gives it (`readVariable`): a top-level
+  // function's name is a global its assignments rebind.
+  const varContents =
+    story.state.variablesState.GetVariableWithName(varName) ??
+    (varName ? story.FlowValueNamed(varName) : null);
 
   if (varContents == null) {
     story.Error(

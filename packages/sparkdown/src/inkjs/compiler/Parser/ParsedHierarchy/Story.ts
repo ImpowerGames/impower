@@ -9,6 +9,8 @@ import type { ErrorHandler } from "../../../engine/Error";
 import { ErrorType } from "../ErrorType";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
 import { FlowBase } from "./Flow/FlowBase";
+import type { Divert } from "./Divert/Divert";
+import { DivertTarget } from "./Divert/DivertTarget";
 import { FlowLevel } from "./Flow/FlowLevel";
 import { IncludedFile } from "./IncludedFile";
 import { ListDefinition } from "./List/ListDefinition";
@@ -201,49 +203,83 @@ export class Story extends FlowBase {
 
   /** The names written to the global scope by a plain assignment
    *  (`game = -> there`) anywhere in the story, callables included: a global
-   *  write is visible from every flow. A plain assignment whose name a
-   *  parameter or local of an enclosing flow declares writes that binding,
-   *  not the global, and is left out; the parse tree gives both the same
-   *  node, and the flows' declarations are complete by the time this runs
-   *  (generation fills them, reference resolution reads this). A closure's
-   *  upvalue parameter is not such a declaration: a write through it lands
-   *  on whatever the enclosing scope resolved the name to, which may be the
-   *  global. Walked once per export, on first use, for
-   *  {@link builtinGlobalDiverts}'s severity. */
+   *  write is visible from every flow. A plain assignment that a `local` or
+   *  parameter of the name certainly binds writes that binding, not the
+   *  global, and is left out; the parse tree gives both the same node.
+   *  `FlowBase.IsBoundLocallyAt` decides it: a `local` declared later, or in
+   *  a block that has closed, does not bind the assignment, and a write
+   *  through a closure's upvalue parameter lands on whatever the name
+   *  resolves to where the closure is made or called, which may be the
+   *  global. A name this set holds needlessly makes a call of a top-level
+   *  function of that name read the unset global, which leads back to the
+   *  function, but the call is then not held to the function's parameters,
+   *  and a divert to the name is reported as a warning. Walked once per
+   *  export, on first use, for {@link builtinGlobalDiverts}'s severity and
+   *  for which calls of a top-level function read the global that rebinds
+   *  it (`Divert`). */
   public globalAssignmentNames(): ReadonlySet<string> {
     if (this._globalAssignmentNames) {
       return this._globalAssignmentNames;
     }
-    const declaredAround = (obj: ParsedObject, name: string): boolean => {
-      let flow = asOrNull(ClosestFlowBase(obj), FlowBase);
-      while (flow && flow !== this) {
-        if (
-          flow.variableDeclarations.has(name) ||
-          (flow.args?.some(
-            (arg) => !arg.isUpvalue && arg.identifier?.name === name,
-          ) ??
-            false)
-        ) {
-          return true;
-        }
-        flow = asOrNull(ClosestFlowBase(flow), FlowBase);
+    // The assignments, and the candidate sites of each function by name:
+    // where a function value names it, and where a call names it. A
+    // candidate is a site of the function its divert's path resolves to from
+    // where it is written (`Path.ResolveFromContext`), so a same-named
+    // function nested elsewhere keeps its own sites.
+    const assignments: VariableAssignment[] = [];
+    const sitesByName = new Map<string, { site: ParsedObject; divert: Divert }[]>();
+    const addSite = (
+      name: string | null | undefined,
+      site: ParsedObject,
+      divert: Divert,
+    ) => {
+      if (name) {
+        const sites = sitesByName.get(name) ?? [];
+        sites.push({ site, divert });
+        sitesByName.set(name, sites);
       }
-      return false;
     };
-    const names = new Set<string>();
+    const seen = new Set<ParsedObject>();
     const visit = (obj: ParsedObject): void => {
-      for (const child of obj.content ?? []) {
-        if (
-          child instanceof VariableAssignment &&
-          !child.isDeclaration &&
-          !declaredAround(child, child.variableName)
-        ) {
-          names.add(child.variableName);
+      const children =
+        obj instanceof FunctionCall
+          ? [...(obj.content ?? []), ...(obj.args ?? [])]
+          : (obj.content ?? []);
+      for (const child of children) {
+        if (seen.has(child)) {
+          continue;
+        }
+        seen.add(child);
+        if (child instanceof VariableAssignment && !child.isDeclaration) {
+          assignments.push(child);
+        } else if (child instanceof DivertTarget && child.isFunctionValue) {
+          addSite(child.divert.target?.dotSeparatedComponents, child, child.divert);
+        } else if (child instanceof FunctionCall) {
+          addSite(child.name, child, child.proxyDivert);
         }
         visit(child);
       }
     };
     visit(this);
+    const resolved = new Map<Divert, ParsedObject | null>();
+    const targetOf = (divert: Divert): ParsedObject | null => {
+      if (!resolved.has(divert)) {
+        resolved.set(divert, divert.target?.ResolveFromContext(divert) ?? null);
+      }
+      return resolved.get(divert)!;
+    };
+    const sitesOf = (flow: FlowBase): readonly ParsedObject[] =>
+      (sitesByName.get(flow.identifier?.name ?? "") ?? [])
+        .filter(({ divert }) => targetOf(divert) === flow)
+        .map(({ site }) => site);
+    const names = new Set<string>();
+    for (const assignment of assignments) {
+      if (
+        !this.IsBoundLocallyAt(assignment.variableName, assignment, sitesOf)
+      ) {
+        names.add(assignment.variableName);
+      }
+    }
     this._globalAssignmentNames = names;
     return names;
   }

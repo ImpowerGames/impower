@@ -922,4 +922,75 @@ end
       collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program),
     ).toEqual([]);
   });
+
+  // A nested function's write to a name it captures lands on what the name
+  // resolves to where the function is called (#1591). Here that is the
+  // enclosing function's `local game`, so the global is never written and
+  // the divert's report stays an error, while a top-level function rebound
+  // elsewhere in the story changes nothing about it.
+  test("a nested function's write to a captured local of the name leaves the report an error", () => {
+    const program = compileUnseeded(`function f() return 7 end
+& f = function() return 2 end
+function swap()
+  local game = 1
+  function h(...)
+    game = 2
+  end
+  h()
+end
+& swap()
+-> game
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) =>
+      /builtin global/.test(String(d.message?.value ?? d.message)),
+    );
+    expect(reports.map((d) => [d.severity, String(d.message?.value ?? d.message)])).toEqual([
+      [1, DIVERT_MESSAGE("game")],
+    ]);
+  });
+
+  test("a same-named function nested elsewhere leaves the captured-local report an error", () => {
+    const program = compileUnseeded(`function swap()
+  local game = 1
+  function h(...)
+    game = 2
+  end
+  h()
+  function g(...)
+    function h(...) return 0 end
+    h()
+  end
+  g()
+end
+& swap()
+-> game
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) =>
+      /builtin global/.test(String(d.message?.value ?? d.message)),
+    );
+    expect(reports.map((d) => [d.severity, String(d.message?.value ?? d.message)])).toEqual([
+      [1, DIVERT_MESSAGE("game")],
+    ]);
+  });
+
+  test("a nested function's write through a capture that reaches the global makes the report a warning", () => {
+    const program = compileUnseeded(`function swap()
+  function h(...)
+    game = 2
+  end
+  h()
+end
+& swap()
+-> game
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) =>
+      /builtin global/.test(String(d.message?.value ?? d.message)),
+    );
+    expect(reports.map((d) => [d.severity, String(d.message?.value ?? d.message)])).toEqual([
+      [2, DIVERT_WARNING("game")],
+    ]);
+  });
 });
