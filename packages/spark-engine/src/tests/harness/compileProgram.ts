@@ -3,7 +3,12 @@
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 
-export const compileProgram = (source: string) => {
+/** `programChunks` compiles the script to statement chunks, which a game
+ *  given the same option runs on the program engine. */
+export const compileProgram = (
+  source: string,
+  options: { programChunks?: boolean } = {},
+) => {
   const uri = "inmemory:///main.sd";
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -18,6 +23,7 @@ export const compileProgram = (source: string) => {
         languageId: "sparkdown",
       },
     ],
+    ...(options.programChunks ? { programChunks: true } : {}),
   } as never);
   return compiler.compile({ textDocument: { uri } } as never).program;
 };
