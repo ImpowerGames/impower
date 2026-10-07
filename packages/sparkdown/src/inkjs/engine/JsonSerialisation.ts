@@ -354,6 +354,29 @@ export class JsonSerialisation {
       return null;
     }
     before(table);
+    // A define's `store` fields are merged onto the table, so a field the
+    // definition no longer holds, one assigned nil since, is taken out first:
+    // the table reads it as it did.
+    const content = token["obj"];
+    if (
+      (token["defself"] !== undefined || token["defref"] !== undefined) &&
+      content &&
+      typeof content === "object"
+    ) {
+      const info = this.defineSerializationInfo(table);
+      const anchored =
+        token["anchor"] !== undefined
+          ? (this._loadSessionAnchorResolver?.(String(token["anchor"])) ?? null)
+          : null;
+      if (info && (!anchored || anchored.restore)) {
+        const map = table.value as Map<string, AbstractValue>;
+        for (const name of info.storeNames) {
+          if (!Object.prototype.hasOwnProperty.call(content, name)) {
+            map.delete(name);
+          }
+        }
+      }
+    }
     if (token["anchor"] !== undefined) {
       // A table the program initialized is restored in place by its anchor,
       // and a constant's keeps its compiled content.

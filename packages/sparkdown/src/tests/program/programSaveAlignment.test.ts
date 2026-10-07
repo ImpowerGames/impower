@@ -534,6 +534,33 @@ describe("the beats of a save loaded into a release that differs", () => {
     expect(play(loaded).beats).toEqual(["B3.", "B4.", "After."]);
   });
 
+  // Round 1 of the review of #1654 (report 6031317072).
+  it("keep the value a beat had of a global whose initial value the release changed", () => {
+    const story = engine(rootOf(scene(["First.", "Second {coins}."], "start", ["store coins = 1", ""])));
+    expect(advance(story, 1)).toEqual(["First."]);
+    const save = story.toSave();
+    const loaded = engine(rootOf(scene(["First.", "Second {coins}."], "start", ["store coins = 2", ""])));
+    loaded.loadSave(save);
+    expect(play(loaded).beats).toEqual(["Second 1."]);
+  });
+
+  it("save again after a function value the release no longer has was loaded as one that names nothing", () => {
+    const story = engine(
+      rootOf(scene(["& cb = function() return 1 end", "One.", "Two.", "Three."], "start", ["store cb = nil", ""])),
+    );
+    expect(advance(story, 1)).toEqual(["One."]);
+    const save = story.toSave();
+    const release = scene(["One.", "Two.", "Three."], "start", ["store cb = nil", ""]);
+    const loaded = engine(rootOf(release));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.warnings.join(" ")).toMatch(/names nothing/);
+    expect(advance(loaded, 1)).toEqual(["Two."]);
+    const again = loaded.toSave();
+    const reloaded = engine(rootOf(release));
+    reloaded.loadSave(again);
+    expect(play(reloaded).beats).toEqual(["Three."]);
+  });
+
   it("keep the value of a global the release made a constant, whichever beat assigned it", () => {
     const before = scene(["First.", "& K = 2", "Second.", "Value {K}."], "start", ["store K = 1", ""]);
     const story = engine(rootOf(before));
@@ -791,14 +818,19 @@ describe("a save at a menu", () => {
         [`const OK = ${pear === "hidden" ? "false" : "true"}`, ""],
       );
 
-    const chosenSave = () => {
+    // A save after the choice, from `toSave`, or, as a game exports a
+    // checkpoint it took right after the choice, from the image
+    // `captureBeat` gives (round 1 of the review of #1654, report
+    // 6031317072).
+    const chosenSave = (from: "save" | "checkpoint" = "save") => {
       const story = engine(rootOf(CHOSEN("kept")));
       expect(advance(story, 1)).toEqual(["Before."]);
       story.Continue();
       expect(story.currentChoices.map((c) => c.text)).toEqual(["Apple", "Pear"]);
       story.ChooseChoiceIndex(1);
-      const save = story.toSave();
-      expect(JSON.parse(save).chosen).toBe(true);
+      const save = from === "save" ? story.toSave() : story.saveOfImage(story.captureBeat())!;
+      // The menu's beat, with the choice in the saved form of its part.
+      expect(JSON.parse(save).chosen.a.ch[2]).toBe(1);
       return save;
     };
 
@@ -822,6 +854,17 @@ describe("a save at a menu", () => {
       loaded.loadSave(chosenSave());
       expect(loaded.loadedSaveReport!.chosen).toBe("unplaced");
       expect(play(loaded, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
+    });
+
+    it("as a checkpoint's image exported, takes the choice again, and is unplaced when its condition no longer offers it", () => {
+      const same = engine(rootOf(CHOSEN("kept")));
+      same.loadSave(chosenSave("checkpoint"));
+      expect(same.loadedSaveReport!.chosen).toBe("taken");
+      expect(play(same).beats).toEqual(["Ate pear.", "After."]);
+      const hidden = engine(rootOf(CHOSEN("hidden")));
+      hidden.loadSave(chosenSave("checkpoint"));
+      expect(hidden.loadedSaveReport!.chosen).toBe("unplaced");
+      expect(play(hidden, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
     });
   });
 });

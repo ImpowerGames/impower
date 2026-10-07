@@ -249,9 +249,12 @@ interface SavedPosition {
 }
 
 /** A symbol: by its qualified name, or by its statement and part (format
- *  1 named the part by its own hash alone, `p`). */
+ *  1 named the part by its own hash alone, `p`), or an anonymous function
+ *  value that named nothing when it was saved, by the label it printed as
+ *  (`gone`). */
 type SavedSymbol =
   | { n: string }
+  | { gone: string }
   | { st: SavedStatement; k: ChunkPartKind; i: number; pl?: number; p?: string };
 
 /** A listing as a save writes it: the sequence's length and the windows of
@@ -1153,6 +1156,9 @@ export class FormPlacer {
       return undefined;
     }
     const root = this.root;
+    if ("gone" in form) {
+      return undefined;
+    }
     if ("n" in form) {
       const symbol = root.table.symbolIds.get(this.renamed(form.n));
       return symbol === undefined || root.kindOf(symbol) === UNDEFINED_KIND
@@ -1290,8 +1296,22 @@ class SaveWriter implements StateCodec {
 
   begin(writer: SimpleJson.Writer): void {
     JsonSerialisation.SetWriterSymbolEncoder(writer, (value) =>
-      JSON.stringify(this._forms.symbolForm(this.symbolOf(value), value.ref.label)),
+      JSON.stringify(this.valueForm(value)),
     );
+  }
+
+  // The saved form of a function value, or for one that names nothing in
+  // this program (a load placed a value whose part was gone), its name, or
+  // for an anonymous one the label it printed as, which a load reads as a
+  // value that names nothing again.
+  protected valueForm(value: SymbolValue): SavedSymbol {
+    let symbol: number | undefined;
+    try {
+      symbol = this.symbolOf(value);
+      return this._forms.symbolForm(symbol, value.ref.label);
+    } catch {
+      return value.ref.name !== null ? { n: value.ref.name } : { gone: value.ref.label };
+    }
   }
 
   position(writer: SimpleJson.Writer, position: ProgramPosition | null): void {
@@ -1443,23 +1463,32 @@ class SaveWriter implements StateCodec {
     return `${value.constructor.name}:${scratch.toString()}`;
   }
 
+  // What a table holds, as a delta compares it: its metatable, frozen flag,
+  // length hints and entries in order, each key and value as its own JSON
+  // string, so that no two contents read the same.
   protected tableSignature(table: ObjectValue): string {
     const map = table.value as (Map<string, any> & { __luauCapacity?: number; __luauBoundary?: number }) | null;
-    const parts: string[] = [
-      table.metatable ? `#${this.identity(table.metatable)}` : "-",
-      table.isFrozen ? "1" : "0",
-      String(map?.__luauCapacity ?? ""),
-      String(map?.__luauBoundary ?? ""),
-    ];
+    const entries: [string, string][] = [];
     for (const [key, value] of map ?? []) {
       if (key === "__iter_key_snapshot") continue;
-      parts.push(`${key}=${this.valueSignature(value)}`);
+      entries.push([key, this.valueSignature(value)]);
     }
-    return parts.join("\u0001");
+    return JSON.stringify([
+      table.metatable ? this.identity(table.metatable) : -1,
+      table.isFrozen,
+      map?.__luauCapacity ?? null,
+      map?.__luauBoundary ?? null,
+      entries,
+    ]);
   }
 
   protected cellSignature(cell: VariablePointerValue): string {
-    return `${cell.isClosed ? 1 : 0}|${cell.isClosed ? this.valueSignature(cell.closedValue) : ""}|${cell.contextIndex}|${cell.scopeIndex}`;
+    return JSON.stringify([
+      cell.isClosed,
+      cell.isClosed ? this.valueSignature(cell.closedValue) : null,
+      cell.contextIndex,
+      cell.scopeIndex,
+    ]);
   }
 
   /**
@@ -1469,12 +1498,14 @@ class SaveWriter implements StateCodec {
    * before, a table or a cell written again whole under the id the save
    * first gave it, and one first met in a beat written whole where it is
    * first met (docs/engine/binary-program.md, section 7). `restore` puts
-   * each beat's image in place before it is written. `chosen` is set for a
-   * save taken after a choice was made at the newest beat.
+   * each beat's image in place before it is written. `chosen` is, for a
+   * save taken after a choice was made at the newest beat, the address of
+   * the `Choice` taken, which the save writes in the saved form for a load
+   * to take again.
    */
   writeBeats(
     beats: readonly BeatRecord[],
-    chosen: boolean,
+    chosen: number | undefined,
     restore: (image: ProgramImage) => boolean,
   ): string {
     const state = this._state;
@@ -1517,7 +1548,19 @@ class SaveWriter implements StateCodec {
           }
         }
         if (j === 0) {
-          w.WriteProperty("variablesState", (vw) => variables.WriteJson(vw));
+          // Every global but a constant, those equal to the program's
+          // initial value included: a load into a program whose initial
+          // value differs reads the beat's (#1429).
+          w.WriteProperty("variablesState", (vw) => {
+            const policy = variables.constructor as unknown as { dontSaveDefaultValues: boolean };
+            const skip = policy.dontSaveDefaultValues;
+            policy.dontSaveDefaultValues = false;
+            try {
+              variables.WriteJson(vw);
+            } finally {
+              policy.dontSaveDefaultValues = skip;
+            }
+          });
           state.writeTail(w, this);
           this.counts(w);
         } else {
@@ -1599,8 +1642,9 @@ class SaveWriter implements StateCodec {
       });
       w.WriteArrayEnd();
     });
-    if (chosen) {
-      writer.WriteProperty("chosen", true);
+    const chosenForm = chosen === undefined ? undefined : this._forms.choiceForm(chosen);
+    if (chosenForm) {
+      writer.WriteProperty("chosen", (w) => w.WriteInjected(chosenForm));
     }
     const listings = this._forms.listings();
     const parts = this._forms.parts();
@@ -1823,10 +1867,10 @@ class SaveReader {
     const planOf = (j: number) => (plans[j] ??= this.planBeat(beats[j]!));
     const newest = beats.length - 1;
     let chosen: SavedPosition | null = null;
-    if (this._save["chosen"] === true) {
-      const decisions = beats[newest]?.["decisions"];
-      const form = Array.isArray(decisions) ? decisions[decisions.length - 1] : undefined;
-      if (form && planOf(newest).placed && this._placer.placeChoice(form)) {
+    const saved = this._save["chosen"];
+    if (saved && typeof saved === "object") {
+      const form = saved as SavedPosition;
+      if (planOf(newest).placed && this._placer.placeChoice(form)) {
         chosen = form;
       } else {
         this._warnings.push("The choice made after the saved beat cannot be placed.");
@@ -1959,12 +2003,11 @@ class SaveReader {
       const symbol = this._placer.decodeSymbol(form);
       if (symbol === undefined) {
         const name = "n" in form ? form.n : null;
+        const label = "gone" in form ? form.gone : (name ?? "function");
         this._warnings.push(`A function value of the save (${name ?? "an anonymous function"}) names nothing in this program.`);
         // A value that names nothing: calling it, or jumping to it, raises
         // the engine's error for a target the program does not define.
-        return new SymbolValue(
-          new SymbolRef(-1, this.root.generation, name, name ?? "function"),
-        );
+        return new SymbolValue(new SymbolRef(-1, this.root.generation, name, label));
       }
       return this._symbolValue(symbol);
     });
@@ -2063,7 +2106,7 @@ export const writeSave = (
   state: ProgramStoryState,
   gameVersion: string,
   beats: readonly BeatRecord[],
-  chosen: boolean,
+  chosen: number | undefined,
   restore: (image: ProgramImage) => boolean,
 ): string => new SaveWriter(state, gameVersion).writeBeats(beats, chosen, restore);
 

@@ -188,6 +188,67 @@ describe("a save holds the last saveHistory beats", () => {
   });
 });
 
+// Round 1 of the review of #1654 (report 6031317072): a table whose
+// entries changed so that a signature joined without delimiters would read
+// the same.
+describe("a beat's delta", () => {
+  it("writes a table whose entries changed, however its keys and values read when joined", () => {
+    const text = [
+      'store t = { a = "b=StringValue:c" }',
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  One.",
+      "  & t.a = nil",
+      '  & t["a=StringValue:b"] = "c"',
+      "  Two.",
+      '  Three {t.a == nil} {t["a=StringValue:b"]}.',
+      "end",
+      "",
+    ].join("\n");
+    const story = engine(rootOf(text));
+    expect(advance(story, 2)).toEqual(["One.", "Two."]);
+    const save = story.toSave();
+    const loaded = engine(rootOf(text));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.beat).toBe(loaded.loadedSaveReport!.beats - 1);
+    expect(play(loaded)).toEqual(["Three true c."]);
+  });
+});
+
+// Round 1 of the review of #1654 (report 6031317072, an unverified concern
+// confirmed by probe): a define's `store` field cleared since the oldest
+// beat.
+describe("a beat's delta of a define", () => {
+  it("takes out a store field assigned nil since the beat before, which reads as it did", () => {
+    const text = [
+      "define hero as character with",
+      '  name = "Hero"',
+      '  store mood = "calm"',
+      "end",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      '  & character.hero.mood = "glad"',
+      "  One {character.hero.mood}.",
+      "  & character.hero.mood = nil",
+      "  Two {character.hero.mood}.",
+      "  Three {character.hero.mood}.",
+      "end",
+      "",
+    ].join("\n");
+    const story = engine(rootOf(text));
+    expect(advance(story, 2)).toEqual(["One glad.", "Two nil."]);
+    const save = story.toSave();
+    expect(JSON.parse(save).beats.length).toBeGreaterThan(2);
+    const loaded = engine(rootOf(text));
+    loaded.loadSave(save);
+    expect(play(loaded)).toEqual(["Three nil."]);
+  });
+});
+
 describe("what the rewind Feature reads at each beat", () => {
   const TEXT = [
     "store pool = { \"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\" }",

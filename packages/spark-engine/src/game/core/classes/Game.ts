@@ -2062,10 +2062,12 @@ export class Game<T extends M = {}> {
    * Restores checkpoint `index` in place: the story's image of the beat, and
    * the module state and runtime collections saved beside it. Within a
    * session an image taken before a compile restores after it for every
-   * statement the compile kept; one that names a statement it emitted again
-   * is unplaced, and nothing changes, so that the caller replays
-   * (docs/engine/binary-program.md, sections 7 and 8). A checkpoint of the
-   * current engine loads from its full save.
+   * statement the compile kept, and one that names a statement it emitted
+   * again is translated through its saved form (#1429); one that still cannot
+   * be placed is unplaced, and nothing changes, so that the caller replays
+   * (docs/engine/binary-program.md, sections 7 and 8). A route's resumption
+   * does not translate (`readResumePoint`). A checkpoint of the current
+   * engine loads from its full save.
    */
   restoreCheckpoint(index: number): boolean {
     const entry = this._checkpoints.imageAt(index);

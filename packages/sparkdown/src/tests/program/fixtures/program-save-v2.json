@@ -43,17 +43,21 @@
       "lineEndPending": false,
       "lineJoinable": false,
       "turnIdx": -1,
-      "storySeed": 64,
+      "storySeed": 92,
       "previousRandom": 0,
       "didSafeExit": false,
       "variablesState": {
+        "picks": 0,
         "shared": {
           "objid": 1,
           "anchor": "[\"shared\"]",
           "obj": {
             "1": 1
           }
-        }
+        },
+        "alias": "nil",
+        "bump": "nil",
+        "peek": "nil"
       },
       "frames": [
         {
@@ -93,7 +97,7 @@
       "lineEndPending": false,
       "lineJoinable": false,
       "turnIdx": 0,
-      "storySeed": 64,
+      "storySeed": 92,
       "previousRandom": 0,
       "previousFlow": "start",
       "didSafeExit": false,
@@ -202,7 +206,7 @@
       "lineEndPending": false,
       "lineJoinable": false,
       "turnIdx": 0,
-      "storySeed": 64,
+      "storySeed": 92,
       "previousRandom": 0,
       "previousFlow": "start",
       "didSafeExit": false,

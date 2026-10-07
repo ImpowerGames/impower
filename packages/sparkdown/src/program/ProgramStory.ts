@@ -416,6 +416,8 @@ export class ProgramStory {
   /** The beat whose menu a choice was just taken at, until the next
    *  continue: a save then is that beat with the choice. */
   protected _chosenAt: BeatRecord | null = null;
+  /** The address of the `Choice` taken there. */
+  protected _chosenAddress = -1;
 
   constructor(
     readonly root: ProgramRoot,
@@ -511,7 +513,15 @@ export class ProgramStory {
     if (!held) {
       // The image the beat's history record holds, when nothing moved the
       // state since.
-      return (!keyframe && this.stillImage()) || this.capture(keyframe);
+      const image = (!keyframe && this.stillImage()) || this.capture(keyframe);
+      // Just after a choice: the beat before its menu with the choice, which
+      // a durable save of the image writes (`saveOfImage`), so that a load
+      // raises the menu again and is unplaced when the choice is not
+      // offered (section 7).
+      if (this._chosenAt) {
+        image.afterChoice = { menu: this._chosenAt.image, address: this._chosenAddress };
+      }
+      return image;
     }
     if (!keyframe) {
       return held;
@@ -528,10 +538,13 @@ export class ProgramStory {
   }
 
   /** Restores an image in place, which this engine or the engine of an
-   *  earlier program of the same game (`images`) took; or returns false and
-   *  changes nothing when a position it holds names a chunk or a sequence
-   *  this engine's root no longer holds, so that the caller replays
-   *  (section 8). */
+   *  earlier program of the same game (`images`) took. A position that names
+   *  a chunk or a sequence this engine's root no longer holds is translated
+   *  through its saved form in the root it was taken in (section 8, Within a
+   *  session), unless `translate` is false, as a route's resumption asks;
+   *  when a position still cannot be placed, it returns false and changes
+   *  nothing, so that the caller replays. A rewind to a beat of the history
+   *  leaves the beats after it. */
   restore(image: ProgramImage, translate = true): boolean {
     if (!this.restoreInPlace(image, translate)) {
       return false;
@@ -629,12 +642,12 @@ export class ProgramStory {
     this.IfAsyncWeCant("save");
     const held = this._state.beatImage;
     if (held) {
-      return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], false, gameVersion)!;
+      return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
     }
     if (this._chosenAt) {
       const records = this.history.upTo(this._chosenAt.image);
       if (records) {
-        return this.saveOf(records, true, gameVersion)!;
+        return this.saveOf(records, this._chosenAddress, gameVersion)!;
       }
     }
     if (!this.canContinue && this._state.currentChoices.length > 0) {
@@ -648,7 +661,7 @@ export class ProgramStory {
       (this.history.provisional && this.keepBeatImages
         ? (this.history.push(live, BEAT_WAITED, true), this.history.upTo(live)!)
         : [...this.history.records, this.recordFor(live)]);
-    return this.saveOf(records, false, gameVersion)!;
+    return this.saveOf(records, undefined, gameVersion)!;
   }
 
   // A record for an image that is no beat of the history.
@@ -659,15 +672,21 @@ export class ProgramStory {
   /** The durable save of an image this engine, or the engine of an earlier
    *  program of the same game, took (`toSave`): the image's beat alone, as a
    *  checkpoint's full save is, or with `withHistory` the beats of the
-   *  history up to it. Each image is put in place to be written, and the
-   *  state as it stands put back. Nothing, and nothing changed, when the
+   *  history up to it; for an image taken just after a choice
+   *  (`ProgramImage.afterChoice`), the beat before its menu with the choice,
+   *  as `toSave` writes one. Each image is put in place to be written, and
+   *  the state as it stands put back. Nothing, and nothing changed, when the
    *  image names a position this engine's root cannot place. */
   saveOfImage(image: ProgramImage, gameVersion = "", withHistory = false): string | null {
     this.IfAsyncWeCant("save");
-    const record = this.history.recordOf(image) ?? this.recordFor(image);
+    const after = image.afterChoice;
+    const beat = after ? after.menu : image;
+    const record =
+      this.history.recordOf(beat) ??
+      (after ? { image: beat, flags: 0, decisions: [after.address] } : this.recordFor(beat));
     return this.saveOf(
-      withHistory ? (this.history.upTo(image) ?? [record]) : [record],
-      false,
+      withHistory ? (this.history.upTo(beat) ?? [record]) : [record],
+      after?.address,
       gameVersion,
     );
   }
@@ -677,7 +696,7 @@ export class ProgramStory {
   // newest.
   protected saveOf(
     records: readonly BeatRecord[],
-    chosen: boolean,
+    chosen: number | undefined,
     gameVersion: string,
   ): string | null {
     const last = records.slice(-Math.max(1, this.saveHistory));
@@ -1030,6 +1049,7 @@ export class ProgramStory {
       record.decisions.push(Number(choice.sourcePath));
     }
     this._chosenAt = record ?? null;
+    this._chosenAddress = Number(choice.sourcePath);
     const left = this._state.previousFlow;
     // What a choice leads to starts a new box, so no line before the choice
     // is one a `..` after it joins.

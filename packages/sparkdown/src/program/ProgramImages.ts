@@ -264,6 +264,10 @@ export interface ProgramImage {
    *  Rewind and roll forward), which the story's history keeps
    *  (`BeatHistory`) and a save writes beside it. */
   beat?: { flags: number; readonly decisions: number[] };
+  /** For an image of the state just after a choice was taken, the image of
+   *  the beat before its menu and the address of the `Choice` taken, which a
+   *  durable save of the image writes in its place (section 7). */
+  afterChoice?: { readonly menu: ProgramImage; readonly address: number };
 }
 
 /**
