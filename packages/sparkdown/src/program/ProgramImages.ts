@@ -285,14 +285,14 @@ export class ImageTracker implements ImageBarrier {
   }
 
   table(table: ObjectValue): void {
-    if (!this._fresh.has(table)) {
+    if (!this.isFresh(table)) {
       this.images.keepTable(table);
     }
     this.tables.add(table);
   }
 
   prepare(table: ObjectValue): void {
-    if (!this._fresh.has(table)) {
+    if (!this.isFresh(table)) {
       this.images.keepTable(table);
     }
   }
