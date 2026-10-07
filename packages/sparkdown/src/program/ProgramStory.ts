@@ -1227,8 +1227,15 @@ export class ProgramStory {
    *  (`Story.AddError`). */
   AddError(message: string, isWarning = false, useEndLineNumber = false): void {
     // The raised record keeps the text without the prefix, and no path: the
-    // instruction running is a chunk's word, which no runtime path names.
+    // instruction running is a chunk's word, which no runtime path names. It
+    // keeps that instruction's address, which `ForceEnd` below forgets
+    // before the error is reported.
     const raised: RaisedError = { message, path: null };
+    const running = this._running;
+    const chunk = running?.sequence.arrays.chunks[running.entry];
+    if (running && chunk) {
+      raised.address = addressOf(chunkId(chunk), running.offset);
+    }
     const where = this.sourceOfRunning();
     const kind = isWarning ? "WARNING" : "ERROR";
     if (where) {

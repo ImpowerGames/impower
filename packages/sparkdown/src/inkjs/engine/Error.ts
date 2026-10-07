@@ -15,6 +15,10 @@ export interface SourceMetadata {
 export interface RaisedError {
   message: string;
   path: string | null;
+  /** On the program engine, the address of the instruction that raised it,
+   *  kept as it raised it: an error ends the story, which forgets where it
+   *  stood before the error is reported (#700). */
+  address?: number;
 }
 
 export type ErrorHandler = (

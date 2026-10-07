@@ -801,7 +801,9 @@ export class Game<T extends M = {}> {
         raised?.message ?? message,
         type === InkErrorType.Warning ? ErrorType.Warning : ErrorType.Error,
         this.scriptLocationOf(
-          this.programStory ? this._positions.previous() : raised?.path,
+          this.programStory
+            ? (raised?.address ?? this._positions.previous())
+            : raised?.path,
         ) ?? this._executingLocation,
       );
     };

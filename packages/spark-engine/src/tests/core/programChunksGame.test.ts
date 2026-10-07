@@ -391,3 +391,45 @@ describe("a game's save", () => {
     expect(chunks.loads).toEqual(current.loads);
   });
 });
+
+// Round 3 of the review of #1618 (report 6028696744): an error ends the
+// story, which forgets where it stood before the error is reported, so a
+// search stopped by an error on the program engine placed it at the top of
+// the main script.
+describe("an error that stops a route search on the program engine", () => {
+  it("is placed at the statement that raised it, in the script that holds it", () => {
+    const CHAPTER = "file:///local/chapter.sd";
+    const chapter = [
+      "scene C",
+      "  Before.",
+      "  & error(\"boom\", 0)",
+      "  Target.",
+      "end",
+      "",
+    ].join("\n");
+    const texts = {
+      [MAIN]: ["include chapter.sd", "", "-> C", ""].join("\n"),
+      [CHAPTER]: chapter,
+    };
+    const lines = chapter.split("\n");
+    for (const programChunks of [true, false]) {
+      const { program, story } = compile(texts, programChunks);
+      expect(!!program.chunks).toBe(programChunks);
+      const game = createGame(program, story, programChunks, {
+        file: CHAPTER,
+        line: lines.indexOf("  Target."),
+      });
+      game.setStartFrom({ file: CHAPTER, line: lines.indexOf("  Target.") });
+      game.simulate();
+      // No route: the error ends the story before the target.
+      expect(game.simulationFailure).toBeDefined();
+      const errors = game.routeErrors;
+      expect(errors.map((e) => e.message.includes("boom"))).toContain(true);
+      const location = errors.find((e) => e.message.includes("boom"))!.location;
+      expect({ uri: location?.uri, line: location?.range.start.line }).toEqual({
+        uri: CHAPTER,
+        line: lines.indexOf("  & error(\"boom\", 0)"),
+      });
+    }
+  });
+});

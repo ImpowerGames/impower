@@ -305,7 +305,9 @@ interface StoryPositions {
   /** Whether a flow on the story's call stack is `knot`. */
   stackHolds(knot: string): boolean;
   /** The address of the step that raised an error. */
-  errorAddress(raised: { path?: string | null } | null | undefined): ProgramAddress | null;
+  errorAddress(
+    raised: { path?: string | null; address?: number } | null | undefined,
+  ): ProgramAddress | null;
 }
 
 /** The program engine's surface for addresses, which the current engine
@@ -373,7 +375,12 @@ const storyPositions = (story: Story): StoryPositions => {
         program
           .stackAddresses()
           .some((address) => sceneOfAddress(program.root, address) === knot),
-      errorAddress: () => {
+      // The instruction that raised the error, as the error recorded it: the
+      // story it ended no longer says where it stood.
+      errorAddress: (raised) => {
+        if (raised?.address !== undefined) {
+          return raised.address;
+        }
         const address = program.previousAddress;
         return address >= 0 ? address : null;
       },
