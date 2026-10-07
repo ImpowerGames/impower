@@ -162,6 +162,20 @@ describe("text after a divert's one argument list is reported", () => {
   });
 
   test.each([
+    ["-> second(1).x", ".x"],
+    ["-> second \"x\"", "\"x\""],
+    ["-> outer.second(1).x", ".x"],
+  ])("%j reports %j as unexpected", (line, extra) => {
+    expect(errorsOf(script(line))).toEqual([
+      {
+        message: `Unexpected \`${extra}\` after this divert's target.`,
+        line: 2,
+        text: extra,
+      },
+    ]);
+  });
+
+  test.each([
     "-> outer.second(1)",
     "-> outer.second (1)",
     "-> second(1)",

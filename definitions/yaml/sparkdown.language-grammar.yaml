@@ -2195,6 +2195,14 @@ repository:
     # before `(` that a relative call allows. A second argument list
     # (`-> a.b(x)(y)`) stays in the target, as it does in a relative call's
     # `LuauFunctionCall`, so the compiler can report what it does not pass.
+    # lookaround: the end steps aside only for what continues the target
+    # (`DivertPath`, `LuauFunctionCall`, and `LuauFunctionCallParameters` with
+    # the space before its `(`), leaving the rest of the line to the parent's
+    # `Tunnel`, `SparkdownInlineComment`, `DivertStrayTextSpace` and `Unknown`.
+    # `applyEndPatternLast` with `(?=$|.)` was tried: `ExtraWhitespace` and
+    # `DivertPath` would then take a space and a following name (`-> a b`)
+    # into the target, which is stray text, so the end has to name what
+    # continues a target.
     patterns:
       - { include: "#Annotation" }
       - { include: "#LuauFunctionCall" }

@@ -127,11 +127,13 @@ function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
   if (extra.length === 0) {
     return;
   }
-  const from = extra[0]!.from;
+  const first = extra[0]!;
+  const from = first.from;
   const to = extra[extra.length - 1]!.to;
+  // value-level: the text is quoted in the message whole, never classified.
   const text = ctx.read(from, to).trim();
   ctx.diagnostics?.push({
-    message: text.startsWith("(")
+    message: PARAMETER_NAMES.includes(first.name)
       ? `A divert passes one argument list; \`${text}\` is not passed.`
       : `Unexpected \`${text}\` after this divert's target.`,
     severity: ErrorType.Error,
