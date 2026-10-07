@@ -124,7 +124,6 @@ import {
   type SuspendedLineEnd,
 } from "./ProgramStoryState";
 import {
-  ADDRESS_OFFSETS,
   addressOf,
   chunkOfAddress,
   offsetOfAddress,
@@ -1253,7 +1252,7 @@ export class ProgramStory {
   /** The address of the instruction at `offset` of the statement `chunk`,
    *  which names a decision to the route simulator. */
   static addressOf(chunk: StatementChunk, offset: number): string {
-    return String(chunkId(chunk) * ADDRESS_OFFSETS + offset);
+    return String(addressOf(chunkId(chunk), offset));
   }
 
   /** The address of the instruction that ran last, which a route step is

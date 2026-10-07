@@ -17,13 +17,15 @@ import type {
   StateCodec,
 } from "./ProgramStoryState";
 import {
-  ADDRESS_OFFSETS,
   BLOCK_LOOP,
   H_FINGERPRINT,
   H_LAYOUT_HASH,
+  addressOf,
   blockFlags,
   chunkId,
+  chunkOfAddress,
   codeWords,
+  offsetOfAddress,
   type StatementChunk,
 } from "./StatementChunk";
 
@@ -237,7 +239,7 @@ class SaveWriter implements StateCodec {
     const chunk = choice.target.sequence.arrays.chunks[choice.target.entry];
     const address = Number(choice.sourcePath);
     if (chunk && Number.isFinite(address)) {
-      writer.WriteIntProperty("source", address - chunkId(chunk) * ADDRESS_OFFSETS);
+      writer.WriteIntProperty("source", address - addressOf(chunkId(chunk), 0));
     }
   }
 
@@ -545,7 +547,7 @@ class SaveReader implements StateCodec {
     const chunk = target.sequence.arrays.chunks[target.entry];
     const source = saved["source"];
     return chunk && typeof source === "number"
-      ? String(chunkId(chunk) * ADDRESS_OFFSETS + source)
+      ? String(addressOf(chunkId(chunk), source))
       : "";
   }
 
@@ -747,7 +749,7 @@ export const durableAddress = (
   root: ProgramRoot,
   address: number,
 ): string | undefined => {
-  const at = root.position(Math.floor(address / ADDRESS_OFFSETS));
+  const at = root.position(chunkOfAddress(address));
   const chunk = at?.sequence.arrays.chunks[at.entry];
   if (!at || !chunk) {
     return undefined;
@@ -770,7 +772,7 @@ export const durableAddress = (
   const form: DurableAddress = {
     l: levels,
     p: fingerprintOf(chunk),
-    o: address % ADDRESS_OFFSETS,
+    o: offsetOfAddress(address),
   };
   if (sequence.flow >= 0) {
     form.f = root.table.symbols[sequence.flow]!;
@@ -823,5 +825,5 @@ export const placeDurableAddress = (
   ) {
     return undefined;
   }
-  return chunkId(chunk) * ADDRESS_OFFSETS + form.o;
+  return addressOf(chunkId(chunk), form.o);
 };
