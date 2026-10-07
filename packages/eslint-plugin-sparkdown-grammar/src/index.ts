@@ -31,7 +31,6 @@ export const BASELINED_RULES = [
   "no-repeated-fragment",
   "name-long-pattern-parts",
   "scoped-end-has-bailout",
-  "no-line-crossing-class",
 ] as const;
 
 const baseline = JSON.parse(readFileSync(BASELINE_FILE, "utf8")) as Record<
@@ -92,9 +91,7 @@ plugin.configs["recommended"] = {
     "sparkdown-grammar/scoped-end-has-bailout": withBaseline(
       "scoped-end-has-bailout",
     ),
-    "sparkdown-grammar/no-line-crossing-class": withBaseline(
-      "no-line-crossing-class",
-    ),
+    "sparkdown-grammar/no-line-crossing-class": "error",
   },
 };
 

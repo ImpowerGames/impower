@@ -24,7 +24,6 @@ import { find as unreferencedVariable } from "./rules/no-unreferenced-variable.t
 import { find as repeatedFragment } from "./rules/no-repeated-fragment.ts";
 import { find as longPattern } from "./rules/name-long-pattern-parts.ts";
 import { find as scopedEnd } from "./rules/scoped-end-has-bailout.ts";
-import { find as lineCrossingClass } from "./rules/no-line-crossing-class.ts";
 
 const GRAMMAR = fileURLToPath(
   new URL(
@@ -41,7 +40,6 @@ const FINDERS: Record<(typeof BASELINED_RULES)[number], BaselinedRule["find"]> =
   "no-repeated-fragment": repeatedFragment,
   "name-long-pattern-parts": longPattern,
   "scoped-end-has-bailout": scopedEnd,
-  "no-line-crossing-class": lineCrossingClass,
 };
 
 export type Baseline = Record<string, Record<string, number>>;

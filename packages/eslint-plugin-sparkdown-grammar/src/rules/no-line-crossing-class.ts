@@ -7,22 +7,24 @@
 // the token although an edit on a later line changes what the pattern
 // read (#1583). Adding `\r\n` to the class keeps it on its line.
 //
-// A class that matches a line break is reported when it is repeated
-// (`*`, `+`, `{n,}`), sits in a repeated group, or has more pattern after
-// it before its lookaround or the whole pattern ends. A class whose
-// match can only be the line's own break (`(?=[^{])`) passes, and so does
-// a class inside a lookbehind, which reads backwards. A pattern that
-// deliberately skips blank and comment lines to the next token is
-// baselined: the incremental parse restarts at the last code line above
-// an edit, so those lookaheads see their edits.
-//
-// One finding per class. Existing findings are baselined per owner.
+// Each rule's `match`, `begin` and `end` is checked with its `{{NAME}}`
+// references expanded, since a class and the repetition that carries it
+// over the break can sit on either side of a variable reference. A class
+// that matches `\n` is reported when it is repeated (`*`, `+`,
+// `{n,}`), sits in a repeated group, or has more pattern after it before
+// its lookahead or the whole pattern ends. A class whose match can only be
+// the line's own break (`(?=[^{])`) passes, and so does a class inside a
+// lookbehind, which reads backwards. A variable that reads past the line
+// on purpose carries a `# reads-past-line:` comment saying why, and the
+// classes it brings into a pattern are not reported.
 
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
-import { getGrammarIndex } from "../utils/grammar-index.ts";
-import { rangeInScalar } from "../utils/yaml-ast.ts";
+import { getGrammarIndex, type GrammarIndex, markedComment } from "../utils/grammar-index.ts";
+import { isScalar, isSequence, rangeInScalar, type YAMLNode } from "../utils/yaml-ast.ts";
 import { type RegexGroup, regexGroups, scanRegex } from "../utils/regex-scan.ts";
 import { siteLabel } from "./lookaround-needs-rival-comment.ts";
+
+export const EXEMPT_MARKER = "reads-past-line:";
 
 interface CharClass {
   start: number;
@@ -45,8 +47,11 @@ function charClasses(source: string): CharClass[] {
   return classes;
 }
 
-// Whether a negated class matches a line break. A class JavaScript
-// cannot compile (a `{{VAR}}` inside it) is left alone.
+// Whether a negated class matches `\n`. A lone `\r` never reaches the
+// compiler's tokenizer, since `SparkdownDocumentRegistry` turns every line
+// break into `\n`, and in a `\r\n` break the `\n` still stops the class;
+// many classes in the grammar exclude only `\n` for that reason. A class
+// JavaScript cannot compile is left alone.
 export function negatedClassMatchesLineBreak(text: string): boolean {
   if (!text.startsWith("[^")) return false;
   for (const flags of ["u", ""]) {
@@ -95,14 +100,14 @@ const isLookahead = (g: RegexGroup) =>
 // Whether the pattern can read on after the atom that ends at `after`
 // (the offset just past it): something other than the end of its
 // lookahead or of the whole pattern comes next.
-function readsOnAfter(source: string, after: number, enclosing: RegexGroup[]): boolean {
+function readsOnAfter(source: string, after: number, groups: RegexGroup[]): boolean {
   let i = skipQuantifier(source, after);
   for (;;) {
     if (i >= source.length) return false;
     const ch = source[i];
     if (ch !== ")" && ch !== "|") return true;
     // The innermost group still open at `i`.
-    const group = enclosing.filter((g) => g.start < i && g.end >= i).sort((a, b) => b.start - a.start)[0];
+    const group = groups.filter((g) => g.start < i && g.end >= i).sort((a, b) => b.start - a.start)[0];
     if (!group) {
       // A top-level `|` ends this branch: nothing more is read after it.
       return false;
@@ -110,6 +115,78 @@ function readsOnAfter(source: string, after: number, enclosing: RegexGroup[]): b
     if (isLookahead(group)) return false;
     i = skipQuantifier(source, group.end + 1);
   }
+}
+
+// Whether a class at `cls` lets the pattern `source` read past the line.
+function crossesLine(source: string, cls: CharClass, groups: RegexGroup[]): boolean {
+  if (!negatedClassMatchesLineBreak(cls.text)) return false;
+  const enclosing = groups.filter((g) => g.start < cls.start && g.end > cls.end);
+  if (enclosing.some(isLookbehind)) return false;
+  // Only the groups inside the innermost lookahead repeat what the
+  // lookahead reads.
+  const lookahead = enclosing.filter(isLookahead).sort((a, b) => b.start - a.start)[0];
+  const repeatable = enclosing.filter((g) => !lookahead || g.start > lookahead.start);
+  return (
+    repeats(source, cls.end + 1) ||
+    repeatable.some((g) => repeats(source, g.end + 1)) ||
+    readsOnAfter(source, cls.end + 1, groups)
+  );
+}
+
+// A pattern with its variable references expanded. For each character of
+// `text`, `rawOffset` is its offset in the written pattern (or -1 when a
+// variable brought it in) and `variables` the references it came through,
+// outermost first.
+interface Expanded {
+  text: string;
+  rawOffset: number[];
+  variables: string[][];
+}
+
+const REFERENCE = /\{\{([A-Za-z0-9_]+)\}\}/g;
+
+// A variable's value as the build substitutes it: a sequence becomes
+// `\b(?:a|b)\b`.
+function variableValue(value: YAMLNode | null): string | null {
+  if (isScalar(value) && typeof value.value === "string") return value.value;
+  if (isSequence(value)) {
+    const entries = value.entries.map((entry) =>
+      isScalar(entry) && entry.value !== null ? String(entry.value) : "",
+    );
+    return `\\b(?:${entries.join("|")})\\b`;
+  }
+  return null;
+}
+
+function expand(source: string, index: GrammarIndex): Expanded {
+  const out: Expanded = { text: "", rawOffset: [], variables: [] };
+  const visit = (text: string, chain: string[], top: boolean) => {
+    let last = 0;
+    const push = (from: number, to: number) => {
+      for (let i = from; i < to; i++) {
+        out.text += text[i];
+        out.rawOffset.push(top ? i : -1);
+        out.variables.push(chain);
+      }
+    };
+    for (const match of text.matchAll(REFERENCE)) {
+      const name = match[1]!;
+      const at = match.index!;
+      push(last, at);
+      last = at + match[0].length;
+      const value = chain.includes(name) ? null : variableValue(index.variables.get(name)?.value ?? null);
+      if (value === null) {
+        // An undefined name or a cycle stays a literal token, as the build
+        // reports it.
+        push(at, last);
+      } else {
+        visit(value, [...chain, name], false);
+      }
+    }
+    push(last, text.length);
+  };
+  visit(source, [], true);
+  return out;
 }
 
 const { rule, find } = defineBaselinedRule(
@@ -120,32 +197,38 @@ const { rule, find } = defineBaselinedRule(
         "Disallow a negated character class that lets a pattern read past its line's break; add `\\r\\n` to the class.",
     },
     messages: {
-      crosses: `{{site}}: \`{{cls}}\` matches a line break and the pattern reads on past it, into the next line, which VS Code and the editor never show it and an incremental reparse does not redo. Add \`\\r\\n\` to the class. See GRAMMAR.md §11.5.${BASELINE_NOTE}`,
+      crosses: `{{site}}: \`{{cls}}\`{{from}} matches a line break and the pattern reads on past it, into the next line, which VS Code and the editor never show it and an incremental reparse does not redo. Add \`\\r\\n\` to the class, or give a variable that reads past the line on purpose a \`# ${EXEMPT_MARKER}\` comment saying why. See GRAMMAR.md §11.5.${BASELINE_NOTE}`,
     },
   },
   (context) => {
     const index = getGrammarIndex(context);
+    const exempt = (name: string) => {
+      const pair = index.variables.get(name);
+      return pair !== undefined && markedComment(index, [pair.loc.start.line], EXEMPT_MARKER) !== null;
+    };
     const findings: Finding[] = [];
     for (const site of index.patternSites) {
-      const groups = regexGroups(site.source);
-      for (const cls of charClasses(site.source)) {
-        if (!negatedClassMatchesLineBreak(cls.text)) continue;
-        const enclosing = groups.filter((g) => g.start < cls.start && g.end > cls.end);
-        if (enclosing.some(isLookbehind)) continue;
-        // Only the groups inside the innermost lookahead repeat what the
-        // lookahead reads.
-        const lookahead = enclosing.filter(isLookahead).sort((a, b) => b.start - a.start)[0];
-        const repeatable = enclosing.filter((g) => !lookahead || g.start > lookahead.start);
-        const crosses =
-          repeats(site.source, cls.end + 1) ||
-          repeatable.some((g) => repeats(site.source, g.end + 1)) ||
-          readsOnAfter(site.source, cls.end + 1, groups);
-        if (!crosses) continue;
+      // A variable is checked where a rule uses it, with the pattern around it.
+      if (site.owner.kind === "variable") continue;
+      const expanded = expand(site.source, index);
+      const groups = regexGroups(expanded.text);
+      for (const cls of charClasses(expanded.text)) {
+        const chain = expanded.variables[cls.start]!;
+        if (chain.some(exempt)) continue;
+        if (!crossesLine(expanded.text, cls, groups)) continue;
+        const raw = expanded.rawOffset[cls.start]!;
         findings.push({
           owner: site.owner.id,
-          loc: rangeInScalar(context, site.scalar, cls.start, cls.text.length),
+          loc:
+            raw >= 0
+              ? rangeInScalar(context, site.scalar, raw, cls.text.length)
+              : site.scalar.loc,
           messageId: "crosses",
-          data: { site: siteLabel(site), cls: cls.text },
+          data: {
+            site: siteLabel(site),
+            cls: cls.text,
+            from: chain.length > 0 ? ` (from variable ${chain.at(-1)})` : "",
+          },
         });
       }
     }

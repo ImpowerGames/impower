@@ -10,7 +10,7 @@ const classes = (repository: string, variables?: string) =>
 test("a repeated negated class that admits a line break fails", () => {
   assert.deepEqual(classes(`Rule:
   begin: (match)(?=[(][^()]*[)]{{WS}}*[|])
-  end: $`), ["[^()]"]);
+  end: $`, "WS: (?:[^\\S\\n\\r])"), ["[^()]"]);
 });
 
 test("a negated class in a repeated group fails", () => {
@@ -46,18 +46,31 @@ test("a class that cannot match a line break passes", () => {
   match: ([^\\s,]+)([^\\S\\n\\r]*)`), []);
 });
 
-test("a variable's class is checked as written", () => {
+// SparkdownDocumentRegistry turns every line break into `\n`, so a class
+// that excludes `\n` alone keeps the pattern on its line.
+test("a class that excludes only the line feed passes", () => {
   assert.deepEqual(classes(`Rule:
-  match: "{{QUOTED}}"`, "QUOTED: (?:\"[^\"]*\")"), ["[^\"]"]);
+  match: ([(][^()\\n]*[)])`), []);
 });
 
-test("a baselined owner reports nothing until it gains a finding", () => {
-  const source = grammar({
-    variables: "TRIVIA: (?:[^\\]]*\\])",
-  });
+test("a class a variable brings in is checked where a rule repeats it", () => {
+  assert.deepEqual(classes(`Rule:
+  match: "[(]{{CHAR}}*[)]"`, "CHAR: (?:[^()])"), ["[^()]"]);
+});
+
+test("a variable used only inside a lookbehind passes", () => {
+  assert.deepEqual(classes(`Rule:
+  match: (?<={{BEFORE}})(x)`, "BEFORE: (?:[^-]>)"), []);
+});
+
+test("a variable that reads past the line on purpose says why and passes", () => {
+  const variables = `# reads-past-line: skips blank and comment lines to the next token.
+TRIVIA: (?:[^\\]]*\\])`;
+  assert.deepEqual(classes(`Rule:
+  match: "(x)(?={{TRIVIA}}y)"`, variables), []);
   assert.deepEqual(
-    lintRule(source, "no-line-crossing-class", { "variables.TRIVIA": 1 }),
-    [],
+    classes(`Rule:
+  match: "(x)(?={{TRIVIA}}y)"`, "TRIVIA: (?:[^\\]]*\\])"),
+    ["[^\\]]"],
   );
-  assert.equal(lintRule(source, "no-line-crossing-class").length, 1);
 });

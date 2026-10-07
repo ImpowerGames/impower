@@ -520,10 +520,13 @@ variables:
   # Restored value/selector highlighting helpers (pre-Luau-port leaf rules).
   INTEGER: "[0-9]+"
   NUMBER: (?:[-]?(?:\d*[.])?\d+)
-  # One character inside quotes or a command's brackets: an escape, or any
-  # character but the closer and a line break, so the text stays on its
-  # line (GRAMMAR.md §11.5).
+  # One character inside quotes or a command's brackets: a backslash escape,
+  # or any character but the closer and a line break, so the text stays on
+  # its line (GRAMMAR.md §11.5).
   DOUBLE_QUOTED_CHAR: (?:\\.|[^"\r\n])
+  # One character inside single quotes: any character but `'` and a line
+  # break. Its first branch matches a literal `.`, not a backslash escape,
+  # so a `\'` ends the string.
   SINGLE_QUOTED_CHAR: (?:\.|[^'\r\n])
   IMAGE_COMMAND_CHAR: (?:\\.|[^\]\r\n])
   AUDIO_COMMAND_CHAR: (?:\\.|[^)\r\n])
@@ -594,7 +597,7 @@ variables:
   _STRUCT_TEXT_THEN_COMMENT_: ({{STRUCT_VALUE_TEXT_PART}}+?)(?:({{STRUCT_TEXT_DASH_COMMENT}})|({{STRUCT_TEXT_SLASH_COMMENT}}))?
   STRUCT_LITERAL_DASH_COMMENT: (?:{{WS}}*{{LUAU_COMMENT_START}}.*)
   STRUCT_LITERAL_SLASH_COMMENT: (?:{{WS}}*[/][/].*)
-  STRUCT_VALUE_TEXT_PART: (?:{{STRUCT_BLOCK_QUOTED}}|[^"])
+  STRUCT_VALUE_TEXT_PART: (?:{{STRUCT_BLOCK_QUOTED}}|[^"\r\n])
   STRUCT_TEXT_DASH_COMMENT: (?:{{WS}}+{{LUAU_COMMENT_START}}.*)
   STRUCT_TEXT_SLASH_COMMENT: (?:{{WS}}+[/][/](?:{{WS}}.*)?)
   # A property's key, and the key with its `=` and the whitespace around it.
@@ -1007,6 +1010,9 @@ variables:
   # is captured and matched by `\4`: every rule using this must put exactly
   # three capture groups before it. A line comment must run to its line end,
   # so the token is never a character inside it (`local x: -- a, b`).
+  # reads-past-line: it skips blank lines and comments to the next token on
+  # purpose. An incremental reparse restarts at the last code line above an
+  # edit (`lookaheadContextStart`), so a lookahead built on it sees the edit.
   _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
   _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
   # The same, ending at a token that cannot start an expression: a `;`, `,`
