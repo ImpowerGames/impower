@@ -830,8 +830,9 @@ export class ProgramStory {
     }
     this.passArguments(args);
     // A function takes the host's arguments as a call gives them
-    // (`arrangeArgsFor`); a scene, which binds nothing, takes them as they
-    // are, as on the current engine.
+    // (`arrangeArgsFor`), and so does a scene that takes parameters, for
+    // what its entry binds (`sceneTargetOf`); a scene that takes none takes
+    // them as they are, as on the current engine.
     if (target.bindings > 0) {
       arrangeArgsFor(this, target, args?.length ?? 0);
     }
