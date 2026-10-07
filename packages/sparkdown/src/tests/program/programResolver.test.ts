@@ -208,12 +208,17 @@ const carriedSubtreeReads = (s: ReturnType<typeof session>, run: () => void): st
     }
   }
   const resolve = resolver.resolve;
+  // The harness's check of what the resolver knows walks the whole story
+  // (`ProgramResolver.verifyFacts`), which is not the resolve's own reading.
+  const verify = ProgramResolver.verifyFacts;
   resolver.resolve = (...args) => {
     armed = true;
+    ProgramResolver.verifyFacts = false;
     try {
       return resolve.apply(resolver, args);
     } finally {
       armed = false;
+      ProgramResolver.verifyFacts = verify;
     }
   };
   try {
@@ -451,6 +456,85 @@ describe("a scene named `kind`", () => {
       );
       expect(collisions, `programChunks ${programChunks}`).toEqual([]);
     }
+  });
+});
+
+describe("a statement resolved anew", () => {
+  const filler = Array.from({ length: 30 }, (_, i) => `  Filler line ${i}.`);
+
+  it("finds a library-named local before it from what each statement declares, and reads none of them", () => {
+    // `table` names a library, so a dotted read of it reads the local only
+    // where the local is in scope (`FlowBase.IsLocalInScope`): in the scene,
+    // after its declaration; in the branch, through the top-level local.
+    const text = [
+      "local table = { value = 1 }",
+      "",
+      "scene MAIN",
+      "  local table = { value = 2 }",
+      ...filler,
+      "  Value {table.value}.",
+      "  do",
+      "    local string = { value = 3 }",
+      "  end",
+      ...filler,
+      "  Other {string.value}.",
+      "  branch INNER",
+      "    Inner {table.value}.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    for (const [find, replace] of [
+      ["  Value {table.value}.", "  Value {table.value} again."],
+      ["  Other {string.value}.", "  Other {string.value} again."],
+      ["    Inner {table.value}.", "    Inner {table.value} again."],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      visitedOnlyFresh(s.resolver);
+      expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    }
+  });
+
+  it("finds the story's assignments for a divert to a builtin's global from what each statement holds, and reads none of them", () => {
+    // Whether an author binds `game` decides the severity of the divert's
+    // report (`Divert.hasAuthoredBinding`), from every assignment of the
+    // story (`Story.globalAssignmentNames`).
+    const text = [
+      "scene MAIN",
+      "  Line.",
+      ...filler,
+      "  -> game",
+      "end",
+      "",
+      "scene OTHER",
+      ...filler,
+      "end",
+      "",
+      "function rebind()",
+      "  game = 1",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const reports = () => diagnostics(s.program).filter((d) => d.includes("`game`"));
+    // Bound by `rebind`, the divert is reported as a warning.
+    expect(reports()).toHaveLength(1);
+    const bound = reports()[0];
+    for (const [find, replace] of [
+      ["  -> game", "  -> game "],
+      ["  game = 1", "  other = 1"],
+      ["  -> game", "  -> game  "],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      visitedOnlyFresh(s.resolver);
+      expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    }
+    // Unbound once `rebind` assigns another name, it is reported otherwise.
+    expect(reports()).toHaveLength(1);
+    expect(reports()[0]).not.toEqual(bound);
   });
 });
 

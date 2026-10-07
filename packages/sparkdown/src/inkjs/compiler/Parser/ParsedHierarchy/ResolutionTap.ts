@@ -38,6 +38,24 @@ export interface ResolutionTap {
   /** An object whose runtime object was generated (`generated`) or whose
    *  references were resolved, which the resolver counts. */
   visited(obj: ParsedObject, generated: boolean): void;
+  /** The names of the locals `obj` declares where an object after it reads
+   *  them (`localsDeclaredIn`), when `obj` is an object a statement holds at
+   *  its top: the resolver reads them once, when the statement is lowered,
+   *  so that a search through the statements before a reference visits none
+   *  of them. Undefined for any other object. */
+  declaredLocals(obj: ParsedObject): ReadonlySet<string> | undefined;
+  /** The first function value, in the story's order, that names the flow
+   *  `flowName`, or null for none: the resolver knows each statement's. */
+  functionValue(flowName: string): ParsedObject | null;
+  /** For an object a statement holds at its top that has no position of
+   *  its own, the objects under it, other than flows, that a walk entering
+   *  every object with no position finds, in its order (`definitionSite`):
+   *  the resolver reads them once the statement is generated. Undefined for
+   *  any other object. */
+  unplaced(obj: ParsedObject): readonly ParsedObject[] | undefined;
+  /** Every assignment the story's statements hold, which the resolver
+   *  knows from each statement's syntax (`Story.globalAssignmentNames`). */
+  assignments(): Iterable<ParsedObject>;
   /** A diagnostic raised as `raiser.Error(message, source, isWarning)`, or
    *  as the story's own `Error` when `raiser` is null: one the story
    *  reported (`emitted`), at `position`, or one an earlier diagnostic of

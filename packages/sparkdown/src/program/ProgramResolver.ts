@@ -10,7 +10,11 @@ import {
 } from "../inkjs/compiler/Parser/ParsedHierarchy/CompileEpoch";
 import { ConstantDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { ExternalDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
-import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
+import {
+  FlowBase,
+  localsDeclaredIn,
+} from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FlowLevel } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowLevel";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
@@ -160,6 +164,14 @@ interface UnitShape {
    *  function it writes. */
   ownReturn: ParsedObject | null;
   ownMultiReturn: ParsedObject | null;
+  /** The assignments, and the function values, the statement holds along
+   *  `content` once it is generated (a call generated as a builtin drops
+   *  the divert that held its arguments), in the order a walk of the story
+   *  finds them: what `Story.globalAssignmentNames` and a library-named
+   *  local's scope (`FlowBase.IsLocalInScope`) look for over the whole
+   *  story (`ProgramResolver.readFacts`). */
+  assignments: ParsedObject[];
+  functionValues: DivertTarget[];
 }
 
 /** What the last resolve that resolved a statement recorded of it. */
@@ -301,6 +313,13 @@ export class ProgramResolver {
    *  `visitedLastResolve`, or in `visitedOutsideLastResolve`, for the
    *  tests. */
   static traceVisits = false;
+  /** Checks, after every resolve, what the resolver answers from each
+   *  statement's syntax for the passes that walk the whole story (the
+   *  assignments, the function values, the locals each object declares)
+   *  against a walk of the story, recording any difference in
+   *  `factFailures`: for the tests, as `ChunkStore.verifyBuilds`. */
+  static verifyFacts = false;
+  static factFailures: string[] = [];
 
   passesLastResolve: ResolverPasses = ProgramResolver.noPasses(true);
   /** The objects the last resolve generated or resolved for a statement. */
@@ -329,6 +348,19 @@ export class ProgramResolver {
   // declaration, initializer and struct, which the story's own passes reach.
   protected _positionUnit = new WeakMap<DebugMetadata, Unit>();
   protected _declarationUnit = new WeakMap<object, Unit>();
+  /** The locals each object a statement holds declares where an object
+   *  after it reads them (`localsDeclaredIn`), read when the statement is
+   *  lowered (`ResolutionTap.declaredLocals`). */
+  protected _locals = new WeakMap<ParsedObject, ReadonlySet<string>>();
+  /** What `definitionSite`'s walk finds under each object a statement
+   *  holds at its top with no position, read once the statement is
+   *  generated (`ResolutionTap.unplaced`). */
+  protected _unplaced = new WeakMap<ParsedObject, ParsedObject[]>();
+  /** The walk of the last resolve, in the story's order. */
+  protected _root: FlowNode | null = null;
+  /** The first function value naming each flow this compile, made on first
+   *  use (`ResolutionTap.functionValue`). */
+  protected _functionValues: Map<string, ParsedObject> | null = null;
   protected _occurrences = new WeakMap<object, object[]>();
   // Each struct's runtime definition, built when its statement was last
   // generated, with the diagnostics building it reported.
@@ -460,6 +492,8 @@ export class ProgramResolver {
     const previous = this._order;
     this._order = [];
     const root = this.walkFlow(story, "", input);
+    this._root = root;
+    this._functionValues = null;
     passes.units = this._order.length;
 
     // Which statements to generate and resolve.
@@ -704,6 +738,12 @@ export class ProgramResolver {
         runtimeStructs,
       );
 
+      // What the walks of the whole story that resolution makes would find
+      // in each statement generated anew, as generation left it.
+      for (const unit of fresh) {
+        this.readFacts(unit);
+      }
+
       // Resolution, which a throw stops as it stops `ExportRuntime`.
       story.BeginReferenceResolution();
       try {
@@ -754,7 +794,178 @@ export class ProgramResolver {
       onDiagnostic(message, type, metadata);
     }
     this._buffer = [];
+    if (ProgramResolver.verifyFacts) {
+      this.verifyFacts(story);
+    }
     return runtimeStory;
+  }
+
+  // ---- What the story's walks find, from each statement's syntax ----------
+
+  /** Reads what the walks of the whole story that resolution makes
+   *  (`Story.globalAssignmentNames`, `FlowBase.IsLocalInScope`) would find
+   *  in a statement generated anew: its assignments and function values,
+   *  and the locals each of its objects declares. A carried statement keeps
+   *  what its last generation left, and so these. */
+  protected readFacts(unit: Unit): void {
+    const shape = unit.next!.shape;
+    shape.assignments = [];
+    shape.functionValues = [];
+    for (const member of unit.members) {
+      for (const obj of this.alongContent(member)) {
+        this._locals.delete(obj);
+        if (obj instanceof VariableAssignment) {
+          shape.assignments.push(obj);
+        } else if (obj instanceof DivertTarget && obj.isFunctionValue) {
+          shape.functionValues.push(obj);
+        }
+      }
+      this.localsOf(member);
+      if (!(member instanceof FlowBase) && !positionOf(member)) {
+        this._unplaced.set(member, unplacedUnder(member));
+      } else {
+        this._unplaced.delete(member);
+      }
+    }
+  }
+
+  /** The locals `obj` declares where an object after it reads them, and
+   *  those of every object under it, read once (`_locals`). */
+  protected localsOf(obj: ParsedObject): ReadonlySet<string> {
+    let locals = this._locals.get(obj);
+    if (!locals) {
+      const content = obj.content ?? [];
+      // A search from inside `obj` asks about the objects it holds.
+      for (const child of content) {
+        this.localsOf(child);
+      }
+      const found = localsDeclaredIn(content, content.length, new Set(), (child) =>
+        this.localsOf(child),
+      );
+      locals = found.size > 0 ? found : NO_LOCALS;
+      this._locals.set(obj, locals);
+    }
+    return locals;
+  }
+
+  /** Each item of the walk `node` begins, in the story's order: the shape
+   *  of each statement, and each object the compile adds itself. */
+  protected *walkItems(
+    node: FlowNode,
+  ): Generator<{ shape: UnitShape } | { loose: ParsedObject }> {
+    for (const item of node.items) {
+      switch (item.kind) {
+        case "unit":
+        case "function":
+          yield { shape: this.shape(item.unit) };
+          break;
+        case "loose":
+          yield { loose: item.obj };
+          break;
+        case "flow":
+          if (item.node.header) {
+            yield { shape: this.shape(item.node.header) };
+          }
+          yield* this.walkItems(item.node);
+          break;
+        case "root":
+          break;
+      }
+    }
+  }
+
+  /** Every object along `content` under `obj`, `obj` first. */
+  protected *alongContent(obj: ParsedObject): Generator<ParsedObject> {
+    yield obj;
+    for (const child of obj.content ?? []) {
+      yield* this.alongContent(child);
+    }
+  }
+
+  /** The assignments the story holds, in its order, from what each
+   *  statement's syntax holds and the objects the compile adds itself. */
+  protected *storyAssignments(): Generator<ParsedObject> {
+    if (!this._root) {
+      return;
+    }
+    for (const item of this.walkItems(this._root)) {
+      if ("shape" in item) {
+        yield* item.shape.assignments;
+      } else {
+        for (const obj of this.alongContent(item.loose)) {
+          if (obj instanceof VariableAssignment) {
+            yield obj;
+          }
+        }
+      }
+    }
+  }
+
+  /** The function values the story holds, in its order, as for
+   *  `storyAssignments`. */
+  protected *storyFunctionValues(): Generator<DivertTarget> {
+    if (!this._root) {
+      return;
+    }
+    for (const item of this.walkItems(this._root)) {
+      if ("shape" in item) {
+        yield* item.shape.functionValues;
+      } else {
+        for (const obj of this.alongContent(item.loose)) {
+          if (obj instanceof DivertTarget && obj.isFunctionValue) {
+            yield obj;
+          }
+        }
+      }
+    }
+  }
+
+  /** Under `verifyFacts`, walks the whole story as the passes the resolver
+   *  answers for walk it, and records in `factFailures` any answer the
+   *  statements' syntax gave otherwise. */
+  protected verifyFacts(story: Story): void {
+    const fail = (what: string) => {
+      ProgramResolver.factFailures.push(what);
+    };
+    const assignments: ParsedObject[] = [];
+    const functionValues: ParsedObject[] = [];
+    const walk = (obj: ParsedObject) => {
+      for (const child of obj.content ?? []) {
+        if (child instanceof VariableAssignment) {
+          assignments.push(child);
+        } else if (child instanceof DivertTarget && child.isFunctionValue) {
+          functionValues.push(child);
+        }
+        walk(child);
+      }
+    };
+    walk(story);
+    const same = (a: readonly ParsedObject[], b: readonly ParsedObject[]) =>
+      a.length === b.length && a.every((obj, i) => obj === b[i]);
+    if (!same(assignments, [...this.storyAssignments()])) {
+      fail(`assignments: the story holds ${assignments.length}, its statements ${[...this.storyAssignments()].length}`);
+    }
+    if (!same(functionValues, [...this.storyFunctionValues()])) {
+      fail(`function values: the story holds ${functionValues.length}, its statements ${[...this.storyFunctionValues()].length}`);
+    }
+    const check = (obj: ParsedObject) => {
+      const known = this._locals.get(obj);
+      if (known) {
+        const content = obj.content ?? [];
+        const now = [...localsDeclaredIn(content, content.length)].sort().join(",");
+        if ([...known].sort().join(",") !== now) {
+          fail(`locals of ${obj.typeName}: known ${[...known].sort().join(",")}, now ${now}`);
+        }
+      }
+      const unplaced = this._unplaced.get(obj);
+      if (unplaced && !same(unplaced, unplacedUnder(obj))) {
+        fail(`objects with no position under ${obj.typeName}: known ${unplaced.length}, now ${unplacedUnder(obj).length}`);
+      }
+      for (const child of obj.content ?? []) {
+        check(child);
+      }
+    };
+    check(story);
   }
 
   // ---- The walk -----------------------------------------------------------
@@ -911,6 +1122,8 @@ export class ProgramResolver {
       naming: new Map(),
       ownReturn: null,
       ownMultiReturn: null,
+      assignments: [],
+      functionValues: [],
     };
     const def = (name: string | null | undefined, how: string) => {
       if (name == null) {
@@ -1497,6 +1710,21 @@ export class ProgramResolver {
     builtinDivert: (entry, register) => this.event({ kind: "builtinDivert", entry: entry as Story["builtinGlobalDiverts"][number] }, register),
     diagnostic: (raiser, message, source, isWarning, position) =>
       this.raised(raiser, message, source, isWarning, position),
+    declaredLocals: (obj) => this._locals.get(obj),
+    unplaced: (obj) => this._unplaced.get(obj),
+    functionValue: (flowName) => {
+      if (!this._functionValues) {
+        this._functionValues = new Map();
+        for (const value of this.storyFunctionValues()) {
+          const name = value.divert.target?.dotSeparatedComponents;
+          if (name != null && !this._functionValues.has(name)) {
+            this._functionValues.set(name, value);
+          }
+        }
+      }
+      return this._functionValues.get(flowName) ?? null;
+    },
+    assignments: () => this.storyAssignments(),
     visited: (obj, generated) => {
       if (!this._recording?.unit) {
         this.outside(obj);
@@ -1531,6 +1759,28 @@ export class ProgramResolver {
 
 /** The named gathers, then the named choices, a weave holds at any depth, as
  *  `Weave.ResolveWeavePointNaming` finds them. */
+/** What `localsOf` keeps for an object that declares no local. */
+const NO_LOCALS: ReadonlySet<string> = new Set();
+
+/** An object's own position, as `definitionSite` reads it. */
+const positionOf = (obj: ParsedObject) =>
+  obj.ownDebugMetadata ?? obj.identifier?.debugMetadata;
+
+/** The objects under `obj`, other than flows, that a walk entering every
+ *  object with no position finds, in its order (`definitionSite`). */
+const unplacedUnder = (obj: ParsedObject, into: ParsedObject[] = []): ParsedObject[] => {
+  for (const child of obj.content ?? []) {
+    if (child instanceof FlowBase) {
+      continue;
+    }
+    into.push(child);
+    if (!positionOf(child)) {
+      unplacedUnder(child, into);
+    }
+  }
+  return into;
+};
+
 const namedPointsOf = (weave: Weave): ParsedObject[] => [
   ...weave.FindAll<Gather>(Gather)((w) => !(w.name === null || w.name === undefined)),
   ...weave.FindAll<Choice>(Choice)((w) => !(w.name === null || w.name === undefined)),

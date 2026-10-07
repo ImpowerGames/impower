@@ -336,19 +336,14 @@ export abstract class ParsedObject {
     this.ResolveWith(context, false);
   }
 
-  /** Resolves the object's references for the program path
-   *  (`ProgramResolver`, docs/engine/binary-program.md, section 2): the same
-   *  resolution and the same diagnostics, with nothing of the runtime tree
-   *  read or written, so that resolving one statement reads no runtime
-   *  object of another. */
-  public ResolveProgram(context: Story): void {
-    this.ResolveWith(context, true);
-  }
-
   /** The resolution both engines share, which a class overrides: with
-   *  `program`, everything only the current engine's runtime tree reads is
-   *  left out. Called on the object's content by its own resolution, and
-   *  otherwise through `ResolveReferences` or `ResolveProgram`. */
+   *  `program`, the program path's (`ProgramResolver`,
+   *  docs/engine/binary-program.md, section 2), everything only the current
+   *  engine's runtime tree reads is left out, so that resolving one statement
+   *  reads no runtime object of another. Called on the object's content by
+   *  its own resolution through `resolveChild`, which the program path's
+   *  resolver calls on each object a statement holds at its top, and
+   *  otherwise through `ResolveReferences`. */
   public ResolveWith(context: Story, program: boolean): void {
     if (this.content !== null) {
       for (const obj of this.content) {

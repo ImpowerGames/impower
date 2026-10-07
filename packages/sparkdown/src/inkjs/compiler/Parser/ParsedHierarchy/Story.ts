@@ -249,19 +249,31 @@ export class Story extends FlowBase {
       return false;
     };
     const names = new Set<string>();
+    const add = (child: ParsedObject): void => {
+      if (
+        child instanceof VariableAssignment &&
+        !child.isDeclaration &&
+        !declaredAround(child, child.variableName)
+      ) {
+        names.add(child.variableName);
+      }
+    };
     const visit = (obj: ParsedObject): void => {
       for (const child of obj.content ?? []) {
-        if (
-          child instanceof VariableAssignment &&
-          !child.isDeclaration &&
-          !declaredAround(child, child.variableName)
-        ) {
-          names.add(child.variableName);
-        }
+        add(child);
         visit(child);
       }
     };
-    visit(this);
+    // The program path's resolver knows each statement's assignments, read
+    // once when the statement is lowered, and visits no statement for them.
+    const known = resolutionTap()?.assignments();
+    if (known) {
+      for (const assignment of known) {
+        add(assignment);
+      }
+    } else {
+      visit(this);
+    }
     this._globalAssignmentNames = names;
     return names;
   }

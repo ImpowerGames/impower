@@ -24,7 +24,7 @@ import { DebugMetadata } from "../../../../engine/DebugMetadata";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
-import { RecordingMap, recordRead } from "../ResolutionTap";
+import { RecordingMap, recordRead, resolutionTap } from "../ResolutionTap";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 
 // Where the enclosing code creates the value of `flow`, a function the
@@ -38,6 +38,13 @@ function functionValueSite(
   flow: FlowBase,
 ): { parent: ParsedObject; end: number } | null {
   const flowName = flow.identifier?.name;
+  // The program path's resolver knows each statement's function values.
+  const known = flowName ? resolutionTap()?.functionValue(flowName) : undefined;
+  if (known !== undefined) {
+    return known?.parent
+      ? { parent: known.parent, end: known.parent.content.indexOf(known) }
+      : null;
+  }
   const find = (obj: ParsedObject): ParsedObject | null => {
     for (const child of obj.content) {
       if (
@@ -140,17 +147,30 @@ function definitionSite(
 
   const order: ParsedObject[] = [];
   let firstAfter = null as ParsedObject | null;
+  const note = (child: ParsedObject) => {
+    order.push(child);
+    const childStart = position(child);
+    if (childStart && firstAfter === null && startsAfter(childStart)) {
+      firstAfter = child;
+    }
+  };
   const visit = (obj: ParsedObject) => {
     for (const child of obj.content) {
       if (child instanceof FlowBase) {
         continue;
       }
-      order.push(child);
-      const childStart = position(child);
-      if (!childStart) {
-        visit(child);
-      } else if (firstAfter === null && startsAfter(childStart)) {
-        firstAfter = child;
+      note(child);
+      if (!position(child)) {
+        // The program path's resolver knows what this walk finds under an
+        // object a statement holds at its top (`ResolutionTap.unplaced`).
+        const known = resolutionTap()?.unplaced(child);
+        if (known) {
+          for (const under of known) {
+            note(under);
+          }
+        } else {
+          visit(child);
+        }
       }
     }
   };
@@ -183,11 +203,68 @@ function definitionSite(
 // declaration can sit inside an object that opens no block, such as a
 // multiple assignment or the label gather of a `repeat` body. A function is
 // a flow of its own and is never searched.
+//
+// The program path's resolver knows the locals an object a statement holds
+// at its top declares there (`ResolutionTap.declaredLocals`), read once when
+// the statement is lowered, so a search through the statements before a
+// reference visits none of them.
 function declaresLocal(
   content: ParsedObject[],
   end: number,
   varName: string,
 ): boolean {
+  for (const obj of openObjects(content, end)) {
+    if (
+      obj instanceof VariableAssignment &&
+      obj.isNewTemporaryDeclaration &&
+      obj.variableName === varName
+    ) {
+      return true;
+    }
+    const known = resolutionTap()?.declaredLocals(obj);
+    if (
+      known
+        ? known.has(varName)
+        : declaresLocal(obj.content, obj.content.length, varName)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The names of the locals `content[0..end)` declares that are still in
+ *  scope at `end`, as `declaresLocal` finds them, added to `into`. `of`
+ *  gives an object's own (`localsDeclaredIn` of its whole content) when the
+ *  caller already knows it. */
+export function localsDeclaredIn(
+  content: ParsedObject[],
+  end: number,
+  into = new Set<string>(),
+  of?: (obj: ParsedObject) => ReadonlySet<string>,
+): Set<string> {
+  for (const obj of openObjects(content, end)) {
+    if (obj instanceof VariableAssignment && obj.isNewTemporaryDeclaration) {
+      into.add(obj.variableName);
+    }
+    if (of) {
+      for (const name of of(obj)) {
+        into.add(name);
+      }
+    } else {
+      localsDeclaredIn(obj.content, obj.content.length, into);
+    }
+  }
+  return into;
+}
+
+// The objects of `content[0..end)` that `declaresLocal` searches, last
+// first: those outside every block that closes before `end`, every
+// conditional and every function.
+function* openObjects(
+  content: ParsedObject[],
+  end: number,
+): Generator<ParsedObject> {
   let closedScopes = 0;
   for (let i = end - 1; i >= 0; i--) {
     const obj = content[i]!;
@@ -209,19 +286,9 @@ function declaresLocal(
       !(obj instanceof FlowBase) &&
       !(obj instanceof Conditional)
     ) {
-      if (
-        obj instanceof VariableAssignment &&
-        obj.isNewTemporaryDeclaration &&
-        obj.variableName === varName
-      ) {
-        return true;
-      }
-      if (declaresLocal(obj.content, obj.content.length, varName)) {
-        return true;
-      }
+      yield obj;
     }
   }
-  return false;
 }
 
 type VariableResolveResult = {
