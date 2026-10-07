@@ -578,6 +578,113 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(JSON.parse(next.saveOfImage(restored)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
   });
 
+  // Round 9 of the review of #1654 (report 6046962096, finding 1): a loaded
+  // beat is the loading engine's.
+  it("a loaded beat taken again after the host wrote to it keeps its flags", () => {
+    const story = engine(rootOf(PLAYTHROUGHS(true)));
+    story.ChoosePathString("new");
+    story.variablesState["gold"] = 7;
+    expect(advance(story, 1)).toEqual(["New one."]);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const loaded = engine(rootOf(PLAYTHROUGHS(true)));
+    loaded.loadSave(story.toSave());
+    loaded.variablesState["gold"] = 5;
+    const keyframe = loaded.captureBeat(true);
+    expect(keyframe.beat).toBe(loaded.beats.at(-1));
+    expect(JSON.parse(loaded.saveOfImage(keyframe)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+  });
+
+  // Round 9 (report 6046962096, finding 2): the history's newest record, the
+  // beat another engine ended, is not replaced or flagged by the engine it
+  // was handed to, whatever it does before restoring it.
+  it("an engine handed the history neither saves, continues nor flags over the beat the engine before it ended", () => {
+    const handOff = () => {
+      const session = programSession(PLAYTHROUGHS(true));
+      const story = engine(session.root);
+      story.ChoosePathString("new");
+      story.variablesState["gold"] = 7;
+      expect(advance(story, 1)).toEqual(["New one."]);
+      story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+      const record = story.beats.at(-1)!;
+      const image = record.image;
+      const next = new ProgramStory(session.edit("  New three.", "  New three!"), {
+        images: story.images,
+        history: story.history,
+      });
+      next.keepBeatImages = true;
+      next.onError = () => {};
+      return { next, record, image };
+    };
+    {
+      const { next, record, image } = handOff();
+      next.toSave();
+      expect(record.image).toBe(image);
+    }
+    {
+      const { next, record, image } = handOff();
+      next.ChoosePathString("new");
+      expect(next.Continue()?.trim()).toBe("New one.");
+      expect(record.image).toBe(image);
+      expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    }
+    {
+      const { next, record, image } = handOff();
+      next.setBeatFlags(0);
+      expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+      expect(JSON.parse(next.saveOfImage(image)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    }
+  });
+
+  // Round 9 (report 6046962096, finding 3): a state loaded in place stands
+  // at no beat the engine took.
+  it("a state loaded in place is not the beat the story stood at before", () => {
+    const story = engine(rootOf(PLAYTHROUGHS(true)));
+    story.ChoosePathString("new");
+    const initial = story.state.toJson();
+    expect(advance(story, 1)).toEqual(["New one."]);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const record = story.beats.at(-1)!;
+    const image = record.image;
+    story.state.LoadJson(initial);
+    const keyframe = story.captureBeat(true);
+    expect(keyframe.beat).toBeUndefined();
+    expect(record.image).toBe(image);
+  });
+
+  // Round 9 (report 6046962096, an unverified concern): a host's function
+  // evaluation runs no beat.
+  it("a host's function evaluation leaves the beat the story stood at its beat, and adds no record", () => {
+    const text = [
+      "store gold = 0",
+      "",
+      "function bump()",
+      "  gold = gold + 1",
+      "  return gold",
+      "end",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  One.",
+      "  Two.",
+      "end",
+      "",
+    ].join("\n");
+    const story = engine(rootOf(text));
+    expect(advance(story, 1)).toEqual(["One."]);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const record = story.beats.at(-1)!;
+    const count = story.beats.length;
+    expect(story.EvaluateFunction("bump")).toBe(1);
+    expect(story.beats).toHaveLength(count);
+    expect(story.beats.at(-1)).toBe(record);
+    const keyframe = story.captureBeat(true);
+    expect(keyframe.beat).toBe(record);
+    expect(JSON.parse(story.saveOfImage(keyframe)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(advance(story, 1)).toEqual(["Two."]);
+    expect(story.beats.at(-2)).toBe(record);
+  });
+
   // Round 8 (report 6045855604, a coverage gap): a restore between the steps
   // of an asynchronous continue that then runs steps moves on from the
   // restored beat.

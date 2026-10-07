@@ -1858,12 +1858,17 @@ export class ProgramStoryState {
     this.OutputStreamDirty();
   }
 
+  /** Called when a load opens (`beginLoad`): the story the state is, which
+   *  no longer stands at the beat it stood at. */
+  onBeginLoad: (() => void) | null = null;
+
   /** Opens a load: the state is no longer the one a reset made, the
    *  choices waiting are dropped, the next image is a keyframe, and a fresh
    *  registry of the tables and cells the load reads is opened, whose
    *  tables and cells the program initialized resolve to this state's. */
   beginLoad(): void {
     this._noteChanged();
+    this.onBeginLoad?.();
     this.generatedChoices.length = 0;
     // What was marked since the last image does not reach the loaded state,
     // so the next image is a keyframe.

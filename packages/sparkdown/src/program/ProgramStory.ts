@@ -532,8 +532,14 @@ export class ProgramStory {
       this.history.limit = options.rewindBeats;
     }
     // A history handed on by the engine of the program before names its
-    // decisions in this root from now on.
+    // decisions in this root from now on. Its newest record is no longer the
+    // beat a continue of this engine ended, which this engine's next
+    // continue or save would take again (`BeatHistory.provisional`): this
+    // engine stands at no beat of it until it restores one.
     this.history.translateTo(root);
+    if (options.history) {
+      this.history.provisional = false;
+    }
     this.saveHistory = options.saveHistory ?? 16;
     this.images = options.images ?? new ProgramImages();
     this._tracker = new ImageTracker(this.images);
@@ -740,9 +746,14 @@ export class ProgramStory {
    *  `BEAT_REWIND_FLOOR`, `BEAT_DECISIONS_FIXED`), which its image and a save
    *  carry. */
   setBeatFlags(flags: number): void {
-    // After a restore, the restored beat, which the history may no longer
-    // hold.
-    const current = this.currentBeat() ?? this.history.newest;
+    // This engine's current beat (after a restore, the restored beat, which
+    // the history may no longer hold), or at a menu, the beat before it;
+    // never the history's newest record as such, which may be the beat
+    // another engine ended.
+    const held = this._state.beatImage;
+    const current =
+      this.currentBeat() ??
+      (held ? (this.history.recordOf(held) ?? (held.beat as BeatRecord | undefined)) : undefined);
     if (current) {
       current.flags = flags;
     }
@@ -971,6 +982,9 @@ export class ProgramStory {
       }
     } else {
       this.history.replace(records, true);
+      // The loaded beat is this engine's.
+      this._currentBeat = this.history.newest ?? null;
+      this._currentAtStep = this.stepCount;
     }
     this.loadedSaveHeader = load.header;
     this.loadedSaveReport = report;
@@ -1098,6 +1112,11 @@ export class ProgramStory {
       },
       this._runtimeStory.state.callStack,
     );
+    // A state loaded in place (`LoadJson`, a route search's port) stands
+    // at no beat this engine took.
+    this._state.onBeginLoad = () => {
+      this._currentBeat = null;
+    };
     this.runDeclarations();
     variablesState.SnapshotDefaultGlobals();
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
@@ -1350,9 +1369,20 @@ export class ProgramStory {
       arrangeArgsFor(this, target, args?.length ?? 0);
     }
 
+    // The host's evaluation runs no beat of the story: its continues take no
+    // beat images and push no history records, and the beat the story
+    // stood at stays its beat, as after a host's write.
+    const beat = this.currentBeat();
+    const held = state.beatImage;
+    const keep = this.keepBeatImages;
+    this.keepBeatImages = false;
     const stringOutput = new StringBuilder();
-    while (this.canContinue) {
-      stringOutput.Append(this.Continue());
+    try {
+      while (this.canContinue) {
+        stringOutput.Append(this.Continue());
+      }
+    } finally {
+      this.keepBeatImages = keep;
     }
     const textOutput = stringOutput.toString();
 
@@ -1360,6 +1390,9 @@ export class ProgramStory {
     state.ResumeLineEnd(lineEnd);
 
     const result = this.completeFunctionEvaluation();
+    state.beatImage = held;
+    this._currentBeat = beat;
+    this._currentAtStep = this.stepCount;
     return returnTextOutput ? { returned: result, output: textOutput } : result;
   }
 
