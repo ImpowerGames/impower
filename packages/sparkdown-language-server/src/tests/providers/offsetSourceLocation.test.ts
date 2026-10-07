@@ -258,6 +258,16 @@ describe("previous and next beat navigation", () => {
     "  Captured.",
     "  -> B(s:upper())",
     "  Method.",
+    "  -> B(function()",
+    "    return 1",
+    "  end)",
+    "  Function.",
+    "  -> B({ 1, n })",
+    "  Table.",
+    "  -> B(if n > 0 then 1 else 2)",
+    "  Choice of value.",
+    "  -> B(n > 0 and s or \"none\")",
+    "  Logic.",
     "end",
     "",
     "scene B(x)",
@@ -285,5 +295,8 @@ describe("previous and next beat navigation", () => {
     expect(await at(lineOf(ARGS, "Last."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
     expect(await at(lineOf(ARGS, "Captured."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Method.") });
     expect(await at(lineOf(ARGS, "Method."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
+    // A function an argument writes is entry code after the divert leaves.
+    expect(await at(lineOf(ARGS, "Method."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Function.") });
+    expect(await at(lineOf(ARGS, "Function."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Method.") });
   });
 });

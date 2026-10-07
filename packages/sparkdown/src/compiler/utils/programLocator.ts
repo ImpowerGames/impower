@@ -173,7 +173,9 @@ const NOT_A_DIVERT = new Set<number>([
 ]);
 
 /** Whether the statement an address stands in is a divert, a `done` or a
- *  `fin` at its flow's own level, with whatever arguments it passes. */
+ *  `fin` at its flow's own level, with whatever arguments it passes: its own
+ *  code leaves the flow before it holds a beat, a block, a choice or a
+ *  thread. */
 const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
   if (!position || root.ownerOf(position.sequence)) {
@@ -181,14 +183,19 @@ const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   }
   const chunk = position.sequence.arrays.chunks[position.entry]!;
   const words = codeWords(chunk);
-  let last = -1;
+  // The statement's own path runs until it leaves the flow. Code after that
+  // is the entry code of a function an argument writes (`function() … end`),
+  // which a call reaches by its symbol, and no part of the statement.
   for (let offset = 0; offset < words; offset += 2) {
-    last = opOf(chunk[HEADER_WORDS + offset]!);
-    if (NOT_A_DIVERT.has(last)) {
+    const op = opOf(chunk[HEADER_WORDS + offset]!);
+    if (NOT_A_DIVERT.has(op)) {
       return false;
     }
+    if (LEAVES.has(op)) {
+      return true;
+    }
   }
-  return LEAVES.has(last);
+  return false;
 };
 
 /**
