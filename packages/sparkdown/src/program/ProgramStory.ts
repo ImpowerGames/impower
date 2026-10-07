@@ -601,8 +601,14 @@ export class ProgramStory {
     const held = this._state.beatImage;
     if (!held) {
       // The image the beat's history record holds, when nothing moved the
-      // state since.
-      const image = (!keyframe && this.stillImage()) || this.capture(keyframe);
+      // state since; a keyframe of that state is the same beat, which takes
+      // the record's place, or the beat a restored image's record was.
+      const still = this.stillImage();
+      const image = (!keyframe && still) || this.capture(keyframe);
+      if (still && image !== still) {
+        if (still.beat) image.beat = still.beat;
+        this.history.replaceImage(still, image);
+      }
       // Just after a choice: the beat before its menu with the choice, which
       // a durable save of the image writes (`saveOfImage`), so that a load
       // raises the menu again and is unplaced when the choice is not

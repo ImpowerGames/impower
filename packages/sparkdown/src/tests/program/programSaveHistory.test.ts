@@ -430,6 +430,33 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(beats[0].flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
     expect(story.beats[0]!.image).toBe(checkpoint);
   });
+
+  // Found adjudicating round 5 (report 6042399009): a keyframe a checkpoint
+  // store takes of the state a restore left is the same beat.
+  it("a keyframe taken of a restored checkpoint's state is its beat, flags included, and no second record of it", () => {
+    const script = SAVE_SCENARIOS["long"]!.script;
+    const story = engine(rootOf(script), { rewindBeats: 2 });
+    expect(advance(story, 1)).toHaveLength(1);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const evicted = story.captureBeat();
+    expect(advance(story, 4)).toHaveLength(4);
+    expect(story.restore(evicted)).toBe(true);
+    const keyframe = story.captureBeat(true);
+    expect(keyframe).not.toBe(evicted);
+    expect(keyframe.beat?.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(advance(story, 1)).toHaveLength(1);
+    expect(JSON.parse(story.toSave()).beats[0].flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    // A record the history holds, restored and taken again as a keyframe.
+    const held = story.beats.at(-1)!;
+    expect(story.restore(held.image)).toBe(true);
+    const again = story.captureBeat(true);
+    expect(held.image).toBe(again);
+    // The continue takes the beat from the keyframe, which is the record's
+    // image, and ends the next beat (the newest record).
+    expect(advance(story, 1)).toHaveLength(1);
+    expect(story.beats.at(-2)).toBe(held);
+    expect(story.beats.filter((record) => record.image === again)).toHaveLength(1);
+  });
 });
 
 /** Every statement form a save holds, with the listing of each level. */
