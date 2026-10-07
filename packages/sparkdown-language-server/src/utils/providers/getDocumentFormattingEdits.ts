@@ -4,6 +4,7 @@ import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
 import { reassignmentParts } from "@impower/sparkdown/src/compiler/utils/reassignmentNames";
 import { isStatementNodeName } from "@impower/sparkdown/src/compiler/lower/utils/lineContinuation";
+import { findOwnDeclarationName } from "@impower/sparkdown/src/compiler/lower/utils/findOwnDeclarationName";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -345,21 +346,47 @@ function isCommaContinuationLine(
   return false;
 }
 const LINE_TRIVIA = new Set(["Newline", "ExtraWhitespace", "Whitespace", "OptionalWhitespace"]);
+const COMMENT_TRIVIA = nodeNameSet(["LuauComment", "LuauLineComment", "LuauBlockComment", "LuauDocLineComment"]);
 
-// A node that begins an unindented line after a reassignment whose target
-// or value list ends its line with a comma (`a,` then `g = 1, 2`, or
-// `a, g = 1,` then `2`): the reassignment ends at the start of that line,
-// and the converter reads the line as the rest of its list, so the line is
-// a continued line of it. A statement there other than a reassignment ends
-// the list instead (`a, g = 1,` then `return g`).
+// Whether `node` begins a statement that ends a list rather than continuing
+// it: a reassignment continues a target list or is a second `=` the list
+// reads on to, and a function with no name of its own is a value.
+function beginsListEndingStatement(node: SyntaxNode): boolean {
+  if (node.name === "LuauFunctionDefinition") return findOwnDeclarationName(node) != null;
+  return node.name !== "LuauReassignment" && isStatementNodeName(node.name);
+}
+
+// A node that begins an unindented line of a reassignment's target or value
+// list that a comma ending the line before carried on (`a,` then
+// `g = 1, 2`, or `a, b, c = 1,` then `2,` then `3`). The reassignment ends
+// at the start of the first such line, so its later lines are siblings of
+// it, and the converter reads them as the rest of its list; each is a
+// continued line of the reassignment. A statement there ends the list
+// instead (`a, g = 1,` then `return g`), as does a line before which no
+// comma ends its line.
 function continuesReassignmentList(node: SyntaxNode): boolean {
-  if (node.name !== "LuauReassignment" && isStatementNodeName(node.name)) return false;
-  let prev = node.prevSibling;
-  while (prev && LINE_TRIVIA.has(prev.name)) prev = prev.prevSibling;
-  if (prev?.name !== "LuauReassignment") return false;
-  const parts = reassignmentParts(prev).filter((part) => !LINE_TRIVIA.has(part.name));
-  const last = parts[parts.length - 1];
-  return !!last && isExplicitRuleName(last.name, "LuauCommaLineBreak") && spansLineBreak(last);
+  if (beginsListEndingStatement(node)) return false;
+  // Whether the line before the one being walked must end with a comma.
+  let needComma = true;
+  for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
+    if (prev.name === "Newline") {
+      needComma = true;
+      continue;
+    }
+    if (LINE_TRIVIA.has(prev.name) || COMMENT_TRIVIA.has(prev.name)) continue;
+    if (prev.name === "LuauReassignment") {
+      const parts = reassignmentParts(prev).filter((part) => !LINE_TRIVIA.has(part.name));
+      const last = parts[parts.length - 1];
+      return !!last && isExplicitRuleName(last.name, "LuauCommaLineBreak") && spansLineBreak(last);
+    }
+    if (needComma) {
+      if (prev.name !== "LuauCommaSeparator") return false;
+      needComma = false;
+      continue;
+    }
+    if (beginsListEndingStatement(prev)) return false;
+  }
+  return false;
 }
 
 // A comma followed by a block comment and the value on its own line

@@ -152,6 +152,15 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     );
   });
 
+  test.each([
+    ["each value of a list over several lines", ["  a, g, h = 1,", "2,", "3"], ["  a, g, h = 1,", "    2,", "    3"]],
+    ["an anonymous function value and its body", ["  a, g = 1,", "function ()", "return 2", "end"], ["  a, g = 1,", "    function ()", "      return 2", "    end"]],
+  ])("indents %s at column 0 after a trailing comma one level past the reassignment", (_name, lines, formatted) => {
+    const wrap = (body: string[]) => ["function f()", "  local a, g, h = 0, 0, 0", ...body, "  return g", "end", ""].join("\n");
+    expect(formatSource(wrap(lines))).toBe(wrap(formatted));
+    expect(formatSource(wrap(formatted))).toBe(wrap(formatted));
+  });
+
   test("indents a target list continued after a trailing comma one level past the reassignment", () => {
     const source = ["function f()", "  local a, g = 0, 0", "  a,", "g = 1, 2", "  return g", "end", ""].join("\n");
     expect(formatSource(source)).toBe(
