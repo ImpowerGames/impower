@@ -244,6 +244,7 @@ describe("previous and next beat navigation", () => {
   // (an operator, a call, several values) before the divert leaves.
   const ARGS = [
     "store n = 0",
+    "store s = \"abc\"",
     "",
     "scene A",
     "  Before.",
@@ -253,6 +254,10 @@ describe("previous and next beat navigation", () => {
     "  Later.",
     "  -> B(#tostring(n))",
     "  Last.",
+    "  -> B(\"value {n}\")",
+    "  Captured.",
+    "  -> B(s:upper())",
+    "  Method.",
     "end",
     "",
     "scene B(x)",
@@ -275,5 +280,10 @@ describe("previous and next beat navigation", () => {
     expect(await at(lineOf(ARGS, "After."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Before.") });
     expect(await at(lineOf(ARGS, "After."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Later.") });
     expect(await at(lineOf(ARGS, "Later."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Last.") });
+    // A captured string's text and a method call's stashed receiver are the
+    // argument's computation, not a beat or an assignment of the author's.
+    expect(await at(lineOf(ARGS, "Last."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
+    expect(await at(lineOf(ARGS, "Captured."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Method.") });
+    expect(await at(lineOf(ARGS, "Method."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
   });
 });

@@ -160,20 +160,16 @@ export const answerLocateQueries = (
 
 // How a divert, a `done` or a `fin` ends: its code's last instruction.
 const LEAVES = new Set<number>([Op.JumpSym, Op.JumpVar, Op.Done, Op.End]);
-// What only another kind of statement does: a beat's or a line's output, a
-// block, a choice, a thread and an assignment. A divert's arguments are
-// expressions, whatever they compute.
+// What only another kind of statement holds: a beat (every line an author
+// displays starts with `LineStart`), a block, a choice and a thread. A
+// divert's arguments are expressions, whatever their code does to compute
+// them: a captured string writes text and values into its capture, and a
+// method call stashes its receiver in a generated temporary.
 const NOT_A_DIVERT = new Set<number>([
   Op.LineStart,
-  Op.Text,
-  Op.Out,
-  Op.BeginTag,
-  Op.Tag,
   Op.EnterBlock,
   Op.Choice,
   Op.Thread,
-  Op.SetVar,
-  Op.StoreIndex,
 ]);
 
 /** Whether the statement an address stands in is a divert, a `done` or a

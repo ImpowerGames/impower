@@ -319,6 +319,8 @@ describe("the language server's locations", () => {
       "  After.",
       "  -> B(f(n) * 2)",
       "  Later.",
+      "  -> B(\"value {n}\")",
+      "  Captured.",
       "end",
       "scene B(x)",
       "  Value {x}.",
