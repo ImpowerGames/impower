@@ -1163,6 +1163,10 @@ export class ProgramResolver {
       return shape;
     }
 
+    // The locals still in scope after the statement, as a search from a
+    // later statement finds them (`declaresLocal`).
+    const openLocals = localsDeclaredIn(unit.members, unit.members.length);
+
     // One walk over every object under the statement, each before what it
     // holds: the names each declaration declares, with its position and its
     // statement; and, along `content` alone, which is what the passes over
@@ -1199,7 +1203,14 @@ export class ProgramResolver {
             kinded("vars", `$${type || name}_${name}`, how);
           }
         } else if (obj.isNewTemporaryDeclaration) {
-          kinded("vars", name, `temp:${context}@${unit.index}`);
+          // With whether it is still in scope after the statement, which a
+          // block written around it changes (a library-named local's reads,
+          // `FlowBase.IsLocalInScope`).
+          kinded(
+            "vars",
+            name,
+            `temp:${context}@${unit.index}:${openLocals.has(name) ? "open" : "closed"}`,
+          );
         } else if (!obj.isPropertyDeclaration) {
           kinded("vars", name, `bare:${context}@${unit.index}`);
         }

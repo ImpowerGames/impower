@@ -497,6 +497,39 @@ describe("a statement resolved anew", () => {
     }
   });
 
+  it("declares a library-named local otherwise when an edit closes or opens a block around it", () => {
+    // The local is declared at the same place of the same flow either way,
+    // but a `do` block closes before the read, which then reads the library
+    // (`FlowBase.IsLocalInScope`). The incremental parse lowers the read
+    // anew with the declaration here; the name is declared otherwise all
+    // the same, so a read it carried would be resolved again.
+    const beats = (from: number) =>
+      Array.from({ length: 30 }, (_, i) => [`  Beat ${from + i}.`, ""]).flat();
+    const text = [
+      "scene MAIN",
+      ...beats(0),
+      "  local table = { value = 1 }",
+      "",
+      ...beats(30),
+      "  Value {table.value}.",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const unresolved = () => diagnostics(s.program).filter((d) => d.includes("`table.value`"));
+    expect(unresolved()).toEqual([]);
+    s.edit("  local table = { value = 1 }", "  do local table = { value = 1 } end");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(s.resolver.changedNamesLastResolve).toContain("table");
+    expect(unresolved()).toHaveLength(1);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    s.edit("  do local table = { value = 1 } end", "  local table = { value = 1 }");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(s.resolver.changedNamesLastResolve).toContain("table");
+    expect(unresolved()).toEqual([]);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+  });
+
   it("finds the story's assignments for a divert to a builtin's global from what each statement holds, and reads none of them", () => {
     // Whether an author binds `game` decides the severity of the divert's
     // report (`Divert.hasAuthoredBinding`), from every assignment of the
