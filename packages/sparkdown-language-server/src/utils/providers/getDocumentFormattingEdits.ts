@@ -367,7 +367,9 @@ function beginsListEndingStatement(node: SyntaxNode): boolean {
 function continuesReassignmentList(node: SyntaxNode): boolean {
   if (beginsListEndingStatement(node)) return false;
   // Whether the line before the one being walked must end with a comma.
-  let needComma = true;
+  // The walk starts on the node's own line, which can hold earlier parts of
+  // the same value (`math.max` before its arguments' `(`).
+  let needComma = false;
   for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
     if (prev.name === "Newline") {
       needComma = true;
