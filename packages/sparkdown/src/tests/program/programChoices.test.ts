@@ -7,6 +7,7 @@
 import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { shuffleDraws } from "../../inkjs/engine/Story";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import {
@@ -1336,5 +1337,61 @@ describe("large blocks", () => {
     expect(texts(first!.expected).at(-1)).toBe("A CRASH of thunder.");
     expect(first!.expected.menus).toHaveLength(1);
     expect(other!.actual.menus[0]!.picked).toBe(1);
+  });
+});
+
+// A `label` in the body of a `then` clause is a label of that body, not the
+// clause's own (#1604): the clause names a label only on its `then` line.
+describe("a label in the body of a then clause", () => {
+  const diagnostics = (program: SparkProgram) =>
+    Object.values(program.diagnostics ?? {})
+      .flat()
+      .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+
+  const reentered = [
+    "store back = false",
+    "-> main",
+    "scene main",
+    "  choose",
+    "    * Up",
+    "  then",
+    "    label inner",
+    "    Then.",
+    "  end",
+    "  -> other",
+    "end",
+    "scene other",
+    "  Back.",
+    "  if not back then",
+    "    back = true",
+    "    -> main.inner",
+    "  end",
+    "  done",
+    "end",
+    "",
+  ].join("\n");
+
+  it("is not reported as a duplicate, and the program keeps its chunks", () => {
+    const { program } = silence(() => compileScript(reentered, { programChunks: true }));
+    expect(diagnostics(program)).toEqual([]);
+    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
+    expect(diagnostics(silence(() => compileScript(reentered)).program)).toEqual([]);
+  });
+
+  it("is reached by a divert from another scene on both engines", () => {
+    const [run] = agrees(reentered, [[0]]);
+    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+  });
+
+  it("keeps both names when the clause names its own label", () => {
+    const named = reentered
+      .replace("  then\n", "  then (after)\n")
+      .replace("-> main.inner", "-> main.after");
+    expect(diagnostics(silence(() => compileScript(named)).program)).toEqual([]);
+    const [run] = agrees(named, [[0]]);
+    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+    const [inner] = agrees(named.replace("-> main.after", "-> main.inner"), [[0]]);
+    expect(texts(inner!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
   });
 });

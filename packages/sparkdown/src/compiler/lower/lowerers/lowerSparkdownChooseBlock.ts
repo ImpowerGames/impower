@@ -232,7 +232,10 @@ export function lowerSparkdownChooseBlock(
   // the block follows it. The Gather ends the block: the flow stops before it
   // once the choices are offered, and runs on out of it into whatever follows
   // the block. A block in another block's preamble keeps only its `then`
-  // clause, as an ordinary Gather.
+  // clause, as an ordinary Gather. A block that offers no choice ends the
+  // same way: its end runs on out of it as any block's does, and is never a
+  // loose end that the weave around it would divert to its own end past what
+  // follows the block (#1622).
   (ctx as MutableCtx).inChoosePreamble = false;
   const gather = thenClause
     ? buildGatherFromThenClause(
@@ -245,7 +248,7 @@ export function lowerSparkdownChooseBlock(
       ? null
       : new Gather(null, depth);
   if (gather) {
-    gather.endsChooseBlock = sawChoice && !inPreamble;
+    gather.endsChooseBlock = !inPreamble;
     weaveContent.push(gather);
   }
 
@@ -301,15 +304,18 @@ function buildGatherFromThenClause(
   ctx: LowerContext,
   endStart: number,
 ): Gather {
-  // Optional `(label)` after `then` is captured as a `Label` child by
-  // the begin pattern — find its `LabelDeclarationName` descendant.
-  const label = getDescendent("LabelDeclarationName", thenClause);
-  const identifier = label ? identifierAt(label, ctx) : null;
-
   const header = findChildByName(
     thenClause,
     "LuauSparkdownChooseThenClause_begin",
   );
+  // Optional `(label)` after `then` is captured as a `Label` child by
+  // the begin pattern. Only the header is searched: a `label` statement in
+  // the body names a gather of its own, not the clause (#1604).
+  const label = header
+    ? getDescendent("LabelDeclarationName", header)
+    : null;
+  const identifier = label ? identifierAt(label, ctx) : null;
+
   const body = findChildByName(
     thenClause,
     "LuauSparkdownChooseThenClause_content",

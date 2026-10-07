@@ -595,6 +595,14 @@ export class SparkdownCompiler {
   // makes the lines comparable: the recursive parse walks every included
   // script, and two scripts' line numbers overlap.
   protected _changedChunkRanges?: Array<[number, number, string]>;
+  // The compiled blocks of the compile that built the chunk store's current
+  // root (`programChunks`), against which a compile finds the blocks it
+  // lowered anew since then: a preview's compile in between moves
+  // `_prevCompilationIds` but not the store's root.
+  protected _chunkStoreBlocks?: Set<object>;
+  // Those blocks' 0-based line ranges, per script uri, in this compile's
+  // lines (`ProgramSource.changed`).
+  protected _chunkStoreChanges?: Map<string, Array<[number, number]>>;
 
   // ---- Per-compile change summary (`program.changes`) ---------------------
   // A counter over this instance's compiles, so a client can tell whether the
@@ -1146,6 +1154,7 @@ export class SparkdownCompiler {
         // nothing checks, so every document is lowered again, and the store
         // starts over from the chunks of the next compile.
         this._chunkStore = undefined;
+        this._chunkStoreBlocks = undefined;
         for (const document of [...this._documents.all()]) {
           this._documents.set(
             {
@@ -2123,6 +2132,7 @@ export class SparkdownCompiler {
     // `populateAllLocations`, finalized below.
     this._compilationIds = new Set();
     this._changedChunkRanges = [];
+    this._chunkStoreChanges = new Map();
     this._statementRecords = new Map();
     // Fresh per-compile record of what the chunks contribute to the context
     // and of the identities that key the assembled base (#654).
@@ -3229,6 +3239,20 @@ export class SparkdownCompiler {
         const chunkStart = lineNumberOffset;
         const chunkEnd = document?.lineAt(rec.to) ?? chunkStart;
         this._changedChunkRanges?.push([chunkStart, chunkEnd, uri]);
+      }
+      if (
+        this._config.programChunks &&
+        this._chunkStoreBlocks &&
+        !this._chunkStoreBlocks.has(compiledBlock)
+      ) {
+        const chunkStart = lineNumberOffset;
+        const chunkEnd = document?.lineAt(rec.to) ?? chunkStart;
+        let ranges = this._chunkStoreChanges?.get(uri);
+        if (!ranges) {
+          ranges = [];
+          this._chunkStoreChanges?.set(uri, ranges);
+        }
+        ranges.push([chunkStart, chunkEnd]);
       }
       if (this._config.programChunks) {
         (uri === BUILTINS_PRELUDE_URI
@@ -4578,15 +4602,25 @@ export class SparkdownCompiler {
     // The store interns into the compiler's persistent table, which
     // `maybeReseedBinaryTable` bounds, and keeps no table of its own.
     this._chunkStore ??= new ChunkStore(this._binaryTable);
+    // The blocks lowered anew since the compile that built the store's
+    // current root, when this compiler knows that compile's blocks.
+    const changed =
+      this._chunkStoreBlocks && this._chunkStore.current
+        ? this._chunkStoreChanges
+        : undefined;
     const build = this._chunkStore.build(
       {
         flows: flows.flows,
         declarations: flows.declarations,
         lineCount,
+        changed,
       },
       !this._previewing && !flows.fallback,
       story,
     );
+    if (build.root && this._chunkStore.current === build.root) {
+      this._chunkStoreBlocks = this._compilationIds;
+    }
     const fallback = flows.fallback ?? build.fallback;
     for (const [construct, count] of Object.entries(flows.unsupported)) {
       build.coverage.unsupported[construct] =

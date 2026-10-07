@@ -201,6 +201,17 @@ export interface ProgramSource {
   declarations?: readonly DeclarationSource[];
   /** How many lines each script has. */
   lineCount?: (uri: string) => number;
+  /** The changed blocks: per script, the lines (counting from 0, both ends
+   *  included, in order) of each top-level block the compile lowered anew
+   *  since the compile that built the store's current root, a preview's
+   *  compile in between included. Every line whose text changed since that
+   *  compile is in one. With it, a build lists the current root's statements
+   *  only between the statements that kept their chunks around the ones
+   *  that did not, and assembles a sequence's entries only between them and
+   *  around these lines (docs/engine/binary-program.md, section 1, Identity,
+   *  The incremental passes); without it, as on a cold build or from a
+   *  caller that cannot say, it lists and assembles every one. */
+  changed?: ReadonlyMap<string, readonly (readonly [number, number])[]>;
 }
 
 /** The construct that made a compile fall back, where it was first met. */
@@ -543,39 +554,133 @@ export class ChunkStore {
     const statements: StatementSource[] = [];
     // The statement whose body holds each statement of a body.
     const owners = new Map<StatementSource, StatementSource>();
-    const collect = (
-      list: readonly StatementSource[],
-      owner?: StatementSource,
-    ) => {
-      for (const statement of list) {
-        statements.push(statement);
-        if (owner) {
-          owners.set(statement, owner);
+    // The list each statement stands in and its entry there, by its place
+    // in `statements`; where each statement with bodies stands there, and
+    // where its bodies' statements end; the lists of each one's bodies; and
+    // where each flow's statements start and end.
+    const slots: ListSlot[] = [];
+    const entries: number[] = [];
+    const starts = new Map<StatementSource, number>();
+    const ends = new Map<StatementSource, number>();
+    const bodySlots = new Map<StatementSource, ListSlot[]>();
+    const collect = (slot: ListSlot) => {
+      slot.statements.forEach((statement, entry) => {
+        if (slot.owner) {
+          owners.set(statement, slot.owner);
           this._inBody.add(statement);
         }
-        collectBodies(statement);
-      }
+        slots.push(slot);
+        entries.push(entry);
+        statements.push(statement);
+        if (statement.bodies?.length) {
+          starts.set(statement, statements.length - 1);
+          collectBodies(statement);
+          ends.set(statement, statements.length);
+        }
+      });
     };
     const collectBodies = (statement: StatementSource) => {
-      for (const body of statement.bodies ?? []) {
-        collect(body.statements, statement);
-      }
+      const lists = (statement.bodies ?? []).map(
+        (body, block): ListSlot => ({
+          statements: body.statements,
+          owner: statement,
+          block,
+          lo: -1,
+          hi: -1,
+        }),
+      );
+      bodySlots.set(statement, lists);
+      lists.forEach(collect);
     };
-    flows.forEach((flow) => collect(flow.statements));
-    declarations.forEach(collectBodies);
-    // The statements that keep their chunks with nothing read again.
-    const carried = new Set<StatementSource>();
-    const kept = statements.map(
-      (statement) =>
-        this.keepCarried(this._byBlock, statement, previous, flagged, carried) ??
-        this.keep(this._byBlock, statement),
+    const flowSlots = flows.map(
+      (flow, f): ListSlot => ({
+        statements: flow.statements,
+        flow: f,
+        block: -1,
+        lo: -1,
+        hi: -1,
+      }),
     );
-    const old = previous ? this.statementOrderOf(previous) : [];
-    passes.order = old.length;
-    const reused = this.align(statements, old, kept, {
-      owner: (statement) => owners.get(statement),
-      oldOwner: (chunk) => this.oldOwnerOf(previous!, chunk),
+    const flowStarts = flowSlots.map((slot) => {
+      const start = statements.length;
+      collect(slot);
+      return start;
     });
+    const declarationsStart = statements.length;
+    // Where each declaration's bodies' statements start and end.
+    const declarationRanges = declarations.map((declaration) => {
+      const start = statements.length;
+      collectBodies(declaration);
+      return [start, statements.length] as const;
+    });
+    // The statements that keep their chunks with nothing read again, and the
+    // first and the last place in `statements` of the others and of the
+    // statements of their bodies.
+    const carried = new Set<StatementSource>();
+    let lo = -1;
+    let hi = -1;
+    const kept = statements.map((statement, i) => {
+      const chunk =
+        this.keepCarried(this._byBlock, statement, previous, flagged, carried) ??
+        this.keep(this._byBlock, statement);
+      if (!carried.has(statement)) {
+        lo = lo < 0 ? i : lo;
+        hi = Math.max(hi, (ends.get(statement) ?? i + 1) - 1);
+      }
+      return chunk;
+    });
+    const nesting = {
+      owner: (statement: StatementSource) => owners.get(statement),
+    };
+    const window =
+      program.changed && previous
+        ? this.alignmentWindow({
+            previous,
+            flows,
+            symbols,
+            declarations,
+            statements,
+            kept,
+            slots,
+            entries,
+            starts,
+            flowStarts,
+            declarationsStart,
+            declarationRanges,
+            lo,
+            hi,
+          })
+        : undefined;
+    let reused: (StatementChunk | undefined)[];
+    if (window) {
+      passes.order = window.old.length;
+      // A window over every statement aligns them as a build that lists the
+      // whole old root does, from the same lists.
+      const checked =
+        ChunkStore.verifyBuilds && lo >= 0 && (lo > 0 || hi + 1 < statements.length)
+          ? { used: new Set(this._used), inherit: new Map(this._inherit) }
+          : undefined;
+      reused = kept.slice();
+      if (lo >= 0) {
+        const aligned = this.align(
+          statements.slice(lo, hi + 1),
+          window.old,
+          kept.slice(lo, hi + 1),
+          { ...nesting, oldOwner: (chunk) => window.owners.get(chunk) },
+        );
+        aligned.forEach((chunk, i) => (reused[lo + i] = chunk));
+      }
+      if (checked) {
+        this.verifyAlignment(statements, kept, previous!, nesting, reused, checked);
+      }
+    } else {
+      const old = previous ? this.statementOrderOf(previous) : [];
+      passes.order = old.length;
+      reused = this.align(statements, old, kept, {
+        ...nesting,
+        oldOwner: (chunk) => this.oldOwnerOf(previous!, chunk),
+      });
+    }
     const chunkOf = new Map<StatementSource, StatementChunk | undefined>();
     statements.forEach((statement, i) => chunkOf.set(statement, reused[i]));
     const oldDeclarations = previous?.initialization ?? [];
@@ -645,19 +750,48 @@ export class ChunkStore {
     }
     // The statements whose bodies a sequence is built for again: each one not
     // carried, and the statements that hold one.
+    // Each list's first and last entry that is unsettled is its window
+    // (`ListSlot`).
     const unsettled = new Set<StatementSource>();
-    for (const statement of everyStatement) {
-      if (carried.has(statement)) {
-        continue;
+    // Each script's declaration window by line (`keptDeclarations`): the
+    // lines of its changed blocks and of its declarations not carried.
+    const declarationWindows = new Map<string, { lo: number; hi: number }>();
+    const widen = (uri: string, from: number, to: number) => {
+      const window = declarationWindows.get(uri);
+      if (window) {
+        window.lo = Math.min(window.lo, from);
+        window.hi = Math.max(window.hi, to);
+      } else {
+        declarationWindows.set(uri, { lo: from, hi: to });
       }
-      for (
-        let at: StatementSource | undefined = statement;
-        at && !unsettled.has(at);
-        at = owners.get(at)
-      ) {
-        unsettled.add(at);
+    };
+    for (const [uri, ranges] of program.changed ?? []) {
+      for (const [from, to] of ranges) {
+        widen(uri, from, to);
       }
     }
+    everyStatement.forEach((statement, i) => {
+      if (carried.has(statement)) {
+        return;
+      }
+      if (i >= statements.length) {
+        const declaration = statement as DeclarationSource;
+        widen(declaration.uri, declaration.firstLine, declaration.firstLine);
+      }
+      let at: StatementSource | undefined = statement;
+      let index: number | undefined = i < statements.length ? i : undefined;
+      while (at && !unsettled.has(at)) {
+        unsettled.add(at);
+        if (index !== undefined) {
+          const slot = slots[index]!;
+          const entry = entries[index]!;
+          slot.lo = slot.lo < 0 ? entry : Math.min(slot.lo, entry);
+          slot.hi = Math.max(slot.hi, entry);
+        }
+        at = owners.get(at);
+        index = at ? starts.get(at) : undefined;
+      }
+    });
 
     const build: SequenceBuild = {
       previous,
@@ -675,6 +809,9 @@ export class ChunkStore {
       statements: previous ? this.statementCountOf(previous) : 0,
       failed: 0,
       fail: () => {},
+      changed: program.changed,
+      bodySlots,
+      placedFor: ChunkStore.verifyBuilds ? new Map() : undefined,
     };
     const flowIds = new Map<number, number>();
     const scriptFlows = new Map<string, number[]>();
@@ -689,8 +826,9 @@ export class ChunkStore {
       };
       const arrays = this.buildSequence(
         build,
-        flow.statements,
+        flowSlots[f]!,
         flow.firstLine,
+        flow.span,
         before,
         id,
         { flow: symbol, kind: flow.kind, uri: flow.uri },
@@ -721,8 +859,11 @@ export class ChunkStore {
     const declarationChunks: StatementChunk[] = [];
     const declarationIds = new Map<string, number>();
     const emittedBeforeDeclarations = this._writer.emitted;
-    passes.assembly += declarations.length;
     const byScript = new Map<string, { source: DeclarationSource; chunk: StatementChunk }[]>();
+    // The declarations each script's window holds, and every declaration
+    // chunk of the build, found as the initialization order is listed.
+    const windowed = new Map<string, { source: DeclarationSource; chunk: StatementChunk }[]>();
+    const heldDeclarations = new Set<StatementChunk>();
     declarations.forEach((declaration) => {
       let chunk = chunkOf.get(declaration);
       if (!chunk) {
@@ -751,13 +892,28 @@ export class ChunkStore {
       if (!carried.has(declaration)) {
         this._placedDeclarations.set(declaration.block, chunk);
       }
+      build.placedFor?.set(declaration, chunk);
       declarationChunks.push(chunk);
+      heldDeclarations.add(chunk);
       let list = byScript.get(declaration.uri);
       if (!list) {
         list = [];
         byScript.set(declaration.uri, list);
       }
       list.push({ source: declaration, chunk });
+      const window = declarationWindows.get(declaration.uri);
+      if (
+        window &&
+        declaration.firstLine >= window.lo &&
+        declaration.firstLine <= window.hi
+      ) {
+        let inWindow = windowed.get(declaration.uri);
+        if (!inWindow) {
+          inWindow = [];
+          windowed.set(declaration.uri, inWindow);
+        }
+        inWindow.push({ source: declaration, chunk });
+      }
       build.fail = (construct, line) => {
         fallback ??= { construct, uri: declaration.uri, line };
       };
@@ -774,13 +930,31 @@ export class ChunkStore {
     const declarationsEmitted =
       this._writer.emitted > emittedBeforeDeclarations;
     for (const [uri, list] of byScript) {
-      list.sort((a, b) => a.source.firstLine - b.source.firstLine);
-      const chunks = list.map((entry) => entry.chunk);
-      const lineStarts = list.map((entry) => entry.source.firstLine);
       const before = previous?.declarations(uri);
       const id = before?.id ?? this._nextSequenceId++;
-      const arrays = shareArrays(before?.arrays, chunks, lineStarts);
-      this.placeIn(build, id, before, arrays, false, false);
+      const kept =
+        before && program.changed
+          ? this.keptDeclarations(
+              list.length,
+              declarationWindows.get(uri),
+              windowed.get(uri) ?? [],
+              heldDeclarations,
+              before,
+              program.lineCount?.(uri),
+            )
+          : undefined;
+      let arrays: SequenceArrays;
+      if (kept) {
+        arrays = kept.arrays;
+        this.placeIn(build, id, before, arrays, false, false, kept.window);
+      } else {
+        passes.assembly += list.length;
+        list.sort((a, b) => a.source.firstLine - b.source.firstLine);
+        const chunks = list.map((entry) => entry.chunk);
+        const lineStarts = list.map((entry) => entry.source.firstLine);
+        arrays = shareArrays(before?.arrays, chunks, lineStarts);
+        this.placeIn(build, id, before, arrays, false, false);
+      }
       this.setRow(build, {
         id,
         arrays,
@@ -872,6 +1046,9 @@ export class ChunkStore {
         symbols,
         build.statements,
         functionChunks,
+        declarations,
+        (statement) =>
+          build.placedFor?.get(statement) ?? build.chunkOf.get(statement),
       );
     }
     // The declarations run again when a declaration chunk or a function
@@ -1630,28 +1807,37 @@ export class ChunkStore {
     return chunk;
   }
 
-  /** The arrays of the sequence `id` of `statements`, whose body starts on
-   *  line `firstLine`, emitting the chunks alignment gave none, and the rows
-   *  of the sequences of their bodies. The bodies of a statement are built
-   *  again only when it or a statement inside it is not carried
-   *  (`SequenceBuild.unsettled`), or when the flow, the kind or the script of
-   *  the sequence that holds it changed, which its bodies' rows name and its
-   *  alternators' shuffles are seeded from; any other statement's bodies keep
-   *  their rows. `before` is the current root's row for the sequence. The
-   *  chunks that hold a function's code are every chunk of a sequence inside
-   *  a function (`inFunction`), and every chunk that writes one. */
+  /** The arrays of the sequence `id` of the statements of `slot`, whose body
+   *  starts on line `firstLine` and spans `span` lines, emitting the chunks
+   *  alignment gave none, and the rows of the sequences of their bodies. The
+   *  bodies of a statement are built again only when it or a statement
+   *  inside it is not carried (`SequenceBuild.unsettled`), or when the flow,
+   *  the kind or the script of the sequence that holds it changed, which its
+   *  bodies' rows name and its alternators' shuffles are seeded from; any
+   *  other statement's bodies keep their rows. `before` is the current root's
+   *  row for the sequence. The chunks that hold a function's code are every
+   *  chunk of a sequence inside a function (`inFunction`), and every chunk
+   *  that writes one.
+   *
+   *  When the compile names the changed blocks, the entries above the
+   *  sequence's window and below it are the current root's
+   *  (`reuseOf`), and only the window's statements are read: the arrays are
+   *  the current root's with the window's entries put in place of the old
+   *  ones between, and the line starts below shifted by the lines the window
+   *  gained, as section 1 (The order structure) builds them. */
   protected buildSequence(
     build: SequenceBuild,
-    statements: readonly StatementSource[],
+    slot: ListSlot,
     firstLine: number,
+    span: number,
     before: SequenceRow | undefined,
     id: number,
     home: SequenceHome,
     inFunction: boolean,
   ): SequenceArrays {
+    const statements = slot.statements;
     const chunks: StatementChunk[] = [];
     const lineStarts: number[] = [];
-    this.passesLastBuild.assembly += statements.length;
     // A sequence whose owner an edit moved into a function or out of one is
     // placed whole, as one whose flow changed is, so the function chunks it
     // holds are counted again.
@@ -1660,7 +1846,15 @@ export class ChunkStore {
       !sameHome(before, home) ||
       this._sequenceInFunction.get(id) !== inFunction;
     build.inFunction.set(id, inFunction);
-    for (const statement of statements) {
+    const reuse =
+      moved || !build.changed
+        ? undefined
+        : this.reuseOf(build, slot, firstLine, span, home.uri, before!.arrays);
+    const from = reuse?.head ?? 0;
+    const to = statements.length - (reuse?.tail ?? 0);
+    this.passesLastBuild.assembly += to - from;
+    for (let entry = from; entry < to; entry += 1) {
+      const statement = statements[entry]!;
       let chunk = build.chunkOf.get(statement);
       if (!chunk) {
         try {
@@ -1679,15 +1873,199 @@ export class ChunkStore {
       if (!build.carried.has(statement)) {
         this._placed.set(statement.block, chunk);
       }
+      build.placedFor?.set(statement, chunk);
       chunks.push(chunk);
       lineStarts.push(statement.firstLine - firstLine);
       if (build.unsettled.has(statement) || moved) {
         this.buildBodies(build, statement, chunk, home, inFunction);
       }
     }
-    const arrays = shareArrays(before?.arrays, chunks, lineStarts);
-    this.placeIn(build, id, before, arrays, inFunction, moved);
+    if (!reuse) {
+      const arrays = shareArrays(before?.arrays, chunks, lineStarts);
+      this.placeIn(build, id, before, arrays, inFunction, moved);
+      return arrays;
+    }
+    const old = before!.arrays;
+    const oldTo = old.chunks.length - reuse.tail;
+    if (from === to && from === oldTo && reuse.delta === 0) {
+      return old;
+    }
+    const arrays = shareArrays(
+      old,
+      [...old.chunks.slice(0, from), ...chunks, ...old.chunks.slice(oldTo)],
+      [
+        ...old.lineStarts.slice(0, from),
+        ...lineStarts,
+        ...old.lineStarts.slice(oldTo).map((line) => line + reuse.delta),
+      ],
+    );
+    this.placeIn(build, id, before, arrays, inFunction, moved, {
+      from,
+      to: from + chunks.length,
+      oldFrom: from,
+      oldTo,
+    });
     return arrays;
+  }
+
+  /** The entries above a sequence's window and below it that a build keeps
+   *  as the current root's arrays `old` hold them, or nothing when it reads
+   *  the sequence whole. The window runs from the first entry to the last
+   *  that is not settled (`ListSlot`), and over every entry a changed block
+   *  touches: from the one that holds the block's first line to the last
+   *  that starts by its last. Every entry outside it is carried, with its
+   *  bodies as they were, and the text between them is the text the current
+   *  root was built from, so they are the old entries above the window and
+   *  as many below it, in order, the lines of those below moved by as many
+   *  lines as the first of them (`delta`). The first and the last entry of
+   *  each part are checked against the old ones, which reads two statements
+   *  for each. */
+  protected reuseOf(
+    build: SequenceBuild,
+    slot: ListSlot,
+    firstLine: number,
+    span: number,
+    uri: string,
+    old: SequenceArrays,
+  ): { head: number; tail: number; delta: number } | undefined {
+    const list = slot.statements;
+    const count = list.length;
+    let lo = slot.lo;
+    let hi = slot.hi;
+    // The last entry that starts by `line`, or -1.
+    const lastBy = (line: number): number => {
+      let a = 0;
+      let b = count;
+      while (a < b) {
+        const m = (a + b) >> 1;
+        if (list[m]!.firstLine <= line) {
+          a = m + 1;
+        } else {
+          b = m;
+        }
+      }
+      return a - 1;
+    };
+    // A flow's header is the line above its body.
+    const top = slot.flow === undefined ? firstLine : firstLine - 1;
+    for (const [start, end] of build.changed?.get(uri) ?? []) {
+      if (count === 0 || end < top || start >= firstLine + span) {
+        continue;
+      }
+      const first = Math.max(0, lastBy(start));
+      const last = Math.max(first, lastBy(end));
+      lo = lo < 0 ? first : Math.min(lo, first);
+      hi = Math.max(hi, last);
+    }
+    const head = lo < 0 ? count : lo;
+    const tail = lo < 0 ? 0 : count - hi - 1;
+    const oldCount = old.chunks.length;
+    if (head + tail > oldCount || (lo < 0 && count !== oldCount)) {
+      return undefined;
+    }
+    const chunkAt = (entry: number) => build.chunkOf.get(list[entry]!);
+    const lineAt = (entry: number) => list[entry]!.firstLine - firstLine;
+    const same = (entry: number, oldEntry: number, delta: number) =>
+      chunkAt(entry) === old.chunks[oldEntry] &&
+      lineAt(entry) === old.lineStarts[oldEntry]! + delta;
+    if (head > 0 && !(same(0, 0, 0) && same(head - 1, head - 1, 0))) {
+      return undefined;
+    }
+    let delta = 0;
+    if (tail > 0) {
+      const oldFrom = oldCount - tail;
+      delta = lineAt(count - tail) - old.lineStarts[oldFrom]!;
+      if (!(same(count - tail, oldFrom, delta) && same(count - 1, oldCount - 1, delta))) {
+        return undefined;
+      }
+    }
+    return { head, tail, delta };
+  }
+
+  /** A script's declaration sequence kept as the current root's `before`
+   *  holds it outside the lines the compile changed, or nothing when the
+   *  build assembles it whole. Its line starts are the script's own lines,
+   *  so the window is by line (`window`): from the first line of the first
+   *  changed block or declaration not carried to the last, which the build
+   *  finds as it marks the statements it does not settle. The old entries
+   *  that start above the window are kept, and so are those that start
+   *  below it, moved by the lines the script gained (`lineCount` against
+   *  the span the current root's row holds); the declarations that start
+   *  in the window (`inWindow`, found as the initialization order is
+   *  listed) are read and put between. The counts must add up to the
+   *  script's `count` declarations, and the first and last old entry of
+   *  each kept part must be one of the build's (`held`). */
+  protected keptDeclarations(
+    count: number,
+    window: { lo: number; hi: number } | undefined,
+    inWindow: readonly { source: DeclarationSource; chunk: StatementChunk }[],
+    held: ReadonlySet<StatementChunk>,
+    before: SequenceRow,
+    lineCount: number | undefined,
+  ):
+    | {
+        arrays: SequenceArrays;
+        window?: { from: number; to: number; oldFrom: number; oldTo: number };
+      }
+    | undefined {
+    const old = before.arrays;
+    const oldCount = old.chunks.length;
+    if (lineCount === undefined) {
+      return undefined;
+    }
+    if (!window) {
+      return count === oldCount && lineCount === before.span
+        ? { arrays: old }
+        : undefined;
+    }
+    const { lo, hi } = window;
+    const delta = lineCount - before.span;
+    // The first old entry that starts at `line` or below it.
+    const firstFrom = (line: number): number => {
+      let a = 0;
+      let b = oldCount;
+      while (a < b) {
+        const m = (a + b) >> 1;
+        if (old.lineStarts[m]! < line) {
+          a = m + 1;
+        } else {
+          b = m;
+        }
+      }
+      return a;
+    };
+    const head = firstFrom(lo);
+    const tail = Math.max(head, firstFrom(hi - delta + 1));
+    const middle = [...inWindow].sort(
+      (a, b) => a.source.firstLine - b.source.firstLine,
+    );
+    if (head + middle.length + (oldCount - tail) !== count) {
+      return undefined;
+    }
+    for (const entry of [0, head - 1, tail, oldCount - 1]) {
+      const kept = entry < head || entry >= tail;
+      if (entry >= 0 && entry < oldCount && kept && !held.has(old.chunks[entry]!)) {
+        return undefined;
+      }
+    }
+    this.passesLastBuild.assembly += middle.length;
+    const arrays = shareArrays(
+      old,
+      [
+        ...old.chunks.slice(0, head),
+        ...middle.map((entry) => entry.chunk),
+        ...old.chunks.slice(tail),
+      ],
+      [
+        ...old.lineStarts.slice(0, head),
+        ...middle.map((entry) => entry.source.firstLine),
+        ...old.lineStarts.slice(tail).map((line) => line + delta),
+      ],
+    );
+    return {
+      arrays,
+      window: { from: head, to: head + middle.length, oldFrom: head, oldTo: tail },
+    };
   }
 
   /** Records what a sequence built again holds that the current root holds
@@ -1695,7 +2073,10 @@ export class ChunkStore {
    *  definition arrays the build writes (`SequenceBuild.placed`): every
    *  chunk of it when its flow, kind or script changed (`moved`), and
    *  otherwise each chunk the current root's sequence `id` does not hold. A
-   *  chunk that stays in the sequence keeps every row. */
+   *  chunk that stays in the sequence keeps every row. When the build kept
+   *  the entries outside a window (`window`), only the window's entries are
+   *  read, the old ones between `oldFrom` and `oldTo` being the ones it
+   *  replaced. */
   protected placeIn(
     build: SequenceBuild,
     id: number,
@@ -1703,12 +2084,21 @@ export class ChunkStore {
     arrays: SequenceArrays,
     inFunction: boolean,
     moved: boolean,
+    window?: { from: number; to: number; oldFrom: number; oldTo: number },
   ): void {
     if (arrays === before?.arrays && !moved) {
       return;
     }
-    build.rebuilt.set(id, before?.arrays);
-    for (const chunk of arrays.chunks) {
+    const from = window?.from ?? 0;
+    const to = window?.to ?? arrays.chunks.length;
+    build.rebuilt.set(id, {
+      arrays: before?.arrays,
+      from: window?.oldFrom ?? 0,
+      to: window?.oldTo ?? before?.arrays.chunks.length ?? 0,
+      held: window ? new Set(arrays.chunks.slice(from, to)) : undefined,
+    });
+    for (let entry = from; entry < to; entry += 1) {
+      const chunk = arrays.chunks[entry]!;
       if (
         moved ||
         !before ||
@@ -1729,13 +2119,15 @@ export class ChunkStore {
     home: SequenceHome,
     inFunction: boolean,
   ): void {
+    const slots = build.bodySlots.get(statement) ?? [];
     (statement.bodies ?? []).forEach((body, k) => {
       const id = blockField(chunk, k, B_SEQUENCE);
       const before = build.previous?.sequence(id);
       const arrays = this.buildSequence(
         build,
-        body.statements,
+        slots[k] ?? { statements: body.statements, block: k, lo: 0, hi: body.statements.length - 1 },
         body.firstLine,
+        body.span,
         before,
         id,
         home,
@@ -1810,8 +2202,12 @@ export class ChunkStore {
     };
     for (const [id, before] of build.rebuilt) {
       const now = build.sequences.get(id)?.arrays;
-      for (const chunk of before?.chunks ?? []) {
-        if (!now || !holdsChunk(now, chunk)) {
+      for (let entry = before.from; entry < before.to; entry += 1) {
+        const chunk = before.arrays!.chunks[entry]!;
+        const held = before.held
+          ? !!now && before.held.has(chunk)
+          : !!now && holdsChunk(now, chunk);
+        if (!held) {
           drop(chunk);
         }
       }
@@ -1905,6 +2301,224 @@ export class ChunkStore {
     return this.orderOf(root).order;
   }
 
+  /**
+   * The current root's statements that the alignment of the program's
+   * statements `lo` to `hi` (in `statementOrder`'s order, the first and the
+   * last of them not carried, with the statements of the last one's bodies)
+   * reads, with the owner of each that stands in a body: the ones between
+   * the carried statements around them, or nothing when the build lists
+   * them all. Every statement outside the window is carried and keeps the
+   * place it had, so aligning the window with these old statements pairs
+   * each statement as aligning the whole program does (`align`).
+   *
+   * That the statements around the window keep their places is checked on
+   * the lists that hold them, by two statements at each end of each list:
+   * the flows are the old ones in order, each flow outside the window holds
+   * as many statements as its old sequence with the same first and last, and
+   * each list that holds the window's first statement or the statement after
+   * the window, or an owner of one, has the old entries above and below
+   * them; and of the declarations whose bodies hold statements, which the
+   * order lists after the flows in the order they run, those wholly above
+   * the window are the first of the old ones and those wholly below it the
+   * last, by their chunks, while the window may hold the bodies of
+   * declarations lowered anew, whose old ones the walk below lists. Then
+   * the old statements between are counted from the old root's count.
+   */
+  protected alignmentWindow(at: {
+    previous: ProgramRoot;
+    flows: readonly FlowSource[];
+    symbols: readonly number[];
+    declarations: readonly DeclarationSource[];
+    statements: readonly StatementSource[];
+    kept: readonly (StatementChunk | undefined)[];
+    slots: readonly ListSlot[];
+    entries: readonly number[];
+    starts: ReadonlyMap<StatementSource, number>;
+    flowStarts: readonly number[];
+    declarationsStart: number;
+    declarationRanges: readonly (readonly [number, number])[];
+    lo: number;
+    hi: number;
+  }):
+    | { old: StatementChunk[]; owners: Map<StatementChunk, StatementChunk> }
+    | undefined {
+    const { previous, statements, lo, hi } = at;
+    const owners = new Map<StatementChunk, StatementChunk>();
+    if (lo < 0) {
+      return { old: [], owners };
+    }
+    if (previous.generation !== this.table.generation) {
+      return undefined;
+    }
+    const oldFlows = previous.flowSequences();
+    if (
+      oldFlows.length !== at.flows.length ||
+      oldFlows.some((row, f) => row.flow !== at.symbols[f])
+    ) {
+      return undefined;
+    }
+    // The declarations whose bodies hold statements, which the order lists
+    // after the flows, in the order they run: those whose statements stand
+    // above the window are the first of the old ones, and those below it
+    // the last, by their chunks; the window holds the others.
+    const initialization = previous.initialization;
+    const oldUnits = initialization.filter((chunk) => {
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        if ((previous.body(chunk, k)?.arrays.chunks.length ?? 0) > 0) {
+          return true;
+        }
+      }
+      return false;
+    });
+    const units = at.declarations.flatMap((declaration, i) => {
+      const [start, end] = at.declarationRanges[i]!;
+      return end > start ? [{ declaration, start, end }] : [];
+    });
+    const above = units.filter((unit) => unit.end <= lo);
+    const below = units.filter((unit) => unit.start > hi);
+    const unitChunk = (unit: (typeof units)[number]) =>
+      this._byDeclaration.get(unit.declaration.block);
+    if (
+      above.length + below.length > oldUnits.length ||
+      above.some((unit, u) => unitChunk(unit) !== oldUnits[u]) ||
+      below.some(
+        (unit, u) =>
+          unitChunk(unit) !== oldUnits[oldUnits.length - below.length + u],
+      )
+    ) {
+      return undefined;
+    }
+    // A carried statement's chunk is the one its block holds.
+    const chunkOf = (statement: StatementSource) =>
+      this._byBlock.get(statement.block);
+    const sameEnds = (
+      list: readonly StatementSource[],
+      from: number,
+      row: readonly StatementChunk[],
+      oldFrom: number,
+      count: number,
+    ) =>
+      count === 0 ||
+      (chunkOf(list[from]!) === row[oldFrom] &&
+        chunkOf(list[from + count - 1]!) === row[oldFrom + count - 1]);
+    for (let f = 0; f < at.flows.length; f += 1) {
+      const start = at.flowStarts[f]!;
+      const end = at.flowStarts[f + 1] ?? at.declarationsStart;
+      const list = at.flows[f]!.statements;
+      const row = oldFlows[f]!.arrays.chunks;
+      if (
+        (end <= lo || start > hi) &&
+        (list.length !== row.length || !sameEnds(list, 0, row, 0, list.length))
+      ) {
+        return undefined;
+      }
+    }
+    // The lists from the statement at `index` up to its flow or its
+    // declaration: their entries above it (`above`) or below it are the old
+    // ones; an owner, which is outside the window, counts as above.
+    const holds = (index: number, above: boolean): boolean => {
+      let inside = true;
+      for (let i: number | undefined = index; i !== undefined; ) {
+        const slot: ListSlot = at.slots[i]!;
+        const entry = at.entries[i]!;
+        const list = slot.statements;
+        const count = above
+          ? inside
+            ? entry
+            : entry + 1
+          : list.length - (inside ? entry : entry + 1);
+        // A list with no entries outside the window needs no old row, as
+        // the body of a declaration lowered anew has none.
+        if (count > 0) {
+          let row: readonly StatementChunk[] | undefined;
+          if (slot.flow !== undefined) {
+            row = oldFlows[slot.flow]!.arrays.chunks;
+          } else {
+            const owner = slot.owner!;
+            const ownerChunk =
+              "globals" in owner
+                ? this._byDeclaration.get(owner.block)
+                : chunkOf(owner);
+            row = ownerChunk
+              ? previous.body(ownerChunk, slot.block)?.arrays.chunks
+              : undefined;
+          }
+          if (
+            !row ||
+            count > row.length ||
+            !(above
+              ? sameEnds(list, 0, row, 0, count)
+              : sameEnds(list, list.length - count, row, row.length - count, count))
+          ) {
+            return false;
+          }
+        }
+        inside = false;
+        i =
+          slot.owner && !("globals" in slot.owner)
+            ? at.starts.get(slot.owner)
+            : undefined;
+      }
+      return true;
+    };
+    const next = hi + 1 < statements.length ? hi + 1 : undefined;
+    if (!holds(lo, true) || (next !== undefined && !holds(next, false))) {
+      return undefined;
+    }
+    const count =
+      this.statementCountOf(previous) -
+      initialization.length -
+      lo -
+      (statements.length - hi - 1);
+    if (count < 0) {
+      return undefined;
+    }
+    const old = previous.statementOrderBetween(
+      lo > 0 ? at.kept[lo - 1] : undefined,
+      next !== undefined ? at.kept[next] : undefined,
+      count,
+      owners,
+    );
+    return old?.length === count ? { old, owners } : undefined;
+  }
+
+  /** Under `verifyBuilds`, aligns the whole program again from what the
+   *  store held before the window's alignment (`checked`), and throws when
+   *  that pairs any statement otherwise than the window's did (`reused`, and
+   *  the chunks it used and handed on). The counts of the passes are the
+   *  window's. */
+  protected verifyAlignment(
+    statements: readonly StatementSource[],
+    kept: readonly (StatementChunk | undefined)[],
+    previous: ProgramRoot,
+    nesting: { owner(statement: StatementSource): StatementSource | undefined },
+    reused: readonly (StatementChunk | undefined)[],
+    checked: { used: Set<StatementChunk>; inherit: Map<StatementSource, StatementChunk> },
+  ): void {
+    const passes = { ...this.passesLastBuild };
+    const windowed = { used: this._used, inherit: this._inherit };
+    this._used = checked.used;
+    this._inherit = checked.inherit;
+    const whole = this.align(statements, this.statementOrderOf(previous), kept, {
+      ...nesting,
+      oldOwner: (chunk) => this.oldOwnerOf(previous, chunk),
+    });
+    const differs =
+      whole.findIndex((chunk, i) => chunk !== reused[i]) >= 0 ||
+      this._used.size !== windowed.used.size ||
+      [...this._used].some((chunk) => !windowed.used.has(chunk)) ||
+      this._inherit.size !== windowed.inherit.size ||
+      [...this._inherit].some(([s, chunk]) => windowed.inherit.get(s) !== chunk);
+    this._used = windowed.used;
+    this._inherit = windowed.inherit;
+    Object.assign(this.passesLastBuild, passes);
+    if (differs) {
+      throw new Error(
+        "ChunkStore.verifyBuilds: aligning the window pairs statements otherwise than aligning the whole program",
+      );
+    }
+  }
+
   protected oldOwnerOf(
     root: ProgramRoot,
     chunk: StatementChunk,
@@ -1958,10 +2572,60 @@ export class ChunkStore {
     symbols: readonly number[],
     statements: number,
     functionChunks: ReadonlySet<StatementChunk>,
+    declarations: readonly DeclarationSource[],
+    chunkOf: (statement: StatementSource) => StatementChunk | undefined,
   ): void {
     const fail = (what: string) => {
       throw new Error(`ChunkStore.verifyBuilds: ${what}`);
     };
+    // Every sequence's arrays, as assembling each from the statements the
+    // compile handed over gives them, whatever entries the build kept.
+    const assembled = (
+      row: SequenceRow | undefined,
+      list: readonly StatementSource[],
+      firstLine: number,
+      what: string,
+    ) => {
+      if (!row || row.arrays.chunks.length !== list.length) {
+        fail(`${what} holds ${row?.arrays.chunks.length} entries, not ${list.length}`);
+        return;
+      }
+      list.forEach((statement, entry) => {
+        const chunk = chunkOf(statement);
+        if (row.arrays.chunks[entry] !== chunk) {
+          fail(`${what}, entry ${entry}, is not its statement's chunk`);
+        }
+        if (row.arrays.lineStarts[entry] !== statement.firstLine - firstLine) {
+          fail(`${what}, entry ${entry}, starts at ${row.arrays.lineStarts[entry]}, not ${statement.firstLine - firstLine}`);
+        }
+        assembledBodies(statement, chunk!, `${what}, entry ${entry}`);
+      });
+    };
+    const assembledBodies = (
+      statement: StatementSource,
+      chunk: StatementChunk,
+      what: string,
+    ) =>
+      (statement.bodies ?? []).forEach((body, k) =>
+        assembled(root.body(chunk, k), body.statements, body.firstLine, `${what}, body ${k}`),
+      );
+    flows.forEach((flow, f) =>
+      assembled(root.flow(symbols[f]!), flow.statements, flow.firstLine, `flow ${flow.name}`),
+    );
+    const byScript = new Map<string, DeclarationSource[]>();
+    for (const declaration of declarations) {
+      const list = byScript.get(declaration.uri) ?? [];
+      list.push(declaration);
+      byScript.set(declaration.uri, list);
+    }
+    for (const [uri, list] of byScript) {
+      assembled(
+        root.declarations(uri),
+        [...list].sort((a, b) => a.firstLine - b.firstLine),
+        0,
+        `the declarations of ${uri}`,
+      );
+    }
     // The rows a walk from the flows and the declaration sequences reaches.
     const reached = new Set<number>();
     let count = 0;
@@ -2885,13 +3549,18 @@ const shareArrays = (
  *  arrays and of the chunk table it wrote. A build over an edit reads none of
  *  these for a chunk the edit did not affect.
  *
- *  Two counts are of bookkeeping that is linear in the program, which a
- *  build still does: the current root's statements it lists to align the
- *  statements that are not carried with (`order`, which the root it builds
- *  lists again on the next build), and the entries of the sequences it
- *  assembles (`assembly`): every flow's, whose entries the compile hands
- *  over whole (`programFlows`), and those of the bodies it builds again.
- *  Neither reads a chunk's facts or values, or writes a row. */
+ *  Two counts are of bookkeeping: the current root's statements it lists to
+ *  align the statements that are not carried with (`order`), and the
+ *  entries it reads from the statements the compile hands over to assemble
+ *  a sequence's arrays (`assembly`), a script's declarations among them.
+ *  When the compile names the blocks it lowered anew
+ *  (`ProgramSource.changed`, #1599), the first is the old statements
+ *  between the carried ones around those not carried
+ *  (`alignmentWindow`), and the second the entries of each sequence's window
+ *  (`reuseOf`, `keptDeclarations`): an edit to one statement lists and
+ *  assembles as many
+ *  whatever the program's size. Without it, both are every one. Neither
+ *  reads a chunk's facts or values, or writes a row. */
 export interface BuildPasses {
   identity: number;
   facts: number;
@@ -2928,6 +3597,19 @@ const sameHome = (row: SequenceRow, home: SequenceHome): boolean =>
   row.flow === home.flow && row.kind === home.kind && row.uri === home.uri;
 
 /** What a build of the sequences knows and collects. */
+/** One list of statements a build reads: a flow's (`flow`, its index among
+ *  the program's flows) or block `block` of `owner`'s bodies, with its
+ *  window: the first and the last entry the build does not settle (one not
+ *  carried, or holding one), or -1 for none. */
+interface ListSlot {
+  statements: readonly StatementSource[];
+  flow?: number;
+  owner?: StatementSource;
+  block: number;
+  lo: number;
+  hi: number;
+}
+
 interface SequenceBuild {
   previous: ProgramRoot | undefined;
   chunkOf: ReadonlyMap<StatementSource, StatementChunk | undefined>;
@@ -2939,8 +3621,25 @@ interface SequenceBuild {
   coverage: ProgramCoverage;
   /** The new root's rows, which start as the current root's. */
   sequences: Map<number, SequenceRow>;
-  /** Each sequence built again, with its arrays in the current root. */
-  rebuilt: Map<number, SequenceArrays | undefined>;
+  /** Each sequence built again, with its arrays in the current root and the
+   *  entries of those (`from` to `to`) the build replaced, and, when it kept
+   *  the others (`ChunkStore.reuseOf`), the chunks it put in their place. */
+  rebuilt: Map<
+    number,
+    {
+      arrays: SequenceArrays | undefined;
+      from: number;
+      to: number;
+      held?: ReadonlySet<StatementChunk>;
+    }
+  >;
+  /** The compile's changed blocks (`ProgramSource.changed`). */
+  changed?: ReadonlyMap<string, readonly (readonly [number, number])[]>;
+  /** The lists of each statement's bodies. */
+  bodySlots: ReadonlyMap<StatementSource, readonly ListSlot[]>;
+  /** Under `ChunkStore.verifyBuilds`, the chunk each statement a sequence
+   *  read was placed with, which `verifyRoot` compares the rows with. */
+  placedFor?: Map<StatementSource, StatementChunk>;
   /** Each chunk placed where the current root does not hold it, with its
    *  sequence and whether that sequence is inside a function. */
   placed: Map<StatementChunk, { sequence: number; inFunction: boolean }>;

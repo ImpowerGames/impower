@@ -319,6 +319,116 @@ export class ProgramRoot {
     return out;
   }
 
+  /** The statements `statementOrder` lists strictly between `after` and
+   *  `before`: from its first when `after` is undefined, and to its last
+   *  when `before` is. It walks from where the chunk table places `after`,
+   *  so it reads no statement outside the ones it returns, beyond the
+   *  owners of `after`. `owners`, when given, receives the owner of each
+   *  statement it returns that stands in a body. Nothing is returned when
+   *  this root does not hold `after`, or when `limit` statements are listed
+   *  without meeting `before`. */
+  statementOrderBetween(
+    after: StatementChunk | undefined,
+    before: StatementChunk | undefined,
+    limit: number,
+    owners?: Map<StatementChunk, StatementChunk>,
+  ): StatementChunk[] | undefined {
+    const out: StatementChunk[] = [];
+    let met = false;
+    let over = false;
+    const walk = (
+      row: SequenceRow | undefined,
+      owner: StatementChunk | undefined,
+      from: number,
+    ) => {
+      const chunks = row?.arrays.chunks ?? [];
+      for (let e = from; e < chunks.length && !met && !over; e += 1) {
+        const chunk = chunks[e]!;
+        if (chunk === before) {
+          met = true;
+          return;
+        }
+        if (out.length >= limit) {
+          over = true;
+          return;
+        }
+        out.push(chunk);
+        if (owner) {
+          owners?.set(chunk, owner);
+        }
+        walkBodies(chunk, 0);
+      }
+    };
+    const walkBodies = (chunk: StatementChunk, from: number) => {
+      for (let k = from; k < blockCount(chunk) && !met && !over; k += 1) {
+        walk(this.body(chunk, k), chunk, 0);
+      }
+    };
+    // What `statementOrder` lists in turn: each flow's sequence, then each
+    // body of each declaration chunk.
+    const units: { row: SequenceRow | undefined; owner?: StatementChunk }[] =
+      this.flowSequences().map((row) => ({ row }));
+    const flowUnits = units.length;
+    for (const chunk of this.initialization) {
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        units.push({ row: this.body(chunk, k), owner: chunk });
+      }
+    }
+    let next = 0;
+    if (after !== undefined) {
+      // Where `after` stands, and where each of its owners does, up to the
+      // flow's sequence or the declaration whose body holds it.
+      const path: ChunkPosition[] = [];
+      for (
+        let at = this.position(chunkId(after));
+        at;
+        at = this.ownerOf(at.sequence)
+      ) {
+        path.push(at);
+      }
+      const top = path[path.length - 1];
+      if (!top || path[0]!.sequence.arrays.chunks[path[0]!.entry] !== after) {
+        return undefined;
+      }
+      if (top.sequence.flow >= 0) {
+        next = this.flowSequences().findIndex((row) => row.id === top.sequence.id);
+      } else {
+        // A declaration chunk, which is not listed: its body is the unit.
+        path.pop();
+        const declaration = top.sequence.arrays.chunks[top.entry]!;
+        const block = path[path.length - 1]?.sequence.block ?? -1;
+        next = units.findIndex(
+          (unit, u) =>
+            u >= flowUnits &&
+            unit.owner === declaration &&
+            unit.row?.block === block,
+        );
+      }
+      if (next < 0 || path.length === 0) {
+        return undefined;
+      }
+      walkBodies(after, 0);
+      path.forEach((at, p) => {
+        const owner = path[p + 1];
+        const ownerChunk = owner
+          ? owner.sequence.arrays.chunks[owner.entry]!
+          : units[next]!.owner;
+        walk(at.sequence, ownerChunk, at.entry + 1);
+        if (owner) {
+          walkBodies(ownerChunk!, at.sequence.block + 1);
+        }
+      });
+      next += 1;
+    }
+    for (let u = next; u < units.length && !met && !over; u += 1) {
+      walk(units[u]!.row, units[u]!.owner, 0);
+    }
+    if (over || (before !== undefined && !met)) {
+      return undefined;
+    }
+    return out;
+  }
+
   /** Chunk id to the id of the sequence that holds the chunk. */
   get chunkIndex(): ChunkTable {
     return this._chunks;

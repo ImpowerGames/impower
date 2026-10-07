@@ -617,3 +617,170 @@ describe("a loop of a choose block's preamble that offers choices", () => {
     ]);
   });
 });
+
+// The statements after a choice an `if`, a `do` block or a loop of the
+// preamble holds are the choice's body, not the preamble (#1622): a `choose`
+// block written there is a block of its own, run when the choice is taken, as
+// it is in the body of a choice written directly in the block.
+describe("a choose block in the body of a choice of a choose block's preamble", () => {
+  const HELD: Record<string, readonly string[]> = {
+    "an if": [
+      "    if true then",
+      "      * A",
+      "        choose",
+      "          * X",
+      "        end",
+      "        Took.",
+      "    end",
+    ],
+    "a do block": [
+      "    do",
+      "      * A",
+      "        choose",
+      "          * X",
+      "        end",
+      "        Took.",
+      "    end",
+    ],
+    "an if inside a do block": [
+      "    do",
+      "      if true then",
+      "        * A",
+      "          choose",
+      "            * X",
+      "          end",
+      "          Took.",
+      "      end",
+      "    end",
+    ],
+  };
+  for (const [name, preamble] of Object.entries(HELD)) {
+    it(`runs a nested block in the body of a choice ${name} holds from chunks as the current engine does`, () => {
+      const text = scene(preamble);
+      for (const picks of [[0, 0], [1]]) {
+        const { expected, actual } = bothEngines(text, picks);
+        expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
+      }
+      expect(run(text, [0, 0]).beats).toEqual(["A", "X", "Took.", "After."]);
+    });
+  }
+
+  it("runs the ticket's script from chunks as the current engine does", () => {
+    const text = [
+      "-> main",
+      "scene main",
+      "  choose",
+      "    if true then",
+      "      * A",
+      "        choose",
+      "          * X",
+      "        end",
+      "    end",
+      "    * Outer",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ].join("\n");
+    const { expected, actual } = bothEngines(text, [0, 0]);
+    expect(actual).toEqual(expected);
+    expect(actual.errors).toEqual([]);
+    expect(run(text, [0, 0])).toEqual({
+      beats: ["A", "X", "After."],
+      menus: [["A", "Outer"], ["X"]],
+    });
+  });
+
+  // The current engine's weave nests the rest of the pass in the first
+  // choice (#1588), so the loop is checked on the program engine alone, as
+  // the loops above are.
+  it("runs a nested block in the body of a choice a loop pass raises from chunks", () => {
+    const text = scene([
+      "    for i = 1, 2 do",
+      "      * A {i}",
+      "        choose",
+      "          * X {i}",
+      "        end",
+      "        Took {i}.",
+      "    end",
+    ]);
+    const menu = ["A 1", "A 2", "Outer"];
+    expect(run(text, [0, 0])).toEqual({
+      beats: ["A 1", "X 1", "Took 1.", "After."],
+      menus: [menu, ["X 1"]],
+    });
+    expect(run(text, [1, 0])).toEqual({
+      beats: ["A 2", "X 2", "Took 2.", "After."],
+      menus: [menu, ["X 2"]],
+    });
+    expect(run(text, [2])).toEqual({
+      beats: ["Outer", "Chose outer.", "After."],
+      menus: [menu],
+    });
+  });
+
+  it("keeps a block written after the gated branch's end in the preamble, and runs a nested block in an ungated choice's body", () => {
+    const text = scene([
+      "    if true then",
+      "      * A",
+      "        choose",
+      "          * X",
+      "        end",
+      "    end",
+      "    choose",
+      "      * Y",
+      "    end",
+    ]);
+    for (const picks of [[0, 0], [1], [2]]) {
+      const { expected, actual } = bothEngines(text, picks);
+      expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
+    }
+    expect(run(text, [1]).beats).toEqual(["Y", "After."]);
+    const ungated = scene([
+      "    * A",
+      "      choose",
+      "        * X",
+      "      end",
+    ]);
+    const { expected, actual } = bothEngines(ungated, [0, 0]);
+    expect(actual).toEqual(expected);
+    expect(run(ungated, [0, 0]).beats).toEqual(["A", "X", "After."]);
+  });
+
+  // A nested block that offers no choice ends as any block does: its end runs
+  // on out of it and is no loose end in the current engine's weave, so the
+  // lines after the block are still the choice's body, on both engines, gated
+  // or not.
+  it("runs the lines after a nested block that offers no choice in the gated choice's body", () => {
+    for (const nested of [
+      ["        choose", "          Empty.", "        end"],
+      ["        choose", "          Empty.", "        then", "          Then.", "        end"],
+    ]) {
+      const ungated = scene([
+        "    * A",
+        ...nested.map((line) => line.slice(2)),
+        "      Took.",
+      ]);
+      {
+        const { expected, actual } = bothEngines(ungated, [0]);
+        expect(actual, "ungated").toEqual(expected);
+      }
+      const text = scene([
+        "    if true then",
+        "      * A",
+        ...nested,
+        "        Took.",
+        "    end",
+      ]);
+      const { expected, actual } = bothEngines(text, [0]);
+      expect(actual).toEqual(expected);
+      expect(run(text, [0]).beats).toEqual([
+        "A",
+        "Empty.",
+        ...(nested.length > 3 ? ["Then."] : []),
+        "Took.",
+        "After.",
+      ]);
+    }
+  });
+});
