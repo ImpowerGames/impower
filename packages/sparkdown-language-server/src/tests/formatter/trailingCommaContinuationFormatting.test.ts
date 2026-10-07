@@ -143,6 +143,15 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(source)).toBe(source);
   });
 
+  // The reassignment ends at the start of an unindented line (#1494), and
+  // the line it continues onto is still one of its continued lines.
+  test("indents an unindented value after a trailing comma one level past the reassignment", () => {
+    const source = ["function f()", "  local a, g = 0, 0", "  a, g = 1,", "tostring(2)", "  return g", "end", ""].join("\n");
+    expect(formatSource(source)).toBe(
+      ["function f()", "  local a, g = 0, 0", "  a, g = 1,", "    tostring(2)", "  return g", "end", ""].join("\n"),
+    );
+  });
+
   test("indents a target list continued after a trailing comma one level past the reassignment", () => {
     const source = ["function f()", "  local a, g = 0, 0", "  a,", "g = 1, 2", "  return g", "end", ""].join("\n");
     expect(formatSource(source)).toBe(
