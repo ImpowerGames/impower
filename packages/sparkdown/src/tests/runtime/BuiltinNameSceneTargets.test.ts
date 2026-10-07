@@ -950,6 +950,31 @@ end
     ]);
   });
 
+  test("a same-named function nested elsewhere leaves the captured-local report an error", () => {
+    const program = compileUnseeded(`function swap()
+  local game = 1
+  function h(...)
+    game = 2
+  end
+  h()
+  function g(...)
+    function h(...) return 0 end
+    h()
+  end
+  g()
+end
+& swap()
+-> game
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) =>
+      /builtin global/.test(String(d.message?.value ?? d.message)),
+    );
+    expect(reports.map((d) => [d.severity, String(d.message?.value ?? d.message)])).toEqual([
+      [1, DIVERT_MESSAGE("game")],
+    ]);
+  });
+
   test("a nested function's write through a capture that reaches the global makes the report a warning", () => {
     const program = compileUnseeded(`function swap()
   function h(...)

@@ -8,7 +8,8 @@ import { ControlCommand as RuntimeControlCommand } from "../../../engine/Control
 import type { ErrorHandler } from "../../../engine/Error";
 import { ErrorType } from "../ErrorType";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
-import { FlowBase, isWithin } from "./Flow/FlowBase";
+import { FlowBase } from "./Flow/FlowBase";
+import type { Divert } from "./Divert/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
 import { FlowLevel } from "./Flow/FlowLevel";
 import { IncludedFile } from "./IncludedFile";
@@ -220,16 +221,21 @@ export class Story extends FlowBase {
     if (this._globalAssignmentNames) {
       return this._globalAssignmentNames;
     }
-    // The assignments, and each function's sites by name: where a function
-    // value names it, and where a call names it. A site counts for a
-    // function only inside the flow the function is written in, since a
-    // nested function's name means it only there.
+    // The assignments, and the candidate sites of each function by name:
+    // where a function value names it, and where a call names it. A
+    // candidate is a site of the function its divert's path resolves to from
+    // where it is written (`Path.ResolveFromContext`), so a same-named
+    // function nested elsewhere keeps its own sites.
     const assignments: VariableAssignment[] = [];
-    const sitesByName = new Map<string, ParsedObject[]>();
-    const addSite = (name: string | null | undefined, site: ParsedObject) => {
+    const sitesByName = new Map<string, { site: ParsedObject; divert: Divert }[]>();
+    const addSite = (
+      name: string | null | undefined,
+      site: ParsedObject,
+      divert: Divert,
+    ) => {
       if (name) {
         const sites = sitesByName.get(name) ?? [];
-        sites.push(site);
+        sites.push({ site, divert });
         sitesByName.set(name, sites);
       }
     };
@@ -247,20 +253,25 @@ export class Story extends FlowBase {
         if (child instanceof VariableAssignment && !child.isDeclaration) {
           assignments.push(child);
         } else if (child instanceof DivertTarget && child.isFunctionValue) {
-          addSite(child.divert.target?.dotSeparatedComponents, child);
+          addSite(child.divert.target?.dotSeparatedComponents, child, child.divert);
         } else if (child instanceof FunctionCall) {
-          addSite(child.name, child);
+          addSite(child.name, child, child.proxyDivert);
         }
         visit(child);
       }
     };
     visit(this);
-    const sitesOf = (flow: FlowBase): readonly ParsedObject[] => {
-      const around = asOrNull(ClosestFlowBase(flow), FlowBase);
-      return (sitesByName.get(flow.identifier?.name ?? "") ?? []).filter(
-        (site) => !around || isWithin(site, around),
-      );
+    const resolved = new Map<Divert, ParsedObject | null>();
+    const targetOf = (divert: Divert): ParsedObject | null => {
+      if (!resolved.has(divert)) {
+        resolved.set(divert, divert.target?.ResolveFromContext(divert) ?? null);
+      }
+      return resolved.get(divert)!;
     };
+    const sitesOf = (flow: FlowBase): readonly ParsedObject[] =>
+      (sitesByName.get(flow.identifier?.name ?? "") ?? [])
+        .filter(({ divert }) => targetOf(divert) === flow)
+        .map(({ site }) => site);
     const names = new Set<string>();
     for (const assignment of assignments) {
       if (

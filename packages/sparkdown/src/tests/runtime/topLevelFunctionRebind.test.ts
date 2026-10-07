@@ -172,6 +172,13 @@ describe("rebinding a top-level named function (#1591)", () => {
         expect(errors).toHaveLength(1);
         expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
       });
+      it("a same-named function nested elsewhere is no site of the function that writes the local", () => {
+        const text =
+          "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\n  function g(...)\n    function h(...) return 0 end\n    h()\n  end\n  g()\nend\n& swap()\nf is {f()}.\n";
+        const { errors } = run(text, programChunks);
+        expect(errors).toHaveLength(1);
+        expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
+      });
       it("a nested function's write to a captured local leaves the function alone", () => {
         const text =
           "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
