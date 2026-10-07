@@ -1,6 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
+import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -12,44 +13,153 @@ import type { LowerContext } from "../context";
 import { buildDisplayCall } from "./displayCall";
 import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
 
-// Lower a `DivertTarget` that may include a `LuauFunctionCall` shape
-// (`-> X(arg)`). Returns the path identifiers and any lowered args.
+const CALL_NAMES = ["LuauFunctionCall", "LuauSparkdownExplicitFunctionCall"];
+const PARAMETER_NAMES = [
+  "LuauFunctionCallParameters",
+  "LuauSparkdownExplicitFunctionCallParameters",
+];
+
+/** The direct children of a begin/content/end node's `_content` wrapper
+ *  that hold text; none when the node matched no content. */
+function contentChildren(node: SyntaxNode): SyntaxNode[] {
+  const contentName = `${node.name}_content`;
+  let scan = node.firstChild;
+  while (scan && scan.name !== contentName) {
+    scan = scan.nextSibling;
+  }
+  const children: SyntaxNode[] = [];
+  let child = scan?.firstChild ?? null;
+  while (child) {
+    if (child.to > child.from) {
+      children.push(child);
+    }
+    child = child.nextSibling;
+  }
+  return children;
+}
+
+/** What a `DivertTarget` names and passes, read from its own children so
+ *  that a call or a divert path inside an argument (`-> a.b(f(x), -> c)`)
+ *  is never taken for the target's. A relative call (`-> b(x)`) is a
+ *  `LuauFunctionCall`; a dotted one (`-> a.b(x)`) is a `DivertPath`
+ *  followed by its argument list. `extra` is whatever follows the one
+ *  argument list the divert passes: a second list (`-> a.b(x)(y)`), a
+ *  call's string or table argument (`-> b"x"`), or a path after a call
+ *  (`-> b(x).c`). */
+function readDivertTarget(targetNode: SyntaxNode): {
+  nameNode: SyntaxNode | null;
+  pathNode: SyntaxNode | null;
+  params: SyntaxNode | null;
+  extra: SyntaxNode[];
+} {
+  let nameNode: SyntaxNode | null = null;
+  let pathNode: SyntaxNode | null = null;
+  let params: SyntaxNode | null = null;
+  const extra: SyntaxNode[] = [];
+  for (const child of contentChildren(targetNode)) {
+    if (
+      child.name === "Annotation" ||
+      child.name === "Tags" ||
+      child.name === "ExtraWhitespace"
+    ) {
+      continue;
+    }
+    if (!nameNode && !pathNode && CALL_NAMES.includes(child.name)) {
+      nameNode = getDescendent("LuauFunctionName", child) ?? null;
+      for (const part of contentChildren(child)) {
+        if (!params && PARAMETER_NAMES.includes(part.name)) {
+          params = part;
+        } else if (part.name !== "ExtraWhitespace") {
+          extra.push(part);
+        }
+      }
+      continue;
+    }
+    if (!nameNode && !pathNode && child.name === "DivertPath") {
+      pathNode = child;
+      continue;
+    }
+    if (pathNode && !params && PARAMETER_NAMES.includes(child.name)) {
+      params = child;
+      continue;
+    }
+    extra.push(child);
+  }
+  return { nameNode, pathNode, params, extra };
+}
+
+/** Lower an argument list's expressions, grouping the nodes between
+ *  commas into one argument each. Mirrors how function-call arguments are
+ *  lowered elsewhere (e.g. `lowerTable`). */
+function lowerDivertArguments(params: SyntaxNode, ctx: LowerContext): Expression[] {
+  const args: Expression[] = [];
+  const content = getDescendent(
+    PARAMETER_NAMES.map((name) => `${name}_content`),
+    params,
+  );
+  if (!content) {
+    return args;
+  }
+  let group: SyntaxNode[] = [];
+  const flush = () => {
+    if (group.length > 0) {
+      const expr = lowerExpressionFromNodes(group, ctx);
+      if (expr) args.push(expr);
+      group = [];
+    }
+  };
+  let arg = content.firstChild;
+  while (arg) {
+    if (arg.name === "LuauCommaSeparator") {
+      flush();
+    } else {
+      group.push(arg);
+    }
+    arg = arg.nextSibling;
+  }
+  flush();
+  return args;
+}
+
+/** Report the text a divert target holds after the one argument list it
+ *  passes, which the divert would otherwise drop without a word. */
+function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
+  if (extra.length === 0) {
+    return;
+  }
+  const from = extra[0]!.from;
+  const to = extra[extra.length - 1]!.to;
+  const text = ctx.read(from, to).trim();
+  ctx.diagnostics?.push({
+    message: text.startsWith("(")
+      ? `A divert passes one argument list; \`${text}\` is not passed.`
+      : `Unexpected \`${text}\` after this divert's target.`,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(from) + 1,
+      endLineNumber: ctx.lineNumber(to) + 1,
+      startCharacterNumber: ctx.characterNumber(from) + 1,
+      endCharacterNumber: ctx.characterNumber(to) + 1,
+    },
+  });
+}
+
+// Lower a `DivertTarget`, relative (`-> X(arg)`) or dotted
+// (`-> X.Y(arg)`). Returns the path identifiers and any lowered args.
 function lowerTargetWithArgs(
   targetNode: SyntaxNode,
   ctx: LowerContext,
 ): { path: Identifier[]; args: Expression[] } {
-  const fnCall = getDescendent(["LuauFunctionCall", "LuauSparkdownExplicitFunctionCall"], targetNode);
-  if (fnCall) {
-    const nameNode = getDescendent("LuauFunctionName", fnCall);
-    const path = nameNode ? [divertPartIdentifier(nameNode, ctx)] : [];
-    const args: Expression[] = [];
-    const params = getDescendent(["LuauFunctionCallParameters_content", "LuauSparkdownExplicitFunctionCallParameters_content"], fnCall);
-    if (params) {
-      // Group siblings between commas into per-argument node lists,
-      // then lower each via `lowerExpressionFromNodes`. Mirrors how
-      // function-call args are lowered elsewhere (e.g. `lowerTable`).
-      let group: SyntaxNode[] = [];
-      let arg = params.firstChild;
-      while (arg) {
-        if (arg.name === "LuauCommaSeparator") {
-          if (group.length > 0) {
-            const expr = lowerExpressionFromNodes(group, ctx);
-            if (expr) args.push(expr);
-            group = [];
-          }
-        } else {
-          group.push(arg);
-        }
-        arg = arg.nextSibling;
-      }
-      if (group.length > 0) {
-        const expr = lowerExpressionFromNodes(group, ctx);
-        if (expr) args.push(expr);
-      }
-    }
-    return { path, args };
-  }
-  return { path: lowerDivertPath(targetNode, ctx), args: [] };
+  const { nameNode, pathNode, params, extra } = readDivertTarget(targetNode);
+  reportExtraTargetText(extra, ctx);
+  const path = nameNode
+    ? [divertPartIdentifier(nameNode, ctx)]
+    : pathNode
+      ? lowerDivertPath(pathNode, ctx)
+      : [];
+  return { path, args: params ? lowerDivertArguments(params, ctx) : [] };
 }
 
 export interface BuildDivertOptions {
@@ -119,12 +229,11 @@ export function divertLoadShapeProblem(divertNode: SyntaxNode): string | null {
 /** The flow a `load` arrow names: the first component of its target path
  *  (`-> load Chapter2.intro` loads Chapter2), or a called flow's name. */
 function loadTargetName(targetNode: SyntaxNode, ctx: LowerContext): string {
-  const fnCall = getDescendent(["LuauFunctionCall", "LuauSparkdownExplicitFunctionCall"], targetNode);
-  if (fnCall) {
-    const nameNode = getDescendent("LuauFunctionName", fnCall);
-    return nameNode ? ctx.read(nameNode.from, nameNode.to) : "";
+  const { nameNode, pathNode } = readDivertTarget(targetNode);
+  if (nameNode) {
+    return ctx.read(nameNode.from, nameNode.to);
   }
-  const first = getDescendent("DivertPartName", targetNode);
+  const first = pathNode ? getDescendent("DivertPartName", pathNode) : null;
   return first ? ctx.read(first.from, first.to) : "";
 }
 

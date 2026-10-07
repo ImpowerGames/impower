@@ -2264,9 +2264,15 @@
         },
         {
           "include": "#DivertPath"
+        },
+        {
+          "include": "#LuauFunctionCallParameters"
+        },
+        {
+          "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=$)|(?!(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.^])"
+      "end": "(?=$)|(?!(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.^(]|(?:[^\\S\\n\\r])+[(])"
     },
     "DivertPath": {
       "tag": "heading",

@@ -121,6 +121,27 @@ describe("the fixtures that fell back for a flow's parameters", () => {
   }
 });
 
+describe("a dotted target's arguments (#1642)", () => {
+  // A divert, a tunnel, a thread and an onward return to a dotted target
+  // pass their arguments on both engines.
+  it("runs diverts/dotted-divert-targets-with-arguments.sd from its chunks as the current engine does", () => {
+    const text = readFileSync(
+      join(FIXTURES, "diverts/dotted-divert-targets-with-arguments.sd"),
+      "utf8",
+    );
+    const { expected, actual } = bothEngines(text);
+    expect(texts(actual)).toEqual([
+      "Inner 1.",
+      "Visit 2 t.",
+      "Aside 3.",
+      "Second 4 b.",
+      "Leave 4.",
+      "Last 5.",
+    ]);
+    expect(actual).toEqual(expected);
+  });
+});
+
 describe("a flow's parameters on the program engine", () => {
   it("binds them for a divert, a tunnel and a thread to the flow, and not for a jump into its middle", () => {
     const { expected, actual } = bothEngines(

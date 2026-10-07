@@ -2189,11 +2189,19 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # A relative call (`-> f(x)`) is a `LuauFunctionCall`, whose name cannot
+    # span a `.`. A dotted path (`-> a.b(x)`) is a `DivertPath` followed by its
+    # arguments as `LuauFunctionCallParameters`, with the same optional space
+    # before `(` that a relative call allows. A second argument list
+    # (`-> a.b(x)(y)`) stays in the target, as it does in a relative call's
+    # `LuauFunctionCall`, so the compiler can report what it does not pass.
     patterns:
       - { include: "#Annotation" }
       - { include: "#LuauFunctionCall" }
       - { include: "#DivertPath" }
-    end: (?=$)|(?!{{IDENTIFIER}}|[.^])
+      - { include: "#LuauFunctionCallParameters" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$)|(?!{{IDENTIFIER}}|[.^(]|{{WS}}+[(])
 
   DivertPath:
     tag: heading
