@@ -13,9 +13,7 @@ export const REASSIGNMENT_NAMES = nodeNameSet([
 /**
  * The parts of a reassignment, in order: its targets (`x`, `a.b, c[1]`),
  * which the rule's begin consumes, then the children of its content (the
- * assignment operation, and the commas and values after it). The bounded
- * `&` reassignment begins without consuming its targets, so they are in
- * its content.
+ * assignment operation, and the commas and values after it).
  */
 export function reassignmentParts(node: SyntaxNode): SyntaxNode[] {
   const parts: SyntaxNode[] = [];
