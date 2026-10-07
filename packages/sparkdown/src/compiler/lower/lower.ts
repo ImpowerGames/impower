@@ -1,5 +1,6 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
+import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { AstStat, AstStatIf } from "../typecheck/Ast";
@@ -330,6 +331,14 @@ export function lowerStatements(
   ctx.blockEndStack?.push([]);
   const result: ParsedObject[] = [];
   const recording = body && ctx.statementStack ? body : undefined;
+  // A block of a `choose` block's preamble (an `if` branch, a `do` block, a
+  // loop's body) is the preamble only up to its first choice: the statements
+  // after a choice are that choice's body (`inlineChoiceBranches`), so a
+  // `choose` block written there is a block of its own, not one that offers
+  // its choices with the preamble's (#1622). The preamble resumes when the
+  // block ends.
+  const preamble = ctx as { inChoosePreamble?: boolean };
+  const inPreamble = preamble.inChoosePreamble === true;
   let first = parent.firstChild;
   // A function body's first lines may qualify the name its return type ends
   // with (`function f(): types` then `.Button`); they are part of the type.
@@ -492,6 +501,12 @@ export function lowerStatements(
         closeStatement(ctx, shape, recording!, last, result, start);
       }
     }
+    if (inPreamble && result.slice(start).some((obj) => obj instanceof Choice)) {
+      preamble.inChoosePreamble = false;
+    }
+  }
+  if (inPreamble) {
+    preamble.inChoosePreamble = true;
   }
   ctx.blockEndStack?.pop()?.forEach((end) => end());
   return result;
