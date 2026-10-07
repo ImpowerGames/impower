@@ -675,8 +675,15 @@ export class Divert extends ParsedObject {
   public override ResolveReferences(context: Story): void {
     if (this.isEmpty || this.isEnd || this.isDone) {
       return;
-    } else if (!this.runtimeDivert) {
-      throw new Error();
+    } else if (!this._runtimeDivert) {
+      // A divert whose generation never ran has nothing to resolve: the
+      // proxy divert of a builtin call that reported its arguments, as
+      // `READ_COUNT(-> a > b)` does, stays among the call's content without
+      // a runtime object. Throwing here would end the story's resolution at
+      // this object (`Story.ExportRuntime` catches it), leaving every name
+      // after it unresolved in a cold compile while an incremental compile
+      // keeps the resolutions of the statements it carried.
+      return;
     }
 
     // A variable-divert derived in a PREVIOUS compile (reused runtime object)

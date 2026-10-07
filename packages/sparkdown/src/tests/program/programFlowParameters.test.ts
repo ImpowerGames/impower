@@ -16,11 +16,13 @@ import { Op } from "../../program/ProgramInstructions";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { StatementChunk } from "../../program/StatementChunk";
+import { flowScreenplay } from "./flowScreenplay";
 import {
   compileScript,
   describeRoot,
   MAIN_URI,
   programCompiler,
+  programSession,
   rootChunks,
   storyRun,
 } from "./programHarness";
@@ -74,39 +76,22 @@ const chunksWith = (root: ProgramRoot, op: number): StatementChunk[] => {
   );
 };
 
-function posAt(text: string, offset: number) {
-  const before = text.slice(0, offset).split("\n");
-  return { line: before.length - 1, character: before.at(-1)!.length };
-}
-
-/** A compiler over one script that an edit replaces `before` with `after`
- *  in, one occurrence, and compiles again. */
-const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
-  let current = text;
-  let version = 1;
-  const first = silence(() => c.compile().program);
+/** A compiler over one script (`programSession`), its first program, and
+ *  an edit that replaces one occurrence of `before` with `after` and gives
+ *  the program it compiles. */
+const session = (
+  text: string,
+  configure?: Parameters<typeof programSession>[1],
+) => {
+  const s = programSession(text, configure);
   return {
-    compiler: c.compiler,
-    first,
+    first: s.program,
     edit(before: string, after: string) {
-      const at = current.indexOf(before);
-      expect(at, before).toBeGreaterThanOrEqual(0);
-      version += 1;
-      c.compiler.updateDocument({
-        textDocument: { uri: MAIN_URI, version },
-        contentChanges: [
-          {
-            range: { start: posAt(current, at), end: posAt(current, at + before.length) },
-            text: after,
-          },
-        ],
-      });
-      current = current.slice(0, at) + after + current.slice(at + before.length);
-      return silence(() => c.compile().program);
+      s.edit(before, after);
+      return s.program;
     },
     get text() {
-      return current;
+      return s.text;
     },
   };
 };
@@ -251,6 +236,36 @@ describe("a flow's parameters on the program engine", () => {
   });
 });
 
+// The current engine compiles this to no story: its onward return takes the
+// container a divert with arguments generates and pushes an override target
+// a variable never fills. The program engine goes on to the flow the
+// variable holds, with the arguments bound.
+describe("an onward return to a variable target", () => {
+  it("passes its arguments to the flow the variable holds", () => {
+    const text = [
+      "store goal = -> after",
+      "-> start",
+      "scene start",
+      "  -> tunnel ->",
+      "end",
+      "scene tunnel",
+      "  In the tunnel.",
+      "  ->-> goal(\"onward\")",
+      "end",
+      "scene after(how)",
+      "  After by {how}.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    expect(program.fallback).toBeUndefined();
+    const run = silence(() => storyRun(new ProgramStory(program.chunks!), []));
+    expect(texts(run)).toEqual(["In the tunnel.", "After by onward."]);
+    expect(run.errors).toEqual([]);
+  });
+});
+
 describe("a host entering a scene that takes parameters", () => {
   const text = [
     "scene pair(a, b)",
@@ -329,6 +344,32 @@ describe("a flow's entry", () => {
     expect(edited.fallback).toBeUndefined();
     expect(edited.chunks!.flowNamed("outer")!.arrays.chunks[0]).toBe(entry);
     expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold(s.text).chunks!));
+  });
+});
+
+// The flow screenplay's randomized edits (#1436's acceptance) met a compile
+// whose resolution stopped at a builtin call's proxy divert, which its
+// generation never reached: `-- c` written inside `{READ_COUNT(-> …)}`
+// leaves `READ_COUNT(-> after > Never …)`, and the story's resolution ended
+// there, so a cold compile read `{mid}` below as a variable while an
+// incremental one kept the label's count.
+describe("a compile whose builtin call reports its arguments", () => {
+  it("resolves the names after the call, as an incremental compile does", () => {
+    // The edit the flow screenplay's fuzz made (#56 of its per-edit run).
+    const text = flowScreenplay(3);
+    const s = session(text);
+    expect(s.first.fallback).toBeUndefined();
+    const edited = s.edit(
+      "Done looping {FLOW_2.side} {count.turns(-> FLOW_2.side)} {READ_COUNT(-",
+      "Done looping {FLOW_2.side} {count.turns(-> FLOW_2.side)} {READ_COUNT(--- c",
+    );
+    const fresh = cold(s.text);
+    expect(fresh.chunks).toBeDefined();
+    const coldLines = describeRoot(fresh.chunks!);
+    // Both read the label's count, which the cold compile read as a
+    // variable once its resolution had stopped.
+    expect(coldLines.some((line) => line.includes('GetCount "FLOW_2.after.mid"'))).toBe(true);
+    expect(describeRoot(edited.chunks!)).toEqual(coldLines);
   });
 });
 
@@ -413,30 +454,19 @@ describe("a flow's parameter list", () => {
       "end",
       "",
     ].join("\n");
-    const c = programCompiler({ [MAIN_URI]: source }, { programChunks: true });
-    const compiler = c.compiler as unknown as {
-      _binaryTable: ChunkStore["table"];
-      _chunkStore: ChunkStore;
-    };
-    compiler._chunkStore = new RefStore(compiler._binaryTable);
-    const first = silence(() => c.compile().program);
+    const s = session(source, (compiler) => {
+      const internals = compiler as unknown as {
+        _binaryTable: ChunkStore["table"];
+        _chunkStore: ChunkStore;
+      };
+      internals._chunkStore = new RefStore(internals._binaryTable);
+    });
+    const first = s.first;
     expect(first.fallback).toBeUndefined();
     const before = new Set(rootChunks(first.chunks!));
     expect(chunksWith(first.chunks!, Op.VarPtr)).toEqual([]);
     kinds = PARAM_REFERENCE;
-    c.compiler.updateDocument({
-      textDocument: { uri: MAIN_URI, version: 2 },
-      contentChanges: [
-        {
-          range: {
-            start: posAt(source, source.indexOf("Plain line.")),
-            end: posAt(source, source.indexOf("Plain line.") + "Plain line.".length),
-          },
-          text: "Plain line, again.",
-        },
-      ],
-    });
-    const after = silence(() => c.compile().program);
+    const after = s.edit("Plain line.", "Plain line, again.");
     expect(after.fallback).toBeUndefined();
     const emitted = rootChunks(after.chunks!).filter((chunk) => !before.has(chunk));
     // The two tunnels that pass the flow arguments, and the edited line.
