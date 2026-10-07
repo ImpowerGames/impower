@@ -436,10 +436,12 @@ export class SparkdownCombinedAnnotator {
       } else {
         this._defineTypeNames.invalidate();
       }
-      // Rebuild all annotations from scratch
-      for (const [key, add] of Object.entries(
-        this.annotate(tree, undefined, undefined, annotate),
-      )) {
+      // Rebuild all annotations from scratch. The parse rebuilt every node,
+      // so no statement is served from a memo.
+      this.current.compilations.rebuilt = { from: 0, to: text.length };
+      const rebuiltAll = this.annotate(tree, undefined, undefined, annotate);
+      this.current.compilations.settle();
+      for (const [key, add] of Object.entries(rebuiltAll)) {
         if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
           if (annotator) {
@@ -528,6 +530,15 @@ export class SparkdownCombinedAnnotator {
       editStart,
       reparsedTo ?? undefined,
     );
+    // The statements the parse rebuilt are lowered whatever their memos say
+    // (`StatementMemoSession`); the others of a block lowered again may be
+    // served from them.
+    if (runsCompilations) {
+      this.current.compilations.rebuilt = {
+        from: editStart,
+        to: windowTo ?? text.length,
+      };
+    }
     this.reannotate(
       tree,
       editStart,
@@ -537,6 +548,7 @@ export class SparkdownCombinedAnnotator {
       annotate,
       changeDesc,
     );
+    this.current.compilations.settle();
     if (!annotate || annotate.has("validations")) {
       const wide = this.validationWindow(tree, text, editStart, windowTo);
       if (
@@ -667,6 +679,22 @@ export class SparkdownCombinedAnnotator {
     }
     const next = nextSignificantToken(tree.topNode, comment.to, read, document);
     return next == null || next.from > line.to;
+  }
+
+  /**
+   * Lowers again the top-level nodes over each of `ranges`, for the
+   * compilation annotator only: the compiler's way to lower again the blocks
+   * holding a statement served from a memo it could not compile from
+   * (`StatementMemoRetry`), once it has marked those memos stale.
+   */
+  relowerCompilations(tree: Tree, ranges: readonly { from: number; to: number }[]) {
+    const compilationsOnly = new Set<keyof SparkdownAnnotators>([
+      "compilations",
+    ]);
+    this.current.compilations.settle(true);
+    for (const { from, to } of ranges) {
+      this.reannotate(tree, from, to, from, to, compilationsOnly);
+    }
   }
 
   /**

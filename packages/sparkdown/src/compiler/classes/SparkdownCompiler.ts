@@ -159,7 +159,16 @@ import {
   parsedChildren,
   ProgramResolver,
   resetSubtreeRuntime,
+  type MemoCandidate,
 } from "../../program/ProgramResolver";
+import { MemoizedStatementNeeded } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import {
+  memosOf,
+  StatementMemoRetry,
+  type MemoStats,
+  type StatementMemoEntry,
+  type StatementMemoHost,
+} from "../lower/statementMemo";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { rootChanges } from "../../program/rootChanges";
 import { captureProgramAssets } from "../../program/programSceneAssets";
@@ -792,6 +801,24 @@ export class SparkdownCompiler {
   // resolution (`canonicalizeSyntheticFlowNames`, `scopeDefineInstances`),
   // which the program path's resolver resolves again.
   protected _renamedNames: ParsedObject[] = [];
+  // The statement memo (#656, `compiler/lower/statementMemo.ts`): the host the
+  // compilation annotator serves memos through, which serves none while the
+  // program falls back to the current engine, whose export needs every
+  // statement's objects.
+  protected _memoHost: StatementMemoHost = {
+    enabled: true,
+    usable: (entry) =>
+      !!entry.chunk &&
+      !!this._chunkStore &&
+      this._chunkStore.holdsMemoChunk(entry.chunk, entry.generation),
+  };
+  // The compiled blocks of the compile in progress that hold statements
+  // served from their memos, and the statements of the blocks it lowered anew
+  // whose memos its resolve and build complete, by each object each holds at
+  // its top. Dropped once the compile ends, so no parsed object outlives it
+  // here.
+  protected _memoBlocks = new Set<CompiledBlock>();
+  protected _memoCandidates = new Map<ParsedObject, MemoCandidate>();
 
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
@@ -1157,6 +1184,9 @@ export class SparkdownCompiler {
     ) {
       this._config.programChunks = config.programChunks;
       this._compilationConfig.recordLoweringReads = config.programChunks;
+      this._compilationConfig.statementMemo = config.programChunks
+        ? this._memoHost
+        : undefined;
       // The builtins prelude is lowered and placed once, so it is parsed
       // again under the new setting, with the statements it records.
       this._cachedPreludeParsedStory = undefined;
@@ -1956,7 +1986,36 @@ export class SparkdownCompiler {
     };
   }
 
+  /**
+   * Compiles the program once, or, when the compile met a statement served
+   * from its memo that it cannot compile without the statement's objects
+   * (`StatementMemoRetry`), lowers again the blocks that hold it without
+   * that memo and compiles again: on a second such compile, without any memo
+   * those blocks were served.
+   */
   protected compileStory(params: CompileProgramParams) {
+    for (let attempt = 0; ; attempt += 1) {
+      const { memoRetry, ...result } = this.compileStoryOnce(params);
+      if (!memoRetry) {
+        return result;
+      }
+      if (attempt >= 2) {
+        // Every memo of the blocks was dropped on the attempt before, so a
+        // compile that still meets one has met a defect: it is reported as
+        // a compile that threw.
+        console.error(memoRetry);
+        return result;
+      }
+      this.relowerMemos(memoRetry, attempt > 0 || memoRetry.all);
+    }
+  }
+
+  protected compileStoryOnce(params: CompileProgramParams): {
+    textDocument: { uri: string; version: number };
+    program: SparkProgram;
+    story?: RuntimeStory;
+    memoRetry?: StatementMemoRetry;
+  } {
     const uri = params.textDocument.uri;
     const startFrom = params.startFrom;
     // Per-request override of the instance default (#351). A host can suppress
@@ -2178,6 +2237,8 @@ export class SparkdownCompiler {
     this._changedChunkRanges = [];
     this._chunkStoreChanges = new Map();
     this._statementRecords = new Map();
+    this._memoBlocks = new Set();
+    this._memoCandidates = new Map();
     // Fresh per-compile record of what the chunks contribute to the context
     // and of the identities that key the assembled base (#654).
     this._contextContributions = [];
@@ -2381,6 +2442,7 @@ export class SparkdownCompiler {
       profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       const renamedTopLevel = this.canonicalizeSyntheticFlowNames(parsedStory);
       profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      this.dropNumberedMemos();
       this._functionFlowNames = new Set(
         [...parsedStory.subFlowsByName]
           .filter(([, flow]) => flow.isFunction)
@@ -2520,10 +2582,17 @@ export class SparkdownCompiler {
             blockOf: (obj) => this._placedBy.get(obj),
             renamed: this._renamedNames,
             cold: false,
+            memoCandidates: this._memoCandidates,
           },
           onDiagnostic,
         );
         profile("end", this._profilerId, "program/resolve", uri);
+        // A statement served from its memo whose names are declared
+        // otherwise, or that stands among other flows, is lowered again.
+        const stale = this._programResolver.staleMemosLastResolve;
+        if (stale.length > 0) {
+          throw new StatementMemoRetry(stale, "a name its resolution read is declared otherwise");
+        }
       } else {
         profile("start", this._profilerId, "ink/compile", uri);
         story = parsedStory.ExportRuntime(onDiagnostic, true);
@@ -2550,6 +2619,14 @@ export class SparkdownCompiler {
         const chunked =
           programPath &&
           this.buildProgramChunks(parsedStory, story, program, uri);
+        if (programPath) {
+          // The current engine's export needs every statement's objects, so
+          // no memo is served while the program falls back.
+          this._memoHost.enabled = chunked;
+          if (!chunked && this._memoBlocks.size > 0) {
+            throw new StatementMemoRetry([], "the program falls back to the current engine", true);
+          }
+        }
         if (programPath && !chunked) {
           // The program runs on the current engine: its story is exported as
           // a compile with statement chunks off exports it, from the
@@ -2649,6 +2726,34 @@ export class SparkdownCompiler {
       if (restoreWatch !== undefined) {
         watchStatements(restoreWatch);
       }
+      const memoRetry =
+        e instanceof MemoizedStatementNeeded
+          ? new StatementMemoRetry([e.statement.memo as StatementMemoEntry], e.message)
+          : e instanceof StatementMemoRetry
+            ? e
+            : undefined;
+      if (memoRetry) {
+        // Nothing of the compile is kept: the blocks are lowered again and
+        // the compile runs again (`compileStory`).
+        for (const phase of [
+          "ink/parse",
+          "scopeDefineInstances",
+          "ink/canonicalizeSyntheticNames",
+          "program/resolve",
+          "program/chunks",
+        ]) {
+          profile("end", this._profilerId, phase, uri);
+        }
+        carriedRuntime.record = null;
+        activation.reparent = null;
+        this._storyJournal.abortCompile();
+        this._memoCandidates = new Map();
+        return {
+          textDocument: { uri, version: this.documents.get(uri)?.version ?? -1 },
+          program,
+          memoRetry,
+        };
+      }
       // Close whichever phase was in flight. This catch swallows the throw and
       // the compiler keeps serving, so a phase left open here produces no
       // measurement at all — losing exactly the compiles worth looking at, and
@@ -2699,6 +2804,10 @@ export class SparkdownCompiler {
       // above whatever the comparison says, and records a fresh table.
       this._riskFlowShapeNextCompile = true;
     }
+    // The statements whose memos this compile completed hold parsed objects,
+    // which no structure of the compiler keeps past the compile.
+    this._memoCandidates = new Map();
+    this._memoBlocks = new Set();
     carriedRuntime.record = null;
     activation.reparent = null;
     if (producedStory && !compileThrew) {
@@ -3371,13 +3480,18 @@ export class SparkdownCompiler {
         ranges.push([chunkStart, chunkEnd]);
       }
       if (this._config.programChunks) {
+        const record = this.statementRecord(
+          rec.block,
+          rec.from,
+          rec.to,
+          lineNumberOffset,
+          uri,
+        );
         (uri === BUILTINS_PRELUDE_URI
           ? this._preludeStatementRecords
           : this._statementRecords
-        ).set(
-          compiledBlock,
-          this.statementRecord(rec.block, rec.from, rec.to, lineNumberOffset, uri),
-        );
+        ).set(compiledBlock, record);
+        this.noteMemos(rec.block as CompiledBlock, record);
       }
       // Anonymous function literals lowered at chunk-top-level (i.e.
       // outside any enclosing function definition) produce synthetic
@@ -4701,6 +4815,137 @@ export class SparkdownCompiler {
     return record;
   }
 
+  /** Notes what the compile in progress has to do with the statement memos
+   *  of `block` (`_memoBlocks`, `_memoCandidates`): a block lowered anew
+   *  since the last compile holds the statements whose memos the compile
+   *  completes, with each statement's lines in its script. */
+  protected noteMemos(block: CompiledBlock, record: StatementRecord): void {
+    if (block.memoized?.length) {
+      this._memoBlocks.add(block);
+    }
+    if (
+      this._prevCompilationIds?.has(block) ||
+      !block.statement ||
+      !record.lineAt ||
+      !record.text
+    ) {
+      return;
+    }
+    for (const shape of memosOf(block.statement).lowered) {
+      const text = record.text(shape.from, shape.to);
+      const skipped = text.length - text.replace(/^[ \t]+/, "").length;
+      const candidate: MemoCandidate = {
+        entry: shape.memo!,
+        objects: shape.objects,
+        line: record.lineAt(shape.from + skipped) + 1,
+        endLine: record.lineAt(shape.to) + 1,
+      };
+      for (const obj of shape.objects) {
+        this._memoCandidates.set(obj, candidate);
+      }
+    }
+  }
+
+  /**
+   * Leaves out of the compile's memo candidates each statement that holds a
+   * name the compile numbers by document order, which the last
+   * `canonicalizeSyntheticFlowNames` found: a statement served from its memo
+   * would hold the name back from the numbering of the names after it.
+   */
+  protected dropNumberedMemos(): void {
+    for (const [obj, candidate] of this._memoCandidates) {
+      if (!candidate.objects.every((held) => this.isSynthFree(held))) {
+        this._memoCandidates.delete(obj);
+      }
+    }
+  }
+
+  /**
+   * Completes the memos of the statements this compile lowered anew, once
+   * its build is committed: with what their resolution reported and read
+   * (`ProgramResolver.memoResolutionsLastResolve`) and the chunk the store
+   * gave them (`ChunkStore.memoChunk`).
+   */
+  protected completeMemos(): void {
+    const resolutions = this._programResolver?.memoResolutionsLastResolve;
+    const store = this._chunkStore;
+    if (!resolutions || !store || resolutions.size === 0) {
+      return;
+    }
+    const candidates = new Map<StatementMemoEntry, MemoCandidate>();
+    for (const candidate of this._memoCandidates.values()) {
+      candidates.set(candidate.entry, candidate);
+    }
+    for (const [entry, resolution] of resolutions) {
+      if (!candidates.has(entry)) {
+        continue;
+      }
+      const chunk = store.memoChunk(entry);
+      if (chunk) {
+        entry.resolution = resolution;
+        entry.chunk = chunk;
+        entry.generation = store.table.generation;
+      }
+    }
+  }
+
+  /** Whether the last `canonicalizeSyntheticFlowNames` found no name it
+   *  numbers under `obj`: it marks such a subtree, or one above it. */
+  protected isSynthFree(obj: ParsedObject): boolean {
+    for (let at: ParsedObject | null = obj; at; at = at.parent) {
+      const marked = this._synthFreeSubtrees.get(at);
+      if (marked !== undefined && marked === (at.content?.length ?? 0)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Lowers again the blocks that hold a statement served from a memo the
+   * compile could not compile from (`StatementMemoRetry`), after marking
+   * those memos stale, or with `all` every statement those blocks were
+   * served (a program that falls back, whose export needs every object).
+   */
+  protected relowerMemos(retry: StatementMemoRetry, all: boolean): void {
+    const entries = new Set(retry.entries);
+    const ranges = new Map<string, { from: number; to: number }[]>();
+    for (const block of this._memoBlocks) {
+      const served = memosOf(block.statement).served;
+      const stale = all ? served : served.filter((shape) => entries.has(shape.memo!));
+      const place = this._blockRecords.get(block)?.place;
+      if (stale.length === 0 || !place) {
+        continue;
+      }
+      for (const shape of stale) {
+        shape.memo!.stale = true;
+      }
+      let list = ranges.get(place.uri);
+      if (!list) {
+        list = [];
+        ranges.set(place.uri, list);
+      }
+      list.push({ from: place.from, to: place.to });
+    }
+    // Lowering every statement those blocks were served lowers them again
+    // with no memo at all, so that the compile after it meets none.
+    const enabled = this._memoHost.enabled;
+    this._memoHost.enabled = enabled && !all;
+    try {
+      for (const [uri, list] of ranges) {
+        this.documents.relowerCompilations(uri, list);
+      }
+    } finally {
+      this._memoHost.enabled = enabled;
+    }
+  }
+
+  /** How many statements of blocks' bodies the last update of `uri`
+   *  lowered, and how many it served from their memos. */
+  memoStats(uri: string): MemoStats | undefined {
+    return this.documents.memoStats(uri);
+  }
+
   /**
    * Builds the program's statement chunks from the assembled parsed story
    * (`programChunks`), and records on `program` the root, or the construct
@@ -4749,6 +4994,7 @@ export class SparkdownCompiler {
     );
     if (build.root && this._chunkStore.current === build.root) {
       this._chunkStoreBlocks = this._compilationIds;
+      this.completeMemos();
     }
     const fallback = flows.fallback ?? build.fallback;
     for (const [construct, count] of Object.entries(flows.unsupported)) {

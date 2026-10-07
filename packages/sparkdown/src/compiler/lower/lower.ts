@@ -1,6 +1,7 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { MemoizedStatement } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { AstStat, AstStatIf } from "../typecheck/Ast";
@@ -82,6 +83,7 @@ import {
   closeStatement,
   openStatement,
   type BodyShape,
+  type StatementShape,
 } from "./utils/statementShape";
 
 // Nodes whose lowerer returns a weave holding one control-flow statement (an
@@ -454,13 +456,20 @@ export function lowerStatements(
           ...statements.flatMap((s) => s.nodes.map((n) => nodeIndex(n) ?? i)),
         );
         last = nodes[lastIndex]!;
-        const block = lowerLuauStatementsAt(
-          child,
-          statements,
-          { node: child, source: reading.source },
-          ctx,
-        );
-        if (block.content && statements.length === 1) {
+        const source = reading.source;
+        const lowerRead = (c: LowerContext) =>
+          lowerLuauStatementsAt(child, statements, { node: child, source }, c);
+        // Through the statement memo, as a statement lowered from its node
+        // is (`lowerBodyStatement`): its syntax runs over every node it reads.
+        const memo = shape ? ctx.statementMemo : undefined;
+        const block =
+          (memo ? memo.lowerStatement(child, ctx, shape!, lowerRead, last.to) : undefined) ??
+          lowerRead(ctx);
+        if (
+          block.content &&
+          statements.length === 1 &&
+          !(block.content[0] instanceof MemoizedStatement)
+        ) {
           const statement = statements[0]!;
           const range = statementRange(
             statement.statement,
@@ -493,7 +502,7 @@ export function lowerStatements(
           }
         }
       } else {
-        const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+        const block = lowerBodyStatement(child, ctx, shape);
         if (block) appendBlockContent(result, block, ctx);
       }
     } finally {
@@ -510,6 +519,28 @@ export function lowerStatements(
   }
   ctx.blockEndStack?.pop()?.forEach((end) => end());
   return result;
+}
+
+/**
+ * Lowers a statement of a block's body that lowers from its own node, whose
+ * shape `shape` is open on the statement stack when shapes are recorded:
+ * through the statement memo of the node being lowered when the context
+ * has one, which serves the statement from its memo when the parse did not
+ * rebuild it and every read its last lowering made reads the same
+ * (`statementMemo.ts`, #656), and otherwise records what it reads.
+ */
+export function lowerBodyStatement(
+  child: SyntaxNode,
+  ctx: LowerContext,
+  shape: StatementShape | undefined,
+): CompiledBlock | undefined {
+  const memo = ctx.statementMemo;
+  if (!memo || !shape) {
+    return lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+  }
+  return memo.lowerStatement(child, ctx, shape, (recorded) =>
+    lower(child as unknown as SparkdownSyntaxNodeRef, recorded),
+  );
 }
 
 // Unwraps a nested statement's block into `result`. The block's own

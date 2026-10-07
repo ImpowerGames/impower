@@ -8,7 +8,7 @@ import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lower, lowerStatements } from "../lower";
+import { lower, lowerBodyStatement, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { captionDisplayCall, isDisplayCall } from "../utils/displayCall";
 import {
@@ -173,7 +173,7 @@ export function lowerSparkdownChooseBlock(
     const shape = currentBody ? openStatement(ctx, child) : undefined;
     const items: ParsedObject[] = [];
     try {
-      const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+      const block = lowerBodyStatement(child, ctx, shape);
       if (block?.diagnostics) {
         diagnostics.push(...block.diagnostics);
       }

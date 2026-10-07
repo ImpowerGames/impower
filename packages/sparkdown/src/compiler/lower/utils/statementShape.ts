@@ -34,6 +34,10 @@ export interface StatementShape {
   /** What the statement's lowering read outside its own syntax, not counting
    *  the statements inside its bodies, which record their own. */
   reads: StatementReads;
+  /** For a statement of a body, the memo it was remembered in or served
+   *  from (`compiler/lower/statementMemo.ts`): the statement is known by it
+   *  for as long as the memo serves it. */
+  memo?: import("../statementMemo").StatementMemoEntry;
 }
 
 export interface StatementReads {
@@ -47,6 +51,12 @@ export interface StatementReads {
    *  a loop body, how many scoped blocks stand between it and the loop,
    *  which a `break` or `continue` closes before it leaves. */
   context: string;
+  /** For a statement of a body, every read of the lowering context its
+   *  lowering made, as the context recorded them (`recordLowering`), which
+   *  holds the reads above and every other: a field of the context is
+   *  compared from the first time a lowerer reads it, with no list of the
+   *  fields kept anywhere (#656). */
+  recorded?: string;
 }
 
 /**

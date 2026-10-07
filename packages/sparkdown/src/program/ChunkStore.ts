@@ -45,6 +45,10 @@ import {
   UNDEFINED_FACT,
 } from "./ProgramFacts";
 import { StoryException } from "../inkjs/engine/StoryException";
+import {
+  StatementMemoRetry,
+  type StatementMemoEntry,
+} from "../compiler/lower/statementMemo";
 import { UnsupportedConstruct } from "./ProgramEmitter";
 import { ProgramStory } from "./ProgramStory";
 import {
@@ -125,6 +129,11 @@ export interface StatementSource {
    *  function's qualified name: its one body is the function's, under the
    *  name's symbol, and its chunk has no code before the function's entry. */
   defines?: string;
+  /** For a statement of a body served from its memo
+   *  (`compiler/lower/statementMemo.ts`), whose block is the memo: it holds
+   *  no objects, and keeps the chunk its memo holds, or the build stops
+   *  (`StatementMemoRetry`). */
+  memo?: boolean;
 }
 
 /** One body of a block statement, or of a function the statement writes. */
@@ -658,6 +667,7 @@ export class ChunkStore {
       }
       return chunk;
     });
+    this.memosKept(statements, carried);
     const nesting = {
       owner: (statement: StatementSource) => owners.get(statement),
     };
@@ -777,6 +787,7 @@ export class ChunkStore {
         this._inherit.set(statement, chunk);
       }
     }
+    this.memosKept(statements, carried);
     // The statements whose bodies a sequence is built for again: each one not
     // carried, and the statements that hold one.
     // Each list's first and last entry that is unsettled is its window
@@ -2317,6 +2328,67 @@ export class ChunkStore {
     this._used.add(chunk);
     carried.add(statement);
     return chunk;
+  }
+
+  /** Stops the build when a statement served from its memo would not keep
+   *  its memo's chunk: the statement holds no objects to emit one from, so
+   *  the compile lowers it again (`StatementMemoRetry`). */
+  protected memosKept(
+    statements: readonly StatementSource[],
+    carried: ReadonlySet<StatementSource>,
+  ): void {
+    const stale = statements.filter(
+      (statement) => statement.memo && !carried.has(statement),
+    );
+    if (stale.length > 0) {
+      throw new StatementMemoRetry(
+        stale.map((statement) => statement.block as StatementMemoEntry),
+        "the chunk store cannot keep its chunk",
+      );
+    }
+  }
+
+  /**
+   * The chunk the last committed build gave the statement `memo` stands
+   * for, when a memo can hold it (`compiler/lower/statementMemo.ts`): a
+   * chunk of the current root and the table's generation that holds no
+   * block, exports nothing, writes no function, alternator or choice of its
+   * own, and refers to no other statement's function by an anonymous symbol,
+   * so that it stays right while the facts it read about the symbols it
+   * refers to read the same, which the store checks of every chunk it keeps.
+   */
+  memoChunk(memo: object): StatementChunk | undefined {
+    const chunk = this._byBlock.get(memo);
+    const info = chunk && this._info.get(chunk);
+    if (
+      !chunk ||
+      !info ||
+      !this.holdsMemoChunk(chunk, info.generation) ||
+      info.parts.length > 0 ||
+      info.alternators.length > 0 ||
+      info.choices.length > 0 ||
+      info.heads.length > 0 ||
+      info.anonymousReferences.length > 0 ||
+      info.defines !== undefined ||
+      info.globals !== undefined ||
+      info.hoisted !== "" ||
+      info.params !== "" ||
+      blockCount(chunk) > 0 ||
+      exportCount(chunk) > 0
+    ) {
+      return undefined;
+    }
+    return chunk;
+  }
+
+  /** Whether the store's current root holds `chunk`, whose ids are of the
+   *  table generation `generation`, which is the table's current one. */
+  holdsMemoChunk(chunk: StatementChunk, generation: number): boolean {
+    return (
+      generation === this.table.generation &&
+      !!this.current &&
+      holdsChunkIn(this.current, chunk)
+    );
   }
 
   /** The statements of a root in the order a compile aligns the next

@@ -579,6 +579,8 @@ function cumulativeRun(
   const failures: string[] = [];
   let chunked = 0;
   let nested = 0;
+  // Statements of bodies the compiles served from their memos (#656).
+  let served = 0;
   let version = 1;
   let undo: RandomEdit | undefined;
   for (let n = 0; n < count; n++) {
@@ -605,13 +607,14 @@ function cumulativeRun(
     const before = text;
     text = update(c.compiler, text, version, edit.offset, edit.end, edit.insert);
     const program = c.compile().program;
+    served += c.compiler.memoStats(MAIN_URI)?.served ?? 0;
     if (program.chunks) chunked += 1;
     else if (undoFallback && edit.kind !== "undo") undo = inverseOf(before, edit);
     if (!["uniform", "shaped", "undo"].includes(edit.kind)) nested += 1;
     const detail = divergence(surface(program), coldSurface(text));
     if (detail) failures.push(record(n, before, edit, detail));
   }
-  return { failures, chunked, nested };
+  return { failures, chunked, nested, served };
 }
 
 describe("incrementalCumulativeEquivalence on the binary program", () => {
@@ -622,7 +625,7 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
       expect(coldSurface(cumulativeScreenplay()).fallback).toBe("null");
       const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5", "\n& f = function() return 9 end\n", "then", ":add(1)", " += 1", "{t.a}", "function() return 1 end", "\ndefine header with\n"];
       const EDIT_COUNT = 140;
-      const { failures, chunked, nested } = cumulativeRun(
+      const { failures, chunked, nested, served } = cumulativeRun(
         cumulativeScreenplay(),
         0x51ed5,
         EDIT_COUNT,
@@ -633,6 +636,9 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
       expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
       expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
+      // Edits inside the bodies leave some of their statements to their
+      // memos (#656).
+      expect(served, "statements served from their memos").toBeGreaterThan(0);
     });
   }, 600_000);
 
@@ -649,10 +655,121 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
       // choice outside a `choose`) can leave a program that falls back as a
       // whole, which the edits after it would not repair, so an edit after
       // which the program fell back is undone by the next one.
-      const { failures, chunked, nested } = cumulativeRun(text, 0x697a1, EDIT_COUNT, CHOOSE_INSERTS, CHOOSE_LINES, [], true);
+      const { failures, chunked, nested, served } = cumulativeRun(text, 0x697a1, EDIT_COUNT, CHOOSE_INSERTS, CHOOSE_LINES, [], true);
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
       expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
       expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
+      expect(served, "statements served from their memos").toBeGreaterThan(0);
+    });
+  }, 600_000);
+});
+
+// ---- Long block bodies, served from their memos ----------------------------
+
+// A screenplay whose blocks have bodies long enough that an edit inside one
+// rebuilds a few of its statements and the parse keeps the rest, so that the
+// compile serves them from their memos (#656): a `choose` block whose choice
+// bodies and `then` clause hold beats, interpolations, portraits, calls,
+// `if` blocks and a label, and a function whose body holds calls, a local
+// and an `if`.
+function longBodiesScreenplay(): string {
+  const beats = (pad: string, n: number, tag: string) =>
+    Array.from({ length: n }, (_, i) => {
+      switch (i % 7) {
+        case 0:
+          return `${pad}HERO: Line ${i} of ${tag}, said aloud.`;
+        case 1:
+          return `${pad}The action of ${tag} goes on, beat ${i}.`;
+        case 2:
+          return `${pad}Seen {trust} times in ${tag}, beat ${i}.`;
+        case 3:
+          return `${pad}[[show backdrop alley_${i}]]`;
+        case 4:
+          return `${pad}& heat = heat + ${i}`;
+        case 5:
+          return [`${pad}if trust > ${i} then`, `${pad}  HERO: Trusted ${i} in ${tag}.`, `${pad}end`].join("\n");
+        default:
+          return `${pad}A quiet beat ${i} of ${tag}.`;
+      }
+    });
+  return [
+    "store trust = 0",
+    "store heat = 0",
+    "",
+    "define hero as character with",
+    '  name = "Hero"',
+    "end",
+    "",
+    "scene OPENING",
+    "  An opening line.",
+    "  -> LONG",
+    "end",
+    "",
+    "scene LONG",
+    "  The long scene begins.",
+    "  choose",
+    "    + [Go on]",
+    "      You go on.",
+    ...beats("      ", 24, "the first choice"),
+    "    + [Stay]",
+    "      You stay.",
+    ...beats("      ", 12, "the second choice"),
+    "  then",
+    ...beats("    ", 50, "the clause"),
+    "    label middle",
+    ...beats("    ", 50, "the rest"),
+    "  end",
+    "  -> ENDING",
+    "end",
+    "",
+    "function tally()",
+    ...Array.from({ length: 20 }, (_, i) => `  print("tally ${i}")`),
+    "  local n = 1",
+    ...Array.from({ length: 20 }, (_, i) => `  print("more ${i}")`),
+    "  if n > 0 then",
+    '    print("positive")',
+    "  end",
+    "  return n",
+    "end",
+    "",
+    "scene ENDING",
+    "  Done with {tally()}.",
+    "  done",
+    "end",
+    "",
+  ].join("\n");
+}
+
+// Whole lines the edits inside bodies insert into the long screenplay.
+const LONG_LINES = [
+  "HERO: A new line of dialogue.",
+  "A new line of action.",
+  "local trust = 5",
+  "& trust = trust + 1",
+  "-> ENDING",
+  "end",
+  "then",
+  "if trust > 1 then",
+  "Seen {heat} more.",
+  "[[show backdrop alley]]",
+  "label extra",
+  'print("new")',
+];
+
+describe("the oracles over long block bodies, served from their memos", () => {
+  it("incremental == cold across many cumulative edits on ONE compiler, half inside the long bodies", () => {
+    quiet(() => {
+      const text = longBodiesScreenplay();
+      expect(coldSurface(text).fallback).toBe("null");
+      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "HERO:", "-> ENDING", "then", " += 1", "[[", "label late"];
+      const EDIT_COUNT = 80;
+      const { failures, chunked, nested, served } = cumulativeRun(text, 0x656a1, EDIT_COUNT, inserts, LONG_LINES, [], true);
+      expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+      expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
+      expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
+      // Most edits inside a body leave the rest of its statements to their
+      // memos.
+      expect(served, "statements served from their memos").toBeGreaterThan(EDIT_COUNT * 10);
     });
   }, 600_000);
 });

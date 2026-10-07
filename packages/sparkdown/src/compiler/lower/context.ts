@@ -309,6 +309,13 @@ export interface LowerContext {
    * callers that keep no statement shapes.
    */
   statementStack?: import("./utils/statementShape").StatementShape[];
+  /**
+   * The statement memo of the top-level node being lowered
+   * (`statementMemo.ts`), through which `lowerStatements` lowers each
+   * statement of a body that lowers from its own node, or serves it from its
+   * memo. Given by the compilation annotator when statement chunks are on.
+   */
+  statementMemo?: import("./statementMemo").StatementMemoSession;
 }
 
 /**
