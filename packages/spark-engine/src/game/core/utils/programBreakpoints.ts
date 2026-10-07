@@ -17,7 +17,9 @@ import {
   blockCount,
   blockFlags,
   chunkId,
+  chunkOfAddress,
   codeWords,
+  offsetOfAddress,
 } from "@impower/sparkdown/src/program/StatementChunk";
 
 /**
@@ -191,6 +193,50 @@ const functionBody = (
     }
   }
   return undefined;
+};
+
+/** Whether the instruction at `address` declares a temporary named `name`
+ *  in the frame that runs it (a `SetVar` with the declare flag), which
+ *  binds a new variable rather than writing the one a data breakpoint
+ *  watches. A function's entry code, the declarations that bind its
+ *  parameters (and the variables a closure captured) before it enters its
+ *  body, binds them in the function's new frame instead. */
+export const declaresName = (
+  root: ProgramRoot,
+  address: number,
+  name: string,
+): boolean => {
+  const at = root.position(chunkOfAddress(address));
+  const chunk = at?.sequence.arrays.chunks[at.entry];
+  if (!chunk) {
+    return false;
+  }
+  const words = codeWords(chunk);
+  const offset = offsetOfAddress(address);
+  if (offset >= words) {
+    return false;
+  }
+  const declares = (o: number) =>
+    opOf(chunk[HEADER_WORDS + o]!) === Op.SetVar &&
+    (flagsOf(chunk[HEADER_WORDS + o]!) & SET_DECLARE) !== 0;
+  if (
+    !declares(offset) ||
+    root.table.strings[chunk[HEADER_WORDS + offset + 1]!] !== name
+  ) {
+    return false;
+  }
+  let next = offset + 2;
+  while (next < words && declares(next)) {
+    next += 2;
+  }
+  const w0 = chunk[HEADER_WORDS + next];
+  const bindsParameters =
+    w0 !== undefined &&
+    next < words &&
+    opOf(w0) === Op.EnterBlock &&
+    (blockFlags(chunk, chunk[HEADER_WORDS + next + 1]!) & BLOCK_FUNCTION) !==
+      0;
+  return !bindsParameters;
 };
 
 /**

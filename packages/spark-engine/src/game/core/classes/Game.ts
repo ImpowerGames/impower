@@ -31,6 +31,7 @@ import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { StepLimitExceeded } from "@impower/sparkdown/src/inkjs/engine/StoryException";
+import { VariablePointerValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
@@ -55,6 +56,7 @@ import { possibleBreakpointLines } from "../utils/possibleBreakpointLines";
 import {
   programAssignmentAddresses,
   programBreakpointLines,
+  declaresName,
   programFunctionAddress,
   runsAfterReset,
 } from "../utils/programBreakpoints";
@@ -1174,13 +1176,21 @@ export class Game<T extends M = {}> {
     const frames =
       program.debugFrames(callStack.currentThread.threadIndex) ?? [];
     const named = frames.filter((frame) => frame.name === watch.scope);
+    // A temporary bound to a pointer (a variable passed by reference, or
+    // one a closure captured, as the current engine binds it) is read
+    // through it, since a write through it leaves the pointer in place.
+    const resolve = (value: InkObject | undefined): unknown =>
+      value instanceof VariablePointerValue
+        ? (program.state.variablesState.ValueAtVariablePointer(value) ??
+          undefined)
+        : value;
     const bound = watch.binding;
     if (
       bound &&
       bound.has(watch.name) &&
       named.some((frame) => frame.element.temporaryScopes.includes(bound))
     ) {
-      return { value: bound.get(watch.name), same: true };
+      return { value: resolve(bound.get(watch.name)), same: true };
     }
     watch.binding = null;
     const innermost = named.at(-1);
@@ -1189,7 +1199,7 @@ export class Game<T extends M = {}> {
       const value = scopes[s]!.get(watch.name);
       if (value !== undefined) {
         watch.binding = scopes[s]!;
-        return { value, same: false };
+        return { value: resolve(value), same: false };
       }
     }
     return { value: undefined, same: false };
@@ -1224,7 +1234,15 @@ export class Game<T extends M = {}> {
         same &&
         value !== undefined &&
         watch.last !== undefined &&
-        value !== watch.last
+        value !== watch.last &&
+        // A temporary declared again in its own block is a new variable in
+        // the same block scope, not a write to the one watched.
+        !(
+          watch.scope !== undefined &&
+          this._executedLog.some((address) =>
+            declaresName(program.root, address, watch.name),
+          )
+        )
       ) {
         changed = true;
       }
@@ -3234,7 +3252,7 @@ export class Game<T extends M = {}> {
       (threadId != null && thread
         ? thread.callstack.length - 1
         : callStack.currentElementIndex);
-    let contextElement = thread?.callstack[frameIndex];
+    const contextElement = thread?.callstack[frameIndex];
     // On the program engine a temporary's scope is the name of the frame it
     // is a temporary of; on the current engine, the runtime path the game
     // last ran, without its indices.
@@ -3242,14 +3260,26 @@ export class Game<T extends M = {}> {
     const programScope = program
       ? program.debugFrames(thread?.threadIndex ?? 0)?.[frameIndex]?.name
       : undefined;
-    if (contextElement?.temporaryVariables) {
-      for (const [
-        name,
-        valueObj,
-      ] of contextElement?.temporaryVariables.entries()) {
+    // Every block scope of the frame, from the innermost out, so a temporary
+    // of an outer block (a function's parameters and the variables its
+    // closure captured, beside the locals of its body) is shown while the
+    // frame runs an inner one, and an inner temporary hides an outer one of
+    // the same name, as reading the name does.
+    const scopes = contextElement?.temporaryScopes ?? [];
+    const seen = new Set<string>();
+    for (let s = scopes.length - 1; s >= 0; s -= 1) {
+      for (const [name, scoped] of scopes[s]!.entries()) {
         // A name with a `$` is the compiler's own (a loop's hidden index,
         // stop and step), which no author wrote.
-        if (!name.includes("$")) {
+        if (!name.includes("$") && !seen.has(name)) {
+          seen.add(name);
+          // A temporary bound to a pointer (a variable passed by reference,
+          // or one a closure captured, as the current engine binds it)
+          // shows the value it points to.
+          const valueObj =
+            scoped instanceof VariablePointerValue
+              ? variableState.ValueAtVariablePointer(scoped)
+              : scoped;
           const value = this.getRuntimeValue(name, valueObj);
           const scopePath = program
             ? programScope

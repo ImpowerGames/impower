@@ -570,6 +570,74 @@ describe("the debugger on the program engine", () => {
     },
   );
 
+  it("fires a data breakpoint on a temporary a closure captured, when the closure writes it", () => {
+    const text = [
+      "-> main", //                       0
+      "scene main", //                    1
+      "  Start.", //                      2
+      "  Got {outer()}.", //              3
+      "  done", //                        4
+      "end", //                           5
+      "function outer()", //              6
+      "  local n = 0", //                 7
+      "  local bump = function()", //     8
+      "    n = n + 1", //                 9
+      "    return n", //                  10
+      "  end", //                         11
+      "  return bump()", //               12
+      "end", //                           13
+      "",
+    ].join("\n");
+    // Stopped in `outer` once `n` is declared, the Variables view names it
+    // `outer.n`; the closure writes that variable.
+    const h = debugGame(text, true);
+    h.game.setBreakpoints([{ file: MAIN, line: 12 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(12);
+    const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+    const dataId = `${n.scopePath}.${n.name}`;
+    expect(dataId).toBe("outer.n");
+    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    expect(h.stoppedAt()).toBe(9);
+    // `outer`'s frame, below the closure's, shows the value it wrote.
+    const frames = h.frames().stackFrames;
+    expect(frames.map((f) => f.name).slice(-2)).toEqual(["outer", "main"]);
+    const outerFrame = frames.find((f) => f.name === "outer")!;
+    expect(names(h.game.getTempVariables(0, outerFrame.id))).toContain("n=1");
+  });
+
+  it("does not take a temporary declared again in its own block for a write to it", () => {
+    const h = debugGame(
+      [
+        "-> main", //              0
+        "scene main", //           1
+        "  local n = 1", //        2
+        "  First.", //             3
+        "  local n = 2", //        4
+        "  Second.", //            5
+        "  n = n + 1", //          6
+        "  Third {n}.", //         7
+        "  done", //               8
+        "end", //                  9
+        "",
+      ].join("\n"),
+      true,
+    );
+    h.game.start();
+    h.game.setDataBreakpoints([{ dataId: "main.n" }]);
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("Second.\n");
+    expect(h.of("game/hitBreakpoint")).toHaveLength(0);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(6);
+    expect(names(h.game.getTempVariables())).toContain("n=3");
+  });
+
   it("offers and stops at the lines of a function written in a declaration", () => {
     const text = [
       "store handler = function()", // 0
