@@ -163,7 +163,8 @@ describe("the address of a beat", () => {
     const ends = (locator: typeof current) =>
       Array.from({ length: lines }, (_, line) => {
         const address = locator.addressAt(MAIN_URI, line, { beat: "last" });
-        return address == null ? null : (locator.locationOf(address)?.endLine ?? null);
+        const location = address == null ? undefined : locator.locationOf(address);
+        return location ? [location.endLine, location.endColumn] : null;
       });
     const first = lineOf(text, "RAFFLES:");
     const last = lineOf(text, "Three > Four.");
@@ -172,6 +173,42 @@ describe("the address of a beat", () => {
     expect(ends(program).slice(first, last + 1)).toEqual(ends(current).slice(first, last + 1));
     const dialogue = root.addressAt(MAIN_URI, lineOf(text, "_Do you understand_?"))!;
     expect(root.locationOf(dialogue)?.endLine).toBe(lineOf(text, "_Do you understand_?") + 1);
+  });
+
+  // The same inside the bodies of a block statement and after them, whose
+  // source has its bodies cut out, with the script's lines ended by CRLF.
+  it("ends on the current engine's line inside and after a block's bodies", () => {
+    const blockText = [
+      "store x = true",
+      "scene A",
+      "  if x then",
+      "    HERO:",
+      "      Inside the branch.",
+      "",
+      "  else",
+      "    HERO:",
+      "      Inside the other.",
+      "",
+      "  end",
+      "  HERO:",
+      "    After the block.",
+      "",
+      "  The end.",
+      "end",
+      "",
+    ].join("\r\n");
+    const current = programLocator(quiet(() => compileScript(blockText)).program);
+    const program = programLocator(
+      quiet(() => compileScript(blockText, { programChunks: true })).program,
+    );
+    const end = (locator: typeof current, needle: string) => {
+      const address = locator.addressAt(MAIN_URI, lineOf(blockText, needle), { beat: "last" });
+      const location = address == null ? undefined : locator.locationOf(address);
+      return location ? [location.endLine, location.endColumn] : null;
+    };
+    for (const needle of ["Inside the branch.", "Inside the other.", "After the block.", "The end."]) {
+      expect(end(program, needle), needle).toEqual(end(current, needle));
+    }
   });
 });
 

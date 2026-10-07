@@ -1463,16 +1463,26 @@ export class BinaryProgramWriter implements ProgramEmitter {
     // with the line before, as the current engine's locations do, so that a
     // reader of the last line of a location (the preview's executed-line
     // label and ranges, the editor's selection after STOP) reads the line
-    // the current engine gave it. That line's end is read from the
-    // statement's own source, which its fingerprint hashes.
+    // the current engine gave it. That line's end is read from the script
+    // when the statement can read it (a block statement can, whose source
+    // has its bodies cut out), and otherwise from the statement's own
+    // source, which is whole and which its fingerprint hashes.
     if (endColumn === 0 && end > start) {
       end -= 1;
-      const lines = (this._sourceLines ??= this._source.split("\n"));
-      const text = lines[end - this._firstLine];
-      endColumn =
-        end === this._firstLine || text === undefined
-          ? (this._lineEnd?.(end) ?? text?.length ?? 0)
-          : text.replace(/\r$/, "").length;
+      if (this._lineEnd) {
+        endColumn = this._lineEnd(end);
+      } else if (this._blocks.length === 0) {
+        const lines = (this._sourceLines ??= this._source.split("\n"));
+        const text = lines[end - this._firstLine];
+        // The first line of the source starts at the statement's column,
+        // which the source does not say, so it gives no column.
+        endColumn =
+          end === this._firstLine || text === undefined
+            ? 0
+            : text.replace(/\r$/, "").length;
+      } else {
+        endColumn = 0;
+      }
     }
     for (const block of this._blocks) {
       const below = block.firstLine > start && block.firstLine <= end;

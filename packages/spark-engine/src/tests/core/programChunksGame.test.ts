@@ -381,18 +381,28 @@ describe("a game given a program for the other engine", () => {
   // Declared after the scene, so that the start line names the same beat in
   // both programs.
   const FALLBACK = CHUNKED + "external message(x)\n";
-  const startFrom = { file: MAIN, line: 1 };
 
-  for (const [name, from, to] of [
-    ["a chunked game given a compile that falls back", CHUNKED, FALLBACK],
-    ["a game that fell back given a chunked compile", FALLBACK, CHUNKED],
+  for (const [name, from, to, routed] of [
+    ["a chunked game given a compile that falls back", CHUNKED, FALLBACK, false],
+    ["a game that fell back given a chunked compile", FALLBACK, CHUNKED, false],
+    // A game that planned and replayed a route to its start point, which
+    // leaves a planned route, checkpoints and a runtime record in its
+    // engine's form, as the worker's preview game holds them.
+    ["a chunked game that replayed a route, given a compile that falls back", CHUNKED, FALLBACK, true],
+    ["a game that fell back and replayed a route, given a chunked compile", FALLBACK, CHUNKED, true],
   ] as const) {
     it(`plays ${name} as a fresh game plays it`, () => {
+      const startFrom = routed ? { file: MAIN, line: 2 } : { file: MAIN, line: 1 };
       const before = compile({ [MAIN]: from }, true);
       const after = compile({ [MAIN]: to }, true);
       expect(!!before.program.fallback).toBe(from === FALLBACK);
       expect(!!after.program.fallback).toBe(to === FALLBACK);
       const game = createGame(before.program, before.story, true, startFrom);
+      if (routed) {
+        game.simulate();
+        expect(game.simulation).toBe("success");
+        expect(game.checkpoints.length).toBeGreaterThan(0);
+      }
       game.updateProgram(after.program, after.story);
       const switched = playGame(game);
       // A boolean, not the engine: a failing assertion would print a story.
@@ -401,7 +411,8 @@ describe("a game given a program for the other engine", () => {
       expect(switched.finished).toBe(true);
       expect(switched.errors).toEqual([]);
       expect(switched.flushed).toEqual(fresh.flushed);
-      expect(switched.flushed.length).toBeGreaterThan(1);
+      // From line 1 the game shows both beats, from line 2 the last.
+      expect(switched.flushed.length).toBe(routed ? 1 : 2);
     });
   }
 });

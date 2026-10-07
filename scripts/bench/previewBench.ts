@@ -389,6 +389,7 @@ async function main() {
       },
       phases,
       messages: sink.stats(),
+      engine: game.programStory ? "program" : "current",
       ...(passes ? { passes } : {}),
     });
     if (i === config.warmup) heapAfterFirst = heapNow();
@@ -408,7 +409,10 @@ async function main() {
     warmup: config.warmup,
     samples: samples.length,
     routeSteps,
-    engine: config.chunks ? "program" : "current",
+    // The engines the worker's game ran the samples on: the current engine
+    // for a program that falls back, even with `--chunks`.
+    engine: [...new Set(samples.map((s) => s.engine))].join(" and ") || "no",
+    fallback: (workerGame?.program as any)?.fallback?.construct ?? null,
     heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1048576),
     // After full collections, when the launcher exposes them.
     heapAfterFirstSampleMB: heapAfterFirst,
@@ -447,7 +451,7 @@ function printReport(report: any) {
     `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
   const out = [
     `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
-    `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB; the ${report.engine} engine`,
+    `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB; the ${report.engine} engine${report.fallback ? ` (the program falls back for ${report.fallback})` : ""}`,
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,

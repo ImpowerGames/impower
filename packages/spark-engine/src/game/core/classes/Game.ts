@@ -805,6 +805,16 @@ export class Game<T extends M = {}> {
     this._executingLocation = null;
     this._previewAddress = undefined;
     this._previewedAddress = undefined;
+    // What a route replayed on the other engine left in the modules (a beat
+    // still queued, the state its checkpoints saved) belongs to a run the
+    // new story never made: they go back to what a game that has never run
+    // holds, as a route replayed from its start puts them (`replayRoute`).
+    if (this._moduleNames && this._moduleNames.length > 0) {
+      this.module.interpreter.clearQueuedBeats();
+      for (const k of this._moduleNames) {
+        this._modules[k]?.load({});
+      }
+    }
     if (this._startFrom) {
       this.setStartFrom(this._startFrom, this._startBeat);
     }
