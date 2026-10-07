@@ -67,6 +67,8 @@ const LINES: [string, string][] = [
   ["local x = if c then 1", "print(x)"],
   ["local x = if c then 1 else", "y = 6"],
   ["a, b = 1, if c then 2", "print(a)"],
+  // A column-0 `else` that reads like a reassignment is the arm's own clause.
+  ["x = if c then 1", "else = 2"],
 ];
 
 const CONTEXTS = { fn, scene, root, ifBlock };

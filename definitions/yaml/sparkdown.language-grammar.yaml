@@ -488,9 +488,16 @@ variables:
   # it: `LuauThenExpression` and `LuauTernaryExpression` read a line that
   # begins with `then`, `else` or `elseif`, `LuauLineContinuation` a
   # continued value, `LuauComment` a comment, and the enclosing bracket
-  # rule or separator its closer. A positive alternative cannot name "any
-  # other line", so the exceptions are written as a negative lookahead.
-  LUAU_COLUMN_0_LINE_START: ^(?=\S)(?!(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;])
+  # rule or separator its closer. Every other line belongs to the body
+  # around the reassignment, whose dispatcher reads it as the next
+  # statement or story line. The structural alternatives do not reach it:
+  # an end is tried before the reassignment's patterns, so no ordering of
+  # them lets the clause, continuation or comment rules claim the line
+  # first; splitting the reassignment would not change which rule stands at
+  # the line start; the body's own end cannot run while the reassignment is
+  # open; and the excluded starts cannot be folded into a tighter positive
+  # variable, since a positive alternative cannot name "any other line".
+  LUAU_COLUMN_0_LINE_START: ^(?=\S)(?!{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;])
   # Where a reassignment ends: on its own line (see `LuauReassignment`), or
   # at the start of a column-0 line that one of its parts carried it onto
   # (`LUAU_COLUMN_0_LINE_START`). The reassignment rules begin by consuming
@@ -10749,7 +10756,18 @@ repository:
     # its line, a next line that begins a statement ends the arm empty, and
     # so does a reassignment at column 0 (`else` then `y = 6`), which the
     # reassignment around the expression then ends before.
-    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?={{LUAU_REASSIGNMENT_START}})"
+    #
+    # lookaround: the `(?!…)` in the column-0 reassignment end leaves a
+    # clause keyword to `LuauElseOperator` and `LuauTernaryExpression`.
+    # This rule's begin takes no text, so at a column-0 `else` it opens where
+    # that end is tried, and `LUAU_REASSIGNMENT_START` reads `else = 2` as a
+    # target and an operator; without the exclusion the end would close the
+    # arm as it opens and the arm would open again at the same position until
+    # the parser's empty-match limit stopped it. Ordering the patterns cannot
+    # help, since the end is tried before them; the parent's end cannot carry
+    # the boundary while this arm is open; and the begin cannot take the
+    # keyword, which `LuauElseOperator` reads with the line break after it.
+    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)

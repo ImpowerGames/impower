@@ -58,7 +58,7 @@
     "repository.LuauDivertTargetLiteral": 1,
     "repository.LuauDocParamModifier": 1,
     "repository.LuauElementContentStringInterpolated": 1,
-    "repository.LuauElseExpression": 2,
+    "repository.LuauElseExpression": 1,
     "repository.LuauElseOperator": 1,
     "repository.LuauForLoop": 1,
     "repository.LuauFunctionAccessor": 1,
