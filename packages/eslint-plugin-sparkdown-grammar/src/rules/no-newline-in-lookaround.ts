@@ -20,9 +20,13 @@
 //    inside a lookbehind, which would look back into the previous line.
 //
 // 3. A line break inside a lookahead with more pattern after it in that
-//    lookahead (`(?={{NL}}\S)`), which reads the next line's content. A
-//    line break that ends its lookahead (`(?=\r\n|\r|\n)`, `(?=$|{{NL}})`)
-//    is an anchor at the line's own end and passes. A rule that should
+//    lookahead (`(?={{NL}}\S)`), which reads the next line's content, or
+//    repeated there (`(?=\n{2})`, `(?=(?:\n)+)`), which needs a second
+//    line. A line break that ends its lookahead once (`(?=\r\n|\r|\n)`,
+//    `(?=$|{{NL}})`) is an anchor at the line's own end and passes.
+//
+// A line break is `\n`, `\r`, or a class that names one or `\s`
+// (`[\r\n]`, `[\s]`). A rule that should
 //    stop before a line that begins with something ends at the start of
 //    that line instead (`^(?=…)`), which each tokenizer decides on that
 //    line alone.
@@ -44,6 +48,7 @@ import {
   isLookahead,
   isLookbehind,
   readsOnAfter,
+  repeats,
 } from "./no-line-crossing-class.ts";
 
 interface Hit {
@@ -74,6 +79,12 @@ function findHits(source: string, exempt: (offset: number) => boolean): Hit[] {
     } else if (readsOnAfter(source, end, groups)) {
       hits.push({ start, length: end - start, label: `${label} with more of its lookahead after it` });
       reported.add(lookaround.start);
+    } else if (
+      repeats(source, end) ||
+      within.some((g) => g.start > lookaround.start && repeats(source, g.end + 1))
+    ) {
+      hits.push({ start, length: end - start, label: `${label} repeated within its lookahead` });
+      reported.add(lookaround.start);
     }
   };
   for (let i = 0; i < tokens.length; i++) {
@@ -96,14 +107,20 @@ function findHits(source: string, exempt: (offset: number) => boolean): Hit[] {
       continue;
     }
     if (tok.text === "[") {
-      // A class that names a line break (`[\r\n]`); a negated class is
-      // `no-line-crossing-class`'s.
+      // A class that names a line break (`[\r\n]`), or, in a lookahead,
+      // `\s` (`[\s]`); a negated class is `no-line-crossing-class`'s. A
+      // class with `\s` in a lookbehind is not reported: it reads only the
+      // character before the position, which can be the previous line's
+      // break only at the start of a line (`LuauSparkleEventClosureAttribute`
+      // and `LuauDocParamModifier` use one).
       let close = i + 1;
       while (close < tokens.length && !(tokens[close]!.text === "]" && tokens[close]!.inCharClass)) close++;
       const closeToken = tokens[close];
       if (!closeToken) continue;
       const body = tokens.slice(i + 1, close);
-      if (body[0]?.text !== "^" && body.some((t) => isLineBreakEscape(t.text))) {
+      const namesLineBreak = body.some((t) => isLineBreakEscape(t.text));
+      const holdsSpace = body.some((t) => t.text === "\\s") && !within.some(isLookbehind);
+      if (body[0]?.text !== "^" && (namesLineBreak || holdsSpace)) {
         const end = closeToken.index + 1;
         lineBreak(tok.index, end, `\`${source.slice(tok.index, end)}\``, within);
       }

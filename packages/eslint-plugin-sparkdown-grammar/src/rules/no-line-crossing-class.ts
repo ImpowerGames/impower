@@ -63,7 +63,7 @@ export function negatedClassMatchesLineBreak(text: string): boolean {
 }
 
 // Whether a quantifier at `at` lets the atom before it repeat.
-function repeats(source: string, at: number): boolean {
+export function repeats(source: string, at: number): boolean {
   const ch = source[at];
   if (ch === "*" || ch === "+") return true;
   if (ch === "{") {

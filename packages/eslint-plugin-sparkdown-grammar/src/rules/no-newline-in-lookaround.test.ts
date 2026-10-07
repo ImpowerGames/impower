@@ -62,6 +62,24 @@ WS: (?:[^\\S\\n\\r])`;
   match: (x)(?={{TRIVIA}}y)`, trivia), []);
 });
 
+test("a line break repeated within its lookahead fails", () => {
+  assert.deepEqual(findings(`Rule:
+  begin: (x)
+  end: (?=\\n{2})
+Other:
+  begin: (y)
+  end: (?=(?:\\n)+)`), [
+    "Rule.end: `\\n` repeated within its lookahead",
+    "Other.end: `\\n` repeated within its lookahead",
+  ]);
+});
+
+test("a class holding \\s fails where its lookahead reads on", () => {
+  assert.deepEqual(findings(`Rule:
+  begin: (x)
+  end: (?=[\\s]+x)`), ["Rule.end: `[\\s]` with more of its lookahead after it"]);
+});
+
 test("an exempt variable's line break does not hide a later one in the same lookahead", () => {
   const trivia = `# reads-past-line: skips blank lines to the next token.
 TRIVIA: (?:[\\r\\n]|{{WS}})*
