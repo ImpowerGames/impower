@@ -2,12 +2,24 @@ import type {
   LocateProgramResult,
   LocateQuery,
 } from "../classes/messages/LocateProgramMessage";
-import { Op, opOf } from "../../program/ProgramInstructions";
+import {
+  CALL_TUNNEL,
+  flagsOf,
+  Op,
+  opOf,
+} from "../../program/ProgramInstructions";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import {
+  BLOCK_CHOICE,
+  BLOCK_FUNCTION,
+  BLOCK_LOOP,
+  BLOCK_THEN,
+  blockCount,
+  blockFlags,
   chunkOfAddress,
   codeWords,
   HEADER_WORDS,
+  offsetOfAddress,
 } from "../../program/StatementChunk";
 import type {
   AddressQuery,
@@ -191,15 +203,86 @@ const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   return leaves;
 };
 
+// The kinds of block body whose owner's line is no stop: a loop's header, a
+// choice's line, a `choose` block's `then` and a function's header.
+const NOT_A_CONDITION =
+  BLOCK_LOOP | BLOCK_CHOICE | BLOCK_THEN | BLOCK_FUNCTION;
+
+/** Whether the address a line takes is a stop of the previous and next beat,
+ *  by what the statement is (#1677). The stops are the beats an author
+ *  displays, a choice's body and the logic an author writes as a statement
+ *  of its own: an assignment, a call, an `if`, and a divert, a `done` or a
+ *  `fin` inside a block's body. Not a stop:
+ *  - a divert, a `done` or a `fin` at its flow's own level (`leavesFlowOnly`);
+ *  - a taken choice's own beat, on the choice's line: the choice's stop is
+ *    the first beat of its body;
+ *  - a later part of a statement than its start: an `elseif`, a choice
+ *    without a beat of its own;
+ *  - a tunnel call (`-> T ->`), a tunnel return (`->->`), a thread (`<-`)
+ *    and a `label`, which mark or move the flow and show nothing;
+ *  - the header of a block that is no `if`: a loop's, a `do` block's.
+ *  This is the set the current engine's path locations stopped at for these
+ *  constructs, which the language server's navigation keeps. */
+const isStop = (root: ProgramRoot, address: number): boolean => {
+  const position = root.position(chunkOfAddress(address));
+  if (!position) {
+    return true;
+  }
+  if (leavesFlowOnly(root, address)) {
+    return false;
+  }
+  const { sequence, entry } = position;
+  const chunk = sequence.arrays.chunks[entry]!;
+  const words = codeWords(chunk);
+  const offset = offsetOfAddress(address);
+  const word = (at: number) => chunk[HEADER_WORDS + at]!;
+  const lineAt = (at: number) => root.rangeAt(sequence, entry, at)?.startLine;
+  if (opOf(word(offset)) === Op.LineStart) {
+    // A beat, unless it stands on a choice's own line.
+    const line = lineAt(offset);
+    for (let at = 0; at < words; at += 2) {
+      if (opOf(word(at)) === Op.Choice && lineAt(at) === line) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (offset !== 0 || opOf(word(0)) === Op.Visit) {
+    return false;
+  }
+  let decides = false;
+  for (let at = 0; at < words; at += 2) {
+    const op = opOf(word(at));
+    if (
+      op === Op.TunnelReturn ||
+      op === Op.Thread ||
+      ((op === Op.Call || op === Op.CallVar) &&
+        (flagsOf(word(at)) & CALL_TUNNEL) !== 0)
+    ) {
+      return false;
+    }
+    decides ||= op === Op.JumpIfFalse;
+  }
+  const blocks = blockCount(chunk);
+  if (blocks === 0) {
+    return true;
+  }
+  for (let k = 0; k < blocks; k += 1) {
+    if (blockFlags(chunk, k) & NOT_A_CONDITION) {
+      return false;
+    }
+  }
+  return decides;
+};
+
 /**
  * The beat a line takes for the previous and next beat: its address and
  * where that address stands, from one program, or nothing for a line with
- * no address. It is the program's accessor's, but for a divert, a `done` or a
- * `fin` that stands at its flow's own level: the program engine gives such a
- * statement an address of its own, which the Game Preview routes to, and the
- * current engine's path locations give it none, so it takes the beat of the
- * lines below it as it does on the current engine. One inside a block's body
- * has an address on both.
+ * no address. It is the program's accessor's, but for an address that is no
+ * stop (`isStop`): the program engine gives every statement and part an
+ * address of its own, which the Game Preview routes to, so such a line takes
+ * the beat of the lines below it, as it did on the current engine's path
+ * locations.
  */
 export const beatAt = (
   program: SparkProgram,
@@ -221,7 +304,7 @@ export const beatAt = (
       typeof address === "number" &&
       location &&
       location.endLine >= from &&
-      leavesFlowOnly(root, address)
+      !isStop(root, address)
     ) {
       from = location.endLine + 1;
       continue;

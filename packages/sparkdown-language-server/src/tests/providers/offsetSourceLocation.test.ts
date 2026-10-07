@@ -329,6 +329,83 @@ describe("previous and next beat navigation", () => {
     expect(await at(lineOf(CHOOSE, "* Onward"), -1)).toEqual({ file: CHAPTER, line: lineOf(CHOOSE, "Second caption.") });
   });
 
+  // The stops are beats, choice bodies, headers and the logic an author
+  // writes as a statement of its own; a tunnel call or return, a label, a
+  // choice's own line, an `elseif` or `else` and a loop's header are none
+  // (#1677).
+  test("stops where the current engine stops around tunnels, labels, choices, elseif, else and while", async () => {
+    const STOPS = [
+      "-> main",
+      "scene main",
+      "  Start.",
+      "  -> T ->",
+      "  After tunnel.",
+      "  label here",
+      "  Labelled.",
+      "  choose",
+      "    + First",
+      "      First body.",
+      "    + Second",
+      "      Second body.",
+      "  end",
+      "  store n = 0",
+      "  if n > 5 then",
+      "    Big.",
+      "  elseif n > 2 then",
+      "    Medium.",
+      "  else",
+      "    Small.",
+      "  end",
+      "  while n < 2 do",
+      "    n += 1",
+      "    Loop.",
+      "  end",
+      "  done",
+      "end",
+      "scene T",
+      "  In tunnel.",
+      "  ->->",
+      "end",
+      "",
+    ].join(NEWLINE);
+    expect(await differences(STOPS, "")).toEqual([]);
+    // Next and previous from every line, as the current engine gives them:
+    // [line, next, previous], null for nowhere.
+    const expected: [number, number | null, number | null][] = [
+      [2, 4, 1],
+      [3, 4, 2],
+      [4, 6, 2],
+      [5, 6, 4],
+      [6, 9, 4],
+      [7, 9, 6],
+      [8, 9, 6],
+      [9, 11, 6],
+      [10, 11, 9],
+      [11, 14, 9],
+      [14, 15, 11],
+      [15, 17, 14],
+      [16, 17, 15],
+      [17, 19, 15],
+      [18, 19, 17],
+      [19, 22, 17],
+      [20, 22, 19],
+      [21, 22, 19],
+      [22, 23, 19],
+      [28, null, 27],
+      [29, null, 28],
+      [30, null, 28],
+    ];
+    for (const engine of [false, true]) {
+      const program = compile(engine, STOPS, "");
+      for (const [line, next, previous] of expected) {
+        const at = (offset: number) =>
+          getOffsetSourceLocation(program, ownBeats(program), MAIN, line, offset);
+        expect((await at(1))?.line ?? null, `chunks ${engine}, line ${line} next`).toBe(next);
+        expect((await at(-1))?.line ?? null, `chunks ${engine}, line ${line} previous`).toBe(previous);
+      }
+    }
+  });
+
   test("lands where it lands on the current engine around diverts that pass arguments", async () => {
     expect(await differences(["include chapter.sd", ""].join(NEWLINE), ARGS)).toEqual([]);
     const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), ARGS);
