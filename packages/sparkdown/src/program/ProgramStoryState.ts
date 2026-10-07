@@ -483,6 +483,12 @@ export class ProgramStoryState {
     return out;
   }
 
+  /** Where `thread`, suspended by a fork, resumes when the threads above
+   *  it end, or nothing for the current thread. */
+  resumeOf(thread: CallStack.Thread): ProgramPosition | null {
+    return this._suspended.get(thread)?.position ?? null;
+  }
+
   /** Pushes a call frame of `type`: its element, with the output's length
    *  as where the function starts writing, and beside it the program frame
    *  that returns to `returnTo` inside `blocks`. */

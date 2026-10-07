@@ -2208,10 +2208,12 @@ repository:
     applyEndPatternLast: true
     end: (?=$)|(?!{{IDENTIFIER}}|[.^])
 
-  # The argument list after a dotted divert target. It is a call's argument
-  # list on one line: a divert ends its line, so an unclosed `(` ends with the
-  # line, and the compiler reports the missing `)` there rather than the list
-  # reading the next lines as arguments.
+  # The argument list after a dotted divert target. A bracketed argument list
+  # spans lines in every spelling of a divert, as a relative call's
+  # `LuauFunctionCallParameters` does: the editor closes a `(` as it is typed,
+  # so the list reads to its `)`. The dotted path before it stays on its line
+  # (`DivertPath` ends with the line), so `-> a.` while typing never reads the
+  # next line as part of the target.
   DivertArguments:
     tag: meta
     name: meta.parameter.luau
@@ -2228,23 +2230,31 @@ repository:
     # so the list reaches its `)` in both engines instead of closing
     # incomplete at that character (GRAMMAR.md §17).
     patterns:
+      - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
       - { include: "#DivertArgumentsUnknown" }
-    end: ([)])|(?=$)
+    # An unclosed list still ends before the next `scene` or `branch` line,
+    # so the flows after it keep their shape in both engines.
+    end: (?={{BEAT}})|([)])
     endCaptures:
       1:
         patterns:
           - { include: "#PunctuationParenClose" }
 
   # A character in a divert's argument list that no argument rule reads. The
-  # compiler reports it.
+  # compiler reports it. A word character is not one: a word no argument rule
+  # reads (`end`, `done`) closes the list there, as it closes a relative
+  # call's, so an unclosed list ends where a relative one does rather than
+  # reading the rest of the script.
   DivertArgumentsUnknown:
     tag: invalid
     name: invalid.illegal.unknown-statement.sd
-    match: ([^\s)])
+    match: ([^\s\w)])
 
   DivertPath:
     tag: heading

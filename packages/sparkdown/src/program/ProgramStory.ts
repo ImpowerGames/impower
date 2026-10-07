@@ -1,4 +1,5 @@
 import { Container } from "../inkjs/engine/Container";
+import type { CallStack } from "../inkjs/engine/CallStack";
 import { debugFileName } from "../compiler/utils/debugFileName";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
@@ -349,6 +350,21 @@ interface SuspendedStep {
   running: RunningInstruction | null;
 }
 
+/** One call frame as the debugger reads it (`ProgramStory.debugFrames`). */
+export interface DebugFrame {
+  /** Whether the frame runs a function or a tunnel; the flow's own frame
+   *  is a tunnel's, as on the current engine. */
+  readonly type: PushPopType;
+  /** The symbol of the function or tunnel the frame runs, or of the flow
+   *  the flow's own frame stands in (-1 for a declaration). */
+  readonly symbol: number;
+  readonly name: string;
+  /** The address the frame stands at, or -1 when it stands nowhere. */
+  readonly address: number;
+  /** The call stack element whose scopes hold the frame's temporaries. */
+  readonly element: CallStack.Element;
+}
+
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
  * (docs/engine/binary-program.md, sections 3, 5, 6, 9 and 10): an eval stack,
@@ -393,6 +409,11 @@ export class ProgramStory {
    *  set: the game keeps the addresses a beat ran, as it keeps the paths the
    *  current engine's `onExecute` names. */
   onExecute: ((address: number) => void) | null = null;
+  /** When set, each instruction's address is appended to it as it runs,
+   *  the instructions of a Luau callback the step calls included: what a
+   *  game reads after each step it takes to keep the addresses a beat ran
+   *  and to find a breakpoint's, with no call per step (#702). */
+  executedLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
 
   /** Formats the message the `error` builtin raises, as the current engine's
@@ -1575,12 +1596,80 @@ export class ProgramStory {
     if (frame) {
       return this.root.labelOf(frame.symbol);
     }
-    const flow = position.sequence.flow;
+    return this.flowName(position.sequence.flow);
+  }
+
+  /** The name a frame that runs no function shows: the name of the flow it
+   *  stands in, `0` for the top-level content, as the current engine's path
+   *  of that container reads, and `global decl` for a declaration. */
+  flowName(flow: number): string {
     if (flow < 0) {
       return "global decl";
     }
     const name = this.root.labelOf(flow);
     return name === ROOT_FLOW_NAME ? "0" : name;
+  }
+
+  /**
+   * The frames view the debugger reads (docs/engine/binary-program.md,
+   * section 9, The Story surface): the call frames of the thread whose
+   * index is `threadIndex`, outermost first, or nothing for a thread the
+   * call stack does not have. Each is named from the symbol of the function
+   * or tunnel it runs, or, for the flow's own frame, from the flow it stands
+   * in (`CallFramePath`), and stands at an address: the frame that runs at
+   * the instruction that ran last, or -1 when none has since a reset or a
+   * load (a suspended thread's at where it resumes), and a frame below
+   * another at the call that pushed the one above, as the current engine's
+   * elements name the pointers they last ran. Its call stack element holds
+   * its temporaries.
+   */
+  debugFrames(threadIndex: number): DebugFrame[] | undefined {
+    const state = this._state;
+    const thread = state.callStack.ThreadWithIndex(threadIndex);
+    if (!thread) {
+      return undefined;
+    }
+    const current = thread === state.callStack.currentThread;
+    const top = current ? state.position : state.resumeOf(thread);
+    const elements = thread.callstack;
+    const frames: DebugFrame[] = [];
+    for (let i = 0; i < elements.length; i += 1) {
+      const element = elements[i]!;
+      const above = elements[i + 1];
+      let at: ProgramPosition | null;
+      let address = -1;
+      if (above) {
+        // The caller resumes after its call, which is the instruction
+        // before the position it returns to.
+        at = state.frameOf(above)?.returnTo ?? null;
+        const chunk = at?.sequence.arrays.chunks[at.entry];
+        if (at && chunk) {
+          address = addressOf(chunkId(chunk), Math.max(0, at.offset - 2));
+        }
+      } else {
+        at = top;
+        if (current) {
+          // Nothing has run since a reset or a load, which a save does not
+          // keep the last instruction across, when it is -1.
+          address = state.previousAddress;
+        } else {
+          const chunk = at?.sequence.arrays.chunks[at.entry];
+          if (at && chunk) {
+            address = addressOf(chunkId(chunk), at.offset);
+          }
+        }
+      }
+      const frame = state.frameOf(element);
+      const symbol = frame ? frame.symbol : (at?.sequence.flow ?? -1);
+      frames.push({
+        type: element.type,
+        symbol,
+        name: frame ? this.root.labelOf(frame.symbol) : this.flowName(symbol),
+        address,
+        element,
+      });
+    }
+    return frames;
   }
 
   /** The source of the instruction running, or of the last one that ran, as
@@ -1900,6 +1989,7 @@ export class ProgramStory {
     const address = addressOf(chunkId(chunk), position.offset);
     state.previousAddress = address;
     if (this.onExecute !== null) this.onExecute(address);
+    if (this.executedLog !== null) this.executedLog.push(address);
     this.execute(position, chunk);
     // A statement whose last instruction ran rests at the start of the next.
     const current = state.position;
@@ -3063,6 +3153,8 @@ export class ProgramStory {
     // none of the game's executed paths.
     const onExecute = this.onExecute;
     this.onExecute = null;
+    const executedLog = this.executedLog;
+    this.executedLog = null;
     const depth = state.callStack.elements.length;
     for (const chunk of this.root.initialization) {
       const at = this.root.position(chunkId(chunk));
@@ -3110,6 +3202,7 @@ export class ProgramStory {
     }
     this.pauseBeforeEvaluatingConditions = pause;
     this.onExecute = onExecute;
+    this.executedLog = executedLog;
     state.position = null;
     state.blockStack = [];
     state.previousAddress = -1;
