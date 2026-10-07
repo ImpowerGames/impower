@@ -936,17 +936,17 @@ node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --lin
 node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 1159 --word panicking --mode edit --chunks --samples 24
 ```
 
-With the statement memo (#656), the edit at line 3515 and the same edit at line 1159, an ordinary top-level statement of the same scene, on 2026-10-07 on the same machine, beside main at ea305f7e4 in one sitting with processor load from other sessions, three rounds of 24 samples after 4 warm-up, each round running the memo and main in turn, medians in milliseconds per round. At line 3515 the annotator lowers the edited statement and the clause's last and serves the other 304 statements of the `then` clause; the resolver generates 319 objects and resolves 326 where it generated 2,258 and resolved 2,634, and repeats 304 memos; the store reads the identity of 2 statements where it read 306. At line 1159 nothing is served.
+With the statement memo (#656), the edit at line 3515 and the same edit at line 1159, an ordinary top-level statement of the same scene, on 2026-10-07 on the same machine, beside main at 03a78e331 in one sitting, three rounds of 24 samples after 4 warm-up, each round running the memo and main in turn, medians in milliseconds per round. At line 3515 the annotator lowers the edited statement and the clause's last and serves the other 304 statements of the `then` clause; the resolver generates 319 objects and resolves 326 where it generated 2,258 and resolved 2,634, and repeats 304 memos; the store reads the identity of 2 statements where it read 306. At line 1159 nothing is served.
 
 | Phase | Line 3515, main | Line 3515, memo | Line 1159, main | Line 1159, memo |
 | --- | --- | --- | --- | --- |
-| `incrementalParse` | 49.0 / 46.8 / 48.1 | 27.4 / 26.8 / 28.8 | 24.5 / 22.6 / 22.9 | 24.0 / 25.6 / 20.1 |
-| `program/resolve` | 6.9 / 7.0 / 7.5 | 3.2 / 3.8 / 3.6 | 2.7 / 2.6 / 2.3 | 3.4 / 3.0 / 2.7 |
-| `program/chunks` | 8.6 / 7.9 / 8.3 | 5.9 / 5.6 / 6.4 | 4.5 / 4.2 / 4.4 | 5.0 / 5.1 / 4.1 |
-| `ink/canonicalizeSyntheticNames` | 2.6 / 2.6 / 3.4 | 0.6 / 0.6 / 0.7 | 0.4 / 0.3 / 0.4 | 0.4 / 0.4 / 0.3 |
-| Worker compile, game and route, wall clock | 136.9 / 137.6 / 134.6 | 101.7 / 101.7 / 110.5 | 73.4 / 68.4 / 69.4 | 78.0 / 81.1 / 62.1 |
+| `incrementalParse` | 48.4 / 47.2 / 47.7 | 27.7 / 27.2 / 27.1 | 23.2 / 22.5 / 22.5 | 22.1 / 22.9 / 21.9 |
+| `program/resolve` | 6.2 / 6.1 / 6.3 | 3.5 / 3.4 / 3.6 | 2.5 / 2.3 / 2.6 | 2.7 / 2.6 / 2.6 |
+| `program/chunks` | 7.8 / 8.3 / 8.0 | 5.4 / 5.6 / 5.6 | 4.3 / 4.6 / 4.5 | 4.2 / 4.4 / 4.5 |
+| `ink/canonicalizeSyntheticNames` | 2.5 / 2.5 / 2.5 | 0.6 / 0.6 / 0.6 | 0.3 / 0.3 / 0.4 | 0.3 / 0.3 / 0.3 |
+| Worker compile, game and route, wall clock | 126.0 / 130.5 / 127.8 | 93.6 / 96.1 / 95.2 | 71.7 / 68.3 / 67.4 | 68.7 / 68.9 / 69.4 |
 
-`incrementalParse` at line 3515 is within 5 ms of line 1159 in two rounds of three (3.4, 1.2 and 8.7 ms apart, the third round's line 1159 unusually fast), and 3.4 ms apart by the medians over the rounds, where main's are 24.2 to 25.2 ms apart. What is left of the difference is the parse of the edit's window, the walk over the clause's 306 statements that finds each memo, and the clause's own lowering; the profile charges no single part more than about 1 ms. At line 1159 the memo's recording and bookkeeping cost about half a millisecond each in `program/resolve` and `program/chunks` by the medians, within the runs' noise. A cold compile of the project measured 2,208.5 and 2,185.7 ms by the median of 6 compiles after 2, against main's 2,175.7 and 2,180.0, about 1 percent for the recording. The heap after full collections ends at 193.4 MB against main's 198.2 MB.
+`incrementalParse` at line 3515 is 5.6, 4.3 and 5.2 ms from line 1159 per round, 5.1 ms by the medians over the rounds, where main's are 24.7 to 25.2 ms apart: about at the 5 ms #656 set, not reliably within it. An earlier sitting beside main at ea305f7e4, with processor load from other sessions, measured 3.4, 1.2 and 8.7 ms apart (3.4 by the medians over its rounds). What is left of the difference is the parse of the edit's window, the walk over the clause's 306 statements that finds each memo, and the clause's own lowering; the profile charges no single part more than about 1 ms. At line 1159 the memo's recording and bookkeeping cost nothing these runs resolve: every phase is within a few tenths of a millisecond of main's. A cold compile of the project measured 2,208.5 and 2,185.7 ms by the median of 6 compiles after 2, against main's 2,175.7 and 2,180.0, about 1 percent for the recording. The heap after full collections ends at 197.3 MB against main's 202.0 MB.
 
 ```bash
 node scripts/bench/engine-bench.mjs --project <Raffles and Bunny project> --line 3515 --mode search
