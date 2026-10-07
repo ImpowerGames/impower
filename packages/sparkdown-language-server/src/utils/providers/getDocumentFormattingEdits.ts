@@ -291,6 +291,7 @@ const CONTINUATION_OPERATOR_RULES = nodeNameSet([
 function isContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
   lineStart: number,
+  read: (from: number, to: number) => string,
 ): boolean {
   for (const node of stack) {
     if (!node) continue;
@@ -300,7 +301,7 @@ function isContinuationLine(
     // earlier line, we're inside its scope but not leading with it.
     if (node.from >= lineStart) return true;
   }
-  return isCommaContinuationLine(stack);
+  return isCommaContinuationLine(stack, read);
 }
 
 // The statements whose value list continues after a comma that ends its line.
@@ -329,12 +330,13 @@ const COMMA_CONTINUED_CONTENT = new Set<string>([
 //     }
 function isCommaContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
+  read: (from: number, to: number) => string,
 ): boolean {
   for (let i = 0; i < stack.length; i++) {
     const node = stack[i];
     if (!node) continue;
     if (isExplicitRuleName(node.name, "LuauCommaLineBreak")) return true;
-    if (continuesReassignmentList(node)) return true;
+    if (continuesReassignmentList(node, read)) return true;
     if (!COMMA_CONTINUED_CONTENT.has(stack[i + 1]?.name ?? "")) continue;
     for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
       if (isExplicitRuleName(prev.name, "LuauCommaLineBreak") && spansLineBreak(prev)) {
@@ -346,7 +348,17 @@ function isCommaContinuationLine(
   return false;
 }
 const LINE_TRIVIA = new Set(["Newline", "ExtraWhitespace", "Whitespace", "OptionalWhitespace"]);
-const COMMENT_TRIVIA = nodeNameSet(["LuauComment", "LuauLineComment", "LuauBlockComment", "LuauDocLineComment"]);
+const COMMENT_TRIVIA = nodeNameSet([
+  "LuauComment",
+  "LuauLineComment",
+  "LuauBlockComment",
+  "LuauDocLineComment",
+  "LuauValueTrailingBlockComment",
+  "LuauUncallableValueTrailingBlockComment",
+  "LuauCallableValueTrailingBlockComment",
+  "LuauTypeTrailingBlockComment",
+  "LuauTypeTrailingBlockCommentClose",
+]);
 
 // Whether `node` begins a statement that ends a list rather than continuing
 // it: a reassignment continues a target list or is a second `=` the list
@@ -364,7 +376,10 @@ function beginsListEndingStatement(node: SyntaxNode): boolean {
 // continued line of the reassignment. A statement there ends the list
 // instead (`a, g = 1,` then `return g`), as does a line before which no
 // comma ends its line.
-function continuesReassignmentList(node: SyntaxNode): boolean {
+function continuesReassignmentList(
+  node: SyntaxNode,
+  read: (from: number, to: number) => string,
+): boolean {
   if (beginsListEndingStatement(node)) return false;
   // Whether the line before the one being walked must end with a comma.
   // The walk starts on the node's own line, which can hold earlier parts of
@@ -375,7 +390,13 @@ function continuesReassignmentList(node: SyntaxNode): boolean {
       needComma = true;
       continue;
     }
-    if (LINE_TRIVIA.has(prev.name) || COMMENT_TRIVIA.has(prev.name)) continue;
+    // A comment between two parts can hold a line break of its own
+    // (`2 --[[note` then `]] math.max(`), which ends the line before it.
+    if (COMMENT_TRIVIA.has(prev.name)) {
+      if (/[\r\n]/.test(read(prev.from, prev.to))) needComma = true;
+      continue;
+    }
+    if (LINE_TRIVIA.has(prev.name)) continue;
     if (prev.name === "LuauReassignment") {
       const parts = reassignmentParts(prev).filter((part) => !LINE_TRIVIA.has(part.name));
       const last = parts[parts.length - 1];
@@ -493,6 +514,7 @@ function braceDepth(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
   braceLineIndex: number,
   lineStart: number,
+  read: (from: number, to: number) => string,
 ): number {
   const inner = stack.slice(0, braceLineIndex);
   let depth = 0;
@@ -503,7 +525,7 @@ function braceDepth(
     depth += 1;
   }
   depth += computeBlockIndent(inner);
-  if (isContinuationLine(inner, lineStart)) depth += 1;
+  if (isContinuationLine(inner, lineStart, read)) depth += 1;
   return depth;
 }
 
@@ -641,6 +663,8 @@ export const getFormatting = (
     });
   };
 
+  const read = (from: number, to: number) => document.read(from, to);
+
   const processIndent = (from: number, to: number) => {
     // Zero-width indent at end-of-doc — skip so we don't emit a
     // ghost trailing-whitespace line.
@@ -738,7 +762,7 @@ export const getFormatting = (
         const braceLine =
           braceLineIndex >= 0 ? stack[braceLineIndex] : undefined;
         if (braceLine && braceLineIndex >= 0) {
-          const depth = braceDepth(stack, braceLineIndex, lineStart);
+          const depth = braceDepth(stack, braceLineIndex, lineStart, read);
           if (braceLine.from < lineStart) {
             // A later line of the brace line: its depth below the first.
             const base = braceLineLevels.get(braceLine.from);
@@ -782,7 +806,7 @@ export const getFormatting = (
       // (`+`, `..`, `:`, `and`, etc.) belongs to an expression that
       // started on the previous line and should indent one level past
       // the opener (see `isContinuationLine`'s comment).
-      if (isContinuationLine(stack, lineStart)) {
+      if (isContinuationLine(stack, lineStart, read)) {
         newIndentLevel += 1;
       }
 

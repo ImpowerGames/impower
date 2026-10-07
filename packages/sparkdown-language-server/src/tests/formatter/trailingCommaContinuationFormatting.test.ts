@@ -162,6 +162,18 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(wrap(formatted))).toBe(wrap(formatted));
   });
 
+  // A block comment that spans lines ends the line the list's last value
+  // is on, so the call after it is a statement of its own (`2` ends the
+  // list). The comment's own lines are left aside: the formatter rewrites
+  // the space after its close on a second pass, as it does on main.
+  test("leaves a call after a value and a comment spanning lines at the statement's level", () => {
+    const source = ["function f()", "  local a, g = 0, 0", "  a, g = 1,", "2 --[[comment", "]] math.max(", "3,", "4", ")", "  return g", "end", ""].join("\n");
+    const callLines = (text: string) => text.split("\n").filter((line) => /^\s*(3,|4|\))$/.test(line));
+    const once = formatSource(source);
+    expect(callLines(once)).toEqual(["    3,", "    4", "  )"]);
+    expect(callLines(formatSource(once))).toEqual(callLines(once));
+  });
+
   test("indents a target list continued after a trailing comma one level past the reassignment", () => {
     const source = ["function f()", "  local a, g = 0, 0", "  a,", "g = 1, 2", "  return g", "end", ""].join("\n");
     expect(formatSource(source)).toBe(
