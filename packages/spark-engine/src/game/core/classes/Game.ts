@@ -382,6 +382,10 @@ export class Game<T extends M = {}> {
     name: string;
     last: unknown;
     binding: Map<string, InkObject> | null;
+    /** The addresses of the declarations of a temporary's name in the code
+     *  its frame runs, apart from those that bind a function's parameters:
+     *  where it is declared again rather than written. */
+    redeclarations: ReadonlySet<number>;
   }[] = [];
 
   protected _simulation?: "none" | "simulating" | "success" | "fail";
@@ -1236,13 +1240,10 @@ export class Game<T extends M = {}> {
         watch.last !== undefined &&
         value !== watch.last &&
         // A temporary declared again in its own block is a new variable in
-        // the same block scope, not a write to the one watched.
-        !(
-          watch.scope !== undefined &&
-          this._executedLog.some((address) =>
-            declaresName(program.root, address, watch.name),
-          )
-        )
+        // the same block scope, not a write to the one watched: the step ran
+        // one of the declarations of its name in the code its frame runs
+        // (a function it calls declares in a frame of its own).
+        !this._executedLog.some((address) => watch.redeclarations.has(address))
       ) {
         changed = true;
       }
@@ -1441,7 +1442,19 @@ export class Game<T extends M = {}> {
             "No variable found at the breakpoint",
           );
         }
-        watches.push({ scope, name, last: undefined, binding: null });
+        watches.push({
+          scope,
+          name,
+          last: undefined,
+          binding: null,
+          redeclarations: new Set(
+            scope === undefined
+              ? []
+              : declarations.filter((address) =>
+                  declaresName(program.root, address, name),
+                ),
+          ),
+        });
         // A global is placed where it is declared, since a temporary that
         // shadows it is assigned by the same name; a temporary where it is
         // first assigned.

@@ -610,6 +610,44 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables(0, outerFrame.id))).toContain("n=1");
   });
 
+  it("fires a data breakpoint when a callback writes the variable and declares another of its name", () => {
+    const text = [
+      "-> main", //                                0
+      "scene main", //                             1
+      "  Start.", //                               2
+      "  Got {outer()}.", //                       3
+      "  done", //                                 4
+      "end", //                                    5
+      "function outer()", //                       6
+      "  local n = 0", //                          7
+      "  local less = function(a, b)", //          8
+      "    n = n + 1", //                          9
+      "    do", //                                 10
+      "      local n = 99", //                     11
+      "    end", //                                12
+      "    return a < b", //                       13
+      "  end", //                                  14
+      "  local t = {2, 1}", //                     15
+      "  table.sort(t, less)", //                  16
+      "  return n", //                             17
+      "end", //                                    18
+      "",
+    ].join("\n");
+    const h = debugGame(text, true);
+    h.game.setBreakpoints([{ file: MAIN, line: 16 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(16);
+    expect(h.game.setDataBreakpoints([{ dataId: "outer.n" }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    h.continueToBreakpoint();
+    // The comparator runs inside the step that calls `table.sort`, writes
+    // `outer`'s `n` and declares a temporary `n` of its own.
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    const outerFrame = h.frames().stackFrames.find((f) => f.name === "outer")!;
+    expect(names(h.game.getTempVariables(0, outerFrame.id))).toContain("n=1");
+  });
+
   it("does not take a temporary declared again in its own block for a write to it", () => {
     const h = debugGame(
       [
