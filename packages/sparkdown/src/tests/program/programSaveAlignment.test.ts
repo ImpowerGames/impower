@@ -856,6 +856,20 @@ describe("a save at a menu", () => {
       expect(play(loaded, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
     });
 
+    it("and a jump elsewhere before the next beat is a save of the state as it stands, with no choice to take again", () => {
+      const story = engine(rootOf(CHOSEN("kept")));
+      advance(story, 1);
+      story.Continue();
+      story.ChooseChoiceIndex(1);
+      story.ChoosePathString("start");
+      const save = story.toSave();
+      expect(JSON.parse(save).chosen).toBeUndefined();
+      const loaded = engine(rootOf(CHOSEN("kept")));
+      loaded.loadSave(save);
+      expect(loaded.loadedSaveReport!.chosen).toBeNull();
+      expect(advance(loaded, 1)).toEqual(["Before."]);
+    });
+
     it("as a checkpoint's image exported, takes the choice again, and is unplaced when its condition no longer offers it", () => {
       const same = engine(rootOf(CHOSEN("kept")));
       same.loadSave(chosenSave("checkpoint"));

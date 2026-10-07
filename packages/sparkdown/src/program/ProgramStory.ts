@@ -913,6 +913,7 @@ export class ProgramStory {
     if (this._imagesOn) {
       this.attachImages();
     }
+    this._chosenAt = null;
     this._stateIsPristine = true;
   }
 
@@ -1010,10 +1011,12 @@ export class ProgramStory {
     if (resetCallstack) {
       this.ResetCallstack();
     }
-    // Changing direction drops the choices waiting (`SetChosenPath`).
+    // Changing direction drops the choices waiting (`SetChosenPath`), and
+    // the state is no longer the one just after a choice.
     this._state.generatedChoices.length = 0;
     this._state.beatImage = null;
     this._stillImage = null;
+    this._chosenAt = null;
     this._state.DiscardLineEnd();
     this.passArguments(args);
     this._stateIsPristine = false;
