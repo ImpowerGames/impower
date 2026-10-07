@@ -75,14 +75,18 @@ export class DebugMetadata {
   public static onPrinted: ((metadata: DebugMetadata, printed: string) => void) | null =
     null;
 
-  public toString() {
-    let printed: string;
+  /** The position as a message prints it, without being heard: the
+   *  resolver compares it with what `toString` printed. */
+  public printedPosition(): string {
     if (this.fileName !== null) {
       const name = this.fileName.split(".")[0] || this.fileName;
-      printed = `line ${this.startLineNumber} of '${name}'`;
-    } else {
-      printed = "line " + this.startLineNumber;
+      return `line ${this.startLineNumber} of '${name}'`;
     }
+    return "line " + this.startLineNumber;
+  }
+
+  public toString() {
+    const printed = this.printedPosition();
     DebugMetadata.onPrinted?.(this, printed);
     return printed;
   }

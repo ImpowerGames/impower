@@ -1602,10 +1602,4 @@ const anchorDelta = (record: UnitRecord): number =>
   record.anchor ? record.anchor.startLineNumber - record.anchorLine : 0;
 
 /** How `DebugMetadata.toString` prints `metadata` now, without being heard. */
-const printedAt = (metadata: DebugMetadata): string => {
-  if (metadata.fileName !== null) {
-    const name = metadata.fileName.split(".")[0] || metadata.fileName;
-    return `line ${metadata.startLineNumber} of '${name}'`;
-  }
-  return "line " + metadata.startLineNumber;
-};
+const printedAt = (metadata: DebugMetadata): string => metadata.printedPosition();
