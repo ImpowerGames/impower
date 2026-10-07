@@ -19,7 +19,7 @@ import type { ProgramRoot } from "../../program/ProgramRoot";
 import { normalizeSource } from "../../program/BinaryProgramWriter";
 import { fingerprintOf } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compileScript } from "./programHarness";
+import { compileScript, programSession } from "./programHarness";
 import { SAVE_SCENARIOS, SCENARIO_MARKER } from "./programSaveScenarios";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -361,6 +361,82 @@ describe("a save written by another process", () => {
     expect(report.exact).toBe(false);
     expect(report.warnings.join(" ")).toMatch(/'helper' is dropped/);
     expect(play(loaded)).toEqual(["After."]);
+  });
+
+  // Round 6 of the review of #1654 (report 6043744707, an unverified
+  // concern): a waiting choice raised by a thread inside a tunnel, whose
+  // frame, the tunnel's, is the one dropped.
+  it("at a menu inside a tunnel whose scene binds its parameters in other code drops the frame and the choice a thread raised in it", () => {
+    const TUNNEL = (params: string) =>
+      [
+        "-> start",
+        "",
+        "scene start",
+        "  Before.",
+        "  -> helper(10, 20) ->",
+        "  After.",
+        "end",
+        "",
+        `scene helper(${params})`,
+        "  <- merchant",
+        "  Helper {a}.",
+        "  choose",
+        '    * "Leave"',
+        "      Left.",
+        "  end",
+        "  ->->",
+        "end",
+        "",
+        "scene merchant",
+        "  choose",
+        '    * "Ask"',
+        "      Asked.",
+        "  end",
+        "  done",
+        "end",
+        "",
+      ].join("\n");
+    const story = new ProgramStory(rootOf(TUNNEL("a, ...")), { saveHistory: 1 });
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    expect(play(story)).toEqual(["Before.", "Helper 10."]);
+    expect(story.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Leave"']);
+    const save = story.toSave();
+    const beat = JSON.parse(save).beats.at(-1);
+    expect(beat.choices.map((c: { text: string }) => c.text)).toEqual(['"Ask"']);
+    // The same scene: the frame and the choice are kept.
+    const same = engine(rootOf(TUNNEL("a, ...")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    // The beat before the menu ended at its line; the continue raises it.
+    expect(play(same)).toEqual([]);
+    expect(same.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Leave"']);
+    // Another parameter ahead of `a`: the tunnel's frame is dropped, and the
+    // choice raised in it with it.
+    const loaded = engine(rootOf(TUNNEL("first, a, ...")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'helper' is dropped/);
+    // The choice was raised in the tunnel's frame, the top of its thread.
+    expect(beat.choices[0].frames.at(-1).fn).toEqual({ n: "helper" });
+    expect(report.warnings.join(" ")).toMatch(/Ask.*cannot be placed, and was dropped/);
+    expect(play(loaded)).toEqual(["After."]);
+    expect(loaded.currentChoices.map((c) => c.text)).toEqual([]);
+    // Within a session: the checkpoint of the beat before the menu,
+    // restored by the engine of a compile that changed the parameters, is
+    // translated with the same cut, and the choice is dropped too.
+    const session = programSession(TUNNEL("a, ..."));
+    const game = engine(session.root);
+    expect(play(game)).toEqual(["Before.", "Helper 10."]);
+    const checkpoint = game.captureBeat();
+    const edited = session.edit("scene helper(a, ...)", "scene helper(first, a, ...)");
+    const next = new ProgramStory(edited, { images: game.images, history: game.history });
+    next.keepBeatImages = true;
+    next.onError = () => {};
+    expect(next.restore(checkpoint)).toBe(true);
+    expect(play(next)).toEqual(["After."]);
+    expect(next.currentChoices.map((c) => c.text)).toEqual([]);
   });
 
   // Round 1 of the review of #1654 (report 6031983271, a coverage gap): a
