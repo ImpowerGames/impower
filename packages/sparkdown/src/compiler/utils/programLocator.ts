@@ -158,21 +158,26 @@ export const answerLocateQueries = (
   });
 };
 
-// What a statement that only leaves its flow pushes before it leaves: the
-// arguments of a divert.
-const PUSHES = new Set<number>([
-  Op.Str,
-  Op.Int,
-  Op.Num,
-  Op.Const,
-  Op.GetVar,
-  Op.Sym,
-  Op.VarPtr,
-]);
+// How a divert, a `done` or a `fin` ends: its code's last instruction.
 const LEAVES = new Set<number>([Op.JumpSym, Op.JumpVar, Op.Done, Op.End]);
+// What only another kind of statement does: a beat's or a line's output, a
+// block, a choice, a thread and an assignment. A divert's arguments are
+// expressions, whatever they compute.
+const NOT_A_DIVERT = new Set<number>([
+  Op.LineStart,
+  Op.Text,
+  Op.Out,
+  Op.BeginTag,
+  Op.Tag,
+  Op.EnterBlock,
+  Op.Choice,
+  Op.Thread,
+  Op.SetVar,
+  Op.StoreIndex,
+]);
 
 /** Whether the statement an address stands in is a divert, a `done` or a
- *  `fin` at its flow's own level, and nothing else. */
+ *  `fin` at its flow's own level, with whatever arguments it passes. */
 const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
   if (!position || root.ownerOf(position.sequence)) {
@@ -183,7 +188,7 @@ const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   let last = -1;
   for (let offset = 0; offset < words; offset += 2) {
     last = opOf(chunk[HEADER_WORDS + offset]!);
-    if (!PUSHES.has(last) && !LEAVES.has(last)) {
+    if (NOT_A_DIVERT.has(last)) {
       return false;
     }
   }

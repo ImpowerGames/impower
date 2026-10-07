@@ -310,6 +310,44 @@ describe("the language server's locations", () => {
     // later here.
   }, 60_000);
 
+  it("give the previous and next beat the current back end gave around diverts that pass arguments", async () => {
+    const text = [
+      "store n = 0",
+      "scene A",
+      "  Before.",
+      "  -> B(n + 1)",
+      "  After.",
+      "  -> B(f(n) * 2)",
+      "  Later.",
+      "end",
+      "scene B(x)",
+      "  Value {x}.",
+      "  done",
+      "end",
+      "function f(v)",
+      "  return v",
+      "end",
+      "",
+    ].join(NEWLINE);
+    const ls = await languageServer(text);
+    expect(ls.compiled.fallback).toBeUndefined();
+    const remote = ls.workspace.locatorOf(ls.program);
+    const current = coldCompile(text, false);
+    const lines = text.split(NEWLINE).length;
+    for (let line = 0; line < lines; line++) {
+      for (const offset of [-1, 1]) {
+        expect(
+          await getOffsetSourceLocation(ls.program, remote, MAIN, line, offset),
+          `line ${line}, offset ${offset}`,
+        ).toEqual(await getOffsetSourceLocation(current, ownBeats(current), MAIN, line, offset));
+      }
+    }
+    expect(await getOffsetSourceLocation(ls.program, remote, MAIN, lineOf(text, "Before."), 1)).toEqual({
+      file: MAIN,
+      line: lineOf(text, "After."),
+    });
+  }, 60_000);
+
   it("are none once the script the program was compiled for is removed, which the worker then holds no longer", async () => {
     const ls = await languageServer(BEATS);
     const OTHER = "file:///project/other.sd";

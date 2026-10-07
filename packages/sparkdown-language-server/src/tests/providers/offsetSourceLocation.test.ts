@@ -239,4 +239,41 @@ describe("previous and next beat navigation", () => {
     // Nothing past the last beat before `done`.
     expect(await at(lineOf(FLOWS, "Bye."), 1)).toBeNull();
   });
+
+  // A divert's arguments are expressions, which compute what they compute
+  // (an operator, a call, several values) before the divert leaves.
+  const ARGS = [
+    "store n = 0",
+    "",
+    "scene A",
+    "  Before.",
+    "  -> B(n + 1)",
+    "  After.",
+    "  -> B(f(n) * 2)",
+    "  Later.",
+    "  -> B(#tostring(n))",
+    "  Last.",
+    "end",
+    "",
+    "scene B(x)",
+    "  Value {x}.",
+    "  done",
+    "end",
+    "",
+    "function f(v)",
+    "  return v",
+    "end",
+    "",
+  ].join(NEWLINE);
+
+  test("lands where it lands on the current engine around diverts that pass arguments", async () => {
+    expect(await differences(["include chapter.sd", ""].join(NEWLINE), ARGS)).toEqual([]);
+    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), ARGS);
+    const at = (line: number, offset: number) =>
+      getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
+    expect(await at(lineOf(ARGS, "Before."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "After.") });
+    expect(await at(lineOf(ARGS, "After."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Before.") });
+    expect(await at(lineOf(ARGS, "After."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Later.") });
+    expect(await at(lineOf(ARGS, "Later."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Last.") });
+  });
 });
