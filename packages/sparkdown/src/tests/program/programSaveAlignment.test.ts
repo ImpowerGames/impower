@@ -640,6 +640,41 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
+  // Round 3 of the review of #1654 (report 6039459012): a string continued
+  // past its line, whose next line starts with what would be a comment.
+  it("tell apart two calls that differ inside a string continued by `\\z` onto a line that starts with `--`", () => {
+    const call = (text: string) => [String.raw`& table.insert(t, "a\z`, `-- ${text}")`];
+    placesAt(
+      scene(["P1.", "P2.", "P3.", ...call("b"), "Count {#t}."], "start", ["store t = {}", ""]),
+      scene(["P1.", "P2.", "P3.", ...call("c"), ...call("b"), "Count {#t}."], "start", ["store t = {}", ""]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Count 1."],
+    );
+  });
+
+  it("tell apart two calls that differ inside a string continued by an escaped line end onto a line that starts with `--`", () => {
+    const call = (text: string) => [String.raw`& table.insert(t, "a\ `.trimEnd(), `-- ${text}")`];
+    placesAt(
+      scene(["P1.", "P2.", "P3.", ...call("b"), "Count {#t}."], "start", ["store t = {}", ""]),
+      scene(["P1.", "P2.", "P3.", ...call("c"), ...call("b"), "Count {#t}."], "start", ["store t = {}", ""]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Count 1."],
+    );
+  });
+
+  it("tell apart two displayed lines that differ after an interpolation runs onto a line that starts with `//`", () => {
+    const line = (text: string) => ['Line {"a" ..', `" // ${text}"}.`];
+    placesAt(
+      scene(["P1.", "P2.", "P3.", ...line("b"), "End."]),
+      scene(["P1.", "P2.", "P3.", ...line("c"), ...line("b"), "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Line a // b.", "End."],
+    );
+  });
+
   it("tell apart two lines of logic that differ inside a regex literal holding a `--`", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", "& local r = @/a--b/", "Shown.", "End."]),

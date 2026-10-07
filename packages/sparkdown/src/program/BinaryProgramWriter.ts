@@ -1702,130 +1702,136 @@ const numberText = (value: number): string =>
  *  between two tokens is kept, as one space, only where dropping it would
  *  join them into other tokens: two words (`local x`), or two operators
  *  that read together as another (`- -` against `--`, `. .` against `..`;
- *  `JOINED`). A quoted string, a template string with its interpolations
- *  and a regex literal (`@/ /`), whose text may hold a `--`, are kept as
- *  written (`endOfString`); a long string (`[[ ]]`, `[=[ ]=]`) is
- *  too, across lines, its blank lines and its edge spaces included. Any
- *  other line is displayed text (a line of narration or dialogue, a
- *  choice's line), whose comment is a `//` that starts the line or follows
- *  whitespace and is followed by whitespace or the line's end, outside its
- *  interpolations, as the grammar reads one (`SparkdownInlineComment`;
- *  `withoutDisplayComment`); `--` there is text. Every line of a
+ *  `JOINED`). A string, a template string with its interpolations, a regex
+ *  literal (`@/ /`) and a long string (`[[ ]]`, `[=[ ]=]`) are kept as
+ *  written, whose text may hold a `--` (`endOfString`). Any other line is
+ *  displayed text (a line of narration or dialogue, a choice's line), whose
+ *  comment is a `//` that starts the line or follows whitespace and is
+ *  followed by whitespace or the line's end, outside its interpolations,
+ *  which are Luau (`endOfLuau`), as the grammar reads one
+ *  (`SparkdownInlineComment`); `--` there is text. Every line of a
  *  statement whose first line is logic, but for a menu (`choose`, whose
  *  choices are displayed lines), is logic, so a field of a `define`'s body
  *  or a line a table literal runs on reads as the logic it is, where `//`
- *  is Luau's floor division. */
+ *  is Luau's floor division.
+ *
+ *  The statement is read as one text, as the grammar reads it: a token
+ *  that runs on past its line's end (a long string or a block comment, a
+ *  string continued by `\z` or by an escaped line end, an interpolation)
+ *  takes the lines it runs over into the line it starts on, kept as
+ *  written, and the line it ends on is read on in the same way. */
 export const normalizeSource = (source: string): string => {
+  const s = source.replace(/\r\n/g, "\n").replace(/\r$/, "");
   const out: string[] = [];
-  // An open long bracket that runs past its line: a block comment, which
-  // is dropped, or a long string, which is kept as written, with the
-  // number of `=` that closes it.
-  let open: { comment: boolean; level: number } | null = null;
-  const lines = source.split("\n");
   // A statement of logic but a menu is logic throughout: the fields of a
   // `define`'s body and the lines a table literal runs on start with no
   // mark of their own.
-  const first = lines.find((line) => line.trim().length > 0)?.trimStart() ?? "";
+  const first = s.split("\n").find((line) => line.trim().length > 0)?.trimStart() ?? "";
   const logic = LOGIC_STATEMENT.test(first);
-  for (const raw of lines) {
-    const line = raw.replace(/\r$/, "");
-    if (!open && !logic && !LOGIC_LINE.test(line.trimStart())) {
-      const text = withoutDisplayComment(line).trim();
-      if (text.length > 0) {
-        out.push(text);
-      }
-      continue;
+  let i = 0;
+  while (i < s.length) {
+    const eol = s.indexOf("\n", i);
+    const line = s.slice(i, eol < 0 ? s.length : eol);
+    const read =
+      logic || LOGIC_LINE.test(line.trimStart()) ? logicLine(s, i) : displayLine(s, i);
+    if (read.text.length > 0) {
+      out.push(read.text);
     }
-    const startsInString = open !== null && !open.comment;
-    let text = "";
-    let i = 0;
-    // Whitespace seen since the last token, written as one space only
-    // where the next token would otherwise join the last one.
-    let spaced = false;
-    const emit = (piece: string) => {
-      if (spaced && text.length > 0 && keepsSpace(text[text.length - 1]!, piece[0]!)) {
-        text += " ";
-      }
-      spaced = false;
-      text += piece;
-    };
-    // Reads on to the close of the open long bracket, keeping a string's
-    // text as written; false when it does not close on this line.
-    const closeOpen = (): boolean => {
-      const close = `]${"=".repeat(open!.level)}]`;
-      const at = line.indexOf(close, i);
-      const end = at < 0 ? line.length : at + close.length;
-      if (!open!.comment) {
-        text += line.slice(i, end);
-      }
-      i = end;
-      if (at < 0) {
-        return false;
-      }
-      open = null;
-      return true;
-    };
-    if (open && !closeOpen()) {
-      if (startsInString) {
-        out.push(text);
-      }
-      continue;
-    }
-    while (i < line.length) {
-      const c = line[i]!;
-      // A string (a template's interpolations included) or a regex
-      // literal, kept as written, escapes included: its text may hold a
-      // `--`.
-      const string = endOfString(line, i);
-      if (string !== i) {
-        const end = string < 0 ? line.length : string;
-        emit(line.slice(i, end));
-        i = end;
-        continue;
-      }
-      const long =
-        c === "-" && line[i + 1] === "-" && line[i + 2] === "["
-          ? LONG_BRACKET.exec(line.slice(i + 2))
-          : c === "[" && (line[i + 1] === "[" || line[i + 1] === "=")
-            ? LONG_BRACKET.exec(line.slice(i))
-            : null;
-      if (c === "-" && line[i + 1] === "-") {
-        if (long) {
-          open = { comment: true, level: long[1]!.length };
-          i += 2 + long[0].length;
-          if (!closeOpen()) break;
-          // A block comment that closes on its line separates the tokens
-          // around it.
-          spaced = true;
-          continue;
-        }
-        break;
-      }
-      if (c === "[" && long) {
-        open = { comment: false, level: long[1]!.length };
-        emit(long[0]);
-        i += long[0].length;
-        if (!closeOpen()) break;
-        continue;
-      }
-      if (/\s/.test(c)) {
-        while (i < line.length && /\s/.test(line[i]!)) i += 1;
-        spaced = true;
-        continue;
-      }
-      emit(c);
-      i += 1;
-    }
-    const endsInString = open !== null && !(open as { comment: boolean }).comment;
-    let kept = startsInString ? text : text.trimStart();
-    if (!endsInString) {
-      kept = kept.trimEnd();
-    }
-    if (startsInString || endsInString || kept.length > 0) {
-      out.push(kept);
-    }
+    i = read.next;
   }
   return out.join("\n");
+};
+
+// The end of the physical line `i` is on: the index of its line end, or
+// the text's end.
+const lineEndFrom = (s: string, i: number): number => {
+  const eol = s.indexOf("\n", i);
+  return eol < 0 ? s.length : eol;
+};
+
+/** A displayed line from `i` of `s` without its comment, trimmed, and
+ *  where the next line starts. An interpolation that runs past the line
+ *  takes the lines it runs over; one that never closes keeps the rest of
+ *  its line as written. */
+const displayLine = (s: string, i: number): { text: string; next: number } => {
+  const start = i;
+  while (i < s.length && s[i] !== "\n") {
+    const c = s[i]!;
+    if (c === "{") {
+      const end = endOfLuau(s, i + 1);
+      if (end < 0) {
+        const eol = lineEndFrom(s, i);
+        return { text: s.slice(start, eol).trim(), next: eol + 1 };
+      }
+      i = end;
+      continue;
+    }
+    if (
+      c === "/" &&
+      s[i + 1] === "/" &&
+      (i === start || /\s/.test(s[i - 1]!)) &&
+      (i + 2 >= s.length || /\s/.test(s[i + 2]!))
+    ) {
+      return { text: s.slice(start, i).trim(), next: lineEndFrom(s, i) + 1 };
+    }
+    i += 1;
+  }
+  return { text: s.slice(start, i).trim(), next: i + 1 };
+};
+
+/** A line of logic from `i` of `s`, its comments dropped and its spacing
+ *  between tokens dropped but where two tokens would join, and where the
+ *  next line starts. A token that never closes keeps the rest of its line
+ *  as written, or, for a long string, the rest of the statement. */
+const logicLine = (s: string, i: number): { text: string; next: number } => {
+  let text = "";
+  // Whitespace seen since the last token, written as one space only where
+  // the next token would otherwise join the last one.
+  let spaced = false;
+  const emit = (piece: string) => {
+    if (spaced && text.length > 0 && keepsSpace(text[text.length - 1]!, piece[0]!)) {
+      text += " ";
+    }
+    spaced = false;
+    text += piece;
+  };
+  while (i < s.length && s[i] !== "\n") {
+    const c = s[i]!;
+    const string = endOfString(s, i);
+    if (string !== i) {
+      const end = string < 0 ? lineEndFrom(s, i) : string;
+      emit(s.slice(i, end));
+      i = end;
+      continue;
+    }
+    const comment = c === "-" && s[i + 1] === "-";
+    const long = comment || c === "[" ? LONG_BRACKET.exec(s.slice(comment ? i + 2 : i, i + 64)) : null;
+    if (long) {
+      const from = i + (comment ? 2 : 0) + long[0].length;
+      const close = s.indexOf(`]${long[1]}]`, from);
+      const end = close < 0 ? s.length : close + long[1]!.length + 2;
+      if (comment) {
+        // A block comment separates the tokens around it.
+        spaced = true;
+      } else {
+        emit(s.slice(i, end));
+      }
+      i = end;
+      continue;
+    }
+    if (comment) {
+      i = lineEndFrom(s, i);
+      break;
+    }
+    if (/\s/.test(c)) {
+      while (i < s.length && s[i] !== "\n" && /\s/.test(s[i]!)) i += 1;
+      spaced = true;
+      continue;
+    }
+    emit(c);
+    i += 1;
+  }
+  return { text, next: i + 1 };
 };
 
 /** Whether the space between two tokens, the one ending in `before` and
@@ -1855,47 +1861,19 @@ const LOGIC_LINE =
 const LOGIC_STATEMENT =
   /^(?:&|(?:if|elseif|else|end|while|for|repeat|until|do|local|function|return|break|continue|store|const|define|then|match|case|type|export)(?![\w]))/;
 
-/** A displayed line without its comment (`SparkdownInlineComment`): a `//`
- *  that starts the line or follows whitespace and is followed by whitespace
- *  or the line's end, outside the line's interpolations (`{...}`), which
- *  are Luau (`endOfLuau`). An interpolation that runs past the line keeps
- *  the rest of it as written. */
-const withoutDisplayComment = (line: string): string => {
-  for (let i = 0; i < line.length; ) {
-    const c = line[i]!;
-    if (c === "{") {
-      const end = endOfLuau(line, i + 1);
-      if (end < 0) {
-        return line;
-      }
-      i = end;
-      continue;
-    }
-    if (
-      c === "/" &&
-      line[i + 1] === "/" &&
-      (i === 0 || /\s/.test(line[i - 1]!)) &&
-      (i + 2 >= line.length || /\s/.test(line[i + 2]!))
-    ) {
-      return line.slice(0, i);
-    }
-    i += 1;
-  }
-  return line;
-};
-
-/** Where the Luau of an interpolation that runs from `i` of `line` ends:
- *  just after the `}` that closes it, or -1 when the line ends first. A
- *  `//` in it is an operator, a brace opens or closes a table, and a token
- *  whose text may hold a brace, a `//` or a `--` is read whole
- *  (`endOfString`, and a long string or a block comment); a line comment
- *  holds the rest of the line. An interpolation of a `"` string also ends,
- *  before it, at a `"` outside its tables (`stop`), as the grammar reads
- *  one (`LuauDoubleQuotedStringInterpolation`). */
-const endOfLuau = (line: string, i: number, stop?: string): number => {
+/** Where the Luau of an interpolation that runs from `i` of `s` ends: just
+ *  after the `}` that closes it, or -1 when the statement ends first. It
+ *  may run over lines, as the grammar reads one. A `//` in it is an
+ *  operator, a brace opens or closes a table, a token whose text may hold
+ *  a brace, a `//` or a `--` is read whole (`endOfString`, a long string or
+ *  a block comment), and a line comment runs to its line's end. An
+ *  interpolation of a `"` string also ends, before it, at a `"` outside its
+ *  tables (`stop`), as the grammar reads one
+ *  (`LuauDoubleQuotedStringInterpolation`). */
+const endOfLuau = (s: string, i: number, stop?: string): number => {
   let depth = 0;
-  while (i < line.length) {
-    const c = line[i]!;
+  while (i < s.length) {
+    const c = s[i]!;
     if (c === stop && depth === 0) {
       return i;
     }
@@ -1912,10 +1890,10 @@ const endOfLuau = (line: string, i: number, stop?: string): number => {
       i += 1;
       continue;
     }
-    const comment = c === "-" && line[i + 1] === "-";
-    const long = comment || c === "[" ? LONG_BRACKET.exec(line.slice(comment ? i + 2 : i)) : null;
+    const comment = c === "-" && s[i + 1] === "-";
+    const long = comment || c === "[" ? LONG_BRACKET.exec(s.slice(comment ? i + 2 : i, i + 64)) : null;
     if (long) {
-      const close = line.indexOf(`]${long[1]}]`, i + (comment ? 2 : 0) + long[0].length);
+      const close = s.indexOf(`]${long[1]}]`, i + (comment ? 2 : 0) + long[0].length);
       if (close < 0) {
         return -1;
       }
@@ -1923,9 +1901,14 @@ const endOfLuau = (line: string, i: number, stop?: string): number => {
       continue;
     }
     if (comment) {
-      return -1;
+      const eol = s.indexOf("\n", i);
+      if (eol < 0) {
+        return -1;
+      }
+      i = eol + 1;
+      continue;
     }
-    const string = endOfString(line, i);
+    const string = endOfString(s, i);
     if (string < 0) {
       return -1;
     }
@@ -1934,25 +1917,34 @@ const endOfLuau = (line: string, i: number, stop?: string): number => {
   return -1;
 };
 
-/** Where a string or a regex literal that starts at `i` of `line` ends:
- *  just after its close; `i` itself when none starts there, or -1 when it
- *  runs past the line. A `'` string runs to its next unescaped quote, a
- *  `"` string or a template string (`` ` ``) past its interpolations
- *  (`endOfLuau`; a template's may hold templates of its own), and a regex
- *  literal (`@/ /`) to its first unescaped `/`. */
-const endOfString = (line: string, i: number): number => {
-  const c = line[i]!;
-  const regex = c === "@" && line[i + 1] === "/";
+/** Where a string or a regex literal that starts at `i` of `s` ends: just
+ *  after its close; `i` itself when none starts there, or -1 when its line
+ *  ends first. A `'` string runs to its next unescaped quote, a `"` string
+ *  or a template string (`` ` ``) past its interpolations (`endOfLuau`; a
+ *  template's may hold templates of its own), and a regex literal (`@/ /`)
+ *  to its first unescaped `/`. A string runs on over a line end that an
+ *  escape continues: a backslash before the line end, or `\z`, which skips
+ *  the whitespace after it, line ends included. */
+const endOfString = (s: string, i: number): number => {
+  const c = s[i]!;
+  const regex = c === "@" && s[i + 1] === "/";
   if (c !== '"' && c !== "'" && c !== "`" && !regex) {
     return i;
   }
   const close = regex ? "/" : c;
   let j = i + (regex ? 2 : 1);
-  while (j < line.length && line[j] !== close) {
-    if (line[j] === "\\") {
+  while (j < s.length && s[j] !== close) {
+    const d = s[j]!;
+    if (d === "\n") {
+      return -1;
+    }
+    if (d === "\\") {
       j += 2;
-    } else if ((c === "`" || c === '"') && line[j] === "{") {
-      j = endOfLuau(line, j + 1, c === '"' ? c : undefined);
+      if (!regex && s[j - 1] === "z") {
+        while (j < s.length && /\s/.test(s[j]!)) j += 1;
+      }
+    } else if ((c === "`" || c === '"') && d === "{") {
+      j = endOfLuau(s, j + 1, c === '"' ? c : undefined);
       if (j < 0) {
         return -1;
       }
@@ -1960,7 +1952,7 @@ const endOfString = (line: string, i: number): number => {
       j += 1;
     }
   }
-  return j < line.length ? j + 1 : -1;
+  return j < s.length ? j + 1 : -1;
 };
 
 /** The opening of a Luau long bracket, `[[` or `[=[` and so on. */
