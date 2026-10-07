@@ -1,10 +1,9 @@
-// The engine a story-running test runs its story on. The ordinary suite runs
-// every story on the current engine. The differential run of the binary
-// program (`SPARKDOWN_DIFFERENTIAL=1`, docs/engine/binary-program.md,
-// section 9) runs the suites it takes in (`vitest.config.ts`) on the program
-// engine: their compiles build statement chunks and their stories run them,
-// so their assertions hold of the program engine. A test compiles through
-// `testCompiler` and makes its story with `testStory`.
+// The engine a story-running test runs its story on: the binary program's
+// engine (docs/engine/binary-program.md), in the ordinary suite and in the
+// differential run alike. A test compiles through `testCompiler`, which builds
+// statement chunks, and makes its story with `testStory`, which runs them, so
+// its assertions hold of the program engine (#705 moves the tests off the
+// current engine before deleting it).
 import "../inkjs/engine/Container";
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../compiler/types/SparkdownCompilerConfig";
@@ -13,9 +12,6 @@ import { STDLIB, type StdLibEntry } from "../inkjs/engine/StdLib";
 import { Story as RuntimeStory } from "../inkjs/engine/Story";
 import type { ProgramRoot } from "../program/ProgramRoot";
 import { ProgramStory } from "../program/ProgramStory";
-
-/** Whether this run's stories run on the program engine. */
-export const PROGRAM_ENGINE = process.env["SPARKDOWN_DIFFERENTIAL"] === "1";
 
 // The builtin a test's external function is called through on the program
 // engine, which runs no external function (docs/engine/binary-program.md,
@@ -73,7 +69,7 @@ class TestRuntimeStory extends RuntimeStory {
   }
 }
 
-if (PROGRAM_ENGINE && !STDLIB[TEST_EXTERNAL]) {
+if (!STDLIB[TEST_EXTERNAL]) {
   // As `Story.CallExternalFunction` calls a bound function: with each
   // argument's JS value, and what it returns made a value again, or nothing.
   STDLIB[TEST_EXTERNAL] = {
@@ -125,7 +121,7 @@ class ProgramEngineCompiler extends SparkdownCompiler {
 
 /** The compiler a story-running test compiles with. */
 export function testCompiler(): SparkdownCompiler {
-  return PROGRAM_ENGINE ? new ProgramEngineCompiler() : new SparkdownCompiler();
+  return new ProgramEngineCompiler();
 }
 
 /**
