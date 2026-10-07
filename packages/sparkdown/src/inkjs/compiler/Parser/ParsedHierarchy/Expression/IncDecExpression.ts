@@ -89,8 +89,8 @@ export class IncDecExpression extends Expression {
     emitter.emit(Op.SetVar, name);
   }
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
 
     const varResolveResult = context.ResolveVariableWithName(
       this.identifier?.name || "",
@@ -107,7 +107,9 @@ export class IncDecExpression extends Expression {
       throw new Error();
     }
 
-    this._runtimeAssignment.isGlobal = varResolveResult.isGlobal;
+    if (!program) {
+      this._runtimeAssignment.isGlobal = varResolveResult.isGlobal;
+    }
 
     if (
       !(this.parent instanceof Weave) &&

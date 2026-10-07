@@ -1,0 +1,1019 @@
+{
+ "bindings/external-binding.sd": {
+  "fallback": "external",
+  "diagnostics": []
+ },
+ "bindings/game-ink-back-and-forth.sd": {
+  "fallback": "external",
+  "diagnostics": []
+ },
+ "bindings/lookup-safe-or-not-with-post-glue.sd": {
+  "fallback": "external",
+  "diagnostics": []
+ },
+ "bindings/lookup-safe-or-not.sd": {
+  "fallback": "external",
+  "diagnostics": []
+ },
+ "bindings/variable-observer.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/false-plus-false.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/list-hasnt.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/not-one.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/not-true.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/three-greater-than-one.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/true-equals-one.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/true-plus-one.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/true-plus-true.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/true.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "booleans/two-plus-true.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/count-turns.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/floor-ceiling-and-casts.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/read-count-across-callstack.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/read-count-across-thread.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/read-count-dot-separated-path.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/read-count-variable-target.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/turns-choice-loop.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/turns-since-nested.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/turns-since-variable-target.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/turns-since.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/visit-count-bug-nested-containers.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/visit-counts-when-choosing.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "builtins/visited-shorthand.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "callstack/callstack-evaluation.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":3}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":3}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "callstack/clean-callstack-reset-on-path-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/choice-count-with-threads.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":9,\"line\":9},\"start\":{\"character\":0,\"line\":8}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":9,\"line\":9},\"start\":{\"character\":0,\"line\":8}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "choices/choice-diverts-to-done.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/choice-thread-forking.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/conditional-choices.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/default-choices.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/default-simple-gather.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/dynamic-tags-in-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/fallback-choice-on-thread.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":18,\"line\":10},\"start\":{\"character\":0,\"line\":10}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":18,\"line\":10},\"start\":{\"character\":0,\"line\":10}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "choices/has-read-on-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/label-in-then-clause.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/logic-in-choices.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/newline-after-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/non-text-in-choice-inner-content.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/once-only-choices-can-link-back-to-self.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/once-only-choices-with-own-content.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/sequential-choose-blocks.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/should-not-gather-due-to-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/state-rollback-over-default-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/sticky-choices-stay-sticky.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/tags-in-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/various-default-choices.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "choices/weave-options.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "conditions/all-switch-branches-fail-is-clean.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "conditions/conditionals.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "conditions/else-branches.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "conditions/empty-conditional-branch.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "conditions/gather-inside-conditional-body.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "conditions/gather-inside-if.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "conditions/trivial-condition.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "display/continuation-groups/includes/evil.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `EVIL`\"},\"range\":{\"end\":{\"character\":6,\"line\":1},\"start\":{\"character\":2,\"line\":1}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":1},\"start\":{\"character\":2,\"line\":1}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "display/continuation-groups/main.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"target not found: `-> evil`\"},\"range\":{\"end\":{\"character\":9,\"line\":7},\"start\":{\"character\":5,\"line\":7}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":9,\"line\":7},\"start\":{\"character\":5,\"line\":7}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":5},\"start\":{\"character\":2,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":5},\"start\":{\"character\":2,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "diverts/basic-tunnel.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/compare-divert-targets.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/complex-tunnels.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/divert-in-conditional.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/divert-targets-with-parameters.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/divert-to-weave-points.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/done-stops-flow.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":29,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":29,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "diverts/multi-target-tunnel-chain.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/multi-target-tunnel.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/path-to-self.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/same-line-divert-is-inline.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/tunnel-onwards-after-tunnel.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/tunnel-onwards-divert-after-with-arg.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/tunnel-onwards-divert-override.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/tunnel-onwards-variable-target.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/tunnel-onwards-with-param-default-choice.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "diverts/tunnel-vs-thread.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/arithmetic.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/associativity.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/basic-string-literals.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/comparison-ops.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/compound-assignment.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/concat.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/evaluating-functions-from-host.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":35,\"line\":7},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":35,\"line\":7},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "evaluation/exponentiation.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/factorial-by-reference.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":6,\"line\":7},\"start\":{\"character\":4,\"line\":7}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":7},\"start\":{\"character\":4,\"line\":7}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":6,\"line\":10},\"start\":{\"character\":4,\"line\":10}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":10},\"start\":{\"character\":4,\"line\":10}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":6,\"line\":11},\"start\":{\"character\":4,\"line\":11}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":11},\"start\":{\"character\":4,\"line\":11}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "evaluation/factorial-recursive.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":9},\"start\":{\"character\":0,\"line\":3}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":9},\"start\":{\"character\":0,\"line\":3}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "evaluation/floor-division.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/function-variable-state.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":19},\"start\":{\"character\":2,\"line\":19}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":19},\"start\":{\"character\":2,\"line\":19}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "evaluation/increment.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/literal-unary.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "evaluation/stack-leaks.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "extra/arithmetic-2.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "functions/argument-name-collisions.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Duplicate identifier `global_var`. A function named `global_var` already exists on null\"},\"range\":{\"end\":{\"character\":16,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "functions/argument-shouldnt-conflict-with-gather.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "functions/function-and-increment-together.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":27,\"line\":4},\"start\":{\"character\":0,\"line\":4}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":27,\"line\":4},\"start\":{\"character\":0,\"line\":4}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "functions/function-call-restrictions.sd": {
+  "fallback": "Divert",
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":28,\"line\":5},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":28,\"line\":5},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"aKnot hasn't been marked as a function, but it's being called as one. Do you need to declare the knot as '== function aKnot =='?\"},\"range\":{\"end\":{\"character\":9,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":9,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"myFunc can't be diverted to. It can only be called as a function since it's been marked as such: 'myFunc(...)'\"},\"range\":{\"end\":{\"character\":0,\"line\":0},\"start\":{\"character\":0,\"line\":0}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":0,\"line\":0},\"start\":{\"character\":0,\"line\":0}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "glue/inline-conditional-empty-then.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":29,\"line\":4},\"start\":{\"character\":0,\"line\":4}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":29,\"line\":4},\"start\":{\"character\":0,\"line\":4}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "glue/inline-function-return-in-interp.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":33,\"line\":3},\"start\":{\"character\":0,\"line\":3}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":33,\"line\":3},\"start\":{\"character\":0,\"line\":3}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "glue/left-right-glue-matching.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "glue/simple-glue.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "glue/trailing-glue.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "knots/knot-do-not-gather.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "knots/knot-stitch-gather-counts.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "knots/knot-thread-interaction-2.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "knots/knot-thread-interaction.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "logic/multiline-logic-with-glue.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "logic/nested-pass-by-reference.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":6}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":6}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":7},\"start\":{\"character\":2,\"line\":7}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":7},\"start\":{\"character\":2,\"line\":7}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":8},\"start\":{\"character\":2,\"line\":8}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":8},\"start\":{\"character\":2,\"line\":8}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":12},\"start\":{\"character\":2,\"line\":12}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":12},\"start\":{\"character\":2,\"line\":12}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "logic/print-num.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":73},\"start\":{\"character\":0,\"line\":8}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":73},\"start\":{\"character\":0,\"line\":8}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "methods/chained.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "methods/min-max-random.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "methods/set-ops.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "methods/string-methods.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "methods/table-methods.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/author-warnings-no-error.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/empty.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/end.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/escape-character-in-arm.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/hello-world.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/include/includes/included_file.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/include/includes/included_file_2.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/include/main.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/nested-include/includes/included_file_3.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/nested-include/includes/included_file_4.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "misc/nested-include/main.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"target not found: `-> knot_in_2`\"},\"range\":{\"end\":{\"character\":12,\"line\":2},\"start\":{\"character\":3,\"line\":2}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":12,\"line\":2},\"start\":{\"character\":3,\"line\":2}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "misc/whitespace.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "multiflow/multi-flow-basics.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "multiflow/multi-flow-save-load-threads.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "newlines/external-fallback.sd": {
+  "fallback": "external",
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":31,\"line\":8},\"start\":{\"character\":0,\"line\":8}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":31,\"line\":8},\"start\":{\"character\":0,\"line\":8}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "newlines/newline-at-start-of-multiline-conditional.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "newlines/newline-consistency-1.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "newlines/newline-consistency-2.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "newlines/newline-consistency-3.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "newlines/value-returning-function-eval.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":33,\"line\":8},\"start\":{\"character\":0,\"line\":8}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":33,\"line\":8},\"start\":{\"character\":0,\"line\":8}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
+ },
+ "scoping/else-branch-isolated.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "scoping/gated-choice-local.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "scoping/local-shadows-in-if-block.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "scoping/preamble-do-local.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Duplicate identifier `x`. A var named `x` already exists on null\"},\"range\":{\"end\":{\"character\":11,\"line\":3},\"start\":{\"character\":10,\"line\":3}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":11,\"line\":3},\"start\":{\"character\":10,\"line\":3}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Duplicate identifier `x`. A temp named `x` already exists on line 4 of 'main'\"},\"range\":{\"end\":{\"character\":7,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "scoping/preamble-do-statement-after.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Duplicate identifier `x`. A var named `x` already exists on null\"},\"range\":{\"end\":{\"character\":11,\"line\":3},\"start\":{\"character\":10,\"line\":3}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":11,\"line\":3},\"start\":{\"character\":10,\"line\":3}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Duplicate identifier `x`. A temp named `x` already exists on line 4 of 'main'\"},\"range\":{\"end\":{\"character\":7,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "scoping/reassign-without-local.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/block-display-text.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/empty-middle-arm-chain.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-chain.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-cycle.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-chain.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-cycle.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-plural-french.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-plural-positional-single.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-plural-positional.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-plural.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-queue.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-glued-shuffle.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-queue.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-shuffle-chain.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-shuffle-cycle.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/inline-shuffle-queue.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/plural-category-direct.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/single-line-block-cycle.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/single-line-block-plural.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "sequences/single-line-block-queue.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "smoke/hello.sd": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `N`\"},\"range\":{\"end\":{\"character\":1,\"line\":0},\"start\":{\"character\":0,\"line\":0}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":1,\"line\":0},\"start\":{\"character\":0,\"line\":0}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "smoke/not-runtime.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "strings/string-constants.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "strings/string-contains.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "strings/type-coercion-tonumber.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "tags/dynamic-tags.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "tags/knot-stitch-tags.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "tags/tags-in-sequence.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "threads/multi-threads.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "threads/thread-done.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "threads/thread-in-logic.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "threads/thread-survives-main-done.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/const-explicit.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/const-expression.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/const-from-const-forward.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/const.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/multiple-constant-references.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/set-non-existent-variable.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/temp-not-found.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/temporaries-at-global-scope.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/variable-declaration-in-conditional.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/variable-divert-target.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "variables/variable-get-set-api.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/choose-then-block.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/conditional-choice-in-weave-2.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/conditional-choice-in-weave.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/preamble-do-choices.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/preamble-gated-choice-choose.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/preamble-loop-choices.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/preamble-repeat-choices.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/preamble-then-clauses.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/unbalanced-weave-indentation.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/weave-gathers.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "weaves/weave-within-sequence.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "beats": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":4},\"start\":{\"character\":2,\"line\":4}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":4},\"start\":{\"character\":2,\"line\":4}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_confused`\"},\"range\":{\"end\":{\"character\":19,\"line\":5},\"start\":{\"character\":6,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":19,\"line\":5},\"start\":{\"character\":6,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":10},\"start\":{\"character\":2,\"line\":10}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":10},\"start\":{\"character\":2,\"line\":10}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_frustrated`\"},\"range\":{\"end\":{\"character\":21,\"line\":11},\"start\":{\"character\":6,\"line\":11}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":21,\"line\":11},\"start\":{\"character\":6,\"line\":11}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":16},\"start\":{\"character\":2,\"line\":16}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":16},\"start\":{\"character\":2,\"line\":16}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_concerned`\"},\"range\":{\"end\":{\"character\":21,\"line\":17},\"start\":{\"character\":6,\"line\":17}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":21,\"line\":17},\"start\":{\"character\":6,\"line\":17}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":23},\"start\":{\"character\":2,\"line\":23}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":23},\"start\":{\"character\":2,\"line\":23}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_unsure`\"},\"range\":{\"end\":{\"character\":18,\"line\":24},\"start\":{\"character\":6,\"line\":24}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":18,\"line\":24},\"start\":{\"character\":6,\"line\":24}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":30},\"start\":{\"character\":2,\"line\":30}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":30},\"start\":{\"character\":2,\"line\":30}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_angry`\"},\"range\":{\"end\":{\"character\":17,\"line\":31},\"start\":{\"character\":6,\"line\":31}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":31},\"start\":{\"character\":6,\"line\":31}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":36},\"start\":{\"character\":2,\"line\":36}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":36},\"start\":{\"character\":2,\"line\":36}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_sad`\"},\"range\":{\"end\":{\"character\":14,\"line\":37},\"start\":{\"character\":6,\"line\":37}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":37},\"start\":{\"character\":6,\"line\":37}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":43},\"start\":{\"character\":2,\"line\":43}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":43},\"start\":{\"character\":2,\"line\":43}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_shy`\"},\"range\":{\"end\":{\"character\":15,\"line\":44},\"start\":{\"character\":6,\"line\":44}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":44},\"start\":{\"character\":6,\"line\":44}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":49},\"start\":{\"character\":2,\"line\":49}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":49},\"start\":{\"character\":2,\"line\":49}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_angry`\"},\"range\":{\"end\":{\"character\":17,\"line\":50},\"start\":{\"character\":6,\"line\":50}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":50},\"start\":{\"character\":6,\"line\":50}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":55},\"start\":{\"character\":2,\"line\":55}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":55},\"start\":{\"character\":2,\"line\":55}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_angry`\"},\"range\":{\"end\":{\"character\":16,\"line\":56},\"start\":{\"character\":6,\"line\":56}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":56},\"start\":{\"character\":6,\"line\":56}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":61},\"start\":{\"character\":2,\"line\":61}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":61},\"start\":{\"character\":2,\"line\":61}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_happy`\"},\"range\":{\"end\":{\"character\":16,\"line\":62},\"start\":{\"character\":6,\"line\":62}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":62},\"start\":{\"character\":6,\"line\":62}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":67},\"start\":{\"character\":2,\"line\":67}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":67},\"start\":{\"character\":2,\"line\":67}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_happy`\"},\"range\":{\"end\":{\"character\":17,\"line\":68},\"start\":{\"character\":6,\"line\":68}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":68},\"start\":{\"character\":6,\"line\":68}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":73},\"start\":{\"character\":2,\"line\":73}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":73},\"start\":{\"character\":2,\"line\":73}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_smug`\"},\"range\":{\"end\":{\"character\":15,\"line\":74},\"start\":{\"character\":6,\"line\":74}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":74},\"start\":{\"character\":6,\"line\":74}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":80},\"start\":{\"character\":2,\"line\":80}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":80},\"start\":{\"character\":2,\"line\":80}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_unsure`\"},\"range\":{\"end\":{\"character\":17,\"line\":81},\"start\":{\"character\":6,\"line\":81}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":81},\"start\":{\"character\":6,\"line\":81}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":86},\"start\":{\"character\":2,\"line\":86}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":86},\"start\":{\"character\":2,\"line\":86}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_unsure`\"},\"range\":{\"end\":{\"character\":17,\"line\":87},\"start\":{\"character\":6,\"line\":87}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":87},\"start\":{\"character\":6,\"line\":87}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":93},\"start\":{\"character\":2,\"line\":93}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":93},\"start\":{\"character\":2,\"line\":93}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_happy`\"},\"range\":{\"end\":{\"character\":16,\"line\":94},\"start\":{\"character\":6,\"line\":94}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":94},\"start\":{\"character\":6,\"line\":94}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":100},\"start\":{\"character\":2,\"line\":100}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":100},\"start\":{\"character\":2,\"line\":100}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_shy`\"},\"range\":{\"end\":{\"character\":14,\"line\":101},\"start\":{\"character\":6,\"line\":101}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":101},\"start\":{\"character\":6,\"line\":101}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":106},\"start\":{\"character\":2,\"line\":106}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":106},\"start\":{\"character\":2,\"line\":106}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_concerned`\"},\"range\":{\"end\":{\"character\":21,\"line\":107},\"start\":{\"character\":6,\"line\":107}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":21,\"line\":107},\"start\":{\"character\":6,\"line\":107}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":112},\"start\":{\"character\":2,\"line\":112}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":112},\"start\":{\"character\":2,\"line\":112}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_confident`\"},\"range\":{\"end\":{\"character\":21,\"line\":113},\"start\":{\"character\":6,\"line\":113}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":21,\"line\":113},\"start\":{\"character\":6,\"line\":113}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":118},\"start\":{\"character\":2,\"line\":118}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":118},\"start\":{\"character\":2,\"line\":118}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_angry`\"},\"range\":{\"end\":{\"character\":16,\"line\":119},\"start\":{\"character\":6,\"line\":119}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":119},\"start\":{\"character\":6,\"line\":119}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":124},\"start\":{\"character\":2,\"line\":124}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":124},\"start\":{\"character\":2,\"line\":124}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_shy`\"},\"range\":{\"end\":{\"character\":14,\"line\":125},\"start\":{\"character\":6,\"line\":125}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":125},\"start\":{\"character\":6,\"line\":125}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":131},\"start\":{\"character\":2,\"line\":131}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":131},\"start\":{\"character\":2,\"line\":131}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_shy`\"},\"range\":{\"end\":{\"character\":14,\"line\":132},\"start\":{\"character\":6,\"line\":132}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":132},\"start\":{\"character\":6,\"line\":132}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":137},\"start\":{\"character\":2,\"line\":137}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":137},\"start\":{\"character\":2,\"line\":137}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_sad`\"},\"range\":{\"end\":{\"character\":14,\"line\":138},\"start\":{\"character\":6,\"line\":138}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":138},\"start\":{\"character\":6,\"line\":138}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":144},\"start\":{\"character\":2,\"line\":144}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":144},\"start\":{\"character\":2,\"line\":144}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_sad`\"},\"range\":{\"end\":{\"character\":14,\"line\":145},\"start\":{\"character\":6,\"line\":145}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":145},\"start\":{\"character\":6,\"line\":145}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":151},\"start\":{\"character\":2,\"line\":151}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":151},\"start\":{\"character\":2,\"line\":151}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_confident`\"},\"range\":{\"end\":{\"character\":20,\"line\":152},\"start\":{\"character\":6,\"line\":152}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":20,\"line\":152},\"start\":{\"character\":6,\"line\":152}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":157},\"start\":{\"character\":2,\"line\":157}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":157},\"start\":{\"character\":2,\"line\":157}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_sad`\"},\"range\":{\"end\":{\"character\":14,\"line\":158},\"start\":{\"character\":6,\"line\":158}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":158},\"start\":{\"character\":6,\"line\":158}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":163},\"start\":{\"character\":2,\"line\":163}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":163},\"start\":{\"character\":2,\"line\":163}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_concerned`\"},\"range\":{\"end\":{\"character\":21,\"line\":164},\"start\":{\"character\":6,\"line\":164}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":21,\"line\":164},\"start\":{\"character\":6,\"line\":164}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":170},\"start\":{\"character\":2,\"line\":170}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":170},\"start\":{\"character\":2,\"line\":170}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":171},\"start\":{\"character\":6,\"line\":171}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":171},\"start\":{\"character\":6,\"line\":171}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":177},\"start\":{\"character\":2,\"line\":177}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":177},\"start\":{\"character\":2,\"line\":177}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_concerned`\"},\"range\":{\"end\":{\"character\":21,\"line\":178},\"start\":{\"character\":6,\"line\":178}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":21,\"line\":178},\"start\":{\"character\":6,\"line\":178}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":184},\"start\":{\"character\":2,\"line\":184}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":184},\"start\":{\"character\":2,\"line\":184}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_angry`\"},\"range\":{\"end\":{\"character\":17,\"line\":185},\"start\":{\"character\":6,\"line\":185}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":185},\"start\":{\"character\":6,\"line\":185}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":190},\"start\":{\"character\":2,\"line\":190}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":190},\"start\":{\"character\":2,\"line\":190}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_tired`\"},\"range\":{\"end\":{\"character\":17,\"line\":191},\"start\":{\"character\":6,\"line\":191}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":191},\"start\":{\"character\":6,\"line\":191}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":196},\"start\":{\"character\":2,\"line\":196}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":196},\"start\":{\"character\":2,\"line\":196}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_happy`\"},\"range\":{\"end\":{\"character\":17,\"line\":197},\"start\":{\"character\":6,\"line\":197}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":197},\"start\":{\"character\":6,\"line\":197}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":203},\"start\":{\"character\":2,\"line\":203}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":203},\"start\":{\"character\":2,\"line\":203}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_calm`\"},\"range\":{\"end\":{\"character\":16,\"line\":204},\"start\":{\"character\":6,\"line\":204}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":204},\"start\":{\"character\":6,\"line\":204}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":210},\"start\":{\"character\":2,\"line\":210}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":210},\"start\":{\"character\":2,\"line\":210}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_angry`\"},\"range\":{\"end\":{\"character\":17,\"line\":211},\"start\":{\"character\":6,\"line\":211}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":211},\"start\":{\"character\":6,\"line\":211}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":216},\"start\":{\"character\":2,\"line\":216}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":216},\"start\":{\"character\":2,\"line\":216}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_confused`\"},\"range\":{\"end\":{\"character\":19,\"line\":217},\"start\":{\"character\":6,\"line\":217}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":19,\"line\":217},\"start\":{\"character\":6,\"line\":217}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":223},\"start\":{\"character\":2,\"line\":223}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":223},\"start\":{\"character\":2,\"line\":223}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_shy`\"},\"range\":{\"end\":{\"character\":15,\"line\":224},\"start\":{\"character\":6,\"line\":224}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":224},\"start\":{\"character\":6,\"line\":224}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":229},\"start\":{\"character\":2,\"line\":229}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":229},\"start\":{\"character\":2,\"line\":229}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_calm`\"},\"range\":{\"end\":{\"character\":16,\"line\":230},\"start\":{\"character\":6,\"line\":230}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":230},\"start\":{\"character\":6,\"line\":230}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":235},\"start\":{\"character\":2,\"line\":235}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":235},\"start\":{\"character\":2,\"line\":235}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_concerned`\"},\"range\":{\"end\":{\"character\":21,\"line\":236},\"start\":{\"character\":6,\"line\":236}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":21,\"line\":236},\"start\":{\"character\":6,\"line\":236}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":242},\"start\":{\"character\":2,\"line\":242}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":242},\"start\":{\"character\":2,\"line\":242}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_smug`\"},\"range\":{\"end\":{\"character\":15,\"line\":243},\"start\":{\"character\":6,\"line\":243}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":243},\"start\":{\"character\":6,\"line\":243}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":248},\"start\":{\"character\":2,\"line\":248}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":248},\"start\":{\"character\":2,\"line\":248}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_sad`\"},\"range\":{\"end\":{\"character\":14,\"line\":249},\"start\":{\"character\":6,\"line\":249}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":249},\"start\":{\"character\":6,\"line\":249}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":255},\"start\":{\"character\":2,\"line\":255}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":255},\"start\":{\"character\":2,\"line\":255}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_unsure`\"},\"range\":{\"end\":{\"character\":17,\"line\":256},\"start\":{\"character\":6,\"line\":256}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":256},\"start\":{\"character\":6,\"line\":256}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":261},\"start\":{\"character\":2,\"line\":261}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":261},\"start\":{\"character\":2,\"line\":261}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_shy`\"},\"range\":{\"end\":{\"character\":14,\"line\":262},\"start\":{\"character\":6,\"line\":262}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":262},\"start\":{\"character\":6,\"line\":262}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":267},\"start\":{\"character\":2,\"line\":267}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":267},\"start\":{\"character\":2,\"line\":267}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":268},\"start\":{\"character\":6,\"line\":268}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":268},\"start\":{\"character\":6,\"line\":268}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":273},\"start\":{\"character\":2,\"line\":273}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":273},\"start\":{\"character\":2,\"line\":273}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_tired`\"},\"range\":{\"end\":{\"character\":16,\"line\":274},\"start\":{\"character\":6,\"line\":274}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":274},\"start\":{\"character\":6,\"line\":274}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":279},\"start\":{\"character\":2,\"line\":279}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":279},\"start\":{\"character\":2,\"line\":279}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_unsure`\"},\"range\":{\"end\":{\"character\":17,\"line\":280},\"start\":{\"character\":6,\"line\":280}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":17,\"line\":280},\"start\":{\"character\":6,\"line\":280}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":286},\"start\":{\"character\":2,\"line\":286}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":286},\"start\":{\"character\":2,\"line\":286}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_sad`\"},\"range\":{\"end\":{\"character\":15,\"line\":287},\"start\":{\"character\":6,\"line\":287}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":287},\"start\":{\"character\":6,\"line\":287}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":293},\"start\":{\"character\":2,\"line\":293}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":293},\"start\":{\"character\":2,\"line\":293}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `rival_smug`\"},\"range\":{\"end\":{\"character\":16,\"line\":294},\"start\":{\"character\":6,\"line\":294}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":294},\"start\":{\"character\":6,\"line\":294}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":299},\"start\":{\"character\":2,\"line\":299}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":299},\"start\":{\"character\":2,\"line\":299}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_smug`\"},\"range\":{\"end\":{\"character\":15,\"line\":300},\"start\":{\"character\":6,\"line\":300}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":300},\"start\":{\"character\":6,\"line\":300}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "display screenplay": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":6},\"start\":{\"character\":2,\"line\":6}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":6},\"start\":{\"character\":2,\"line\":6}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":7},\"start\":{\"character\":6,\"line\":7}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":7},\"start\":{\"character\":6,\"line\":7}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":11},\"start\":{\"character\":2,\"line\":11}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":11},\"start\":{\"character\":2,\"line\":11}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":14},\"start\":{\"character\":2,\"line\":14}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":14},\"start\":{\"character\":2,\"line\":14}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":15},\"start\":{\"character\":2,\"line\":15}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":15},\"start\":{\"character\":2,\"line\":15}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":28},\"start\":{\"character\":2,\"line\":28}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":28},\"start\":{\"character\":2,\"line\":28}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":29},\"start\":{\"character\":6,\"line\":29}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":29},\"start\":{\"character\":6,\"line\":29}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":33},\"start\":{\"character\":2,\"line\":33}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":33},\"start\":{\"character\":2,\"line\":33}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":36},\"start\":{\"character\":2,\"line\":36}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":36},\"start\":{\"character\":2,\"line\":36}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":37},\"start\":{\"character\":2,\"line\":37}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":37},\"start\":{\"character\":2,\"line\":37}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":47},\"start\":{\"character\":2,\"line\":47}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":47},\"start\":{\"character\":2,\"line\":47}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":48},\"start\":{\"character\":6,\"line\":48}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":48},\"start\":{\"character\":6,\"line\":48}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":52},\"start\":{\"character\":2,\"line\":52}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":52},\"start\":{\"character\":2,\"line\":52}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":55},\"start\":{\"character\":2,\"line\":55}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":55},\"start\":{\"character\":2,\"line\":55}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":56},\"start\":{\"character\":2,\"line\":56}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":56},\"start\":{\"character\":2,\"line\":56}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":69},\"start\":{\"character\":2,\"line\":69}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":69},\"start\":{\"character\":2,\"line\":69}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":70},\"start\":{\"character\":6,\"line\":70}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":70},\"start\":{\"character\":6,\"line\":70}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":74},\"start\":{\"character\":2,\"line\":74}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":74},\"start\":{\"character\":2,\"line\":74}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":77},\"start\":{\"character\":2,\"line\":77}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":77},\"start\":{\"character\":2,\"line\":77}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":78},\"start\":{\"character\":2,\"line\":78}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":78},\"start\":{\"character\":2,\"line\":78}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":88},\"start\":{\"character\":2,\"line\":88}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":88},\"start\":{\"character\":2,\"line\":88}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":89},\"start\":{\"character\":6,\"line\":89}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":89},\"start\":{\"character\":6,\"line\":89}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":93},\"start\":{\"character\":2,\"line\":93}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":93},\"start\":{\"character\":2,\"line\":93}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":96},\"start\":{\"character\":2,\"line\":96}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":96},\"start\":{\"character\":2,\"line\":96}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":97},\"start\":{\"character\":2,\"line\":97}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":97},\"start\":{\"character\":2,\"line\":97}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":110},\"start\":{\"character\":2,\"line\":110}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":110},\"start\":{\"character\":2,\"line\":110}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":111},\"start\":{\"character\":6,\"line\":111}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":111},\"start\":{\"character\":6,\"line\":111}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":115},\"start\":{\"character\":2,\"line\":115}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":115},\"start\":{\"character\":2,\"line\":115}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":118},\"start\":{\"character\":2,\"line\":118}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":118},\"start\":{\"character\":2,\"line\":118}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":119},\"start\":{\"character\":2,\"line\":119}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":119},\"start\":{\"character\":2,\"line\":119}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "logic screenplay": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":23},\"start\":{\"character\":4,\"line\":23}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":23},\"start\":{\"character\":4,\"line\":23}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":25},\"start\":{\"character\":4,\"line\":25}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":25},\"start\":{\"character\":4,\"line\":25}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":28},\"start\":{\"character\":4,\"line\":28}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":28},\"start\":{\"character\":4,\"line\":28}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":66},\"start\":{\"character\":4,\"line\":66}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":66},\"start\":{\"character\":4,\"line\":66}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":68},\"start\":{\"character\":4,\"line\":68}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":68},\"start\":{\"character\":4,\"line\":68}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":71},\"start\":{\"character\":4,\"line\":71}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":71},\"start\":{\"character\":4,\"line\":71}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":109},\"start\":{\"character\":4,\"line\":109}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":109},\"start\":{\"character\":4,\"line\":109}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":111},\"start\":{\"character\":4,\"line\":111}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":111},\"start\":{\"character\":4,\"line\":111}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":8,\"line\":114},\"start\":{\"character\":4,\"line\":114}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":8,\"line\":114},\"start\":{\"character\":4,\"line\":114}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "function screenplay": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "capture screenplay": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "flow screenplay": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `Visiting 0`\"},\"range\":{\"end\":{\"character\":12,\"line\":7},\"start\":{\"character\":2,\"line\":7}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":12,\"line\":7},\"start\":{\"character\":2,\"line\":7}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `Visiting 1`\"},\"range\":{\"end\":{\"character\":12,\"line\":56},\"start\":{\"character\":2,\"line\":56}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":12,\"line\":56},\"start\":{\"character\":2,\"line\":56}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `Visiting 2`\"},\"range\":{\"end\":{\"character\":12,\"line\":105},\"start\":{\"character\":2,\"line\":105}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":12,\"line\":105},\"start\":{\"character\":2,\"line\":105}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ },
+ "choose screenplay": {
+  "fallback": null,
+  "diagnostics": []
+ },
+ "auto-global screenplay": {
+  "fallback": null,
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find variable named `tally`\"},\"range\":{\"end\":{\"character\":23,\"line\":11},\"start\":{\"character\":18,\"line\":11}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":23,\"line\":11},\"start\":{\"character\":18,\"line\":11}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find variable named `bumped`\"},\"range\":{\"end\":{\"character\":32,\"line\":11},\"start\":{\"character\":26,\"line\":11}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":32,\"line\":11},\"start\":{\"character\":26,\"line\":11}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find variable named `tally`\"},\"range\":{\"end\":{\"character\":14,\"line\":14},\"start\":{\"character\":9,\"line\":14}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":14,\"line\":14},\"start\":{\"character\":9,\"line\":14}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find variable named `late_0`\"},\"range\":{\"end\":{\"character\":23,\"line\":14},\"start\":{\"character\":17,\"line\":14}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":23,\"line\":14},\"start\":{\"character\":17,\"line\":14}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find variable named `late_1`\"},\"range\":{\"end\":{\"character\":23,\"line\":36},\"start\":{\"character\":17,\"line\":36}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":23,\"line\":36},\"start\":{\"character\":17,\"line\":36}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find variable named `late_2`\"},\"range\":{\"end\":{\"character\":23,\"line\":62},\"start\":{\"character\":17,\"line\":62}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":23,\"line\":62},\"start\":{\"character\":17,\"line\":62}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find variable named `late_3`\"},\"range\":{\"end\":{\"character\":23,\"line\":84},\"start\":{\"character\":17,\"line\":84}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":23,\"line\":84},\"start\":{\"character\":17,\"line\":84}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
+ }
+}

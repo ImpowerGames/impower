@@ -351,9 +351,9 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
     return this._outerContainer;
   };
 
-  public override ResolveReferences(context: Story): void {
+  public override ResolveWith(context: Story, program: boolean): void {
     // Weave style choice - target own content container
-    if (this._innerContentContainer) {
+    if (this._innerContentContainer && !program) {
       this.runtimeChoice.pathOnChoice = this._innerContentContainer.path;
 
       if (this.onceOnly) {
@@ -366,7 +366,9 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
         throw new Error();
       }
 
-      this._returnToR1.targetPath = this._r1Label.path;
+      if (!program) {
+        this._returnToR1.targetPath = this._r1Label.path;
+      }
     }
 
     if (this._returnToR2) {
@@ -374,7 +376,9 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
         throw new Error();
       }
 
-      this._returnToR2.targetPath = this._r2Label.path;
+      if (!program) {
+        this._returnToR2.targetPath = this._r2Label.path;
+      }
     }
 
     if (this._divertToStartContentOuter) {
@@ -382,8 +386,10 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
         throw new Error();
       }
 
-      this._divertToStartContentOuter.targetPath =
-        this._startContentRuntimeContainer.path;
+      if (!program) {
+        this._divertToStartContentOuter.targetPath =
+          this._startContentRuntimeContainer.path;
+      }
     }
 
     if (this._divertToStartContentInner) {
@@ -391,11 +397,13 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
         throw new Error();
       }
 
-      this._divertToStartContentInner.targetPath =
-        this._startContentRuntimeContainer.path;
+      if (!program) {
+        this._divertToStartContentInner.targetPath =
+          this._startContentRuntimeContainer.path;
+      }
     }
 
-    super.ResolveReferences(context);
+    super.ResolveWith(context, program);
 
     if (this.identifier && (this.identifier?.name || "").length > 0) {
       context.CheckForNamingCollisions(

@@ -12,7 +12,8 @@ import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
 import { Identifier } from "../Identifier";
-import { currentCompileEpoch } from "../CompileEpoch";
+import { currentResolutionEpoch } from "../CompileEpoch";
+import { resolutionTap } from "../ResolutionTap";
 import { ParsedObject } from "../Object";
 import { Path } from "../Path";
 import { Story } from "../Story";
@@ -59,13 +60,13 @@ export class Divert extends ParsedObject {
   // missing would never resolve back to the knot once `foo` exists again.
   private _variableDivertEpoch: number = -1;
   get targetContent(): ParsedObject | null {
-    return this._targetContentEpoch === currentCompileEpoch()
+    return this._targetContentEpoch === currentResolutionEpoch()
       ? this._targetContent
       : null;
   }
   set targetContent(value: ParsedObject | null) {
     this._targetContent = value;
-    this._targetContentEpoch = value === null ? -1 : currentCompileEpoch();
+    this._targetContentEpoch = value === null ? -1 : currentResolutionEpoch();
   }
 
   private _runtimeDivert: RuntimeDivert | null = null;
@@ -658,7 +659,7 @@ export class Divert extends ParsedObject {
             // A parameter needs no divert-target marking to be diverted to:
             // parameters are untyped, and `name: ->` is only an annotation.
             this.runtimeDivert.variableDivertName = variableTargetName;
-            this._variableDivertEpoch = currentCompileEpoch();
+            this._variableDivertEpoch = currentResolutionEpoch();
             return;
           }
         }
@@ -672,7 +673,7 @@ export class Divert extends ParsedObject {
     }
   };
 
-  public override ResolveReferences(context: Story): void {
+  public override ResolveWith(context: Story, program: boolean): void {
     if (this.isEmpty || this.isEnd || this.isDone) {
       return;
     } else if (!this._runtimeDivert) {
@@ -691,7 +692,7 @@ export class Divert extends ParsedObject {
     // `_variableDivertEpoch`. Clearing it re-opens both retry paths below.
     if (
       this.runtimeDivert.variableDivertName != null &&
-      this._variableDivertEpoch !== currentCompileEpoch()
+      this._variableDivertEpoch !== currentResolutionEpoch()
     ) {
       this.runtimeDivert.variableDivertName = null;
     }
@@ -712,7 +713,11 @@ export class Divert extends ParsedObject {
       this.ResolveTargetContent();
     }
 
-    if (this.targetContent) {
+    if (program) {
+      // The program jumps to its target's symbol (`EmitJump`), and the
+      // target's runtime object, which another statement's generation
+      // makes, is read nowhere.
+    } else if (this.targetContent) {
       this.runtimeDivert.targetPath = this.targetContent.runtimePath;
     } else if (this.runtimeDivert.variableDivertName == null) {
       // Re-resolution found no target this compile. A REUSED runtime divert
@@ -739,15 +744,22 @@ export class Divert extends ParsedObject {
       !this.isFunctionCall &&
       context.builtinGlobalNames.has(capturedBy)
     ) {
-      context.builtinGlobalDiverts.push({
+      const entry = {
         name: capturedBy,
         divert: this,
         warning: this.hasAuthoredBinding(capturedBy, context),
-      });
+      };
+      const note = () => context.builtinGlobalDiverts.push(entry);
+      const tap = resolutionTap();
+      if (tap) {
+        tap.builtinDivert(entry, note);
+      } else {
+        note();
+      }
     }
 
     // Resolve children (the arguments)
-    super.ResolveReferences(context);
+    super.ResolveWith(context, program);
 
     // May be null if it's a built in function (e.g. TURNS_SINCE)
     // or if it's a variable target.
@@ -863,7 +875,7 @@ export class Divert extends ParsedObject {
         this.target.firstComponent
       ) {
         this.runtimeDivert.variableDivertName = this.target.firstComponent;
-        this._variableDivertEpoch = currentCompileEpoch();
+        this._variableDivertEpoch = currentResolutionEpoch();
         return;
       }
       this.Error(

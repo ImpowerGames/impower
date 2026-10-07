@@ -13,6 +13,7 @@ import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../engine/TypeAssertion";
 import { StructDefinition } from "../Struct/StructDefinition";
 import { currentCompileEpoch } from "../CompileEpoch";
+import { resolutionTap } from "../ResolutionTap";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
 
@@ -197,7 +198,12 @@ export class VariableAssignment extends ParsedObject {
     return `set:${name}:${this.isNewTemporaryDeclaration ? "local" : "assign"}`;
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
+  /** Declares the assignment where its kind puts it: a global in the story,
+   *  a `local` in the flow around it, and a plain assignment nowhere. The
+   *  program path's resolver declares it again for a statement it does not
+   *  generate again (`ResolutionTap.declare`), since every compile declares
+   *  the story's names anew. */
+  public readonly RegisterDeclaration = (): void => {
     let newDeclScope: FlowBase | null | undefined = null;
     if (this.isGlobalDeclaration) {
       newDeclScope = this.story;
@@ -207,6 +213,17 @@ export class VariableAssignment extends ParsedObject {
 
     if (newDeclScope) {
       newDeclScope.AddNewVariableDeclaration(this);
+    }
+  };
+
+  public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
+    if (this.isGlobalDeclaration || this.isNewTemporaryDeclaration) {
+      const tap = resolutionTap();
+      if (tap) {
+        tap.declare(this, this.RegisterDeclaration);
+      } else {
+        this.RegisterDeclaration();
+      }
     }
 
     // Global declarations don't generate actual procedural
@@ -235,12 +252,12 @@ export class VariableAssignment extends ParsedObject {
     return container;
   };
 
-  public override ResolveReferences(context: Story): void {
+  public override ResolveWith(context: Story, program: boolean): void {
     // Resolving a refused declaration's contents would read the runtime
     // objects generation never made (a `define`'s `__def` call throws on its
     // missing divert) and end resolution for the rest of the story.
     if (!this.isRefusedAsDuplicate) {
-      super.ResolveReferences(context);
+      super.ResolveWith(context, program);
     }
 
     // List and struct definitions are checked for conflicts separately
@@ -312,7 +329,9 @@ export class VariableAssignment extends ParsedObject {
         // runtime auto-create the global. Mark the runtime assignment
         // as global so the dispatcher routes correctly.
         if (this._runtimeAssignment) {
-          this._runtimeAssignment.isGlobal = true;
+          if (!program) {
+            this._runtimeAssignment.isGlobal = true;
+          }
           // ALSO register the auto-global in the story's variable
           // declarations so downstream `Divert.ResolveTargetContent`
           // recognizes a later `x(args)` site as a variable-target
@@ -322,9 +341,14 @@ export class VariableAssignment extends ParsedObject {
           // Subsequent `x = ...` re-assignments take the resolved
           // branch above (since `x` is now declared) — no risk of
           // duplicate-identifier diagnostics from this registration.
-          this.story.variableDeclarations.set(this.variableName, this);
+          const tap = resolutionTap();
+          if (tap) {
+            tap.autoGlobal(this, this.RegisterAutoGlobal);
+          } else {
+            this.RegisterAutoGlobal();
+          }
         }
-      } else if (this._runtimeAssignment) {
+      } else if (this._runtimeAssignment && !program) {
         // A runtime assignment may not have been generated if it's the
         // initial global declaration, since these are hoisted out and
         // handled specially in Story.ExportRuntime.
@@ -332,6 +356,16 @@ export class VariableAssignment extends ParsedObject {
       }
     }
   }
+
+  /** Makes a global of the assignment's name, as a bare assignment that no
+   *  name resolved does where resolution reaches it. The program path's
+   *  resolver makes it again for a statement it does not resolve again
+   *  (`ResolutionTap.autoGlobal`), while the name is still undeclared there:
+   *  the story's names are declared anew every compile, in the order a cold
+   *  compile reaches their declarations. */
+  public readonly RegisterAutoGlobal = (): void => {
+    this.story.variableDeclarations.set(this.variableName, this);
+  };
 
   public override readonly toString = (): string =>
     `${

@@ -24,7 +24,13 @@ export class DebugMetadata {
       this.fileName = dm.fileName;
       this.filePath = dm.filePath;
     }
+    DebugMetadata.onCreated?.(this);
   }
+
+  /** Hears each position made, so that the program path's resolver tells a
+   *  position a diagnostic made apart from a parsed object's, which an edit
+   *  moves in place. */
+  public static onCreated: ((metadata: DebugMetadata) => void) | null = null;
 
   public Merge(dm: DebugMetadata) {
     let newDebugMetadata = new DebugMetadata();
@@ -63,12 +69,21 @@ export class DebugMetadata {
     return newDebugMetadata;
   }
 
+  /** Hears each position printed into a message: the program path's
+   *  resolver records the positions a statement's diagnostics print, which
+   *  an edit above them moves (`ResolutionTap.position`). */
+  public static onPrinted: ((metadata: DebugMetadata, printed: string) => void) | null =
+    null;
+
   public toString() {
+    let printed: string;
     if (this.fileName !== null) {
       const name = this.fileName.split(".")[0] || this.fileName;
-      return `line ${this.startLineNumber} of '${name}'`;
+      printed = `line ${this.startLineNumber} of '${name}'`;
     } else {
-      return "line " + this.startLineNumber;
+      printed = "line " + this.startLineNumber;
     }
+    DebugMetadata.onPrinted?.(this, printed);
+    return printed;
   }
 }

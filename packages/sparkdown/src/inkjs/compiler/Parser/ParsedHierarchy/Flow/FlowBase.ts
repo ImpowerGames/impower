@@ -24,6 +24,7 @@ import { DebugMetadata } from "../../../../engine/DebugMetadata";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
+import { RecordingMap, recordRead } from "../ResolutionTap";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 
 // Where the enclosing code creates the value of `flow`, a function the
@@ -240,7 +241,13 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // `end` or by a following `scene` or `branch`, so the chunks after the
   // declaration are not part of it.
   public _bodyClosed = false;
-  public _subFlowsByName: Map<string, FlowBase> = new Map();
+  // The flow the lowering made of this flow's declaration, which the
+  // assembly builds this one from: a scene's or a branch's, or a function
+  // declared at the top level, whose flow the compile builds anew every
+  // time. It is carried with the declaration's statement, and the program
+  // path's resolver knows the flow by it (`ProgramResolver`).
+  public _loweredFrom: FlowBase | null = null;
+  public _subFlowsByName: Map<string, FlowBase> = this.subFlowTable();
   public _startingSubFlowDivert: RuntimeDivert | null = null;
   public _startingSubFlowRuntime: RuntimeObject | null = null;
   public _firstChildFlow: FlowBase | null = null;
@@ -254,7 +261,23 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // written directly in that function's body, outside every block of it.
   // See `definitionSite`.
   public _outsideBlocks = false;
-  public variableDeclarations: Map<string, VariableAssignment> = new Map();
+  public variableDeclarations: Map<string, VariableAssignment> =
+    FlowBase.declarationTable();
+
+  /** A table of the flow's sub-flows by name, whose lookups a resolution of
+   *  the program path records (`RecordingMap`). Going through it whole reads
+   *  every flow it holds, which a flow added under this one changes. */
+  public subFlowTable(): Map<string, FlowBase> {
+    return new RecordingMap(() => `flows:${this.identifier?.name ?? ""}`);
+  }
+
+  /** A table of the flow's declarations by name, whose lookups a resolution
+   *  of the program path records (`RecordingMap`). */
+  public static declarationTable(
+    entries?: Iterable<readonly [string, VariableAssignment]>,
+  ): Map<string, VariableAssignment> {
+    return new RecordingMap(() => "vars", entries);
+  }
 
   get hasParameters() {
     return this.args !== null && this.args.length > 0;
@@ -348,7 +371,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const weaveObjs: ParsedObject[] = [];
     const subFlowObjs: ParsedObject[] = [];
 
-    this._subFlowsByName = new Map();
+    this._subFlowsByName = this.subFlowTable();
 
     for (const obj of contentObjs) {
       const subFlow = asOrNull(obj, FlowBase);
@@ -401,6 +424,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     varName: string,
     fromNode: ParsedObject,
   ): VariableResolveResult => {
+    // The flow's parameters answer too, and they are no table.
+    recordRead(varName);
     const result: VariableResolveResult = {} as any;
 
     // Search in the stitch / knot that owns the node first
@@ -455,6 +480,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     varName: string,
     fromNode: ParsedObject,
   ): boolean => {
+    recordRead(varName);
     const storyDecl = this.story.variableDeclarations.get(varName);
     if (storyDecl && !storyDecl.isNewTemporaryDeclaration) {
       return true;
@@ -504,6 +530,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       return false;
     }
     const parentFlow = asOrNull(flow.parent, FlowBase);
+    // Where the flow is written depends on statements other than the one
+    // resolving, which a resolution of the program path cannot name.
+    recordRead("*");
     const site = !parentFlow
       ? flow.parent && {
           parent: flow.parent,
@@ -686,10 +715,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       foundReturn = this.Find(ReturnType)(belongsToThisFlow) ?? this.Find(MultiReturnType)(belongsToThisFlow);
 
       if (foundReturn !== null) {
-        this.Error(
-          `Return statements can only be used inside a function body — found one in ${this.flowLevel === FlowLevel.Knot ? "scene" : "branch"} '${this.identifier}'.`,
-          foundReturn,
-        );
+        this.ReportReturnOutsideFunction(foundReturn);
       }
     } else if (this.flowLevel === FlowLevel.Story) {
       // Explicit Luau return nodes are only valid inside a function body:
@@ -704,10 +730,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       if (this._rootWeave !== null) {
         const rootReturn = this._rootWeave.Find(ReturnType)(belongsToThisFlow) ?? this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
         if (rootReturn !== null) {
-          this.Error(
-            `Return statements can only be used inside a function body — found one at file scope.`,
-            rootReturn,
-          );
+          this.ReportReturnOutsideFunction(rootReturn);
         }
       }
     }
@@ -757,12 +780,10 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           container.namedContent.get(namedChild.name!) || null;
 
         if (existingChild) {
-          const errorMsg = `Duplicate identifier \`${
-            namedChild.name
-          }\`. ${this.GetType()} already contains flow named \`${
-            namedChild.name
-          }\` on ${(existingChild as any as RuntimeObject).debugMetadata}`;
-          this.Error(errorMsg, childFlow?.identifier || childFlow);
+          this.ReportDuplicateChildFlow(
+            childFlow,
+            (existingChild as any as RuntimeObject).debugMetadata,
+          );
         }
 
         container.AddToNamedContentOnly(namedChild);
@@ -794,6 +815,35 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
     return container;
   };
+
+  /** Reports a return written in a scene, a branch or at file scope, which
+   *  only a function body can hold. Generation reports the first such return
+   *  of the flow (`GenerateRuntimeObject`), and the program path's resolver
+   *  the first one its statements recorded. */
+  public ReportReturnOutsideFunction(foundReturn: ParsedObject): void {
+    if (this.flowLevel === FlowLevel.Story) {
+      this.Error(
+        `Return statements can only be used inside a function body — found one at file scope.`,
+        foundReturn,
+      );
+      return;
+    }
+    this.Error(
+      `Return statements can only be used inside a function body — found one in ${this.flowLevel === FlowLevel.Knot ? "scene" : "branch"} '${this.identifier}'.`,
+      foundReturn,
+    );
+  }
+
+  /** Reports a flow written under this one with the name of one before it,
+   *  whose position `existing` is. */
+  public ReportDuplicateChildFlow(
+    childFlow: FlowBase,
+    existing: DebugMetadata | null,
+  ): void {
+    const name = childFlow.identifier?.name as string;
+    const errorMsg = `Duplicate identifier \`${name}\`. ${this.GetType()} already contains flow named \`${name}\` on ${existing}`;
+    this.Error(errorMsg, childFlow?.identifier || childFlow);
+  }
 
   public readonly GenerateArgumentVariableAssignments = (
     container: RuntimeContainer,
@@ -832,6 +882,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // when the caller asked for "anything below a Stitch" (which
     // resolves to `Function` via the `+1` rule in Path).
     const ambiguousLevel = level === null;
+    // The flow's own name answers too, and it is no table.
+    recordRead(name);
 
     // Referencing self? Self is a candidate iff it's at the asked
     // level (self is not "deeper" than itself, so exact match here).
@@ -897,18 +949,28 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return null;
   };
 
-  public override ResolveReferences(context: any): void {
+  public override ResolveWith(context: any, program: boolean): void {
     if (this._startingSubFlowDivert) {
       if (!this._startingSubFlowRuntime) {
         throw new Error();
       }
 
-      this._startingSubFlowDivert.targetPath =
-        this._startingSubFlowRuntime.path;
+      if (!program) {
+        this._startingSubFlowDivert.targetPath =
+          this._startingSubFlowRuntime.path;
+      }
     }
 
-    super.ResolveReferences(context);
+    super.ResolveWith(context, program);
 
+    this.CheckOwnNames(context);
+  }
+
+  /** What a flow's resolution checks of its own names once its content is
+   *  resolved: its parameters' names, and its own name against the story's
+   *  other names. The program path's resolver makes these checks for a scene
+   *  or a branch whose statements it resolves one by one. */
+  public CheckOwnNames(context: any): void {
     // Check validity of parameter names
     if (this.args !== null) {
       for (const arg of this.args) {

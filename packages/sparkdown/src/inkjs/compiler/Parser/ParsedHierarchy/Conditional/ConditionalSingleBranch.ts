@@ -210,13 +210,15 @@ export class ConditionalSingleBranch extends ParsedObject {
     return this._innerWeave.rootContainer;
   };
 
-  public override ResolveReferences(context: Story): void {
+  public override ResolveWith(context: Story, program: boolean): void {
     if (!this._conditionalDivert || !this._contentContainer) {
       throw new Error();
     }
 
-    this._conditionalDivert.targetPath = this._contentContainer.path;
-    super.ResolveReferences(context);
+    if (!program) {
+      this._conditionalDivert.targetPath = this._contentContainer.path;
+    }
+    super.ResolveWith(context, program);
   }
 
   public override OnResetRuntime(): void {

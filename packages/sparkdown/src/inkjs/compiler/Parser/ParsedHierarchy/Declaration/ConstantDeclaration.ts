@@ -48,8 +48,8 @@ export class ConstantDeclaration extends ParsedObject {
     return null;
   };
 
-  public override ResolveReferences(context: Story) {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean) {
+    super.ResolveWith(context, program);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Var);
 
     // A constant is initialized before every mutable global, so it can only be

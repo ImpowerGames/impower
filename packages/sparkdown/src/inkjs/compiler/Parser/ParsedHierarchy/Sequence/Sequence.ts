@@ -266,11 +266,13 @@ export class Sequence extends ParsedObject {
     );
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
 
-    for (const toResolve of this._sequenceDivertsToResolve) {
-      toResolve.divert.targetPath = toResolve.targetContent.path;
+    if (!program) {
+      for (const toResolve of this._sequenceDivertsToResolve) {
+        toResolve.divert.targetPath = toResolve.targetContent.path;
+      }
     }
   }
 }

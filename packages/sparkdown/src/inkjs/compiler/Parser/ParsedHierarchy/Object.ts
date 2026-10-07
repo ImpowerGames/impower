@@ -8,6 +8,7 @@ import { asOrNull } from "../../../engine/TypeAssertion";
 import { currentCompileEpoch } from "./CompileEpoch";
 import type { FindQueryFunc } from "./FindQueryFunc";
 import { Identifier } from "./Identifier";
+import { resolutionTap } from "./ResolutionTap";
 import { Story } from "./Story";
 
 /**
@@ -25,6 +26,21 @@ const emptyCollectSubtrees = new WeakMap<
   object,
   { typesKey: string; length: number }
 >();
+
+/** Resolves `obj` as part of its parent's resolution, and reports it to the
+ *  statement watch: a chunk kept for the object's statement recorded how
+ *  the object resolved, and the watch reads it again here. */
+export const resolveChild = (
+  obj: ParsedObject,
+  context: Story,
+  program: boolean,
+): void => {
+  if (program) {
+    resolutionTap()?.visited(obj, false);
+  }
+  obj.ResolveWith(context, program);
+  noteResolved(obj);
+};
 
 export abstract class ParsedObject {
   public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
@@ -102,6 +118,7 @@ export abstract class ParsedObject {
 
   get runtimeObject(): RuntimeObject {
     if (!this._runtimeObject) {
+      resolutionTap()?.visited(this, true);
       this._runtimeObject = this.GenerateRuntimeObject();
       if (this._runtimeObject) {
         this._runtimeObject.debugMetadata = this.debugMetadata;
@@ -311,13 +328,31 @@ export abstract class ParsedObject {
     return found;
   };
 
-  public ResolveReferences(context: Story) {
+  /** Resolves the object's references for the current engine
+   *  (`Story.ExportRuntime`), which also writes what its runtime tree reads:
+   *  the runtime paths of diverts and choices, and the count flags of the
+   *  containers a read count or a once-only choice counts. */
+  public ResolveReferences(context: Story): void {
+    this.ResolveWith(context, false);
+  }
+
+  /** Resolves the object's references for the program path
+   *  (`ProgramResolver`, docs/engine/binary-program.md, section 2): the same
+   *  resolution and the same diagnostics, with nothing of the runtime tree
+   *  read or written, so that resolving one statement reads no runtime
+   *  object of another. */
+  public ResolveProgram(context: Story): void {
+    this.ResolveWith(context, true);
+  }
+
+  /** The resolution both engines share, which a class overrides: with
+   *  `program`, everything only the current engine's runtime tree reads is
+   *  left out. Called on the object's content by its own resolution, and
+   *  otherwise through `ResolveReferences` or `ResolveProgram`. */
+  public ResolveWith(context: Story, program: boolean): void {
     if (this.content !== null) {
       for (const obj of this.content) {
-        obj.ResolveReferences(context);
-        // A chunk kept for the object's statement recorded how the object
-        // resolved; the statement watch reads it again here.
-        noteResolved(obj);
+        resolveChild(obj, context, program);
       }
     }
   }
@@ -338,21 +373,27 @@ export abstract class ParsedObject {
     }
 
     // Only allow a single parsed object to have a single error *directly* associated with it
-    if (source instanceof ParsedObject) {
-      if (
-        (source._errorEpoch === currentCompileEpoch() && !isWarning) ||
-        (source._warningEpoch === currentCompileEpoch() && isWarning)
-      ) {
-        return;
+    const keptBack =
+      (source instanceof ParsedObject &&
+        ((source._errorEpoch === currentCompileEpoch() && !isWarning) ||
+          (source._warningEpoch === currentCompileEpoch() && isWarning))) ||
+      (source instanceof Identifier &&
+        ((source.alreadyHadError && !isWarning) ||
+          (source.alreadyHadWarning && isWarning)));
+    if (keptBack) {
+      // Heard where it was raised, which a call bubbling up from a child is
+      // not (`raiser`).
+      if (raiser === this) {
+        resolutionTap()?.diagnostic(
+          this,
+          message,
+          source,
+          isWarning,
+          (source as ParsedObject | Identifier).debugMetadata ?? null,
+          false,
+        );
       }
-    }
-    if (source instanceof Identifier) {
-      if (
-        (source.alreadyHadError && !isWarning) ||
-        (source.alreadyHadWarning && isWarning)
-      ) {
-        return;
-      }
+      return;
     }
 
     if (this.parent) {
