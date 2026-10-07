@@ -318,7 +318,7 @@ const choiceInstructions = (
  * nothing, so that a later one that does reads as other code; nothing for
  * a symbol that is neither.
  */
-export const bindingLayout = (root: ProgramRoot, symbol: number): string | undefined => {
+const bindingLayout = (root: ProgramRoot, symbol: number): string | undefined => {
   const kind = root.kindOf(symbol);
   if (kind === SymbolKind.Function) {
     const place = root.place(symbol);
@@ -348,7 +348,7 @@ const choicesByPart = (
 
 /** Writes the saved form of positions, statements and symbols of one root,
  *  with the listings and part listings they name. */
-export class FormWriter {
+class FormWriter {
   protected _listings = new Map<number, { index: number; sequence: SequenceRow; ranges: [number, number][] }>();
   protected _parts = new Map<StatementChunk, Map<ChunkPartKind, number>>();
   protected _partList: SavedParts[] = [];
@@ -638,7 +638,7 @@ const B2J = new WeakMap<object, Map<string, number[]>>();
 const INDEXES = new WeakMap<ProgramRoot, Map<string, { sequence: SequenceRow; entry: number }[]>>();
 
 /** Places the saved forms of one save, or one translation, in a root. */
-export class FormPlacer {
+class FormPlacer {
   /** What placing warned of. */
   readonly warnings: string[] = [];
   /** The flows a statement's neighbourhood found under another name, old

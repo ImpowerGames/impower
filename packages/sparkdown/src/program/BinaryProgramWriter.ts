@@ -1824,7 +1824,7 @@ const logicLine = (s: string, i: number): { text: string; next: number } => {
       continue;
     }
     const comment = c === "-" && s[i + 1] === "-";
-    const long = comment || c === "[" ? LONG_BRACKET.exec(s.slice(comment ? i + 2 : i, i + 64)) : null;
+    const long = comment || c === "[" ? longBracketAt(s, comment ? i + 2 : i) : null;
     if (long) {
       const from = i + (comment ? 2 : 0) + long[0].length;
       const close = s.indexOf(`]${long[1]}]`, from);
@@ -1910,7 +1910,7 @@ const endOfLuau = (s: string, i: number, stop?: string): number => {
       continue;
     }
     const comment = c === "-" && s[i + 1] === "-";
-    const long = comment || c === "[" ? LONG_BRACKET.exec(s.slice(comment ? i + 2 : i, i + 64)) : null;
+    const long = comment || c === "[" ? longBracketAt(s, comment ? i + 2 : i) : null;
     if (long) {
       const close = s.indexOf(`]${long[1]}]`, i + (comment ? 2 : 0) + long[0].length);
       if (close < 0) {
@@ -1974,8 +1974,16 @@ const endOfString = (s: string, i: number): number => {
   return j < s.length ? j + 1 : -1;
 };
 
-/** The opening of a Luau long bracket, `[[` or `[=[` and so on. */
-const LONG_BRACKET = /^\[(=*)\[/;
+/** The Luau long bracket that opens at `i` of `s` (`[[`, `[=[` and so on,
+ *  with any number of `=`), as its opener and its `=`, or nothing. */
+const longBracketAt = (s: string, i: number): [string, string] | null => {
+  if (s[i] !== "[") {
+    return null;
+  }
+  let j = i + 1;
+  while (s[j] === "=") j += 1;
+  return s[j] === "[" ? [s.slice(i, j + 1), s.slice(i + 1, j)] : null;
+};
 
 /** One instruction of `chunk`'s code as text, for a listing or a test. A
  *  symbol reads as its qualified name; an anonymous one that the chunk
