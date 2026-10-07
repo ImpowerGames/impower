@@ -9,7 +9,6 @@
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { describe, expect, test } from "vitest";
 import {
   getOffsetSourceLocation,
@@ -91,7 +90,7 @@ describe.each([
 ])("previous and next beat navigation on $engine", ({ programChunks }) => {
   const program = compile(programChunks);
   const at = (file: string, line: number, offset: number) =>
-    getOffsetSourceLocation(program, ownBeats(programLocator(program)), file, line, offset);
+    getOffsetSourceLocation(program, ownBeats(program), file, line, offset);
   const main = (needle: string) => lineOf(MAIN_SRC, needle);
 
   test("compiles the program the engine runs", () => {
@@ -156,7 +155,7 @@ describe.each([
   });
 
   test("a file the program does not know, and no program at all, land nowhere", async () => {
-    const locator = ownBeats(programLocator(program));
+    const locator = ownBeats(program);
     expect(await getOffsetSourceLocation(program, locator, "file://proj/absent.sd", 0, 1)).toBeNull();
     expect(await getOffsetSourceLocation(program, locator, undefined, 0, 1)).toBeNull();
     expect(await getOffsetSourceLocation(undefined, locator, MAIN, 0, 1)).toBeNull();
@@ -166,20 +165,43 @@ describe.each([
 
 describe("previous and next beat navigation", () => {
   // The language server answers it from the program engine's root since
-  // #704, where it answered from the current engine's path locations.
-  // Without the divert and the `done` (see below), every line lands where it
-  // landed on the current engine, scene headers included.
-  const withoutEnds = (text: string) =>
-    text
-      .split(NEWLINE)
-      .filter((line) => line.trim() !== "-> B" && line.trim() !== "done")
-      .join(NEWLINE);
-  const main = withoutEnds(MAIN_SRC);
-  const chapter = withoutEnds(CHAPTER_SRC);
+  // #704, where it answered from the current engine's path locations. A
+  // scene's and a branch's header is a stop on both, and a divert, a `done`
+  // or a `fin` at a flow's own level on neither, while one inside a block's
+  // body is a stop on both.
+  const FLOWS = [
+    "store n = 0",
+    "",
+    "scene A",
+    "  Hello.",
+    "  -> A.side",
+    "  Unreached.",
+    "  if n > 0 then",
+    "    -> B",
+    "  end",
+    "  & n = n + 1",
+    "  fin",
+    "  branch side",
+    "    Side.",
+    "    -> B",
+    "  end",
+    "end",
+    "",
+    "scene B",
+    "  Bye.",
+    "  done",
+    "end",
+    "",
+    "function f(x)",
+    "  return x",
+    "end",
+    "",
+  ].join(NEWLINE);
 
-  test("lands where it lands on the current engine, from every line of every script, on the program engine", async () => {
+  const differences = async (main: string, chapter: string) => {
     const current = compile(false, main, chapter);
     const chunked = compile(true, main, chapter);
+    expect(chunked.fallback).toBeUndefined();
     const differing: string[] = [];
     for (const [uri, text] of [
       [MAIN, main],
@@ -188,31 +210,33 @@ describe("previous and next beat navigation", () => {
       const lines = text.split(NEWLINE).length;
       for (let line = 0; line < lines; line++) {
         for (const offset of [-2, -1, 1, 2]) {
-          const want = await getOffsetSourceLocation(current, ownBeats(programLocator(current)), uri, line, offset);
-          const got = await getOffsetSourceLocation(chunked, ownBeats(programLocator(chunked)), uri, line, offset);
+          const want = await getOffsetSourceLocation(current, ownBeats(current), uri, line, offset);
+          const got = await getOffsetSourceLocation(chunked, ownBeats(chunked), uri, line, offset);
           if (JSON.stringify(want) !== JSON.stringify(got)) {
             differing.push(`${uri} line ${line} offset ${offset}: ${JSON.stringify(want)} against ${JSON.stringify(got)}`);
           }
         }
       }
     }
-    expect(differing).toEqual([]);
+    return differing;
+  };
+
+  test("lands where it lands on the current engine, from every line of every script, on the program engine", async () => {
+    expect(await differences(MAIN_SRC, CHAPTER_SRC)).toEqual([]);
   });
 
-  // A divert or a `done` that ends a scene is a statement with an address
-  // of its own on the program engine, which the Game Preview routes to
-  // since #703, and has none on the current engine; the navigation stops on
-  // it on the program engine.
-  test("stops on a scene's last divert and `done` on the program engine only", async () => {
-    const at = async (programChunks: boolean, uri: string, line: number, offset: number) => {
-      const program = compile(programChunks);
-      return getOffsetSourceLocation(program, ownBeats(programLocator(program)), uri, line, offset);
-    };
-    const divert = lineOf(MAIN_SRC, "-> B");
-    const done = lineOf(CHAPTER_SRC, "done");
-    expect(await at(true, MAIN, lineOf(MAIN_SRC, "He looks again."), 1)).toEqual({ file: MAIN, line: divert });
-    expect(await at(false, MAIN, lineOf(MAIN_SRC, "He looks again."), 1)).toBeNull();
-    expect(await at(true, CHAPTER, lineOf(CHAPTER_SRC, "Bunny leaves."), 1)).toEqual({ file: CHAPTER, line: done });
-    expect(await at(false, CHAPTER, lineOf(CHAPTER_SRC, "Bunny leaves."), 1)).toBeNull();
+  test("lands where it lands on the current engine around diverts, `done`, `fin`, branches and functions", async () => {
+    expect(await differences(["include chapter.sd", ""].join(NEWLINE), FLOWS)).toEqual([]);
+    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), FLOWS);
+    const at = (line: number, offset: number) =>
+      getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
+    // Past a divert at the scene's own level, onto the line below it.
+    expect(await at(lineOf(FLOWS, "Hello."), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "Unreached.") });
+    // A divert inside an `if` is a stop of its own.
+    expect(await at(lineOf(FLOWS, "if n > 0"), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "    -> B") });
+    // Past `fin`, onto the branch header.
+    expect(await at(lineOf(FLOWS, "& n = n + 1"), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "branch side") });
+    // Nothing past the last beat before `done`.
+    expect(await at(lineOf(FLOWS, "Bye."), 1)).toBeNull();
   });
 });

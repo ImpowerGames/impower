@@ -13,6 +13,8 @@
 // as a worker's port does.
 import "@impower/sparkdown/src/inkjs/engine/Container";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
+import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
+import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { UpdateCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -204,8 +206,11 @@ const BEATS = [
   "  & trust = trust + 1",
   "  He looks again.",
   "",
+  "  -> B",
+  "",
   "  branch hall",
   "    He waits.",
+  "    -> B",
   "  end",
   "end",
   "",
@@ -213,6 +218,8 @@ const BEATS = [
   "  Bunny arrives.",
   "",
   "  Bunny leaves.",
+  "",
+  "  done",
   "end",
   "",
 ].join(NEWLINE);
@@ -262,11 +269,9 @@ describe("the language server's locations", () => {
     const ls = await languageServer(BEATS);
     const remote = ls.workspace.locatorOf(ls.program);
     // What the language server answered before it compiled with chunks: the
-    // program of the current back end and its path locations. The script
-    // ends its scenes with no divert or `done`, which only the program
-    // engine stops on (`offsetSourceLocation.test.ts`).
+    // program of the current back end and its path locations.
     const current = coldCompile(BEATS, false);
-    const before = ownBeats(programLocator(current));
+    const before = ownBeats(current);
     const lines = BEATS.split(NEWLINE).length;
     for (let line = 0; line < lines; line++) {
       for (const offset of [-1, 1, 2]) {
@@ -304,6 +309,28 @@ describe("the language server's locations", () => {
     // Every question is a message to the worker and its answer, each a task
     // later here.
   }, 60_000);
+
+  it("are none once the script the program was compiled for is removed, which the worker then holds no longer", async () => {
+    const ls = await languageServer(BEATS);
+    const OTHER = "file:///project/other.sd";
+    const other = ["scene C", "  Alone here.", "end", ""].join(NEWLINE);
+    await ls.workspace.page.sendRequest(AddCompilerFileMessage.type, {
+      file: { ...scriptFile(other), uri: OTHER, name: "other" } as never,
+    });
+    const program: SparkProgram = (
+      await quietly<{ program: SparkProgram }>(() =>
+        (ls.workspace as any).compileDocument(OTHER),
+      )
+    ).program;
+    const remote = ls.workspace.locatorOf(program);
+    expect(typeof (await remote.addressAt(OTHER, 1))).toBe("number");
+    await ls.workspace.page.sendRequest(RemoveCompilerFileMessage.type, {
+      file: { uri: OTHER },
+    });
+    expect(await remote.addressAt(OTHER, 1)).toBeUndefined();
+    // The main script's program is still held.
+    expect(typeof (await ls.workspace.locatorOf(ls.program).addressAt(MAIN, lineOf(BEATS, "Bunny arrives.")))).toBe("number");
+  });
 
   it("are none for a program the worker never compiled", async () => {
     const ls = await languageServer(BEATS);

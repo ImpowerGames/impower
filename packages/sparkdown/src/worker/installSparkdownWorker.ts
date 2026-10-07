@@ -82,9 +82,17 @@ export function installSparkdownWorker(
         return;
       }
       if (ConfigureCompilerMessage.type.is(message)) {
-        connection.sendResponse(message, () =>
-          state.compiler.configure(message.params),
-        );
+        connection.sendResponse(message, () => {
+          const result = state.compiler.configure(message.params);
+          // A configuration can replace the project's scripts: the programs
+          // of scripts it no longer holds go with them.
+          for (const uri of [...compiledPrograms.keys()]) {
+            if (!state.compiler.documents.has(uri)) {
+              compiledPrograms.delete(uri);
+            }
+          }
+          return result;
+        });
         return;
       }
       if (AddCompilerFileMessage.type.is(message)) {
@@ -100,6 +108,8 @@ export function installSparkdownWorker(
         return;
       }
       if (RemoveCompilerFileMessage.type.is(message)) {
+        // A removed script's program, and its root, go with it.
+        compiledPrograms.delete(message.params.file.uri);
         connection.sendResponse(message, () =>
           state.compiler.removeFile(message.params),
         );

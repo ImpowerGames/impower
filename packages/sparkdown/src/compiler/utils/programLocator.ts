@@ -2,7 +2,13 @@ import type {
   LocateProgramResult,
   LocateQuery,
 } from "../classes/messages/LocateProgramMessage";
+import { Op, opOf } from "../../program/ProgramInstructions";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import {
+  chunkOfAddress,
+  codeWords,
+  HEADER_WORDS,
+} from "../../program/StatementChunk";
 import type {
   AddressQuery,
   LineBeat,
@@ -146,24 +152,79 @@ export const answerLocateQueries = (
     }
     if ("beatAt" in q) {
       const { uri, line, query } = q.beatAt;
-      return beatAt(locator, uri, line, query) ?? null;
+      return beatAt(program!, uri, line, query) ?? null;
     }
     return locator.locationOf(q.locationOf) ?? null;
   });
 };
 
-/** The address of a line and where it stands, from one accessor; nothing
- *  for a line with no address. */
+// What a statement that only leaves its flow pushes before it leaves: the
+// arguments of a divert.
+const PUSHES = new Set<number>([
+  Op.Str,
+  Op.Int,
+  Op.Num,
+  Op.Const,
+  Op.GetVar,
+  Op.Sym,
+  Op.VarPtr,
+]);
+const LEAVES = new Set<number>([Op.JumpSym, Op.JumpVar, Op.Done, Op.End]);
+
+/** Whether the statement an address stands in is a divert, a `done` or a
+ *  `fin` at its flow's own level, and nothing else. */
+const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
+  const position = root.position(chunkOfAddress(address));
+  if (!position || root.ownerOf(position.sequence)) {
+    return false;
+  }
+  const chunk = position.sequence.arrays.chunks[position.entry]!;
+  const words = codeWords(chunk);
+  let last = -1;
+  for (let offset = 0; offset < words; offset += 2) {
+    last = opOf(chunk[HEADER_WORDS + offset]!);
+    if (!PUSHES.has(last) && !LEAVES.has(last)) {
+      return false;
+    }
+  }
+  return LEAVES.has(last);
+};
+
+/**
+ * The beat a line takes for the previous and next beat: its address and
+ * where that address stands, from one program, or nothing for a line with
+ * no address. It is the program's accessor's, but for a divert, a `done` or a
+ * `fin` that stands at its flow's own level: the program engine gives such a
+ * statement an address of its own, which the Game Preview routes to, and the
+ * current engine's path locations give it none, so it takes the beat of the
+ * lines below it as it does on the current engine. One inside a block's body
+ * has an address on both.
+ */
 export const beatAt = (
-  locator: ProgramLocator,
+  program: SparkProgram,
   uri: string,
   line: number,
   query?: AddressQuery,
 ): LineBeat | undefined => {
-  const address = locator.addressAt(uri, line, query);
-  if (address === undefined) {
-    return undefined;
+  const locator = programLocator(program);
+  const root = program.chunks && !program.fallback ? program.chunks : undefined;
+  let from = line;
+  for (;;) {
+    const address = locator.addressAt(uri, from, query);
+    if (address === undefined) {
+      return undefined;
+    }
+    const location = locator.locationOf(address);
+    if (
+      root &&
+      typeof address === "number" &&
+      location &&
+      location.endLine >= from &&
+      leavesFlowOnly(root, address)
+    ) {
+      from = location.endLine + 1;
+      continue;
+    }
+    return location ? { address, location } : { address };
   }
-  const location = locator.locationOf(address);
-  return location ? { address, location } : { address };
 };

@@ -1,13 +1,12 @@
 import type {
   AddressQuery,
   LineBeat,
-  ProgramLocator,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { beatAt } from "@impower/sparkdown/src/compiler/utils/programLocator";
 
-/** The beat of a line as the language server asks for it: the compiler's
- *  worker's (`SparkdownWorkspace.locatorOf`), or a program's own accessor's
+/** The beat of a line as the language server asks for it (`beatAt`): the
+ *  compiler's worker's (`SparkdownWorkspace.locatorOf`), or a program's own
  *  (`ownBeats`) where the program is at hand. */
 export interface BeatLocator {
   beatAt(
@@ -17,9 +16,9 @@ export interface BeatLocator {
   ): LineBeat | undefined | Promise<LineBeat | undefined>;
 }
 
-/** The beats of a program's own accessor (`programLocator`). */
-export const ownBeats = (locator: ProgramLocator): BeatLocator => ({
-  beatAt: (uri, line, query) => beatAt(locator, uri, line, query),
+/** The beats of a program at hand (`beatAt`). */
+export const ownBeats = (program: SparkProgram): BeatLocator => ({
+  beatAt: (uri, line, query) => beatAt(program, uri, line, query),
 });
 
 /** The lines of a script's scene and branch headers, which the program
@@ -51,10 +50,8 @@ const headerLines = (program: SparkProgram, uri: string): Set<number> => {
  * beat below the line that starts below it, and the previous beat the first
  * one above that starts above it, which from inside a beat is that beat's
  * start. The program answers from either engine, and no line table reaches
- * the client. They differ in one place: a divert or a `done` that ends a
- * scene has an address of its own on the program engine, which the Game
- * Preview routes to, and none on the current engine, so only the program
- * engine stops on it.
+ * the client, and they land on the same lines: a divert, a `done` or a `fin`
+ * at a flow's own level is no beat on either (`beatAt`).
  *
  * This lives server-side deliberately: the program's locations are large on a
  * feature-length script, and shipping them to the client with every compile
