@@ -535,6 +535,11 @@ export class Game<T extends M = {}> {
 
   // The game's own version string (`GameConfiguration.version`).
   protected _version = "";
+  // How many beats a save on the program engine holds, and how many the
+  // story keeps restorable during play (docs/engine/binary-program.md,
+  // section 7).
+  protected _saveHistory = 16;
+  protected _rewindBeats = 128;
 
   /** The story when it is the program engine's, which keeps images of its
    *  beats: the checkpoints are its images, and a save is its durable save
@@ -554,6 +559,8 @@ export class Game<T extends M = {}> {
   ) {
     this._programChunks = options.programChunks ?? false;
     this._version = options.version ?? "";
+    this._saveHistory = options.saveHistory ?? 16;
+    this._rewindBeats = options.rewindBeats ?? 128;
     this._program = this.updateProgram(options.program, options.story);
 
     // Create connection for sending and receiving messages
@@ -733,7 +740,12 @@ export class Game<T extends M = {}> {
       // program kept (`restoreCheckpoint`), and it keeps the image of each
       // beat, which a checkpoint and a save at a menu hold.
       const previous = this.programStory;
-      const engine = new ProgramStory(chunks, { images: previous?.images });
+      const engine = new ProgramStory(chunks, {
+        images: previous?.images,
+        history: previous?.history,
+        saveHistory: this._saveHistory,
+        rewindBeats: this._rewindBeats,
+      });
       engine.keepBeatImages = true;
       this._story = engine as unknown as Story;
     } else if (story) {
@@ -1916,11 +1928,16 @@ export class Game<T extends M = {}> {
       const image = this._checkpoints.imageAt(checkpointIndex)?.image as
         | ProgramImage
         | undefined;
-      if (!image || !program.canRestore(image)) {
+      // A route resumes only from a checkpoint whose positions the new
+      // root holds as they are: the steps after it are judged by their
+      // addresses (`validAddressPrefixLength`), so one placed through its
+      // saved form is not resumed from, and the search goes on from an
+      // earlier one (#700). `restoreCheckpoint` translates.
+      if (!image || !program.canRestore(image, false)) {
         return null;
       }
       this.discardOpenStoryLine();
-      if (!program.restore(image)) {
+      if (!program.restore(image, false)) {
         return null;
       }
       state = image;
@@ -2481,10 +2498,12 @@ export class Game<T extends M = {}> {
    * Restores checkpoint `index` in place: the story's image of the beat, and
    * the module state and runtime collections saved beside it. Within a
    * session an image taken before a compile restores after it for every
-   * statement the compile kept; one that names a statement it emitted again
-   * is unplaced, and nothing changes, so that the caller replays
-   * (docs/engine/binary-program.md, sections 7 and 8). A checkpoint of the
-   * current engine loads from its full save.
+   * statement the compile kept, and one that names a statement it emitted
+   * again is translated through its saved form (#1429); one that still cannot
+   * be placed is unplaced, and nothing changes, so that the caller replays
+   * (docs/engine/binary-program.md, sections 7 and 8). A route's resumption
+   * does not translate (`readResumePoint`). A checkpoint of the current
+   * engine loads from its full save.
    */
   restoreCheckpoint(index: number): boolean {
     const entry = this._checkpoints.imageAt(index);
