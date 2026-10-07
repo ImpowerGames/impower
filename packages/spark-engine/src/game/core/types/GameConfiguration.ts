@@ -4,6 +4,15 @@ export interface GameConfiguration {
    *  engine names in its header (docs/engine/binary-program.md, section 7).
    *  Empty when unset. */
   version?: string;
+  /** How many of the beats the player passed a save on the program engine
+   *  holds, so that a load into an updated game can fall back to a beat
+   *  whose position the new program still has (docs/engine/binary-program.md,
+   *  section 7). Default 16. */
+  saveHistory?: number;
+  /** How many beats the program engine keeps restorable during play, which
+   *  a rewind reads; a save holds the last `saveHistory` of them. Default
+   *  128. */
+  rewindBeats?: number;
   /** How many times one uninterrupted stretch of execution may advance the
    *  story before it is stopped as a runaway (see `Game.step`). Counted in work
    *  rather than elapsed time, so a long scene is not mistaken for an infinite

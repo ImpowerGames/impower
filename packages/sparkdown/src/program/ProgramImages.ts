@@ -577,7 +577,8 @@ export const keyedStateOf = (image: ProgramImage): KeyedState => {
  * Restores `image` into `state` in place, or returns false and changes
  * nothing when a position the image holds cannot be placed in the root
  * `state` runs on: a chunk the root no longer holds, or a sequence it no
- * longer has (docs/engine/binary-program.md, section 8). An image taken in
+ * longer has, which `translate`, when given, places through the position's
+ * saved form (docs/engine/binary-program.md, section 8). An image taken in
  * an older table generation has its counts taken through the reseeds since
  * (section 2, Reseed).
  */
@@ -586,13 +587,13 @@ export const restoreImage = (
   tracker: ImageTracker,
   engine: object,
   image: ProgramImage,
+  translate?: (image: ProgramImage) => PlacedPositional | undefined,
 ): boolean => {
   if (image.images !== tracker.images) {
     return false;
   }
-  const placed: PlacedPositional | undefined = state.placePositional(
-    image.positional,
-  );
+  const placed: PlacedPositional | undefined =
+    state.placePositional(image.positional) ?? translate?.(image);
   if (!placed) {
     return false;
   }

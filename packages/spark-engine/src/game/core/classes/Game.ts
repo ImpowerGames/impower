@@ -481,6 +481,11 @@ export class Game<T extends M = {}> {
 
   // The game's own version string (`GameConfiguration.version`).
   protected _version = "";
+  // How many beats a save on the program engine holds, and how many the
+  // story keeps restorable during play (docs/engine/binary-program.md,
+  // section 7).
+  protected _saveHistory = 16;
+  protected _rewindBeats = 128;
 
   /** The story when it is the program engine's, which keeps images of its
    *  beats: the checkpoints are its images, and a save is its durable save
@@ -500,6 +505,8 @@ export class Game<T extends M = {}> {
   ) {
     this._programChunks = options.programChunks ?? false;
     this._version = options.version ?? "";
+    this._saveHistory = options.saveHistory ?? 16;
+    this._rewindBeats = options.rewindBeats ?? 128;
     this._program = this.updateProgram(options.program, options.story);
 
     // Create connection for sending and receiving messages
@@ -675,7 +682,12 @@ export class Game<T extends M = {}> {
       // program kept (`restoreCheckpoint`), and it keeps the image of each
       // beat, which a checkpoint and a save at a menu hold.
       const previous = this.programStory;
-      const engine = new ProgramStory(chunks, { images: previous?.images });
+      const engine = new ProgramStory(chunks, {
+        images: previous?.images,
+        history: previous?.history,
+        saveHistory: this._saveHistory,
+        rewindBeats: this._rewindBeats,
+      });
       engine.keepBeatImages = true;
       this._story = engine as unknown as Story;
     } else if (story) {

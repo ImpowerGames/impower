@@ -59,7 +59,7 @@ import {
 } from "./ProgramRoot";
 import { identityOf, StatementWatch } from "./StatementWatch";
 import { Op, opOf } from "./ProgramInstructions";
-import { recordChunkParts } from "./chunkParts";
+import { alignParts, recordChunkParts, type HandedOn } from "./chunkParts";
 import {
   anonymousSymbol,
   internSymbol,
@@ -281,7 +281,7 @@ interface HeadPart {
  *  pass of the alignment (`alignParts`) that paired its heading part with an
  *  old one (equal and in order, equal wherever it stands, or between two
  *  matched parts), or a new id. */
-export type HandedOn = "aligned" | "aligned-moved" | "between" | "new";
+export type { HandedOn };
 
 /** One body id a build handed on (`ChunkStore.handedOnLastBuild`). */
 export interface BodyHandOff {
@@ -1805,6 +1805,7 @@ export class ChunkStore {
       functions: info.parts,
       alternators: info.alternators,
       choices: info.choices,
+      heads: info.heads,
     });
     return chunk;
   }
@@ -3934,71 +3935,6 @@ const GENERATED_NAMES = /__synth_\d+/g;
 /** The hash a function part is aligned by: its own source, normalized. */
 const fingerprintOf = (body: BodySource): string =>
   normalizeSource(body.partSource?.() ?? "");
-
-/**
- * Aligns the new parts of a statement with the old ones, by their
- * fingerprints, as section 2 aligns a re-emitted statement's parts: parts
- * whose fingerprints are equal and that stand in the same order are matched
- * first, the nearest in order where several read the same; then a part left
- * whose fingerprint equals one left on the other side, wherever it stands;
- * then, in each run of parts left between two matched ones, the old are
- * paired with the new in order. Returns, per new part, the index of its old
- * part, or nothing, and the pass that paired it. It is the one alignment of
- * every part of a statement emitted again in place: its functions, its
- * alternators, its choices and the parts that head its other bodies.
- */
-const alignParts = (
-  now: readonly string[],
-  was: readonly string[],
-): { pairs: (number | undefined)[]; how: (HandedOn | undefined)[] } => {
-  const pairs: (number | undefined)[] = now.map(() => undefined);
-  const how: (HandedOn | undefined)[] = now.map(() => undefined);
-  const taken = new Set<number>();
-  // Equal and in order.
-  let from = 0;
-  now.forEach((fingerprint, i) => {
-    for (let o = from; o < was.length; o += 1) {
-      if (was[o] === fingerprint) {
-        pairs[i] = o;
-        how[i] = "aligned";
-        taken.add(o);
-        from = o + 1;
-        return;
-      }
-    }
-  });
-  // Equal, wherever they stand.
-  now.forEach((fingerprint, i) => {
-    if (pairs[i] !== undefined) {
-      return;
-    }
-    const o = was.findIndex((w, k) => w === fingerprint && !taken.has(k));
-    if (o >= 0) {
-      pairs[i] = o;
-      how[i] = "aligned-moved";
-      taken.add(o);
-    }
-  });
-  // The rest, in order, between matched parts.
-  let lastOld = -1;
-  for (let i = 0; i < now.length; i += 1) {
-    if (pairs[i] !== undefined) {
-      lastOld = Math.max(lastOld, pairs[i]!);
-      continue;
-    }
-    for (let o = lastOld + 1; o < was.length; o += 1) {
-      if (taken.has(o)) {
-        break;
-      }
-      pairs[i] = o;
-      how[i] = "between";
-      taken.add(o);
-      lastOld = o;
-      break;
-    }
-  }
-  return { pairs, how };
-};
 
 /** What a body that neither a choice nor a function heads is aligned by
  *  when its statement is emitted again in place (section 2): the source of

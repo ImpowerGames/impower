@@ -1688,14 +1688,122 @@ export const NO_FACTS = factHash("");
 const numberText = (value: number): string =>
   Object.is(value, -0) ? "-0" : String(value);
 
-/** The source a fingerprint hashes: each line trimmed, and blank lines left
- *  out, so that re-indenting a statement keeps its fingerprint. */
-export const normalizeSource = (source: string): string =>
-  source
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join("\n");
+/** The source a fingerprint hashes (docs/engine/binary-program.md, section
+ *  1): comments removed, each line trimmed, blank lines left out, and in a
+ *  line of logic a run of whitespace between tokens read as one space, with
+ *  the text of a string and of a displayed line left as written. So
+ *  re-indenting a statement, editing a comment or changing the spacing
+ *  between its tokens keeps its fingerprint, and an edit inside a string or
+ *  a displayed line does not.
+ *
+ *  A line is logic when it starts with `&`, with a comment, or with a
+ *  keyword of the language's logic (`LOGIC_LINE`); its comments are Luau's,
+ *  `--` to the end of the line and `--[[ ]]` across lines. Any other line is
+ *  displayed text (a line of narration or dialogue, a choice's line), whose
+ *  comment is a `//` that starts the line or follows whitespace and is
+ *  followed by whitespace or the line's end, as the grammar reads one
+ *  (`SparkdownInlineComment`); `--` there is text. A logic line written
+ *  without either mark (a field of a `define`'s body) reads as displayed
+ *  text, so its comments and its spacing still count. */
+export const normalizeSource = (source: string): string => {
+  const out: string[] = [];
+  // An open long bracket that runs past its line: a block comment, which
+  // is dropped, or a long string, which is kept as written, with the
+  // number of `=` that closes it.
+  let open: { comment: boolean; level: number } | null = null;
+  for (const raw of source.split("\n")) {
+    const line = raw.replace(/\r$/, "");
+    if (!open && !LOGIC_LINE.test(line.trimStart())) {
+      const text = line.replace(DISPLAY_COMMENT, "").trim();
+      if (text.length > 0) {
+        out.push(text);
+      }
+      continue;
+    }
+    let text = "";
+    let i = 0;
+    const closeOpen = (): boolean => {
+      const close = `]${"=".repeat(open!.level)}]`;
+      const at = line.indexOf(close, i);
+      const end = at < 0 ? line.length : at + close.length;
+      if (!open!.comment) {
+        text += line.slice(i, end);
+      }
+      i = end;
+      if (at < 0) {
+        return false;
+      }
+      open = null;
+      return true;
+    };
+    if (open && !closeOpen()) {
+      if (text.trim().length > 0) out.push(text);
+      continue;
+    }
+    while (i < line.length) {
+      const c = line[i]!;
+      if (c === '"' || c === "'" || c === "`") {
+        // A string, kept as written, escapes included.
+        let j = i + 1;
+        while (j < line.length && line[j] !== c) {
+          j += line[j] === "\\" ? 2 : 1;
+        }
+        text += line.slice(i, Math.min(j + 1, line.length));
+        i = j + 1;
+        continue;
+      }
+      const long =
+        c === "-" && line[i + 1] === "-" && line[i + 2] === "["
+          ? LONG_BRACKET.exec(line.slice(i + 2))
+          : c === "[" && (line[i + 1] === "[" || line[i + 1] === "=")
+            ? LONG_BRACKET.exec(line.slice(i))
+            : null;
+      if (c === "-" && line[i + 1] === "-") {
+        if (long) {
+          open = { comment: true, level: long[1]!.length };
+          i += 2 + long[0].length;
+          if (!closeOpen()) break;
+          // A block comment that closes on its line separates the tokens
+          // around it.
+          text += " ";
+          continue;
+        }
+        break;
+      }
+      if (c === "[" && long) {
+        open = { comment: false, level: long[1]!.length };
+        text += long[0];
+        i += long[0].length;
+        if (!closeOpen()) break;
+        continue;
+      }
+      if (/\s/.test(c)) {
+        while (i < line.length && /\s/.test(line[i]!)) i += 1;
+        text += " ";
+        continue;
+      }
+      text += c;
+      i += 1;
+    }
+    const trimmed = open && !open.comment ? text.trimStart() : text.trim();
+    if (trimmed.length > 0) {
+      out.push(trimmed);
+    }
+  }
+  return out.join("\n");
+};
+
+/** A line of logic: one that starts with `&`, with a Luau comment, or with
+ *  a keyword of the language's logic, a declaration or a block statement's
+ *  own part. */
+const LOGIC_LINE =
+  /^(?:&|--|(?:if|elseif|else|end|while|for|repeat|until|do|local|function|return|break|continue|store|const|define|choose|then|match|case|type|export)(?![\w]))/;
+
+/** A comment of a displayed line (`SparkdownInlineComment`). */
+const DISPLAY_COMMENT = /(?:^|\s)\/\/(?=\s|$).*$/;
+
+/** The opening of a Luau long bracket, `[[` or `[=[` and so on. */
+const LONG_BRACKET = /^\[(=*)\[/;
 
 /** One instruction of `chunk`'s code as text, for a listing or a test. A
  *  symbol reads as its qualified name; an anonymous one that the chunk

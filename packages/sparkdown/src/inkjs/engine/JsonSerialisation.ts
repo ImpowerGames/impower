@@ -37,6 +37,10 @@ import { SimpleJson } from "./SimpleJson";
 interface WriterMemo {
   nextId: number;
   ids: Map<object, number>;
+  // Each table written, by its id, which a save of several states written
+  // with one writer reads to write a table again under its id
+  // (`WriteTableDefinition`).
+  tables: Map<number, ObjectValue>;
   nextCellId: number;
   cellIds: Map<VariablePointerValue, number>;
   // Each table init built, by its underlying Map, to its path from a
@@ -72,6 +76,7 @@ export class JsonSerialisation {
     w.__objGraphMemo ??= {
       nextId: 1,
       ids: new Map<object, number>(),
+      tables: new Map<number, ObjectValue>(),
       nextCellId: 1,
       cellIds: new Map<VariablePointerValue, number>(),
       anchors: null,
@@ -222,6 +227,184 @@ export class JsonSerialisation {
     this._loadSessionCellAnchorResolver = null;
     this._loadSessionSymbolDecoder = null;
     this._pendingDefineRefs = [];
+  }
+
+  // A table's definition: its id (and anchor), its entries, its class
+  // linkage or metatable, its frozen flag and its length hints, the id
+  // already given to it in the writer's memo.
+  private static WriteTableBody(
+    writer: SimpleJson.Writer,
+    objVal: ObjectValue,
+  ): void {
+    const map = objVal.value as Map<string, AbstractValue> | null;
+    const memo = JsonSerialisation.writerObjectMemo(writer);
+    // Store-keyed define tables persist ONLY their `store` props (the
+    // rest is reconstructed at init); plain tables serialize in full.
+    const defInfo = JsonSerialisation.defineSerializationInfo(objVal);
+
+    writer.WriteObjectStart();
+    if (map !== null) {
+      // NB: NOT `"#"` — that key is ink's Tag token in this wire
+      // format.
+      writer.WriteIntProperty("objid", memo.ids.get(map)!);
+      const anchor = memo.anchors?.get(map);
+      if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
+    }
+    writer.WritePropertyStart("obj");
+    writer.WriteObjectStart();
+    if (map !== null) {
+      for (const [k, v] of map) {
+        // Per-iteration scratch on builtin-iterator marker maps is
+        // a raw JS array (not an AbstractValue) — never serialized.
+        if (k === "__iter_key_snapshot") continue;
+        // Define tables write ONLY store props — non-store props,
+        // methods, and the hidden bookkeeping lists are all
+        // reconstructed from the definition at init.
+        if (defInfo && !defInfo.storeNames.has(k)) continue;
+        writer.WritePropertyStart(k);
+        if (v && v instanceof InkObject) {
+          this.WriteRuntimeObject(writer, v);
+        } else {
+          writer.WriteNull();
+        }
+        writer.WritePropertyEnd();
+      }
+    }
+    writer.WriteObjectEnd();
+    writer.WritePropertyEnd();
+    if (defInfo) {
+      // Class linkage by NAME (never inline the reconstructable class):
+      // `defself` → a named define; load merges the store delta onto the
+      // init default. `defref` → a `new` instance; load relinks
+      // `__index` to the live class global.
+      writer.WriteProperty(
+        defInfo.kind === "named" ? "defself" : "defref",
+        defInfo.name,
+      );
+    } else if (objVal.metatable) {
+      // Metatable round-trip — only emit the slot when one is set, so
+      // existing tables without metatables stay compact in the wire
+      // format. Recursive write since metatables are themselves
+      // ObjectValues (and can in turn carry their own metatables, e.g.
+      // class inheritance chains); the memo above keeps shared
+      // metatables shared.
+      writer.WritePropertyStart("mt");
+      this.WriteRuntimeObject(writer, objVal.metatable);
+      writer.WritePropertyEnd();
+    }
+    // `table.freeze` state.
+    if (objVal.isFrozen) {
+      writer.WriteIntProperty("frz", 1);
+    }
+    // Luau `#` border-search hints (capacity from table.create /
+    // table.clear, cached boundary) ride the underlying Map as JS
+    // properties — without these a loaded table answers `#`
+    // differently than it did before the save.
+    const cap = map !== null ? ((map as any).__luauCapacity ?? 0) : 0;
+    const bnd = map !== null ? ((map as any).__luauBoundary ?? 0) : 0;
+    if (cap > 0) writer.WriteIntProperty("cap", cap);
+    if (bnd > 0) writer.WriteIntProperty("bnd", bnd);
+    writer.WriteObjectEnd();
+  }
+
+  /** The tables a writer has written, by the id each was written under. */
+  public static WrittenTables(
+    writer: SimpleJson.Writer,
+  ): ReadonlyMap<number, ObjectValue> {
+    return JsonSerialisation.writerObjectMemo(writer).tables;
+  }
+
+  /** The upvalue cells a writer has written, with the id each was written
+   *  under. */
+  public static WrittenCells(
+    writer: SimpleJson.Writer,
+  ): ReadonlyMap<VariablePointerValue, number> {
+    return JsonSerialisation.writerObjectMemo(writer).cellIds;
+  }
+
+  /** Writes `table` whole again under the id the writer gave it when it
+   *  first wrote it: its entries, metatable, frozen flag and length hints as
+   *  they are now. A durable save writes so a table written since the state
+   *  the save wrote before (docs/engine/binary-program.md, section 7). */
+  public static WriteTableDefinition(
+    writer: SimpleJson.Writer,
+    table: ObjectValue,
+  ): void {
+    this.WriteTableBody(writer, table);
+  }
+
+  /** Reads a table definition `WriteTableDefinition` wrote into the table
+   *  this load already holds under its id, in place: `before` hears of the
+   *  table before it changes, and the table's entries, metatable, frozen
+   *  flag and length hints are replaced by the definition's (a define's
+   *  `store` fields merged, as a load merges them). Returns the table, or
+   *  null when the load holds none under the id. */
+  public static RedefineLoadSessionTable(
+    token: Record<string, any>,
+    before: (table: ObjectValue) => void,
+  ): ObjectValue | null {
+    const id = parseInt(String(token["objid"]));
+    const table = this._loadSessionObjectsById.get(id);
+    if (!table || table.value === null) {
+      return null;
+    }
+    before(table);
+    if (token["anchor"] !== undefined) {
+      // A table the program initialized is restored in place by its anchor,
+      // and a constant's keeps its compiled content.
+      this.JTokenToRuntimeObject(token);
+      return table;
+    }
+    const isDefine =
+      token["defref"] !== undefined || token["defself"] !== undefined;
+    const map = table.value as Map<string, AbstractValue> & {
+      __luauCapacity?: number;
+      __luauBoundary?: number;
+    };
+    if (!isDefine || token["defref"] !== undefined) {
+      map.clear();
+    }
+    if (!isDefine) {
+      table.metatable = null;
+      delete map.__luauCapacity;
+      delete map.__luauBoundary;
+    }
+    table.RestoreFrozen(false);
+    this.JTokenToRuntimeObject(token);
+    return table;
+  }
+
+  /** The upvalue cell this load holds under `id`, or null. */
+  public static LoadSessionCell(id: number): VariablePointerValue | null {
+    return this._loadSessionCellsById.get(id) ?? null;
+  }
+
+  /** Reads every table and cell definition a saved token holds, so that a
+   *  later reference to one resolves to it, without reading anything else
+   *  the token holds: a durable save's state that the load does not place,
+   *  whose definitions the states after it refer to. */
+  public static ReadDefinitions(token: unknown): void {
+    if (Array.isArray(token)) {
+      token.forEach((item) => this.ReadDefinitions(item));
+      return;
+    }
+    if (!token || typeof token !== "object") {
+      return;
+    }
+    const obj = token as Record<string, any>;
+    if (
+      (obj["obj"] !== undefined && obj["objid"] !== undefined) ||
+      (obj["^var"] !== undefined && obj["cell"] !== undefined)
+    ) {
+      this.JTokenToRuntimeObject(obj);
+      return;
+    }
+    if (obj["^symsave"] !== undefined) {
+      return;
+    }
+    for (const value of Object.values(obj)) {
+      this.ReadDefinitions(value);
+    }
   }
 
   static registerPendingDefineRef(obj: ObjectValue, className: string): void {
@@ -565,75 +748,11 @@ export class JsonSerialisation {
           writer.WriteObjectEnd();
           return;
         }
-        memo.ids.set(map, memo.nextId++);
+        memo.ids.set(map, memo.nextId);
+        memo.tables.set(memo.nextId, objVal);
+        memo.nextId += 1;
       }
-      // Store-keyed define tables persist ONLY their `store` props (the
-      // rest is reconstructed at init); plain tables serialize in full.
-      const defInfo = JsonSerialisation.defineSerializationInfo(objVal);
-
-      writer.WriteObjectStart();
-      if (map !== null) {
-        // NB: NOT `"#"` — that key is ink's Tag token in this wire
-        // format.
-        writer.WriteIntProperty("objid", memo.ids.get(map)!);
-        const anchor = memo.anchors?.get(map);
-        if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
-      }
-      writer.WritePropertyStart("obj");
-      writer.WriteObjectStart();
-      if (map !== null) {
-        for (const [k, v] of map) {
-          // Per-iteration scratch on builtin-iterator marker maps is
-          // a raw JS array (not an AbstractValue) — never serialized.
-          if (k === "__iter_key_snapshot") continue;
-          // Define tables write ONLY store props — non-store props,
-          // methods, and the hidden bookkeeping lists are all
-          // reconstructed from the definition at init.
-          if (defInfo && !defInfo.storeNames.has(k)) continue;
-          writer.WritePropertyStart(k);
-          if (v && v instanceof InkObject) {
-            this.WriteRuntimeObject(writer, v);
-          } else {
-            writer.WriteNull();
-          }
-          writer.WritePropertyEnd();
-        }
-      }
-      writer.WriteObjectEnd();
-      writer.WritePropertyEnd();
-      if (defInfo) {
-        // Class linkage by NAME (never inline the reconstructable class):
-        // `defself` → a named define; load merges the store delta onto the
-        // init default. `defref` → a `new` instance; load relinks
-        // `__index` to the live class global.
-        writer.WriteProperty(
-          defInfo.kind === "named" ? "defself" : "defref",
-          defInfo.name,
-        );
-      } else if (objVal.metatable) {
-        // Metatable round-trip — only emit the slot when one is set, so
-        // existing tables without metatables stay compact in the wire
-        // format. Recursive write since metatables are themselves
-        // ObjectValues (and can in turn carry their own metatables, e.g.
-        // class inheritance chains); the memo above keeps shared
-        // metatables shared.
-        writer.WritePropertyStart("mt");
-        this.WriteRuntimeObject(writer, objVal.metatable);
-        writer.WritePropertyEnd();
-      }
-      // `table.freeze` state.
-      if (objVal.isFrozen) {
-        writer.WriteIntProperty("frz", 1);
-      }
-      // Luau `#` border-search hints (capacity from table.create /
-      // table.clear, cached boundary) ride the underlying Map as JS
-      // properties — without these a loaded table answers `#`
-      // differently than it did before the save.
-      const cap = map !== null ? ((map as any).__luauCapacity ?? 0) : 0;
-      const bnd = map !== null ? ((map as any).__luauBoundary ?? 0) : 0;
-      if (cap > 0) writer.WriteIntProperty("cap", cap);
-      if (bnd > 0) writer.WriteIntProperty("bnd", bnd);
-      writer.WriteObjectEnd();
+      this.WriteTableBody(writer, objVal);
       return;
     }
 

@@ -292,19 +292,33 @@ describe("a checkpoint within a session", () => {
     }
   });
 
-  it("whose position names a chunk the root no longer holds is reported unplaced and never run", () => {
+  // #699 reported this checkpoint unplaced; #1429 translates it through the
+  // old root's saved form (docs/engine/binary-program.md, section 8, Within
+  // a session).
+  it("whose position names a chunk the root no longer holds is translated through its saved form, and one it cannot place is reported unplaced and never run", () => {
     const s = programSession(TEXT);
     const game = sharing(s.root);
     expect(next(game, 2)).toEqual(["One.", "Two 1."]);
-    // The position rests at the start of the statement after the beat.
+    // The position rests at the start of the statement after the beat,
+    // which the edit emits again: it is placed at the edited statement.
     const checkpoint = game.captureBeat();
     const edited = s.edit("  Three {start}.", "  Three again {start}.");
     const resumed = sharing(edited, game.images);
-    const before = resumed.state.toJson();
-    const steps = resumed.stepCount;
-    expect(resumed.restore(checkpoint)).toBe(false);
-    expect(resumed.state.toJson()).toBe(before);
-    expect(resumed.stepCount).toBe(steps);
+    expect(resumed.canRestore(checkpoint)).toBe(true);
+    expect(resumed.restore(checkpoint)).toBe(true);
+    expect(next(resumed, 10)).toEqual(["Three again 1.", "Four."]);
+    // A scene whose statements are all gone places nothing.
+    const gone = s.edit(
+      ["  One.", "  & seen = seen + 1", "  Two {seen}.", "  Three again {start}.", "  Four."].join("\n"),
+      "  Elsewhere.",
+    );
+    const elsewhere = sharing(gone, game.images);
+    const before = elsewhere.state.toJson();
+    const steps = elsewhere.stepCount;
+    expect(elsewhere.canRestore(checkpoint)).toBe(false);
+    expect(elsewhere.restore(checkpoint)).toBe(false);
+    expect(elsewhere.state.toJson()).toBe(before);
+    expect(elsewhere.stepCount).toBe(steps);
   });
 });
 
@@ -365,7 +379,7 @@ describe("a reseed of the program table", () => {
     expect(after.variablesState.GetVariableWithName("target")).toBe(target);
   });
 
-  it("gives no chunk id again, and no sequence id to another body, so a checkpoint from before it is reported unplaced", () => {
+  it("gives no chunk id again, and no sequence id to another body, so a checkpoint from before it is translated through its saved form", () => {
     const s = programSession(TEXT.replace("scene early\n  Early.\nend\n\n", ""));
     const game = sharing(s.root);
     expect(next(game, 1)).toEqual(["Here 1 a."]);
@@ -385,10 +399,10 @@ describe("a reseed of the program table", () => {
         expect(body(reseeded, row.id)).toBe(body(s.root, row.id));
       }
     }
+    // #699 reported it unplaced; #1429 translates it (section 8).
     const resumed = sharing(reseeded, game.images);
-    const before = resumed.state.toJson();
-    expect(resumed.restore(checkpoint)).toBe(false);
-    expect(resumed.state.toJson()).toBe(before);
+    expect(resumed.restore(checkpoint)).toBe(true);
+    expect(next(resumed, 10)).toEqual(["There! 1 1."]);
   });
 });
 
