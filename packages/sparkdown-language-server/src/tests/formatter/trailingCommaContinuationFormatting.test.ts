@@ -174,6 +174,43 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(callLines(formatSource(once))).toEqual(callLines(once));
   });
 
+  // The reassignment ends at an unindented line, so which of the lines after
+  // it hold the rest of its list is decided as it reads them once indented
+  // (#1494, round 4): a call split by a comment that spans lines, a comment
+  // before the comma, a call after a finished value on the same line, and a
+  // named function that is a statement of its own.
+  test.each([
+    [
+      "a call whose callee and arguments a comment spanning lines splits",
+      ["  a, g = 1,", "tostring --[[note", "]] (", "2", ")"],
+      ["  a, g = 1,", "    tostring --[[note", "    ]] (", "      2", "    )"],
+    ],
+    [
+      "a value followed by a comment spanning lines and its comma",
+      ["  a, g, h = 1,", "2 --[[note", "]],", "math.max(", "3,", "4", ")"],
+      ["  a, g, h = 1,", "    2 --[[note", "    ]],", "    math.max(", "      3,", "      4", "    )"],
+    ],
+    [
+      "a call after the last value on its line",
+      ["  a, g = 1,", "2 --[[note]] math.max(", "3,", "4", ")"],
+      ["  a, g = 1,", "    2 --[[note]] math.max(", "    3,", "    4", "  )"],
+    ],
+    [
+      "a dotted function declaration",
+      ["  a, g = 1,", "function obj.named()", "return 2", "end"],
+      ["  a, g = 1,", "  function obj.named()", "    return 2", "  end"],
+    ],
+    [
+      "a method declaration",
+      ["  a, g = 1,", "function obj:named()", "return 2", "end"],
+      ["  a, g = 1,", "  function obj:named()", "    return 2", "  end"],
+    ],
+  ])("formats %s after a trailing comma at column 0 as it reads once indented", (_name, lines, formatted) => {
+    const wrap = (body: string[]) => ["function f()", "  local a, g, h = 0, 0, 0", ...body, "  return g", "end", ""].join("\n");
+    expect(formatSource(wrap(lines))).toBe(wrap(formatted));
+    expect(formatSource(wrap(formatted))).toBe(wrap(formatted));
+  });
+
   test("indents a target list continued after a trailing comma one level past the reassignment", () => {
     const source = ["function f()", "  local a, g = 0, 0", "  a,", "g = 1, 2", "  return g", "end", ""].join("\n");
     expect(formatSource(source)).toBe(

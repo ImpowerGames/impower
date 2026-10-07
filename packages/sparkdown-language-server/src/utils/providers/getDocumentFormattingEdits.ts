@@ -4,7 +4,8 @@ import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
 import { reassignmentParts } from "@impower/sparkdown/src/compiler/utils/reassignmentNames";
 import { isStatementNodeName } from "@impower/sparkdown/src/compiler/lower/utils/lineContinuation";
-import { findOwnDeclarationName } from "@impower/sparkdown/src/compiler/lower/utils/findOwnDeclarationName";
+import { createSparkdownParser } from "@impower/sparkdown/src/compiler/utils/createSparkdownParser";
+import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -291,7 +292,7 @@ const CONTINUATION_OPERATOR_RULES = nodeNameSet([
 function isContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
   lineStart: number,
-  read: (from: number, to: number) => string,
+  source: ListSource,
 ): boolean {
   for (const node of stack) {
     if (!node) continue;
@@ -301,7 +302,7 @@ function isContinuationLine(
     // earlier line, we're inside its scope but not leading with it.
     if (node.from >= lineStart) return true;
   }
-  return isCommaContinuationLine(stack, read);
+  return isCommaContinuationLine(stack, source);
 }
 
 // The statements whose value list continues after a comma that ends its line.
@@ -330,13 +331,13 @@ const COMMA_CONTINUED_CONTENT = new Set<string>([
 //     }
 function isCommaContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
-  read: (from: number, to: number) => string,
+  source: ListSource,
 ): boolean {
   for (let i = 0; i < stack.length; i++) {
     const node = stack[i];
     if (!node) continue;
     if (isExplicitRuleName(node.name, "LuauCommaLineBreak")) return true;
-    if (continuesReassignmentList(node, read)) return true;
+    if (continuesReassignmentList(node, source)) return true;
     if (!COMMA_CONTINUED_CONTENT.has(stack[i + 1]?.name ?? "")) continue;
     for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
       if (isExplicitRuleName(prev.name, "LuauCommaLineBreak") && spansLineBreak(prev)) {
@@ -348,68 +349,107 @@ function isCommaContinuationLine(
   return false;
 }
 const LINE_TRIVIA = new Set(["Newline", "ExtraWhitespace", "Whitespace", "OptionalWhitespace"]);
-const COMMENT_TRIVIA = nodeNameSet([
-  "LuauComment",
-  "LuauLineComment",
-  "LuauBlockComment",
-  "LuauDocLineComment",
-  "LuauValueTrailingBlockComment",
-  "LuauUncallableValueTrailingBlockComment",
-  "LuauCallableValueTrailingBlockComment",
-  "LuauTypeTrailingBlockComment",
-  "LuauTypeTrailingBlockCommentClose",
-]);
+// What the continued-list test reads: the document's text, and, by each
+// reassignment's offset, where the statement that begins at it ends.
+interface ListSource {
+  text: string;
+  lists: Map<number, number>;
+}
+
+// How many lines after a reassignment's first line `listEnd` reads.
+const LIST_READ_LIMIT = 200;
+
+let listParser: TextmateGrammarParser | undefined;
 
 // Whether `node` begins a statement that ends a list rather than continuing
 // it: a reassignment continues a target list or is a second `=` the list
-// reads on to, and a function with no name of its own is a value.
-function beginsListEndingStatement(node: SyntaxNode): boolean {
-  if (node.name === "LuauFunctionDefinition") return findOwnDeclarationName(node) != null;
+// reads on to, and a function whose header names nothing (`function (`,
+// `function<T>(`) is a value.
+function beginsListEndingStatement(node: SyntaxNode, source: ListSource): boolean {
+  if (node.name === "LuauFunctionDefinition") {
+    return !/^\s*function\s*[(<]/.test(source.text.slice(node.from, node.to));
+  }
   return node.name !== "LuauReassignment" && isStatementNodeName(node.name);
 }
 
-// A node that begins an unindented line of a reassignment's target or value
-// list that a comma ending the line before carried on (`a,` then
-// `g = 1, 2`, or `a, b, c = 1,` then `2,` then `3`). The reassignment ends
-// at the start of the first such line, so its later lines are siblings of
-// it, and the converter reads them as the rest of its list; each is a
-// continued line of the reassignment. A statement there ends the list
-// instead (`a, g = 1,` then `return g`), as does a line before which no
-// comma ends its line.
-function continuesReassignmentList(
-  node: SyntaxNode,
-  read: (from: number, to: number) => string,
-): boolean {
-  if (beginsListEndingStatement(node)) return false;
-  // Whether the line before the one being walked must end with a comma.
-  // The walk starts on the node's own line, which can hold earlier parts of
-  // the same value (`math.max` before its arguments' `(`).
-  let needComma = false;
-  for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
-    if (prev.name === "Newline") {
-      needComma = true;
-      continue;
-    }
-    // A comment between two parts can hold a line break of its own
-    // (`2 --[[note` then `]] math.max(`), which ends the line before it.
-    if (COMMENT_TRIVIA.has(prev.name)) {
-      if (/[\r\n]/.test(read(prev.from, prev.to))) needComma = true;
-      continue;
-    }
-    if (LINE_TRIVIA.has(prev.name)) continue;
-    if (prev.name === "LuauReassignment") {
-      const parts = reassignmentParts(prev).filter((part) => !LINE_TRIVIA.has(part.name));
-      const last = parts[parts.length - 1];
-      return !!last && isExplicitRuleName(last.name, "LuauCommaLineBreak") && spansLineBreak(last);
-    }
-    if (needComma) {
-      if (prev.name !== "LuauCommaSeparator") return false;
-      needComma = false;
-      continue;
-    }
-    if (beginsListEndingStatement(prev)) return false;
+// Where the reassignment at `reassignment` would end if the lines after its
+// first were indented, which is how it reads them once they are formatted:
+// an indented line after a comma that ends the line is read into the
+// reassignment, which then ends where its grammar says, after its last
+// value, at a statement, or on a line not carried on by a comma. The lines
+// up to the end of the block are parsed again, indented, in a function
+// body, and the reassignment's end is mapped back. Deciding with the same
+// grammar that reads the formatted text is what keeps a second format from
+// moving these lines again.
+function listEnd(reassignment: SyntaxNode, source: ListSource): number {
+  const cached = source.lists.get(reassignment.from);
+  if (cached !== undefined) return cached;
+  let blockEnd = reassignment.to;
+  for (let next = reassignment.nextSibling; next; next = next.nextSibling) blockEnd = next.to;
+  const lines = source.text.slice(reassignment.from, blockEnd).split("\n").slice(0, LIST_READ_LIMIT + 1);
+  // Each line's start in the source and in the indented text.
+  const prefix = "function __list()\n";
+  const sourceStarts: number[] = [];
+  const indentedStarts: number[] = [];
+  let sourceAt = reassignment.from;
+  let indented = prefix;
+  lines.forEach((line, i) => {
+    sourceStarts.push(sourceAt);
+    const added = i === 0 ? (/^\s/.test(line) ? "" : " ") : line.trim() ? "  " : "";
+    indentedStarts.push(indented.length + added.length);
+    indented += added + line + "\n";
+    sourceAt += line.length + 1;
+  });
+  indented += "end\n";
+  listParser ??= createSparkdownParser();
+  let end = reassignment.to;
+  const tree = listParser.parse(indented);
+  let found: SyntaxNode | null = null;
+  tree.iterate({
+    enter(node) {
+      if (found) return false;
+      if (node.name === "LuauReassignment" && node.from >= prefix.length) {
+        found = node.node;
+        return false;
+      }
+      return undefined;
+    },
+  });
+  const reassigned = found as SyntaxNode | null;
+  if (reassigned) {
+    // The source offset of the indented text's offset `at`.
+    let line = indentedStarts.length - 1;
+    while (line > 0 && indentedStarts[line]! > reassigned.to) line -= 1;
+    end = Math.max(end, sourceStarts[line]! + Math.max(0, reassigned.to - indentedStarts[line]!));
   }
-  return false;
+  source.lists.set(reassignment.from, end);
+  return end;
+}
+
+// A node on an unindented line of a reassignment's target or value list
+// that a comma ending the line before carried on (`a,` then `g = 1, 2`, or
+// `a, b, c = 1,` then `2,` then `3`). The reassignment ends at the start of
+// the first such line, so the rest of its list is in siblings after it.
+// Which siblings is what the reassignment reads once those lines are
+// indented (`listEnd`), since that is what the next format sees: a value
+// split by a comment, a call after a finished value and the statement after
+// the list are told apart by the grammar rather than guessed from the
+// siblings' shapes. A sibling that begins before that end, including a
+// comment between two parts of the list, is on a continued line.
+function continuesReassignmentList(node: SyntaxNode, source: ListSource): boolean {
+  if (beginsListEndingStatement(node, source)) return false;
+  let prev = node.prevSibling;
+  // A sibling that begins a statement ends any list before it, which keeps
+  // the walk to the lines of one statement.
+  while (prev && prev.name !== "LuauReassignment") {
+    if (beginsListEndingStatement(prev, source)) return false;
+    prev = prev.prevSibling;
+  }
+  if (!prev) return false;
+  const parts = reassignmentParts(prev).filter((part) => !LINE_TRIVIA.has(part.name));
+  const last = parts[parts.length - 1];
+  if (!last || !isExplicitRuleName(last.name, "LuauCommaLineBreak") || !spansLineBreak(last)) return false;
+  return node.from < listEnd(prev, source);
 }
 
 // A comma followed by a block comment and the value on its own line
@@ -514,7 +554,7 @@ function braceDepth(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
   braceLineIndex: number,
   lineStart: number,
-  read: (from: number, to: number) => string,
+  source: ListSource,
 ): number {
   const inner = stack.slice(0, braceLineIndex);
   let depth = 0;
@@ -525,7 +565,7 @@ function braceDepth(
     depth += 1;
   }
   depth += computeBlockIndent(inner);
-  if (isContinuationLine(inner, lineStart, read)) depth += 1;
+  if (isContinuationLine(inner, lineStart, source)) depth += 1;
   return depth;
 }
 
@@ -663,7 +703,7 @@ export const getFormatting = (
     });
   };
 
-  const read = (from: number, to: number) => document.read(from, to);
+  const listSource: ListSource = { text: document.getText(), lists: new Map() };
 
   const processIndent = (from: number, to: number) => {
     // Zero-width indent at end-of-doc — skip so we don't emit a
@@ -762,7 +802,7 @@ export const getFormatting = (
         const braceLine =
           braceLineIndex >= 0 ? stack[braceLineIndex] : undefined;
         if (braceLine && braceLineIndex >= 0) {
-          const depth = braceDepth(stack, braceLineIndex, lineStart, read);
+          const depth = braceDepth(stack, braceLineIndex, lineStart, listSource);
           if (braceLine.from < lineStart) {
             // A later line of the brace line: its depth below the first.
             const base = braceLineLevels.get(braceLine.from);
@@ -806,7 +846,7 @@ export const getFormatting = (
       // (`+`, `..`, `:`, `and`, etc.) belongs to an expression that
       // started on the previous line and should indent one level past
       // the opener (see `isContinuationLine`'s comment).
-      if (isContinuationLine(stack, lineStart, read)) {
+      if (isContinuationLine(stack, lineStart, listSource)) {
         newIndentLevel += 1;
       }
 
