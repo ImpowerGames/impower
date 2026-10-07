@@ -17,6 +17,7 @@ import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/O
 import { parsedChildren } from "../../program/ProgramResolver";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
+import { programStatements } from "./programStatements";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
 
@@ -452,6 +453,54 @@ describe("a diagnostic a statement served from its memo raised", () => {
     sameAsCold(s);
     s.edit("Call {{1}} now.", "Call now.");
     expect(diagnostics(s.program).some((d) => d.includes(` ${line()}:`))).toBe(false);
+    sameAsCold(s);
+  });
+});
+
+// ---- A compile that lowers a block again ------------------------------------
+
+describe("a compile that meets a memo it cannot compile from", () => {
+  it("lowers the block again and compiles again, and keeps what its first attempt found about the statements it resolved again", () => {
+    // `n` is a local of the scene, declared in the clause, which the
+    // statement after the `choose` block reads. The edit makes it `m`: that
+    // statement reads `n` otherwise, and so does `Body {n}.`, which is
+    // served from its memo, so the first attempt meets a memo whose name is
+    // declared otherwise and the compile runs again with the clause lowered
+    // again. The second attempt does not resolve the statement after the
+    // block again, as the first did, nor finds what the first found there:
+    // its chunk must not be kept.
+    const text = [
+      "scene MAIN",
+      "  Opening line.",
+      "  choose",
+      "    + [Go on]",
+      "      You go on.",
+      "    + [Stay]",
+      "      You stay.",
+      "  then",
+      "    Warm line.",
+      "    local n = 5",
+      ...FILLER.map((line) => `    ${line}`),
+      "    Body {n}.",
+      ...FILLER.map((line) => `    ${line}`),
+      "  end",
+      "  Still {n}.",
+      "end",
+      "",
+    ].join("\n");
+    const s = warmed(text);
+    const after = () =>
+      programStatements(s.compiler).find((statement) => statement.syntax.includes("Still {n}."));
+    const before = after();
+    expect(before?.key).toContain("n:variable");
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
+    s.edit("    local n = 5", "    local m = 5");
+    expect(attempts.mock.calls.length, "the compile ran again").toBeGreaterThan(1);
+    attempts.mockRestore();
+    expect(after()?.key).toContain("n:unresolved");
+    expect(after()?.chunk === before!.chunk, "the statement after the block kept its chunk").toBe(
+      false,
+    );
     sameAsCold(s);
   });
 });

@@ -819,6 +819,11 @@ export class SparkdownCompiler {
   // here.
   protected _memoBlocks = new Set<CompiledBlock>();
   protected _memoCandidates = new Map<ParsedObject, MemoCandidate>();
+  // Which attempt of a compile is in progress (`compileStory`): the attempts
+  // after the first compile again what the first left undone, so they
+  // compare with the compile before the first, and add what their passes
+  // find to what the first found (the statement watch's marks).
+  protected _memoAttempt = 0;
 
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
@@ -1995,6 +2000,7 @@ export class SparkdownCompiler {
    */
   protected compileStory(params: CompileProgramParams) {
     for (let attempt = 0; ; attempt += 1) {
+      this._memoAttempt = attempt;
       const { memoRetry, ...result } = this.compileStoryOnce(params);
       if (!memoRetry) {
         return result;
@@ -2265,6 +2271,19 @@ export class SparkdownCompiler {
     let flowShapesNoted = false;
 
     let compileThrew = false;
+    // What this compile compares with the compile before and records for
+    // the next one, which an attempt that meets a statement memo it cannot
+    // compile from (`StatementMemoRetry`) puts back, so that the attempt
+    // after it compares with the same compile.
+    const lastRootBlocks = this._lastRootBlocksByUri;
+    const baseline = {
+      lastRootBlocks: lastRootBlocks?.get(uri),
+      census: this._prevCensusKey,
+      signatures: this._prevFlowSignatures,
+      disableReuse: this._disableFlowReuseNextCompile,
+      riskShape: this._riskFlowShapeNextCompile,
+      countAllVisits: this._lastReuseCountAllVisits,
+    };
     // ---- Incremental ExportRuntime: per-compile flow-reuse guards ----
     this._flowReuseDisabled = this._disableFlowReuseNextCompile;
     this._unchangedFlowShapeAtRisk = this._riskFlowShapeNextCompile;
@@ -2434,7 +2453,12 @@ export class SparkdownCompiler {
       // and report to the chunk store's statement watch each value a kept
       // chunk recorded that now reads otherwise (`StatementWatch`).
       const watch = this._config.programChunks ? this._chunkStore?.watch : undefined;
-      watch?.changed.clear();
+      // An attempt after the first keeps the marks of the attempts before
+      // it: the objects they resolved again are not resolved again now, as
+      // the resolver resolved them in the first (`compileStory`).
+      if (this._memoAttempt === 0) {
+        watch?.changed.clear();
+      }
       restoreWatch = watchStatements(watch ?? null);
       // Canonicalize offset-derived synthetic names over the fully-assembled
       // tree so incremental compiles emit byte-identical bytecode to cold ones
@@ -2748,6 +2772,29 @@ export class SparkdownCompiler {
         activation.reparent = null;
         this._storyJournal.abortCompile();
         this._memoCandidates = new Map();
+        // The containers this attempt took for reuse go back to the story
+        // that is still live, and what it recorded for the next compile goes
+        // back to what the compile before recorded, so that the next attempt
+        // compares with that compile, as this one did.
+        // (Read through a cast, as below: the parse walk sets it in a
+        // closure, which the narrowing to the reset above does not see.)
+        const backups = this._reuseParentBackups as
+          | Array<[Container, InkObject | null]>
+          | undefined;
+        for (const [container, parent] of backups ?? []) {
+          container.parent = parent;
+        }
+        if (baseline.lastRootBlocks) {
+          lastRootBlocks!.set(uri, baseline.lastRootBlocks);
+        } else {
+          lastRootBlocks?.delete(uri);
+        }
+        this._lastRootBlocksByUri = lastRootBlocks;
+        this._prevCensusKey = baseline.census;
+        this._prevFlowSignatures = baseline.signatures;
+        this._disableFlowReuseNextCompile = baseline.disableReuse;
+        this._riskFlowShapeNextCompile = baseline.riskShape;
+        this._lastReuseCountAllVisits = baseline.countAllVisits;
         return {
           textDocument: { uri, version: this.documents.get(uri)?.version ?? -1 },
           program,
