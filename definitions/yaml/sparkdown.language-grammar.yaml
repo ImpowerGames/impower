@@ -2238,7 +2238,9 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#DivertArgumentsUnknown" }
-    end: ([)])
+    # An unclosed list still ends before the next `scene` or `branch` line,
+    # so the flows after it keep their shape in both engines.
+    end: (?={{BEAT}})|([)])
     endCaptures:
       1:
         patterns:

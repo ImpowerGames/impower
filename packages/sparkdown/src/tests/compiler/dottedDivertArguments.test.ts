@@ -220,10 +220,12 @@ describe("a bracketed argument list spans lines in every spelling (#1655)", () =
     ).toEqual([]);
   });
 
-  test("an unclosed dotted list scopes as an unclosed relative one does", async () => {
+  test("an unclosed dotted list diverges between engines nowhere a relative one does not", async () => {
     // An unclosed list followed by more of the script scopes differently in
-    // the two engines for a relative call already; the dotted spelling
-    // diverges in the same places, shifted by its two extra characters.
+    // the two engines for a relative call already. The dotted list also ends
+    // before the next `scene` or `branch` line, so it diverges only at
+    // characters where the relative spelling does (shifted by its two extra
+    // characters), and at fewer of them.
     const shape = async (target: string, shift: number) =>
       (
         await compareEnginesFull(
@@ -234,7 +236,10 @@ describe("a bracketed argument list spans lines in every spelling (#1655)", () =
         vscode,
         tree,
       }));
-    expect(await shape("a.c", 2)).toEqual(await shape("c", 0));
+    const dotted = (await shape("a.c", 2)).map(({ offset }) => offset);
+    const relative = (await shape("c", 0)).map(({ offset }) => offset);
+    expect(relative).toEqual(expect.arrayContaining(dotted));
+    expect(dotted.length).toBeLessThan(relative.length);
   });
 
   test("an unclosed dotted list reports what an unclosed relative one does", () => {
