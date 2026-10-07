@@ -259,6 +259,15 @@ export interface ProgramImage {
    *  written since the image before in a delta. */
   readonly tables: ReadonlyMap<ObjectValue, TableCopy>;
   readonly cells: ReadonlyMap<VariablePointerValue, CellCopy>;
+  /** For the image of a beat the story passed, the beat's flags and the
+   *  decisions taken at it (docs/engine/binary-program.md, section 7,
+   *  Rewind and roll forward), which the story's history keeps
+   *  (`BeatHistory`) and a save writes beside it. */
+  beat?: { flags: number; readonly decisions: number[] };
+  /** For an image of the state just after a choice was taken, the image of
+   *  the beat before its menu and the address of the `Choice` taken, which a
+   *  durable save of the image writes in its place (section 7). */
+  afterChoice?: { readonly menu: ProgramImage; readonly address: number };
 }
 
 /**
@@ -577,7 +586,8 @@ export const keyedStateOf = (image: ProgramImage): KeyedState => {
  * Restores `image` into `state` in place, or returns false and changes
  * nothing when a position the image holds cannot be placed in the root
  * `state` runs on: a chunk the root no longer holds, or a sequence it no
- * longer has (docs/engine/binary-program.md, section 8). An image taken in
+ * longer has, which `translate`, when given, places through the position's
+ * saved form (docs/engine/binary-program.md, section 8). An image taken in
  * an older table generation has its counts taken through the reseeds since
  * (section 2, Reseed).
  */
@@ -586,13 +596,13 @@ export const restoreImage = (
   tracker: ImageTracker,
   engine: object,
   image: ProgramImage,
+  translate?: (image: ProgramImage) => PlacedPositional | undefined,
 ): boolean => {
   if (image.images !== tracker.images) {
     return false;
   }
-  const placed: PlacedPositional | undefined = state.placePositional(
-    image.positional,
-  );
+  const placed: PlacedPositional | undefined =
+    state.placePositional(image.positional) ?? translate?.(image);
   if (!placed) {
     return false;
   }

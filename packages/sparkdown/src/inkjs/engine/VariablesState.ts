@@ -184,8 +184,11 @@ export class VariablesState extends VariablesStateAccessor<
 
     for (let [varValKey, varValValue] of this._defaultGlobalVariables) {
       // Always take the compiled value for a constant, never the saved one.
+      // A save written while the name was a `store` still defines, in its
+      // value, the tables and cells other values of the save refer to.
       if (this.constantNames.has(varValKey)) {
         this._globalVariables.set(varValKey, varValValue);
+        JsonSerialisation.ReadDefinitions(jToken[varValKey]);
         continue;
       }
       let loadedToken = jToken[varValKey];
@@ -232,8 +235,12 @@ export class VariablesState extends VariablesStateAccessor<
     // they'd silently vanish on load.
     for (const key of Object.keys(jToken)) {
       if (this._defaultGlobalVariables.has(key)) continue;
-      // A stale save may carry a key that has since become a constant.
-      if (this.constantNames.has(key)) continue;
+      // A stale save may carry a key that has since become a constant,
+      // whose value still defines what the rest of the save refers to.
+      if (this.constantNames.has(key)) {
+        JsonSerialisation.ReadDefinitions(jToken[key]);
+        continue;
+      }
       const tokenInkObject = JsonSerialisation.JTokenToRuntimeObject(
         jToken[key],
       );

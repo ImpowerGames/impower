@@ -321,7 +321,7 @@ describe("the checkpoints of a game on the program engine", () => {
     drive(game);
     const malformed = JSON.parse(game.checkpoints.getJson(5)!);
     const inner = JSON.parse(malformed.story);
-    inner.counts = [null];
+    inner.beats[0].counts = [null];
     malformed.story = JSON.stringify(inner);
     malformed.modules.core = { ...malformed.modules.core, marker: "from the refused save" };
     const engine = game.story as unknown as ProgramStory;
@@ -427,7 +427,7 @@ describe("the checkpoints of a game on the program engine", () => {
     expect(cancelled).toBe(1);
   });
 
-  it("restore in place after a compile for every statement it kept, and report one it emitted again unplaced", () => {
+  it("restore in place after a compile for every statement it kept, translate one it emitted again, and report one it cannot place unplaced", () => {
     const text = [
       "store seen = 0",
       "",
@@ -467,15 +467,34 @@ describe("the checkpoints of a game on the program engine", () => {
     game.updateProgram(below.program, below.story);
     expect(game.restoreCheckpoint(two)).toBe(true);
     expect(game.story.variablesState.GetVariableWithName("seen")?.toString()).toBe("1");
-    // An edit to the statement the checkpoint rests at emits it again.
+    // An edit to the statement the checkpoint rests at emits it again: the
+    // checkpoint is translated through its saved form in the root it was
+    // taken in, and placed at the edited statement (#1429).
     const at = edit(3, 6, "  Three".length, " again");
     game.updateProgram(at.program, at.story);
+    expect(game.checkpoints.getJson(two)).not.toBeNull();
+    expect(game.restoreCheckpoint(two)).toBe(true);
+    expect(game.story.variablesState.GetVariableWithName("seen")?.toString()).toBe("1");
+    // A compile that leaves none of the scene's statements places nothing.
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN, version: 4 },
+      contentChanges: [
+        {
+          range: {
+            start: { line: 3, character: 0 },
+            end: { line: 8, character: "  Five.".length },
+          },
+          text: "  Elsewhere.",
+        },
+      ],
+    });
+    const gone = c.compile();
+    game.updateProgram(gone.program, gone.story);
     // It has no save (round 2 of the review of #1579, report 6019356082):
     // one with no story would load the checkpoint's modules beside a story
-    // that stands elsewhere. One whose statements the compile kept has one.
+    // that stands elsewhere.
     expect(game.checkpoints.getJson(two)).toBeNull();
     expect(game.checkpoints.at(two)).toBeNull();
-    expect(game.checkpoints.getJson(0)).not.toBeNull();
     // With a line in progress (round 1 of the review of #1579, report
     // 6016969769): the unplaced checkpoint cancels nothing.
     const engine = game.story as unknown as ProgramStory;

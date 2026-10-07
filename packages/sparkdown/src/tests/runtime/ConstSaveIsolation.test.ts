@@ -33,6 +33,26 @@ describe("const save isolation", () => {
     expect(v2.story.variablesState.$("LIMIT")).toBe(6);
   });
 
+  // #1429, round 3 of the review of #1654 (report 6039459012): the stale
+  // value is not restored, but the table it defines is another global's.
+  test("a stale save's value of a constant still defines the table another global shares", () => {
+    const v1 = makeRuntimeStoryFromSource(
+      ["store K = nil", "store alias = nil", "& K = { n = 1 }", "& alias = K", "{alias.n}"].join("\n"),
+    );
+    expect(v1.errorMessages).toEqual([]);
+    expect(runToEnd(v1.story)).toBe("1\n");
+    const staleSave = v1.story.state.ToJson();
+
+    const v2 = makeRuntimeStoryFromSource(
+      ["const K = 10", "store alias = nil", "{K}"].join("\n"),
+    );
+    expect(v2.errorMessages).toEqual([]);
+    v2.story.state.LoadJson(staleSave);
+    expect(v2.story.variablesState.$("K")).toBe(10);
+    const alias = v2.story.variablesState.GetVariableWithName("alias") as any;
+    expect(alias?.value?.get("n")?.value).toBe(1);
+  });
+
   test("a constant is never written into save data", () => {
     const ctx = makeRuntimeStoryFromSource(
       ["const LIMIT = 6", "store other = 1", "& other = 2", "{LIMIT}"].join("\n"),
