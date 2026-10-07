@@ -19,7 +19,7 @@ import {
 } from "./chunkParts";
 import { hash64 } from "./hash64";
 import { Op, opOf } from "./ProgramInstructions";
-import { putCell, type ProgramImage } from "./ProgramImages";
+import { copyCell, putCell, type CellCopy, type ProgramImage } from "./ProgramImages";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import {
   SymbolKind,
@@ -2024,11 +2024,25 @@ class SaveReader {
           JsonSerialisation.ReadDefinitions([beat["evalStack"], beat["output"], beat["carried"]]);
         }
       };
+      // The cells the cuts of this beat's placement close, each as it was
+      // before, which the beats after it, read on the same cells, find as
+      // the save holds them: a cut is the placement's, not the run's.
+      const cut = new Map<VariablePointerValue, CellCopy>();
       const tail = () => {
-        if (plan.placed) {
-          state.readTail(beat, codec);
-        } else {
+        if (!plan.placed) {
           JsonSerialisation.ReadDefinitions([beat["frames"], beat["threads"], beat["choices"]]);
+          return;
+        }
+        const callStack = state.callStack;
+        const barrier = callStack.cellBarrier;
+        callStack.cellBarrier = (cell) => {
+          if (!cut.has(cell)) cut.set(cell, copyCell(cell));
+          barrier?.(cell);
+        };
+        try {
+          state.readTail(beat, codec);
+        } finally {
+          callStack.cellBarrier = barrier;
         }
       };
       head();
@@ -2081,6 +2095,12 @@ class SaveReader {
       state.endLoad();
       if (plan.placed) {
         onBeat(beat, plan);
+      }
+      if (j < index) {
+        for (const [cell, copy] of cut) {
+          state.images?.cell(cell);
+          putCell(cell, copy);
+        }
       }
     }
   }

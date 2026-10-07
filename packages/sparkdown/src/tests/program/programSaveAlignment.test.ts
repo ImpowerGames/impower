@@ -573,6 +573,50 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
+  // Round 2 of the review of #1654 (report 6032759458, finding 2): a long
+  // string in an interpolation, holding a brace and a `//`.
+  it("tell apart two displayed lines that differ inside a long string of their interpolation, a brace and a `//` included", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", "Line {[[a } // b]]}.", "End."]),
+      scene(["P1.", "P2.", "P3.", "Line {[[a } // c]]}.", "Line {[[a } // b]]}.", "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Line a } // b.", "End."],
+    );
+  });
+
+  // The other tokens of an interpolation whose text may hold a brace or a
+  // `//`, and of a line of logic whose text may hold a `--`.
+  it("tell apart two displayed lines that differ after a block comment of their interpolation holding a brace and a `//`", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", 'Line {--[[ } // ]] "b"}.', "End."]),
+      scene(["P1.", "P2.", "P3.", 'Line {--[[ } // ]] "c"}.', 'Line {--[[ } // ]] "b"}.', "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Line b.", "End."],
+    );
+  });
+
+  it("tell apart two displayed lines that differ after a regex literal of their interpolation holding a brace", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", 'Line {@/}/ and " // b"}.', "End."]),
+      scene(["P1.", "P2.", "P3.", 'Line {@/}/ and " // c"}.', 'Line {@/}/ and " // b"}.', "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Line // b.", "End."],
+    );
+  });
+
+  it("tell apart two lines of logic that differ inside a regex literal holding a `--`", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", "& local r = @/a--b/", "Shown.", "End."]),
+      scene(["P1.", "P2.", "P3.", "& local r = @/a--c/", "& local r = @/a--b/", "Shown.", "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Shown.", "End."],
+    );
+  });
+
   it("hold only the beats of the playthrough since the story was last reset", () => {
     const text = (withNew: boolean) =>
       [
@@ -925,6 +969,31 @@ describe("a save at a menu", () => {
       hidden.loadSave(chosenSave("checkpoint"));
       expect(hidden.loadedSaveReport!.chosen).toBe("unplaced");
       expect(play(hidden, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
+    });
+
+    // Round 2 of the review of #1654 (report 6032759458, finding 3).
+    it("as a checkpoint taken after the choice, restored and then saved, takes the choice again or is unplaced as a save just after the choice is", () => {
+      const story = engine(rootOf(CHOSEN("kept")));
+      expect(advance(story, 1)).toEqual(["Before."]);
+      story.Continue();
+      story.ChooseChoiceIndex(1);
+      const checkpoint = story.captureBeat();
+      expect(advance(story, 2)).toEqual(["Ate pear.", "After."]);
+      expect(story.restore(checkpoint)).toBe(true);
+      const save = story.toSave();
+      const hidden = engine(rootOf(CHOSEN("hidden")));
+      hidden.loadSave(save);
+      expect(hidden.loadedSaveReport!.chosen).toBe("unplaced");
+      expect(play(hidden, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
+      expect(JSON.parse(save).chosen?.a?.ch?.[2]).toBe(1);
+      const same = engine(rootOf(CHOSEN("kept")));
+      same.loadSave(save);
+      expect(same.loadedSaveReport!.chosen).toBe("taken");
+      expect(play(same).beats).toEqual(["Ate pear.", "After."]);
+      // Run on from the restored checkpoint, the story saves the beat it
+      // reached, with no choice.
+      expect(advance(story, 1)).toEqual(["Ate pear."]);
+      expect(JSON.parse(story.toSave()).chosen).toBeUndefined();
     });
   });
 });

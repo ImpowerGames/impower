@@ -563,14 +563,31 @@ export class ProgramStory {
    *  session), unless `translate` is false, as a route's resumption asks;
    *  when a position still cannot be placed, it returns false and changes
    *  nothing, so that the caller replays. The history keeps the beats that
-   *  led to the image and forgets those after it (`BeatHistory.truncateTo`). */
+   *  led to the image and forgets those after it (`BeatHistory.truncateTo`).
+   *  An image taken just after a choice (`ProgramImage.afterChoice`) is the
+   *  state after that choice again, which a save writes as the beat before
+   *  its menu with the choice, as it does when the choice was just taken. */
   restore(image: ProgramImage, translate = true): boolean {
     if (!this.restoreInPlace(image, translate)) {
       return false;
     }
     // A rewind forgets the beats after the image.
     this.history.truncateTo(image);
-    this._chosenAt = null;
+    const after = image.afterChoice;
+    if (after) {
+      // The menu's record, which a keyframe taken of it since may hold
+      // under another image (`captureBeat`), or one of its own when the
+      // history no longer holds it.
+      const menu = after.menu;
+      this._chosenAt = this.history.records.find((record) => record.image === menu || record === menu.beat) ?? {
+        image: menu,
+        flags: 0,
+        decisions: [after.address],
+      };
+      this._chosenAddress = after.address;
+    } else {
+      this._chosenAt = null;
+    }
     return true;
   }
 
@@ -664,9 +681,12 @@ export class ProgramStory {
       return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
     }
     if (this._chosenAt) {
-      const records = this.history.upTo(this._chosenAt.image);
-      if (records) {
-        return this.saveOf(records, this._chosenAddress, gameVersion)!;
+      // The menu's beat with the beats before it, or alone when a restore
+      // put back an image whose menu the history no longer holds.
+      const records = this.history.upTo(this._chosenAt.image) ?? [this._chosenAt];
+      const save = this.saveOf(records, this._chosenAddress, gameVersion);
+      if (save) {
+        return save;
       }
     }
     if (!this.canContinue && this._state.currentChoices.length > 0) {

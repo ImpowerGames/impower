@@ -1702,12 +1702,14 @@ const numberText = (value: number): string =>
  *  between two tokens is kept, as one space, only where dropping it would
  *  join them into other tokens: two words (`local x`), or two operators
  *  that read together as another (`- -` against `--`, `. .` against `..`;
- *  `JOINED`). A long string (`[[ ]]`, `[=[ ]=]`) is kept as written, across
- *  lines, its blank lines and its edge spaces included. Any other line is
- *  displayed text (a line of narration or dialogue, a choice's line), whose
- *  comment is a `//` that starts the line or follows whitespace and is
- *  followed by whitespace or the line's end, as the grammar reads one
- *  (`SparkdownInlineComment`); `--` there is text. Every line of a
+ *  `JOINED`). A quoted string and a regex literal (`@/ /`), whose text may
+ *  hold a `--`, are kept as written; a long string (`[[ ]]`, `[=[ ]=]`) is
+ *  too, across lines, its blank lines and its edge spaces included. Any
+ *  other line is displayed text (a line of narration or dialogue, a
+ *  choice's line), whose comment is a `//` that starts the line or follows
+ *  whitespace and is followed by whitespace or the line's end, outside its
+ *  interpolations, as the grammar reads one (`SparkdownInlineComment`;
+ *  `withoutDisplayComment`); `--` there is text. Every line of a
  *  statement whose first line is logic, but for a menu (`choose`, whose
  *  choices are displayed lines), is logic, so a field of a `define`'s body
  *  or a line a table literal runs on reads as the logic it is, where `//`
@@ -1774,6 +1776,17 @@ export const normalizeSource = (source: string): string => {
         // A string, kept as written, escapes included.
         let j = i + 1;
         while (j < line.length && line[j] !== c) {
+          j += line[j] === "\\" ? 2 : 1;
+        }
+        emit(line.slice(i, Math.min(j + 1, line.length)));
+        i = j + 1;
+        continue;
+      }
+      if (c === "@" && line[i + 1] === "/") {
+        // A regex literal, kept as written to its first unescaped `/`: its
+        // body may hold a `--` or a quote.
+        let j = i + 2;
+        while (j < line.length && line[j] !== "/") {
           j += line[j] === "\\" ? 2 : 1;
         }
         emit(line.slice(i, Math.min(j + 1, line.length)));
@@ -1854,8 +1867,12 @@ const LOGIC_STATEMENT =
 
 /** A displayed line without its comment (`SparkdownInlineComment`): a `//`
  *  that starts the line or follows whitespace and is followed by whitespace
- *  or the line's end, outside the line's interpolations (`{...}`), where a
- *  `//` is an operator or, in a string, text. */
+ *  or the line's end, outside the line's interpolations (`{...}`). In an
+ *  interpolation, which is Luau, a `//` is an operator, and a token whose
+ *  text may hold a brace or a `//` is read whole: a string (quoted, or a
+ *  long string), a block comment (`--[[ ]]`) or a regex literal (`@/ /`).
+ *  A line comment there, or one of those tokens that runs past the line,
+ *  holds the rest of the line, which is kept as written. */
 const withoutDisplayComment = (line: string): string => {
   let depth = 0;
   let quote: string | null = null;
@@ -1866,7 +1883,32 @@ const withoutDisplayComment = (line: string): string => {
       else if (c === quote) quote = null;
       continue;
     }
-    if (depth > 0 && (c === '"' || c === "'" || c === "`")) {
+    const comment = depth > 0 && c === "-" && line[i + 1] === "-";
+    const long =
+      depth > 0 && (c === "[" || comment)
+        ? LONG_BRACKET.exec(line.slice(comment ? i + 2 : i))
+        : null;
+    if (long) {
+      // A long string or a block comment, whose text, braces and `//`
+      // included, runs to its close.
+      const close = line.indexOf(`]${long[1]}]`, i + (comment ? 2 : 0) + long[0].length);
+      if (close < 0) {
+        return line;
+      }
+      i = close + long[1]!.length + 1;
+    } else if (comment) {
+      return line;
+    } else if (depth > 0 && c === "@" && line[i + 1] === "/") {
+      // A regex literal, whose body runs to its first unescaped `/`.
+      let j = i + 2;
+      while (j < line.length && line[j] !== "/") {
+        j += line[j] === "\\" ? 2 : 1;
+      }
+      if (j >= line.length) {
+        return line;
+      }
+      i = j;
+    } else if (depth > 0 && (c === '"' || c === "'" || c === "`")) {
       quote = c;
     } else if (c === "{") {
       depth += 1;

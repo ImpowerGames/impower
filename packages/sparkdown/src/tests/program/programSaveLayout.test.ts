@@ -412,6 +412,54 @@ describe("a save written by another process", () => {
     expect(play(loaded)).toEqual(["After 30 20."]);
   });
 
+  // Round 2 of the review of #1654 (report 6032759458, finding 1): the cut
+  // of an older beat closes a cell the newer beat still holds open, with
+  // another value and no delta of its own.
+  it("of several beats inside a loop whose layout changed closes a captured variable on the newest beat's value, whatever an older beat's cut closed it on", () => {
+    const LOOP = [
+      "store keep = nil",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  for i = 1, 1 do",
+      "    & local v = 10",
+      "    & keep = function() return v end",
+      "    First.",
+      "    & v = 20",
+      "    Second.",
+      "  end",
+      "  After {keep()}.",
+      "end",
+      "",
+    ].join("\n");
+    const story = new ProgramStory(rootOf(LOOP), { saveHistory: 2 });
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    const beats: string[] = [];
+    while (story.canContinue && beats.length < 2) {
+      story.Continue();
+      if (shown(story)) beats.push(shown(story));
+    }
+    expect(beats).toEqual(["First.", "Second."]);
+    const save = JSON.parse(story.toSave());
+    expect(save.beats).toHaveLength(2);
+    for (const beat of save.beats) {
+      const loop = beat.position.st.levels.find((level: any) => level.loop);
+      expect(loop).toBeDefined();
+      loop.loop = differ(loop.loop);
+    }
+    const loaded = engine(rootOf(LOOP));
+    loaded.loadSave(JSON.stringify(save));
+    expect(loaded.loadedSaveReport!.beat).toBe(1);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(play(loaded)).toEqual(["After 20."]);
+    // The older beat, restored from the history the load seeded, has the
+    // value it had.
+    expect(loaded.restore(loaded.beats[0]!.image)).toBe(true);
+    expect(play(loaded)).toEqual(["After 10."]);
+  });
+
   it("inside a closure defined in a loop and run after the loop ended is placed exactly, whatever the loop's layout", () => {
     const save = changed("closure", (beat) => {
       // A layout of the loop the closure was written in, which is no owner
