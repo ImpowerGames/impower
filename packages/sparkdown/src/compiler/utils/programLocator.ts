@@ -158,24 +158,21 @@ export const answerLocateQueries = (
   });
 };
 
-// How a divert, a `done` or a `fin` ends: its code's last instruction.
+// How a divert, a `done` or a `fin` leaves its flow.
 const LEAVES = new Set<number>([Op.JumpSym, Op.JumpVar, Op.Done, Op.End]);
 // What only another kind of statement holds: a beat (every line an author
-// displays starts with `LineStart`), a block, a choice and a thread. A
-// divert's arguments are expressions, whatever their code does to compute
-// them: a captured string writes text and values into its capture, and a
-// method call stashes its receiver in a generated temporary.
-const NOT_A_DIVERT = new Set<number>([
-  Op.LineStart,
-  Op.EnterBlock,
-  Op.Choice,
-  Op.Thread,
-]);
+// displays starts with `LineStart`), a choice and a thread. A divert's
+// arguments are expressions, whatever their code does to compute them: a
+// captured string writes text and values into its capture, and a method
+// call stashes its receiver in a generated temporary.
+const NOT_A_DIVERT = new Set<number>([Op.LineStart, Op.Choice, Op.Thread]);
 
 /** Whether the statement an address stands in is a divert, a `done` or a
- *  `fin` at its flow's own level, with whatever arguments it passes: its own
- *  code leaves the flow before it holds a beat, a block, a choice or a
- *  thread. */
+ *  `fin` at its flow's own level, with whatever arguments it passes: its
+ *  code leaves the flow and holds no beat, choice or thread anywhere, the
+ *  entry code of a function an argument writes included. A `choose` whose
+ *  preamble diverts before its caption holds the caption's beat and its
+ *  choices, and is no divert. */
 const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
   if (!position || root.ownerOf(position.sequence)) {
@@ -183,19 +180,15 @@ const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   }
   const chunk = position.sequence.arrays.chunks[position.entry]!;
   const words = codeWords(chunk);
-  // The statement's own path runs until it leaves the flow. Code after that
-  // is the entry code of a function an argument writes (`function() … end`),
-  // which a call reaches by its symbol, and no part of the statement.
+  let leaves = false;
   for (let offset = 0; offset < words; offset += 2) {
     const op = opOf(chunk[HEADER_WORDS + offset]!);
     if (NOT_A_DIVERT.has(op)) {
       return false;
     }
-    if (LEAVES.has(op)) {
-      return true;
-    }
+    leaves ||= LEAVES.has(op);
   }
-  return false;
+  return leaves;
 };
 
 /**

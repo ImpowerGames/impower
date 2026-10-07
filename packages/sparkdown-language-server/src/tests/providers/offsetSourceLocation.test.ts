@@ -281,6 +281,54 @@ describe("previous and next beat navigation", () => {
     "",
   ].join(NEWLINE);
 
+  // A `choose` is a block statement, which a divert in its preamble does not
+  // make a divert: its caption is a beat of its own, whether the divert is
+  // written before it or in a branch of an `if` the preamble skips.
+  test("keeps a choose block's caption a beat when its preamble diverts first", async () => {
+    const CHOOSE = [
+      "store n = 0",
+      "",
+      "scene A",
+      "  Before.",
+      "  choose",
+      "    -> B",
+      "    Caption.",
+      "    * Continue",
+      "      Taken.",
+      "  end",
+      "  Middle.",
+      "  choose",
+      "    if n > 0 then",
+      "      -> B",
+      "      + [Gated]",
+      "        Gone.",
+      "    end",
+      "    Second caption.",
+      "    * Onward",
+      "      Went.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+      "scene B",
+      "  Bye.",
+      "  done",
+      "end",
+      "",
+    ].join(NEWLINE);
+    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), CHOOSE);
+    expect(program.fallback).toBeUndefined();
+    const beats = ownBeats(program);
+    for (const caption of ["Caption.", "Second caption."]) {
+      const beat = await beats.beatAt(CHAPTER, lineOf(CHOOSE, caption));
+      expect(beat?.location?.startLine, caption).toBe(lineOf(CHOOSE, caption));
+    }
+    const at = (line: number, offset: number) =>
+      getOffsetSourceLocation(program, beats, CHAPTER, line, offset);
+    expect(await at(lineOf(CHOOSE, "* Continue"), -1)).toEqual({ file: CHAPTER, line: lineOf(CHOOSE, "Caption.") });
+    expect(await at(lineOf(CHOOSE, "* Onward"), -1)).toEqual({ file: CHAPTER, line: lineOf(CHOOSE, "Second caption.") });
+  });
+
   test("lands where it lands on the current engine around diverts that pass arguments", async () => {
     expect(await differences(["include chapter.sd", ""].join(NEWLINE), ARGS)).toEqual([]);
     const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), ARGS);
