@@ -412,7 +412,9 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       assignment: declaration,
     });
     (current.source.objects as ParsedObject[]).push(declaration.expression);
-    const bodies = functionBodiesOf([declaration.expression], record);
+    const bodies = holdsDivertTarget(declaration.expression)
+      ? functionBodiesOf([declaration.expression], record)
+      : [];
     if (bodies.length > 0) {
       (current.source as { bodies?: BodySource[] }).bodies = [
         ...(current.source.bodies ?? []),
@@ -608,6 +610,24 @@ const functionBodiesOf = (
   });
 };
 
+/** Whether `obj` holds a divert target at any depth, which a function a
+ *  declaration's initializer creates is (`functionBodiesOf`). An object's
+ *  syntax never changes once it is lowered, so each is walked once. */
+const holdsDivertTarget = (obj: ParsedObject): boolean => {
+  let holds = divertTargetHolders.get(obj);
+  if (holds === undefined) {
+    holds = obj instanceof DivertTarget;
+    const children = obj instanceof FunctionCall ? obj.args : obj.content;
+    for (const child of children ?? []) {
+      holds = holdsDivertTarget(child) || holds;
+    }
+    divertTargetHolders.set(obj, holds);
+  }
+  return holds;
+};
+
+const divertTargetHolders = new WeakMap<ParsedObject, boolean>();
+
 // The keys of the runs after the first of a statement's declarations.
 const runKeys = new WeakMap<object, object[]>();
 
@@ -621,8 +641,42 @@ const runKey = (block: object, run: number): object => {
 };
 
 /** A statement source for a top-level statement, with the statements of its
- *  bodies when it is a block statement. */
+ *  bodies when it is a block statement. A block the incremental parse
+ *  carried keeps its record (`SparkdownCompiler.statementRecord`), whose
+ *  readers read where the block stands now; while it stands on the same line
+ *  with the same objects, its source is the one the compile before built,
+ *  whose lines are its lines. */
 const topLevelStatement = (
+  block: object,
+  objects: ParsedObject[],
+  record: StatementRecord,
+): StatementSource => {
+  const kept = keptStatements.get(block);
+  if (
+    kept &&
+    kept.record === record &&
+    kept.line === record.line &&
+    kept.objects.length === objects.length &&
+    kept.objects.every((obj, i) => obj === objects[i])
+  ) {
+    return kept.source;
+  }
+  const source = statementOfRecord(block, objects, record);
+  keptStatements.set(block, { record, line: record.line, objects, source });
+  return source;
+};
+
+const keptStatements = new WeakMap<
+  object,
+  {
+    record: StatementRecord;
+    line: number;
+    objects: readonly ParsedObject[];
+    source: StatementSource;
+  }
+>();
+
+const statementOfRecord = (
   block: object,
   objects: ParsedObject[],
   record: StatementRecord,
@@ -811,14 +865,24 @@ const cutLines = (
 };
 
 /** The recorded reads of a statement as one string, which a chunk compares
- *  to decide whether its statement's lowering read the same. */
-export const readsKey = (reads: StatementReads): string =>
-  JSON.stringify([
-    [...reads.callable].sort(),
-    [...reads.defineType].sort(),
-    reads.other,
-    reads.context,
-  ]);
+ *  to decide whether its statement's lowering read the same. A statement's
+ *  reads are recorded once, as it is lowered, and a statement lowered again
+ *  records new ones, so the string is made once per statement. */
+export const readsKey = (reads: StatementReads): string => {
+  let key = readsKeys.get(reads);
+  if (key === undefined) {
+    key = JSON.stringify([
+      [...reads.callable].sort(),
+      [...reads.defineType].sort(),
+      reads.other,
+      reads.context,
+    ]);
+    readsKeys.set(reads, key);
+  }
+  return key;
+};
+
+const readsKeys = new WeakMap<StatementReads, string>();
 
 /** The statements of a body that run where the body stands: every statement
  *  its lowering recorded but one that writes a function the story took out

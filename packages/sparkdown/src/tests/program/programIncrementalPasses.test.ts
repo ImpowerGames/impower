@@ -247,11 +247,13 @@ describe("an edit inside one beat", () => {
     expect(passes.chunkTable).toBeLessThanOrEqual(2);
   });
 
-  it("leaves the runtime tree unflattened and its containers uncounted", () => {
+  it("builds no runtime tree, and counts no container", () => {
     // A read count of a label and a once-only choice: the current engine's
     // resolution sets their containers' count flags, and flattening inlines
     // every unnamed container. A program that runs from its chunks needs
-    // neither, so neither pass runs for it unless it falls back.
+    // neither, and its compile exports no runtime story (#1607): the story it
+    // hands over holds the program's lists, structs and constants and no
+    // content.
     const text = [
       "scene MAIN",
       "  label knock",
@@ -291,8 +293,11 @@ describe("an edit inside one beat", () => {
         .story,
     );
     expect(current.knock?.visitsShouldBeCounted).toBe(true);
-    expect(chunked.knock?.visitsShouldBeCounted).toBe(false);
-    expect(chunked.unnamed).toBeGreaterThan(current.unnamed);
+    expect(chunked.knock).toBeUndefined();
+    expect(s.story.mainContentContainer.content).toEqual([]);
+    expect(chunked.unnamed).toBe(1);
+    // It is the story the program's engines copy their state from.
+    expect(s.compiler.chunkStore!.current!.runtimeStory).toBe(s.story);
   });
 });
 
@@ -1080,10 +1085,10 @@ describe("a naming collision", () => {
 });
 
 // A compile whose program falls back runs on the current engine, whose
-// runtime tree the switch-on path neither flattens nor counts until then
-// (`Story.FinishForCurrentEngine`), and whose containers a later compile
-// reuses. Through one compiler that goes back and forth between the two,
-// each fallen-back program is the current engine's program of its text.
+// runtime story the switch-on path exports only then (`Story.ExportRuntime`,
+// after the program path's resolver, #1607), and whose containers a later
+// compile reuses. Through one compiler that goes back and forth between the
+// two, each fallen-back program is the current engine's program of its text.
 describe("a program that falls back after compiles that did not", () => {
   it("compiles to the current engine's program, however often it goes back and forth", () => {
     const scene = (name: string, next: string) => [

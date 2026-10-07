@@ -359,11 +359,13 @@ async function main() {
       compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
     }
     const t1 = performance.now();
-    // What each pass of the chunk store visited for this sample's compile.
+    // What each pass of the chunk store and of the program resolver visited
+    // for this sample's compile.
     const store = compiler.chunkStore;
     const passes = config.chunks
       ? { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null }
       : undefined;
+    const resolver = config.chunks ? compiler.programResolver?.passesLastResolve : undefined;
     const game = workerGame!;
     const before = residueOf(game);
     lastCheckpoint = searched?.checkpoint ?? "";
@@ -391,6 +393,7 @@ async function main() {
       messages: sink.stats(),
       engine: game.programStory ? "program" : "current",
       ...(passes ? { passes } : {}),
+      ...(resolver ? { resolver } : {}),
     });
     if (i === config.warmup) heapAfterFirst = heapNow();
     else if ((i - config.warmup + 1) % 50 === 0) heapEvery50.push(heapNow());
@@ -468,6 +471,12 @@ function printReport(report: any) {
     // What each pass of the chunk store visited, per sample
     // (`ChunkStore.passesLastBuild`).
     out.push("", "  chunk store passes, per sample:", ...passes.map((p: any) => `    ${JSON.stringify(p)}`));
+  }
+  const resolves = report.perSample?.map((s: any) => s.resolver).filter(Boolean);
+  if (resolves?.length) {
+    // What the program path's resolver visited, per sample
+    // (`ProgramResolver.passesLastResolve`, #1607).
+    out.push("", "  resolver passes, per sample:", ...resolves.map((p: any) => `    ${JSON.stringify(p)}`));
   }
   const m = report.messages;
   if (m) {

@@ -45,9 +45,10 @@ export interface ProgramChangeSummary {
    * programChunks`) changed, derived from the compile itself: the chunks of
    * the root it is measured against that its root no longer holds, the
    * chunks it emitted, the symbols whose definition row moved, and whether a
-   * declaration or function chunk was among the chunks emitted or dropped, or
-   * the declarations run in another order (docs/engine/binary-program.md,
-   * section 1). It is exact, so a client routing on the program engine reads
+   * declaration or function chunk was among the chunks emitted or dropped, a
+   * chunk held by both roots holds a function's code in one and not the
+   * other, or the declarations run in another order
+   * (docs/engine/binary-program.md, section 1). It is exact, so a client routing on the program engine reads
    * it in place of `changedFrom` and `confined`, which answer for the current
    * engine's paths. Absent on a compile that built no chunks.
    */
@@ -66,7 +67,9 @@ export interface ChunkChanges {
    *  defined in one root and not the other. */
   moved: number[];
   /** Whether a declaration chunk or a function chunk was emitted or dropped,
-   *  or the declarations run in another order: the compile ran the
+   *  a chunk held by both roots moved into a function or out of one (the
+   *  chunks holding a function's code are `functionChunksOf`'s), or the
+   *  declarations run in another order: the compile ran the
    *  declarations again (the rule of #695), so no state a game captured
    *  before it holds the values the new initializers compute. */
   initializers: boolean;

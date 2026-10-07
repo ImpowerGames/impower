@@ -132,10 +132,13 @@ export class TunnelOnwards extends ParsedObject {
     return container;
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
 
-    if (this.divertAfter && this.divertAfter.targetContent) {
+    if (program) {
+      // The program pushes the target's symbol (`EmitProgram`), and the
+      // target's runtime object is another statement's.
+    } else if (this.divertAfter && this.divertAfter.targetContent) {
       this._overrideDivertTarget!.targetPath =
         this.divertAfter.targetContent.runtimePath;
     } else if (this._overrideDivertTarget) {

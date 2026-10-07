@@ -93,8 +93,8 @@ export class DivertTarget extends Expression {
     container.AddContent(this.runtimeDivertTargetValue);
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
 
     if (this.divert.isDone || this.divert.isEnd) {
       this.Error(
@@ -204,8 +204,11 @@ export class DivertTarget extends Expression {
       );
     }
 
-    // Main resolve
-    if (this.runtimeDivert.targetPath) {
+    // Main resolve. The program pushes the target's symbol (`EmitExpression`)
+    // and writes no runtime value.
+    if (program) {
+      // Nothing of the runtime tree.
+    } else if (this.runtimeDivert.targetPath) {
       this.runtimeDivertTargetValue.targetPath = this.runtimeDivert.targetPath;
     } else {
       // Re-resolution found no target this compile. A REUSED runtime value
@@ -226,7 +229,9 @@ export class DivertTarget extends Expression {
     // read or turn counts. Should be able to detect this by looking for other uses of containerForCounting
     let targetContent = this.divert.targetContent;
     if (targetContent !== null) {
-      let target = targetContent.containerForCounting;
+      // The program counts every counted symbol, and its target's container
+      // is another statement's runtime object.
+      let target = program ? null : targetContent.containerForCounting;
       if (target !== null) {
         // Purpose is known: used directly in TURNS_SINCE(-> divTarg)
         const parentFunc = asOrNull(this.parent, FunctionCall);

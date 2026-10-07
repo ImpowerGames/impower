@@ -91,8 +91,8 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
     return container;
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
 
     if (this.identifier && (this.identifier.name || "").length > 0) {
       context.CheckForNamingCollisions(

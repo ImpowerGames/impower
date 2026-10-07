@@ -35,10 +35,14 @@ export function scopeDefineInstances(
     // Populated with every define VA this call processes — the prelude pass
     // hands its set to the user pass as `skip`.
     collect?: Set<ParsedObject>;
+    // Given each define VA whose key this call changed, whose statement the
+    // program path's resolver resolves again (`ProgramResolver`).
+    renamed?: ParsedObject[];
   },
 ): void {
   const skip = opts?.skip;
   const collect = opts?.collect;
+  const renamed = opts?.renamed;
   const stack: ParsedObject[] = [...roots];
   while (stack.length > 0) {
     const obj = stack.pop()!;
@@ -60,6 +64,7 @@ export function scopeDefineInstances(
           : `$${parentName}_${bareName}`; // leaf instance → scope it
         if (obj.identifier?.name !== desired) {
           obj.identifier = new Identifier(desired);
+          renamed?.push(obj);
         }
       }
     }
