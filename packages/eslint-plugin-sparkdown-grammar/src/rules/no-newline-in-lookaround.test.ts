@@ -61,3 +61,11 @@ WS: (?:[^\\S\\n\\r])`;
   assert.deepEqual(findings(`Rule:
   match: (x)(?={{TRIVIA}}y)`, trivia), []);
 });
+
+test("an exempt variable's line break does not hide a later one in the same lookahead", () => {
+  const trivia = `# reads-past-line: skips blank lines to the next token.
+TRIVIA: (?:[\\r\\n]|{{WS}})*
+WS: (?:[^\\S\\n\\r])`;
+  assert.deepEqual(findings(`Rule:
+  match: (x)(?={{TRIVIA}}q\\nZ)`, trivia), ["Rule.match: `\\n` with more of its lookahead after it"]);
+});
