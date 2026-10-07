@@ -54,6 +54,17 @@ import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
 import { watchExecution } from "./watchExecution";
 
+/** Whether the player's compiler builds statement chunks and its games run
+ *  them on the program engine, unless the host says otherwise (#703). */
+export const PROGRAM_CHUNKS = true;
+
+export interface PlayerWorkerOptions {
+  /** Build statement chunks and run them on the program engine
+   *  (`programChunks`); `PROGRAM_CHUNKS` when not given. Every host of the
+   *  worker leaves it unset; a test sets it to compare the engines. */
+  programChunks?: boolean;
+}
+
 /** A program the worker's game can display, and what the route searches run
  *  in it established. */
 interface DisplayableProgram {
@@ -73,7 +84,11 @@ interface DisplayableProgram {
  * PLAY's game, which runs beside it (`player/play`). The page holds only each
  * program's summary and no game.
  */
-export function installPlayerWorker(connection: MessageConnection) {
+export function installPlayerWorker(
+  connection: MessageConnection,
+  options: PlayerWorkerOptions = {},
+) {
+  const programChunks = options.programChunks ?? PROGRAM_CHUNKS;
   const player = {
     /** How PLAY's game is put at its start point. */
     putAtStartPoint,
@@ -119,9 +134,17 @@ export function installPlayerWorker(connection: MessageConnection) {
   //
   // The page reads no compiled story, so the compiler does not serialize one;
   // a PLAY writes one out for its own game (`emitCompiledProgramOf`).
+  //
+  // The compiler builds statement chunks and the games run them on the
+  // program engine (`programChunks`, #703), for every host of this worker:
+  // the web editor, the VS Code game webview and the player app. A program
+  // that holds a construct the writer does not emit falls back as a whole
+  // to the current engine, which the games run then
+  // (docs/engine/binary-program.md, section 9).
   compiler.configure({
     seedBuiltinsIntoStory: true,
     emitCompiledProgram: false,
+    programChunks,
   });
 
   // The record of what the last route search in the real program the game
@@ -237,6 +260,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         // fall-back-to-full.
         incrementalCheckpoints: true,
         verifyCheckpoints: false,
+        programChunks,
       });
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
@@ -647,6 +671,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
+      programChunks,
     });
     profile("end", compiler.profilerId + " " + "play/create");
     const errors = player.putAtStartPoint(

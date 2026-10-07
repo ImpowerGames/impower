@@ -273,6 +273,22 @@ if (!esbuildInstalled) {
     }
   });
 
+  // With --chunks the worker's game runs the program engine, as the player's
+  // worker ships (#703): the route is searched and displayed there, the
+  // compile re-emits one chunk, and the heap is read after full collections.
+  await check("the benchmark with --chunks routes and displays on the program engine", () => {
+    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "preview", "--samples", "1", "--warmup", "1", "--chunks"], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.match(run.stdout, /1 samples after 1 warm-up; route \d{3,} steps; heap \d+ MB; the program engine/);
+    assert.match(run.stdout, /heap after full collections: \d+(\.\d)? MB after the first sample/);
+    assert.match(run.stdout, /program\/chunks/);
+    assert.doesNotMatch(run.stdout, /populateLocations/);
+    assert.match(run.stdout, /display messages \(cloned\)/);
+    assert.match(run.stdout, /program, checkpoint or path locations in what was cloned: none/);
+    assert.match(run.stdout, /"emitted":1,/);
+    assert.match(run.stdout, /"fallback":null/);
+  });
+
   await check("the coverage report counts the fixture's statements, all of which the writer emits", () => {
     // The report is read from the JSON the bench writes, not from its printed
     // sentence, so rewording the summary cannot fail this check.

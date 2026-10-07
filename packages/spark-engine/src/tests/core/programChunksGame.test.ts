@@ -83,7 +83,11 @@ function play(
   startFrom: { file: string; line: number },
   each?: (game: Game) => void,
 ) {
-  const game = createGame(program, story, programChunks, startFrom);
+  return playGame(createGame(program, story, programChunks, startFrom), each);
+}
+
+/** Runs `game` as `play` runs the game it builds. */
+function playGame(game: Game, each?: (game: Game) => void) {
   let finished = false;
   const errors: string[] = [];
   game.connection.connectOutput((message) => {
@@ -364,6 +368,41 @@ describe("a game started at a line", () => {
         expect(chunks.beats.length).toBeGreaterThan(0);
       });
     }
+  }
+});
+
+// With `programChunks` on, a live edit can make a compile fall back to the
+// current engine (an `external` declaration, which the writer has no emit
+// path for), and the next edit can bring the program back to its chunks. The
+// worker hands its game every compile's program with `updateProgram`, so the
+// game switches engines in place and must run as a fresh game would (#1663).
+describe("a game given a program for the other engine", () => {
+  const CHUNKED = "scene MAIN\n  One.\n  Two.\nend\n";
+  // Declared after the scene, so that the start line names the same beat in
+  // both programs.
+  const FALLBACK = CHUNKED + "external message(x)\n";
+  const startFrom = { file: MAIN, line: 1 };
+
+  for (const [name, from, to] of [
+    ["a chunked game given a compile that falls back", CHUNKED, FALLBACK],
+    ["a game that fell back given a chunked compile", FALLBACK, CHUNKED],
+  ] as const) {
+    it(`plays ${name} as a fresh game plays it`, () => {
+      const before = compile({ [MAIN]: from }, true);
+      const after = compile({ [MAIN]: to }, true);
+      expect(!!before.program.fallback).toBe(from === FALLBACK);
+      expect(!!after.program.fallback).toBe(to === FALLBACK);
+      const game = createGame(before.program, before.story, true, startFrom);
+      game.updateProgram(after.program, after.story);
+      const switched = playGame(game);
+      // A boolean, not the engine: a failing assertion would print a story.
+      expect(switched.engine instanceof ProgramStory).toBe(to !== FALLBACK);
+      const fresh = play(after.program, after.story, true, startFrom);
+      expect(switched.finished).toBe(true);
+      expect(switched.errors).toEqual([]);
+      expect(switched.flushed).toEqual(fresh.flushed);
+      expect(switched.flushed.length).toBeGreaterThan(1);
+    });
   }
 });
 

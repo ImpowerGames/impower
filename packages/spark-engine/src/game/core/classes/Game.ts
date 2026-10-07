@@ -315,6 +315,10 @@ export class Game<T extends M = {}> {
     return this._startFrom;
   }
 
+  /** Which beat of its line `setStartFrom` last started at, so a program
+   *  for the other engine can resolve the same start point. */
+  protected _startBeat: "first" | "last" = "first";
+
   protected _previewFrom?: {
     file: string;
     line: number;
@@ -716,6 +720,10 @@ export class Game<T extends M = {}> {
       );
     }
     this._scripts = Object.keys(this._program.scripts);
+    // Which engine ran the program before, when one did: a compile that
+    // falls back, or one that comes back to its chunks, switches the game
+    // from one engine to the other (#1663).
+    const ranProgramEngine = this._story ? this.programStory !== null : null;
 
     if (chunks) {
       // The program engine presents the members of `Story` this game reads
@@ -741,6 +749,9 @@ export class Game<T extends M = {}> {
     // compile that falls back to the current engine, or comes back from it,
     // needs the other engine's form of them.
     this.resolveBreakpoints();
+    if (ranProgramEngine !== null && ranProgramEngine !== !!this.programStory) {
+      this.forgetOtherEngine();
+    }
     // Live edit → recompile reuses this Game: refresh the context channels from
     // the new program and let modules re-derive any state cached from context
     // (e.g. InterpreterModule's character-name map). Guarded on modules already
@@ -764,6 +775,39 @@ export class Game<T extends M = {}> {
       this._sceneTracker?.reset();
     }
     return this._program;
+  }
+
+  /**
+   * Drop what the game holds in the form of the engine it ran before
+   * `updateProgram` gave it a program for the other one (#1663). The program
+   * engine names a position by a number and keeps its checkpoints as images,
+   * and the current engine names one by a runtime path and keeps saves, so
+   * neither engine can read the other's start address, checkpoints, planned
+   * route or record of executed positions. The new story stands at its
+   * start, so the game is put where a fresh game given the program is: its
+   * start point resolved again on this engine, and no route replayed.
+   */
+  protected forgetOtherEngine() {
+    this._checkpoints.truncate(0);
+    this._checkpointStepCursors.length = 0;
+    this._plannedRoute = null;
+    this._plannedRouteChangeId = undefined;
+    this._plannedRouteRoot = undefined;
+    this._plannedRouteStepMap = {};
+    this._plannedRouteStepCursor = 0;
+    this._routeErrors = [];
+    this._searchErrors = undefined;
+    this._simulation = undefined;
+    this._simulationFailure = undefined;
+    this._simulateFlow = undefined;
+    this._runtimeState = new RuntimeState();
+    this._executingAddress = null;
+    this._executingLocation = null;
+    this._previewAddress = undefined;
+    this._previewedAddress = undefined;
+    if (this._startFrom) {
+      this.setStartFrom(this._startFrom, this._startBeat);
+    }
   }
 
   /** Assign the program's channels (defines → character/image/…, assets,
@@ -1083,6 +1127,7 @@ export class Game<T extends M = {}> {
     beat: "first" | "last" = "first",
   ) {
     this._startFrom = startFrom;
+    this._startBeat = beat;
     this._startAddress =
       this.locator.addressAt(startFrom.file, startFrom.line, { beat }) ?? "0";
     const trueLocation = this.locator.locationOf(this._startAddress);

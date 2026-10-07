@@ -25,8 +25,16 @@
 // equal a cold compile's, and every chunk of a statement the edit did not
 // touch is the chunk it was before.
 //
+// With `SPARKDOWN_PROJECT` naming a project directory that holds `main.sd`,
+// it also runs that whole project on both engines (#703): every scene of
+// `main.sd` from its top to the story's end, taking the first choice at
+// every menu, which is the one the route planner tries first when nothing is
+// favored. A project's text is its author's, so a difference is reported by
+// scene and beat index only.
+//
 // It is kept out of the ordinary suite (`vitest.config.ts`) and runs alone:
 //   SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
+//   SPARKDOWN_DIFFERENTIAL=1 SPARKDOWN_PROJECT=<dir> node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
 import "../../inkjs/engine/Container";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -34,6 +42,12 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
+import {
+  configurePlayerCompiler,
+  loadProjectFiles,
+  MAIN_URI as PROJECT_MAIN_URI,
+} from "../../../../../scripts/bench/benchProject";
+import type { Story } from "../../inkjs/engine/Story";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
@@ -507,6 +521,79 @@ describe("the differential run", () => {
         shuffleDraws.next = null;
         quiet();
       }
+    }
+  });
+
+  const PROJECT = process.env["SPARKDOWN_PROJECT"];
+  it.skipIf(!PROJECT)("shows every scene of the whole project as the current engine does", () => {
+    const quiet = silence();
+    try {
+      const files = loadProjectFiles(PROJECT!);
+      const main = files.find((f) => f.uri === PROJECT_MAIN_URI);
+      expect(main, "the project holds main.sd").toBeDefined();
+      const compileProject = (programChunks: boolean) => {
+        const compiler = new SparkdownCompiler();
+        let story: Story | undefined;
+        compiler.addEventListener("compiler/didCompile", (params) => {
+          story = params.story as Story | undefined;
+        });
+        const startFrom = { file: PROJECT_MAIN_URI, line: 0 };
+        configurePlayerCompiler(compiler, files, startFrom, { programChunks });
+        const { program } = compiler.compile({
+          textDocument: { uri: PROJECT_MAIN_URI },
+          startFrom,
+        } as never);
+        return { program, story };
+      };
+      const { program } = compileProject(true);
+      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
+      const current = compileProject(false).story!;
+      const scenes = [...(main.text as string).matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);
+      expect(scenes.length).toBeGreaterThan(0);
+      const differences: string[] = [];
+      let beats = 0;
+      let menus = 0;
+      for (const scene of scenes) {
+        injectDraws();
+        current.ResetState();
+        const expected = storyRun(current, [], { from: scene, maxChoices: 10_000 });
+        injectDraws();
+        const actual = storyRun(new ProgramStory(program.chunks!), [], {
+          from: scene,
+          maxChoices: 10_000,
+        });
+        beats += expected.beats.length;
+        menus += expected.menus.length;
+        expect(expected.beats.length, `${scene} shows beats`).toBeGreaterThan(0);
+        // Where the runs first part, by beat index, without the author's text.
+        const at = (list: readonly unknown[], other: readonly unknown[]) => {
+          const n = Math.max(list.length, other.length);
+          for (let i = 0; i < n; i += 1) {
+            if (stable(list[i]) !== stable(other[i])) return i;
+          }
+          return -1;
+        };
+        const beat = at(actual.beats, expected.beats);
+        if (beat >= 0) {
+          differences.push(`${scene}: beat ${beat} of ${expected.beats.length} (program engine shows ${actual.beats.length})`);
+        }
+        const menu = at(actual.menus, expected.menus);
+        if (menu >= 0) {
+          differences.push(`${scene}: menu ${menu} of ${expected.menus.length}`);
+        }
+        if (stable(actual.errors) !== stable(expected.errors)) {
+          differences.push(`${scene}: errors ${actual.errors.length} against ${expected.errors.length}`);
+        }
+      }
+      quiet();
+      console.log(
+        `whole project: ${scenes.length} scenes, ${beats} beats and ${menus} menus compared, ${differences.length} differences`,
+      );
+      expect(differences, differences.join("\n")).toEqual([]);
+    } finally {
+      shuffleDraws.next = null;
+      quiet();
     }
   });
 
