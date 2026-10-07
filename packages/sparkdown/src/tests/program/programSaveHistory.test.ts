@@ -408,7 +408,9 @@ describe("what the rewind Feature reads at each beat", () => {
 
 /** Every statement form a save holds, with the listing of each level. */
 const statementForms = (save: Record<string, any>) => {
-  const forms: { levels: { s: number; at: number }[] }[] = [];
+  const forms: {
+    levels: { s: number; at: number; flow?: string; decl?: string; k?: string; i?: number; block?: number }[];
+  }[] = [];
   const visit = (token: unknown): void => {
     if (Array.isArray(token)) {
       token.forEach(visit);
@@ -485,9 +487,23 @@ describe("a save's listings", () => {
     expect(listingBytes / entries).toBeLessThanOrEqual(24);
     // The route's last beat stands at the end of the `then` clause's body.
     expect(ends).toBeGreaterThan(0);
-    // One listing per sequence.
-    const sequences = new Set(statementForms(save).flatMap((f) => f.levels.map((l) => l.s)));
-    expect(sequences.size).toBe(save.listings.length);
+    // One listing per sequence: every level that names a sequence, by its
+    // flow and the chain of owners and blocks down to it, names the same
+    // listing, and each listing is one sequence's.
+    const listingOf = new Map<string, Set<number>>();
+    for (const form of statementForms(save)) {
+      form.levels.forEach((level, n) => {
+        const key = JSON.stringify([
+          form.levels[0]!.flow ?? form.levels[0]!.decl,
+          ...form.levels.slice(1, n + 1).map((l, m) => [form.levels[m]!.at, l.k, l.i, l.block]),
+        ]);
+        listingOf.set(key, (listingOf.get(key) ?? new Set()).add(level.s));
+      });
+    }
+    expect(listingOf.size).toBeGreaterThan(1);
+    expect([...listingOf.values()].every((indexes) => indexes.size === 1)).toBe(true);
+    expect(new Set([...listingOf.values()].flatMap((indexes) => [...indexes])).size).toBe(listingOf.size);
+    expect(save.listings.length).toBe(listingOf.size);
     // The function value and the alternator's count name their statement,
     // in a window of the scene's listing that no frame's level needs.
     const anonymous = statementForms(save).filter((f) => f.levels.length === 1 && f.levels[0]!.at <= 1);

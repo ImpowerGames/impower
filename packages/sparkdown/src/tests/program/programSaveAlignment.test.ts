@@ -13,7 +13,8 @@ import type { ProgramRoot } from "../../program/ProgramRoot";
 import { SaveRefused } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
 import { countIdOf } from "../../program/ProgramSymbols";
-import { compileScript } from "./programHarness";
+import { chunkOfAddress } from "../../program/StatementChunk";
+import { compileScript, programSession } from "./programHarness";
 
 const silence = <T>(run: () => T): T => {
   const { warn, error, log } = console;
@@ -607,6 +608,38 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
+  // Round 2 of the review of #1654 (report 6038272271, finding 3): a
+  // template string nested in a template string's interpolation.
+  it("tell apart two displayed lines that differ inside a template string nested in their interpolation's template, a brace and a `//` included", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", "Line {`{`a } // b`}`}.", "End."]),
+      scene(["P1.", "P2.", "P3.", "Line {`{`a } // c`}`}.", "Line {`{`a } // b`}`}.", "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Line a } // b.", "End."],
+    );
+  });
+
+  it("tell apart two displayed lines that differ inside a `\"` string whose interpolation holds a string with a `\"`", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", "Line {\"{'\"'} // b\"}.", "End."]),
+      scene(["P1.", "P2.", "P3.", "Line {\"{'\"'} // c\"}.", "Line {\"{'\"'} // b\"}.", "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ['Line " // b.', "End."],
+    );
+  });
+
+  it("tell apart two lines of logic that differ inside a template string nested in a template's interpolation, a `--` included", () => {
+    placesAt(
+      scene(["P1.", "P2.", "P3.", "& local s = `{`a -- b`}`", "Shown.", "End."]),
+      scene(["P1.", "P2.", "P3.", "& local s = `{`a -- c`}`", "& local s = `{`a -- b`}`", "Shown.", "End."]),
+      3,
+      { flow: "start", entry: 4 },
+      ["Shown.", "End."],
+    );
+  });
+
   it("tell apart two lines of logic that differ inside a regex literal holding a `--`", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", "& local r = @/a--b/", "Shown.", "End."]),
@@ -661,6 +694,24 @@ describe("the beats of a save loaded into a release that differs", () => {
     const loaded = engine(rootOf(scene(["First.", "Second.", "Value {K}."], "start", ["const K = 10", ""])));
     loaded.loadSave(save);
     expect(play(loaded).beats).toEqual(["Value 10."]);
+  });
+
+  // Round 2 of the review of #1654 (report 6038272271, finding 1): the
+  // keyframe's value of the global defines the table another global holds.
+  it("keep a table another global shares with a global the release made a constant, the keyframe its only definition", () => {
+    const text = (k: string, assign: boolean) =>
+      scene(
+        [...(assign ? ["& K = { n = 1 }"] : []), "& alias = K", "First.", "Value {K} {alias.n}."],
+        "start",
+        [k, "store alias = nil", ""],
+      );
+    const story = engine(rootOf(text("store K = nil", true)), 1);
+    expect(advance(story, 1)).toEqual(["First."]);
+    const save = story.toSave();
+    expect(JSON.parse(save).beats).toHaveLength(1);
+    const loaded = engine(rootOf(text("const K = 10", false)));
+    loaded.loadSave(save);
+    expect(play(loaded).beats).toEqual(["Value 10 1."]);
   });
 });
 
@@ -960,6 +1011,23 @@ describe("a save at a menu", () => {
       expect(advance(loaded, 1)).toEqual(["Before."]);
     });
 
+    // Round 2 of the review of #1654 (report 6038272271, a concern the
+    // reviewer left unverified).
+    it("and a callstack reset before the next beat is a save of the ended story, with no choice to take again", () => {
+      const story = engine(rootOf(CHOSEN("kept")));
+      advance(story, 1);
+      story.Continue();
+      story.ChooseChoiceIndex(1);
+      story.ResetCallstack();
+      expect(story.canContinue).toBe(false);
+      const save = story.toSave();
+      expect(JSON.parse(save).chosen).toBeUndefined();
+      const loaded = engine(rootOf(CHOSEN("kept")));
+      loaded.loadSave(save);
+      expect(loaded.loadedSaveReport!.chosen).toBeNull();
+      expect(play(loaded).beats).toEqual([]);
+    });
+
     it("as a checkpoint's image exported, takes the choice again, and is unplaced when its condition no longer offers it", () => {
       const same = engine(rootOf(CHOSEN("kept")));
       same.loadSave(chosenSave("checkpoint"));
@@ -994,6 +1062,38 @@ describe("a save at a menu", () => {
       // reached, with no choice.
       expect(advance(story, 1)).toEqual(["Ate pear."]);
       expect(JSON.parse(story.toSave()).chosen).toBeUndefined();
+    });
+
+    // Round 2 of the review of #1654 (report 6038272271, finding 2).
+    it("as a checkpoint taken after the choice, exported or restored and saved by the engine of a compile that emitted the menu again, takes the choice again", () => {
+      const s = programSession(CHOSEN("kept"));
+      const story = new ProgramStory(s.root);
+      story.keepBeatImages = true;
+      story.onError = () => {};
+      expect(advance(story, 1)).toEqual(["Before."]);
+      story.Continue();
+      story.ChooseChoiceIndex(1);
+      const checkpoint = story.captureBeat();
+      // A choice inserted above the menu's first: the menu's chunk is
+      // emitted again, and Pear is its third choice.
+      const edited = s.edit("    * [Apple]", "    * [Banana]\n      Ate banana.\n    * [Apple]");
+      expect(edited.position(chunkOfAddress(checkpoint.afterChoice!.address))).toBeUndefined();
+      const next = new ProgramStory(edited, { images: story.images, history: story.history });
+      next.keepBeatImages = true;
+      next.onError = () => {};
+      const exported = next.saveOfImage(checkpoint)!;
+      expect(next.restore(checkpoint)).toBe(true);
+      const saved = next.toSave();
+      for (const save of [exported, saved]) {
+        expect(JSON.parse(save).chosen?.a?.ch?.[2]).toBe(2);
+        const loaded = engine(edited);
+        loaded.loadSave(save);
+        expect(loaded.loadedSaveReport!.chosen).toBe("taken");
+        expect(play(loaded).beats).toEqual(["Ate pear.", "After."]);
+      }
+      // The decision the menu's beat records, handed on with the history,
+      // names the choice in the new program too.
+      expect(JSON.parse(saved).beats.at(-1).decisions.map((d: any) => d.a.ch[2])).toEqual([2]);
     });
   });
 });

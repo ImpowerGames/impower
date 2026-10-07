@@ -2226,6 +2226,25 @@ const parseSave = (
 
 // --------------------------------------------------------- translation
 
+/** The address in `root` of the choice whose `Choice` instruction stands at
+ *  `address` of `from`: the address itself when `root` still holds its
+ *  chunk, or else the address of the `Choice` its saved form in `from` is
+ *  placed at, by the steps a durable load takes; nothing when it cannot be
+ *  placed. A decision and a chosen choice are translated so, as an image's
+ *  waiting choices are (`translatePositional`). */
+export const translateChoiceAddress = (
+  root: ProgramRoot,
+  from: ProgramRoot,
+  address: number,
+): number | undefined => {
+  if (from === root || root.position(chunkOfAddress(address))) {
+    return address;
+  }
+  const forms = new FormWriter(from);
+  const form = forms.choiceForm(address);
+  return form ? new FormPlacer(root, forms.listings(), forms.parts()).placeChoice(form)?.address : undefined;
+};
+
 /**
  * Places an image's positional state, taken on `from`, in the root `state`
  * runs on, translating each position whose chunk that root no longer holds

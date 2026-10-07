@@ -72,6 +72,7 @@ import {
   BEAT_WAITED,
   checkSave,
   readSave,
+  translateChoiceAddress,
   translatePositional,
   writeSave,
   type BeatRecord,
@@ -216,8 +217,29 @@ export class BeatHistory {
    *  ended, which the image the next continue starts from replaces (the
    *  same beat, with whatever the host wrote since). */
   provisional = false;
+  /** The root the decisions' addresses are in: that of the engine that
+   *  holds the history now, which translates them when it is handed on
+   *  (`translateTo`). */
+  root: ProgramRoot | null = null;
 
   constructor(public limit = 128) {}
+
+  /** Puts the decisions' addresses in `root`, each translated through its
+   *  saved form in the root they were in (`translateChoiceAddress`); a
+   *  decision whose choice `root` no longer holds is forgotten, as a save
+   *  would leave it out. */
+  translateTo(root: ProgramRoot): void {
+    const from = this.root;
+    this.root = root;
+    if (!from || from === root) {
+      return;
+    }
+    for (const record of this.records) {
+      const decisions = record.decisions.flatMap((address) => translateChoiceAddress(root, from, address) ?? []);
+      record.decisions.length = 0;
+      record.decisions.push(...decisions);
+    }
+  }
 
   get newest(): BeatRecord | undefined {
     return this.records[this.records.length - 1];
@@ -453,6 +475,9 @@ export class ProgramStory {
     if (options.rewindBeats !== undefined) {
       this.history.limit = options.rewindBeats;
     }
+    // A history handed on by the engine of the program before names its
+    // decisions in this root from now on.
+    this.history.translateTo(root);
     this.saveHistory = options.saveHistory ?? 16;
     this.images = options.images ?? new ProgramImages();
     this._tracker = new ImageTracker(this.images);
@@ -577,14 +602,15 @@ export class ProgramStory {
     if (after) {
       // The menu's record, which a keyframe taken of it since may hold
       // under another image (`captureBeat`), or one of its own when the
-      // history no longer holds it.
+      // history no longer holds it; the choice's address in this root.
       const menu = after.menu;
+      const chosen = this.choiceHere(image);
       this._chosenAt = this.history.records.find((record) => record.image === menu || record === menu.beat) ?? {
         image: menu,
         flags: 0,
-        decisions: [after.address],
+        decisions: chosen === undefined ? [] : [chosen],
       };
-      this._chosenAddress = after.address;
+      this._chosenAddress = chosen ?? -1;
     } else {
       this._chosenAt = null;
     }
@@ -684,7 +710,7 @@ export class ProgramStory {
       // The menu's beat with the beats before it, or alone when a restore
       // put back an image whose menu the history no longer holds.
       const records = this.history.upTo(this._chosenAt.image) ?? [this._chosenAt];
-      const save = this.saveOf(records, this._chosenAddress, gameVersion);
+      const save = this.saveOf(records, this._chosenAddress < 0 ? undefined : this._chosenAddress, gameVersion);
       if (save) {
         return save;
       }
@@ -720,13 +746,28 @@ export class ProgramStory {
     this.IfAsyncWeCant("save");
     const after = image.afterChoice;
     const beat = after ? after.menu : image;
+    const chosen = this.choiceHere(image);
     const record =
       this.history.recordOf(beat) ??
-      (after ? { image: beat, flags: 0, decisions: [after.address] } : this.recordFor(beat));
-    return this.saveOf(
-      withHistory ? (this.history.upTo(beat) ?? [record]) : [record],
-      after?.address,
-      gameVersion,
+      (after ? { image: beat, flags: 0, decisions: chosen === undefined ? [] : [chosen] } : this.recordFor(beat));
+    return this.saveOf(withHistory ? (this.history.upTo(beat) ?? [record]) : [record], chosen, gameVersion);
+  }
+
+  // The address in this root of the choice taken just before `image`
+  // (`ProgramImage.afterChoice`), which the engine that took the image named
+  // in its own root, translated as the image's positions are; nothing when
+  // this root no longer holds the choice, which a save then leaves out, so
+  // that a load raises the menu again.
+  protected choiceHere(image: ProgramImage): number | undefined {
+    const after = image.afterChoice;
+    if (!after || after.address < 0) {
+      return undefined;
+    }
+    const engine = image.engine;
+    return translateChoiceAddress(
+      this.root,
+      engine instanceof ProgramStory ? engine.root : this.root,
+      after.address,
     );
   }
 
@@ -971,6 +1012,8 @@ export class ProgramStory {
     this.IfAsyncWeCant("ResetCallstack");
     this._stateIsPristine = false;
     this._stillImage = null;
+    // The story ended: no longer the state just after a choice.
+    this._chosenAt = null;
     this._state.ForceEnd();
   }
 
