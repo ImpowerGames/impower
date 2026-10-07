@@ -24,6 +24,7 @@ import {
 } from "./recordingContext";
 import { buildDebugMetadata } from "./utils/debugMetadata";
 import type { StatementShape } from "./utils/statementShape";
+import { holdsCheckedBlock } from "./utils/validateBlockEnds";
 
 /**
  * The statement memo (#656; docs/engine/binary-program.md, section 1,
@@ -87,6 +88,9 @@ export class StatementMemoEntry {
       readonly context: string;
       readonly recorded: string | undefined;
     },
+    /** Whether its node holds a block `validateBlockEnds` checks, which
+     *  then walks it when it is served, as when it is lowered. */
+    readonly holdsBlock: boolean,
   ) {}
 
   /** Whether the compile completed the memo, so it can be served. */
@@ -242,6 +246,7 @@ interface Pending {
   from: number;
   line: number;
   endLine: number;
+  holdsBlock: boolean;
 }
 
 /**
@@ -254,6 +259,9 @@ export class StatementMemoSession {
   /** The statements served, in order. */
   readonly served: MemoizedStatement[] = [];
   protected _pending: Pending[] = [];
+  // The nodes of the statements served that hold no block, by where each
+  // starts, as `name:to` (`servedWithoutBlocks`).
+  protected _withoutBlocks = new Map<number, string>();
 
   constructor(
     protected readonly host: StatementMemoHost,
@@ -348,8 +356,16 @@ export class StatementMemoSession {
       from: node.from,
       line: ctx.lineNumber(node.from),
       endLine: ctx.lineNumber(to),
+      // A statement that runs on past its node is walked whatever it holds.
+      holdsBlock: to !== node.to || holdsCheckedBlock(node),
     });
     return block;
+  }
+
+  /** Whether `node` is the node of a statement the session served that
+   *  holds no block `validateBlockEnds` checks, which need not walk it. */
+  servedWithoutBlocks(node: SyntaxNode): boolean {
+    return this._withoutBlocks.get(node.from) === `${node.name}:${node.to}`;
   }
 
   // A statement of a `choose` block's preamble is the block's own code, and
@@ -433,6 +449,9 @@ export class StatementMemoSession {
       node.from + text.length,
       ctx,
     );
+    if (!entry.holdsBlock && to === node.to) {
+      this._withoutBlocks.set(node.from, `${node.name}:${node.to}`);
+    }
     shape.memo = entry;
     shape.reads.other = [...entry.own.other];
     shape.reads.context = entry.own.context;
@@ -549,6 +568,7 @@ const remember = (
       context: shape.reads.context,
       recorded: shape.reads.recorded,
     },
+    pending.holdsBlock,
   );
 };
 

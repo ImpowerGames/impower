@@ -211,9 +211,14 @@ function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
 // it are not reported again. A `repeat` cut off at a line the grammar cannot
 // read as Luau, whose `until` follows as a root-level chunk of its own, is
 // `validateOpenBlocks`'s to check.
+//
+// A node `skip` names holds no block this checks (`holdsCheckedBlock`), and
+// is not walked: a statement served from its memo (#656), which the chunk's
+// last lowering found to hold none, as its syntax still does.
 export function validateBlockEnds(
   chunk: SyntaxNode,
   ctx: LowerContext,
+  skip?: (node: SyntaxNode) => boolean,
 ): InkDiagnostic[] {
   const diagnostics: InkDiagnostic[] = [];
   const cutOff = new Set(
@@ -222,6 +227,7 @@ export function validateBlockEnds(
       .map((block) => block.header.from),
   );
   const visit = (node: SyntaxNode, insideOpenRepeat: boolean) => {
+    if (skip?.(node)) return;
     const block = asBlock(node);
     let openRepeat = insideOpenRepeat;
     if (block) {
@@ -245,6 +251,17 @@ export function validateBlockEnds(
   };
   visit(chunk, false);
   return diagnostics;
+}
+
+// Whether `node` is, or holds, a block `validateBlockEnds` checks: one that
+// ends at `end`, or a `repeat` loop. A node that holds none gives it nothing
+// to report, whatever stands around it.
+export function holdsCheckedBlock(node: SyntaxNode): boolean {
+  if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name)) return true;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (holdsCheckedBlock(child)) return true;
+  }
+  return false;
 }
 
 // The blocks a root-level chunk leaves open for later root-level `end`s (or,

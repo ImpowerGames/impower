@@ -653,7 +653,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // The Luau blocks this chunk's own nodes show to be left open. A chunk
       // with no lowerer (a root-level type function) carries them on an empty
       // block.
-      const unclosed = validateBlockEnds(nodeRef.node, ctx);
+      const unclosed = validateBlockEnds(
+        nodeRef.node,
+        ctx,
+        session ? (node) => session.servedWithoutBlocks(node) : undefined,
+      );
       if (unclosed.length > 0) {
         lowered ??= {};
         chunkDiagnostics.push(...unclosed);
