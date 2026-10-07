@@ -14,7 +14,7 @@ import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
-import { ProgramResolver } from "../../program/ProgramResolver";
+import { parsedChildren, ProgramResolver } from "../../program/ProgramResolver";
 import { describeRoot, MAIN_URI, programCompiler } from "./programHarness";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
@@ -136,6 +136,95 @@ const visitedUnits = (resolver: ProgramResolver): Set<object> => {
   return units;
 };
 
+/** The statements whose parsed objects the last resolve generated or
+ *  resolved outside any statement's generation and resolution: an object
+ *  the story adds itself stands in none. */
+const visitedOutsideUnits = (resolver: ProgramResolver): Set<object> => {
+  const units = new Set<object>();
+  for (const obj of resolver.visitedOutsideLastResolve ?? []) {
+    const unit = resolver.unitOf(obj);
+    if (unit) {
+      units.add(unit);
+    }
+  }
+  return units;
+};
+
+/** That the last resolve visited no object of a statement it did not
+ *  generate and resolve anew, inside any statement's resolution or
+ *  outside. */
+const visitedOnlyFresh = (resolver: ProgramResolver) => {
+  const keys = new Set(resolver.freshLastResolve().map((u) => u.key));
+  for (const unit of visitedUnits(resolver)) {
+    expect(keys.has(unit), "a visited object stands in a statement resolved anew").toBe(true);
+  }
+  for (const unit of visitedOutsideUnits(resolver)) {
+    expect(keys.has(unit), "an object visited outside any statement's resolution stands in a statement resolved anew").toBe(true);
+  }
+};
+
+/** Runs `run` (an edit, which compiles), and returns where the resolve it
+ *  makes read what any statement it carried holds: every read of the
+ *  `content` of a parsed object under a statement the resolve did not
+ *  generate and resolve anew, by the object's type and the calls that read
+ *  it. A walk of a subtree (`FindAll`, `Find`, `CollectByType`, a resolution
+ *  or a generation) reads it. */
+const carriedSubtreeReads = (s: ReturnType<typeof session>, run: () => void): string[] => {
+  const resolver = s.resolver;
+  let armed = false;
+  const reads: { key: object; what: string }[] = [];
+  const seen = new Set<ParsedObject>();
+  const watch = (key: object, obj: ParsedObject) => {
+    if (seen.has(obj)) {
+      return;
+    }
+    seen.add(obj);
+    const children = parsedChildren(obj);
+    let content = obj.content;
+    Object.defineProperty(obj, "content", {
+      configurable: true,
+      get() {
+        if (armed) {
+          const calls = (new Error().stack ?? "")
+            .split("\n")
+            .slice(2, 7)
+            .map((line) => line.trim().replace(/^at /, "").replace(/ \(.*$/, ""))
+            .join(" < ");
+          reads.push({ key, what: `${obj.typeName}: ${calls}` });
+        }
+        return content;
+      },
+      set(value) {
+        content = value;
+      },
+    });
+    for (const child of children) {
+      watch(key, child);
+    }
+  };
+  for (const unit of (resolver as any)._order as { key: object; members: ParsedObject[] }[]) {
+    for (const member of unit.members) {
+      watch(unit.key, member);
+    }
+  }
+  const resolve = resolver.resolve;
+  resolver.resolve = (...args) => {
+    armed = true;
+    try {
+      return resolve.apply(resolver, args);
+    } finally {
+      armed = false;
+    }
+  };
+  try {
+    run();
+  } finally {
+    resolver.resolve = resolve;
+  }
+  const fresh = new Set(resolver.freshLastResolve().map((u) => u.key));
+  return [...new Set(reads.filter((r) => !fresh.has(r.key)).map((r) => r.what))];
+};
+
 /** That the last resolve generated and resolved only the statements the
  *  incremental parse lowered anew, at most `most` of them, and visited no
  *  object of any other statement. */
@@ -144,10 +233,7 @@ const resolvedOnlyLoweredAnew = (resolver: ProgramResolver, most: number) => {
   expect(fresh.map((u) => u.reason)).toEqual(fresh.map(() => "new"));
   expect(fresh.length).toBeGreaterThan(0);
   expect(fresh.length).toBeLessThanOrEqual(most);
-  const keys = new Set(fresh.map((u) => u.key));
-  for (const unit of visitedUnits(resolver)) {
-    expect(keys.has(unit), "a visited object stands in a statement lowered anew").toBe(true);
-  }
+  visitedOnlyFresh(resolver);
   const passes = resolver.passesLastResolve;
   expect(passes.cold).toBe(false);
   expect(passes.invalidated).toBe(0);
@@ -192,7 +278,7 @@ describe("an edit inside one beat", () => {
     for (const target of targets) {
       const line = s.text.split("\n")[target]!;
       const from = s.text.split("\n").slice(0, target).join("\n").length;
-      s.edit(line, `${line} Still.`, from);
+      expect(carriedSubtreeReads(s, () => s.edit(line, `${line} Still.`, from))).toEqual([]);
       // The edited statement, and the neighbours the incremental parse
       // lowered anew with it.
       resolvedOnlyLoweredAnew(s.resolver, 3);
@@ -292,6 +378,79 @@ describe("a statement the resolver kept resolved", () => {
     expect(s.resolver.passesLastResolve.cold).toBe(false);
     expect(missing(s.program)).toEqual(missing(cold({ [MAIN_URI]: s.text })));
     expect(missing(s.program)[0]).toContain(`${MAIN_URI} 5:`);
+  });
+});
+
+describe("a constant", () => {
+  const text = [
+    "const A = 1",
+    "",
+    ...Array.from({ length: 10 }, (_, i) => [
+      `scene S${i}`,
+      `  Line of S${i}.`,
+      `  Second line of S${i}.`,
+      `  Third line of S${i}.`,
+      "end",
+      "",
+    ]).flat(),
+    "const B = A + 1",
+    "",
+    "scene MAIN",
+    "  Line {B}.",
+    "end",
+    "",
+    "const C = B * 2",
+    "store total = C + 1",
+    "",
+    "scene LAST",
+    "  Line {C} {total}.",
+    "end",
+    "",
+  ].join("\n");
+  const invalid = (program: SparkProgram) =>
+    diagnostics(program).filter((d) => d.includes("is not a valid const"));
+
+  it("that can no longer be registered is reported at the constants that read it, and no longer once it can", () => {
+    const s = session({ [MAIN_URI]: text });
+    expect(invalid(s.program)).toEqual([]);
+    // B's and C's statements are carried; A's is lowered anew from a
+    // non-constant, which makes B, and through it C, no valid constant.
+    s.edit("const A = 1", "const A = missing");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(invalid(s.program)).toHaveLength(2);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    s.edit("const A = missing", "const A = 1");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(invalid(s.program)).toEqual([]);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+  });
+
+  it("carried by an edit elsewhere is neither walked nor initialized again", () => {
+    const s = session({ [MAIN_URI]: text });
+    const reads = carriedSubtreeReads(s, () =>
+      s.edit("  Second line of S4.", "  Second line of S4, again."),
+    );
+    // No walk of a carried initializer (`Story.RegisterConstantGlobals`
+    // reads each constant's names from what it kept of them), and no
+    // initializer of a carried statement written again.
+    expect(reads).toEqual([]);
+    resolvedOnlyLoweredAnew(s.resolver, 3);
+    expect(s.resolver.passesLastResolve.initialized).toBe(0);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+  });
+});
+
+describe("a scene named `kind`", () => {
+  it("is no branch of itself, on either engine", () => {
+    // The story's tables are maps that record the names a resolution reads;
+    // `kind`, the name of a table's kind, is no entry of one.
+    const text = "scene kind\n  Hello.\nend\n";
+    for (const programChunks of [true, false]) {
+      const collisions = diagnostics(cold({ [MAIN_URI]: text }, { programChunks })).filter((d) =>
+        d.includes("Duplicate identifier"),
+      );
+      expect(collisions, `programChunks ${programChunks}`).toEqual([]);
+    }
   });
 });
 

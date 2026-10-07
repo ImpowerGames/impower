@@ -815,13 +815,7 @@ export class Story extends FlowBase {
   public readonly NonConstantInitializerRefs = (
     constDecl: ConstantDeclaration,
   ): string[] =>
-    constDecl.expression
-      .FindAll(VariableReference)()
-      .map((ref) => ref.name)
-      .filter(
-        (name): name is string =>
-          Boolean(name) && !this.constants.has(name!),
-      );
+    constDecl.referencedNames.filter((name) => !this.constants.has(name));
 
   protected readonly RegisterConstantGlobals = (): void => {
     const visited = new Set<string>();
@@ -854,10 +848,10 @@ export class Story extends FlowBase {
       // Emit every constant this one reads first, so its initializer sees a
       // value rather than nil. A self-reference is deliberately NOT filtered
       // out here — walking it is what lets `onStack` detect it.
-      const refs = constDecl.expression.FindAll(VariableReference)();
+      const refs = constDecl.referencedNames;
       for (const ref of refs) {
-        if (ref.name && this.constants.has(ref.name)) {
-          visit(ref.name);
+        if (this.constants.has(ref)) {
+          visit(ref);
         }
       }
       onStack.delete(name);
@@ -867,8 +861,8 @@ export class Story extends FlowBase {
       // member, or reads a constant that itself failed — each case would
       // otherwise emit an initializer reading an uninitialized global.
       // Dependencies are visited above, so their verdicts are already known.
-      const readsUnregisterable = refs.some(
-        (ref) => ref.name && this.unregisterableConstants.has(ref.name),
+      const readsUnregisterable = refs.some((ref) =>
+        this.unregisterableConstants.has(ref),
       );
       if (
         this.unregisterableConstants.has(name) ||

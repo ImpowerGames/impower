@@ -80,11 +80,17 @@ export const recordRead = (key: string): void => {
  * declaration of that kind changes.
  */
 export class RecordingMap<K, V> extends Map<K, V> {
+  /** The table's kind. Not enumerable, so that a table has no enumerable
+   *  property a plain `Map` lacks: `Knot.CheckOwnNames` goes through its
+   *  branches with `for ... in`, which finds none in either. */
+  declare readonly kind: () => string;
+
   constructor(
-    readonly kind: () => string,
+    kind: () => string,
     entries?: Iterable<readonly [K, V]> | null,
   ) {
     super();
+    Object.defineProperty(this, "kind", { value: kind });
     if (entries) {
       for (const [k, v] of entries) {
         super.set(k, v);

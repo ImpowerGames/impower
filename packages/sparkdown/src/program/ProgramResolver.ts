@@ -97,8 +97,14 @@ export interface ResolverPasses {
    *  `-> DONE`, the top level's last gather), generated and resolved on every
    *  resolve. */
   loose: number;
+  /** Parsed objects generated or resolved outside any statement's
+   *  generation and resolution: those under the loose objects, and those of
+   *  an initializer written with no statement's record
+   *  (`visitedOutsideLastResolve`). */
+  outside: number;
   /** Globals whose initializers were generated: those of the fresh
-   *  statements, and those the story makes of a struct's properties. */
+   *  statements, and those the story makes of a struct's properties that no
+   *  statement holds. */
   initialized: number;
   /** Structs whose runtime definitions were built: those of the fresh
    *  statements. */
@@ -167,7 +173,10 @@ interface UnitRecord {
   anchorLine: number;
   shape: UnitShape;
   gen: ResolutionEvent[];
-  init: Map<VariableAssignment, ResolutionEvent[]>;
+  /** What writing each global's initializer did, by the initializer: the
+   *  global a constant's or a struct property's initializer is written for
+   *  is made anew by every compile (`Story.DeclareStoryTables`). */
+  init: Map<ParsedObject, ResolutionEvent[]>;
   resolve: ResolutionEvent[];
   reads: Set<string>;
   /** The other statements whose positions its diagnostics report or print. */
@@ -289,11 +298,16 @@ const parametersOf = (flow: FlowBase) =>
  */
 export class ProgramResolver {
   /** Keeps every object a resolve generated or resolved in
-   *  `visitedLastResolve`, for the tests. */
+   *  `visitedLastResolve`, or in `visitedOutsideLastResolve`, for the
+   *  tests. */
   static traceVisits = false;
 
   passesLastResolve: ResolverPasses = ProgramResolver.noPasses(true);
+  /** The objects the last resolve generated or resolved for a statement. */
   visitedLastResolve = new Set<ParsedObject>();
+  /** The objects it generated or resolved outside any statement's
+   *  generation and resolution (`ResolverPasses.outside`). */
+  visitedOutsideLastResolve = new Set<ParsedObject>();
   /** The names the last resolve found declared otherwise. */
   changedNamesLastResolve: string[] = [];
 
@@ -302,6 +316,8 @@ export class ProgramResolver {
   /** The resolution epoch the last cold resolve began, which the diverts
    *  this resolver keeps resolved hold their targets in (`CompileEpoch.ts`). */
   protected _epoch = 0;
+  /** The constants the story could not register at the last resolve. */
+  protected _unregisterable = new Set<string>();
   protected _units = new Map<object, Unit>();
   protected _order: Unit[] = [];
   protected _readers = new Map<string, Set<Unit>>();
@@ -345,6 +361,7 @@ export class ProgramResolver {
       generated: 0,
       resolved: 0,
       loose: 0,
+      outside: 0,
       initialized: 0,
       structs: 0,
       changedNames: 0,
@@ -356,6 +373,34 @@ export class ProgramResolver {
    *  otherwise since (`ExportRuntime`, for a program that fell back). */
   invalidate(): void {
     this._needsCold = true;
+  }
+
+  /** Readies a statement to be generated and resolved anew: clears what
+   *  generation and resolution left on its objects, which a statement new
+   *  to the resolver can hold too (one a preview compile left out and the
+   *  next compile places again, or a function whose header an edit wrote
+   *  above statements that stood in a scene, which it now holds), and starts
+   *  its record. */
+  protected prepare(unit: Unit, shape: UnitShape): void {
+    for (const member of unit.members) {
+      resetSubtreeRuntime(member);
+    }
+    const anchor = anchorOf(unit);
+    unit.next = {
+      members: unit.members,
+      context: unit.context,
+      index: unit.index,
+      anchor,
+      anchorLine: anchor?.startLineNumber ?? 0,
+      shape,
+      gen: [],
+      init: new Map(),
+      resolve: [],
+      reads: new Set(),
+      dependsOn: new Set(),
+      printed: [],
+      volatile: false,
+    };
   }
 
   /** Makes the resolution epoch this resolver's diverts hold their targets in
@@ -406,6 +451,7 @@ export class ProgramResolver {
     this.enterEpoch();
     const passes = (this.passesLastResolve = ProgramResolver.noPasses(cold));
     this.visitedLastResolve = new Set();
+    this.visitedOutsideLastResolve = new Set();
     this._story = story;
     this._buffer = [];
     this._flows = new Map();
@@ -548,30 +594,7 @@ export class ProgramResolver {
     passes.replayed = passes.units - fresh.length;
 
     for (const unit of fresh) {
-      // What generation and resolution left on the objects of a statement
-      // resolved before. A statement new to the resolver can hold objects it
-      // resolved too: one a preview compile left out and the next compile
-      // places again, or a function whose header an edit wrote above
-      // statements that stood in a scene, which it now holds.
-      for (const member of unit.members) {
-        resetSubtreeRuntime(member);
-      }
-      unit.next = {
-        members: unit.members,
-        context: unit.context,
-        index: unit.index,
-        anchor: anchorOf(unit),
-        anchorLine: 0,
-        shape: shapes.get(unit)!,
-        gen: [],
-        init: new Map(),
-        resolve: [],
-        reads: new Set(),
-        dependsOn: new Set(),
-        printed: [],
-        volatile: false,
-      };
-      unit.next.anchorLine = unit.next.anchor?.startLineNumber ?? 0;
+      this.prepare(unit, shapes.get(unit)!);
     }
 
     let runtimeStory: RuntimeStory;
@@ -614,6 +637,49 @@ export class ProgramResolver {
         structs,
         this.runtimeStructOf,
       );
+
+      // A constant the story can register now and could not before, or the
+      // other way round (built from a non-constant, from one that cannot be
+      // registered, or in a cycle), reads otherwise for every statement that
+      // asked about it, though no statement declares it otherwise: the story
+      // decides it from the constants together (`RegisterConstantGlobals`),
+      // and declares a global of each it registers, so the table of globals
+      // reads otherwise too.
+      const unregisterable = new Set(story.unregisterableConstants);
+      if (!cold) {
+        const before = this._unregisterable;
+        const revalidated: string[] = [];
+        for (const name of new Set([...unregisterable, ...before])) {
+          if (unregisterable.has(name) !== before.has(name)) {
+            revalidated.push(name);
+          }
+        }
+        const invalidate = (unit: Unit, reason: string) => {
+          if (!unit.fresh && unit.seen === this._compile) {
+            unit.fresh = true;
+            unit.invalidated = true;
+            unit.reason = reason;
+            fresh.push(unit);
+            this.prepare(unit, unit.record!.shape);
+            passes.fresh += 1;
+            passes.replayed -= 1;
+            passes.invalidated += 1;
+          }
+        };
+        for (const name of revalidated) {
+          for (const unit of this._readers.get(name) ?? []) {
+            invalidate(unit, `constant ${name}`);
+          }
+        }
+        if (revalidated.length > 0) {
+          for (const key of ["*vars", "*"]) {
+            for (const unit of this._readers.get(key) ?? []) {
+              invalidate(unit, `constant ${key}`);
+            }
+          }
+        }
+      }
+      this._unregisterable = unregisterable;
 
       // Each flow's labels, from what its statements hold, in the order a
       // walk of its weave finds them.
@@ -954,6 +1020,11 @@ export class ProgramResolver {
         kinded("vars", obj.type?.name, `parent:${how}`);
         for (const prop of obj.propertyDefinitions) {
           kinded("vars", `${key}${prop.key}`, `property:${how}`);
+          // The global the story makes of a property initializes from its
+          // expression.
+          if (prop.expression) {
+            this._declarationUnit.set(prop.expression, unit);
+          }
         }
         declared(obj, obj.identifier, obj.name, obj.type);
       } else if (
@@ -1143,18 +1214,21 @@ export class ProgramResolver {
   /** Writes the initializer of the global `value`, which `InitializeGlobals`
    *  hands over in the order the story declared the globals. */
   protected initialize(value: VariableAssignment, container: RuntimeContainer): void {
+    // The global of a constant or of a struct's property is made anew by
+    // every compile, and its initializer is the statement's own.
+    const initializer = value.expression!;
     const unit =
-      this._declarationUnit.get(value) ??
-      (value.expression ? this._declarationUnit.get(value.expression) : undefined);
+      this._declarationUnit.get(value) ?? this._declarationUnit.get(initializer);
     if (!unit || unit.seen !== this._compile) {
-      // A global the story makes of a struct's property, whose initializer
-      // stands in no statement: written on every resolve.
+      // An initializer that stands in no statement: written on every
+      // resolve.
       this.passesLastResolve.initialized += 1;
-      value.expression!.GenerateIntoContainer(container);
+      this.outside(initializer);
+      initializer.GenerateIntoContainer(container);
       return;
     }
     if (!unit.fresh) {
-      const events = unit.record!.init.get(value);
+      const events = unit.record!.init.get(initializer);
       if (events) {
         if (events.length > 0) {
           this.replay(unit, events);
@@ -1164,14 +1238,15 @@ export class ProgramResolver {
         // which a name its statement read declaring otherwise would have
         // resolved again: written, and nothing recorded.
         this.passesLastResolve.initialized += 1;
-        value.expression!.GenerateIntoContainer(container);
+        this.outside(initializer);
+        initializer.GenerateIntoContainer(container);
       }
       return;
     }
     this.passesLastResolve.initialized += 1;
     const events: ResolutionEvent[] = [];
-    unit.next!.init.set(value, events);
-    this.record(unit, events, () => value.expression!.GenerateIntoContainer(container));
+    unit.next!.init.set(initializer, events);
+    this.record(unit, events, () => initializer.GenerateIntoContainer(container));
   }
 
   /** The runtime definition of `struct`, which `DeclareStoryTables` and
@@ -1396,6 +1471,15 @@ export class ProgramResolver {
     }
   }
 
+  /** Counts `obj`, generated or resolved outside any statement's generation
+   *  and resolution. */
+  protected outside(obj: ParsedObject): void {
+    this.passesLastResolve.outside += 1;
+    if (ProgramResolver.traceVisits) {
+      this.visitedOutsideLastResolve.add(obj);
+    }
+  }
+
   protected unread(unit: Unit): void {
     for (const key of unit.record?.reads ?? []) {
       this._readers.get(key)?.delete(unit);
@@ -1415,6 +1499,7 @@ export class ProgramResolver {
       this.raised(raiser, message, source, isWarning, position),
     visited: (obj, generated) => {
       if (!this._recording?.unit) {
+        this.outside(obj);
         return;
       }
       if (generated) {
