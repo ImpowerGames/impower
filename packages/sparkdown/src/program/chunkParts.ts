@@ -28,7 +28,7 @@ export interface ChunkParts {
 /** The kinds of parts, as a durable save names them. */
 export type ChunkPartKind = keyof ChunkParts;
 
-export const CHUNK_PART_KINDS: readonly ChunkPartKind[] = [
+const CHUNK_PART_KINDS: readonly ChunkPartKind[] = [
   "functions",
   "alternators",
   "choices",

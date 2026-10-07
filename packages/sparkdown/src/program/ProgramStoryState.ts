@@ -285,7 +285,7 @@ export interface ThreadCuts {
 /** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
  *  its `EndScope`s, read once in order (docs/engine/binary-program.md,
  *  section 1). */
-export const scopesBefore = (chunk: StatementChunk, offset: number): number => {
+const scopesBefore = (chunk: StatementChunk, offset: number): number => {
   let scopes = 0;
   for (let at = 0; at < offset && at < codeWords(chunk); at += 2) {
     const op = opOf(chunk[HEADER_WORDS + at]!);

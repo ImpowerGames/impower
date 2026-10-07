@@ -257,7 +257,19 @@ export class BeatHistory {
       this.provisional = provisional;
       return newest;
     }
-    const record: BeatRecord = { image, flags, decisions: [], ...(this.root ? { root: this.root } : {}) };
+    // The beat of an image the history no longer holds (evicted, or
+    // forgotten by a rewind or a reset), taken again from that image as a
+    // restore left it, keeps its flags and decisions (`ProgramImage.beat`).
+    const was = image.beat as BeatRecord | undefined;
+    const record: BeatRecord = {
+      image,
+      flags: flags | (was?.flags ?? 0),
+      decisions: [...(was?.decisions ?? [])],
+      ...(was?.root ? { root: was.root } : {}),
+    };
+    if (this.root) {
+      translateDecisions(record, this.root, this.root);
+    }
     image.beat = record;
     this.records.push(record);
     if (this.records.length > Math.max(1, this.limit)) {
@@ -831,7 +843,9 @@ export class ProgramStory {
       return null;
     }
     const held = this._state.beatImage;
-    const live = this.capture();
+    // The image the state is, when nothing moved it, which stays the image
+    // the next continue takes the beat from, its beat's record with it.
+    const live = this.stillImage() ?? this.capture();
     try {
       return writeSave(this._state, gameVersion, beats, chosen, (image) =>
         this.restoreInPlace(image),

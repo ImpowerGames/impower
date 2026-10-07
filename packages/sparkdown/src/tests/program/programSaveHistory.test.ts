@@ -422,6 +422,13 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(loaded.beats.at(-1)!.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
     expect(story.restore(checkpoint)).toBe(true);
     expect(JSON.parse(story.toSave()).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    // Round 5 (report 6042399009): run on from the restored checkpoint, the
+    // history takes its beat again with the beat's flags.
+    expect(advance(story, 1)).toHaveLength(1);
+    const beats = JSON.parse(story.toSave()).beats;
+    expect(beats).toHaveLength(2);
+    expect(beats[0].flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(story.beats[0]!.image).toBe(checkpoint);
   });
 });
 
