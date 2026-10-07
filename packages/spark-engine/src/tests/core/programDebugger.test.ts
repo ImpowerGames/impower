@@ -748,7 +748,51 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.stoppedAt()).toBe(7);
     expect(h.frames().stackFrames[0]?.moduleId).toBe("function");
+    // Stopped in `inner`'s own frame, above `outer`'s and `main`'s.
+    expect(h.frames().totalFrames).toBe(3);
   });
+
+  // `outer` and the functions written in it start on one line: the
+  // breakpoint takes the function whose name it gives, not the first one
+  // that starts on its line.
+  it.each([
+    ["is never called", "return 0", 0],
+    ["is called", "return inner()", 1],
+  ])(
+    "resolves a function breakpoint on a function written on its enclosing function's line, which %s",
+    (_case, tail, hits) => {
+      const h = debugGame(
+        [
+          "-> main", //                     0
+          "scene main", //                  1
+          "  Start.", //                    2
+          "  Got {outer()}.", //            3
+          "  done", //                      4
+          "end", //                         5
+          `function outer() local function inner() local function deep() return 2 end return 1 end ${tail} end`, // 6
+          "",
+        ].join("\n"),
+        true,
+      );
+      const set = h.game.setFunctionBreakpoints([{ name: "inner" }]);
+      expect(set[0]!.verified).toBe(true);
+      expect(set[0]!.location?.range.start.line).toBe(6);
+      h.game.start();
+      if (hits) {
+        h.continueToBreakpoint();
+        expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+        // In `inner`'s frame, not `outer`'s (2 frames) or `deep`'s, which
+        // nothing calls.
+        expect(h.frames().totalFrames).toBe(3);
+      } else {
+        // The continue from `Start.` runs `outer` and on to the beat that
+        // shows what it returned, with no stop.
+        h.game.continue();
+        expect(h.game.story.currentText).toBe("Got 0.\n");
+        expect(h.of("game/hitBreakpoint")).toHaveLength(0);
+      }
+    },
+  );
 
   it("offers and stops at the lines of a function written in a declaration", () => {
     const text = [

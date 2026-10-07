@@ -1379,7 +1379,11 @@ export class Game<T extends M = {}> {
           program.root,
           b.name,
           declared && this._scripts[declared[0]] !== undefined
-            ? { uri: this._scripts[declared[0]]!, line: declared[1] }
+            ? {
+                uri: this._scripts[declared[0]]!,
+                line: declared[1],
+                column: declared[2],
+              }
             : undefined,
         );
         if (address !== undefined) {

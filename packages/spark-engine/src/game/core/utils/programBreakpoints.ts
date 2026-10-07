@@ -118,34 +118,48 @@ const functionStart = (
  *  breakpoint on it stops, or nothing when the program defines no such
  *  function. A function declared at the top level is found by its name; one
  *  written inside a statement (a `local function` in a function's body) has
- *  an anonymous symbol, and is found as the function that starts on the
- *  line `declared` gives, where the declaration of `name` is written
- *  (`SparkProgram.functionLocations`). */
+ *  an anonymous symbol, and is found from where `declared` says its name is
+ *  written (`SparkProgram.functionLocations`): a function's entry spans its
+ *  declaration, so it is the innermost function whose entry holds that
+ *  position, since the functions that enclose it, which can start on the
+ *  same line, hold it too. */
 export const programFunctionAddress = (
   root: ProgramRoot,
   name: string,
-  declared?: { uri: string; line: number },
+  declared?: { uri: string; line: number; column: number },
 ): number | undefined => {
   const symbol = root.table.symbolIds.get(name);
   const named = symbol === undefined ? undefined : functionStart(root, symbol);
   if (named !== undefined || !declared) {
     return named;
   }
+  const { line, column } = declared;
+  const before = (l1: number, c1: number, l2: number, c2: number) =>
+    l1 < l2 || (l1 === l2 && c1 <= c2);
+  let found: { address: number; line: number; column: number } | undefined;
   const symbols = root.table.symbols.length;
   for (let s = 0; s < symbols; s += 1) {
     const address = functionStart(root, s);
-    if (address === undefined) {
+    const at = address === undefined ? undefined : root.locationOf(address);
+    if (
+      address === undefined ||
+      !at ||
+      at.uri !== declared.uri ||
+      !before(at.startLine, at.startColumn, line, column) ||
+      !before(line, column, at.endLine, at.endColumn)
+    ) {
       continue;
     }
-    const location = root.locationOf(address);
+    // Of the entries that hold the name, the one that starts last is the
+    // innermost.
     if (
-      location?.uri === declared.uri &&
-      location.startLine === declared.line
+      !found ||
+      !before(at.startLine, at.startColumn, found.line, found.column)
     ) {
-      return address;
+      found = { address, line: at.startLine, column: at.startColumn };
     }
   }
-  return undefined;
+  return found?.address;
 };
 
 /**
