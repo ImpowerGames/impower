@@ -65,10 +65,13 @@ const TARGETED: Record<string, string> = {
   "blockaction-comment-lines":
     ":\n    Line one.\n    // a comment line\n    Line two.\nnot indented\n",
 
-  // --- a column-0 line after an if expression whose condition, `then`,
-  // then arm or `else` ends its line: the reassignment around it ends at the
-  // start of that line, in a narrative body (the root, a scene, an `if`
-  // block) and in a function body (#1494).
+  // --- a column-0 line after an if expression whose condition, `then` or
+  // then arm ends its line: the reassignment around it ends at the start of
+  // that line. After an `else` that ends its line, the arm takes that line as
+  // its value unless it begins a statement or a reassignment (`y = 6`), where
+  // the arm and the statement around it end. Both engines must read these
+  // lines alike, in a narrative body (the root, a scene, an `if` block) and
+  // in a function body (#1494).
   "column-0-after-if-expression-narrative":
     "scene s\n  x = if c then 1\nprint(x)\n  x = if c then\nHello.\n  if c then\n    x = if c\nprint(x)\n  end\nend\n",
   "column-0-after-else-narrative":
