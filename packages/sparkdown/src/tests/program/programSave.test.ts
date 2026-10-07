@@ -216,8 +216,8 @@ const choiceTexts = (story: ProgramStory) =>
 
 /** The newest beat of a save, with the globals of the beats up to it put
  *  together as `variablesState`. */
-const newestBeat = (save: string): Record<string, any> => {
-  const beats = JSON.parse(save).beats as Record<string, any>[];
+const newestBeat = (save: string): any => {
+  const beats = JSON.parse(save).beats as any[];
   const globals: Record<string, unknown> = { ...(beats[0]!.variablesState ?? {}) };
   for (const beat of beats.slice(1)) {
     Object.assign(globals, beat.globals ?? {});

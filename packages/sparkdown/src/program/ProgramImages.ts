@@ -259,6 +259,11 @@ export interface ProgramImage {
    *  written since the image before in a delta. */
   readonly tables: ReadonlyMap<ObjectValue, TableCopy>;
   readonly cells: ReadonlyMap<VariablePointerValue, CellCopy>;
+  /** For the image of a beat the story passed, the beat's flags and the
+   *  decisions taken at it (docs/engine/binary-program.md, section 7,
+   *  Rewind and roll forward), which the story's history keeps
+   *  (`BeatHistory`) and a save writes beside it. */
+  beat?: { flags: number; readonly decisions: number[] };
 }
 
 /**

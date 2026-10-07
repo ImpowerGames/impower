@@ -1,11 +1,18 @@
 // A durable save loaded into a program that differs (#1429,
 // docs/engine/binary-program.md, section 8): each saved position is placed by
-// the alignment of its listing with the program's, and a save falls back
-// through its beats when a position cannot be placed.
+// the alignment of its listing with the program's (matching blocks, then the
+// statement's own neighbourhood in every sequence, then its neighbours as an
+// edited statement), a body by its part, a renamed flow renames what the save
+// says about it, and a save falls back through its beats when a position
+// cannot be placed. Each fixture states the ordinal the design places the
+// save at, which differs from the ordinal the save names, so that keeping
+// the old ordinal gives another answer.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import { SaveRefused } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
+import { countIdOf } from "../../program/ProgramSymbols";
 import { compileScript } from "./programHarness";
 
 const silence = <T>(run: () => T): T => {
@@ -20,39 +27,716 @@ const silence = <T>(run: () => T): T => {
   }
 };
 
-const rootOf = (text: string): ProgramRoot =>
-  silence(() => compileScript(text, { programChunks: true }).program.chunks!);
+const rootOf = (text: string): ProgramRoot => {
+  const program = silence(() => compileScript(text, { programChunks: true }).program);
+  expect(program.fallback).toBeUndefined();
+  return program.chunks!;
+};
 
-const engine = (root: ProgramRoot): ProgramStory => {
-  const story = new ProgramStory(root);
+const engine = (root: ProgramRoot, saveHistory?: number): ProgramStory => {
+  const story = new ProgramStory(root, { saveHistory });
   story.keepBeatImages = true;
   story.onError = () => {};
   return story;
 };
 
-const beats = (story: ProgramStory, max = 50): string[] => {
+const shown = (story: ProgramStory) => story.currentText?.trim() ?? "";
+
+/** The next `count` beats that show something. */
+const advance = (story: ProgramStory, count: number): string[] => {
   const out: string[] = [];
-  while (story.canContinue && out.length < max) {
+  while (story.canContinue && out.length < count) {
     story.Continue();
-    const text = story.currentText?.trim();
-    if (text) out.push(text);
+    if (shown(story)) out.push(shown(story));
   }
   return out;
 };
 
-const scene = (lines: string[]) =>
-  ["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n");
+/** The beats to the end, taking `picks` at the menus in turn. */
+const play = (story: ProgramStory, picks: number[] = []): { beats: string[]; menus: string[][] } => {
+  const beats: string[] = [];
+  const menus: string[][] = [];
+  for (let guard = 0; guard < 200; guard += 1) {
+    while (story.canContinue) {
+      story.Continue();
+      if (shown(story)) beats.push(shown(story));
+    }
+    const choices = story.currentChoices;
+    if (choices.length === 0) break;
+    menus.push(choices.map((c) => c.text));
+    if (picks.length === 0) break;
+    story.ChooseChoiceIndex(picks.shift()!);
+  }
+  return { beats, menus };
+};
 
-describe("a save loaded into a program that differs", () => {
-  it("loads at the same statement after a statement was inserted above it", () => {
-    const before = scene(["One.", "Two.", "Three.", "Four."]);
-    const story = engine(rootOf(before));
-    expect(beats(story, 2)).toEqual(["One.", "Two."]);
+const scene = (lines: string[], name = "start", header: string[] = []) =>
+  [...header, `-> ${name}`, "", `scene ${name}`, ...lines.map((l) => `  ${l}`), "end", ""].join("\n");
+
+/** Where the story stands: its flow's qualified name, the statement's
+ *  ordinal in its sequence, and for a body, the owner's ordinal in the
+ *  sequence that holds it. */
+const placed = (story: ProgramStory) => {
+  const position = story.state.position!;
+  const sequence = position.sequence;
+  const owner = story.root.ownerOf(sequence);
+  return {
+    flow: story.root.table.symbols[sequence.flow],
+    entry: position.entry,
+    ...(owner ? { owner: owner.entry } : {}),
+  };
+};
+
+/** Where the newest beat of a save stands, as it names it: the flow of its
+ *  first level, the ordinal of its last level and, for a body, its owner's
+ *  ordinal. */
+const savedAt = (save: string) => {
+  const beat = JSON.parse(save).beats.at(-1);
+  const levels = beat.position.st.levels as { at: number; flow?: string }[];
+  return {
+    flow: levels[0]!.flow,
+    entry: levels.at(-1)!.at,
+    ...(levels.length > 1 ? { owner: levels.at(-2)!.at } : {}),
+  };
+};
+
+/** A count by its symbol's qualified name. */
+const countOf = (story: ProgramStory, name: string): number => {
+  const symbol = story.root.table.symbolIds.get(name);
+  const id = symbol === undefined ? -1 : countIdOf(story.root.table, symbol);
+  return id < 0 ? 0 : (story.state.visits[id] ?? 0);
+};
+
+const global = (story: ProgramStory, name: string) =>
+  story.variablesState.GetVariableWithName(name);
+
+/**
+ * Plays `before` for `beats` beats and saves, loads the save into `after`,
+ * and checks that the newest beat was placed exactly where the fixture says
+ * (`expected`), that the save named another ordinal there, and that the
+ * story runs on as `rest` says.
+ */
+const placesAt = (
+  before: string,
+  after: string,
+  beats: number,
+  expected: { flow: string; entry: number; owner?: number },
+  rest: string[],
+) => {
+  const story = engine(rootOf(before));
+  expect(advance(story, beats)).toHaveLength(beats);
+  const save = story.toSave();
+  const saved = savedAt(save);
+  // Keeping the saved ordinal gives another answer than the design's.
+  expect(saved).not.toEqual(expected);
+  const loaded = engine(rootOf(after));
+  loaded.loadSave(save);
+  const report = loaded.loadedSaveReport!;
+  expect(report.beat).toBe(report.beats - 1);
+  expect(report.exact).toBe(true);
+  expect(placed(loaded)).toEqual(expected);
+  expect(play(loaded).beats).toEqual(rest);
+  return { save, loaded };
+};
+
+describe("a save taken below an edit loads at the same statement", () => {
+  it("after a statement was inserted above it", () => {
+    placesAt(
+      scene(["One.", "Two.", "Three.", "Four."]),
+      scene(["Zero.", "One.", "Two.", "Three.", "Four."]),
+      2,
+      // "Three." was ordinal 2.
+      { flow: "start", entry: 3 },
+      ["Three.", "Four."],
+    );
+  });
+
+  it("after an edit to the statement's own text, paired with it as an edited statement", () => {
+    placesAt(
+      scene(["One.", "Two.", "Three.", "Four."]),
+      scene(["Zero.", "One.", "Two.", "Three, edited.", "Four."]),
+      2,
+      { flow: "start", entry: 3 },
+      ["Three, edited.", "Four."],
+    );
+  });
+
+  it("after edits to both of its neighbours", () => {
+    placesAt(
+      scene(["A.", "B.", "C.", "D.", "E."]),
+      scene(["Z.", "A.", "B, edited.", "C.", "D, edited.", "E."]),
+      2,
+      // "C." was ordinal 2.
+      { flow: "start", entry: 3 },
+      ["C.", "D, edited.", "E."],
+    );
+  });
+
+  it("after it was moved with its neighbours to another place in the flow", () => {
+    placesAt(
+      scene(["A.", "B.", "C.", "D.", "E.", "F.", "G.", "H."]),
+      scene(["A.", "B.", "F.", "G.", "H.", "C.", "D.", "E."]),
+      3,
+      // "D." was ordinal 3.
+      { flow: "start", entry: 6 },
+      ["D.", "E."],
+    );
+  });
+
+  it("after its body was moved under another owner", () => {
+    const header = ["store x = 1", ""];
+    placesAt(
+      scene(
+        [
+          "if x == 1 then",
+          "  P1.",
+          "  P2.",
+          "  P3.",
+          "  P4.",
+          "end",
+          "if x == 2 then",
+          "  Q.",
+          "end",
+          "After.",
+        ],
+        "start",
+        header,
+      ),
+      scene(
+        [
+          "if x == 1 then",
+          "  New.",
+          "end",
+          "if x >= 1 then",
+          "  P0.",
+          "  P1.",
+          "  P2.",
+          "  P3.",
+          "  P4.",
+          "end",
+          "After.",
+        ],
+        "start",
+        header,
+      ),
+      2,
+      // "P3." was ordinal 2 of the first `if`'s body, and is ordinal 3 of
+      // the second's.
+      { flow: "start", owner: 1, entry: 3 },
+      ["P3.", "P4.", "After."],
+    );
+  });
+
+  it("after its block was moved to another flow", () => {
+    const header = ["store x = 1", ""];
+    placesAt(
+      scene(
+        ["A.", "B.", "if x == 1 then", "  X1.", "  X2.", "  X3.", "end", "C."],
+        "start",
+        header,
+      ),
+      [
+        ...header,
+        "-> start",
+        "",
+        "scene start",
+        "  A.",
+        "  B.",
+        "  -> other",
+        "end",
+        "",
+        "scene other",
+        "  O1.",
+        "  if x == 1 then",
+        "    X1.",
+        "    X2.",
+        "    X3.",
+        "  end",
+        "  O2.",
+        "end",
+        "",
+      ].join("\n"),
+      3,
+      // The `if` was ordinal 2 of `start`, and is ordinal 1 of `other`.
+      { flow: "other", owner: 1, entry: 1 },
+      ["X2.", "X3.", "O2."],
+    );
+  });
+
+  it("after its run was moved to another flow with unrelated statements in the vacated place", () => {
+    const other = ["", "scene other", "  P.", "  Q.", "end", ""];
+    placesAt(
+      scene(["A.", "B.", "C.", "D.", "E."]) + other.join("\n"),
+      scene(["A.", "X.", "Y.", "Z.", "E."]) +
+        ["", "scene other", "  P.", "  Q.", "  B.", "  C.", "  D.", "end", ""].join("\n"),
+      2,
+      // Placed in `other`, where "C." is ordinal 3, and not at "Y.", which
+      // the pairing in `start` would give.
+      { flow: "other", entry: 3 },
+      ["C.", "D."],
+    );
+  });
+
+  it("at its edited self when it was edited in place while an equal statement was inserted elsewhere", () => {
+    placesAt(
+      scene(["A.", "S.", "B.", "C."]),
+      scene(["W.", "A.", "T.", "B.", "C.", "S."]),
+      1,
+      // "S." was ordinal 1; "T." stands in its place, at ordinal 2, and the
+      // inserted "S." at 5 is not it.
+      { flow: "start", entry: 2 },
+      ["T.", "B.", "C.", "S."],
+    );
+  });
+
+  it("presents the same menu, and not its neighbour's, at a menu between two distinct adjacent choose blocks after a third was inserted above them", () => {
+    const blocks = (yellow: boolean) =>
+      scene([
+        "Intro.",
+        ...(yellow ? ["choose", "  * [Yellow]", "    Picked yellow.", "end"] : []),
+        "choose",
+        "  * [Red]",
+        "    Picked red.",
+        "end",
+        "choose",
+        "  * [Green]",
+        "    Picked green.",
+        "  * [Blue]",
+        "    Picked blue.",
+        "end",
+        "After.",
+      ]);
+    // At the first block's menu: the beat before it stands at the block.
+    const story = engine(rootOf(blocks(false)));
+    expect(advance(story, 1)).toEqual(["Intro."]);
+    story.Continue();
+    expect(story.currentChoices.map((c) => c.text)).toEqual(["Red"]);
+    const first = story.toSave();
+    expect(savedAt(first)).toEqual({ flow: "start", entry: 1 });
+    // At the second block's menu, after "Picked red.": the beat before it
+    // stands at the end of the red choice's body.
+    story.ChooseChoiceIndex(0);
+    expect(advance(story, 1)).toEqual(["Picked red."]);
+    story.Continue();
+    expect(story.currentChoices.map((c) => c.text)).toEqual(["Green", "Blue"]);
+    const second = story.toSave();
+    expect(savedAt(second)).toEqual({ flow: "start", owner: 1, entry: 1 });
+    const loaded = engine(rootOf(blocks(true)));
+    loaded.loadSave(first);
+    // The red block is ordinal 2 now; ordinal 1 is the yellow one.
+    expect(placed(loaded)).toEqual({ flow: "start", entry: 2 });
+    expect(play(loaded, [0])).toEqual({
+      beats: ["Picked red."],
+      menus: [["Red"], ["Green", "Blue"]],
+    });
+    const again = engine(rootOf(blocks(true)));
+    again.loadSave(second);
+    expect(placed(again)).toEqual({ flow: "start", owner: 2, entry: 1 });
+    expect(play(again, [1])).toEqual({
+      beats: ["Picked blue.", "After."],
+      menus: [["Green", "Blue"]],
+    });
+  });
+});
+
+describe("a save inside a flow that was renamed", () => {
+  const ACT = (name: string) =>
+    [
+      "store target = nil",
+      "store hops = 0",
+      "",
+      `-> ${name}`,
+      "",
+      `scene ${name}`,
+      `  -> ${name}.first`,
+      "  branch first",
+      "    label top",
+      `    First {${name}} {${name}.first} {${name}.second}.`,
+      "    & hops = hops + 1",
+      "    if hops == 1 then",
+      `      & target = -> ${name}.second`,
+      "      -> target",
+      "    end",
+      "    M1.",
+      "    M2.",
+      "    M3.",
+      `    Turns {TURNS_SINCE(-> ${name}.first.top)} {${name}}.`,
+      `    if ${name}.second > 0 then`,
+      "      Gated.",
+      "    else",
+      "      Open.",
+      "    end",
+      "    Last.",
+      "    -> target",
+      "  end",
+      "  branch second",
+      "    In second {hops}.",
+      "    if hops < 2 then",
+      `      -> ${name}.first`,
+      "    end",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+
+  it("loads at the same statement, with the scene's count, a sibling branch's count, the turns since a label and a variable holding the sibling's symbol renamed with it", () => {
+    const story = engine(rootOf(ACT("ACT")));
+    expect(advance(story, 4)).toEqual(["First 1 1 0.", "In second 1.", "First 1 2 1.", "M1."]);
+    const counts = (s: ProgramStory, name: string) =>
+      [name, `${name}.first`, `${name}.second`, `${name}.first.top`].map((n) => countOf(s, n));
+    const before = counts(story, "ACT");
+    expect(before).toEqual([1, 2, 1, 2]);
     const save = story.toSave();
-    // The position stands at "Three.", ordinal 2 before and 3 after.
-    const after = scene(["Zero.", "One.", "Two.", "Three.", "Four."]);
+    const rest = play(story).beats;
+    expect(rest).toEqual(["M2.", "M3.", "Turns 0 1.", "Gated.", "Last.", "In second 2."]);
+    const loaded = engine(rootOf(ACT("PLAY")));
+    loaded.loadSave(save);
+    // "M2." was ordinal 5 of `ACT.first`, which the program no longer has;
+    // it is ordinal 5 of `PLAY.first`, which the save does not name.
+    expect(savedAt(save)).toEqual({ flow: "ACT.first", entry: 5 });
+    expect(placed(loaded)).toEqual({ flow: "PLAY.first", entry: 5 });
+    expect(savedAt(save).flow).toBe("ACT.first");
+    expect(counts(loaded, "PLAY")).toEqual(before);
+    // The branch the sibling's count gated is still gated, and the variable
+    // that held the sibling's symbol still diverts to it.
+    expect(play(loaded).beats).toEqual(rest);
+  });
+
+  it("rewrites only its own name when its branch moved under a scene that still exists", () => {
+    const before = [
+      "-> A",
+      "",
+      "scene A",
+      "  A starts.",
+      "  -> A.b",
+      "  branch b",
+      "    B one.",
+      "    B two.",
+      "    B three.",
+      "    B four.",
+      "    -> report",
+      "  end",
+      "end",
+      "",
+      "scene C",
+      "  C starts.",
+      "end",
+      "",
+      "scene report",
+      "  Report {A}.",
+      "end",
+      "",
+    ].join("\n");
+    const after = [
+      "-> A",
+      "",
+      "scene A",
+      "  A starts.",
+      "  -> C.b",
+      "end",
+      "",
+      "scene C",
+      "  C starts.",
+      "  branch b",
+      "    B one.",
+      "    B two.",
+      "    B three.",
+      "    B four.",
+      "    -> report",
+      "  end",
+      "end",
+      "",
+      "scene report",
+      "  Report {A} {C} {C.b}.",
+      "end",
+      "",
+    ].join("\n");
+    const story = engine(rootOf(before));
+    expect(advance(story, 3)).toEqual(["A starts.", "B one.", "B two."]);
+    const save = story.toSave();
     const loaded = engine(rootOf(after));
     loaded.loadSave(save);
-    expect(beats(loaded)).toEqual(["Three.", "Four."]);
+    expect(placed(loaded)).toEqual({ flow: "C.b", entry: 2 });
+    // `A` keeps its count, `C` takes none of it, and `A.b`'s goes to `C.b`.
+    expect(play(loaded).beats).toEqual(["B three.", "B four.", "Report 1 0 1."]);
+  });
+});
+
+describe("a save that cannot be placed at its newest beat", () => {
+  const TEXT = (deleted: boolean) =>
+    [
+      "store n = 0",
+      "store t = { k = 0 }",
+      "",
+      "function tick()",
+      "  return 0",
+      "end",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  One {n}.",
+      "  & n = n + 1",
+      "  & t.k = t.k + 10",
+      "  & tick()",
+      "  Two {n} {t.k}.",
+      "  & n = n + 1",
+      "  & t.k = t.k + 10",
+      "  & tick()",
+      "  Three {n} {t.k}.",
+      ...(deleted ? [] : ["  & n = n + 5"]),
+      "  Four {n} {t.k}.",
+      "end",
+      "",
+    ].join("\n");
+
+  it("whose statement was deleted resumes at the newest earlier beat whose position is placed, with the variables, counts and tables that beat had", () => {
+    const story = engine(rootOf(TEXT(false)));
+    const state = (s: ProgramStory) => ({
+      n: global(s, "n")?.toString(),
+      k: (global(s, "t") as any).value.get("k").value,
+      tick: countOf(s, "tick"),
+    });
+    expect(advance(story, 2)).toEqual(["One 0.", "Two 1 10."]);
+    // The run stopped at the beat that the load falls back to.
+    const atTwo = state(story);
+    expect(atTwo).toEqual({ n: "1", k: 10, tick: 1 });
+    expect(advance(story, 1)).toEqual(["Three 2 20."]);
+    expect(state(story)).toEqual({ n: "2", k: 20, tick: 2 });
+    // The newest beat stands at `& n = n + 5`, which is deleted.
+    const save = story.toSave();
+    const loaded = engine(rootOf(TEXT(true)));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.beat).toBe(report.beats - 2);
+    expect(report.exact).toBe(true);
+    expect(state(loaded)).toEqual(atTwo);
+    expect(shown(loaded)).toBe("Two 1 10.");
+    expect(play(loaded).beats).toEqual(["Three 2 20.", "Four 2 20."]);
+  });
+
+  it("whose flow was deleted, with every beat of its history inside it, is refused and names the flow", () => {
+    const story = engine(
+      rootOf(scene(["L1.", "L2.", "L3.", "L4.", "L5."], "other")),
+      3,
+    );
+    expect(advance(story, 4)).toHaveLength(4);
+    const save = story.toSave();
+    const levels = JSON.parse(save).beats.map(
+      (beat: any) => beat.position.st.levels[0].flow,
+    );
+    expect(levels).toEqual(["other", "other", "other"]);
+    const loaded = engine(rootOf(scene(["Something else."], "start")));
+    const before = loaded.state.toJson();
+    let refused: unknown;
+    try {
+      loaded.loadSave(save);
+    } catch (e) {
+      refused = e;
+    }
+    expect(refused).toBeInstanceOf(SaveRefused);
+    expect((refused as SaveRefused).flow).toBe("other");
+    expect(String(refused)).toMatch(/'other'/);
+    expect(loaded.state.toJson()).toBe(before);
+  });
+});
+
+describe("the stated limits of the alignment", () => {
+  it("leaves a statement whose run stands twice in one sequence to an earlier beat, a tie", () => {
+    const story = engine(rootOf(scene(["A.", "B.", "P.", "Q.", "R.", "C."])));
+    expect(advance(story, 3)).toEqual(["A.", "B.", "P."]);
+    const save = story.toSave();
+    const loaded = engine(
+      rootOf(
+        scene(["A.", "B.", "C."]) +
+          ["", "scene other", "  P.", "  Q.", "  R.", "  Z.", "  P.", "  Q.", "  R.", "end", ""].join("\n"),
+      ),
+    );
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    // "Q." and "P." tie; "B." is placed.
+    expect(report.beat).toBe(report.beats - 3);
+    expect(placed(loaded)).toEqual({ flow: "start", entry: 1 });
+    expect(play(loaded).beats).toEqual(["B.", "C."]);
+  });
+
+  it("leaves a statement of a run of two moved statements, which is below the search's minimum, to an earlier beat", () => {
+    const story = engine(rootOf(scene(["A.", "B.", "P.", "Q.", "C."])));
+    expect(advance(story, 2)).toEqual(["A.", "B."]);
+    const save = story.toSave();
+    const loaded = engine(
+      rootOf(
+        scene(["A.", "B.", "C."]) +
+          ["", "scene other", "  X.", "  P.", "  Q.", "  Y.", "end", ""].join("\n"),
+      ),
+    );
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.beat).toBe(report.beats - 2);
+    expect(placed(loaded)).toEqual({ flow: "start", entry: 1 });
+    expect(play(loaded).beats).toEqual(["B.", "C."]);
+  });
+
+  // Section 8: the alignment keeps order, so a save taken at the second of
+  // two identical lines resumes a line early after one was written between
+  // them, and a line late after one was deleted.
+  it("resumes inside a run of identical statements, or at the statement after it, at the ordinal the design gives and not the saved one", () => {
+    const before = scene(["Intro.", "Same.", "Same.", "Same.", "End."]);
+    const story = engine(rootOf(before));
+    expect(advance(story, 2)).toEqual(["Intro.", "Same."]);
+    const save = story.toSave();
+    // The second "Same." is ordinal 2.
+    expect(savedAt(save)).toEqual({ flow: "start", entry: 2 });
+    const inserted = engine(rootOf(scene(["Above.", "Intro.", "Same.", "Same.", "Same.", "Same.", "End."])));
+    inserted.loadSave(save);
+    // The block `Intro. Same. Same. Same.` is matched one ordinal down, so
+    // the save stands at the second of four, a line early.
+    expect(placed(inserted)).toEqual({ flow: "start", entry: 3 });
+    expect(play(inserted).beats).toEqual(["Same.", "Same.", "Same.", "End."]);
+    const deleted = engine(rootOf(scene(["Above.", "Intro.", "Same.", "Same.", "End."])));
+    deleted.loadSave(save);
+    // The block `Intro. Same. Same.` is matched one ordinal down, so the
+    // save stands at the second of two, a line late.
+    expect(placed(deleted)).toEqual({ flow: "start", entry: 3 });
+    expect(play(deleted).beats).toEqual(["Same.", "End."]);
+  });
+});
+
+describe("a save at a menu", () => {
+  const MENU = (edited: boolean) =>
+    scene([
+      "Before.",
+      "choose",
+      ...(edited ? ["  * [Banana]", "    Ate banana."] : []),
+      "  * [Apple]",
+      "    Ate apple.",
+      edited ? "  * [Ripe pear]" : "  * [Pear]",
+      "    Ate pear.",
+      "end",
+      "After.",
+    ]);
+
+  it("taken while choices are waiting, loaded after a choice's text was edited and a choice was added above it, presents the edited choices and continues from the chosen one", () => {
+    const story = engine(rootOf(MENU(false)));
+    expect(advance(story, 1)).toEqual(["Before."]);
+    story.Continue();
+    expect(story.currentChoices.map((c) => c.text)).toEqual(["Apple", "Pear"]);
+    const save = story.toSave();
+    const loaded = engine(rootOf(MENU(true)));
+    loaded.loadSave(save);
+    expect(play(loaded, [2])).toEqual({
+      beats: ["Ate pear.", "After."],
+      menus: [["Banana", "Apple", "Ripe pear"]],
+    });
+  });
+
+  it("holding a choice a thread raised before its beat, places that choice by its part after its text was edited and a choice was added above it", () => {
+    const THREADS = (edited: boolean) =>
+      [
+        "-> hub",
+        "scene hub",
+        "  You arrive.",
+        "  <- merchant",
+        "  <- guard",
+        "  choose",
+        '    * "Leave"',
+        "      fin",
+        "  end",
+        "end",
+        "scene merchant",
+        "  choose",
+        // A choice added above the edited one, with one that is unchanged
+        // between them: an insertion beside the edited part would pair the
+        // two the wrong way round, the stated limit of section 2.
+        ...(edited ? ['    * "Hello?"', "      Hello.", "      fin"] : []),
+        '    * "Keep"',
+        "      Kept.",
+        "      fin",
+        edited ? '    * "What do you sell now?"' : '    * "What do you sell?"',
+        "      Nothing much.",
+        "      fin",
+        "  end",
+        "  done",
+        "end",
+        "scene guard",
+        "  The guard nods.",
+        "  choose",
+        '    * "News"',
+        "      None.",
+        "      fin",
+        "  end",
+        "  done",
+        "end",
+        "",
+      ].join("\n");
+    const story = engine(rootOf(THREADS(false)));
+    while (story.canContinue) story.Continue();
+    const save = story.toSave();
+    // The merchant's choices were raised before the guard's line.
+    expect(JSON.parse(save).beats.at(-1).choices.map((c: { text: string }) => c.text)).toEqual([
+      '"Keep"',
+      '"What do you sell?"',
+    ]);
+    const loaded = engine(rootOf(THREADS(true)));
+    loaded.loadSave(save);
+    while (loaded.canContinue) loaded.Continue();
+    const texts = loaded.currentChoices.map((c) => c.text);
+    // The held choice keeps the text it was raised with.
+    const held = texts.indexOf('"What do you sell?"');
+    expect(held).toBeGreaterThanOrEqual(0);
+    loaded.ChooseChoiceIndex(held);
+    // Its entry is the edited part's, which echoes the part's line as the
+    // program writes it now.
+    expect(play(loaded).beats).toEqual(['"What do you sell now?"', "Nothing much."]);
+  });
+
+  describe("taken after a choice was made", () => {
+    const CHOSEN = (pear: "kept" | "gone" | "hidden") =>
+      scene(
+        [
+          "Before.",
+          "choose",
+          "  * [Apple]",
+          "    Ate apple.",
+          ...(pear === "gone" ? [] : ["  * if OK [Pear]", "    Ate pear."]),
+          "end",
+          "After.",
+        ],
+        "start",
+        [`const OK = ${pear === "hidden" ? "false" : "true"}`, ""],
+      );
+
+    const chosenSave = () => {
+      const story = engine(rootOf(CHOSEN("kept")));
+      expect(advance(story, 1)).toEqual(["Before."]);
+      story.Continue();
+      expect(story.currentChoices.map((c) => c.text)).toEqual(["Apple", "Pear"]);
+      story.ChooseChoiceIndex(1);
+      const save = story.toSave();
+      expect(JSON.parse(save).chosen).toBe(true);
+      return save;
+    };
+
+    it("takes the choice again", () => {
+      const loaded = engine(rootOf(CHOSEN("kept")));
+      loaded.loadSave(chosenSave());
+      expect(loaded.loadedSaveReport!.chosen).toBe("taken");
+      expect(play(loaded).beats).toEqual(["Ate pear.", "After."]);
+    });
+
+    it("is unplaced when the chosen part is gone, and stays at the menu", () => {
+      const loaded = engine(rootOf(CHOSEN("gone")));
+      loaded.loadSave(chosenSave());
+      expect(loaded.loadedSaveReport!.chosen).toBe("unplaced");
+      expect(loaded.loadedSaveReport!.exact).toBe(true);
+      expect(play(loaded, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
+    });
+
+    it("is unplaced when its condition no longer offers it, and stays at the menu", () => {
+      const loaded = engine(rootOf(CHOSEN("hidden")));
+      loaded.loadSave(chosenSave());
+      expect(loaded.loadedSaveReport!.chosen).toBe("unplaced");
+      expect(play(loaded, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
+    });
   });
 });

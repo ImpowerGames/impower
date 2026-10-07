@@ -233,10 +233,12 @@ export class BeatHistory {
     if (newest && this.provisional) {
       // The beat the last continue ended, as the next one starts from it.
       (newest as { image: ProgramImage }).image = image;
+      image.beat = newest;
       this.provisional = provisional;
       return newest;
     }
     const record: BeatRecord = { image, flags, decisions: [] };
+    image.beat = record;
     this.records.push(record);
     if (this.records.length > Math.max(1, this.limit)) {
       this.records.splice(0, this.records.length - Math.max(1, this.limit));
@@ -280,6 +282,7 @@ export class BeatHistory {
     const record = this.recordOf(was);
     if (record) {
       (record as { image: ProgramImage }).image = now;
+      now.beat = record;
     }
   }
 
@@ -287,6 +290,9 @@ export class BeatHistory {
   replace(records: readonly BeatRecord[], provisional: boolean): void {
     this.records.length = 0;
     this.records.push(...records.slice(-Math.max(1, this.limit)));
+    for (const record of this.records) {
+      record.image.beat = record;
+    }
     this.provisional = provisional;
   }
 }

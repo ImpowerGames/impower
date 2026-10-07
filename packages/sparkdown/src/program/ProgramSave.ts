@@ -592,6 +592,10 @@ const matchingBlocks = (
   return blocks.sort((x, y) => x[0] - y[0]);
 };
 
+const PRINTS = new WeakMap<object, string[]>();
+const B2J = new WeakMap<object, Map<string, number[]>>();
+const INDEXES = new WeakMap<ProgramRoot, Map<string, { sequence: SequenceRow; entry: number }[]>>();
+
 /** Places the saved forms of one save, or one translation, in a root. */
 export class FormPlacer {
   /** What placing warned of. */
@@ -601,9 +605,6 @@ export class FormPlacer {
   protected _moves = new Map<string, string>();
   /** The renames that apply (`settleRenames`), longest old prefix first. */
   protected _renames: [string, string][] = [];
-  protected _prints = new Map<number, string[]>();
-  protected _b2j = new Map<number, Map<string, number[]>>();
-  protected _index: Map<string, { sequence: SequenceRow; entry: number }[]> | null = null;
   protected _blocks = new Map<string, [number, number, number][]>();
 
   constructor(
@@ -612,18 +613,20 @@ export class FormPlacer {
     protected _parts: readonly SavedParts[],
   ) {}
 
-  // The fingerprints of a sequence's entries.
+  // The fingerprints of a sequence's entries, kept with its arrays, which
+  // never change and which the roots that share a sequence share.
   protected printsOf(sequence: SequenceRow): string[] {
-    let prints = this._prints.get(sequence.id);
+    let prints = PRINTS.get(sequence.arrays);
     if (!prints) {
       prints = sequence.arrays.chunks.map(fingerprintOf);
-      this._prints.set(sequence.id, prints);
+      PRINTS.set(sequence.arrays, prints);
     }
     return prints;
   }
 
+  // The entries of a sequence by their fingerprints, in order.
   protected b2jOf(sequence: SequenceRow): Map<string, number[]> {
-    let b2j = this._b2j.get(sequence.id);
+    let b2j = B2J.get(sequence.arrays);
     if (!b2j) {
       b2j = new Map();
       this.printsOf(sequence).forEach((print, j) => {
@@ -634,28 +637,30 @@ export class FormPlacer {
         }
         list.push(j);
       });
-      this._b2j.set(sequence.id, b2j);
+      B2J.set(sequence.arrays, b2j);
     }
     return b2j;
   }
 
-  // Every entry of every sequence of the root, by its fingerprint.
+  // Every entry of every sequence of the root, by its fingerprint, kept
+  // with the root, which never changes.
   protected index(): Map<string, { sequence: SequenceRow; entry: number }[]> {
-    if (!this._index) {
-      const index = new Map<string, { sequence: SequenceRow; entry: number }[]>();
+    let index = INDEXES.get(this.root);
+    if (!index) {
+      index = new Map();
       for (const sequence of this.root.sequences()) {
         this.printsOf(sequence).forEach((print, entry) => {
-          let list = index.get(print);
+          let list = index!.get(print);
           if (!list) {
             list = [];
-            index.set(print, list);
+            index!.set(print, list);
           }
           list.push({ sequence, entry });
         });
       }
-      this._index = index;
+      INDEXES.set(this.root, index);
     }
-    return this._index;
+    return index;
   }
 
   /** The window of listing `s` that holds ordinal `at`. */
@@ -1622,7 +1627,11 @@ class SaveReader {
       return false;
     }
     const symbol = this._placer.decodeSymbol(form);
+    const name = "n" in form ? `'${form.n}'` : "an anonymous function";
     if (symbol === undefined) {
+      this._placer.warnings.push(
+        `The frame of ${name} is dropped, since the program no longer has it; its caller resumes after the statement that called it.`,
+      );
       return true;
     }
     const bound = saved["bound"];
@@ -1631,7 +1640,13 @@ class SaveReader {
     }
     const place = this.root.place(symbol);
     const chunk = place?.sequence.arrays.chunks[place.entry];
-    return !chunk || layoutOf(chunk) !== bound;
+    if (chunk && layoutOf(chunk) === bound) {
+      return false;
+    }
+    this._placer.warnings.push(
+      `The frame of ${name} is dropped, since its function binds its parameters in other code; its caller resumes after the statement that called it.`,
+    );
+    return true;
   }
 
   /** Places every position a beat holds (section 8, steps 1 to 6). */

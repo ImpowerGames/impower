@@ -1765,7 +1765,7 @@ export const normalizeSource = (source: string): string => {
           if (!closeOpen()) break;
           // A block comment that closes on its line separates the tokens
           // around it.
-          text += " ";
+          if (!text.endsWith(" ")) text += " ";
           continue;
         }
         break;
@@ -1779,7 +1779,7 @@ export const normalizeSource = (source: string): string => {
       }
       if (/\s/.test(c)) {
         while (i < line.length && /\s/.test(line[i]!)) i += 1;
-        text += " ";
+        if (!text.endsWith(" ")) text += " ";
         continue;
       }
       text += c;

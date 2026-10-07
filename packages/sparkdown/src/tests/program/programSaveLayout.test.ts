@@ -1,0 +1,277 @@
+// The fingerprints and the layout check of a durable save across sessions and
+// releases (#1429, docs/engine/binary-program.md, sections 1 and 8): saves
+// written by another process (`programSaveWriter.ts --scenarios`), which
+// this one never compiles the programs of, load at the statement they name
+// after the program changed around it, and a frame whose code changed is
+// placed after the statement or loop it was inside, or dropped.
+//
+// A compiler release that lowers a statement differently changes its
+// layout hash and not its fingerprint. The tests make that change by
+// writing another layout hash into the save where the save names one, which
+// is all the loader reads of the code a frame was saved in.
+import "../../inkjs/engine/Container";
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { beforeAll, describe, expect, it } from "vitest";
+import type { ProgramRoot } from "../../program/ProgramRoot";
+import { fingerprintOf } from "../../program/ProgramSave";
+import { ProgramStory } from "../../program/ProgramStory";
+import { compileScript } from "./programHarness";
+import { SAVE_SCENARIOS, SCENARIO_MARKER } from "./programSaveScenarios";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+const silence = <T>(run: () => T): T => {
+  const { warn, error, log } = console;
+  console.warn = console.error = console.log = () => {};
+  try {
+    return run();
+  } finally {
+    console.warn = warn;
+    console.error = error;
+    console.log = log;
+  }
+};
+
+const rootOf = (text: string): ProgramRoot => {
+  const program = silence(() => compileScript(text, { programChunks: true }).program);
+  expect(program.fallback).toBeUndefined();
+  return program.chunks!;
+};
+
+const engine = (root: ProgramRoot): ProgramStory => {
+  const story = new ProgramStory(root);
+  story.keepBeatImages = true;
+  story.onError = () => {};
+  return story;
+};
+
+const shown = (story: ProgramStory) => story.currentText?.trim() ?? "";
+
+const play = (story: ProgramStory): string[] => {
+  const beats: string[] = [];
+  while (story.canContinue) {
+    story.Continue();
+    if (shown(story)) beats.push(shown(story));
+  }
+  return beats;
+};
+
+/** The saves the other process wrote, by scenario. */
+let saves: Record<string, string> = {};
+
+beforeAll(() => {
+  const writer = join(HERE, "programSaveWriter.ts");
+  const viteNode = createRequire(import.meta.url).resolve("vite-node/vite-node.mjs");
+  const run = spawnSync(process.execPath, [viteNode, writer, "--scenarios"], {
+    cwd: join(HERE, "..", "..", ".."),
+    encoding: "utf-8",
+    timeout: 300_000,
+    windowsHide: true,
+  });
+  expect(run.status, run.stderr).toBe(0);
+  for (const line of run.stdout.split("\n")) {
+    if (line.startsWith(SCENARIO_MARKER)) {
+      const tab = line.indexOf("\t");
+      saves[line.slice(SCENARIO_MARKER.length, tab)] = line.slice(tab + 1);
+    }
+  }
+  expect(Object.keys(saves).sort()).toEqual(Object.keys(SAVE_SCENARIOS).sort());
+}, 320_000);
+
+/** Another hash than `hash`. */
+const differ = (hash: string) => hash.replace(/^./, (c) => (c === "0" ? "1" : "0"));
+
+/** The program of scenario `name`, edited by replacing `before` with
+ *  `after` in its script. */
+const program = (name: string, ...edits: [string, string][]): ProgramRoot => {
+  let text = SAVE_SCENARIOS[name]!.script;
+  for (const [before, after] of edits) {
+    expect(text).toContain(before);
+    text = text.replace(before, after);
+  }
+  return rootOf(text);
+};
+
+/** A scenario's save with `change` made to the newest beat's JSON. */
+const changed = (name: string, change: (beat: any) => void): string => {
+  const save = JSON.parse(saves[name]!);
+  change(save.beats.at(-1));
+  return JSON.stringify(save);
+};
+
+// The frame of the newest beat whose position is inside a statement's code.
+const insideFrame = (beat: any) =>
+  beat.frames.find((f: any) => Array.isArray(f.returnTo?.a)).returnTo;
+
+describe("a fingerprint", () => {
+  it("reads two statements that differ in comments or in the spacing between tokens as the same, and two that differ inside a string or a displayed line as different", () => {
+    const prints = (lines: string[]) =>
+      rootOf(["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n"))
+        .flowNamed("start")!
+        .arrays.chunks.map(fingerprintOf);
+    const a = prints([
+      "& x = 1 + 2",
+      "& y = 3",
+      "Hello there.",
+      '& s = "a b"',
+      "Spaced words.",
+    ]);
+    const b = prints([
+      "& x  =  1 +   2 -- a comment",
+      "& y = --[[ a block comment ]] 3",
+      "Hello there. // a note",
+      '& s = "a  b"',
+      "Spaced  words.",
+    ]);
+    expect(a).toHaveLength(5);
+    expect(b[0]).toBe(a[0]);
+    expect(b[1]).toBe(a[1]);
+    expect(b[2]).toBe(a[2]);
+    expect(b[3]).not.toBe(a[3]);
+    expect(b[4]).not.toBe(a[4]);
+  });
+});
+
+describe("a save written by another process", () => {
+  it("at a statement's start loads there after a constant the statement reads changed value and after the statement's lowering changed", () => {
+    const save = saves["constant"]!;
+    // The beat stands at the statement's start, which names no layout: a
+    // lowering that changed is not read.
+    const beat = JSON.parse(save).beats.at(-1);
+    expect(beat.position.a).toBe("start");
+    const loaded = engine(program("constant", ["const K = 1", "const K = 2"]));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Total 2."]);
+  });
+
+  describe("inside a statement's code, with an operand on the eval stack, in a function that displays a line", () => {
+    it("loads where it was when the code is the same", () => {
+      const save = saves["inside"]!;
+      // The caller holds an operand while the function runs.
+      expect(JSON.parse(save).beats.at(-1).evalStack.length).toBeGreaterThan(0);
+      const loaded = engine(program("inside"));
+      loaded.loadSave(save);
+      expect(loaded.loadedSaveReport!.exact).toBe(true);
+      expect(shown(loaded)).toBe("Shown 10");
+      expect(play(loaded)).toEqual(["Shown 20", "After 32 20."]);
+      expect(loaded.state.evaluationStack).toHaveLength(0);
+    });
+
+    it("is placed after that statement with a warning when its lowering changed: the function runs to its return, its value is dropped and the eval stack cut", () => {
+      const save = changed("inside", (beat) => {
+        const at = insideFrame(beat);
+        at.a[1] = differ(at.a[1]);
+      });
+      const loaded = engine(program("inside"));
+      loaded.loadSave(save);
+      const report = loaded.loadedSaveReport!;
+      expect(report.exact).toBe(false);
+      expect(report.warnings.join("\n")).toMatch(/resumes after it/);
+      // The assignment of the first pass is abandoned: `x` stays 0, and the
+      // loop goes on to its second pass with its scopes.
+      expect(play(loaded)).toEqual(["Shown 20", "After 21 20."]);
+      expect(loaded.state.evaluationStack).toHaveLength(0);
+    });
+
+    it("is placed after the loop when the loop's hidden layout changed, and a captured variable of a scope it drops keeps its value", () => {
+      const save = changed("inside", (beat) => {
+        const at = insideFrame(beat);
+        const loop = at.st.levels.find((level: any) => level.loop);
+        loop.loop = differ(loop.loop);
+      });
+      const loaded = engine(program("inside"));
+      loaded.loadSave(save);
+      const report = loaded.loadedSaveReport!;
+      expect(report.exact).toBe(false);
+      expect(report.warnings.join("\n")).toMatch(/loop/);
+      // The function runs to its return, the loop is left, and the closure
+      // reads `v` of the pass whose scope the cut closed.
+      expect(play(loaded)).toEqual(["After 0 10."]);
+      expect(loaded.state.evaluationStack).toHaveLength(0);
+    });
+  });
+
+  describe("inside a loop's second pass", () => {
+    it("loads and finishes the loop after a comment was inserted above the loop", () => {
+      const loaded = engine(
+        program("pass", ["  while n < 3 do", "  // The loop that counts.\n  while n < 3 do"]),
+      );
+      loaded.loadSave(saves["pass"]!);
+      expect(loaded.loadedSaveReport!.exact).toBe(true);
+      expect(shown(loaded)).toBe("Pass 2 a.");
+      expect(play(loaded)).toEqual(["Pass 2 b.", "Pass 3 a.", "Pass 3 b.", "Done 3."]);
+    });
+
+    it("loads and finishes the loop after the loop moved to another line", () => {
+      const loaded = engine(program("pass", ["  Begin.\n", "  Begin.\n\n\n\n"]));
+      loaded.loadSave(saves["pass"]!);
+      expect(loaded.loadedSaveReport!.exact).toBe(true);
+      expect(play(loaded)).toEqual(["Pass 2 b.", "Pass 3 a.", "Pass 3 b.", "Done 3."]);
+    });
+
+    it("is placed after the loop when the loop's hidden layout changed", () => {
+      const save = changed("pass", (beat) => {
+        const loop = beat.position.st.levels.find((level: any) => level.loop);
+        loop.loop = differ(loop.loop);
+      });
+      const loaded = engine(program("pass"));
+      loaded.loadSave(save);
+      expect(loaded.loadedSaveReport!.exact).toBe(false);
+      expect(play(loaded)).toEqual(["Done 2."]);
+    });
+  });
+
+  it("is placed after the loop when its statements were newly wrapped in a loop, which the save carries no layout for", () => {
+    const loaded = engine(
+      program("wrap", [
+        "  W1.\n  W2.\n  W3.\n  W4.\n",
+        "  while k < 1 do\n    W1.\n    W2.\n    W3.\n    W4.\n    & k = k + 1\n  end\n",
+      ]),
+    );
+    loaded.loadSave(saves["wrap"]!);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join("\n")).toMatch(/loop/);
+    expect(play(loaded)).toEqual(["Outro."]);
+  });
+
+  it("at the last statement of a loop's body, abandoned because its call is gone, leaves the loop to finish its remaining passes with its scopes", () => {
+    const loaded = engine(program("last", ["    & show(i)", "    & quiet(i)"]));
+    loaded.loadSave(saves["last"]!);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(shown(loaded)).toBe("Shown 1");
+    expect(play(loaded)).toEqual(["Line 2.", "Line 3.", "Done."]);
+  });
+
+  it("inside a variadic function whose hidden varargs local's layout changed drops the frame and places the caller after its calling statement", () => {
+    const loaded = engine(program("variadic", ["function vf(...)", "function vf(first, ...)"]));
+    loaded.loadSave(saves["variadic"]!);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(loaded.loadedSaveReport!.warnings.join(" ")).toMatch(/'vf' is dropped/);
+    expect(shown(loaded)).toBe("In vf");
+    expect(play(loaded)).toEqual(["After."]);
+    expect(loaded.state.callStack.elements).toHaveLength(1);
+  });
+
+  it("inside a closure defined in a loop and run after the loop ended is placed exactly, whatever the loop's layout", () => {
+    const save = changed("closure", (beat) => {
+      // A layout of the loop the closure was written in, which is no owner
+      // on the closure's frame.
+      const levels = beat.frames.flatMap((f: any) => f.returnTo?.st.levels ?? []);
+      const loops = levels.filter((level: any) => level.loop);
+      expect(loops.length).toBeGreaterThan(0);
+      for (const level of loops) level.loop = differ(level.loop);
+    });
+    for (const text of [saves["closure"]!, save]) {
+      const loaded = engine(program("closure"));
+      loaded.loadSave(text);
+      expect(loaded.loadedSaveReport!.exact).toBe(true);
+      expect(shown(loaded)).toBe("Shown 2");
+      expect(play(loaded)).toEqual(["After."]);
+    }
+  });
+});

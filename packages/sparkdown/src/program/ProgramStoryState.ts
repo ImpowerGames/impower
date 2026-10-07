@@ -1776,10 +1776,8 @@ export class ProgramStoryState {
     let position = top;
     if (cuts.dropFrom >= 1 && cuts.dropFrom < elements.length) {
       for (let i = elements.length - 1; i >= cuts.dropFrom; i -= 1) {
-        const element = elements[i]!;
-        while (element.temporaryScopes.length > 0) {
-          element.PopScope(this.callStack.cellBarrier);
-        }
+        // As a frame that returns closes the cells still open on it.
+        elements[i]!.CloseOpenUpvalues(this.callStack.cellBarrier);
       }
       elements.length = cuts.dropFrom;
       position = cuts.callerAfter ?? null;

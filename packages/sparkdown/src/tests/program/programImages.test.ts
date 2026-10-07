@@ -312,6 +312,20 @@ describe("a checkpoint within a session", () => {
       ["  One.", "  & seen = seen + 1", "  Two {seen}.", "  Three again {start}.", "  Four."].join("\n"),
       "  Elsewhere.",
     );
+    // In a body: the body is placed by its part in the listing of its
+    // owner's parts, aligned with the parts of the owner the compile
+    // emitted again with an edited condition.
+    const b = programSession(
+      ["store x = 1", "", "-> start", "", "scene start", "  if x == 1 then", "    One.", "    Two.", "    Three.", "  end", "  After.", "end", ""].join("\n"),
+    );
+    const inBody = sharing(b.root);
+    expect(next(inBody, 1)).toEqual(["One."]);
+    const bodyCheckpoint = inBody.captureBeat();
+    b.edit("  if x == 1 then", "  if x >= 1 then");
+    const both = b.edit("    Two.", "    Two, edited.");
+    const translated = sharing(both, inBody.images);
+    expect(translated.restore(bodyCheckpoint)).toBe(true);
+    expect(next(translated, 10)).toEqual(["Two, edited.", "Three.", "After."]);
     const elsewhere = sharing(gone, game.images);
     const before = elsewhere.state.toJson();
     const steps = elsewhere.stepCount;
