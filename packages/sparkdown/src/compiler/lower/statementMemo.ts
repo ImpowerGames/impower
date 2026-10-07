@@ -22,7 +22,7 @@ import {
   type ContextRead,
   type ContextRecording,
 } from "./recordingContext";
-import { buildDebugMetadata } from "./utils/debugMetadata";
+import { buildDebugMetadata, statementBounds } from "./utils/debugMetadata";
 import type { StatementShape } from "./utils/statementShape";
 import { holdsCheckedBlock } from "./utils/validateBlockEnds";
 
@@ -262,6 +262,8 @@ export class StatementMemoSession {
   // The nodes of the statements served that hold no block, by where each
   // starts, as `name:to` (`servedWithoutBlocks`).
   protected _withoutBlocks = new Map<number, string>();
+  // For each syntax, where `find` looks for its next memo.
+  protected _cursors = new Map<string, number>();
 
   constructor(
     protected readonly host: StatementMemoHost,
@@ -394,10 +396,19 @@ export class StatementMemoSession {
     ctx: LowerContext,
     shape: StatementShape,
   ): StatementMemoEntry | undefined {
-    const entry = this.lookup.get(syntax)?.find((candidate) => !this.used.has(candidate));
+    // Where the search for the syntax's next memo starts: the memos before
+    // it are taken, and stay taken, so statements that read alike take the
+    // memos of their syntax in one pass over them.
+    const candidates = this.lookup.get(syntax);
+    let at = this._cursors.get(syntax) ?? 0;
+    while (candidates && at < candidates.length && this.used.has(candidates[at]!)) {
+      at += 1;
+    }
+    const entry = candidates?.[at];
     if (!entry) {
       return undefined;
     }
+    this._cursors.set(syntax, at + 1);
     this.used.add(entry);
     if (
       !this.host.enabled ||
@@ -442,13 +453,8 @@ export class StatementMemoSession {
   ): CompiledBlock {
     const statement = new MemoizedStatement(entry);
     // The statement's range, as `stampStatement` gives a statement's objects.
-    const text = ctx.read(node.from, to).replace(/\s+$/, "");
-    const indentation = text.length - text.replace(/^[ \t]+/, "").length;
-    statement.debugMetadata = buildDebugMetadata(
-      node.from + indentation,
-      node.from + text.length,
-      ctx,
-    );
+    const range = statementBounds(node.from, to, ctx);
+    statement.debugMetadata = buildDebugMetadata(range.from, range.to, ctx);
     if (!entry.holdsBlock && to === node.to) {
       this._withoutBlocks.set(node.from, `${node.name}:${node.to}`);
     }

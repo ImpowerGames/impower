@@ -235,6 +235,7 @@ export function recordLowering(
               return method.apply(t, args);
             };
           }
+          // value-level: a property name of an array of the context, read as its index
           const own = /^\d+$/.test(prop) ? Number(prop) : prop;
           const value = (t as any)[prop];
           if (typeof value === "function") {

@@ -76,6 +76,7 @@ import { lowerThread } from "./lowerers/lowerThread";
 import {
   headerLineRange,
   stampDebugMetadata,
+  statementBounds,
 } from "./utils/debugMetadata";
 import { offsetAt, readBlockAst } from "./utils/luauAst";
 import { forwardBlockDiagnostics } from "./utils/unwrapBlock";
@@ -152,12 +153,7 @@ export function stampStatement(
   rangeTo: number,
   ctx: LowerContext,
 ): void {
-  // value-level: the statement's isolated source range, trimming its trailing whitespace
-  const text = ctx.read(rangeFrom, rangeTo).replace(/\s+$/, "");
-  // value-level: the isolated statement text, measuring its indentation
-  const indentation = text.length - text.replace(/^[ \t]+/, "").length;
-  const from = rangeFrom + indentation;
-  const to = rangeFrom + text.length;
+  const { from, to } = statementBounds(rangeFrom, rangeTo, ctx);
   if (isBlockStatement) {
     const header = headerLineRange(from, to, ctx);
     for (const obj of content) {

@@ -168,16 +168,26 @@ const warmSession = (scenes = 2) => {
 };
 
 describe("an edit to one line inside a long `then` clause", () => {
-  it("lowers only the statements the parse rebuilt, and keeps every other statement's chunk", () => {
+  it("lowers the statements the parse rebuilt and those no memo stands for, and keeps every other statement's chunk", () => {
     const s = warmSession();
     const before = new Set(rootChunks(s.root));
     const { line, from } = clauseLine(s.text, 120);
     s.edit(line, `${line} Still.`, from);
     // The edited statement and the neighbours the parse rebuilt with it, and
-    // the statements no memo can stand for: the clause's `if` blocks, whose
-    // bodies' statements are served, and its assignments.
-    expect(s.stats.lowered).toBeGreaterThan(0);
-    expect(s.stats.lowered).toBeLessThanOrEqual(20);
+    // the statements no memo stands for (#656 keeps them out of the memo, and
+    // #1676 takes them in): the clause's `if` blocks,
+    // whose bodies' statements are served, and its assignments, which the
+    // story's passes over the whole program read. Every other statement
+    // outside the rebuilt range is served.
+    const rebuilt = s.stats.rebuilt!;
+    const lowered = s.stats.loweredAt.filter(
+      // A statement that starts before the rebuilt range and runs into it
+      // (a dialogue block, whose paragraph ends at a blank line) is rebuilt.
+      (at) => !(at <= rebuilt.to && s.text.indexOf("\n\n", at) >= rebuilt.from),
+    );
+    const lineAt = (at: number) => s.text.slice(at, s.text.indexOf("\n", at)).trim();
+    expect(lowered.map(lineAt).filter((text) => !/^(& \w+ = |if )/.test(text))).toEqual([]);
+    expect(s.stats.lowered).toBeGreaterThan(lowered.length);
     expect(s.stats.served).toBeGreaterThan(80);
     const after = rootChunks(s.root);
     const changed = after.filter((chunk) => !before.has(chunk));
