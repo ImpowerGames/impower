@@ -1,5 +1,5 @@
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { resolvePreviewPoint } from "./resolvePreviewPoint";
@@ -9,19 +9,20 @@ import { resolvePreviewPoint } from "./resolvePreviewPoint";
 export interface DisplayingGame {
   readonly state: string;
   readonly previewFrom: { file: string; line: number } | undefined;
-  readonly previewPath: string | undefined;
-  readonly previewedPath: string | undefined;
+  readonly previewAddress: ProgramAddress | undefined;
+  readonly previewedAddress: ProgramAddress | undefined;
   reportsExecutedLines: boolean;
-  simulatePath: string | null | undefined;
+  simulateFlow: string | null | undefined;
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
-  markPreviewing(previewPath?: string): void;
+  markPreviewing(previewAddress?: ProgramAddress): void;
+  routeStartOf(address: ProgramAddress): string;
   endSimulation(): void;
   load(checkpoint: string): unknown;
   connect(
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
   ): Promise<void>;
-  preview(file: string, line: number): Promise<string | null>;
+  preview(file: string, line: number): Promise<ProgramAddress | null>;
   module: { ui: { forgetDisplayedImages(): void; sweepReconcile(): void } };
 }
 
@@ -60,8 +61,8 @@ export async function displayPreviewFrom(
     game,
   );
   const validPreviewFrom = point.from;
-  const resolvedPreviewPath = point.path;
-  const validPreviewPath = point.validPath;
+  const resolvedPreviewAddress = point.address;
+  const validPreviewAddress = point.validAddress;
 
   if (point.repeat) {
     // A repeat of the preview that ran, whose image gate may still be
@@ -76,7 +77,7 @@ export async function displayPreviewFrom(
   // Before the load and the connect: the connect restores every module, and
   // the audio module reads the mode there to decide whether to resume the
   // route's music.
-  game.markPreviewing(resolvedPreviewPath ?? undefined);
+  game.markPreviewing(resolvedPreviewAddress ?? undefined);
   // What the last preview displayed goes; the restore re-applies what this
   // point has.
   game.module.ui.forgetDisplayedImages();
@@ -86,8 +87,8 @@ export async function displayPreviewFrom(
   if (request.checkpoint) {
     game.load(request.checkpoint);
   } else {
-    if (validPreviewPath) {
-      game.simulatePath = Game.getSimulateFromPath(validPreviewPath);
+    if (validPreviewAddress != null) {
+      game.simulateFlow = game.routeStartOf(validPreviewAddress);
     }
     game.simulation = "fail";
     game.simulationFailure = request.simulationFailure;

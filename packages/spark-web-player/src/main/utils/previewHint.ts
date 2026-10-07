@@ -1,5 +1,3 @@
-import { SceneTracker } from "@impower/spark-engine/src/game/core/classes/SceneTracker";
-import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { assetsBuiltinDefinitions } from "@impower/spark-engine/src/game/modules/assets/assetsBuiltinDefinitions";
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
 import {
@@ -8,7 +6,7 @@ import {
 } from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
 import { type SceneBeat } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { hasPathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { resolveImageSrcs } from "./resolveImageSrcs";
 
 /**
@@ -97,19 +95,14 @@ export function planPreviewHint(
   if (sameProgram && last!.line === line) {
     return null;
   }
-  const path = findClosestPath(
-    { file: uri, line },
-    program.pathLocations,
-    Object.keys(program.scripts ?? {}),
-    "last",
-  );
-  const scene = SceneTracker.sceneOf(path) ?? "0";
+  const locator = programLocator(program);
+  const address = locator.addressAt(uri, line, { beat: "last" });
+  const scene = locator.sceneAt(address) ?? "0";
   const entry = sceneAssets[scene];
-  const locations = program.pathLocations;
-  const known = hasPathLocation(locations, path);
+  const known = locator.locationOf(address) !== undefined;
   const beat =
     entry && known
-      ? Math.max(0, beatIndexIn(entry.beats, locations, path))
+      ? Math.max(0, beatIndexIn(entry.beats, locator, address))
       : 0;
   const sameScene = last != null && last.uri === uri && last.scene === scene;
   const sameBeat = sameScene && last!.beat === beat;

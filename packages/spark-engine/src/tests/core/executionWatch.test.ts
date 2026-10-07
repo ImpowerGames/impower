@@ -77,10 +77,7 @@ const playWatched = async (
   const game = h.game as any;
   game._executionStepLimit = STEP_LIMIT;
   executionWatch.listener = (story) => {
-    const path = story.state.previousPointer.path?.toString();
-    const location = path
-      ? Game.pathToDocumentLocation(game.program, path)
-      : null;
+    const location = Game.storyLocation(story as any, game.program);
     heard.push({ story, line: location?.range.start.line ?? null });
   };
   game.setStartFrom({ file: MAIN_URI, line }, "first");

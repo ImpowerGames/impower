@@ -6,11 +6,11 @@
 // so a test can derive from them what a host drew from a report that listed
 // every location.
 import type { File } from "@impower/sparkdown/src/compiler/types/File";
+import { documentRangeOf } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import { Game } from "../../game/core/classes/Game";
 import type { GameExecutedParams } from "../../game/core/classes/messages/GameExecutedMessage";
 import type { DocumentLocation } from "../../game/core/types/DocumentLocation";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import {
   compileUI,
   createHarness,
@@ -91,12 +91,12 @@ const routeCheckpoint = (s: Story, line: number): string => {
     setTimeout: syncTimeout,
   } as any);
   sim.setStartFrom({ file: MAIN_URI, line });
-  const toPath = sim.startPath as string;
+  const to = sim.startAddress as string;
   const route = Game.planRoute(
     sim.story,
     program as any,
-    Game.getSimulateFromPath(toPath),
-    toPath,
+    sim.routeStartOf(to),
+    to,
   );
   const checkpoint = route ? sim.patchAndSimulateRoute(route) : null;
   if (!checkpoint) {
@@ -114,7 +114,10 @@ const recordReports = (game: Game) => {
     const paths: string[] = g._runtimeState.pathsExecutedThisFrame.toArray();
     const params = take();
     const locations = paths
-      .map((p) => game.getPathDocumentLocation(p))
+      .map((p) => {
+        const location = game.locator.locationOf(p);
+        return location ? documentRangeOf(location) : null;
+      })
       .filter((l): l is DocumentLocation => l != null);
     reports.push({ params, paths, locations });
     return params;
@@ -135,13 +138,9 @@ export const previewReports = async (
     assets: s.assets,
     loadCheckpoint: routeCheckpoint(s, line),
     beforeConnect: (game) => {
-      const path = findClosestPath(
-        { file: MAIN_URI, line },
-        game.program.pathLocations,
-        Object.keys(game.program.scripts ?? {}),
-      );
-      if (path) {
-        game.markPreviewing(path);
+      const address = game.locator.addressAt(MAIN_URI, line);
+      if (address != null) {
+        game.markPreviewing(address);
       }
       if (options.suggestion) {
         game.reportsExecutedLines = false;
@@ -180,7 +179,7 @@ export const reportSizes = (report: ExecutedReport) => {
     executedLines: _lines,
     firstLocation: _first,
     lastLocation: _last,
-    lastExecutedPath: _path,
+    lastExecutedAddress: _address,
     ...rest
   } = report.params;
   return {

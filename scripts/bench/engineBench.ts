@@ -69,10 +69,10 @@ function nextContent(story: Story): any {
 // single ContinueSingleStep, which is how the route planner drives it.
 function countSteps(walk: Walk): number {
   rewindWalk(walk);
-  const { story, toPath } = walk;
+  const { story, to } = walk;
   let steps = 0;
-  while (story.state.previousPointer.path?.toString() !== toPath) {
-    if (!story.canContinue) throw new Error(`the replay stopped after ${steps} steps without reaching ${toPath}`);
+  while (story.state.previousPointer.path?.toString() !== to) {
+    if (!story.canContinue) throw new Error(`the replay stopped after ${steps} steps without reaching ${to}`);
     story.ContinueAsync();
     steps++;
   }
@@ -84,7 +84,7 @@ function main() {
   const walk = prepareWalk(config.project, config.line, config.candidate === "hooked");
   const steps = countSteps(walk);
   const { story } = walk;
-  const report: any = { mode: config.mode, candidate: config.candidate, project: config.project, line: config.line, toPath: walk.toPath, routeSteps: walk.route.steps.length, engineSteps: steps, warmup: config.warmup, samples: config.samples };
+  const report: any = { mode: config.mode, candidate: config.candidate, project: config.project, line: config.line, to: walk.to, routeSteps: walk.route.steps.length, engineSteps: steps, warmup: config.warmup, samples: config.samples };
 
   if (config.mode === "step") {
     // Stepping only: no path is read, nothing is recorded per step.
@@ -131,7 +131,7 @@ function main() {
 }
 
 function print(report: any, log: (text: string) => void) {
-  const out = [`mode ${report.mode}${report.candidate ? " " + report.candidate : ""}: ${report.project} line ${report.line}, target ${report.toPath}`, `${report.engineSteps} engine steps (${report.routeSteps} route steps); ${report.samples} samples after ${report.warmup} warm-up`, ""];
+  const out = [`mode ${report.mode}${report.candidate ? " " + report.candidate : ""}: ${report.project} line ${report.line}, target ${report.to}`, `${report.engineSteps} engine steps (${report.routeSteps} route steps); ${report.samples} samples after ${report.warmup} warm-up`, ""];
   const f = (n: number, d = 1) => n.toFixed(d).padStart(9);
   if (report.mode === "step") {
     out.push(`  ${"".padEnd(28)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`);

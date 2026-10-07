@@ -14,7 +14,6 @@ import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { storyBeats } from "@impower/sparkdown/src/tests/program/programHarness";
 import { Game } from "../../game/core/classes/Game";
 import { GameEncounteredRuntimeErrorMessage } from "../../game/core/classes/messages/GameEncounteredRuntimeError";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
 
 const MAIN = "file:///local/main.sd";
 
@@ -343,17 +342,22 @@ describe("a game started at a line", () => {
       it(`starts at the ${beat} beat of ${name} as the current engine does`, () => {
         const shown = (programChunks: boolean) => {
           const { program, story } = compile({ [MAIN]: text }, programChunks);
-          const path = findClosestPath(
-            { file: MAIN, line },
-            program.pathLocations,
-            Object.keys(program.scripts),
-            beat,
-          )!;
           const game = createGame(program, story, programChunks, {
             file: MAIN,
             line,
           });
-          return storyBeats(game.story, path);
+          // The beat's address on the engine the game runs: a number on the
+          // program engine, a runtime path on the current one.
+          const address = game.locator.addressAt(MAIN, line, { beat });
+          expect(address).toBeDefined();
+          const engine = game.story as unknown;
+          if (engine instanceof ProgramStory) {
+            expect(typeof address).toBe("number");
+            engine.ChooseAddress(address as number);
+          } else {
+            game.story.ChoosePathString(String(address));
+          }
+          return storyBeats(game.story);
         };
         const chunks = shown(true);
         expect(chunks).toEqual(shown(false));
@@ -385,5 +389,47 @@ describe("a game's save", () => {
     const current = saveAndLoad(false);
     expect(chunks.run.flushed).toEqual(current.run.flushed);
     expect(chunks.loads).toEqual(current.loads);
+  });
+});
+
+// Round 3 of the review of #1618 (report 6028696744): an error ends the
+// story, which forgets where it stood before the error is reported, so a
+// search stopped by an error on the program engine placed it at the top of
+// the main script.
+describe("an error that stops a route search on the program engine", () => {
+  it("is placed at the statement that raised it, in the script that holds it", () => {
+    const CHAPTER = "file:///local/chapter.sd";
+    const chapter = [
+      "scene C",
+      "  Before.",
+      "  & error(\"boom\", 0)",
+      "  Target.",
+      "end",
+      "",
+    ].join("\n");
+    const texts = {
+      [MAIN]: ["include chapter.sd", "", "-> C", ""].join("\n"),
+      [CHAPTER]: chapter,
+    };
+    const lines = chapter.split("\n");
+    for (const programChunks of [true, false]) {
+      const { program, story } = compile(texts, programChunks);
+      expect(!!program.chunks).toBe(programChunks);
+      const game = createGame(program, story, programChunks, {
+        file: CHAPTER,
+        line: lines.indexOf("  Target."),
+      });
+      game.setStartFrom({ file: CHAPTER, line: lines.indexOf("  Target.") });
+      game.simulate();
+      // No route: the error ends the story before the target.
+      expect(game.simulationFailure).toBeDefined();
+      const errors = game.routeErrors;
+      expect(errors.map((e) => e.message.includes("boom"))).toContain(true);
+      const location = errors.find((e) => e.message.includes("boom"))!.location;
+      expect({ uri: location?.uri, line: location?.range.start.line }).toEqual({
+        uri: CHAPTER,
+        line: lines.indexOf("  & error(\"boom\", 0)"),
+      });
+    }
   });
 });

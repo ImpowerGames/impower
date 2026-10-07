@@ -2,8 +2,12 @@ import {
   CompileProgramMessage,
   CompileProgramParams,
 } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
+import type {
+  AddressQuery,
+  ProgramAddress,
+  SourceLocation,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { asPathLocationTable } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import * as vscode from "vscode";
 import {
   CancellationToken,
@@ -146,6 +150,38 @@ export class SparkProgramManager {
     this._resolveLanguageClientReady(languageClient);
   }
 
+  /** The address of the beat or statement on a line of a script
+   *  (`ProgramLocator.addressAt`), which the language server answers from the
+   *  program it compiled: the extension holds no program's locations. */
+  async addressAt(
+    uri: vscode.Uri,
+    line: number,
+    query?: AddressQuery,
+  ): Promise<ProgramAddress | undefined> {
+    const client = await this.languageClientReady;
+    const address = await client.sendRequest<ProgramAddress | null>(
+      "sparkdown/addressAt",
+      { uri: uri.toString(), line, query },
+      CancellationToken.None,
+    );
+    return address ?? undefined;
+  }
+
+  /** Where an address stands (`ProgramLocator.locationOf`) in the program
+   *  the language server compiled for the script `uri`. */
+  async locationOf(
+    uri: vscode.Uri,
+    address: ProgramAddress,
+  ): Promise<SourceLocation | undefined> {
+    const client = await this.languageClientReady;
+    const location = await client.sendRequest<SourceLocation | null>(
+      "sparkdown/locationOf",
+      { uri: uri.toString(), address },
+      CancellationToken.None,
+    );
+    return location ?? undefined;
+  }
+
   async compile(uri: vscode.Uri) {
     const client = await this.languageClientReady;
     const params: CompileProgramParams = {
@@ -161,11 +197,6 @@ export class SparkProgramManager {
       params,
       CancellationToken.None,
     );
-    if (program?.pathLocations) {
-      // The language client answers over JSON, which has no typed arrays: the
-      // table's numbers arrive as an object keyed by position.
-      program.pathLocations = asPathLocationTable(program.pathLocations);
-    }
     if (program?.scripts) {
       // Cache the pulled program so bursts of readers don't re-request it;
       // the next slim didCompile invalidates these entries.

@@ -2,41 +2,42 @@ import {
   type SceneAssets,
   type SceneBeat,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
-import type { PathLocationTable } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { pathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import type {
+  ProgramAddress,
+  ProgramLocator,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 /**
- * The index of the beat at `path` in `beats`, or of the last beat before it
- * in the source when `path` is not itself a beat (a cursor inside a line, a
- * heading between two lines). -1 when nothing precedes it.
+ * The index of the beat at `address` in `beats`, or of the last beat before
+ * it in its script when `address` is not itself a beat's (a position inside a
+ * line, a heading between two lines). -1 when nothing precedes it.
  */
 export function beatIndexIn(
   beats: readonly SceneBeat[],
-  locations: PathLocationTable | undefined,
-  path: string | null | undefined,
+  locator: ProgramLocator,
+  address: ProgramAddress | null | undefined,
 ): number {
-  if (!path) {
+  if (address == null || address === "") {
     return -1;
   }
   for (let i = 0; i < beats.length; i++) {
-    if (beats[i]!.path === path) {
+    if (beats[i]!.address === address) {
       return i;
     }
   }
-  const here = pathLocation(locations, path);
+  const here = locator.locationOf(address);
   if (!here) {
     return -1;
   }
   let index = -1;
   for (let i = 0; i < beats.length; i++) {
-    const at = pathLocation(locations, beats[i]!.path);
-    if (!at) {
+    const at = locator.locationOf(beats[i]!.address);
+    if (!at || at.uri !== here.uri) {
       continue;
     }
     const before =
-      at[0]! < here[0]! ||
-      (at[0] === here[0] &&
-        (at[1]! < here[1]! || (at[1] === here[1] && at[2]! <= here[2]!)));
+      at.startLine < here.startLine ||
+      (at.startLine === here.startLine && at.startColumn <= here.startColumn);
     if (before) {
       index = i;
     }

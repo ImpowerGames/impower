@@ -151,6 +151,10 @@ export interface SparkProgram {
   colorAnnotations?: {
     [uri: string]: Range[];
   };
+  /** The current engine's runtime paths and their source ranges. Absent from
+   *  a program of statement chunks (`chunks`), whose root locates its
+   *  addresses. Nothing outside the engine and the compiler reads it: they go
+   *  through the program's accessor (`programLocator`). */
   pathLocations?: PathLocationTable;
   functionLocations?: {
     [name: string]: ScriptLocation;

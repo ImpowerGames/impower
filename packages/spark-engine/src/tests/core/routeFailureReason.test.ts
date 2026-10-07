@@ -116,16 +116,16 @@ function plainScene(beats: number): string {
 }
 
 /** Resolve a source line the way a click in the editor would. */
-function startPathForLine(program: unknown, line: number): string {
+function startAddressForLine(program: unknown, line: number): string {
   const game: any = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return game.startPath as string;
+  return game.startAddress as string;
 }
 
 describe("the planner says how its search ended", () => {
   test("a search that reaches the target reports that it found it", () => {
     const program = compileSrc(plainScene(40));
-    const toPath = startPathForLine(program, 40);
+    const toPath = startAddressForLine(program, 40);
     const route = Game.planRoute(newGame(program).story, program, "start", toPath);
     expect(route).not.toBeNull();
     expect(lastSearchStats.endReason).toBe("found");
@@ -134,7 +134,7 @@ describe("the planner says how its search ended", () => {
 
   test("a search that runs the story out reports that it was exhausted", () => {
     const program = compileSrc(UNREACHABLE_TAIL);
-    const toPath = startPathForLine(program, 5);
+    const toPath = startAddressForLine(program, 5);
     // The line really is in the script — this is not a missing-target search.
     expect(hasPathLocation(program.pathLocations, toPath)).toBe(true);
     const route = Game.planRoute(newGame(program).story, program, "start", toPath);
@@ -192,7 +192,7 @@ describe("a search that broke does not claim to have looked everywhere", () => {
   // a confident, specific accusation about a script that is fine.
   const makeThrowingSearch = () => {
     const program = compileSrc(plainScene(10));
-    const toPath = startPathForLine(program, 10);
+    const toPath = startAddressForLine(program, 10);
     const game: any = newGame(program);
     const story = game.story;
     // Break the story the way a real internal fault would: every attempt to
@@ -221,8 +221,8 @@ describe("a search that broke does not claim to have looked everywhere", () => {
       stayWithinKnot: true,
       searchTimeout: Number.MAX_SAFE_INTEGER,
     });
-    expect(Game.describeFailedRouteSearch(program, toPath)).toBe("errored");
-    expect(Game.describeFailedRouteSearch(program, toPath)).not.toBe(
+    expect(newGame(program).describeFailedRouteSearch(toPath)).toBe("errored");
+    expect(newGame(program).describeFailedRouteSearch(toPath)).not.toBe(
       "exhausted",
     );
   }, 120_000);
@@ -231,7 +231,7 @@ describe("a search that broke does not claim to have looked everywhere", () => {
     // The control. Without it, the two tests above would pass just as happily
     // if `endReason` had simply been hard-wired to "errored".
     const program = compileSrc(UNREACHABLE_TAIL);
-    const toPath = startPathForLine(program, 5);
+    const toPath = startAddressForLine(program, 5);
     planRoute(newGame(program).story, "start", toPath, {
       stayWithinKnot: true,
       searchTimeout: Number.MAX_SAFE_INTEGER,
@@ -252,8 +252,8 @@ describe("the planner's verdict becomes the reason shown to the author", () => {
       searchTimeout: Number.MAX_SAFE_INTEGER,
     });
     expect(lastSearchStats.endReason).toBe("max-steps");
-    const realTarget = startPathForLine(program, 3);
-    expect(Game.describeFailedRouteSearch(program, realTarget)).toBe("timeout");
+    const realTarget = startAddressForLine(program, 3);
+    expect(newGame(program).describeFailedRouteSearch(realTarget)).toBe("timeout");
   }, 120_000);
 
   test("a target that is not in the story is unroutable, whatever ended the search", () => {
@@ -270,17 +270,17 @@ describe("the planner's verdict becomes the reason shown to the author", () => {
       searchTimeout: Number.MAX_SAFE_INTEGER,
     });
     expect(lastSearchStats.endReason).toBe("max-steps");
-    expect(Game.describeFailedRouteSearch(program, "start.NO_SUCH_PATH")).toBe(
+    expect(newGame(program).describeFailedRouteSearch("start.NO_SUCH_PATH")).toBe(
       "unroutable",
     );
-    expect(Game.describeFailedRouteSearch(program, null)).toBe("unroutable");
+    expect(newGame(program).describeFailedRouteSearch(null)).toBe("unroutable");
   }, 120_000);
 
   test("an exhausted search is reported as exhausted", () => {
     const program = compileSrc(UNREACHABLE_TAIL);
-    const toPath = startPathForLine(program, 5);
+    const toPath = startAddressForLine(program, 5);
     Game.planRoute(newGame(program).story, program, "start", toPath);
-    expect(Game.describeFailedRouteSearch(program, toPath)).toBe("exhausted");
+    expect(newGame(program).describeFailedRouteSearch(toPath)).toBe("exhausted");
   }, 120_000);
 });
 
@@ -312,11 +312,11 @@ describe("a game that simulates for itself records the same reason", () => {
     // exactly the disagreement the branch exists to catch.
     const program = compileSrc(plainScene(10));
     const game: any = newGame(program);
-    const toPath = startPathForLine(program, 6);
+    const toPath = startAddressForLine(program, 6);
     const route = Game.planRoute(game.story, program, "start", toPath);
     expect(route).not.toBeNull();
 
-    game.simulateRoute({ ...route, toPath: "start.NO_SUCH_PATH" }, 0);
+    game.simulateRoute({ ...route, to: "start.NO_SUCH_PATH" }, 0);
 
     expect(game.simulation).toBe("fail");
     expect(game.simulationFailure).toBe("diverged");
@@ -327,7 +327,7 @@ describe("a game that simulates for itself records the same reason", () => {
     // destination.
     const program = compileSrc(plainScene(10));
     const game: any = newGame(program);
-    const toPath = startPathForLine(program, 6);
+    const toPath = startAddressForLine(program, 6);
     const route = Game.planRoute(game.story, program, "start", toPath);
 
     game.simulateRoute(route, 0);

@@ -29,12 +29,15 @@ function recordingGame(calls: string[], state = "previewing") {
   return {
     state,
     program: { uri: PROGRAM.uri, version: 1 },
-    // No path resolves from the empty `pathLocations`, so the controller falls
-    // back to the game's remembered preview point — which is what a real one
-    // does between edits.
-    previewPath: "0.0",
+    // No address resolves from the empty `pathLocations`, so the controller
+    // falls back to the game's remembered preview point — which is what a
+    // real one does between edits.
+    previewAddress: "0.0",
     previewFrom: { file: PROGRAM.uri, line: 4 },
-    previewedPath: undefined as string | undefined,
+    previewedAddress: undefined as string | undefined,
+    // The flow a route to an address starts from: on the current engine, the
+    // address's top-level flow.
+    routeStartOf: (address: string) => address.split(".")[0] || "0",
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
     endSimulation: () => {},
@@ -136,7 +139,7 @@ describe("preview session ordering", () => {
   test("a repeated path still waits for the engine's pending image gate", async () => {
     const game = recordingGame([]);
     game.program = PROGRAM;
-    game.previewedPath = "0.0";
+    game.previewedAddress = "0.0";
     let finish!: () => void;
     game.preview = () => new Promise<void>((resolve) => { finish = resolve; });
     let settled = false;
@@ -159,7 +162,7 @@ describe("preview session ordering", () => {
     // program, the one `preview()` will resolve, not the path it had before.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    game.markPreviewing = (address: string) => calls.push(`markPreviewing:${address}`);
     const program = {
       ...PROGRAM,
       pathLocations: pathLocationTableOf({ "1.0": [0, 4, 0, 4, 5] }),
@@ -177,7 +180,7 @@ describe("preview session ordering", () => {
     // The preview still happens, so the game can reveal what it has.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    game.markPreviewing = (address: string) => calls.push(`markPreviewing:${address}`);
     const program = {
       ...PROGRAM,
       pathLocations: pathLocationTableOf({ "0.0": [0, 4, 0, 4, 5] }),
@@ -195,7 +198,7 @@ describe("preview session ordering", () => {
     // for it, and it is marked without resolving the point again.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    game.markPreviewing = (address: string) => calls.push(`markPreviewing:${address}`);
     game.program = { uri: PROGRAM.uri, version: PROGRAM.version };
     await displayIn(game, stubApp(calls)).display(PROGRAM, PROGRAM.uri, 9);
     expect(calls).toContain("markPreviewing:0.0");
@@ -229,8 +232,8 @@ describe("preview session ordering", () => {
     // would skip the reconnect and freeze its bindings.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.previewPath = undefined;
-    game.previewedPath = undefined;
+    game.previewAddress = undefined;
+    game.previewedAddress = undefined;
     game.program = { uri: PROGRAM.uri, version: PROGRAM.version };
     await displayIn(game, stubApp(calls)).display(PROGRAM, PROGRAM.uri, 4);
     expect(calls).toContain("connectGame");

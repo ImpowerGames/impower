@@ -1,16 +1,33 @@
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
+import type {
+  AddressQuery,
+  SourceLocation,
+} from "../compiler/types/ProgramAddress";
 import type { Story } from "../inkjs/engine/Story";
 import {
   SymbolKind,
   UNDEFINED_KIND,
   type SymbolKindValue,
 } from "./ProgramSymbols";
+import { Op, opOf } from "./ProgramInstructions";
 import {
+  ANCHOR_STATEMENT,
+  BLOCK_FUNCTION,
   B_HEAD_LINES,
   B_SEQUENCE,
+  HEADER_WORDS,
+  H_LINE_ROWS,
+  LINE_ROW_WORDS,
+  addressOf,
   blockCount,
   blockField,
+  blockFlags,
   chunkId,
+  chunkOfAddress,
+  codeWords,
+  lineRowAt,
+  lineTableStart,
+  offsetOfAddress,
   type StatementChunk,
 } from "./StatementChunk";
 
@@ -55,6 +72,15 @@ export interface SequenceRow {
   readonly firstLine: number;
   /** The lines the body spans. */
   readonly span: number;
+}
+
+/** A source range as a line table row gives it, with lines and columns
+ *  counting from 0 in the statement's script. */
+export interface SourceRange {
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
 }
 
 const PAGE_BITS = 10;
@@ -574,6 +600,12 @@ export class ProgramRoot {
     return line;
   }
 
+  /** Whether `line` falls in the lines `sequence` spans. */
+  protected spans(sequence: SequenceRow, line: number): boolean {
+    const first = this.firstLineOf(sequence);
+    return first <= line && line < first + sequence.span;
+  }
+
   /** The statement a line of a script falls in: the last statement of the
    *  flow holding the line that starts at or above it, and when the line
    *  falls inside one of that statement's bodies, the statement of the body
@@ -581,7 +613,7 @@ export class ProgramRoot {
   statementAt(uri: string, line: number): ChunkPosition | undefined {
     let holder: SequenceRow | undefined;
     for (const flow of this.flows(uri)) {
-      if (flow.firstLine <= line && line < flow.firstLine + flow.span) {
+      if (this.spans(flow, line)) {
         holder = flow;
       }
     }
@@ -591,8 +623,7 @@ export class ProgramRoot {
       let inner: ChunkPosition | undefined;
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = this.body(chunk, k);
-        const first = body ? this.firstLineOf(body) : -1;
-        if (body && first <= line && line < first + body.span) {
+        if (body && this.spans(body, line)) {
           inner = this.entryAt(body, line);
           break;
         }
@@ -650,4 +681,333 @@ export class ProgramRoot {
     }
     return line;
   }
+
+  /** The source range of line table row `row` of the statement at `entry`
+   *  of `sequence`: the row's anchor resolved, which is the statement's
+   *  first line or the end of the body the row stands below, and its lines
+   *  counted from there. */
+  rowRange(sequence: SequenceRow, entry: number, row: number): SourceRange {
+    const chunk = sequence.arrays.chunks[entry]!;
+    const at = lineTableStart(chunk) + row * LINE_ROW_WORDS;
+    const anchor = chunk[at + 1]!;
+    const first =
+      anchor === ANCHOR_STATEMENT
+        ? this.lineOf(sequence, entry)
+        : this.blockEndLine(sequence, entry, anchor);
+    return {
+      startLine: first + chunk[at + 2]!,
+      startColumn: chunk[at + 3]!,
+      endLine: first + chunk[at + 4]!,
+      endColumn: chunk[at + 5]!,
+    };
+  }
+
+  /** The source range of the instruction at `offset` of the statement at
+   *  `entry` of `sequence`: the line table row that covers it, or nothing
+   *  when no row does. */
+  rangeAt(
+    sequence: SequenceRow,
+    entry: number,
+    offset: number,
+  ): SourceRange | null {
+    const chunk = sequence.arrays.chunks[entry];
+    if (!chunk) {
+      return null;
+    }
+    const row = lineRowAt(chunk, offset);
+    return row < 0 ? null : this.rowRange(sequence, entry, row);
+  }
+
+  // --------------------------------------------------------------- addresses
+
+  /** Where an address stands: the script and range of the line table row
+   *  that covers its offset, the row's anchor resolved, the statement's line
+   *  start in its sequence added and, for each owner up to the flow, where
+   *  that body starts in its owner and the owner's own line start
+   *  (docs/engine/binary-program.md, section 8). An offset no row covers
+   *  stands on the statement's first line. Nothing for an address of a chunk
+   *  this root does not hold. */
+  locationOf(address: number): SourceLocation | undefined {
+    if (!Number.isInteger(address) || address < 0) {
+      return undefined;
+    }
+    const at = this.position(chunkOfAddress(address));
+    if (!at) {
+      return undefined;
+    }
+    const chunk = at.sequence.arrays.chunks[at.entry]!;
+    const offset = offsetOfAddress(address);
+    if (offset > codeWords(chunk)) {
+      return undefined;
+    }
+    const range = this.rangeAt(at.sequence, at.entry, offset);
+    if (range) {
+      return { uri: at.sequence.uri, ...range };
+    }
+    const line = this.lineOf(at.sequence, at.entry);
+    return {
+      uri: at.sequence.uri,
+      startLine: line,
+      startColumn: 0,
+      endLine: line,
+      endColumn: 0,
+    };
+  }
+
+  /**
+   * The address of the beat or statement on a line of a script, or nothing
+   * (docs/engine/binary-program.md, section 8). The flow whose lines hold the
+   * line is found among the script's flows, the statement by a binary search
+   * of its sequence's line starts, and, when the line falls inside one of
+   * that statement's bodies, the statement of that body, and so on inward;
+   * then the statement's line table says which of its rows the line is on. A
+   * row that holds a `LineStart` names a beat, whose address is the
+   * `LineStart`'s offset, so the lines of one beat (a cue line, a directive,
+   * the dialogue text) give one address and the lines of two beats give two.
+   * Of the rows on the line, the first beat is taken, or with `beat: "last"`
+   * the last beat that starts on the line. A line on no beat's row takes the
+   * statement's start when it is the statement's first line (a `choose`, an
+   * `if`), and otherwise the row that covers the fewest lines, which is the
+   * part of the statement it is (an `elseif` condition, a loop's `until`).
+   *
+   * A line that no row of a statement covers (a blank line, a comment, a
+   * line of a block statement's that heads no code of its own, a scene's
+   * header) has the address of the first line below it that has one, which
+   * is where a story started there runs from. So, unless `functions` is
+   * set, does a line of a function's body or of a declaration.
+   */
+  addressAt(uri: string, line: number, query: AddressQuery = {}): number | undefined {
+    const functions = query.functions ?? false;
+    const end = this.scriptEnd(uri);
+    for (let l = Math.max(0, line); l < end; l += 1) {
+      const address = this.addressOn(
+        uri,
+        l,
+        l === line ? (query.beat ?? "first") : "first",
+        functions,
+      );
+      if (address !== undefined) {
+        return address;
+      }
+    }
+    return undefined;
+  }
+
+  /** The line after the last line a sequence of the script spans. */
+  protected scriptEnd(uri: string): number {
+    let end = 0;
+    for (const flow of this.flows(uri)) {
+      end = Math.max(end, flow.firstLine + flow.span);
+    }
+    const declarations = this.declarations(uri);
+    if (declarations) {
+      end = Math.max(end, declarations.firstLine + declarations.span);
+    }
+    return end;
+  }
+
+  /** The address of the beat or part a row of the statement holding `line`
+   *  puts on that line, or nothing when no row does. */
+  protected addressOn(
+    uri: string,
+    line: number,
+    beat: "first" | "last",
+    functions: boolean,
+  ): number | undefined {
+    let holder: SequenceRow | undefined;
+    for (const flow of this.flows(uri)) {
+      if (this.spans(flow, line)) {
+        holder = flow;
+      }
+    }
+    if (holder && !functions && holder.kind === SymbolKind.Function) {
+      return undefined;
+    }
+    const inFlow = holder ? this.addressUnder(holder, line, beat, functions) : undefined;
+    if (inFlow !== undefined || !functions) {
+      return inFlow;
+    }
+    const declarations = this.declarations(uri);
+    return declarations && this.spans(declarations, line)
+      ? this.addressUnder(declarations, line, beat, functions)
+      : undefined;
+  }
+
+  /** The address a row of the statement of `sequence`, or of one of its
+   *  bodies, that holds `line` puts on that line. */
+  protected addressUnder(
+    sequence: SequenceRow,
+    line: number,
+    beat: "first" | "last",
+    functions: boolean,
+  ): number | undefined {
+    let at = this.entryOn(sequence, line);
+    while (at) {
+      const chunk = at.sequence.arrays.chunks[at.entry]!;
+      let body: SequenceRow | undefined;
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        const candidate = this.body(chunk, k);
+        if (candidate && this.spans(candidate, line)) {
+          if (!functions && blockFlags(chunk, k) & BLOCK_FUNCTION) {
+            return undefined;
+          }
+          body = candidate;
+          break;
+        }
+      }
+      if (!body) {
+        return this.addressOnLine(at.sequence, at.entry, line, beat);
+      }
+      at = this.entryOn(body, line);
+    }
+    return undefined;
+  }
+
+  /** The address of `line` among the statements of `sequence` that start on
+   *  it, of which `last` is the last, or of the statement at `last` when it
+   *  starts above the line. A line can hold several statements (a `..`
+   *  continuation and the tags written after it): the first beat is the
+   *  first statement's that puts an address on the line, and the last beat
+   *  the last one's, at its last beat on the line or at its start, as a
+   *  line's beats and statements run in the order they are written. */
+  protected addressOnLine(
+    sequence: SequenceRow,
+    last: number,
+    line: number,
+    beat: "first" | "last",
+  ): number | undefined {
+    let first = last;
+    if (this.lineOf(sequence, last) === line) {
+      while (first > 0 && this.lineOf(sequence, first - 1) === line) {
+        first -= 1;
+      }
+    }
+    const step = beat === "first" ? 1 : -1;
+    for (
+      let entry = beat === "first" ? first : last;
+      entry >= first && entry <= last;
+      entry += step
+    ) {
+      const address = this.addressIn(sequence, entry, line, beat);
+      if (address !== undefined) {
+        return address;
+      }
+    }
+    return undefined;
+  }
+
+  /** The last entry of `sequence` that starts at or above `line`, or nothing
+   *  when every entry starts below it. */
+  protected entryOn(sequence: SequenceRow, line: number): ChunkPosition | undefined {
+    const at = this.entryAt(sequence, line);
+    return at && this.lineOf(sequence, at.entry) <= line ? at : undefined;
+  }
+
+  /** The address the rows of the statement at `entry` of `sequence` put on
+   *  `line`, as `addressAt` chooses it. */
+  protected addressIn(
+    sequence: SequenceRow,
+    entry: number,
+    line: number,
+    beat: "first" | "last",
+  ): number | undefined {
+    const chunk = sequence.arrays.chunks[entry]!;
+    const rows = chunk[H_LINE_ROWS]!;
+    const words = codeWords(chunk);
+    let firstBeat = -1;
+    let lastBeatOnLine = -1;
+    let part = -1;
+    let partLines = Infinity;
+    for (let r = 0; r < rows; r += 1) {
+      const range = this.rowRange(sequence, entry, r);
+      if (range.startLine > line || range.endLine < line) {
+        continue;
+      }
+      const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
+      const to =
+        r + 1 < rows
+          ? chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!
+          : words;
+      const beatAt = lineStartIn(chunk, from, to);
+      if (beatAt >= 0) {
+        if (firstBeat < 0 || beatAt < firstBeat) {
+          firstBeat = beatAt;
+        }
+        if (range.startLine === line && beatAt > lastBeatOnLine) {
+          lastBeatOnLine = beatAt;
+        }
+      }
+      const lines = range.endLine - range.startLine;
+      if (lines < partLines || (lines === partLines && from < part)) {
+        part = from;
+        partLines = lines;
+      }
+    }
+    const offset =
+      beat === "last" && lastBeatOnLine >= 0
+        ? lastBeatOnLine
+        : firstBeat >= 0
+          ? firstBeat
+          : part < 0
+            ? -1
+            : line === this.lineOf(sequence, entry)
+              ? // The statement's own first line (a `choose`, an `if`'s
+                // condition): where the statement starts.
+                0
+              : part;
+    return offset < 0 ? undefined : addressOf(chunkId(chunk), offset);
+  }
+
+  /** The flow the chunk of an address stands in: its own sequence, or the
+   *  sequence of the flow whose bodies hold it, or a script's declaration
+   *  sequence. Nothing for a chunk this root does not hold. */
+  flowAt(address: number): SequenceRow | undefined {
+    const at = this.position(chunkOfAddress(address));
+    let row = at?.sequence;
+    while (row && row.owner >= 0) {
+      row = this.position(row.owner)?.sequence;
+    }
+    return row;
+  }
+
+  /** The name of the top-level flow an address stands in, as a scene is
+   *  entered and a route starts: a scene's name, a branch's scene's, a
+   *  function's, or `"0"` for the top-level content; nothing for a
+   *  declaration or a chunk this root does not hold. */
+  sceneAt(address: number): string | undefined {
+    const at = this.position(chunkOfAddress(address));
+    return at ? this.sceneOf(at.sequence) : undefined;
+  }
+
+  /** The name of the top-level flow a sequence of this root stands in, as
+   *  `sceneAt` names it. */
+  sceneOf(sequence: SequenceRow): string | undefined {
+    let row: SequenceRow | undefined = sequence;
+    while (row && row.owner >= 0) {
+      row = this.position(row.owner)?.sequence;
+    }
+    if (!row || row.flow < 0) {
+      return undefined;
+    }
+    let symbol = row.flow;
+    if (row.kind === SymbolKind.Branch) {
+      const scene = this.parentOf(symbol);
+      if (scene >= 0) {
+        symbol = scene;
+      }
+    }
+    const name = this.table.symbols[symbol] ?? "";
+    return name === "" ? "0" : name;
+  }
 }
+
+/** The offset of the first `LineStart` in the code of `chunk` from `from` up
+ *  to `to`, or -1. */
+const lineStartIn = (chunk: StatementChunk, from: number, to: number): number => {
+  for (let offset = from; offset < to; offset += 2) {
+    if (opOf(chunk[HEADER_WORDS + offset]!) === Op.LineStart) {
+      return offset;
+    }
+  }
+  return -1;
+};

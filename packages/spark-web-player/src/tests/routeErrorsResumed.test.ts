@@ -69,12 +69,12 @@ describe("route errors", () => {
         game.updateProgram(program, story as never);
       }
       game.setStartFrom({ file: URI, line: TARGET });
-      const toPath = game.startPath!;
-      const resumption = game.routeResumption(Game.getSimulateFromPath(toPath), toPath);
+      const to = game.startAddress!;
+      const resumption = game.routeResumption(game.routeStartOf(to), to);
       const log = new RouteSearchLog();
-      searchRouteTo(game, toPath, log, { config: config as never });
+      searchRouteTo(game, to, log, { config: config as never });
       const report: RouteSearchReportTarget = {};
-      log.report(report, toPath);
+      log.report(report, to);
       rounds.push({
         errors: report.simulationErrors,
         resumed: resumption.stepIndex != null,

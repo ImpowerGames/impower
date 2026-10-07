@@ -2,17 +2,20 @@ import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
-import {
-  type PathLocationTable,
-  type SparkProgram,
-} from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import {
-  hasPathLocation,
-  pathLocation,
-} from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import type {
+  ProgramAddress,
+  ProgramLocator,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
+import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
+import {
+  durableAddress,
+  placeDurableAddress,
+} from "@impower/sparkdown/src/program/ProgramSave";
+import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
 import {
   buildRouteSimulator,
   lastSearchStats,
@@ -47,10 +50,13 @@ import type { SystemConfiguration } from "../types/SystemConfiguration";
 import type { Thread } from "../types/Thread";
 import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
-import { findClosestPath } from "../utils/findClosestPath";
-import { findClosestPathLocation } from "../utils/findClosestPathLocation";
 import { lineRanges } from "../utils/executedLineRanges";
-import { validRoutePrefixLength } from "../utils/routeResume";
+import { possibleBreakpointLines } from "../utils/possibleBreakpointLines";
+import {
+  validAddressPrefixLength,
+  validRoutePrefixLength,
+} from "../utils/routeResume";
+import { storyPositions, type StoryPositions } from "../utils/storyPositions";
 import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
@@ -73,6 +79,7 @@ import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
+import { RecencySet, type RecencyEntry } from "./RecencySet";
 import { RuntimeState } from "./RuntimeState";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -81,10 +88,28 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
+/** Whether a program engine's image stands right after the statement whose
+ *  instruction ran last, at `address`: where a beat's image rests at its
+ *  newline, and where it is placed after that statement in any program that
+ *  still holds it and the statement after it (`PositionCopy.after`). */
+const restsAfter = (
+  state: unknown,
+  address: ProgramAddress | undefined,
+): boolean => {
+  const position = (state as Partial<ProgramImage> | undefined)?.positional
+    ?.position;
+  return (
+    typeof address === "number" &&
+    position != null &&
+    position.offset === 0 &&
+    position.after === chunkOfAddress(address)
+  );
+};
+
 /** A value the editor can receive and evaluate an expression against: a
  *  primitive, or plain data made of them, as a list or a divert target
  *  reads. */
-const isEvaluable = (value: unknown, depth = 0): boolean => {
+const isEvaluable =(value: unknown, depth = 0): boolean => {
   if (value === undefined || typeof value === "function") {
     return false;
   }
@@ -158,9 +183,9 @@ export class Game<T extends M = {}> {
    *  of its point settles with, the gate a take-over abandons, and the
    *  signal that ends its wait then. */
   protected _pendingPreview: {
-    path: string;
+    address: ProgramAddress;
     generation: number;
-    promise: Promise<string | null>;
+    promise: Promise<ProgramAddress | null>;
     abandon: () => void;
     cancel: () => void;
   } | null = null;
@@ -217,10 +242,17 @@ export class Game<T extends M = {}> {
 
   protected _executionBudgetExhausted = false;
 
-  protected _executingPath: string | null = null;
-  /** The runtime path of the object executed most recently. */
-  get executingPath() {
-    return this._executingPath;
+  protected _executingAddress: ProgramAddress | null = null;
+  /** The address of the position executed most recently. */
+  get executingAddress() {
+    return this._executingAddress;
+  }
+
+  /** Where the story stands, in the addresses of the engine that runs it,
+   *  and the accessor that places them in the source. */
+  protected _positions!: StoryPositions;
+  get locator(): ProgramLocator {
+    return this._positions.locator;
   }
 
   /** Which top-level flow the story is in, and when that changes
@@ -268,31 +300,35 @@ export class Game<T extends M = {}> {
     return this._previewFrom;
   }
 
-  protected _previewPath?: string;
-  get previewPath() {
-    return this._previewPath;
+  protected _previewAddress?: ProgramAddress;
+  get previewAddress() {
+    return this._previewAddress;
   }
 
-  /** The path `preview()` last ran to completion, so asking for it again is a
-   *  no-op. Kept apart from `context.system.previewing` — that one answers "is
-   *  this a preview rather than a real run", which callers must be able to
-   *  establish BEFORE a preview point has been chosen (see `markPreviewing`). */
-  protected _previewedPath?: string;
-  get previewedPath() {
-    return this._previewedPath;
+  /** The address `preview()` last ran to completion, so asking for it again
+   *  is a no-op. Kept apart from `context.system.previewing` — that one
+   *  answers "is this a preview rather than a real run", which callers must
+   *  be able to establish BEFORE a preview point has been chosen (see
+   *  `markPreviewing`). */
+  protected _previewedAddress?: ProgramAddress;
+  get previewedAddress() {
+    return this._previewedAddress;
   }
 
-  protected _simulatePath?: string | null;
-  get simulatePath() {
-    return this._simulatePath;
+  /** The flow the route to the start point starts at the top of. */
+  protected _simulateFlow?: string | null;
+  get simulateFlow() {
+    return this._simulateFlow;
   }
-  set simulatePath(value) {
-    this._simulatePath = value;
+  set simulateFlow(value) {
+    this._simulateFlow = value;
   }
 
-  protected _startPath?: string | null;
-  get startPath() {
-    return this._startPath;
+  /** The address the story starts at, and a route to it ends at: the beat a
+   *  line starts (`setStartFrom`), or a flow. */
+  protected _startAddress?: ProgramAddress | null;
+  get startAddress() {
+    return this._startAddress;
   }
 
   protected _breakpointMap: Record<number, Map<number, Breakpoint>> = {};
@@ -343,16 +379,11 @@ export class Game<T extends M = {}> {
    *  route and raised an error was stopped by it on the way, since an error
    *  ends the story; what it raised on the branches it abandoned for a route
    *  it found is not the author's to see. */
-  static searchErrors(program: SparkProgram): SimulationError[] {
-    const scripts = Object.keys(program?.scripts ?? {});
-    return lastSearchStats.errors.map(({ message, path }) => ({
+  searchErrors(): SimulationError[] {
+    return lastSearchStats.errors.map(({ message, address }) => ({
       message,
       type: ErrorType.Error,
-      location: Game.documentLocation(
-        program,
-        scripts,
-        pathLocation(program.pathLocations, path),
-      ),
+      location: this.getDocumentLocation(this.scriptLocationOf(address)),
     }));
   }
 
@@ -427,6 +458,10 @@ export class Game<T extends M = {}> {
    *  can be read against them. */
   protected _plannedRouteChangeId?: number;
 
+  /** On the program engine, the root the planned route was replayed in,
+   *  where its steps' addresses stand (`validAddressPrefixLength`). */
+  protected _plannedRouteRoot?: ProgramRoot;
+
   protected _plannedRouteStepCursor: number = 0;
 
   protected _plannedRouteStepMap: { [seq: string]: number } = {};
@@ -483,7 +518,7 @@ export class Game<T extends M = {}> {
       };
     this.setStartFrom(startFrom, previewing ? "last" : "first");
 
-    this._executingPath = null;
+    this._executingAddress = null;
     this._executingLocation = null;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
@@ -510,6 +545,7 @@ export class Game<T extends M = {}> {
         storyOfImage: (image) =>
           this.programStory?.saveOfImage(image as ProgramImage, this._version) ??
           null,
+        durableExecuted: (executed) => this.durableExecuted(executed),
         save: () => this.save(),
         saveDeltaBody: () => this.saveDeltaBody(),
         snapshotCounts: () => ({
@@ -639,19 +675,7 @@ export class Game<T extends M = {}> {
       // program kept (`restoreCheckpoint`), and it keeps the image of each
       // beat, which a checkpoint and a save at a menu hold.
       const previous = this.programStory;
-      const engine = new ProgramStory(
-        chunks,
-        {
-          locate: (path) => {
-            const location = pathLocation(this._program.pathLocations, path);
-            const uri = location ? this._scripts[location[0]] : undefined;
-            return location && uri
-              ? { uri, line: location[1], column: location[2] }
-              : undefined;
-          },
-        },
-        { images: previous?.images },
-      );
+      const engine = new ProgramStory(chunks, { images: previous?.images });
       engine.keepBeatImages = true;
       this._story = engine as unknown as Story;
     } else if (story) {
@@ -659,6 +683,7 @@ export class Game<T extends M = {}> {
     } else if (compiled) {
       this._story = new Story(compiled);
     }
+    this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
     this.restoreReactiveTracking();
     // Live edit → recompile reuses this Game: refresh the context channels from
@@ -678,7 +703,7 @@ export class Game<T extends M = {}> {
       // miss, so it re-runs the new story and re-emits the beat's content;
       // without this the reconcile pass sweeps the un-re-emitted elements and
       // the preview goes blank until the cursor moves to a different beat.
-      this._previewedPath = undefined;
+      this._previewedAddress = undefined;
       // The scene map may have changed with the program; the next observation
       // re-enters the current scene and re-requests what it needs.
       this._sceneTracker?.reset();
@@ -775,15 +800,18 @@ export class Game<T extends M = {}> {
       this.Error(
         raised?.message ?? message,
         type === InkErrorType.Warning ? ErrorType.Warning : ErrorType.Error,
-        pathLocation(this._program.pathLocations, raised?.path) ??
-          this._executingLocation,
+        this.scriptLocationOf(
+          this.programStory
+            ? (raised?.address ?? this._positions.previous())
+            : raised?.path,
+        ) ?? this._executingLocation,
       );
     };
-    story.onExecute = (path: string | undefined) => {
-      if (path) {
-        this._runtimeState.recordExecution(path);
+    story.onExecute = ((address: ProgramAddress | undefined) => {
+      if (address != null && address !== "") {
+        this._runtimeState.recordExecution(address);
       }
-    };
+    }) as never;
     story.onMakeChoice = (choice) => {
       this._runtimeState.recordChoice(story, choice);
     };
@@ -803,15 +831,15 @@ export class Game<T extends M = {}> {
   ) {
     this._simulation = "simulating";
     this._simulationFailure = undefined;
-    if (this._startPath) {
-      // Plan a route from the top of the startPath container
-      const toPath = this._startPath;
-      const fromPath = Game.getSimulateFromPath(toPath);
+    if (this._startAddress != null) {
+      // Plan a route from the top of the flow the start point stands in.
+      const to = this._startAddress;
+      const from = this.routeStartOf(to);
       const route = Game.planRoute(
         this._story,
         this._program,
-        fromPath,
-        toPath,
+        from,
+        to,
         simulationOptions,
         // The replay below starts by loading a checkpoint or jumping to the
         // route's start, either of which replaces the story state, so the
@@ -821,16 +849,12 @@ export class Game<T extends M = {}> {
       if (route) {
         this.simulateRoute(route, 0);
       } else {
-        this._simulationFailure = Game.describeFailedRouteSearch(
-          this._program,
-          toPath,
-        );
-        this._searchErrors = Game.searchErrors(this._program);
+        this._simulationFailure = this.describeFailedRouteSearch(to);
+        this._searchErrors = this.searchErrors();
       }
     } else {
-      this._simulationFailure = Game.describeFailedRouteSearch(
-        this._program,
-        this._startPath,
+      this._simulationFailure = this.describeFailedRouteSearch(
+        this._startAddress,
       );
     }
   }
@@ -838,9 +862,10 @@ export class Game<T extends M = {}> {
   /**
    * Turn a route search that came back empty into the reason it did.
    *
-   * Checking whether the target is a real path first is not belt-and-braces: a
-   * line that is not part of the story flow (front matter, a `define` block,
-   * the gap between scenes) resolves to the `"0"` fallback, and the search that
+   * Checking whether the target is a real address first is not
+   * belt-and-braces: a line that is not part of the story flow (front matter,
+   * a `define` block, the gap between scenes) resolves to the `"0"` fallback,
+   * and the search that
    * then runs is searching for a target that was never in the story. Whatever
    * ceiling it stops on, the honest answer is that there was nothing to route
    * to — not that the scene is too long.
@@ -854,11 +879,10 @@ export class Game<T extends M = {}> {
    * A search that BROKE is kept apart from one that ran the story out, because
    * only the second is entitled to say the script has no path to the line.
    */
-  static describeFailedRouteSearch(
-    program: SparkProgram,
-    toPath: string | null | undefined,
+  describeFailedRouteSearch(
+    to: ProgramAddress | null | undefined,
   ): SimulationFailure {
-    if (!toPath || !hasPathLocation(program.pathLocations, toPath)) {
+    if (to == null || this._positions.locator.locationOf(to) === undefined) {
       return "unroutable";
     }
     if (lastSearchStats.endReason === "exhausted") {
@@ -887,37 +911,48 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The paths on the ink callstack: where every open tunnel, thread, and
-   *  function call will return to, plus the current position. */
-  protected callStackFlowPaths(): string[] {
-    const paths: string[] = [];
-    const callStack = this._story?.state?.callStack as
-      | { _threads?: Array<{ callstack?: Array<{ currentPointer?: { path?: { toString(): string } | null } }> }> }
-      | undefined;
-    for (const thread of callStack?._threads ?? []) {
-      for (const element of thread?.callstack ?? []) {
-        const path = element?.currentPointer?.path?.toString();
-        if (path) {
-          paths.push(path);
-        }
+  /** The top-level flow an address stands in: a scene's name, a branch's
+   *  scene's, a function's, or `"0"` for the top-level content
+   *  (`ProgramLocator.sceneAt`). Null for no address. */
+  sceneOf(address: ProgramAddress | null | undefined): string | null {
+    return address == null || address === ""
+      ? null
+      : (this._positions.locator.sceneAt(address) ?? null);
+  }
+
+  /** The flow a route to `address` starts at the top of: the scene the
+   *  address stands in, or the top-level content. */
+  routeStartOf(address: ProgramAddress): string {
+    return this.sceneOf(address) ?? "0";
+  }
+
+  /** The scenes of the positions on the call stack: where every open
+   *  tunnel, thread, and function call will return to, plus the current
+   *  position. */
+  protected callStackScenes(): string[] {
+    const scenes: string[] = [];
+    for (const address of this._positions.stack()) {
+      const scene = this.sceneOf(address);
+      if (scene) {
+        scenes.push(scene);
       }
     }
-    return paths;
+    return scenes;
   }
 
   /** Note where the story is; when that is a different scene, tell every
    *  module. A route simulation is silent: it never enters anything. */
-  observeScene(path: string | null | undefined): void {
+  observeScene(address: ProgramAddress | null | undefined): void {
     if (this._destroyed || this._simulation === "simulating") {
       return;
     }
-    // This runs on every path change in the step loop; the call stack is
+    // This runs on every position change in the step loop; the call stack is
     // walked only when the scene actually changes. A call into a function
     // keeps the scene current, as `SceneTracker.observe` rules with the same
     // `isFunctionFlow` predicate, so every step inside one returns here too:
     // walking the stack on each would make recursion cost the square of its
     // depth.
-    const scene = SceneTracker.sceneOf(path);
+    const scene = this.sceneOf(address);
     if (
       scene === this._sceneTracker.current ||
       (scene && this.isFunctionFlow(scene))
@@ -925,8 +960,8 @@ export class Game<T extends M = {}> {
       return;
     }
     const transition = this._sceneTracker.observe(
-      path,
-      this.callStackFlowPaths(),
+      scene,
+      this.callStackScenes(),
     );
     if (transition) {
       for (const k of this._moduleNames) {
@@ -956,9 +991,9 @@ export class Game<T extends M = {}> {
     // the restore gate waits on the ones already on screen.
     const previewing = this._context.system.previewing;
     this.observeScene(
-      typeof previewing === "string"
+      typeof previewing === "string" || typeof previewing === "number"
         ? previewing
-        : this._story.state.currentPathString,
+        : this._positions.current(),
     );
     await Promise.all(
       this._moduleNames.map((moduleName) =>
@@ -974,98 +1009,42 @@ export class Game<T extends M = {}> {
     await this.restore();
   }
 
-  static isContainerPath(program: SparkProgram, path: string) {
-    return Boolean(
-      path === "0" ||
-      program.knotLocations?.[path] ||
-      program.stitchLocations?.[path] ||
-      program.functionLocations?.[path] ||
-      program.sceneLocations?.[path] ||
-      program.branchLocations?.[path],
-    );
-  }
-
-  static getValidSimulationOptions(
-    program: SparkProgram,
-    simulationOptions: Record<
-      string,
-      {
-        favoredConditions?: (boolean | undefined)[];
-        favoredChoices?: (number | undefined)[];
-      }
-    >,
-  ) {
-    if (!simulationOptions) {
-      return {};
-    }
-    const valid: Record<
-      string,
-      {
-        favoredConditions?: (boolean | undefined)[];
-        favoredChoices?: (number | undefined)[];
-      }
-    > = {};
-    for (const [path, options] of Object.entries(simulationOptions)) {
-      if (
-        hasPathLocation(program.pathLocations, path) ||
-        Game.isContainerPath(program, path)
-      ) {
-        valid[path] = options;
-      }
-    }
-    return valid;
-  }
-
-  /** Where a run from `startFrom` begins. A line that `>` breaks holds
-   *  several beats: PLAY from the line starts at its first, and the route a
-   *  preview of the line replays ends at its last (`beat`), so the beats
-   *  before it run, and apply what they do, as any beat on the route does. */
+  /** Where a run from `startFrom` begins: the address of the beat on the
+   *  line (`ProgramLocator.addressAt`), or the top-level content's flow when
+   *  the line has none. A line that `>` breaks holds several beats: PLAY
+   *  from the line starts at its first, and the route a preview of the line
+   *  replays ends at its last (`beat`), so the beats before it run, and
+   *  apply what they do, as any beat on the route does. */
   setStartFrom(
     startFrom: { file: string; line: number },
     beat: "first" | "last" = "first",
   ) {
     this._startFrom = startFrom;
-    this._startPath =
-      findClosestPath(
-        this._startFrom,
-        this._program.pathLocations,
-        this._scripts,
-        beat,
-      ) || "0";
-    if (this._startPath) {
-      const trueLocation = pathLocation(
-        this._program.pathLocations,
-        this._startPath,
-      );
-      if (trueLocation) {
-        const [scriptIndex, line] = trueLocation;
-        const file = this._scripts[scriptIndex];
-        if (file) {
-          this._startFrom = { file, line };
-          return this._startFrom;
-        }
-      }
+    this._startAddress =
+      this.locator.addressAt(startFrom.file, startFrom.line, { beat }) ?? "0";
+    const trueLocation = this.locator.locationOf(this._startAddress);
+    if (trueLocation) {
+      this._startFrom = { file: trueLocation.uri, line: trueLocation.startLine };
+      return this._startFrom;
     }
     return null;
   }
 
-  static getValidStartFrom(
-    program: SparkProgram,
-    startFrom: { file: string; line: number },
-  ) {
-    const scripts = Object.keys(program.scripts);
-    const path = findClosestPath(startFrom, program.pathLocations, scripts);
-    if (path) {
-      const trueLocation = pathLocation(program.pathLocations, path);
-      if (trueLocation) {
-        const [scriptIndex, line] = trueLocation;
-        const file = scripts[scriptIndex];
-        if (file) {
-          return { file, line };
-        }
-      }
+  /** The lines of `search` a debugger may set a breakpoint on. The program
+   *  engine's breakpoints are address sets (#702), and until then it offers
+   *  none. */
+  possibleBreakpointLines(search: {
+    uri: string;
+    range: { start: { line: number }; end: { line: number } };
+  }): number[] {
+    if (this.programStory) {
+      return [];
     }
-    return null;
+    return possibleBreakpointLines(
+      this._program.pathLocations,
+      this._scripts,
+      search,
+    );
   }
 
   setBreakpoints(breakpoints: { file: string; line: number }[]) {
@@ -1084,9 +1063,8 @@ export class Game<T extends M = {}> {
     breakpoints: { file: string; line: number }[],
   ) {
     const actualBreakpoints = Game.getActualBreakpoints(
-      this._program.pathLocations,
+      this.locator,
       breakpoints,
-      this._scripts,
     );
     const breakpointMap: Record<number, Map<number, Breakpoint>> = {};
     for (const b of actualBreakpoints) {
@@ -1150,17 +1128,11 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  static getSimulateFromPath(toPath: string) {
-    const containerName = toPath.split(".")[0] || "0";
-    const fromPath = containerName;
-    return fromPath;
-  }
-
   static planRoute(
     story: Story,
     program: SparkProgram,
-    fromPath: string,
-    toPath: string,
+    from: string,
+    to: ProgramAddress,
     simulationOptions?: Record<
       string,
       {
@@ -1177,13 +1149,14 @@ export class Game<T extends M = {}> {
       | "resumeFrom"
     >,
   ) {
-    // Plan a route from the top of the knot containing the target path, to the target path itself
-    return planRoute(story, fromPath, toPath, {
+    // Plan a route from the top of the flow the target stands in, to the
+    // target itself.
+    return planRoute(story, from, to, {
       ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
-      favoredConditions: simulationOptions?.[fromPath]?.favoredConditions,
-      favoredChoices: simulationOptions?.[fromPath]?.favoredChoices,
+      favoredConditions: simulationOptions?.[from]?.favoredConditions,
+      favoredChoices: simulationOptions?.[from]?.favoredChoices,
     });
   }
 
@@ -1196,12 +1169,16 @@ export class Game<T extends M = {}> {
    *  `patchAndSimulateRoute` relies on when it resumes by POSITION rather than
    *  by the index it matched. A fixed-width hash carries no depth, so that
    *  implication has to be checked rather than assumed: a caller passes the
-   *  step it believes it matched, and a disagreement on path or index means no
-   *  match, costing a re-simulation instead of resuming the preview from an
-   *  unrelated story position. */
+   *  step it believes it matched, and a disagreement on address or index
+   *  means no match, costing a re-simulation instead of resuming the preview
+   *  from an unrelated story position. */
   getCheckpoint(
     seq: string,
-    expected?: { path?: string; index?: number; maxCheckpoint?: number },
+    expected?: {
+      address?: ProgramAddress;
+      index?: number;
+      maxCheckpoint?: number;
+    },
   ) {
     if (this._plannedRoute) {
       const stepIndex = this._plannedRouteStepMap[seq];
@@ -1211,7 +1188,7 @@ export class Game<T extends M = {}> {
         }
         const step = this._plannedRoute.steps[stepIndex];
         if (step) {
-          if (expected?.path != null && step.path !== expected.path) {
+          if (expected?.address != null && step.address !== expected.address) {
             return null;
           }
           if (step.checkpoint != null) {
@@ -1254,7 +1231,11 @@ export class Game<T extends M = {}> {
     // that established which checkpoint a step's story actually comes from says
     // so rather than letting it be re-derived.
     const fromCheckpoint = fromCheckpointOverride ?? startStep?.checkpoint ?? -1;
-    const startCheckpoint = this._checkpoints.getJson(fromCheckpoint);
+    // The program engine restores the checkpoint's image in place, and the
+    // current engine loads its full save.
+    const startCheckpoint = this.programStory
+      ? fromCheckpoint
+      : this._checkpoints.getJson(fromCheckpoint);
     this._checkpoints.truncate(fromCheckpoint + 1);
     this._checkpointStepCursors.length = fromCheckpoint + 1;
     this._routeErrors = this._routeErrors.filter(
@@ -1262,8 +1243,9 @@ export class Game<T extends M = {}> {
     );
     this._plannedRoute = route;
     this._plannedRouteChangeId = this._program.changes?.id;
-    this._simulatePath = route.fromPath;
-    this._startPath = route.toPath;
+    this._plannedRouteRoot = this.programStory?.root;
+    this._simulateFlow = route.from;
+    this._startAddress = route.to;
     // Force the story to follow this route
     this._story.simulator = buildRouteSimulator(route.decisions, fromDecision);
     // Record valid seqs for each step of the route
@@ -1295,10 +1277,25 @@ export class Game<T extends M = {}> {
     }
   }
 
-  protected replayRoute(route: RoutePlan, startCheckpoint: string | null) {
-    if (startCheckpoint) {
-      this.load(startCheckpoint);
-    } else {
+  protected replayRoute(
+    route: RoutePlan,
+    startCheckpoint: string | number | null,
+  ) {
+    const resumed =
+      typeof startCheckpoint === "number"
+        ? startCheckpoint >= 0 && this.restoreCheckpoint(startCheckpoint)
+        : startCheckpoint
+          ? (this.load(startCheckpoint), true)
+          : false;
+    if (!resumed && typeof startCheckpoint === "number" && startCheckpoint >= 0) {
+      // A checkpoint the program can no longer place: the route replays
+      // from its start, and every checkpoint and step it stamps is its own.
+      this._checkpoints.truncate(0);
+      this._checkpointStepCursors.length = 0;
+      this._plannedRouteStepCursor = 0;
+      this._routeErrors = [];
+    }
+    if (!resumed) {
       // Starting the route at its beginning rather than resuming inside it. The
       // replay about to run is the whole truth about the checkpoints it saves,
       // so no module state may carry over from whatever this game ran before:
@@ -1318,13 +1315,13 @@ export class Game<T extends M = {}> {
         this._modules[k]?.load({});
       }
       this._runtimeState = new RuntimeState();
-      this.jumpToPath(route.fromPath);
+      this.jumpTo(route.from);
     }
 
     this._simulation = "simulating";
-    this._context.system.simulating = route.fromPath;
+    this._context.system.simulating = route.from;
 
-    this._executingPath = null;
+    this._executingAddress = null;
     this._executingLocation = null;
 
     this.continue(true);
@@ -1352,9 +1349,9 @@ export class Game<T extends M = {}> {
    * Everything here is a question about the PREVIOUS route, so it must be asked
    * before anything replaces it.
    */
-  routeResumption(fromPath: string, toPath: string): RouteResumption {
+  routeResumption(from: string, to: ProgramAddress): RouteResumption {
     const route = this._plannedRoute;
-    if (!route || route.fromPath !== fromPath) {
+    if (!route || route.from !== from) {
       return { replayOnly: false };
     }
     if (!this._program.changes) {
@@ -1362,12 +1359,21 @@ export class Game<T extends M = {}> {
       // exactly where it was: step identity alone, as it has always been.
       return { replayOnly: false };
     }
-    const validSteps = validRoutePrefixLength(
-      route.steps,
-      this._program,
-      this._program.changes,
-      this._plannedRouteChangeId,
-    );
+    const program = this.programStory;
+    const validSteps = program
+      ? validAddressPrefixLength(
+          route.steps,
+          this._plannedRouteRoot,
+          program.root,
+          this._program.changes,
+          this._plannedRouteChangeId,
+        )
+      : validRoutePrefixLength(
+          route.steps,
+          this._program,
+          this._program.changes,
+          this._plannedRouteChangeId,
+        );
     const resume = this.findResumePoint(validSteps);
     if (!resume) {
       return { validSteps, replayOnly: false };
@@ -1382,7 +1388,12 @@ export class Game<T extends M = {}> {
       // in any case, and from no deeper a checkpoint than this one — so trying
       // it first costs a second replay when the route no longer holds, and
       // saves the whole search when it does.
-      replayOnly: route.toPath === toPath,
+      // On the program engine the route's own steps are kept only while
+      // every one of them still holds: a step past the valid prefix names a
+      // statement the compile emitted again, whose decisions the route's
+      // forced ones no longer name, so the rest is searched for.
+      replayOnly:
+        route.to === to && (!program || validSteps === route.steps.length),
     };
   }
 
@@ -1460,41 +1471,70 @@ export class Game<T extends M = {}> {
     if (!route) {
       return null;
     }
-    const checkpoint = this._checkpoints.getJson(checkpointIndex);
-    if (!checkpoint) {
-      return null;
-    }
-    let storyState: unknown;
-    try {
-      storyState = (JSON.parse(checkpoint) as SaveData).story;
-    } catch {
-      return null;
-    }
-    if (typeof storyState !== "string" || !storyState) {
-      return null;
-    }
-    let standingOn: string | undefined;
-    try {
+    let state: RouteResumePoint["state"] | undefined;
+    let standingOn: ProgramAddress | undefined;
+    const program = this.programStory;
+    if (program) {
+      // The checkpoint's image, restored in place, which a search node runs
+      // from as it is.
+      const image = this._checkpoints.imageAt(checkpointIndex)?.image as
+        | ProgramImage
+        | undefined;
+      if (!image || !program.canRestore(image)) {
+        return null;
+      }
       this.discardOpenStoryLine();
-      this._story.state.LoadJson(storyState);
-      standingOn = this._story.state.previousPointer?.path?.toString();
-    } catch {
-      return null;
+      if (!program.restore(image)) {
+        return null;
+      }
+      state = image;
+      standingOn = this._positions.previous();
+    } else {
+      const checkpoint = this._checkpoints.getJson(checkpointIndex);
+      if (!checkpoint) {
+        return null;
+      }
+      let storyState: unknown;
+      try {
+        storyState = (JSON.parse(checkpoint) as SaveData).story;
+      } catch {
+        return null;
+      }
+      if (typeof storyState !== "string" || !storyState) {
+        return null;
+      }
+      try {
+        this.discardOpenStoryLine();
+        this._story.state.LoadJson(storyState);
+        standingOn = this._positions.previous();
+      } catch {
+        return null;
+      }
+      state = storyState;
     }
-    if (!standingOn) {
+    if (standingOn == null || standingOn === "") {
       return null;
     }
     // The step that position belongs to, looked for from the checkpoint's own
-    // step onwards: a path repeats along a route, and the arrival that matters
-    // is the one this checkpoint was taken at or after.
+    // step onwards: an address repeats along a route, and the arrival that
+    // matters is the one this checkpoint was taken at or after.
     let at = -1;
     for (let i = cursor - 1; i < validSteps; i += 1) {
-      if (route.steps[i]!.path === standingOn) {
+      if (route.steps[i]!.address === standingOn) {
         at = i;
         break;
       }
     }
     if (at < 0) {
+      return null;
+    }
+    if (program && at + 1 >= validSteps && !restsAfter(state, standingOn)) {
+      // The step after this one is not one the new program takes the way
+      // the route did (a statement was inserted before it, or it was
+      // emitted again), and the image stands somewhere other than right
+      // after the statement that ran, where it would be placed after that
+      // statement in the new program: restoring it would skip what the new
+      // program runs there.
       return null;
     }
     // A step records the decisions made BEFORE it, so the step the story is
@@ -1513,7 +1553,7 @@ export class Game<T extends M = {}> {
       }
     }
     return {
-      stateJson: storyState,
+      state,
       // Up to but not including the step the story is standing on, because a
       // search reads the position it is standing on before advancing and would
       // otherwise record it twice. This is the convention a fork already
@@ -1548,7 +1588,7 @@ export class Game<T extends M = {}> {
     const steps = route.steps.map((step, i) =>
       i < stepIndex
         ? step
-        : { seq: step.seq, path: step.path, decision: step.decision },
+        : { seq: step.seq, address: step.address, decision: step.decision },
     );
     this.simulateRoute({ ...route, steps }, stepIndex, checkpointIndex);
     return this._checkpoints.at(-1) ?? null;
@@ -1572,7 +1612,7 @@ export class Game<T extends M = {}> {
   ): string | null {
     if (
       !this._plannedRoute ||
-      this._plannedRoute.fromPath !== newRoute.fromPath
+      this._plannedRoute.from !== newRoute.from
     ) {
       // simulate from the beginning
       this._runtimeState = new RuntimeState();
@@ -1596,7 +1636,7 @@ export class Game<T extends M = {}> {
     let lastValidOldRouteCheckpoint = this.getCheckpoint(
       lastValidNewRouteStep?.seq || "",
       {
-        path: lastValidNewRouteStep?.path,
+        address: lastValidNewRouteStep?.address,
         index: validSteps.length - 1,
         maxCheckpoint: limits?.checkpoint,
       },
@@ -1610,7 +1650,7 @@ export class Game<T extends M = {}> {
       lastValidOldRouteCheckpoint = this.getCheckpoint(
         lastValidNewRouteStep?.seq || "",
         {
-          path: lastValidNewRouteStep?.path,
+          address: lastValidNewRouteStep?.address,
           index: validSteps.length - 1,
           maxCheckpoint: limits?.checkpoint,
         },
@@ -1631,8 +1671,8 @@ export class Game<T extends M = {}> {
       patchedSteps.push(newStep);
     }
     const patchedRoute = {
-      fromPath: newRoute.fromPath,
-      toPath: newRoute.toPath,
+      from: newRoute.from,
+      to: newRoute.to,
       steps: patchedSteps,
       decisions: newRoute.decisions,
       conditions: newRoute.conditions,
@@ -1665,12 +1705,12 @@ export class Game<T extends M = {}> {
     this.endSimulation();
     this.notifyStarted();
     this._context.system.previewing = undefined;
-    this._previewedPath = undefined;
+    this._previewedAddress = undefined;
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
     if (this._simulation === "success") {
-      this.observeScene(this._story.state.currentPathString);
+      this.observeScene(this._positions.current());
       this.continue(true);
     } else if (this._simulation === "fail") {
       // `rewindStory`, NOT `reset`. By the time `start` runs, `connect` has
@@ -1686,7 +1726,7 @@ export class Game<T extends M = {}> {
       // STOP -> PLAY, where the order is
       //   onConnected -> mountEvent -> ui/observe -> onReset.
       // Module reset is only meaningful BEFORE modules are initialized; here we
-      // only need the story rewound so the replay starts from `_startPath`.
+      // only need the story rewound so the replay starts from `_startAddress`.
       //
       // Per-module residue audit for this branch (the abandoned run's state
       // survives the rewind — what of it is CORRECT to keep?):
@@ -1707,18 +1747,18 @@ export class Game<T extends M = {}> {
       this.module.interpreter.clearQueuedBeats();
       this.rewindStory();
       this.clearChoices();
-      if (this._startPath) {
-        this.jumpToPath(this._startPath);
+      if (this._startAddress != null) {
+        this.jumpTo(this._startAddress);
       }
-      this.observeScene(this._startPath);
+      this.observeScene(this._startAddress);
       this.continue();
     } else {
       if (save) {
         this.load(save);
-        this.observeScene(this._story.state.currentPathString);
-      } else if (this._startPath) {
-        this.jumpToPath(this._startPath);
-        this.observeScene(this._startPath);
+        this.observeScene(this._positions.current());
+      } else if (this._startAddress != null) {
+        this.jumpTo(this._startAddress);
+        this.observeScene(this._startAddress);
       }
       this.continue();
     }
@@ -1817,6 +1857,40 @@ export class Game<T extends M = {}> {
     return this.buildSave(true);
   }
 
+  /** The executed record's positions as a save holds them on the program
+   *  engine: each address in its durable form (`durableAddress`), since a
+   *  chunk id names a statement only in the process that gave it (#700). An
+   *  address the root no longer holds is left out. */
+  protected durableExecuted(executed: RecencyEntry[]): RecencyEntry[] {
+    const root = this.programStory?.root;
+    if (!root) {
+      return executed;
+    }
+    const out: RecencyEntry[] = [];
+    for (const entry of executed) {
+      const form = typeof entry === "number" ? durableAddress(root, entry) : entry;
+      if (form !== undefined) {
+        out.push(form);
+      }
+    }
+    return out;
+  }
+
+  /** The addresses in `root` of a saved executed record's durable
+   *  positions, in their order, without those it cannot place. A bare
+   *  address is another process's and is dropped too. */
+  protected placedExecuted(root: ProgramRoot, saved: RecencyEntry[]): RecencyEntry[] {
+    const out: RecencyEntry[] = [];
+    for (const entry of saved) {
+      const address =
+        typeof entry === "string" ? placeDurableAddress(root, entry) : undefined;
+      if (address !== undefined) {
+        out.push(address);
+      }
+    }
+    return out;
+  }
+
   protected buildSave(omitDeltaState: boolean, withStory = true): string {
     let story = "";
     try {
@@ -1836,14 +1910,16 @@ export class Game<T extends M = {}> {
     }
     const runtime = omitDeltaState
       ? this._runtimeState.toJSONWithoutCollections()
-      : this._runtimeState.toJSON();
+      : this._runtimeState.toJSON(
+          this.programStory ? (executed) => this.durableExecuted(executed) : undefined,
+        );
     const saveData: SaveData = {
       modules: {},
       context: {},
       story,
       runtime,
       simulatedFrom:
-        this._simulation !== "none" ? this._simulatePath : undefined,
+        this._simulation !== "none" ? this._simulateFlow : undefined,
     };
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -1890,7 +1966,7 @@ export class Game<T extends M = {}> {
       }
       if (saveData.simulatedFrom) {
         this._simulation = "success";
-        this._simulatePath = saveData.simulatedFrom;
+        this._simulateFlow = saveData.simulatedFrom;
       }
       return true;
     } catch (e) {
@@ -1936,6 +2012,12 @@ export class Game<T extends M = {}> {
       }
       const runtime = RuntimeState.read(saveData.runtime);
       program.checkSave(saveData.story);
+      // The executed record's positions, written durably (`buildSave`),
+      // placed in this program; one it cannot place is dropped, as a save's
+      // count whose symbol cannot be placed is.
+      runtime.pathsExecutedThisFrame = RecencySet.from(
+        this.placedExecuted(program.root, runtime.pathsExecutedThisFrame.toArray()),
+      );
       program.loadSave(saveData.story);
       // A preview waiting for its pictures would display its beat over the
       // loaded state, and record a checkpoint of it.
@@ -1950,7 +2032,7 @@ export class Game<T extends M = {}> {
       this._runtimeState = runtime;
       if (saveData.simulatedFrom) {
         this._simulation = "success";
-        this._simulatePath = saveData.simulatedFrom;
+        this._simulateFlow = saveData.simulatedFrom;
       }
       return true;
     } catch (e) {
@@ -1996,7 +2078,7 @@ export class Game<T extends M = {}> {
     }
     if (saveData.simulatedFrom) {
       this._simulation = "success";
-      this._simulatePath = saveData.simulatedFrom;
+      this._simulateFlow = saveData.simulatedFrom;
     }
     return true;
   }
@@ -2043,7 +2125,7 @@ export class Game<T extends M = {}> {
    *  state can be replaced.
    *
    *  The runtime refuses to reset, reload or jump while a line is still open,
-   *  so `rewindStory`, `jumpToPath` and `load` each had to deal with that
+   *  so `rewindStory`, `jumpTo` and `load` each had to deal with that
    *  first, and each did it by finishing the line with a bare `Continue()`.
    *
    *  Finishing it was never the point — all three replace the story state on
@@ -2158,18 +2240,18 @@ export class Game<T extends M = {}> {
       }
       this._executionStepsRemaining -= 1;
 
-      const pointerPath = this._story.state.previousPointer.path?.toString();
-      if (pointerPath) {
-        if (pointerPath !== this._executingPath) {
-          this._executingPath = pointerPath;
-          this.observeScene(pointerPath);
+      const address = this._positions.previous();
+      if (address != null && address !== "") {
+        if (address !== this._executingAddress) {
+          this._executingAddress = address;
+          this.observeScene(address);
           if (
             this._plannedRoute &&
             this._plannedRouteStepCursor < this._plannedRoute?.steps.length
           ) {
             const step = this._plannedRoute.steps[this._plannedRouteStepCursor];
             if (step) {
-              if (step.path === pointerPath) {
+              if (step.address === address) {
                 // The nearest checkpoint at or before this step. Steps reached
                 // before the first capture have none, and must stay undefined:
                 // recording -1 made `getCheckpoint` ask the store for index -1
@@ -2179,23 +2261,25 @@ export class Game<T extends M = {}> {
                 if (latestCheckpoint >= 0) {
                   step.checkpoint = latestCheckpoint;
                 }
-                // Where this step's path pointed, recorded while the program
-                // that answers for it is the one loaded. A later compile says
-                // which lines it changed, and this is the only thing on a route
-                // those lines can be compared with — and comparing the whole
-                // location catches the other way a step stops meaning what it
-                // meant, which is an edit elsewhere renumbering the path.
+                // On the current engine, where this step's path pointed,
+                // recorded while the program that answers for it is the one
+                // loaded. A later compile says which lines it changed, and
+                // this is the only thing on a route those lines can be
+                // compared with — and comparing the whole location catches
+                // the other way a step stops meaning what it meant, which is
+                // an edit elsewhere renumbering the path. A step on the
+                // program engine needs neither: its address names a chunk,
+                // which a later root holds exactly when the statement kept it.
                 //
                 // Stamped here rather than while planning because only the
                 // steps actually replayed are the ones a resume can rest on,
                 // and this walk covers exactly those.
-                const location = pathLocation(
-                  this._program.pathLocations,
-                  pointerPath,
-                );
                 step.stamped = true;
-                step.location = location;
-                step.uri = location ? this._scripts[location[0]] : undefined;
+                if (typeof address === "string") {
+                  const location = this.scriptLocationOf(address);
+                  step.location = location;
+                  step.uri = location ? this._scripts[location[0]] : undefined;
+                }
                 this._plannedRouteStepCursor++;
               }
             }
@@ -2206,8 +2290,8 @@ export class Game<T extends M = {}> {
       if (this._story.asyncContinueComplete) {
         if (
           this._simulation === "simulating" &&
-          this._startPath &&
-          this._runtimeState.pathsExecutedThisFrame.has(this._startPath)
+          this._startAddress != null &&
+          this._runtimeState.pathsExecutedThisFrame.has(this._startAddress)
         ) {
           // End simulation
           this.checkpoint();
@@ -2318,15 +2402,9 @@ export class Game<T extends M = {}> {
         }
 
         const prevExecutedLocation = this._executingLocation;
-        const pointerPath = this._story.state.previousPointer.path?.toString();
-        if (pointerPath) {
-          const location = pathLocation(
-            this._program.pathLocations,
-            pointerPath,
-          );
-          if (location) {
-            this._executingLocation = location;
-          }
+        const location = this.scriptLocationOf(this._positions.previous());
+        if (location) {
+          this._executingLocation = location;
         }
 
         // A continue returns at its line's newline, so the one after a line
@@ -2471,10 +2549,12 @@ export class Game<T extends M = {}> {
     this._shownChoices = [...(instructions?.choices ?? [])];
   }
 
-  jumpToPath(path: string) {
+  /** Resets the story and moves it to an address, or to the top of a flow
+   *  named by its qualified name. */
+  jumpTo(target: ProgramAddress) {
     this.discardOpenStoryLine();
     this._story.ResetState();
-    this._story.ChoosePathString(path);
+    this._positions.jumpTo(target);
   }
 
   protected notifyHitBreakpoint() {
@@ -2537,14 +2617,12 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyPreviewed(path: string) {
-    const location = this.getDocumentLocation(
-      pathLocation(this._program.pathLocations, path),
-    );
+  protected notifyPreviewed(address: ProgramAddress) {
+    const location = this.getDocumentLocation(this.scriptLocationOf(address));
     this.connection.emit(
       GamePreviewedMessage.type.notification({
         location,
-        path,
+        address,
       }),
     );
   }
@@ -2552,10 +2630,9 @@ export class Game<T extends M = {}> {
   /** What the last stretch of execution did, as `game/executed` reports it. */
   protected executedParams(): GameExecutedParams {
     const detailed = this.reportsExecutedLines;
-    const table = this._program.pathLocations;
     let first: ScriptLocation | undefined;
     let last: ScriptLocation | undefined;
-    let lastPath: string | undefined;
+    let lastAddress: ProgramAddress | undefined;
     // Each script's executed lines, and the last of them to be added: the
     // line an editor follows while a game runs, which is not the end of the
     // last location when that location returns to lines already executed (a
@@ -2563,8 +2640,8 @@ export class Game<T extends M = {}> {
     const lines = new Map<string, Set<number>>();
     const lastLines = new Map<string, number>();
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
-      lastPath = p;
-      const l = pathLocation(table, p);
+      lastAddress = p;
+      const l = this.scriptLocationOf(p);
       if (!l) {
         return;
       }
@@ -2598,13 +2675,23 @@ export class Game<T extends M = {}> {
     // Copies, not the runtime state's own arrays, so a report, once taken,
     // is not changed by what the story evaluates afterwards (the layouts'
     // bindings as they mount).
+    const failed = this._simulation === "fail";
     return {
-      simulatePath: this._simulatePath,
-      startPath: this._startPath,
+      simulateFlow: this._simulateFlow,
+      // Where the route that failed was to start and to end, which the page
+      // labels the failure with.
+      simulateLocation:
+        failed && this._simulateFlow != null
+          ? (this.documentLocationOf(this._simulateFlow) ?? undefined)
+          : undefined,
+      startLocation:
+        failed && this._startAddress != null
+          ? (this.documentLocationOf(this._startAddress) ?? undefined)
+          : undefined,
       executedLines,
       firstLocation: first ? this.getDocumentLocation(first) : undefined,
       lastLocation: last ? this.getDocumentLocation(last) : undefined,
-      lastExecutedPath: detailed ? lastPath : undefined,
+      lastExecutedAddress: detailed ? lastAddress : undefined,
       conditions: detailed ? [...this._runtimeState.conditionsEncountered] : [],
       choices: [...this._runtimeState.choicesEncountered],
       state: this._state,
@@ -2738,8 +2825,11 @@ export class Game<T extends M = {}> {
       ] of contextElement?.temporaryVariables.entries()) {
         if (!name.startsWith("$")) {
           const value = this.getRuntimeValue(name, valueObj);
-          const scopePath = this._executingPath
-            ? this._executingPath
+          // A scope is named by its runtime path, which the program engine
+          // does not have (#702).
+          const scopePath =
+            typeof this._executingAddress === "string"
+            ? this._executingAddress
                 .split(".")
                 .filter(
                   (p) =>
@@ -2949,8 +3039,7 @@ export class Game<T extends M = {}> {
             f.previousPointer.container?.path?.toString();
           if (pointerPath) {
             const location =
-              pathLocation(this._program.pathLocations, pointerPath) ??
-              this._executingLocation;
+              this.scriptLocationOf(pointerPath) ?? this._executingLocation;
             const documentLocation = this.getDocumentLocation(location);
             if (f.type == PushPopType.Function) {
               stackFrames.unshift({
@@ -3025,17 +3114,19 @@ export class Game<T extends M = {}> {
    *  Do not call this on a game that is about to run for real: `Application`
    *  reads the same flag to decide whether to skip building a renderer.
    *
-   *  Pass the path the cursor resolved to whenever there is one: the asset
-   *  module reads it as the preview's anchor, to centre its prediction
-   *  window; without a path the flag is simply `true` and it does not. The
-   *  path a preview settled on afterwards is `previewedPath`. */
-  markPreviewing(previewPath?: string): void {
-    this._context.system.previewing = previewPath || true;
+   *  Pass the address the cursor resolved to whenever there is one: the
+   *  asset module reads it as the preview's anchor, to centre its
+   *  prediction window; without an address the flag is simply `true` and it
+   *  does not. The address a preview settled on afterwards is
+   *  `previewedAddress`. */
+  markPreviewing(previewAddress?: ProgramAddress): void {
+    this._context.system.previewing =
+      previewAddress != null && previewAddress !== "" ? previewAddress : true;
   }
 
   /** Run the story to the preview point's beat: from the loaded checkpoint
    *  when the route to it succeeded, else from the start of the flow. */
-  protected runPreview(previewPath: string) {
+  protected runPreview(previewAddress: ProgramAddress) {
     if (this._simulation === "success") {
       this.continue(true);
       return;
@@ -3048,8 +3139,8 @@ export class Game<T extends M = {}> {
     // the abandoned run left queued (see the start-branch residue audit;
     // idempotent between previews, where the queue is already drained).
     this.module.interpreter.clearQueuedBeats();
-    this._startPath = previewPath;
-    this.jumpToPath(previewPath);
+    this._startAddress = previewAddress;
+    this.jumpTo(previewAddress);
     this.restoreReactiveTracking();
     this.continue();
   }
@@ -3106,18 +3197,13 @@ export class Game<T extends M = {}> {
    * over. Resolves to the path previewed; to null when the point resolves
    * to none, or when the preview was taken over while it waited.
    */
-  async preview(file: string, line: number): Promise<string | null> {
+  async preview(file: string, line: number): Promise<ProgramAddress | null> {
     if (this._state === "running") {
       // Don't preview while running
       return null;
     }
-    const previewPath = findClosestPath(
-      { file, line },
-      this._program.pathLocations,
-      this._scripts,
-      "last",
-    );
-    if (!previewPath) {
+    const previewAddress = this.locator.addressAt(file, line, { beat: "last" });
+    if (previewAddress == null) {
       // A preview call takes over a waiting preview whether or not its
       // point resolves; with no beat to gate, nothing waits, so an
       // abandoned pin goes now.
@@ -3134,13 +3220,13 @@ export class Game<T extends M = {}> {
       this.module.ui.reveal();
       return null;
     }
-    if (this._previewedPath === previewPath) {
-      return this._pendingPreview?.promise ?? previewPath;
+    if (this._previewedAddress === previewAddress) {
+      return this._pendingPreview?.promise ?? previewAddress;
     }
     this.cancelPreview();
     this._previewFrom = { file, line };
-    this._previewPath = previewPath;
-    this._executingPath = "";
+    this._previewAddress = previewAddress;
+    this._executingAddress = null;
     this._executingLocation = [-1, -1, -1, -1, -1];
     this.endSimulation();
     // A game that has never started is previewing from its first preview on,
@@ -3148,14 +3234,14 @@ export class Game<T extends M = {}> {
     if (this._state === "initial") {
       this._state = "previewing";
     }
-    this._context.system.previewing = previewPath;
-    this._previewedPath = previewPath;
+    this._context.system.previewing = previewAddress;
+    this._previewedAddress = previewAddress;
     const generation = ++this._previewGeneration;
     this._holdingFlush = true;
     let held: { instructions: Instructions | null } | null = null;
     try {
-      this.observeScene(previewPath);
-      this.runPreview(previewPath);
+      this.observeScene(previewAddress);
+      this.runPreview(previewAddress);
     } finally {
       this._holdingFlush = false;
       held = this._held;
@@ -3176,20 +3262,20 @@ export class Game<T extends M = {}> {
     // clicked meanwhile; whether or not the run reached its flush.
     this.clearChoices();
     if (!held) {
-      this.finishPreview(previewPath, executed);
-      return previewPath;
+      this.finishPreview(previewAddress, executed);
+      return previewAddress;
     }
     if (!gate) {
       this.displayHeld(held.instructions);
-      this.finishPreview(previewPath, executed);
-      return previewPath;
+      this.finishPreview(previewAddress, executed);
+      return previewAddress;
     }
     let cancel = () => {};
     const cancelled = new Promise<void>((resolve) => {
       cancel = resolve;
     });
     const waiting = this.displayWhenResident(
-      previewPath,
+      previewAddress,
       generation,
       held.instructions,
       executed,
@@ -3197,7 +3283,7 @@ export class Game<T extends M = {}> {
       cancelled,
     );
     this._pendingPreview = {
-      path: previewPath,
+      address: previewAddress,
       generation,
       promise: waiting,
       abandon: gate.abandon,
@@ -3210,13 +3296,13 @@ export class Game<T extends M = {}> {
    *  took the preview over while it waited, which ends the wait at once;
    *  the pending record and the gate go however the wait ends. */
   protected async displayWhenResident(
-    previewPath: string,
+    previewAddress: ProgramAddress,
     generation: number,
     instructions: Instructions | null,
     executed: GameExecutedParams,
     gate: { settled: Promise<unknown>; release: () => void },
     cancelled: Promise<void>,
-  ): Promise<string | null> {
+  ): Promise<ProgramAddress | null> {
     try {
       await Promise.race([gate.settled, cancelled]);
       if (generation !== this._previewGeneration || this._destroyed) {
@@ -3227,8 +3313,8 @@ export class Game<T extends M = {}> {
       this.forgetPendingPreview(generation);
       gate.release();
     }
-    this.finishPreview(previewPath, executed);
-    return previewPath;
+    this.finishPreview(previewAddress, executed);
+    return previewAddress;
   }
 
   /** Drop the pending record of the preview of `generation`, if it is
@@ -3243,7 +3329,7 @@ export class Game<T extends M = {}> {
    *  execution as taken when the run stopped, sent after the display as
    *  `continue` sends it in play; then the modules' notice and the page's. */
   protected finishPreview(
-    previewPath: string,
+    previewAddress: ProgramAddress,
     executed: GameExecutedParams,
   ): void {
     this.notifyExecuted(executed);
@@ -3251,7 +3337,7 @@ export class Game<T extends M = {}> {
       this._modules[k]?.onPreview();
     }
     this._coordinator = null;
-    this.notifyPreviewed(previewPath);
+    this.notifyPreviewed(previewAddress);
   }
 
   /** Take over from a preview. A waiting one ends its wait now and displays
@@ -3264,7 +3350,7 @@ export class Game<T extends M = {}> {
    *  caller is about to do replaces the state that preview showed. */
   protected cancelPreview(): void {
     this._previewGeneration += 1;
-    this._previewedPath = undefined;
+    this._previewedAddress = undefined;
     const pending = this._pendingPreview;
     if (pending) {
       this._pendingPreview = null;
@@ -3295,21 +3381,35 @@ export class Game<T extends M = {}> {
   }
 
   getLastExecutedDocumentLocation() {
-    const lastExecutedPath = this._runtimeState.pathsExecutedThisFrame
+    const lastExecuted = this._runtimeState.pathsExecutedThisFrame
       .toArray()
-      .findLast((path) => hasPathLocation(this._program.pathLocations, path));
-    if (lastExecutedPath) {
-      return this.getPathDocumentLocation(lastExecutedPath);
+      .findLast((address) => this.scriptLocationOf(address) !== undefined);
+    if (lastExecuted != null) {
+      return this.documentLocationOf(lastExecuted);
     }
     return null;
   }
 
-  getPathDocumentLocation(path: string) {
-    const location = pathLocation(this._program.pathLocations, path);
-    if (location) {
-      return Game.documentLocation(this._program, this._scripts, location);
-    }
-    return null;
+  /** Where an address stands, as a script index and a range, or, for a
+   *  flow named by its qualified name (a route's start), where the flow is
+   *  declared; nothing for an address the program does not hold. */
+  scriptLocationOf(
+    address: ProgramAddress | null | undefined,
+  ): ScriptLocation | undefined {
+    return Game.scriptLocationIn(
+      this._program,
+      this._scripts,
+      this._positions.locator,
+      address,
+    );
+  }
+
+  /** Where an address stands, as an editor takes a location. */
+  documentLocationOf(
+    address: ProgramAddress | null | undefined,
+  ): DocumentLocation | null {
+    const location = this.scriptLocationOf(address);
+    return location ? this.getDocumentLocation(location) : null;
   }
 
   getDocumentLocation(location: ScriptLocation | null | undefined) {
@@ -3323,19 +3423,54 @@ export class Game<T extends M = {}> {
       : this._program.uri;
   }
 
-  static pathToDocumentLocation(program: SparkProgram, path: string) {
-    const scripts = Object.keys(program?.scripts ?? {});
-    const location =
-      pathLocation(program.pathLocations, path) ||
-      program.knotLocations?.[path] ||
-      program.stitchLocations?.[path] ||
-      program.functionLocations?.[path] ||
-      program.sceneLocations?.[path] ||
-      program.branchLocations?.[path];
-    if (location) {
-      return Game.documentLocation(program, scripts, location);
+  protected static scriptLocationIn(
+    program: SparkProgram,
+    scripts: readonly string[],
+    locator: ProgramLocator,
+    address: ProgramAddress | null | undefined,
+  ): ScriptLocation | undefined {
+    if (address == null || address === "") {
+      return undefined;
     }
-    return null;
+    const location = locator.locationOf(address);
+    if (location) {
+      const script = scripts.indexOf(location.uri);
+      return [
+        script < 0 ? 0 : script,
+        location.startLine,
+        location.startColumn,
+        location.endLine,
+        location.endColumn,
+      ];
+    }
+    if (typeof address !== "string") {
+      return undefined;
+    }
+    return (
+      program.knotLocations?.[address] ||
+      program.stitchLocations?.[address] ||
+      program.functionLocations?.[address] ||
+      program.sceneLocations?.[address] ||
+      program.branchLocations?.[address] ||
+      undefined
+    );
+  }
+
+  /** Where the story that runs `program` stands: the position its last step
+   *  ran, which the player's worker names when the story runs away. */
+  static storyLocation(
+    story: Story,
+    program: SparkProgram,
+  ): DocumentLocation | null {
+    const positions = storyPositions(story, program);
+    const scripts = Object.keys(program?.scripts ?? {});
+    const location = Game.scriptLocationIn(
+      program,
+      scripts,
+      positions.locator,
+      positions.previous(),
+    );
+    return location ? Game.documentLocation(program, scripts, location) : null;
   }
 
   static documentLocation(
@@ -3363,16 +3498,16 @@ export class Game<T extends M = {}> {
   }
 
   static getActualBreakpoints(
-    pathLocations: PathLocationTable | undefined,
+    locator: ProgramLocator,
     breakpoints: { file: string; line: number }[],
-    scripts: string[],
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
-      const [, closestInstruction] =
-        findClosestPathLocation(breakpoint, pathLocations, scripts) || [];
+      const closestInstruction = locator.locationOf(
+        locator.addressAt(breakpoint.file, breakpoint.line, { functions: true }),
+      );
       if (closestInstruction) {
-        const [_, closestStartLine] = closestInstruction;
+        const closestStartLine = closestInstruction.startLine;
         const validBreakpoint = {
           verified: true,
           location: {
@@ -3480,13 +3615,5 @@ export class Game<T extends M = {}> {
       }
     }
     return actualBreakpoints;
-  }
-
-  getClosestPath(file: string, line: number) {
-    return findClosestPath(
-      { file, line },
-      this._program.pathLocations,
-      this._scripts,
-    );
   }
 }

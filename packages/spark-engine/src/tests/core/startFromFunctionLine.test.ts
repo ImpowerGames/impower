@@ -10,6 +10,7 @@
 // function's container (#834). They are story, not function code, so a run or
 // a preview from them, or from the function above them, still reaches them.
 
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { describe, expect, test } from "vitest";
 import { Game } from "../../game/core/classes/Game";
 import { findClosestPathLocation } from "../../game/core/utils/findClosestPathLocation";
@@ -272,11 +273,9 @@ describe("the lines of a function body still resolve for the debugger (#835)", (
       scripts,
     );
     expect(found?.[0].split(".")[0]).toBe("less");
-    const [placed] = Game.getActualBreakpoints(
-      program.pathLocations,
-      [{ file: MAIN_URI, line: 4 }],
-      scripts,
-    );
+    const [placed] = Game.getActualBreakpoints(programLocator(program), [
+      { file: MAIN_URI, line: 4 },
+    ]);
     expect(placed).toMatchObject({ verified: true });
   });
 });

@@ -7,8 +7,11 @@ export type GameContext<B = any> = {
     system: {
       transitions?: boolean;
       skipping?: boolean;
+      /** The flow a route replay starts at, while one runs. */
       simulating?: string;
-      previewing?: boolean | string | null;
+      /** Whether the game shows a preview, and when it knows one, the
+       *  address of the beat it previews (`Game.markPreviewing`). */
+      previewing?: boolean | string | number | null;
       debugging?: boolean;
       locale?: string;
       uuid: () => string;

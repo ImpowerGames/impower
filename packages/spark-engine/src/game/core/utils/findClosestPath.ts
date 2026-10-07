@@ -1,16 +1,18 @@
 import type { PathLocationTable } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import {
-  findPathRow,
-  pathAtRow,
-} from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { pathTableLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 
 /**
  * The story path a preview of `from` should divert into: the closest path that
  * owns the line, among those a preview may target (binding evaluators are not
- * — see the table's previewable rows).
+ * — see the table's previewable rows), and the start of a choice for a line
+ * inside its start content.
  *
  * A line that `>` breaks holds several beats. A preview shows the line's last
  * beat (`"last"`), and PLAY from the line starts at its first (`"first"`).
+ *
+ * The current engine's accessor answers (`pathTableLocator`, #700), which is
+ * what the game and the player resolve a line through; this name stays for
+ * the tests that pin the table's lookups.
  */
 export const findClosestPath = (
   from: { file: string; line: number },
@@ -22,19 +24,8 @@ export const findClosestPath = (
   if (file == null || line == null) {
     return null;
   }
-  const row = findPathRow(
-    pathLocations,
-    scripts.indexOf(file),
-    line,
-    true,
+  const address = pathTableLocator(pathLocations, scripts).addressAt(file, line, {
     beat,
-  );
-  const path = row < 0 ? undefined : pathAtRow(pathLocations, row);
-  const parentPath = path?.split(".").slice(0, -1).join(".");
-  if (parentPath?.endsWith(".$s")) {
-    // If we are inside choice start content, begin from start of choice
-    const grandParentPath = parentPath?.split(".").slice(0, -1).join(".");
-    return grandParentPath + ".0";
-  }
-  return path ?? null;
+  });
+  return typeof address === "string" ? address : null;
 };

@@ -319,7 +319,7 @@ describe("the stories the worker keeps", () => {
       newer.program,
       newer.checkpoint,
       newer.simulationFailure,
-      newer.simulatedPath,
+      newer.simulatedAddress,
       newer.simulatedProgramId,
     );
     await h.held();

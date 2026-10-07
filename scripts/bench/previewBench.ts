@@ -18,6 +18,7 @@ import * as fs from "node:fs";
 import * as v8 from "node:v8";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
+import type { ProgramAddress } from "../../packages/sparkdown/src/compiler/types/ProgramAddress";
 import { profile, setRetainProfilerEntries } from "../../packages/sparkdown/src/compiler/utils/profile";
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
@@ -233,11 +234,11 @@ async function main() {
     profile("end", PROFILER_ID, "game/setStartFrom");
   };
   // The last route search's target and the checkpoint it produced.
-  let searched: { toPath: string; checkpoint?: string } | undefined;
-  const search = (game: Game, toPath: string, log: RouteSearchLog, remember: boolean) => {
-    const checkpoint = searchRouteTo(game, toPath, log, { config: (compiler as any).config, profilerId: PROFILER_ID, remember });
+  let searched: { to: ProgramAddress; checkpoint?: string } | undefined;
+  const search = (game: Game, to: ProgramAddress, log: RouteSearchLog, remember: boolean) => {
+    const checkpoint = searchRouteTo(game, to, log, { config: (compiler as any).config, profilerId: PROFILER_ID, remember });
     routeSteps = (game as any)._plannedRoute?.steps?.length ?? 0;
-    searched = { toPath, checkpoint };
+    searched = { to, checkpoint };
   };
   const routeSearches = new RouteSearchLog();
   // A chunked program runs on the program engine, which the worker does not
@@ -248,22 +249,22 @@ async function main() {
     const game = updateWorkerGame(params.program, params.story);
     if (params.program.startFrom) {
       setStartFrom(game, params.program.startFrom);
-      const toPath = game.startPath;
-      if (toPath) {
-        search(game, toPath, routeSearches, true);
+      const to = game.startAddress;
+      if (to != null) {
+        search(game, to, routeSearches, true);
         // Attaches the route's checkpoint to the result, as the worker does.
-        routeSearches.report(params, toPath);
+        routeSearches.report(params, to);
       }
     }
   });
   if (!config.chunks) compiler.addEventListener("compiler/didPreviewCompile", (params: any) => {
     const game = updateWorkerGame(params.program, params.story);
     setStartFrom(game, params.startFrom);
-    const toPath = game.startPath;
-    if (toPath) {
+    const to = game.startAddress;
+    if (to != null) {
       const log = new RouteSearchLog();
-      search(game, toPath, log, false);
-      log.report(params, toPath);
+      search(game, to, log, false);
+      log.report(params, to);
     }
   });
 
@@ -288,7 +289,7 @@ async function main() {
     // What a preview displays is a suggestion, whose report the player takes
     // without what only the editors read.
     game.reportsExecutedLines = config.mode !== "preview";
-    game.markPreviewing(searched?.toPath);
+    game.markPreviewing(searched?.to);
     game.module.ui.forgetDisplayedImages();
     game.endSimulation();
     const t0 = performance.now();
@@ -314,7 +315,7 @@ async function main() {
     "system.simulating": game._context.system.simulating ?? null,
     "system.previewing": game._context.system.previewing ?? null,
     incrementalCheckpoints: game._checkpoints?._incremental ?? game._checkpoints?.options?.incremental ?? null,
-    previewedPath: game.previewedPath ?? null,
+    previewedAddress: game.previewedAddress ?? null,
   });
 
   takeMeasures();

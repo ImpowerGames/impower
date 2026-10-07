@@ -358,7 +358,7 @@ export function describeRoot(root: ProgramRoot): string[] {
   };
   for (const flow of flowRows(root)) {
     out.push(
-      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${flow.kind} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
+      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${flow.kind} ${flow.uri} first ${root.firstLineOf(flow)} span ${flow.span}`,
     );
     describeSequence(flow, "  ");
   }

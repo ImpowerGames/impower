@@ -633,11 +633,11 @@ export class GamePlayerController {
     }
     this.refs.leftItems.hidden = false;
     // The page holds only a program's summary, which has no locations to
-    // look paths up in: the worker that holds the program sends them with
+    // place addresses with: the worker that holds the program sends them with
     // the report.
     if (
       (this._program || params.simulateLocation) &&
-      params.simulatePath &&
+      params.simulateFlow != null &&
       params.simulation === "fail"
     ) {
       const simulateFromLocation = params.simulateLocation;
@@ -661,7 +661,7 @@ export class GamePlayerController {
     }
     if (
       (this._program || params.startLocation) &&
-      params.startPath &&
+      params.startLocation != null &&
       params.simulation === "fail"
     ) {
       const startFromLocation = params.startLocation;

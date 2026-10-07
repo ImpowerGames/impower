@@ -80,7 +80,7 @@ function longScene(beats: number): string {
 function targetPathForLine(program: unknown, line: number): string {
   const game = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return (game as any).startPath as string;
+  return game.startAddress as string;
 }
 
 const BEATS = 50;

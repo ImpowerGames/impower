@@ -1,19 +1,24 @@
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import {
-  pathLocationCount,
-  scriptRowRange,
-  startLineAtRow,
-} from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 
 /**
- * The source position `offset` path-locations away from (`currentFile`,
- * `currentLine`) — i.e. the previous (-1) or next (+1) beat. Powers the
- * editor's PageUp/PageDown navigation.
+ * The first line of the beat `offset` beats away from (`currentFile`,
+ * `currentLine`) in that script: the previous beat (-1) or the next one (+1).
+ * Powers the editor's PageUp/PageDown navigation.
  *
- * This lives server-side deliberately: `pathLocations` has ~12k entries on a
- * feature-length script (~600KB serialized), and shipping it to the client
- * with every compile just to answer an occasional keypress dominated the
- * per-keystroke payload. Asking for one location on demand is a few bytes.
+ * A beat is what the program's accessor gives one address (`ProgramLocator`),
+ * which starts where `locationOf` says: the lines of one beat (a cue, a
+ * directive, the dialogue) share it, and a line that holds no statement takes
+ * the next beat's. So the next beat is the first one below the line that
+ * starts below it, and the previous beat the first one above that starts
+ * above it, which from inside a beat is that beat's start. The program
+ * answers from either engine, and no line table reaches the client.
+ *
+ * This lives server-side deliberately: the program's locations are large on a
+ * feature-length script, and shipping them to the client with every compile
+ * just to answer an occasional keypress dominated the per-keystroke payload.
+ * Asking for one location on demand is a few bytes.
  */
 export const getOffsetSourceLocation = (
   program: SparkProgram | undefined,
@@ -21,45 +26,52 @@ export const getOffsetSourceLocation = (
   currentLine: number,
   offset: number,
 ): { file: string; line: number } | null => {
-  if (!program || currentFile == null) {
+  if (
+    !program ||
+    currentFile == null ||
+    !Object.keys(program.scripts ?? {}).includes(currentFile) ||
+    offset === 0
+  ) {
     return null;
   }
-  const table = program.pathLocations;
-  const files = Object.keys(program.scripts ?? {});
-  const fileIndex = files.indexOf(currentFile);
-  if (!table || fileIndex < 0) {
-    return null;
-  }
-  // The rows of a script are ordered by start line, so the row at or before
-  // `currentLine` is found by binary search within that script's range.
-  const [start, end] = scriptRowRange(table, fileIndex);
-  let lo = start;
-  let hi = end;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (startLineAtRow(table, mid) < currentLine) {
-      lo = mid + 1;
+  const locator = programLocator(program);
+  const addressAt = (line: number): ProgramAddress | undefined =>
+    line < 0 ? undefined : locator.addressAt(currentFile, line);
+  const startOf = (address: ProgramAddress): number | undefined => {
+    const location = locator.locationOf(address);
+    return location?.uri === currentFile ? location.startLine : undefined;
+  };
+  let line = currentLine;
+  for (let step = 0; step < Math.abs(offset); step += 1) {
+    let found: number | undefined;
+    if (offset > 0) {
+      // The first beat below that starts below the line. A line past the
+      // script's last statement has no address.
+      for (let l = line + 1; found === undefined; l += 1) {
+        const address = addressAt(l);
+        if (address === undefined) {
+          return null;
+        }
+        const start = startOf(address);
+        if (start !== undefined && start > line) {
+          found = start;
+        }
+      }
     } else {
-      hi = mid;
+      // The first beat above that starts above the line: the start of the
+      // beat the line is inside, or the one before it.
+      for (let l = line - 1; l >= 0 && found === undefined; l -= 1) {
+        const address = addressAt(l);
+        const start = address === undefined ? undefined : startOf(address);
+        if (start !== undefined && start < line) {
+          found = start;
+        }
+      }
     }
+    if (found === undefined) {
+      return null;
+    }
+    line = found;
   }
-  if (lo >= end) {
-    // Every row of the script is before the line; there is no row to count
-    // from.
-    return null;
-  }
-  // The row counted from is the one on the line, or the one before the first
-  // row past it. Rows are numbered across the whole program, so an offset may
-  // land in a neighbouring script, as a linear walk of all of them would.
-  const from = startLineAtRow(table, lo) === currentLine ? lo : lo - 1;
-  const row = from + offset;
-  if (row < 0 || row >= pathLocationCount(table)) {
-    return null;
-  }
-  const at = row * 5;
-  const file = files[table.values[at]!];
-  if (!file) {
-    return null;
-  }
-  return { file, line: table.values[at + 1]! };
+  return { file: currentFile, line };
 };

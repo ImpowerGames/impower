@@ -485,16 +485,23 @@ describe("a position inside an unchanged block below an edit", () => {
   const BELOW = ["    After the block.", "    Inserted below.\n    After the block."];
   const edited = text.replace(ABOVE[0]!, ABOVE[1]!).replace(BELOW[0]!, BELOW[1]!);
   const beatTexts = (beats: ReturnType<typeof storyBeats>) => beats.beats.map((b) => b.text.trim());
-  // An engine on `root` that places a path at the line of `script` that
-  // holds `line`, as a game's path locations place a line of the editor
-  // (`Game.setStartFrom`), which enters the blocks that hold it.
-  const engineAt = (root: ProgramRoot, script: string) =>
-    new ProgramStory(root, {
-      locate: (path) => {
-        const line = script.split("\n").findIndex((l) => l.trim() === path);
-        return line < 0 ? undefined : { uri: MAIN_URI, line, column: 0 };
-      },
-    });
+  // An engine on `root` that chooses a line of `script`, named by its text,
+  // at the line's address, as a game places a line of the editor
+  // (`Game.setStartFrom`, #700), which enters the blocks that hold it.
+  const engineAt = (root: ProgramRoot, script: string) => {
+    const story = new ProgramStory(root);
+    const choose = story.ChoosePathString.bind(story);
+    story.ChoosePathString = (path: string, ...rest: [boolean?, unknown[]?]) => {
+      const line = script.split("\n").findIndex((l) => l.trim() === path);
+      const address = line < 0 ? undefined : root.addressAt(MAIN_URI, line);
+      if (address === undefined) {
+        choose(path, ...rest);
+      } else {
+        story.ChooseAddress(address);
+      }
+    };
+    return story;
+  };
 
   it("is reached through the new root, whose `if` chunk, block rows and their chunks are the old ones", () => {
     const s = session({ [MAIN_URI]: text });

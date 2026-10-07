@@ -174,18 +174,18 @@ describe("a route replay", () => {
     } as any);
     const line = SCENE.split("\n").findIndex((l) => l.includes("Last line."));
     game.setStartFrom({ file: URI, line });
-    const toPath = (game as any).startPath as string;
+    const toPath = game.startAddress as string;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      game.routeStartOf(toPath),
       toPath,
     )!;
     expect(route).toBeTruthy();
     // A target the replay never reaches, so it runs on to the story's end,
     // where the continue after the last line ends the story with nothing to
     // flush.
-    route.toPath = "start.nowhere";
+    route.to = "start.nowhere";
 
     const anyGame = game as any;
     let beats = 0;
@@ -258,7 +258,7 @@ describe("a game", () => {
     };
 
     game.start();
-    (game as any).jumpToPath("start");
+    game.jumpTo("start");
     beats.length = 0;
     game.continue();
     expect(beats).toEqual([{ text: ["Pick a door."], choices: [] }]);

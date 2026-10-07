@@ -3,6 +3,7 @@ import type {
   RoutePlan,
   RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import type { RouteSearchLog } from "./RouteSearchLog";
@@ -24,7 +25,7 @@ export interface RouteSearchSettings {
   remember?: boolean;
 }
 
-/** Plan a route to `toPath` and replay it, recording what the search
+/** Plan a route to the address `to` and replay it, recording what the search
  *  established in `log`. Returns the checkpoint it produced, if any. A route
  *  replayed for a preview compile passes its own log and `remember: false`,
  *  so nothing it finds is kept for the real program: not the search record a
@@ -40,18 +41,18 @@ export interface RouteSearchSettings {
  *  is reported is always what a search from the top would have reported. */
 export const searchRouteTo = (
   game: Game,
-  toPath: string,
+  to: ProgramAddress,
   log: RouteSearchLog,
   settings: RouteSearchSettings,
 ): string | undefined => {
   const { config, profilerId, remember = true } = settings;
-  const fromPath = Game.getSimulateFromPath(toPath);
+  const from = game.routeStartOf(to);
   // Asked before anything replaces the planned route, because every question it
   // answers is about that route. Measured under its own name: it walks the
   // route's steps and reads a checkpoint back, so it is work in its own right
   // and a reader comparing a before and an after needs to see it.
   profile("start", profilerId + " " + "game/routeResumption");
-  const resumption = game.routeResumption(fromPath, toPath);
+  const resumption = game.routeResumption(from, to);
   profile("end", profilerId + " " + "game/routeResumption");
   const plannedRoute = game.plannedRoute;
 
@@ -60,8 +61,8 @@ export const searchRouteTo = (
     const route = Game.planRoute(
       game.story,
       game.program,
-      fromPath,
-      toPath,
+      from,
+      to,
       config.simulationOptions,
       // `patchAndSimulateRoute` below loads a checkpoint or jumps to the route's
       // start, so a route found here can be left where the search stopped rather
@@ -83,7 +84,7 @@ export const searchRouteTo = (
   const finish = (route: RoutePlan, checkpoint: string | null | undefined) => {
     const reachedTarget = game.simulation === "success";
     log.record({
-      path: toPath,
+      address: to,
       programId,
       reachedTarget,
       checkpoint: checkpoint ?? undefined,
@@ -99,7 +100,7 @@ export const searchRouteTo = (
       const favoredConditions = conditions.map((c) => c.selected);
       const favoredChoices = choices.map((c) => c.selected);
       config.simulationOptions ??= {};
-      config.simulationOptions[route.fromPath] = {
+      config.simulationOptions[route.from] = {
         favoredConditions,
         favoredChoices,
       };
@@ -146,12 +147,12 @@ export const searchRouteTo = (
     // account of how it ended is what separates "there is no way there" from
     // "I gave up looking" — and only the first is the script's fault (#379).
     log.record({
-      path: toPath,
+      address: to,
       programId,
       reachedTarget: false,
-      simulationFailure: Game.describeFailedRouteSearch(game.program, toPath),
+      simulationFailure: game.describeFailedRouteSearch(to),
       // Nothing was replayed; an error that stopped the search is why.
-      errors: Game.searchErrors(game.program),
+      errors: game.searchErrors(),
     });
     return undefined;
   }

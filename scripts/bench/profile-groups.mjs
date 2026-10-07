@@ -52,7 +52,7 @@ export const STEPPING = [
 // the work its functions do themselves; `main.js` is the text document class
 // of vscode-languageserver-textdocument.
 export const GAPS = [
-  ["Game.setStartFrom: the path lookup indexes", /^(pathLocationTable|findClosestPath)\.ts:|^Game\.ts:setStartFrom$/],
+  ["Game.setStartFrom: the line lookup (the accessor and its indexes)", /^(pathLocationTable|programLocator|ProgramRoot)\.ts:|^Game\.ts:setStartFrom$/],
   ["define scoping and builtin overrides", /^scopeDefineInstances\.ts:|^SparkdownCompiler\.ts:applyBuiltinOverrides$/],
   ["populateSceneAssets", /^SparkdownCompiler\.ts:populateSceneAssets$/],
   ["the edited text: inverting and applying the changes", /^invertContentChanges\.ts:|^main\.js:|^SparkdownDocumentRegistry\.ts:/],

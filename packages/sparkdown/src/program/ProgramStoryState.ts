@@ -28,6 +28,7 @@ import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { UNDEFINED_KIND, countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
 import {
   BLOCK_FUNCTION,
+  addressOf,
   blockFlags,
   chunkId,
   type StatementChunk,
@@ -127,6 +128,16 @@ export interface PositionCopy {
   readonly entry: number;
   readonly offset: number;
   readonly sequence: number;
+  /** For a position at the start of a statement that is not its sequence's
+   *  first, or past the last statement, where a statement that ran rests
+   *  (a beat's image at its newline stands there): the id of the chunk
+   *  before it, or -1. The position is placed after that chunk when a root
+   *  still holds it and the statement the position stands at, so a compile
+   *  that inserted a statement after it or appended one to its sequence
+   *  leaves the story to run what now follows the statement that ran (#700).
+   *  A statement at the position that was emitted again leaves the position
+   *  unplaced, as it does with no chunk before it (#699). */
+  readonly after: number;
 }
 
 export const copyPosition = (
@@ -135,12 +146,18 @@ export const copyPosition = (
   if (!position) {
     return null;
   }
-  const chunk = position.sequence.arrays.chunks[position.entry];
+  const chunks = position.sequence.arrays.chunks;
+  const chunk = chunks[position.entry];
+  const before =
+    position.offset === 0 && position.entry > 0
+      ? chunks[position.entry - 1]
+      : undefined;
   return {
     chunk: chunk ? chunkId(chunk) : -1,
     entry: position.entry,
     offset: position.offset,
     sequence: position.sequence.id,
+    after: before ? chunkId(before) : -1,
   };
 };
 
@@ -198,6 +215,7 @@ export interface PositionalCopy {
   readonly seed: number;
   readonly previousRandom: number;
   readonly previousFlow: number;
+  readonly previousAddress: number;
   /** The threads from the outermost; the last is the current one. */
   readonly threads: readonly ThreadCopy[];
   readonly threadCounter: number;
@@ -296,6 +314,13 @@ export class ProgramStoryState {
    *  suspends it with the thread it forks, a forced end clears it, and a
    *  save writes it by name, for each thread. */
   previousFlow = -1;
+  /** The address of the instruction that ran last, or -1: what a route step
+   *  is known by (docs/engine/binary-program.md, section 8), as the current
+   *  engine's step is known by its previous pointer. An image copies it with
+   *  the position, so a search node restored from one stands where it stood.
+   *  A durable save does not hold it, since an address names a chunk of the
+   *  program it was taken in. */
+  previousAddress = -1;
 
   protected _currentErrors: string[] | null = null;
   protected _currentWarnings: string[] | null = null;
@@ -349,6 +374,32 @@ export class ProgramStoryState {
    *  the flow's own element. */
   frameOf(element: CallStack.Element): ProgramFrame | undefined {
     return this._frames.get(element);
+  }
+
+  /** The addresses the story will come back to, from the outermost thread
+   *  in: for each thread, where each of its frames returns to and, for a
+   *  suspended thread, where it resumes, which runs on into those frames'
+   *  returns; then the position (`ProgramStory.stackAddresses`), as the
+   *  current engine's call stack names every thread's elements. */
+  stackAddresses(): number[] {
+    const out: number[] = [];
+    const add = (position: ProgramPosition | null | undefined) => {
+      const chunk = position?.sequence.arrays.chunks[position.entry];
+      if (position && chunk) {
+        out.push(addressOf(chunkId(chunk), position.offset));
+      }
+    };
+    const threads = this.callStack._threads;
+    threads.forEach((thread, i) => {
+      for (const element of thread.callstack) {
+        add(this._frames.get(element)?.returnTo);
+      }
+      if (i < threads.length - 1) {
+        add(this._suspended.get(thread)?.position);
+      }
+    });
+    add(this.position);
+    return out;
   }
 
   /** Pushes a call frame of `type`: its element, with the output's length
@@ -896,6 +947,7 @@ export class ProgramStoryState {
     this.position = null;
     this.blockStack = [];
     this.previousFlow = -1;
+    this.previousAddress = -1;
     this.didSafeExit = true;
   }
 
@@ -1159,6 +1211,9 @@ export class ProgramStoryState {
     writer.WriteIntProperty("storySeed", this.storySeed);
     writer.WriteIntProperty("previousRandom", this.previousRandom);
     this.writePreviousFlow(writer, this.previousFlow);
+    if (codec instanceof SessionCodec) {
+      writer.WriteIntProperty("previousAddress", this.previousAddress);
+    }
     writer.WriteProperty("didSafeExit", this.didSafeExit);
     writer.WriteProperty("variablesState", (w) =>
       this.variablesState.WriteJson(w),
@@ -1395,6 +1450,7 @@ export class ProgramStoryState {
       seed: this.storySeed,
       previousRandom: this.previousRandom,
       previousFlow: this.previousFlow,
+      previousAddress: this.previousAddress,
       threads: threads.map((thread, i) =>
         copyThread(
           thread,
@@ -1431,7 +1487,18 @@ export class ProgramStoryState {
         return null;
       }
       let position: ProgramPosition | null = null;
-      if (saved.chunk < 0) {
+      // The statement the position stands at must still be held, as for any
+      // position (#699); a statement emitted again leaves it unplaced.
+      const held = saved.chunk < 0 || !!root.position(saved.chunk, saved.entry);
+      const after =
+        held && saved.after >= 0
+          ? root.position(saved.after, saved.entry - 1)
+          : undefined;
+      if (after) {
+        // Where the statement that ran rests: after it, whatever follows it
+        // in this root.
+        position = { sequence: after.sequence, entry: after.entry + 1, offset: 0 };
+      } else if (saved.chunk < 0) {
         const sequence = root.sequence(saved.sequence);
         if (sequence) {
           position = { sequence, entry: sequence.arrays.chunks.length, offset: 0 };
@@ -1534,6 +1601,7 @@ export class ProgramStoryState {
     this.storySeed = copy.seed;
     this.previousRandom = copy.previousRandom;
     this.previousFlow = copy.previousFlow;
+    this.previousAddress = copy.previousAddress;
     this.generatedChoices = copy.choices.map((saved, i) => {
       const placedChoice = placed.choices[i]!;
       const target = placedChoice.target!;
@@ -1568,6 +1636,8 @@ export class ProgramStoryState {
       throw new Error("The save was not written by the program engine.");
     }
     this.readState(obj, new SessionCodec(this, true));
+    const previous = obj["previousAddress"];
+    this.previousAddress = typeof previous === "number" ? previous : -1;
   }
 
   /** Restores a state `writeState` wrote with a codec that reads what it
@@ -1622,6 +1692,7 @@ export class ProgramStoryState {
       this.storySeed = obj["storySeed"];
       this.previousRandom = obj["previousRandom"];
       this.previousFlow = this.readPreviousFlow(obj);
+      this.previousAddress = -1;
       this.didSafeExit = obj["didSafeExit"] === true;
       this.variablesState.SetJsonToken(obj["variablesState"]);
       const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];
