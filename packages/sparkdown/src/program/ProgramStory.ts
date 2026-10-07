@@ -502,6 +502,11 @@ export class ProgramStory {
   protected _chosenAt: BeatRecord | null = null;
   /** The address of the `Choice` taken there. */
   protected _chosenAddress = -1;
+  /** After a restore, the record of the beat the state is at, until the
+   *  story moves on: the history's newest record, or the record an image
+   *  the history no longer holds keeps (`ProgramImage.beat`). An image taken
+   *  of the state then, however it was taken, is that beat (`adoptBeat`). */
+  protected _restoredBeat: BeatRecord | null = null;
 
   constructor(
     readonly root: ProgramRoot,
@@ -605,10 +610,7 @@ export class ProgramStory {
       // the record's place, or the beat a restored image's record was.
       const still = this.stillImage();
       const image = (!keyframe && still) || this.capture(keyframe);
-      if (still && image !== still) {
-        if (still.beat) image.beat = still.beat;
-        this.history.replaceImage(still, image);
-      }
+      this.adoptBeat(image, still);
       // Just after a choice: the beat before its menu with the choice, which
       // a durable save of the image writes (`saveOfImage`), so that a load
       // raises the menu again and is unplaced when the choice is not
@@ -649,6 +651,7 @@ export class ProgramStory {
     }
     // A rewind forgets the beats after the image.
     this.history.truncateTo(image);
+    this._restoredBeat = (image.beat as BeatRecord | undefined) ?? null;
     const after = image.afterChoice;
     if (after) {
       // The menu's record, which a keyframe taken of it since may hold
@@ -728,9 +731,29 @@ export class ProgramStory {
    *  `BEAT_REWIND_FLOOR`, `BEAT_DECISIONS_FIXED`), which its image and a save
    *  carry. */
   setBeatFlags(flags: number): void {
-    const newest = this.history.newest;
-    if (newest) {
-      newest.flags = flags;
+    // After a restore, the restored beat, which the history may no longer
+    // hold.
+    const current = this._restoredBeat ?? this.history.newest;
+    if (current) {
+      current.flags = flags;
+    }
+  }
+
+  // Makes `image`, taken of the state as it stands, the image of the beat
+  // the state is at: after a restore, the restored beat, and otherwise the
+  // beat of the image the state still is (`still`), when nothing moved it.
+  // A recapture (a keyframe, a host's write, an image of another engine
+  // that this one cannot take a delta on) is the same beat, which takes the
+  // place of that beat's image when the beat is the history's newest, so
+  // that the next continue takes it once.
+  protected adoptBeat(image: ProgramImage, still: ProgramImage | null): void {
+    const beat = this._restoredBeat ?? (still?.beat as BeatRecord | undefined);
+    if (!beat || image.beat === beat) {
+      return;
+    }
+    image.beat = beat;
+    if (this.history.newest === beat) {
+      (beat as { image: ProgramImage }).image = image;
     }
   }
 
@@ -769,7 +792,9 @@ export class ProgramStory {
         "A save at a menu holds the beat before it, which the story keeps only while keepBeatImages is set.",
       );
     }
-    const live = this.stillImage() ?? this.capture();
+    const still = this.stillImage();
+    const live = still ?? this.capture();
+    this.adoptBeat(live, still);
     const records =
       this.history.upTo(live) ??
       (this.history.provisional && this.keepBeatImages
@@ -778,7 +803,6 @@ export class ProgramStory {
     return this.saveOf(records, undefined, gameVersion)!;
   }
 
-  // A record for an image that is no beat of the history.
   // A record for an image that is no beat of the history: the flags and
   // decisions of the beat it was taken at, when the history held that beat
   // once (`ProgramImage.beat`, which the image keeps when the history
@@ -905,6 +929,7 @@ export class ProgramStory {
     this.CancelAsyncContinue();
     this._stateIsPristine = false;
     this._chosenAt = null;
+    this._restoredBeat = null;
     this.notMovedSince(records[records.length - 1]?.image ?? null);
     const report = load.report;
     if (load.chosen !== undefined && records.length > 0) {
@@ -1063,6 +1088,7 @@ export class ProgramStory {
       this.attachImages();
     }
     this._chosenAt = null;
+    this._restoredBeat = null;
     this._stateIsPristine = true;
   }
 
@@ -1076,6 +1102,7 @@ export class ProgramStory {
     this._stillImage = null;
     // The story ended: no longer the state just after a choice.
     this._chosenAt = null;
+    this._restoredBeat = null;
     this._state.ForceEnd();
   }
 
@@ -1168,6 +1195,7 @@ export class ProgramStory {
     this._state.beatImage = null;
     this._stillImage = null;
     this._chosenAt = null;
+    this._restoredBeat = null;
     this._state.DiscardLineEnd();
     this.passArguments(args);
     this._stateIsPristine = false;
@@ -1203,6 +1231,7 @@ export class ProgramStory {
       record.decisions.push(Number(choice.sourcePath));
     }
     this._chosenAt = record ?? null;
+    this._restoredBeat = null;
     this._chosenAddress = Number(choice.sourcePath);
     const left = this._state.previousFlow;
     // What a choice leads to starts a new box, so no line before the choice
@@ -1844,9 +1873,15 @@ export class ProgramStory {
       // continue that ends with choices raised and no newline leaves as the
       // image of its beat (`captureBeat`).
       if (this.keepBeatImages && this._recursiveContinueCount == 1) {
-        state.beatImage = this.stillImage() ?? this.capture();
+        const still = this.stillImage();
+        state.beatImage = still ?? this.capture();
+        this.adoptBeat(state.beatImage, still);
         this.history.push(state.beatImage, 0);
         this._chosenAt = null;
+      }
+      if (this._recursiveContinueCount == 1) {
+        // The story moves on from the beat a restore left.
+        this._restoredBeat = null;
       }
       state.didSafeExit = false;
       // The step the last continue cut off after its line ended starts this

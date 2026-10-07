@@ -21,7 +21,7 @@ import {
   BEAT_WAITED,
 } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compileScript } from "./programHarness";
+import { compileScript, programSession } from "./programHarness";
 import { SAVE_SCENARIOS, SCENARIO_MARKER } from "./programSaveScenarios";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -456,6 +456,69 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(advance(story, 1)).toHaveLength(1);
     expect(story.beats.at(-2)).toBe(held);
     expect(story.beats.filter((record) => record.image === again)).toHaveLength(1);
+  });
+
+  // Round 6 of the review of #1654 (report 6043744707, finding 1): the
+  // state a restore left, taken again because the host wrote to it or
+  // because the image is another engine's, is still the restored beat.
+  it("a restored beat taken again after the host wrote to it keeps its record and flags", () => {
+    const story = engine(rootOf(PLAYTHROUGHS(true)));
+    story.ChoosePathString("new");
+    expect(advance(story, 1)).toEqual(["New one."]);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const checkpoint = story.captureBeat();
+    const record = story.beats.at(-1)!;
+    const count = story.beats.length;
+    expect(advance(story, 2)).toEqual(["New two.", "New three."]);
+    expect(story.restore(checkpoint)).toBe(true);
+    story.variablesState["gold"] = 5;
+    const keyframe = story.captureBeat(true);
+    expect(keyframe.beat).toBe(record);
+    expect(JSON.parse(story.saveOfImage(keyframe)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(advance(story, 1)).toEqual(["New two."]);
+    expect(story.beats).toHaveLength(count + 1);
+    expect(story.beats.at(-2)).toBe(record);
+    expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+  });
+
+  it("a checkpoint restored by the engine of the next compile is its beat, flags included, and taken once", () => {
+    const text = SAVE_SCENARIOS["long"]!.script;
+    const session = programSession(text);
+    const story = engine(session.root);
+    expect(advance(story, 2)).toHaveLength(2);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const checkpoint = story.captureBeat();
+    const record = story.beats.at(-1)!;
+    expect(advance(story, 2)).toHaveLength(2);
+    // A compile that keeps every chunk the checkpoint names, and a story of
+    // the next program sharing the images and the history, as `Game` makes.
+    const edited = session.edit("Line 30.", "Line thirty.");
+    const next = new ProgramStory(edited, { images: story.images, history: story.history });
+    next.keepBeatImages = true;
+    next.onError = () => {};
+    expect(next.restore(checkpoint)).toBe(true);
+    const keyframe = next.captureBeat(true);
+    expect(keyframe.beat).toBe(record);
+    expect(JSON.parse(next.saveOfImage(keyframe)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(advance(next, 1)).toHaveLength(1);
+    expect(next.beats.filter((r) => r === record)).toHaveLength(1);
+    expect(next.beats.at(-2)).toBe(record);
+    expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+  });
+
+  // Round 6 (report 6043744707, finding 2).
+  it("flags set after restoring a checkpoint whose record the history evicted are the restored beat's", () => {
+    const script = SAVE_SCENARIOS["long"]!.script;
+    const story = engine(rootOf(script), { rewindBeats: 2 });
+    expect(advance(story, 1)).toHaveLength(1);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const checkpoint = story.captureBeat();
+    expect(advance(story, 4)).toHaveLength(4);
+    expect(story.restore(checkpoint)).toBe(true);
+    story.setBeatFlags(BEAT_WAITED | BEAT_DECISIONS_FIXED);
+    expect(JSON.parse(story.toSave()).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_DECISIONS_FIXED);
+    expect(advance(story, 1)).toHaveLength(1);
+    expect(JSON.parse(story.toSave()).beats[0].flags).toBe(BEAT_WAITED | BEAT_DECISIONS_FIXED);
   });
 });
 
