@@ -44,8 +44,8 @@ const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
  *
  * A top-level flow is the top-level content (`"0"`), a scene with its
  * branches, or a function, and each one's statements are read in the order
- * the root keeps them, each block statement before the statements of its
- * bodies.
+ * the root keeps them, a block statement's code up to where it enters a body
+ * before that body's statements, as the document orders them.
  */
 export const captureProgramAssets = (
   root: ProgramRoot,
@@ -62,9 +62,23 @@ export const captureProgramAssets = (
     const head = name.split(".")[0] ?? "";
     return head === "" ? "0" : head;
   };
+  // A chunk's code, and each of its bodies where the code enters it, so that
+  // a choice's entry and its body come before the next choice's (round 2 of
+  // the review of #1618); a body no instruction enters follows the code.
   const visitChunk = (chunk: StatementChunk, capture: SceneAssetCapture) => {
     const id = chunkId(chunk);
     const words = codeWords(chunk);
+    const visited = new Set<number>();
+    const visitBody = (k: number) => {
+      if (visited.has(k) || k < 0 || k >= blockCount(chunk)) {
+        return;
+      }
+      visited.add(k);
+      const body = root.body(chunk, k);
+      if (body) {
+        visitSequence(body, capture);
+      }
+    };
     let beat = -1;
     for (let offset = 0; offset < words; offset += 2) {
       const word0 = chunk[HEADER_WORDS + offset]!;
@@ -72,6 +86,9 @@ export const captureProgramAssets = (
       switch (opOf(word0)) {
         case Op.LineStart:
           beat = offset;
+          break;
+        case Op.EnterBlock:
+          visitBody(arg);
           break;
         case Op.Str:
         case Op.Text: {
@@ -124,16 +141,13 @@ export const captureProgramAssets = (
           break;
       }
     }
+    for (let k = 0; k < blockCount(chunk); k += 1) {
+      visitBody(k);
+    }
   };
   const visitSequence = (row: SequenceRow, capture: SceneAssetCapture) => {
     for (const chunk of row.arrays.chunks) {
       visitChunk(chunk, capture);
-      for (let k = 0; k < blockCount(chunk); k += 1) {
-        const body = root.body(chunk, k);
-        if (body) {
-          visitSequence(body, capture);
-        }
-      }
     }
   };
   // Every flow, a branch under its scene, each script's flows in line order.

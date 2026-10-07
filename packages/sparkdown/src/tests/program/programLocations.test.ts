@@ -130,6 +130,41 @@ describe("a compile with statement chunks", () => {
     expect(beats[1]!.address).toBe(locator.addressAt(MAIN_URI, 6));
   });
 
+  // Round 2 of the review of #1618 (report 6028078542): a choose block's
+  // entries are its own code and its choices' bodies blocks of it, so its
+  // entries' assets were read before every body's.
+  it("reads a choice's entry and its body before the next choice's, in document order", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[intro]] Intro.",
+      "  choose",
+      "    + [A] [[option_a]] A.",
+      "      [[body_a]] Body A.",
+      "    + [B] [[option_b]] B.",
+      "      [[body_b]] Body B.",
+      "  end",
+      "  [[outro]] Outro.",
+      "end",
+      "",
+    ].join("\n");
+    const images = (programChunks: boolean) => {
+      const c = programCompiler({ [MAIN_URI]: text }, {
+        programChunks,
+        useBuiltinsPrelude: true,
+        seedBuiltinsIntoStory: true,
+      } as never);
+      const program = quiet(() => c.compile()).program;
+      expect(!!program.chunks).toBe(programChunks);
+      return program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
+    };
+    expect(images(true)).toEqual(["intro", "option_a", "body_a", "option_b", "body_b", "outro"]);
+    // The current engine's walk reads the choices' content after the rest of
+    // the scene, as its runtime tree holds it; its order is unchanged here.
+    expect(images(false)).toEqual(["intro", "outro", "option_a", "body_a", "option_b", "body_b"]);
+  });
+
   // Round 1 of the review of #1618 (report 6026971997): an interpolation
   // splits a beat's text into several literals, each of which named the
   // beat's address in a record of its own.
