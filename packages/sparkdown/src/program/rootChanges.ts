@@ -1,14 +1,114 @@
 import type { ChunkChanges } from "../compiler/types/ProgramChangeSummary";
+import { functionChunksOf, type BuildRecord } from "./ChunkStore";
 import type { ProgramRoot } from "./ProgramRoot";
-import { SymbolKind } from "./ProgramSymbols";
 import {
-  BLOCK_FUNCTION,
-  blockFlags,
   chunkId,
   exportCount,
   exportSymbol,
   type StatementChunk,
 } from "./StatementChunk";
+
+const ascending = (a: number, b: number) => a - b;
+
+/** Where a root defines a symbol: the chunk, the offset and the sequence. */
+const definitionKey = (root: ProgramRoot, symbol: number): string => {
+  const at = root.place(symbol);
+  if (!at) {
+    return "";
+  }
+  const chunk = at.sequence.arrays.chunks[at.entry];
+  return `${at.sequence.id}:${chunk ? chunkId(chunk) : -1}:${at.offset}`;
+};
+
+/** Whether two roots run the declarations in the same order. */
+const sameInitialization = (before: ProgramRoot, after: ProgramRoot) =>
+  before.initialization.length === after.initialization.length &&
+  before.initialization.every((chunk, i) => chunk === after.initialization[i]);
+
+/**
+ * What a compile changed in the program's statement chunks, from the root it
+ * built and the root it is measured against (`ProgramChangeSummary.chunks`).
+ * Chunk ids never go back, so a chunk held by both roots is one statement
+ * whose code neither compile changed, and every other is one the compile
+ * emitted or dropped. The ids are in ascending order.
+ *
+ * When `build` is the store's record of the build that made `after` from
+ * `before` (`ChunkStore.lastBuild`), the changes are read from it in work
+ * proportional to the edit; otherwise (a first compile, a compile measured
+ * against a preview's root, a preview measured against an older root) the two
+ * whole roots are compared. Both give the same result.
+ */
+export const rootChanges = (
+  before: ProgramRoot | undefined,
+  after: ProgramRoot,
+  build?: BuildRecord,
+): ChunkChanges => {
+  // A compile that served the root it measured against (a cached compile)
+  // changed nothing.
+  if (before === after) {
+    return { dropped: [], emitted: [], moved: [], initializers: false };
+  }
+  if (
+    before &&
+    build &&
+    build.previous === before &&
+    build.root === after &&
+    before.generation === after.generation
+  ) {
+    return buildChanges(build, before, after);
+  }
+  return wholeRootChanges(before, after);
+};
+
+/** The changes read from the store's record of the build that made `after`
+ *  from `before`: the chunks it dropped, those it placed that `before` does
+ *  not hold, and the symbols that a dropped or placed chunk exports or that
+ *  name the flow of a sequence it built again or removed, which are the only
+ *  definitions a build writes (`ChunkStore.definitionArrays`). */
+const buildChanges = (
+  build: BuildRecord,
+  before: ProgramRoot,
+  after: ProgramRoot,
+): ChunkChanges => {
+  const symbols = new Set<number>();
+  const exports = (chunk: StatementChunk) => {
+    for (let row = 0; row < exportCount(chunk); row += 1) {
+      symbols.add(exportSymbol(chunk, row));
+    }
+  };
+  const dropped: number[] = [];
+  for (const chunk of build.dropped) {
+    dropped.push(chunkId(chunk));
+    exports(chunk);
+  }
+  const emitted: number[] = [];
+  for (const chunk of build.placed) {
+    if (before.chunkIndex.get(chunkId(chunk)) < 0) {
+      emitted.push(chunkId(chunk));
+    }
+    exports(chunk);
+  }
+  for (const id of build.sequences) {
+    for (const root of [before, after]) {
+      const row = root.sequence(id);
+      if (row && row.owner < 0 && row.flow >= 0) {
+        symbols.add(row.flow);
+      }
+    }
+  }
+  const moved: number[] = [];
+  for (const symbol of symbols) {
+    if (definitionKey(before, symbol) !== definitionKey(after, symbol)) {
+      moved.push(symbol);
+    }
+  }
+  return {
+    dropped: dropped.sort(ascending),
+    emitted: emitted.sort(ascending),
+    moved: moved.sort(ascending),
+    initializers: build.declarationsChanged,
+  };
+};
 
 /** Every chunk a root holds, with its id. */
 const chunksOf = (root: ProgramRoot): Map<number, StatementChunk> => {
@@ -21,89 +121,35 @@ const chunksOf = (root: ProgramRoot): Map<number, StatementChunk> => {
   return out;
 };
 
-/**
- * Whether a chunk of `root` holds code the declarations run or may call
- * (docs/engine/binary-program.md, section 1, the rule of #695): a chunk of a
- * script's declaration sequence or of a declaration's bodies, a chunk of a
- * function declared at the top level, a chunk that writes a function, and a
- * chunk inside a function's body.
- */
-export const isInitializerChunk = (
-  root: ProgramRoot,
-  chunk: StatementChunk,
-): boolean => {
-  for (let row = 0; row < exportCount(chunk); row += 1) {
-    if (root.kindOf(exportSymbol(chunk, row)) === SymbolKind.Function) {
-      return true;
-    }
-  }
-  let sequence = root.position(chunkId(chunk))?.sequence;
-  while (sequence) {
-    if (sequence.owner < 0) {
-      return sequence.flow < 0 || sequence.kind === SymbolKind.Function;
-    }
-    const owner = root.position(sequence.owner);
-    if (!owner) {
-      return false;
-    }
-    const ownerChunk = owner.sequence.arrays.chunks[owner.entry]!;
-    if (blockFlags(ownerChunk, sequence.block) & BLOCK_FUNCTION) {
-      return true;
-    }
-    sequence = owner.sequence;
-  }
-  return false;
-};
-
-/** Where a root defines a symbol: the chunk, the offset and the sequence. */
-const definitionKey = (root: ProgramRoot, symbol: number): string => {
-  const at = root.place(symbol);
-  if (!at) {
-    return "";
-  }
-  const chunk = at.sequence.arrays.chunks[at.entry];
-  return `${at.sequence.id}:${chunk ? chunkId(chunk) : -1}:${at.offset}`;
-};
-
-/**
- * What a compile changed in the program's statement chunks, from the root it
- * built and the root it is measured against (`ProgramChangeSummary.chunks`).
- * Chunk ids never go back, so a chunk held by both roots is one statement
- * whose code neither compile changed, and every other is one the compile
- * emitted or dropped.
- */
-export const rootChanges = (
+/** The changes found by comparing the two whole roots. The declarations ran
+ *  again (`initializers`) when the declaration chunks or their order differ,
+ *  or a chunk holds a function's code in one root and not the other
+ *  (`functionChunksOf`), which is the store's rule for a build
+ *  (`ProgramBuild.declarationsChanged`). */
+const wholeRootChanges = (
   before: ProgramRoot | undefined,
   after: ProgramRoot,
 ): ChunkChanges => {
-  // A compile that served the root it measured against (a cached compile)
-  // changed nothing.
-  if (before === after) {
-    return { dropped: [], emitted: [], moved: [], initializers: false };
-  }
   const old = before ? chunksOf(before) : new Map<number, StatementChunk>();
   const now = chunksOf(after);
   const dropped: number[] = [];
   const emitted: number[] = [];
-  let initializers = !before;
-  for (const [id, chunk] of old) {
+  for (const id of old.keys()) {
     if (!now.has(id)) {
       dropped.push(id);
-      initializers ||= isInitializerChunk(before!, chunk);
     }
   }
-  for (const [id, chunk] of now) {
+  for (const id of now.keys()) {
     if (!old.has(id)) {
       emitted.push(id);
-      initializers ||= isInitializerChunk(after, chunk);
     }
   }
-  const order = before?.initialization ?? [];
-  if (
-    order.length !== after.initialization.length ||
-    order.some((chunk, i) => chunk !== after.initialization[i])
-  ) {
-    initializers = true;
+  let initializers = !before || !sameInitialization(before, after);
+  if (!initializers) {
+    const was = functionChunksOf(before!);
+    const is = functionChunksOf(after);
+    initializers =
+      was.size !== is.size || [...is].some((chunk) => !was.has(chunk));
   }
   const moved: number[] = [];
   if (before && before.generation === after.generation) {
@@ -121,5 +167,10 @@ export const rootChanges = (
     // again: nothing measured against the older root holds.
     initializers = true;
   }
-  return { dropped, emitted, moved, initializers };
+  return {
+    dropped: dropped.sort(ascending),
+    emitted: emitted.sort(ascending),
+    moved,
+    initializers,
+  };
 };
