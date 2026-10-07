@@ -256,6 +256,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _references = new Map<number, Map<string, string>>();
   protected _layout: string[] = [];
   protected _firstLine = 0;
+
+  /** The statement's source text, and its lines once a row asks for them. */
+  protected _source = "";
+  protected _sourceLines: string[] | undefined;
   protected _blocks: readonly BlockInput[] = [];
   protected _lineEnd: ((line: number) => number) | undefined;
   protected _blockStates: (BlockState | undefined)[] = [];
@@ -323,6 +327,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._references = new Map();
     this._layout = [];
     this._firstLine = input.firstLine;
+    this._sourceLines = undefined;
+    this._source = input.source;
     this._blocks = input.blocks ?? [];
     this._lineEnd = input.lineEnd;
     this._blockStates = [];
@@ -1452,6 +1458,32 @@ export class BinaryProgramWriter implements ProgramEmitter {
     // the body changes no row.
     let end = range.endLineNumber - 1;
     let endColumn = Math.max(0, range.endCharacterNumber - 1);
+    // A range that takes its last line's break (a dialogue block's does)
+    // ends at the start of the next line, which holds none of it: it ends
+    // with the line before, as the current engine's locations do, so that a
+    // reader of the last line of a location (the preview's executed-line
+    // label and ranges, the editor's selection after STOP) reads the line
+    // the current engine gave it. That line's end is read from the script
+    // when the statement can read it (a block statement can, whose source
+    // has its bodies cut out), and otherwise from the statement's own
+    // source, which is whole and which its fingerprint hashes.
+    if (endColumn === 0 && end > start) {
+      end -= 1;
+      if (this._lineEnd) {
+        endColumn = this._lineEnd(end);
+      } else if (this._blocks.length === 0) {
+        const lines = (this._sourceLines ??= this._source.split("\n"));
+        const text = lines[end - this._firstLine];
+        // The first line of the source starts at the statement's column,
+        // which the source does not say, so it gives no column.
+        endColumn =
+          end === this._firstLine || text === undefined
+            ? 0
+            : text.replace(/\r$/, "").length;
+      } else {
+        endColumn = 0;
+      }
+    }
     for (const block of this._blocks) {
       const below = block.firstLine > start && block.firstLine <= end;
       const fromFirstLine =
