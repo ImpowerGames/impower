@@ -2297,6 +2297,12 @@
       },
       "patterns": [
         {
+          "include": "#LuauLineContinuation"
+        },
+        {
+          "include": "#LuauIndexerLineContinuation"
+        },
+        {
           "include": "#LuauComment"
         },
         {
@@ -2309,10 +2315,13 @@
           "include": "#ExtraWhitespace"
         },
         {
+          "include": "#Newline"
+        },
+        {
           "include": "#DivertArgumentsUnknown"
         }
       ],
-      "end": "([)])|(?=$)",
+      "end": "([)])",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -2326,7 +2335,7 @@
     "DivertArgumentsUnknown": {
       "tag": "invalid",
       "name": "invalid.illegal.unknown-statement.sd",
-      "match": "([^\\s)])"
+      "match": "([^\\s\\w)])"
     },
     "DivertPath": {
       "tag": "heading",

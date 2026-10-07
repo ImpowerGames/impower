@@ -175,22 +175,6 @@ function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
   );
 }
 
-/** Report a dotted target's argument list that its line ends before it is
- *  closed (`-> a.b(x`): `DivertArguments` ends with the line, so its end
- *  matched no `)`. */
-function reportUnclosedArguments(params: SyntaxNode, ctx: LowerContext): void {
-  const end = params.lastChild;
-  if (params.name !== "DivertArguments" || !end || end.to > end.from) {
-    return;
-  }
-  reportTargetError(
-    "Expected `)` to close this divert's arguments before the end of its line.",
-    argumentListStart(params),
-    params.to,
-    ctx,
-  );
-}
-
 // Lower a `DivertTarget`, relative (`-> X(arg)`) or dotted
 // (`-> X.Y(arg)`). Returns the path identifiers and any lowered args.
 function lowerTargetWithArgs(
@@ -198,9 +182,6 @@ function lowerTargetWithArgs(
   ctx: LowerContext,
 ): { path: Identifier[]; args: Expression[] } {
   const { nameNode, pathNode, params, extra } = readDivertTarget(targetNode);
-  if (params) {
-    reportUnclosedArguments(params, ctx);
-  }
   reportExtraTargetText(extra, ctx);
   const path = nameNode
     ? [divertPartIdentifier(nameNode, ctx)]
