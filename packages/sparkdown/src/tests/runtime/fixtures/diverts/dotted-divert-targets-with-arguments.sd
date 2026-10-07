@@ -1,0 +1,31 @@
+-> outer.inner(1)
+scene outer
+  branch inner(a)
+    Inner {a}.
+    -> outer.visit(a + 1, "t") ->
+    <- outer.aside(a + 2)
+    -> outer.second(a + 3, "b")
+  end
+  branch visit(n, s)
+    Visit {n} {s}.
+    ->->
+  end
+  branch aside(m)
+    Aside {m}.
+    done
+  end
+  branch second(n, s)
+    Second {n} {s}.
+    -> outer.leave(n) ->
+    Never shown.
+    done
+  end
+  branch leave(k)
+    Leave {k}.
+    ->-> outer.last(k + 1)
+  end
+  branch last(z)
+    Last {z}.
+    done
+  end
+end

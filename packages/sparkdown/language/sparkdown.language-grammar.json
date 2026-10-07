@@ -2263,16 +2263,71 @@
       },
       "patterns": [
         {
-          "include": "#Annotation"
-        },
-        {
           "include": "#LuauFunctionCall"
         },
         {
           "include": "#DivertPath"
+        },
+        {
+          "include": "#DivertArguments"
         }
       ],
+      "applyEndPatternLast": true,
       "end": "(?=$)|(?!(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.^])"
+    },
+    "DivertArguments": {
+      "tag": "meta",
+      "name": "meta.parameter.luau",
+      "brackets": true,
+      "begin": "((?:[^\\S\\n\\r])*)([(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#LuauCommaSeparator"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#DivertArgumentsUnknown"
+        }
+      ],
+      "end": "([)])|(?=$)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "DivertArgumentsUnknown": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "match": "([^\\s)])"
     },
     "DivertPath": {
       "tag": "heading",

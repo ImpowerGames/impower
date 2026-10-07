@@ -2219,11 +2219,58 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # A relative call (`-> f(x)`) is a `LuauFunctionCall`, whose name cannot
+    # span a `.`. A dotted path (`-> a.b(x)`) is a `DivertPath` followed by its
+    # `DivertArguments`, which owns the optional space before its `(` as a
+    # relative call does. The end is tried after the patterns, so the target
+    # goes on exactly as far as one of them continues it: an argument list
+    # (and a second one, `-> a.b(x)(y)`, which the compiler reports as not
+    # passed) stays in the target, and anything else (a space before `->`,
+    # `//` or stray text) ends it for the parent.
     patterns:
-      - { include: "#Annotation" }
       - { include: "#LuauFunctionCall" }
       - { include: "#DivertPath" }
+      - { include: "#DivertArguments" }
+    applyEndPatternLast: true
     end: (?=$)|(?!{{IDENTIFIER}}|[.^])
+
+  # The argument list after a dotted divert target. It is a call's argument
+  # list on one line: a divert ends its line, so an unclosed `(` ends with the
+  # line, and the compiler reports the missing `)` there rather than the list
+  # reading the next lines as arguments.
+  DivertArguments:
+    tag: meta
+    name: meta.parameter.luau
+    brackets: true
+    begin: ({{WS}}*)([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    # `DivertArgumentsUnknown` tiles what no argument rule reads (`(1; 2)`),
+    # so the list reaches its `)` in both engines instead of closing
+    # incomplete at that character (GRAMMAR.md §17).
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#DivertArgumentsUnknown" }
+    end: ([)])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  # A character in a divert's argument list that no argument rule reads. The
+  # compiler reports it.
+  DivertArgumentsUnknown:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    match: ([^\s)])
 
   DivertPath:
     tag: heading
