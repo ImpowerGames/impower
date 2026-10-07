@@ -215,12 +215,18 @@ const stateOf = (story: { state: unknown }) => {
   const state = story.state as {
     variablesState: { globalEntries: ReadonlyMap<string, unknown> };
     GetVisitCountEntries(): [string, number][];
+    GetTurnIndexEntries(): [string, number][];
+    currentTurnIndex: number;
   };
   return {
     globals: Object.fromEntries(
       [...state.variablesState.globalEntries].map(([name, v]) => [name, valueOf(v)]),
     ),
     counts: new Map(state.GetVisitCountEntries()),
+    // The turn of each counted flow's last visit, and the turn now, which
+    // `count.turns` reads the difference of.
+    turns: new Map(state.GetTurnIndexEntries()),
+    turn: state.currentTurnIndex,
   };
 };
 
@@ -243,17 +249,26 @@ const countName = (key: string): string | undefined => {
 const stateDifferences = (
   expected: ReturnType<typeof stateOf>,
   actual: ReturnType<typeof stateOf>,
-): { globals: string[]; counts: string[] } => ({
-  globals: [...new Set([...Object.keys(expected.globals), ...Object.keys(actual.globals)])].filter(
-    (name) => stable(expected.globals[name]) !== stable(actual.globals[name]),
-  ),
-  counts: [...expected.counts]
-    .filter(([key, count]) => {
-      const name = countName(key);
-      return name !== undefined && actual.counts.get(name) !== count;
-    })
-    .map(([key]) => key),
-});
+): { globals: string[]; counts: string[]; turns: string[] } => {
+  const named = (expectedMap: Map<string, number>, actualMap: Map<string, number>) =>
+    [...expectedMap]
+      .filter(([key, value]) => {
+        const name = countName(key);
+        return name !== undefined && actualMap.get(name) !== value;
+      })
+      .map(([key]) => key);
+  return {
+    globals: [...new Set([...Object.keys(expected.globals), ...Object.keys(actual.globals)])].filter(
+      (name) => stable(expected.globals[name]) !== stable(actual.globals[name]),
+    ),
+    counts: named(expected.counts, actual.counts),
+    // The turns of last visits the language reads, and the turn now.
+    turns: [
+      ...named(expected.turns, actual.turns),
+      ...(expected.turn !== actual.turn ? ["(the current turn)"] : []),
+    ],
+  };
+};
 
 /** How many of a run's counts the comparison reads. */
 const namedCounts = (state: ReturnType<typeof stateOf>) =>
@@ -563,9 +578,10 @@ describe("the differential run", () => {
   // something: each scene of the logic and flow screenplays leaves the same
   // globals and counts on both engines, and a global the program engine left
   // otherwise is reported.
-  it("leaves the logic and flow screenplays' globals and counts as the current engine does", () => {
+  it("leaves the logic and flow screenplays' globals, counts and turns as the current engine does", () => {
     let changed = 0;
     let counted = 0;
+    let turned = 0;
     for (const text of [logicScreenplay(3), flowScreenplay(3)]) {
       const quiet = silence();
       try {
@@ -583,12 +599,13 @@ describe("the differential run", () => {
           const story = new ProgramStory(program.chunks!);
           storyRun(story, [], { from: scene });
           const actual = stateOf(story);
-          expect(stateDifferences(expected, actual), scene).toEqual({ globals: [], counts: [] });
+          expect(stateDifferences(expected, actual), scene).toEqual({ globals: [], counts: [], turns: [] });
           const written = stateDifferences(before, expected).globals;
           changed += written.length;
           counted += namedCounts(expected);
-          // A global the program engine left as it started, and a count it
-          // kept one short, are reported.
+          // A global the program engine left as it started, a count it kept
+          // one short, a last visit it placed a turn early, and a current
+          // turn it kept one short, are each reported.
           if (written[0]) {
             const wrong = { ...actual, globals: { ...actual.globals, [written[0]]: before.globals[written[0]] } };
             expect(stateDifferences(expected, wrong).globals).toEqual([written[0]]);
@@ -599,6 +616,16 @@ describe("the differential run", () => {
             const counts = new Map(actual.counts).set(name, (actual.counts.get(name) ?? 0) - 1);
             expect(stateDifferences(expected, { ...actual, counts }).counts).toEqual([key]);
           }
+          const [turnKey] = [...expected.turns.keys()].filter((k) => countName(k) !== undefined);
+          if (turnKey) {
+            turned += 1;
+            const name = countName(turnKey)!;
+            const turns = new Map(actual.turns).set(name, (actual.turns.get(name) ?? 0) - 1);
+            expect(stateDifferences(expected, { ...actual, turns }).turns).toEqual([turnKey]);
+          }
+          expect(stateDifferences(expected, { ...actual, turn: actual.turn - 1 }).turns).toEqual([
+            "(the current turn)",
+          ]);
         }
       } finally {
         shuffleDraws.next = null;
@@ -607,6 +634,7 @@ describe("the differential run", () => {
     }
     expect(changed).toBeGreaterThan(0);
     expect(counted).toBeGreaterThan(0);
+    expect(turned).toBeGreaterThan(0);
   });
 
   const PROJECT = process.env["SPARKDOWN_PROJECT"];
@@ -660,6 +688,9 @@ describe("the differential run", () => {
         if (state.counts.length > 0) {
           differences.push(`${scene}: ${state.counts.length} counts, the first ${state.counts[0]}`);
         }
+        if (state.turns.length > 0) {
+          differences.push(`${scene}: ${state.turns.length} turns, the first ${state.turns[0]}`);
+        }
         beats += expected.beats.length;
         menus += expected.menus.length;
         expect(expected.beats.length, `${scene} shows beats`).toBeGreaterThan(0);
@@ -685,7 +716,7 @@ describe("the differential run", () => {
       }
       quiet();
       console.log(
-        `whole project: ${scenes.length} scenes, ${beats} beats, ${menus} menus, the globals and ${counts} counts compared, ${differences.length} differences`,
+        `whole project: ${scenes.length} scenes, ${beats} beats, ${menus} menus, the globals, the current turn and ${counts} named counts with their turns compared, ${differences.length} differences`,
       );
       expect(differences, differences.join("\n")).toEqual([]);
     } finally {

@@ -232,7 +232,9 @@ async function main() {
   // indexes the first time a program is asked for a path.
   const setStartFrom = (game: Game, startFrom: { file: string; line: number }) => {
     profile("start", PROFILER_ID, "game/setStartFrom");
-    game.setStartFrom(startFrom);
+    // The line's last beat, which the worker routes a preview to
+    // (`installPlayerWorker.ts`, both compile handlers).
+    game.setStartFrom(startFrom, "last");
     profile("end", PROFILER_ID, "game/setStartFrom");
   };
   // The last route search's target and the checkpoint it produced.
