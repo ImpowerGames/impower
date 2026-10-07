@@ -1636,14 +1636,26 @@ export class SparkdownCompiler {
       confined: confined && filesSettled,
     };
     // A compile that built statement chunks says what it changed exactly,
-    // from the root it built and the root of the program measured against.
+    // from the root it built and the root of the program measured against:
+    // read from the store's record of the build when that root is the one the
+    // build was built from, and otherwise from the two whole roots. A preview
+    // compile leaves the store's current root, so the compile after it is
+    // measured against the preview's root and compares the whole roots.
     if (root) {
+      const before =
+        this._lastChangeId !== undefined ? this._lastChangeRoot : undefined;
+      const build = this._chunkStore?.lastBuild;
       profile("start", this._profilerId, "program/changes");
-      summary.chunks = rootChanges(
-        this._lastChangeId !== undefined ? this._lastChangeRoot : undefined,
-        root,
-      );
+      summary.chunks = rootChanges(before, root, build);
       profile("end", this._profilerId, "program/changes");
+      if (ChunkStore.verifyBuilds && build?.root === root) {
+        const whole = JSON.stringify(rootChanges(before, root));
+        if (JSON.stringify(summary.chunks) !== whole) {
+          throw new Error(
+            `ChunkStore.verifyBuilds: the change summary ${JSON.stringify(summary.chunks)} is not the whole-root comparison's ${whole}`,
+          );
+        }
+      }
     }
     this._lastChangeRoot = root;
     this._lastChangeId = summary.id;

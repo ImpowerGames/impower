@@ -22,13 +22,47 @@ const runnerDocs = new Set([
   ".agents/skills/references/runner-filing.md",
   ".agents/skills/references/runner-writing.md",
 ]);
-for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f))) {
-  const text = fs.readFileSync(path.join(root, file), "utf8");
-  assert.deepEqual(violations(text), [], file);
-  // Runner-specific material is reached conditionally through AGENTS.md.
-}
+// A skill copied verbatim from upstream (pinned in skills-lock.json) may name
+// a runner the shared skills otherwise must not. Each allowance lists that
+// file's exact violations, so any added token fails and a stale one is noticed.
+const vendoredAllowances = new Map([
+  [".agents/skills/modern-web-guidance/SKILL.md", ["CLAUDE.md"]],
+  [".agents/skills/modern-web-guidance/guides/built-in-ai/language-model.md", ["haiku"]],
+  [".agents/skills/modern-web-guidance/guides/built-in-ai/prompt-api.md", ["haiku"]],
+  [".agents/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md", ["agent tool"]],
+]);
+export const unexpectedViolations = (file, text) => {
+  const found = violations(text);
+  const allowed = vendoredAllowances.get(file);
+  if (!allowed || JSON.stringify(found) === JSON.stringify(allowed)) return allowed ? [] : found;
+  return found.length ? found : ["stale allowance: " + allowed.join(", ")];
+};
+// Every tracked .agents Markdown file except the runner docs is scanned; the
+// scan is one unit so the probes below exercise its real file selection.
+const isScanned = (f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f);
+export const scanFindings = (fileList, read) => fileList
+  .filter(isScanned)
+  .map((file) => [file, unexpectedViolations(file, read(file))])
+  .filter(([, found]) => found.length);
+for (const skill of skills) assert.ok(isScanned(skill), "the scan covers " + skill);
+for (const [file, found] of scanFindings(files, (f) => fs.readFileSync(path.join(root, f), "utf8"))) assert.deepEqual(found, [], file);
+// Runner-specific material is reached conditionally through AGENTS.md.
 for (const token of ["opus", "sonnet", "haiku", "fable", "claude-x", "gpt-6-test", "Skill tool", "Agent tool", "subagent_type", "Write/Edit", "set_session_title", "scratchpad", "CLAUDE.md"]) assert.ok(violations("instruction " + token).length, token);
 assert.deepEqual(violations("Read the repository's agent instructions; use an editor capability and a private directory."), []);
+// The allowance covers only its own file and only its exact token list.
+for (const file of vendoredAllowances.keys()) assert.ok(files.includes(file), "allowance names a tracked file: " + file);
+const vendoredFile = ".agents/skills/modern-web-guidance/SKILL.md";
+assert.deepEqual(unexpectedViolations(vendoredFile, "a policy in CLAUDE.md"), []);
+assert.ok(unexpectedViolations(vendoredFile, "a policy in CLAUDE.md; call set_session_title").length, "an added token in an allowed file fails");
+assert.ok(unexpectedViolations(vendoredFile, "no runner names").length, "a stale allowance fails");
+assert.ok(unexpectedViolations(".agents/skills/file-task/SKILL.md", "a policy in CLAUDE.md").length, "CLAUDE.md in another skill fails");
+const probeFiles = {
+  [vendoredFile]: "a policy in CLAUDE.md; call set_session_title",
+  ".agents/skills/modern-web-guidance/guides/new.md": "use the Skill tool",
+  ".agents/skills/file-task/SKILL.md": "a policy in CLAUDE.md",
+  ".agents/skills/references/runner-writing.md": "CLAUDE.md",
+};
+assert.deepEqual(scanFindings(Object.keys(probeFiles), (f) => probeFiles[f]).map(([f]) => f), [vendoredFile, ".agents/skills/modern-web-guidance/guides/new.md", ".agents/skills/file-task/SKILL.md"], "the scan reports added tokens in vendored files and in other skills, and skips only runner docs");
 assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
 const reviewFiles = ["SKILL.md", "references/launch.md", "references/reviewer-prompt.md", "references/adjudication.md", "references/later-rounds.md", "HANDOFF.md"];
 const prompt = reviewFiles.map((file) => fs.readFileSync(path.join(root, ".agents/skills/review-pr", file), "utf8")).join("\n");
