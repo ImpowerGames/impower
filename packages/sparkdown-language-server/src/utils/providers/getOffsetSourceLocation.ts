@@ -1,6 +1,13 @@
-import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import type {
+  AsyncProgramLocator,
+  ProgramLocator,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+
+/** The program's accessor as the language server asks it: the compiler's
+ *  worker's (`SparkdownWorkspace.locatorOf`), or a program's own
+ *  (`programLocator`) where the program is at hand. */
+export type OffsetLocator = Pick<ProgramLocator, "addressAt" | "locationOf"> | AsyncProgramLocator;
 
 /**
  * The first line of the beat `offset` beats away from (`currentFile`,
@@ -18,27 +25,35 @@ import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLoc
  * This lives server-side deliberately: the program's locations are large on a
  * feature-length script, and shipping them to the client with every compile
  * just to answer an occasional keypress dominated the per-keystroke payload.
- * Asking for one location on demand is a few bytes.
+ * Asking for one location on demand is a few bytes. The language server asks
+ * the compiler's worker, which holds the root a program compiled with
+ * statement chunks is located by (#704).
  */
-export const getOffsetSourceLocation = (
+export const getOffsetSourceLocation = async (
   program: SparkProgram | undefined,
+  locator: OffsetLocator | undefined,
   currentFile: string | undefined,
   currentLine: number,
   offset: number,
-): { file: string; line: number } | null => {
+): Promise<{ file: string; line: number } | null> => {
   if (
     !program ||
+    !locator ||
     currentFile == null ||
     !Object.keys(program.scripts ?? {}).includes(currentFile) ||
     offset === 0
   ) {
     return null;
   }
-  const locator = programLocator(program);
-  const addressAt = (line: number): ProgramAddress | undefined =>
-    line < 0 ? undefined : locator.addressAt(currentFile, line);
-  const startOf = (address: ProgramAddress): number | undefined => {
-    const location = locator.locationOf(address);
+  const addressAt = async (line: number) =>
+    line < 0 ? undefined : await locator.addressAt(currentFile, line);
+  const startOf = async (
+    address: Awaited<ReturnType<typeof addressAt>>,
+  ): Promise<number | undefined> => {
+    if (address === undefined) {
+      return undefined;
+    }
+    const location = await locator.locationOf(address);
     return location?.uri === currentFile ? location.startLine : undefined;
   };
   let line = currentLine;
@@ -48,11 +63,11 @@ export const getOffsetSourceLocation = (
       // The first beat below that starts below the line. A line past the
       // script's last statement has no address.
       for (let l = line + 1; found === undefined; l += 1) {
-        const address = addressAt(l);
+        const address = await addressAt(l);
         if (address === undefined) {
           return null;
         }
-        const start = startOf(address);
+        const start = await startOf(address);
         if (start !== undefined && start > line) {
           found = start;
         }
@@ -61,8 +76,7 @@ export const getOffsetSourceLocation = (
       // The first beat above that starts above the line: the start of the
       // beat the line is inside, or the one before it.
       for (let l = line - 1; l >= 0 && found === undefined; l -= 1) {
-        const address = addressAt(l);
-        const start = address === undefined ? undefined : startOf(address);
+        const start = await startOf(await addressAt(l));
         if (start !== undefined && start < line) {
           found = start;
         }

@@ -146,17 +146,22 @@ describe("a search of the sources outside the engine and the compiler", () => {
         ".addressAt(",
         ".locationOf(",
       ),
+      // The language server asks the accessor of the compiler's worker,
+      // which holds the root its program is located by (#704).
       previousAndNextBeat: uses(
         "packages/sparkdown-language-server/src/utils/providers/getOffsetSourceLocation.ts",
-        "programLocator(",
         ".addressAt(",
         ".locationOf(",
       ),
       languageServer: uses(
         "packages/sparkdown-language-server/src/sparkdown-language-server.ts",
-        "programLocator(",
+        ".locatorOf(",
         ".addressAt(",
         ".locationOf(",
+      ),
+      compilerWorker: uses(
+        "packages/sparkdown/src/worker/installSparkdownWorker.ts",
+        "answerLocateQueries(",
       ),
       programManager: uses(
         "vscode-sparkdown/src/managers/SparkProgramManager.ts",
@@ -179,6 +184,7 @@ describe("a search of the sources outside the engine and the compiler", () => {
       previewHint: [],
       previousAndNextBeat: [],
       languageServer: [],
+      compilerWorker: [],
       programManager: [],
       compilationView: [],
       playerPage: [],

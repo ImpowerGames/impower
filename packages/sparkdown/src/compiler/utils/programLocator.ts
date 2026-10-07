@@ -1,3 +1,7 @@
+import type {
+  LocateProgramResult,
+  LocateQuery,
+} from "../classes/messages/LocateProgramMessage";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import type {
   AddressQuery,
@@ -122,3 +126,23 @@ export const documentRangeOf = (location: SourceLocation) => ({
     end: { line: location.endLine, character: location.endColumn },
   },
 });
+
+/** The answers of a program's accessor to `queries`, in order, with null
+ *  where it has none, for a host that asks the worker holding the program
+ *  (`LocateProgramMessage`). */
+export const answerLocateQueries = (
+  program: SparkProgram | undefined,
+  queries: readonly LocateQuery[],
+): LocateProgramResult => {
+  const locator = program ? programLocator(program) : undefined;
+  return queries.map((q) => {
+    if (!locator) {
+      return null;
+    }
+    if ("addressAt" in q) {
+      const { uri, line, query } = q.addressAt;
+      return locator.addressAt(uri, line, query) ?? null;
+    }
+    return locator.locationOf(q.locationOf) ?? null;
+  });
+};

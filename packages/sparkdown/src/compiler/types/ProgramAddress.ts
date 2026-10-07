@@ -57,3 +57,14 @@ export interface ProgramLocator {
    *  Nothing for an address the program does not hold. */
   sceneAt(address: ProgramAddress | null | undefined): string | undefined;
 }
+
+/** The part of a program's accessor a host asks of the worker that holds the
+ *  program (`SparkdownWorkspace.locatorOf`), whose answers arrive later. */
+export interface AsyncProgramLocator {
+  addressAt(
+    uri: string,
+    line: number,
+    query?: AddressQuery,
+  ): Promise<ProgramAddress | undefined>;
+  locationOf(address: ProgramAddress): Promise<SourceLocation | undefined>;
+}

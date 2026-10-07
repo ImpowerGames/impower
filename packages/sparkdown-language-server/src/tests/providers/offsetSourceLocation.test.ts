@@ -9,6 +9,7 @@
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { describe, expect, test } from "vitest";
 import { getOffsetSourceLocation } from "../../utils/providers/getOffsetSourceLocation";
 
@@ -86,7 +87,7 @@ describe.each([
 ])("previous and next beat navigation on $engine", ({ programChunks }) => {
   const program = compile(programChunks);
   const at = (file: string, line: number, offset: number) =>
-    getOffsetSourceLocation(program, file, line, offset);
+    getOffsetSourceLocation(program, programLocator(program), file, line, offset);
   const main = (needle: string) => lineOf(MAIN_SRC, needle);
 
   test("compiles the program the engine runs", () => {
@@ -94,66 +95,68 @@ describe.each([
     expect(program.pathLocations !== undefined).toBe(!programChunks);
   });
 
-  test("goes to the next beat from a beat's line, a blank line and a line inside a beat", () => {
-    expect(at(MAIN, main("He looks around."), 1)).toEqual({
+  test("goes to the next beat from a beat's line, a blank line and a line inside a beat", async () => {
+    expect(await at(MAIN, main("He looks around."), 1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("He looks around.") + 1, 1)).toEqual({
+    expect(await at(MAIN, main("He looks around.") + 1, 1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("Nobody here."), 1)).toEqual({
+    expect(await at(MAIN, main("Nobody here."), 1)).toEqual({
       file: MAIN,
       line: main("He looks again."),
     });
   });
 
-  test("goes to the previous beat's start, and from inside a beat to its own start", () => {
-    expect(at(MAIN, main("He looks again."), -1)).toEqual({
+  test("goes to the previous beat's start, and from inside a beat to its own start", async () => {
+    expect(await at(MAIN, main("He looks again."), -1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("Nobody here."), -1)).toEqual({
+    expect(await at(MAIN, main("Nobody here."), -1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("(quietly)"), -1)).toEqual({
+    expect(await at(MAIN, main("(quietly)"), -1)).toEqual({
       file: MAIN,
       line: main("He looks around."),
     });
   });
 
-  test("counts several beats at once", () => {
-    expect(at(MAIN, main("He looks around."), 2)).toEqual({
+  test("counts several beats at once", async () => {
+    expect(await at(MAIN, main("He looks around."), 2)).toEqual({
       file: MAIN,
       line: main("He looks again."),
     });
-    expect(at(MAIN, main("He looks again."), -2)).toEqual({
+    expect(await at(MAIN, main("He looks again."), -2)).toEqual({
       file: MAIN,
       line: main("He looks around."),
     });
   });
 
-  test("stays in its script, and lands nowhere past either end", () => {
+  test("stays in its script, and lands nowhere past either end", async () => {
     const bunny = lineOf(CHAPTER_SRC, "Bunny arrives.");
-    expect(at(CHAPTER, bunny, 1)).toEqual({
+    expect(await at(CHAPTER, bunny, 1)).toEqual({
       file: CHAPTER,
       line: lineOf(CHAPTER_SRC, "Bunny leaves."),
     });
     // A scene's header is a path location of its own on the current engine,
     // as it was before (#700), and holds no statement on the program engine.
-    expect(at(CHAPTER, bunny, -1)).toEqual(
+    expect(await at(CHAPTER, bunny, -1)).toEqual(
       programChunks ? null : { file: CHAPTER, line: 0 },
     );
-    expect(at(MAIN, 0, -1)).toBeNull();
-    expect(at(MAIN, main("end"), 1)).toBeNull();
-    expect(at(MAIN, main("He looks around."), 1000)).toBeNull();
+    expect(await at(MAIN, 0, -1)).toBeNull();
+    expect(await at(MAIN, main("end"), 1)).toBeNull();
+    expect(await at(MAIN, main("He looks around."), 1000)).toBeNull();
   });
 
-  test("a file the program does not know, and no program at all, land nowhere", () => {
-    expect(getOffsetSourceLocation(program, "file://proj/absent.sd", 0, 1)).toBeNull();
-    expect(getOffsetSourceLocation(program, undefined, 0, 1)).toBeNull();
-    expect(getOffsetSourceLocation(undefined, MAIN, 0, 1)).toBeNull();
+  test("a file the program does not know, and no program at all, land nowhere", async () => {
+    const locator = programLocator(program);
+    expect(await getOffsetSourceLocation(program, locator, "file://proj/absent.sd", 0, 1)).toBeNull();
+    expect(await getOffsetSourceLocation(program, locator, undefined, 0, 1)).toBeNull();
+    expect(await getOffsetSourceLocation(undefined, locator, MAIN, 0, 1)).toBeNull();
+    expect(await getOffsetSourceLocation(program, undefined, MAIN, 0, 1)).toBeNull();
   });
 });
