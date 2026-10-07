@@ -268,6 +268,11 @@ export class ProgramStory {
    *  set: the game keeps the addresses a beat ran, as it keeps the paths the
    *  current engine's `onExecute` names. */
   onExecute: ((address: number) => void) | null = null;
+  /** When set, each instruction's address is appended to it as it runs,
+   *  the instructions of a Luau callback the step calls included: what a
+   *  game reads after each step it takes to keep the addresses a beat ran
+   *  and to find a breakpoint's, with no call per step (#702). */
+  executedLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
 
   /** Formats the message the `error` builtin raises, as the current engine's
@@ -1588,6 +1593,7 @@ export class ProgramStory {
     const address = addressOf(chunkId(chunk), position.offset);
     state.previousAddress = address;
     if (this.onExecute !== null) this.onExecute(address);
+    if (this.executedLog !== null) this.executedLog.push(address);
     this.execute(position, chunk);
     // A statement whose last instruction ran rests at the start of the next.
     const current = state.position;
@@ -2722,6 +2728,8 @@ export class ProgramStory {
     // none of the game's executed paths.
     const onExecute = this.onExecute;
     this.onExecute = null;
+    const executedLog = this.executedLog;
+    this.executedLog = null;
     const depth = state.callStack.elements.length;
     for (const chunk of this.root.initialization) {
       const at = this.root.position(chunkId(chunk));
@@ -2769,6 +2777,7 @@ export class ProgramStory {
     }
     this.pauseBeforeEvaluatingConditions = pause;
     this.onExecute = onExecute;
+    this.executedLog = executedLog;
     state.position = null;
     state.blockStack = [];
     state.previousAddress = -1;

@@ -83,26 +83,29 @@ export const programFunctionAddress = (
 };
 
 /**
- * The addresses of every instruction that assigns the variable a data
- * breakpoint names, which is where it stops: a `SetVar` of that name that
- * declares nothing. A data id names a global by its name, and a temporary
- * as the debugger's variables view names it, by the name of the flow or
- * function it is a temporary of, a dot and its own name (`scopeName` gives
- * the name of a sequence's flow).
+ * The `SetVar` instructions that write a name a data breakpoint names, which
+ * place the breakpoint in the source: those that assign it and those that
+ * declare it. A data id names a global by its name, and a temporary as the
+ * debugger's variables view names it, by the name of the flow or function
+ * it is a temporary of, a dot and its own name (`scopeName` gives the name
+ * of a sequence's flow). The instructions are matched by name alone, so for
+ * a global they include the writes of a temporary that shadows it; the
+ * breakpoint itself watches the variable (`Game.readWatch`).
  */
 export const programAssignmentAddresses = (
   root: ProgramRoot,
   dataId: string,
   scopeName: (flow: number) => string,
-): number[] => {
+): { assignments: number[]; declarations: number[] } => {
   const dot = dataId.lastIndexOf(".");
   const scope = dot < 0 ? undefined : dataId.slice(0, dot);
   const name = dot < 0 ? dataId : dataId.slice(dot + 1);
-  const addresses: number[] = [];
+  const assignments: number[] = [];
+  const declarations: number[] = [];
   for (const sequence of root.sequences()) {
     if (
-      sequence.flow < 0 ||
-      (scope !== undefined && scopeName(sequence.flow) !== scope)
+      scope !== undefined &&
+      (sequence.flow < 0 || scopeName(sequence.flow) !== scope)
     ) {
       continue;
     }
@@ -112,13 +115,17 @@ export const programAssignmentAddresses = (
         const w0 = chunk[HEADER_WORDS + offset]!;
         if (
           opOf(w0) === Op.SetVar &&
-          !(flagsOf(w0) & SET_DECLARE) &&
           root.table.strings[chunk[HEADER_WORDS + offset + 1]!] === name
         ) {
-          addresses.push(addressOf(chunkId(chunk), offset));
+          const address = addressOf(chunkId(chunk), offset);
+          if (flagsOf(w0) & SET_DECLARE) {
+            declarations.push(address);
+          } else {
+            assignments.push(address);
+          }
         }
       }
     }
   }
-  return addresses;
+  return { assignments, declarations };
 };

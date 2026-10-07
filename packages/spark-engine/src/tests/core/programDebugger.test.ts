@@ -318,8 +318,9 @@ describe.each(ENGINES)("the debugger on %s", (_name, programChunks) => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     const health = h.game.getVarVariables().find((v) => v.name === "health");
     if (programChunks) {
-      // It stops once the assignment has run, on the assignment's line.
-      expect(set[0]!.location?.range.start.line).toBe(6);
+      // It is placed where the global is declared, and stops once an
+      // assignment has written it, on the assignment's line.
+      expect(set[0]!.location?.range.start.line).toBe(0);
       expect(h.stoppedAt()).toBe(6);
       expect(health?.value).toBe("75");
     } else {
@@ -347,21 +348,171 @@ describe("the debugger on the program engine", () => {
     expect(h.stoppedAt()).toBe(9);
   });
 
-  it("fires a data breakpoint on a temporary, named by its frame", () => {
-    const h = debugGame(NESTED, true);
-    h.game.setBreakpoints([{ file: MAIN, line: 20 }]);
+  // A temporary named like a global shadows it, for reading and for writing.
+  const SHADOWED = [
+    "store health = 100", //      0
+    "-> main", //                 1
+    "scene main", //              2
+    "  local health = 10", //     3
+    "  local count = 0", //       4
+    "  First.", //                5
+    "  health = health - 1", //   6
+    "  count = count + 1", //     7
+    "  Second {health}.", //      8
+    "  done", //                  9
+    "end", //                     10
+    "",
+  ].join("\n");
+
+  it("fires a data breakpoint on a temporary, named as the variables view scopes it", () => {
+    const h = debugGame(SHADOWED, true);
+    h.game.start();
+    const count = h.game.getTempVariables().find((v) => v.name === "count")!;
+    const dataId = `${count.scopePath}.${count.name}`;
+    expect(dataId).toBe("main.count");
+    const set = h.game.setDataBreakpoints([{ dataId }, { dataId: "sub.count" }]);
+    expect(set.map((b) => b.verified)).toEqual([true, false]);
+    expect(set[0]!.location?.range.start.line).toBe(7);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    // It stops once the write has run, on the line that wrote it.
+    expect(h.stoppedAt()).toBe(7);
+    expect(names(h.game.getTempVariables())).toContain("count=1");
+  });
+
+  it("fires a global's data breakpoint only when the global is written, not a temporary that shadows it", () => {
+    const h = debugGame(SHADOWED, true);
+    const set = h.game.setDataBreakpoints([{ dataId: "health" }]);
+    expect(set[0]!.verified).toBe(true);
+    // Placed where the global is declared.
+    expect(set[0]!.location?.range.start.line).toBe(0);
+    h.game.start();
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(0);
+    expect(h.game.story.currentText).toBe("Second 9.\n");
+    const global = (h.game.story as unknown as ProgramStory).state
+      .variablesState.GetGlobalVariableValue("health") as { value?: unknown };
+    expect(global.value).toBe(100);
+    // The temporary's own breakpoint does stop there.
+    const local = debugGame(SHADOWED, true);
+    local.game.setDataBreakpoints([{ dataId: "main.health" }]);
+    local.game.start();
+    local.continueToBreakpoint();
+    expect(local.stoppedAt()).toBe(6);
+    expect(names(local.game.getTempVariables())).toContain("health=9");
+  });
+
+  it("stops at a breakpoint inside a function a builtin calls, and records the lines it ran", () => {
+    const text = [
+      "store order = \"\"", //               0
+      "-> main", //                          1
+      "scene main", //                       2
+      "  local t = {3, 1, 2}", //            3
+      "  Before.", //                        4
+      "  & table.sort(t, less)", //          5
+      "  order = table.concat(t, \",\")", // 6
+      "  Sorted {order}.", //                7
+      "  done", //                           8
+      "end", //                              9
+      "function less(a, b)", //              10
+      "  local before = a < b", //           11
+      "  return before", //                  12
+      "end", //                              13
+      "",
+    ].join("\n");
+    const free = debugGame(text, true);
+    free.game.start();
+    free.game.continue();
+    expect(free.game.story.currentText).toBe("Sorted 1,2,3.\n");
+    const ran = free.of("game/executed").at(-1)?.params.executedLines[MAIN]
+      .ranges as number[];
+    const holds = (line: number) =>
+      ran.some((_, k) => k % 2 === 0 && ran[k]! <= line && line <= ran[k + 1]!);
+    // The comparator's lines ran inside the step that called `table.sort`.
+    expect(holds(11)).toBe(true);
+    expect(holds(12)).toBe(true);
+    const h = debugGame(text, true);
+    h.game.setBreakpoints([{ file: MAIN, line: 11 }]);
     h.game.start();
     h.continueToBreakpoint();
-    const sum = h.game.getTempVariables().find((v) => v.name === "sum")!;
-    // The debugger names it as the variables view scopes it.
-    const dataId = `${sum.scopePath}.${sum.name}`;
-    expect(dataId).toBe("add.sum");
-    // `sum` is declared and never assigned again: no instruction writes it.
-    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(false);
-    const mainHealth = h.game.setDataBreakpoints([{ dataId: "main.health" }]);
-    expect(mainHealth[0]!.verified).toBe(true);
-    expect(mainHealth[0]!.location?.range.start.line).toBe(6);
-    expect(h.game.setDataBreakpoints([{ dataId: "sub.health" }])[0]!.verified).toBe(false);
+    // The comparator runs inside the one step that calls `table.sort`, and
+    // the game stops once that step returns, standing on the last line the
+    // comparator ran.
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(12);
+  });
+
+  // A divert to a function, in a scene the story never enters, is a
+  // construct the writer has no emit path for, so the program falls back.
+  const FALLS_BACK = `${NESTED}scene unused\n  -> add\nend\n`;
+
+  it("keeps its breakpoints when a compile moves the game to the program engine", () => {
+    const fallback = compile({ [MAIN]: FALLS_BACK }, true);
+    expect(fallback.program.fallback).toBeDefined();
+    const game = new Game({
+      now: () => 0,
+      setTimeout: (() => 0) as never,
+      resolve: (path: string) => path,
+      fetch: async () => "",
+      log: () => {},
+      program: fallback.program,
+      story: fallback.story,
+      programChunks: true,
+    } as never);
+    expect(game.programStory).toBeNull();
+    game.setBreakpoints([{ file: MAIN, line: 14 }]);
+    const chunked = compile({ [MAIN]: NESTED }, true);
+    game.updateProgram(chunked.program, chunked.story);
+    expect(game.programStory).not.toBeNull();
+    // Running the game after this switch fails before any breakpoint, on
+    // the base revision as well (it keeps the start point the other engine
+    // named; the follow-up the PR names), so the breakpoint is checked in
+    // the form the program engine stops by: the address of the beat.
+    const state = game as unknown as {
+      _breakAddresses: Set<number>;
+      _hasLineBreakpoints: boolean;
+    };
+    expect(state._hasLineBreakpoints).toBe(false);
+    expect([...state._breakAddresses]).toEqual([
+      game.programStory!.root.addressAt(MAIN, 14, { functions: true }),
+    ]);
+  });
+
+  it("keeps its breakpoints when a compile falls back to the current engine", () => {
+    const h = debugGame(NESTED, true);
+    h.game.setBreakpoints([{ file: MAIN, line: 14 }]);
+    const fallback = compile({ [MAIN]: FALLS_BACK }, true);
+    h.game.updateProgram(fallback.program, fallback.story);
+    expect(h.game.programStory).toBeNull();
+    // Running the game after this switch fails before any breakpoint, on
+    // the base revision as well (the follow-up the PR names), so the
+    // breakpoint is checked in the form the current engine stops by: a line
+    // of a script it compares each step's line with.
+    const game = h.game as unknown as {
+      _breakpointMap: Record<number, Map<number, unknown>>;
+      _hasLineBreakpoints: boolean;
+    };
+    expect(game._hasLineBreakpoints).toBe(true);
+    expect([...(game._breakpointMap[0]?.keys() ?? [])]).toEqual([14]);
+  });
+
+  it("refuses a breakpoint on a declaration, which runs before the story starts", () => {
+    const h = debugGame(NESTED, true);
+    const set = h.game.setBreakpoints([{ file: MAIN, line: 0 }]);
+    expect(set[0]!.verified).toBe(false);
+  });
+
+  it("announces the stop of a step that ends at a beat", () => {
+    const h = debugGame(NESTED, true);
+    h.game.setBreakpoints([{ file: MAIN, line: 14 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    const stepped = h.of("game/stepped").length;
+    // The rest of the beat is on the same line: stepping over it ends where
+    // the beat waits for the player.
+    expect(h.game.step("over")).toBe(true);
+    expect(h.of("game/stepped")).toHaveLength(stepped + 1);
+    expect(h.game.story.currentText).toBe("Sub here.\n");
   });
 
   it("stops at a breakpoint inside a loop on every pass", () => {
