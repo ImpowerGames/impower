@@ -1632,10 +1632,12 @@ export class SparkdownCompiler {
     // A compile that built statement chunks says what it changed exactly,
     // from the root it built and the root of the program measured against.
     if (root) {
+      profile("start", this._profilerId, "program/changes");
       summary.chunks = rootChanges(
         this._lastChangeId !== undefined ? this._lastChangeRoot : undefined,
         root,
       );
+      profile("end", this._profilerId, "program/changes");
     }
     this._lastChangeRoot = root;
     this._lastChangeId = summary.id;

@@ -173,6 +173,34 @@ export const captureProgramAssets = (
       visitSequence(row, capture);
     }
   }
+  // Each flow's beats in document order: the code of a block statement holds
+  // its parts in the order they run, which is not always the order they are
+  // written in (every entry of a `choose` block before a nested block's
+  // `then` clause, round 3 of the review of #1618), so the beats are placed
+  // by where each stands. The sort is stable, and the scripts keep the order
+  // the walk met them in.
+  const scripts = new Map<string, number>();
+  for (const capture of captures.values()) {
+    const keys = new Map<SceneBeat, [number, number, number]>();
+    for (const beat of capture.beats) {
+      const at =
+        typeof beat.address === "number" ? root.locationOf(beat.address) : undefined;
+      if (at && !scripts.has(at.uri)) {
+        scripts.set(at.uri, scripts.size);
+      }
+      keys.set(
+        beat,
+        at
+          ? [scripts.get(at.uri)!, at.startLine, at.startColumn]
+          : [Number.MAX_SAFE_INTEGER, 0, 0],
+      );
+    }
+    capture.beats.sort((a, b) => {
+      const ka = keys.get(a)!;
+      const kb = keys.get(b)!;
+      return ka[0] - kb[0] || ka[1] - kb[1] || ka[2] - kb[2];
+    });
+  }
   if (!captures.has("0")) {
     captures.set("0", createSceneAssetCapture());
   }

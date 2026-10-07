@@ -76,6 +76,11 @@ export const rootChanges = (
   before: ProgramRoot | undefined,
   after: ProgramRoot,
 ): ChunkChanges => {
+  // A compile that served the root it measured against (a cached compile)
+  // changed nothing.
+  if (before === after) {
+    return { dropped: [], emitted: [], moved: [], initializers: false };
+  }
   const old = before ? chunksOf(before) : new Map<number, StatementChunk>();
   const now = chunksOf(after);
   const dropped: number[] = [];

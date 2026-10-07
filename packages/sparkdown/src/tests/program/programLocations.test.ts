@@ -165,6 +165,50 @@ describe("a compile with statement chunks", () => {
     expect(images(false)).toEqual(["intro", "outro", "option_a", "body_a", "option_b", "body_b"]);
   });
 
+  // Round 3 of the review of #1618 (report 6028384794): a choose block in
+  // another's preamble has its `then` clause emitted after every entry of the
+  // block around it, so its clause's assets fell behind the later choices'.
+  it("reads a nested choose block's then clause before the next choice of the block around it", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  choose",
+      "    choose",
+      "      + [A]",
+      "        [[body_a]] A.",
+      "    then",
+      "      [[join_a]] Joined A.",
+      "    end",
+      "    + [B]",
+      "      [[body_b]] B.",
+      "  then",
+      "    [[finished]] Finished.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      programChunks: true,
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    expect(program.chunks).toBeDefined();
+    const locator = programLocator(program);
+    const beats = program.sceneAssets!["MAIN"]!.beats;
+    expect(beats.flatMap((beat) => beat.image ?? [])).toEqual([
+      "body_a",
+      "join_a",
+      "body_b",
+      "finished",
+    ]);
+    // Each record stands at its own beat's line.
+    expect(beats.map((beat) => locator.locationOf(beat.address)?.startLine)).toEqual([
+      6, 8, 11, 13,
+    ]);
+  });
+
   // Round 1 of the review of #1618 (report 6026971997): an interpolation
   // splits a beat's text into several literals, each of which named the
   // beat's address in a record of its own.
