@@ -110,6 +110,7 @@ async function authorSteps(programChunks: boolean) {
     frame("suggest");
     await h.closeSuggestions();
     frame("close");
+    // An edit on another line, then one inside the beat on screen.
     const first = lineIn(SCENES, "The first line.");
     await h.edit([
       {
@@ -118,7 +119,15 @@ async function authorSteps(programChunks: boolean) {
       },
     ]);
     await h.compile();
-    frame("edit");
+    frame("edit another line");
+    await h.edit([
+      {
+        range: { start: { line: second, character: 19 }, end: { line: second, character: 20 } },
+        text: ", edited.",
+      },
+    ]);
+    await h.compile();
+    frame("edit the beat on screen");
     await h.select(lineIn(SCENES, "Another scene's line."));
     frame("scrub to the other scene");
     await h.select(lineIn(SCENES, "The end of the scene."));
@@ -129,13 +138,18 @@ async function authorSteps(programChunks: boolean) {
     await settle(40);
     await h.tick(1000 / 60, 120);
     frame("play");
+    // A save made during PLAY, then the game run on past it, then the save
+    // loaded: the game is back where the save was made.
     const running = h.playing()!;
     const save = running.save();
-    const loaded = running.load(save);
+    running.clickedToContinue();
+    await h.tick(1000 / 60, 120);
+    const movedOn = running.save() !== save;
+    const loaded = running.load(save) && running.save() === save;
     await h.controller.stopGame("quit");
     await settle(40);
     frame("stop");
-    return { frames, loaded, engine: running.story as unknown };
+    return { frames, loaded, movedOn, engine: running.story as unknown };
   } finally {
     h.dispose();
   }
@@ -152,10 +166,11 @@ describe("the frames the author sees", () => {
       JSON.stringify(on.frames.find((f) => f.step === step)?.overlay).includes(text);
     expect(shown("select", "The second line.")).toBe(true);
     expect(shown("suggest", "The suggested line.")).toBe(true);
-    expect(shown("edit", "The second line.")).toBe(true);
+    expect(shown("edit another line", "The second line.")).toBe(true);
+    expect(shown("edit the beat on screen", "The second line, edited.")).toBe(true);
     expect(shown("scrub to the other scene", "Another scene")).toBe(true);
     expect(shown("scrub past the menu", "The end of the scene.")).toBe(true);
-    expect(shown("play", "The second line.")).toBe(true);
+    expect(shown("play", "The second line, edited.")).toBe(true);
     for (const [i, frame] of on.frames.entries()) {
       expect(frame, frame.step).toEqual(off.frames[i]);
     }
@@ -164,13 +179,15 @@ describe("the frames the author sees", () => {
     const updates = on.frames.filter(
       (f) => !["select", "play", "stop"].includes(f.step),
     );
-    expect(updates.length).toBe(6);
+    expect(updates.length).toBe(7);
     // The control: PLAY does start the music, so silence above is not a
     // scene that has none.
     expect(on.frames.find((f) => f.step === "play")!.sound.join("\n")).toContain("theme");
     for (const frame of updates) {
       expect(frame.sound, frame.step).toEqual([]);
     }
+    expect(on.movedOn).toBe(true);
+    expect(off.movedOn).toBe(true);
     expect(on.loaded).toBe(true);
     expect(off.loaded).toBe(true);
   }, 240_000);

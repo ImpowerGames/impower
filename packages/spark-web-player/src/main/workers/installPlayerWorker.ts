@@ -757,6 +757,12 @@ export function installPlayerWorker(
         if (program) {
           location = Game.storyLocation(story as never, program);
         }
+        // A story that stands nowhere (the program engine's, once its flow
+        // has ended) is placed where its game last ran.
+        location ??=
+          [gameState.running, gameState.game]
+            .find((game) => game && (game.story as unknown) === story)
+            ?.getLastExecutedDocumentLocation() ?? null;
       } catch (e) {
         // Where it is matters less than that it is still running.
         console.warn("Could not locate the running story:", e);

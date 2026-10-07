@@ -8,6 +8,7 @@
 // and `locationOf` of its address moves with the lines inserted.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
+import { programLocator } from "../../compiler/utils/programLocator";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { Op } from "../../program/ProgramInstructions";
@@ -148,6 +149,29 @@ describe("the address of a beat", () => {
       endColumn: "  Bunny waits.".length,
     });
     expect(root.locationOf(address + 2 ** 21 * 1000)).toBeUndefined();
+  });
+
+  // A dialogue block's range takes its last line's break, so it ends at the
+  // start of the line below. Its location ends with the line before, on the
+  // line the current engine's ends on, which is the line a reader of a
+  // location's end (the preview's executed-line label and ranges, the
+  // editor's selection after STOP) shows (#703).
+  it("ends on the line the current engine's location of the line ends on", () => {
+    const current = programLocator(quiet(() => compileScript(text)).program);
+    const lines = text.split("\n").length;
+    const program = programLocator(quiet(() => compileScript(text, { programChunks: true })).program);
+    const ends = (locator: typeof current) =>
+      Array.from({ length: lines }, (_, line) => {
+        const address = locator.addressAt(MAIN_URI, line, { beat: "last" });
+        return address == null ? null : (locator.locationOf(address)?.endLine ?? null);
+      });
+    const first = lineOf(text, "RAFFLES:");
+    const last = lineOf(text, "Three > Four.");
+    // The scene's header is the program engine's first beat (section 8),
+    // so the lines compared are the beats'.
+    expect(ends(program).slice(first, last + 1)).toEqual(ends(current).slice(first, last + 1));
+    const dialogue = root.addressAt(MAIN_URI, lineOf(text, "_Do you understand_?"))!;
+    expect(root.locationOf(dialogue)?.endLine).toBe(lineOf(text, "_Do you understand_?") + 1);
   });
 });
 

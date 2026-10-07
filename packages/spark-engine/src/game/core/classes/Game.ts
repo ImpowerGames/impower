@@ -4041,11 +4041,13 @@ export class Game<T extends M = {}> {
   ): DocumentLocation | null {
     const positions = storyPositions(story, program);
     const scripts = Object.keys(program?.scripts ?? {});
+    // The position its last step ran, or, on the program engine after an
+    // image was restored and before a step has run, where it stands.
     const location = Game.scriptLocationIn(
       program,
       scripts,
       positions.locator,
-      positions.previous(),
+      positions.previous() ?? positions.current(),
     );
     return location ? Game.documentLocation(program, scripts, location) : null;
   }
