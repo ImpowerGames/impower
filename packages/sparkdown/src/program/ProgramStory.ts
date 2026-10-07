@@ -263,17 +263,34 @@ export class BeatHistory {
     return undefined;
   }
 
-  /** Forgets the records after the one whose image is `image`, as a rewind
-   *  to it does; nothing when no record has it. */
-  truncateTo(image: ProgramImage): boolean {
+  /** Forgets the records after `image`, as a rewind to it does: the
+   *  record of its beat and those before, the image the record's again when
+   *  the next continue took the beat once more (`push`), or, for an image
+   *  of no record (a checkpoint taken after a choice, or one of a
+   *  playthrough a reset or another rewind left), the records taken before
+   *  it. The records are one line of play, each taken after the one before
+   *  (`ProgramImage.id` grows as images are taken), and a record a rewind or
+   *  a reset forgets never comes back, so a record taken before the image
+   *  is a beat that led to it; one taken after it is not, whatever line of
+   *  play it belongs to. */
+  truncateTo(image: ProgramImage): void {
     for (let i = this.records.length - 1; i >= 0; i -= 1) {
-      if (this.records[i]!.image === image) {
+      const record = this.records[i]!;
+      if (record.image === image || record === image.beat) {
+        (record as { image: ProgramImage }).image = image;
         this.records.length = i + 1;
         this.provisional = false;
-        return true;
+        return;
       }
     }
-    return false;
+    let kept = 0;
+    while (kept < this.records.length) {
+      const taken = this.records[kept]!.image;
+      if (taken.images !== image.images || taken.id >= image.id) break;
+      kept += 1;
+    }
+    this.records.length = kept;
+    this.provisional = false;
   }
 
   /** Gives the record of `was` the image `now`, the same beat taken
@@ -545,13 +562,13 @@ export class ProgramStory {
    *  through its saved form in the root it was taken in (section 8, Within a
    *  session), unless `translate` is false, as a route's resumption asks;
    *  when a position still cannot be placed, it returns false and changes
-   *  nothing, so that the caller replays. A rewind to a beat of the history
-   *  leaves the beats after it. */
+   *  nothing, so that the caller replays. The history keeps the beats that
+   *  led to the image and forgets those after it (`BeatHistory.truncateTo`). */
   restore(image: ProgramImage, translate = true): boolean {
     if (!this.restoreInPlace(image, translate)) {
       return false;
     }
-    // A rewind to a beat of the history leaves the beats after it.
+    // A rewind forgets the beats after the image.
     this.history.truncateTo(image);
     this._chosenAt = null;
     return true;

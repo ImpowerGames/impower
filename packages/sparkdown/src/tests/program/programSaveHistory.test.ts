@@ -347,6 +347,63 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(story.beats).toHaveLength(1);
     expect(advance(story, 2)).toEqual(["Line 7.", "Line 8."]);
   });
+
+  const PLAYTHROUGHS = (withOld: boolean) =>
+    [
+      "store gold = 0",
+      "",
+      ...(withOld ? ["scene old", "  Old one.", "  Old two.", "  Old three.", "end", ""] : []),
+      "scene new",
+      "  New one.",
+      "  New two.",
+      "  New three.",
+      "end",
+      "",
+    ].join("\n");
+
+  it("a rewind to a checkpoint of a playthrough a reset ended keeps none of the beats played since", () => {
+    const story = engine(rootOf(PLAYTHROUGHS(true)));
+    story.ChoosePathString("old");
+    expect(advance(story, 2)).toEqual(["Old one.", "Old two."]);
+    const checkpoint = story.captureBeat();
+    story.ResetState();
+    story.ChoosePathString("new");
+    expect(advance(story, 3)).toEqual(["New one.", "New two.", "New three."]);
+    expect(story.restore(checkpoint)).toBe(true);
+    expect(advance(story, 1)).toEqual(["Old three."]);
+    const save = story.toSave();
+    const flows = JSON.parse(save).beats.map((beat: any) => beat.position.st.levels[0].flow);
+    expect(flows).not.toContain("new");
+    // A release without `old` has no beat of the save to place.
+    let refused: unknown;
+    try {
+      engine(rootOf(PLAYTHROUGHS(false))).loadSave(save);
+    } catch (e) {
+      refused = e;
+    }
+    expect((refused as { flow?: string } | undefined)?.flow).toBe("old");
+  });
+
+  it("a rewind to a checkpoint taken before the host wrote to its beat keeps that beat's record, flags included, and takes it once", () => {
+    const story = engine(rootOf(PLAYTHROUGHS(true)));
+    story.ChoosePathString("new");
+    expect(advance(story, 1)).toEqual(["New one."]);
+    story.setBeatFlags(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    const checkpoint = story.captureBeat();
+    const record = story.beats.at(-1)!;
+    const count = story.beats.length;
+    // The host writes to the beat, and the next continue takes it again.
+    story.variablesState["gold"] = 5;
+    expect(advance(story, 2)).toEqual(["New two.", "New three."]);
+    expect(record.image).not.toBe(checkpoint);
+    expect(story.restore(checkpoint)).toBe(true);
+    expect(story.beats).toHaveLength(count);
+    expect(story.beats.at(-1)).toBe(record);
+    expect(record.image).toBe(checkpoint);
+    expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
+    expect(advance(story, 1)).toEqual(["New two."]);
+    expect(story.beats).toHaveLength(count + 1);
+  });
 });
 
 /** Every statement form a save holds, with the listing of each level. */

@@ -159,6 +159,41 @@ describe("a fingerprint", () => {
     expect(normalizeSource("& s = [[a\n  b]]")).not.toBe(none);
     expect(normalizeSource("&   s  =  [[a\nb]]  -- note")).toBe(none);
   });
+
+  // Found adjudicating round 1's undirected report (6031983271), another
+  // instance of its first finding: a line of a declaration that starts with
+  // no mark of its own is logic, where `//` is floor division or the text
+  // of a string, and not a displayed line's comment.
+  it("tells apart two declarations that differ after a `//` in a field of a define or a line of a table literal", () => {
+    const prints = (table: string, field: string) => {
+      const root = rootOf(
+        [
+          "store t = {",
+          `  ${table}`,
+          "}",
+          "",
+          "define hero as character with",
+          `  ${field}`,
+          "end",
+          "",
+          "-> start",
+          "scene start",
+          "  Hello {t.a} {hero.name}.",
+          "end",
+          "",
+        ].join("\n"),
+      );
+      const declarations = [...root.sequences()].find((sequence) => sequence.flow === -1)!;
+      return declarations.arrays.chunks.map(fingerprintOf);
+    };
+    const [table, define] = prints("a = 10 // 2,", 'name = "a // b"');
+    const [otherTable, otherDefine] = prints("a = 10 // 3,", 'name = "a // c"');
+    const [spacedTable, spacedDefine] = prints("a  =  10  //  2,  -- a note", 'name  =  "a // b"');
+    expect(otherTable).not.toBe(table);
+    expect(otherDefine).not.toBe(define);
+    expect(spacedTable).toBe(table);
+    expect(spacedDefine).toBe(define);
+  });
 });
 
 describe("a save written by another process", () => {

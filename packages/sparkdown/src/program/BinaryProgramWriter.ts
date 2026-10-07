@@ -1707,18 +1707,26 @@ const numberText = (value: number): string =>
  *  displayed text (a line of narration or dialogue, a choice's line), whose
  *  comment is a `//` that starts the line or follows whitespace and is
  *  followed by whitespace or the line's end, as the grammar reads one
- *  (`SparkdownInlineComment`); `--` there is text. A logic line written
- *  without either mark (a field of a `define`'s body) reads as displayed
- *  text, so its comments and its spacing still count. */
+ *  (`SparkdownInlineComment`); `--` there is text. Every line of a
+ *  statement whose first line is logic, but for a menu (`choose`, whose
+ *  choices are displayed lines), is logic, so a field of a `define`'s body
+ *  or a line a table literal runs on reads as the logic it is, where `//`
+ *  is Luau's floor division. */
 export const normalizeSource = (source: string): string => {
   const out: string[] = [];
   // An open long bracket that runs past its line: a block comment, which
   // is dropped, or a long string, which is kept as written, with the
   // number of `=` that closes it.
   let open: { comment: boolean; level: number } | null = null;
-  for (const raw of source.split("\n")) {
+  const lines = source.split("\n");
+  // A statement of logic but a menu is logic throughout: the fields of a
+  // `define`'s body and the lines a table literal runs on start with no
+  // mark of their own.
+  const first = lines.find((line) => line.trim().length > 0)?.trimStart() ?? "";
+  const logic = LOGIC_STATEMENT.test(first);
+  for (const raw of lines) {
     const line = raw.replace(/\r$/, "");
-    if (!open && !LOGIC_LINE.test(line.trimStart())) {
+    if (!open && !logic && !LOGIC_LINE.test(line.trimStart())) {
       const text = withoutDisplayComment(line).trim();
       if (text.length > 0) {
         out.push(text);
@@ -1838,6 +1846,11 @@ const JOINED = new Set([
  *  own part. */
 const LOGIC_LINE =
   /^(?:&|--|(?:if|elseif|else|end|while|for|repeat|until|do|local|function|return|break|continue|store|const|define|choose|then|match|case|type|export)(?![\w]))/;
+
+/** The first line of a statement that is logic throughout: a line of
+ *  logic but a comment, which starts no statement, or a menu. */
+const LOGIC_STATEMENT =
+  /^(?:&|(?:if|elseif|else|end|while|for|repeat|until|do|local|function|return|break|continue|store|const|define|then|match|case|type|export)(?![\w]))/;
 
 /** A displayed line without its comment (`SparkdownInlineComment`): a `//`
  *  that starts the line or follows whitespace and is followed by whitespace
