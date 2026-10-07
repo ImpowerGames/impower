@@ -35,6 +35,7 @@ import type { SparkdownDocumentContentChangeEvent } from "../../compiler/classes
 import { type SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import type {
   AsyncProgramLocator,
+  LineBeat,
   ProgramAddress,
   SourceLocation,
 } from "../../compiler/types/ProgramAddress";
@@ -1232,6 +1233,8 @@ export abstract class SparkdownWorkspace {
           | undefined,
       locationOf: async (address) =>
         (await ask({ locationOf: address })) as SourceLocation | undefined,
+      beatAt: async (uri, line, query) =>
+        (await ask({ beatAt: { uri, line, query } })) as LineBeat | undefined,
     };
   }
 

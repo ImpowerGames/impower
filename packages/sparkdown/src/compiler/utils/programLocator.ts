@@ -5,6 +5,7 @@ import type {
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import type {
   AddressQuery,
+  LineBeat,
   ProgramAddress,
   ProgramLocator,
   SourceLocation,
@@ -143,6 +144,26 @@ export const answerLocateQueries = (
       const { uri, line, query } = q.addressAt;
       return locator.addressAt(uri, line, query) ?? null;
     }
+    if ("beatAt" in q) {
+      const { uri, line, query } = q.beatAt;
+      return beatAt(locator, uri, line, query) ?? null;
+    }
     return locator.locationOf(q.locationOf) ?? null;
   });
+};
+
+/** The address of a line and where it stands, from one accessor; nothing
+ *  for a line with no address. */
+export const beatAt = (
+  locator: ProgramLocator,
+  uri: string,
+  line: number,
+  query?: AddressQuery,
+): LineBeat | undefined => {
+  const address = locator.addressAt(uri, line, query);
+  if (address === undefined) {
+    return undefined;
+  }
+  const location = locator.locationOf(address);
+  return location ? { address, location } : { address };
 };

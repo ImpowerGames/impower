@@ -150,8 +150,7 @@ describe("a search of the sources outside the engine and the compiler", () => {
       // which holds the root its program is located by (#704).
       previousAndNextBeat: uses(
         "packages/sparkdown-language-server/src/utils/providers/getOffsetSourceLocation.ts",
-        ".addressAt(",
-        ".locationOf(",
+        ".beatAt(",
       ),
       languageServer: uses(
         "packages/sparkdown-language-server/src/sparkdown-language-server.ts",

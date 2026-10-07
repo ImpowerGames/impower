@@ -22,7 +22,10 @@ import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSpa
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
-import { getOffsetSourceLocation } from "../../utils/providers/getOffsetSourceLocation";
+import {
+  getOffsetSourceLocation,
+  ownBeats,
+} from "../../utils/providers/getOffsetSourceLocation";
 
 const MAIN = "file:///project/main.sd";
 const NEWLINE = String.fromCharCode(10);
@@ -201,15 +204,15 @@ const BEATS = [
   "  & trust = trust + 1",
   "  He looks again.",
   "",
-  "  -> B",
+  "  branch hall",
+  "    He waits.",
+  "  end",
   "end",
   "",
   "scene B",
   "  Bunny arrives.",
   "",
   "  Bunny leaves.",
-  "",
-  "  done",
   "end",
   "",
 ].join(NEWLINE);
@@ -255,17 +258,22 @@ describe("the language server's locations", () => {
     expect(addresses.every((a) => typeof a === "number")).toBe(true);
   });
 
-  it("give the previous and next beat the program's own accessor gives", async () => {
+  it("give the previous and next beat the current back end gave", async () => {
     const ls = await languageServer(BEATS);
     const remote = ls.workspace.locatorOf(ls.program);
-    const own = programLocator(ls.compiled);
+    // What the language server answered before it compiled with chunks: the
+    // program of the current back end and its path locations. The script
+    // ends its scenes with no divert or `done`, which only the program
+    // engine stops on (`offsetSourceLocation.test.ts`).
+    const current = coldCompile(BEATS, false);
+    const before = ownBeats(programLocator(current));
     const lines = BEATS.split(NEWLINE).length;
     for (let line = 0; line < lines; line++) {
       for (const offset of [-1, 1, 2]) {
         expect(
           await getOffsetSourceLocation(ls.program, remote, MAIN, line, offset),
           `line ${line}, offset ${offset}`,
-        ).toEqual(await getOffsetSourceLocation(ls.program, own, MAIN, line, offset));
+        ).toEqual(await getOffsetSourceLocation(current, before, MAIN, line, offset));
       }
     }
     const at = (line: number, offset: number) =>
@@ -283,6 +291,15 @@ describe("the language server's locations", () => {
     expect(await at(lineOf(BEATS, "Bunny arrives."), 1)).toEqual({
       file: MAIN,
       line: lineOf(BEATS, "Bunny leaves."),
+    });
+    // A scene's header is a stop of its own, as a branch's is.
+    expect(await at(lineOf(BEATS, "Bunny arrives."), -1)).toEqual({
+      file: MAIN,
+      line: lineOf(BEATS, "scene B"),
+    });
+    expect(await at(lineOf(BEATS, "He waits."), -1)).toEqual({
+      file: MAIN,
+      line: lineOf(BEATS, "branch hall"),
     });
     // Every question is a message to the worker and its answer, each a task
     // later here.

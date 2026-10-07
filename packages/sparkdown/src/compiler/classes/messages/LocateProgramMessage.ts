@@ -3,16 +3,19 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
 import type {
   AddressQuery,
+  LineBeat,
   ProgramAddress,
   SourceLocation,
 } from "../../types/ProgramAddress";
 
 export type LocateProgramMethod = typeof LocateProgramMessage.method;
 
-/** One question for a program's accessor (`ProgramLocator`). */
+/** One question for a program's accessor (`ProgramLocator`): the address of
+ *  a line, where an address stands, or both of a line at once (`beatAt`). */
 export type LocateQuery =
   | { addressAt: { uri: string; line: number; query?: AddressQuery } }
-  | { locationOf: ProgramAddress };
+  | { locationOf: ProgramAddress }
+  | { beatAt: { uri: string; line: number; query?: AddressQuery } };
 
 export interface LocateProgramParams {
   /** The uri the program was compiled for (`SparkProgram.uri`). */
@@ -21,9 +24,14 @@ export interface LocateProgramParams {
 }
 
 /** Each query's answer, in order: an address for `addressAt`, a location for
- *  `locationOf`, and null where the accessor has none or the worker holds no
- *  program compiled for that uri. */
-export type LocateProgramResult = (ProgramAddress | SourceLocation | null)[];
+ *  `locationOf`, both for `beatAt`, and null where the accessor has none or
+ *  the worker holds no program compiled for that uri. */
+export type LocateProgramResult = (
+  | ProgramAddress
+  | SourceLocation
+  | LineBeat
+  | null
+)[];
 
 /**
  * Asks the compiler's worker the program's accessor. A program compiled with
