@@ -14,7 +14,7 @@ import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler
 import type { StatementShape } from "../../compiler/lower/utils/statementShape";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { parsedChildren } from "../../program/ProgramResolver";
+import { parsedChildren, ProgramResolver } from "../../program/ProgramResolver";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 import { programStatements } from "./programStatements";
@@ -245,38 +245,115 @@ const parsedObjectsOf = (block: CompiledBlock): WeakRef<ParsedObject>[] => {
   return [...seen].map((obj) => new WeakRef(obj));
 };
 
+/** Waits for the jobs that made weak references to end, which hold their
+ *  targets until then, and collects twice. */
+const collect = async () => {
+  // A collection on demand, which the test runner's Node gives no flag for.
+  v8.setFlagsFromString("--expose-gc");
+  const gc = vm.runInNewContext("gc") as () => void;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  gc();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  gc();
+};
+
+/** Every parsed object a story holds, from the story down. */
+const storyObjects = (story: ParsedObject): ParsedObject[] => {
+  const seen = new Set<ParsedObject>();
+  const visit = (obj: ParsedObject) => {
+    if (seen.has(obj)) {
+      return;
+    }
+    seen.add(obj);
+    parsedChildren(obj).forEach(visit);
+    // A call generated as a builtin keeps the divert that held its
+    // arguments, which generation took out of its content.
+    const proxy = (obj as { proxyDivert?: ParsedObject }).proxyDivert;
+    if (proxy) {
+      visit(proxy);
+    }
+  };
+  visit(story);
+  return [...seen];
+};
+
+/** Runs `run` with every resolve of the program path reporting the parsed
+ *  story it resolves to `seen`, which the caller holds weakly. */
+const watchingStories = async <T>(
+  seen: (story: ParsedObject) => void,
+  run: () => Promise<T>,
+): Promise<T> => {
+  const resolve = ProgramResolver.prototype.resolve;
+  ProgramResolver.prototype.resolve = function (this: ProgramResolver, ...args) {
+    seen(args[0] as unknown as ParsedObject);
+    return resolve.apply(this, args);
+  };
+  try {
+    return await run();
+  } finally {
+    ProgramResolver.prototype.resolve = resolve;
+  }
+};
+
 describe("no parsed object", () => {
-  // One scene, so that no statement of another scene holds a divert to the
-  // scene: a divert the resolver keeps resolved holds the flow the compile
-  // that resolved it assembled (`Divert.targetContent`, #1607), and that flow
-  // the objects of that compile's statements of the scene, which is not
-  // what this asks of the statement memo.
-  it("of a block's lowering outlives the compile that lowers the block again", async () => {
-    // A collection on demand, which the test runner's Node gives no flag for.
-    v8.setFlagsFromString("--expose-gc");
-    const gc = vm.runInNewContext("gc") as () => void;
-    const s = warmSession(1);
-    const first = clauseLine(s.text, 160);
-    s.edit(first.line, `${first.line} Once.`, first.from);
-    // The objects the last compile lowered, the statements it served from
-    // their memos included, and the objects it kept from earlier lowerings,
-    // held weakly, as is the block itself.
-    const { refs, block } = (() => {
-      const [held] = compiledBlocks(s, "LuauSparkdownChooseBlock");
-      expect(held?.memoized?.length ?? 0, "statements served from their memos").toBeGreaterThan(50);
-      return { refs: parsedObjectsOf(held!), block: new WeakRef(held!) };
-    })();
-    expect(refs.length).toBeGreaterThan(100);
-    const { line, from } = clauseLine(s.text, 80);
-    s.edit(line, `${line} Again.`, from);
-    expect(compiledBlocks(s, "LuauSparkdownChooseBlock")[0] === block.deref()).toBe(false);
-    // A weak reference holds its target until the job that made it ends.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    gc();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    gc();
-    const alive = refs.map((ref) => ref.deref()).filter((obj) => obj !== undefined);
-    expect(alive.map((obj) => obj!.typeName)).toEqual([]);
+  // With two scenes the first diverts to the second, whose clause is edited:
+  // a divert the resolver keeps resolved while its statement is carried
+  // holds the flow it was resolved to, which every compile assembles anew.
+  for (const scenes of [1, 2]) {
+    it(`of a block's lowering outlives the compile that lowers the block again, with ${scenes} scene(s)`, async () => {
+      const s = warmSession(scenes);
+      const first = clauseLine(s.text, 160);
+      s.edit(first.line, `${first.line} Once.`, first.from);
+      // The objects the last compile lowered, the statements it served from
+      // their memos included, and the objects it kept from earlier
+      // lowerings, held weakly, as is the block itself.
+      const { refs, block } = (() => {
+        const [held] = compiledBlocks(s, "LuauSparkdownChooseBlock");
+        expect(held?.memoized?.length ?? 0, "statements served from their memos").toBeGreaterThan(50);
+        return { refs: parsedObjectsOf(held!), block: new WeakRef(held!) };
+      })();
+      expect(refs.length).toBeGreaterThan(100);
+      const { line, from } = clauseLine(s.text, 80);
+      s.edit(line, `${line} Again.`, from);
+      expect(compiledBlocks(s, "LuauSparkdownChooseBlock")[0] === block.deref()).toBe(false);
+      await collect();
+      const alive = refs.map((ref) => ref.deref()).filter((obj) => obj !== undefined);
+      expect(alive.map((obj) => obj!.typeName)).toEqual([]);
+    });
+  }
+
+  it("of an earlier compile is reachable after a compile, but the objects this compile's story holds", async () => {
+    // Two scenes, the first diverting to the second, whose clause is edited
+    // twice. Every parsed object an earlier compile's story held that the
+    // last compile's story does not hold is collected, whichever compile
+    // made it: nothing of the compiler or the chunk store keeps it, the
+    // blocks the annotator carried and the statements the resolver carried
+    // included.
+    const stories: WeakRef<ParsedObject>[] = [];
+    const refs: WeakRef<ParsedObject>[] = [];
+    const s = await watchingStories(
+      (story) => {
+        stories.push(new WeakRef(story));
+        refs.push(...storyObjects(story).map((obj) => new WeakRef(obj)));
+      },
+      async () => {
+        const s = warmSession(2);
+        const first = clauseLine(s.text, 160);
+        s.edit(first.line, `${first.line} Once.`, first.from);
+        const { line, from } = clauseLine(s.text, 80);
+        s.edit(line, `${line} Again.`, from);
+        return s;
+      },
+    );
+    expect(stories.length).toBe(4);
+    expect(refs.length).toBeGreaterThan(1000);
+    const held = new WeakSet(storyObjects(stories.at(-1)!.deref()!));
+    await collect();
+    const alive = refs
+      .map((ref) => ref.deref())
+      .filter((obj): obj is ParsedObject => obj !== undefined && !held.has(obj));
+    expect(alive.map((obj) => obj.typeName)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(50);
   });
 });
 

@@ -10,6 +10,7 @@ import {
 } from "../inkjs/compiler/Parser/ParsedHierarchy/CompileEpoch";
 import { ConstantDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { ExternalDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
+import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
 import {
   FlowBase,
@@ -208,7 +209,42 @@ interface UnitRecord {
    *  one with no anchor to move it by: the statement is resolved again when
    *  its anchor moves, or, with none, on every resolve. */
   volatile: boolean;
+  /** The diverts its resolution resolved, whose targets a later compile
+   *  moves onto the objects that stand for them then (`retarget`). */
+  diverts: Divert[];
 }
+
+/** The object at the top of `obj`'s parents: its story, for an object a
+ *  story holds. */
+const rootOf = (obj: ParsedObject): ParsedObject => {
+  let at = obj;
+  while (at.parent) {
+    at = at.parent;
+  }
+  return at;
+};
+
+/** The flow of `story` at the path `flow` has in its own story, read
+ *  through the tables without reporting a read, or null for none. */
+const flowAt = (story: Story, flow: FlowBase): FlowBase | null => {
+  const names: string[] = [];
+  for (let at: ParsedObject | null = flow; at?.parent; at = at.parent) {
+    if (at instanceof FlowBase) {
+      const name = at.identifier?.name;
+      if (name == null) {
+        return null;
+      }
+      names.unshift(name);
+    }
+  }
+  let found: FlowBase | null = story;
+  for (const name of names) {
+    found = found
+      ? ((Map.prototype.get.call(found.subFlowsByName, name) as FlowBase | undefined) ?? null)
+      : null;
+  }
+  return found;
+};
 
 /** A statement of the program as the resolver knows it from compile to
  *  compile: the objects the compile placed for one block where they stand in
@@ -489,7 +525,36 @@ export class ProgramResolver {
       dependsOn: new Set(),
       printed: [],
       volatile: false,
+      diverts: [],
     };
+  }
+
+  /**
+   * Moves the target a divert of a statement this resolve did not resolve
+   * kept from the compile that resolved it onto the object that stands for
+   * it in this compile's story (#656). A flow is assembled anew by every
+   * compile, so a divert into another scene would otherwise hold the flow of
+   * an earlier compile, and through it that compile's objects of the flow's
+   * statements, as long as its statement is carried. The target is the same
+   * one by name, so what the store and the statement watch read of it
+   * (`targetOf`) reads the same: a flow by its path, read through the
+   * story's tables without recording a read, and anything else, a label of a
+   * statement lowered anew, by the divert's own path. A divert whose
+   * target is gone is left to the resolve that resolves its statement again,
+   * which the target's name, declared otherwise, already causes.
+   */
+  protected retarget(story: Story): void {
+    for (const unit of this._order) {
+      for (const divert of unit.record?.diverts ?? []) {
+        const held = divert.heldTargetContent;
+        if (!held || rootOf(held) === story || rootOf(divert) !== story) {
+          continue;
+        }
+        divert.targetContent = held instanceof FlowBase
+          ? flowAt(story, held)
+          : (divert.target?.ResolveFromContext(divert) ?? null);
+      }
+    }
   }
 
   /** Makes the resolution epoch this resolver's diverts hold their targets in
@@ -857,6 +922,8 @@ export class ProgramResolver {
         readers.add(unit);
       }
     }
+
+    this.retarget(story);
 
     // What each memo candidate reported and read, for its memo.
     this.staleMemosLastResolve = [...this._staleMemos];
@@ -2055,6 +2122,9 @@ export class ProgramResolver {
         this.passesLastResolve.generated += 1;
       } else {
         this.passesLastResolve.resolved += 1;
+        if (obj instanceof Divert) {
+          this._recording.unit.next?.diverts.push(obj);
+        }
       }
       if (ProgramResolver.traceVisits) {
         this.visitedLastResolve.add(obj);
