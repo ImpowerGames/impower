@@ -747,9 +747,10 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
     expect(run(ungated, [0, 0]).beats).toEqual(["A", "X", "After."]);
   });
 
-  // A nested block that offers no choice ends in an ordinary gather, which
-  // the current engine's weave reaches as a loose end: the lines after the
-  // block are still the choice's body, on both engines.
+  // A nested block that offers no choice ends as any block does: its end runs
+  // on out of it and is no loose end in the current engine's weave, so the
+  // lines after the block are still the choice's body, on both engines, gated
+  // or not.
   it("runs the lines after a nested block that offers no choice in the gated choice's body", () => {
     for (const nested of [
       ["        choose", "          Empty.", "        end"],
