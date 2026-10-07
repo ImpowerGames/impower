@@ -57,3 +57,28 @@ export interface ProgramLocator {
    *  Nothing for an address the program does not hold. */
   sceneAt(address: ProgramAddress | null | undefined): string | undefined;
 }
+
+/** The address of a line and where that address stands, read from one
+ *  program together (`beatAt`). */
+export interface LineBeat {
+  address: ProgramAddress;
+  location?: SourceLocation;
+}
+
+/** The part of a program's accessor a host asks of the worker that holds the
+ *  program (`SparkdownWorkspace.locatorOf`), whose answers arrive later. */
+export interface AsyncProgramLocator {
+  addressAt(
+    uri: string,
+    line: number,
+    query?: AddressQuery,
+  ): Promise<ProgramAddress | undefined>;
+  locationOf(address: ProgramAddress): Promise<SourceLocation | undefined>;
+  /** `addressAt` and the `locationOf` of its answer in one question, so that
+   *  both read the same program however many compiles run around it. */
+  beatAt(
+    uri: string,
+    line: number,
+    query?: AddressQuery,
+  ): Promise<LineBeat | undefined>;
+}
