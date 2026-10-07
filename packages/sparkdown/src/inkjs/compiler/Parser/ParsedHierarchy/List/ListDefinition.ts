@@ -83,8 +83,8 @@ export class ListDefinition extends ParsedObject {
     return new ListValue(initialValues);
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story, program: boolean): void {
+    super.ResolveWith(context, program);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.List);
   }
 }

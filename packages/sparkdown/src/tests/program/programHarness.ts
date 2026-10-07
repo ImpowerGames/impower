@@ -9,6 +9,7 @@ import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../inkjs/engine/Value";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { ChunkStore } from "../../program/ChunkStore";
+import { ProgramResolver } from "../../program/ProgramResolver";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { isAnonymousSymbol, SymbolKind } from "../../program/ProgramSymbols";
@@ -35,6 +36,11 @@ import {
 // Every root a test builds is checked against the tables a cold build
 // derives from its sequences (`ChunkStore.verifyBuilds`).
 ChunkStore.verifyBuilds = true;
+// And what the resolver knows from each statement's syntax in place of the
+// walks of the whole story is checked against those walks after every
+// resolve (`ProgramResolver.verifyFacts`), which `programCompiler`'s compile
+// fails on.
+ProgramResolver.verifyFacts = true;
 
 export const MAIN_URI = "inmemory:///main.sd";
 
@@ -64,7 +70,13 @@ export function programCompiler(
   return {
     compiler,
     compile(uri = MAIN_URI): { program: SparkProgram; story: Story } {
+      ProgramResolver.factFailures = [];
       const program = compiler.compile({ textDocument: { uri } }).program;
+      if (ProgramResolver.factFailures.length > 0) {
+        throw new Error(
+          `ProgramResolver.verifyFacts: ${ProgramResolver.factFailures.join("; ")}`,
+        );
+      }
       return { program, story: compiled.story! };
     },
   };

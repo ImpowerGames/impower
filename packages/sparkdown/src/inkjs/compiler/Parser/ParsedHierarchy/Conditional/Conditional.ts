@@ -89,18 +89,23 @@ export class Conditional extends ParsedObject {
     emitter.bind(end);
   }
 
-  public override ResolveReferences(context: Story): void {
-    const pathToReJoin = this._reJoinTarget!.path;
+  public override ResolveWith(context: Story, program: boolean): void {
+    if (!this._reJoinTarget) {
+      throw new TypeError("A conditional resolved before it was generated");
+    }
+    const pathToReJoin = program ? null : this._reJoinTarget.path;
 
     for (const branch of this.branches) {
       if (!branch.returnDivert) {
         throw new Error();
       }
 
-      branch.returnDivert.targetPath = pathToReJoin;
+      if (pathToReJoin) {
+        branch.returnDivert.targetPath = pathToReJoin;
+      }
     }
 
-    super.ResolveReferences(context);
+    super.ResolveWith(context, program);
   }
 
   override OnResetRuntime(): void {

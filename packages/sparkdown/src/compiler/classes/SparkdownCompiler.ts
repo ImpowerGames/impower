@@ -155,6 +155,11 @@ import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMess
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 import { ChunkStore, type ProgramBuild } from "../../program/ChunkStore";
+import {
+  parsedChildren,
+  ProgramResolver,
+  resetSubtreeRuntime,
+} from "../../program/ProgramResolver";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { rootChanges } from "../../program/rootChanges";
 import { captureProgramAssets } from "../../program/programSceneAssets";
@@ -327,21 +332,6 @@ function getPreludeGlobalNames(): Set<string> {
   visit(globalDecl);
   _preludeGlobalNames = names;
   return names;
-}
-
-/** The parsed objects under `node` that a walk over its subtree visits: its
- *  `content`, and for a call that generated as a builtin, native or stdlib
- *  call, its arguments. Such a call removes its proxy divert, which held the
- *  arguments, from `content` on its first generation, yet the arguments still
- *  generate on every pass and carry cached runtime objects and debug metadata
- *  of their own (a `display()` call's table holds its line's whole text). */
-function parsedChildren(node: ParsedObject): ParsedObject[] {
-  const content = node.content ?? [];
-  if (!(node instanceof FunctionCall) || content.includes(node.proxyDivert)) {
-    return content;
-  }
-  const args = node.args.filter((arg) => !content.includes(arg));
-  return args.length > 0 ? [...content, ...args] : content;
 }
 
 /** The index of `word` in `text` as a whole identifier (not part of a longer
@@ -782,12 +772,26 @@ export class SparkdownCompiler {
   // The same for the builtins prelude's blocks, which the compiler lowers and
   // places once and carries for as long as it keeps the prelude's parse.
   protected _preludeStatementRecords = new Map<object, StatementRecord>();
+  // Each block's record, kept for as long as the incremental parse carries
+  // the block, with where the block stands, which its readers read.
+  protected _blockRecords = new WeakMap<
+    object,
+    { record: StatementRecord; place: { from: number; to: number; uri: string } }
+  >();
   // Set while `previewCompile` compiles, so the root it builds is dropped and
   // the store's current root stays the last real compile's.
   protected _previewing = false;
   /** What the last compile with `programChunks` on built: its root or the
    *  construct it fell back for, and how many statements it emitted. */
   lastProgramBuild?: ProgramBuild & { declarations: number; functions: number };
+  // The resolver of a compiler that compiles with `programChunks` on, kept for
+  // the compiler's lifetime so that a statement's resolution is kept across
+  // compiles (#1607).
+  protected _programResolver?: ProgramResolver;
+  // The objects whose names this compile's passes renamed in place before
+  // resolution (`canonicalizeSyntheticFlowNames`, `scopeDefineInstances`),
+  // which the program path's resolver resolves again.
+  protected _renamedNames: ParsedObject[] = [];
 
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
@@ -1046,6 +1050,8 @@ export class SparkdownCompiler {
     // Anything a reconfigure can change (definitions, settings, files) feeds
     // compiles, so retire the no-change short-circuit's snapshot.
     this._filesEpoch++;
+    // And the next resolve of the program path resolves every statement.
+    this._programResolver?.invalidate();
     if (
       config.definitions?.builtins !== undefined &&
       config.definitions?.builtins !== this._config.definitions?.builtins
@@ -1958,6 +1964,9 @@ export class SparkdownCompiler {
     // compile that feeds a view, instead of paying for it every edit.
     const emitCompiledProgram =
       params.emitCompiledProgram ?? this._config.emitCompiledProgram !== false;
+    // The diverts the program path's resolver kept resolved hold their
+    // targets in its epoch, which another compiler's resolve can have left.
+    this._programResolver?.enterEpoch();
 
     // No-change short-circuit: if every script the last compile read is at
     // the same version, the file registry hasn't changed, and the visit
@@ -2317,10 +2326,12 @@ export class SparkdownCompiler {
       };
       const preludeVAs = new Set<ParsedObject>();
       const preludeStory = this._cachedPreludeParsedStory;
+      this._renamedNames = [];
       if (preludeStory && this.documents.has(BUILTINS_PRELUDE_URI)) {
         const preludeTypeNames = collectTypeNamesFor([BUILTINS_PRELUDE_URI]);
         scopeDefineInstances([preludeStory], preludeTypeNames, {
           collect: preludeVAs,
+          renamed: this._renamedNames,
         });
       }
       // User files: the root + resolved includes (`program.scripts`), excluding
@@ -2335,6 +2346,7 @@ export class SparkdownCompiler {
       scopeDefineInstances([parsedStory], userTypeNames, {
         skip: preludeVAs,
         collect: userVAs,
+        renamed: this._renamedNames,
       });
       // Now that both sides carry their final global keys, let an authored
       // define that reuses a builtin name override it rather than collide.
@@ -2406,9 +2418,15 @@ export class SparkdownCompiler {
       // flow touched by a rename must be regenerated — and any renamed flow's
       // serialized-JSON cache entry must lapse (the cross-flow fingerprint
       // records nothing for pure content, so it can't catch the rename).
+      // The program path generates no flow's runtime tree, and resolves again
+      // the statements a rename touched (`ProgramResolver`).
+      const programPath = !!this._config.programChunks;
       if (renamedTopLevel) {
         for (const flow of renamedTopLevel) {
-          if (this._reusedFlowsThisCompile?.has(flow as FlowBase)) {
+          if (
+            !programPath &&
+            this._reusedFlowsThisCompile?.has(flow as FlowBase)
+          ) {
             this.resetSubtreeRuntime(flow);
             this._reusedFlowsThisCompile?.delete(flow as FlowBase);
           }
@@ -2466,8 +2484,10 @@ export class SparkdownCompiler {
       // already committed before the discovery so this compile regenerates
       // those flows from their (intact) parsed content.
       if (this._flowReuseDisabled && this._reusedFlowsThisCompile?.size) {
-        for (const flow of this._reusedFlowsThisCompile) {
-          this.resetSubtreeRuntime(flow);
+        if (!programPath) {
+          for (const flow of this._reusedFlowsThisCompile) {
+            this.resetSubtreeRuntime(flow);
+          }
         }
         this._reusedFlowsThisCompile.clear();
       }
@@ -2479,18 +2499,38 @@ export class SparkdownCompiler {
       ) {
         parsedStory.DeclareBuiltinGlobals(getPreludeGlobalNames());
       }
-      profile("start", this._profilerId, "ink/compile", uri);
-      // A program that runs from statement chunks initializes its globals
-      // with its declaration sequences, and the runtime story's own
-      // initialization runs only when the program falls back (below).
-      const story = parsedStory.ExportRuntime(
-        onDiagnostic,
-        !this._config.programChunks,
-        !!this._config.programChunks,
-      );
+      // What the story declared before its statements did, which a program
+      // that falls back is exported again from (below).
+      const declaredBefore = programPath
+        ? FlowBase.declarationTable(parsedStory.variableDeclarations)
+        : undefined;
+      let story: RuntimeStory;
+      if (programPath) {
+        // A program that runs from statement chunks resolves its references
+        // with the program path's resolver, which resolves only the
+        // statements whose resolution can read otherwise and builds no
+        // runtime tree (#1607). Its globals initialize with its declaration
+        // sequences, and the current engine's story is exported only when
+        // the program falls back (below).
+        profile("start", this._profilerId, "program/resolve", uri);
+        this._programResolver ??= new ProgramResolver();
+        story = this._programResolver.resolve(
+          parsedStory,
+          {
+            blockOf: (obj) => this._placedBy.get(obj),
+            renamed: this._renamedNames,
+            cold: false,
+          },
+          onDiagnostic,
+        );
+        profile("end", this._profilerId, "program/resolve", uri);
+      } else {
+        profile("start", this._profilerId, "ink/compile", uri);
+        story = parsedStory.ExportRuntime(onDiagnostic, true);
+        profile("end", this._profilerId, "ink/compile", uri);
+      }
       watchStatements(restoreWatch ?? null);
       restoreWatch = undefined;
-      profile("end", this._profilerId, "ink/compile", uri);
       // After ExportRuntime: the diverts it reports are recorded while
       // ExportRuntime resolves references.
       if (
@@ -2504,30 +2544,34 @@ export class SparkdownCompiler {
           uri,
         );
       }
-      // Bar flows that raised GENERATION-time diagnostics from future reuse —
-      // reuse skips generation, which would silently drop them next compile.
-      for (const flow of parsedStory.flowsWithGenerationDiagnostics) {
-        this._flowsWithGenDiagnostics.add(flow);
-      }
-      if (parsedStory.hadUnattributableGenerationDiagnostic) {
-        this._disableFlowReuseNextCompile = true;
-      }
       if (story) {
         // A program whose statements all have chunks runs from them, and its
         // runtime story is not serialized.
         const chunked =
-          !!this._config.programChunks &&
+          programPath &&
           this.buildProgramChunks(parsedStory, story, program, uri);
-        if (this._config.programChunks && !chunked) {
-          // The program runs on the current engine, whose story is flattened,
-          // counts what resolution found it must count and initializes its
-          // globals, as `ExportRuntime` would have made it.
-          parsedStory.FinishForCurrentEngine();
-          story.ResetState();
-          // Flattening moves the paths of the containers it inlines, the
-          // reused flows' among them, whose locations the cache holds from
-          // a compile that left them as they were generated.
+        if (programPath && !chunked) {
+          // The program runs on the current engine: its story is exported as
+          // a compile with statement chunks off exports it, from the
+          // declarations the story made before its statements, every parsed
+          // object generated and resolved anew. The resolver reported its
+          // diagnostics, and the export reports none again.
+          parsedStory.variableDeclarations = declaredBefore!;
+          resetSubtreeRuntime(parsedStory);
+          story = parsedStory.ExportRuntime(() => {}, true);
+          this._programResolver?.invalidate();
+          // The cache holds the locations of a compile whose story it
+          // located, which this compile's export replaces.
           this._locCache = undefined;
+        }
+        // Bar flows that raised GENERATION-time diagnostics from future
+        // reuse — reuse skips generation, which would silently drop them next
+        // compile.
+        for (const flow of parsedStory.flowsWithGenerationDiagnostics) {
+          this._flowsWithGenDiagnostics.add(flow);
+        }
+        if (parsedStory.hadUnattributableGenerationDiagnostic) {
+          this._disableFlowReuseNextCompile = true;
         }
         // #345: hosts that never read the bytecode skip SERIALIZATION only.
         // Everything else in this block still has to run — `state.story`, and
@@ -2554,7 +2598,10 @@ export class SparkdownCompiler {
           // else catches the skipped compiles in between.
           this._flowJsonCache = undefined;
           this._flowChunkCache = undefined;
-          if (startFrom ?? this._config.startFrom) {
+          // A program of statement chunks has no runtime tree whose flows'
+          // shapes a route could be compared by: its change summary says
+          // what changed in its chunks (`rootChanges`).
+          if (!chunked && (startFrom ?? this._config.startFrom)) {
             this.noteFlowShapesWithoutEmitting(story, uri);
             flowShapesNoted = true;
           } else {
@@ -2613,6 +2660,7 @@ export class SparkdownCompiler {
         "scopeDefineInstances",
         "ink/canonicalizeSyntheticNames",
         "ink/compile",
+        "program/resolve",
         "ink/json",
         "ink/flowShapes",
         "program/chunks",
@@ -2841,24 +2889,36 @@ export class SparkdownCompiler {
           id instanceof Identifier && !!id.debugMetadata,
       );
 
+    // On the program path a carried chunk keeps what generation and
+    // resolution left on its objects: the resolver resolves only the
+    // statements whose resolution can read otherwise, clearing first what
+    // they hold, and keeps every other statement's resolution, which the
+    // chunk store and the writer read (`ProgramResolver`).
+    const resets = !this._config.programChunks;
     const remapContent = (
       content: ParsedObject[],
       lineNumberOffset: number,
     ) => {
       for (const c of content) {
-        c.ResetRuntime();
+        if (resets) {
+          c.ResetRuntime();
+        }
         if (c.debugMetadata) {
           restamp(c.debugMetadata, lineNumberOffset);
         }
         for (const id of ownIdentifiers(c)) {
           restamp(id.debugMetadata!, lineNumberOffset);
-          id.ResetRuntime();
+          if (resets) {
+            id.ResetRuntime();
+          }
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
             if (p instanceof Identifier && p.debugMetadata) {
               restamp(p.debugMetadata, lineNumberOffset);
-              p.ResetRuntime();
+              if (resets) {
+                p.ResetRuntime();
+              }
             }
           }
         }
@@ -2920,7 +2980,11 @@ export class SparkdownCompiler {
         // Reuse the cached parse: reset only the per-compile RUNTIME state on the
         // constant prelude objects so ExportRuntime regenerates them cleanly
         // (re-lowering hundreds of builtin defines every compile is too costly).
-        this.resetParsedRuntime(preludeStory.content);
+        // The program path's resolver keeps the prelude's statements resolved
+        // as it keeps every carried statement's (`ProgramResolver`).
+        if (!this._config.programChunks) {
+          this.resetParsedRuntime(preludeStory.content);
+        }
       } else {
         if (!this.documents.has(BUILTINS_PRELUDE_URI)) {
           this.documents.add({
@@ -3555,6 +3619,7 @@ export class SparkdownCompiler {
                 flow.isFunction,
               );
               knot._bodyClosed = flow._bodyClosed;
+              knot._loweredFrom = flow;
               knot.debugMetadata = flow.debugMetadata;
               knot._rootWeave = rootWeave;
               knot.AddContent(rootWeave);
@@ -3582,6 +3647,7 @@ export class SparkdownCompiler {
                 flow.isFunction,
               );
               stitch._bodyClosed = flow._bodyClosed;
+              stitch._loweredFrom = flow;
               stitch.debugMetadata = flow.debugMetadata;
               stitch._rootWeave = rootWeave;
               stitch.AddContent(rootWeave);
@@ -3847,14 +3913,7 @@ export class SparkdownCompiler {
   // used to DEMOTE a flow whose committed reuse turned out to be invalid
   // (late-discovered global change, synthetic rename in its subtree).
   protected resetSubtreeRuntime(node: ParsedObject): void {
-    node.ResetRuntime();
-    const identifier = (node as { identifier?: unknown }).identifier;
-    if (identifier instanceof Identifier) {
-      identifier.ResetRuntime();
-    }
-    for (const c of parsedChildren(node)) {
-      this.resetSubtreeRuntime(c);
-    }
+    resetSubtreeRuntime(node);
   }
 
   // Canonicalize compiler-synthesized identifier names that are minted from a
@@ -4188,6 +4247,7 @@ export class SparkdownCompiler {
       if (next) {
         if (next !== id.name) {
           markRenamed(owner);
+          this._renamedNames.push(owner);
         }
         id.name = next;
         this._canonicalSynthIds.add(id);
@@ -4198,6 +4258,7 @@ export class SparkdownCompiler {
       if (next) {
         if (next !== name) {
           markRenamed(node);
+          this._renamedNames.push(node);
         }
         node[field] = next;
         let fields = this._canonicalSynthStrings.get(node);
@@ -4223,7 +4284,7 @@ export class SparkdownCompiler {
       }
     }
     for (const flow of flowsToRekey) {
-      const next = new Map<string, FlowBase>();
+      const next = flow.subFlowTable();
       for (const [, sub] of flow._subFlowsByName) {
         const nm = sub.identifier?.name;
         if (nm) {
@@ -4238,7 +4299,7 @@ export class SparkdownCompiler {
       // entry is keyed by its declaration's name, which the rewrite above
       // has already made final.
       if ([...flow.variableDeclarations.keys()].some((k) => SYNTH.test(k))) {
-        const decls: typeof flow.variableDeclarations = new Map();
+        const decls = FlowBase.declarationTable();
         for (const [key, decl] of flow.variableDeclarations) {
           decls.set(SYNTH.test(key) ? (decl.variableName ?? key) : key, decl);
         }
@@ -4582,19 +4643,32 @@ export class SparkdownCompiler {
     line: number,
     uri: string,
   ): StatementRecord {
+    // A carried block keeps its record, whose readers read where the block
+    // stands now: an edit above it moves it, and nothing of its own text.
+    // What `programFlows` builds from a record is then kept with it while
+    // the block stands on the same line (#1607).
+    const kept = this._blockRecords.get(block);
+    if (kept && kept.place.uri === uri) {
+      kept.place.from = from;
+      kept.place.to = to;
+      kept.record.line = line;
+      return kept.record;
+    }
+    const place = { from, to, uri };
     // A statement can run past its node, as a `repeat` loop runs to its
     // `until` line.
     const shape = block.statement;
-    const end = shape ? Math.max(to, from + shape.to) : to;
+    const endOf = () =>
+      shape ? Math.max(place.to, place.from + shape.to) : place.to;
     let source: string | undefined;
     let syntax: string | undefined;
     const textOf = (a: number, b: number) =>
       this.documents.get(uri)?.getText().slice(a, b) ?? "";
-    const sourceOf = () => (source ??= textOf(from, end));
+    const sourceOf = () => (source ??= textOf(place.from, endOf()));
     const columnOf = () =>
-      this.documents.get(uri)?.positionAt(from).character ?? 0;
+      this.documents.get(uri)?.positionAt(place.from).character ?? 0;
     const first = block.content?.[0];
-    return {
+    const record: StatementRecord = {
       uri,
       line,
       source: sourceOf,
@@ -4607,10 +4681,11 @@ export class SparkdownCompiler {
       ]),
       range: first?.ownDebugMetadata ?? null,
       shape,
-      lineAt: (offset) => this.documents.get(uri)?.lineAt(from + offset) ?? line,
+      lineAt: (offset) =>
+        this.documents.get(uri)?.lineAt(place.from + offset) ?? record.line,
       columnAt: (offset) =>
-        this.documents.get(uri)?.positionAt(from + offset).character ?? 0,
-      text: (a, b) => textOf(from + a, from + b),
+        this.documents.get(uri)?.positionAt(place.from + offset).character ?? 0,
+      text: (a, b) => textOf(place.from + a, place.from + b),
       lineEnd: (at) => {
         const document = this.documents.get(uri);
         if (!document) {
@@ -4622,6 +4697,8 @@ export class SparkdownCompiler {
         return (end < 0 ? text.length : end) - start;
       },
     };
+    this._blockRecords.set(block, { record, place });
+    return record;
   }
 
   /**
@@ -4700,6 +4777,11 @@ export class SparkdownCompiler {
   /** The chunk store of a compiler that compiles with `programChunks` on. */
   get chunkStore(): ChunkStore | undefined {
     return this._chunkStore;
+  }
+
+  /** The resolver of a compiler that compiles with `programChunks` on. */
+  get programResolver(): ProgramResolver | undefined {
+    return this._programResolver;
   }
 
   /**
