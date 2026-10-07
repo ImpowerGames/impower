@@ -31,6 +31,7 @@ import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { StepLimitExceeded } from "@impower/sparkdown/src/inkjs/engine/StoryException";
+import { VariablePointerValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
@@ -52,6 +53,13 @@ import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { lineRanges } from "../utils/executedLineRanges";
 import { possibleBreakpointLines } from "../utils/possibleBreakpointLines";
+import {
+  programAssignmentAddresses,
+  programBreakpointLines,
+  declaresName,
+  programFunctionAddress,
+  runsAfterReset,
+} from "../utils/programBreakpoints";
 import {
   validAddressPrefixLength,
   validRoutePrefixLength,
@@ -124,6 +132,17 @@ const isEvaluable =(value: unknown, depth = 0): boolean => {
   return Object.values(value).every(
     (item) => item === undefined || isEvaluable(item, depth + 1),
   );
+};
+
+/** Whether two locations are the same, nothing being the same as nothing. */
+const sameLocation = (
+  a: ScriptLocation | null | undefined,
+  b: ScriptLocation | null | undefined,
+): boolean => {
+  if (!a || !b) {
+    return !a && !b;
+  }
+  return a.length === b.length && a.every((value, i) => value === b[i]);
 };
 
 export class Game<T extends M = {}> {
@@ -280,6 +299,10 @@ export class Game<T extends M = {}> {
 
   protected _lastHitBreakpointLocation: ScriptLocation | null = null;
 
+  /** Whether the debugger has heard a stop (a step's or a breakpoint's)
+   *  since the current `step` began. */
+  protected _announcedStop = false;
+
   protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
   protected _objectVariableRefMap = new Map<number, object>();
@@ -337,6 +360,33 @@ export class Game<T extends M = {}> {
     {};
 
   protected _dataBreakpointMap: Record<number, Map<number, Breakpoint>> = {};
+
+  /** On the program engine, the addresses of the line and function
+   *  breakpoints, by kind, which `_breakAddresses` joins: the game stops
+   *  after a step that ran an instruction whose address it holds. The line
+   *  maps above are the current engine's and stay empty here. */
+  protected _lineBreakAddresses = new Set<number>();
+  protected _functionBreakAddresses = new Set<number>();
+  protected _breakAddresses = new Set<number>();
+
+  /** The addresses of the instructions the program engine's current step
+   *  ran (`ProgramStory.executedLog`), reused from step to step. */
+  protected _executedLog: number[] = [];
+
+  /** On the program engine, the variables the data breakpoints watch: a
+   *  global by its name, or a temporary of the frame named `scope`, with
+   *  the value object each held when the game last looked and, for a
+   *  temporary, the block scope it was found in (`readWatch`). */
+  protected _dataWatches: {
+    scope?: string;
+    name: string;
+    last: unknown;
+    binding: Map<string, InkObject> | null;
+    /** The addresses of the declarations of a temporary's name in the code
+     *  its frame runs, apart from those that bind a function's parameters:
+     *  where it is declared again rather than written. */
+    redeclarations: ReadonlySet<number>;
+  }[] = [];
 
   protected _simulation?: "none" | "simulating" | "success" | "fail";
   get simulation() {
@@ -686,6 +736,11 @@ export class Game<T extends M = {}> {
     this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
     this.restoreReactiveTracking();
+    // The breakpoints set last resolve against this program: on the program
+    // engine a statement the compile emitted again has new addresses, and a
+    // compile that falls back to the current engine, or comes back from it,
+    // needs the other engine's form of them.
+    this.resolveBreakpoints();
     // Live edit → recompile reuses this Game: refresh the context channels from
     // the new program and let modules re-derive any state cached from context
     // (e.g. InterpreterModule's character-name map). Guarded on modules already
@@ -807,11 +862,19 @@ export class Game<T extends M = {}> {
         ) ?? this._executingLocation,
       );
     };
-    story.onExecute = ((address: ProgramAddress | undefined) => {
-      if (address != null && address !== "") {
-        this._runtimeState.recordExecution(address);
-      }
-    }) as never;
+    // The program engine calls no hook per step: the game reads the address
+    // of each step it takes (`stepWithinBudget`), which records it and
+    // compares it with the breakpoints' addresses. The current engine
+    // builds the path it names a step by only for a hook.
+    const engine: unknown = story;
+    story.onExecute =
+      engine instanceof ProgramStory
+        ? null
+        : (((address: ProgramAddress | undefined) => {
+            if (address != null && address !== "") {
+              this._runtimeState.recordExecution(address);
+            }
+          }) as never);
     story.onMakeChoice = (choice) => {
       this._runtimeState.recordChoice(story, choice);
     };
@@ -1030,15 +1093,15 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  /** The lines of `search` a debugger may set a breakpoint on. The program
-   *  engine's breakpoints are address sets (#702), and until then it offers
-   *  none. */
+  /** The lines of `search` a debugger may set a breakpoint on: on the
+   *  program engine, the lines its chunks' line tables start rows on. */
   possibleBreakpointLines(search: {
     uri: string;
     range: { start: { line: number }; end: { line: number } };
   }): number[] {
-    if (this.programStory) {
-      return [];
+    const program = this.programStory;
+    if (program) {
+      return programBreakpointLines(program.root, search);
     }
     return possibleBreakpointLines(
       this._program.pathLocations,
@@ -1059,9 +1122,227 @@ export class Game<T extends M = {}> {
     return this.updateDataBreakpointsMap(dataBreakpoints);
   }
 
+  /** The breakpoints the debugger set last, which a program that arrives
+   *  resolves again, since an edited statement's chunk has new addresses. */
+  protected _requestedBreakpoints: {
+    lines: { file: string; line: number }[];
+    functions: { name: string }[];
+    data: { dataId: string }[];
+  } = { lines: [], functions: [], data: [] };
+
+  /** Resolves the breakpoints set last against the program now loaded. */
+  protected resolveBreakpoints() {
+    this.updateBreakpointsMap(this._requestedBreakpoints.lines);
+    this.updateFunctionBreakpointsMap(this._requestedBreakpoints.functions);
+    this.updateDataBreakpointsMap(this._requestedBreakpoints.data);
+  }
+
+  /** Whether a breakpoint of the current engine is set, each of which is a
+   *  line the game compares with the line of every step. */
+  protected _hasLineBreakpoints = false;
+
+  /** Joins the program engine's breakpoint addresses of every kind, and
+   *  notes whether the current engine has a breakpoint set. */
+  protected joinBreakAddresses() {
+    this._breakAddresses = new Set([
+      ...this._lineBreakAddresses,
+      ...this._functionBreakAddresses,
+    ]);
+    const any = (map: Record<number, Map<number, Breakpoint>>) =>
+      Object.values(map).some((lines) => lines.size > 0);
+    this._hasLineBreakpoints =
+      any(this._breakpointMap) ||
+      any(this._functionBreakpointMap) ||
+      any(this._dataBreakpointMap);
+  }
+
+  /**
+   * The value object a data breakpoint's variable holds now, and whether it
+   * was read from the binding the watch read last. A global is read by its
+   * name. A temporary is read from the block scope that held it when the
+   * watch last found it, while a frame named by the watch's scope still
+   * holds that block scope, so a temporary of the same name declared in an
+   * inner block shadows it without being it; otherwise it is found anew, in
+   * the innermost frame named by the scope, from its innermost block scope
+   * out. Nothing when no such variable is in scope.
+   */
+  protected readWatch(
+    program: ProgramStory,
+    watch: (typeof this._dataWatches)[number],
+  ): { value: unknown; same: boolean } {
+    if (watch.scope === undefined) {
+      const value =
+        program.state.variablesState.GetGlobalVariableValue(watch.name) ??
+        undefined;
+      return { value, same: true };
+    }
+    const callStack = program.state.callStack;
+    const frames =
+      program.debugFrames(callStack.currentThread.threadIndex) ?? [];
+    const named = frames.filter((frame) => frame.name === watch.scope);
+    // A temporary bound to a pointer (a variable passed by reference, or
+    // one a closure captured, as the current engine binds it) is read
+    // through it, since a write through it leaves the pointer in place.
+    const resolve = (value: InkObject | undefined): unknown =>
+      value instanceof VariablePointerValue
+        ? (program.state.variablesState.ValueAtVariablePointer(value) ??
+          undefined)
+        : value;
+    const bound = watch.binding;
+    if (
+      bound &&
+      bound.has(watch.name) &&
+      named.some((frame) => frame.element.temporaryScopes.includes(bound))
+    ) {
+      return { value: resolve(bound.get(watch.name)), same: true };
+    }
+    watch.binding = null;
+    const innermost = named.at(-1);
+    const scopes = innermost?.element.temporaryScopes ?? [];
+    for (let s = scopes.length - 1; s >= 0; s -= 1) {
+      const value = scopes[s]!.get(watch.name);
+      if (value !== undefined) {
+        watch.binding = scopes[s]!;
+        return { value: resolve(value), same: false };
+      }
+    }
+    return { value: undefined, same: false };
+  }
+
+  /** Notes what each data breakpoint's variable holds now, so that only a
+   *  step that writes it stops the game: a load, a jump or a replay between
+   *  steps changes it without a step. */
+  protected refreshDataWatches() {
+    const program = this.programStory;
+    if (!program) {
+      return;
+    }
+    for (const watch of this._dataWatches) {
+      watch.last = this.readWatch(program, watch).value;
+    }
+  }
+
+  /** Whether a data breakpoint's variable holds another value than it did,
+   *  noting what each holds now. A variable that comes into scope, goes out
+   *  of it, or is found in another binding is declared, dropped or shadowed
+   *  rather than written. */
+  protected dataWatchesChanged(): boolean {
+    const program = this.programStory;
+    if (!program) {
+      return false;
+    }
+    let changed = false;
+    for (const watch of this._dataWatches) {
+      const { value, same } = this.readWatch(program, watch);
+      if (
+        same &&
+        value !== undefined &&
+        watch.last !== undefined &&
+        value !== watch.last &&
+        // A temporary declared again in its own block is a new variable in
+        // the same block scope, not a write to the one watched: the step ran
+        // one of the declarations of its name in the code its frame runs
+        // (a function it calls declares in a frame of its own).
+        !this._executedLog.some((address) => watch.redeclarations.has(address))
+      ) {
+        changed = true;
+      }
+      watch.last = value;
+    }
+    return changed;
+  }
+
+  /** A breakpoint that stops at `address`, placed on the line it stands on,
+   *  or an unverified one with `message` when there is no such address. */
+  protected programBreakpoint(
+    address: number | undefined,
+    message: string,
+  ): Breakpoint {
+    const location =
+      address === undefined ? undefined : this.locator.locationOf(address);
+    if (!location) {
+      return { verified: false, reason: "failed", message };
+    }
+    return {
+      verified: true,
+      location: {
+        uri: location.uri,
+        range: {
+          start: { line: location.startLine, character: 0 },
+          end: { line: location.startLine, character: 0 },
+        },
+      },
+    };
+  }
+
+  /** Of `addresses`, the one that stands first in the source: in the first
+   *  script of the program, on the first line and column. */
+  protected firstInSource(addresses: number[]): number | undefined {
+    let first: number | undefined;
+    let key: [number, number, number] | undefined;
+    for (const address of addresses) {
+      const location = this.locator.locationOf(address);
+      if (!location) {
+        continue;
+      }
+      const at: [number, number, number] = [
+        this._scripts.indexOf(location.uri),
+        location.startLine,
+        location.startColumn,
+      ];
+      if (
+        !key ||
+        at[0] < key[0] ||
+        (at[0] === key[0] &&
+          (at[1] < key[1] || (at[1] === key[1] && at[2] < key[2])))
+      ) {
+        first = address;
+        key = at;
+      }
+    }
+    return first;
+  }
+
   protected updateBreakpointsMap(
     breakpoints: { file: string; line: number }[],
   ) {
+    this._requestedBreakpoints.lines = breakpoints;
+    const program = this.programStory;
+    if (program) {
+      // A line's breakpoint is the address `addressAt` gives it: a beat's
+      // `LineStart`, or the start of the statement or part on the line.
+      this._breakpointMap = {};
+      this._lineBreakAddresses = new Set();
+      const actual = breakpoints.map((b) => {
+        const address = program.root.addressAt(b.file, b.line, {
+          functions: true,
+        });
+        // A declaration runs when the story is reset, before a debugger can
+        // stop it, so a breakpoint there would never stop. (A function
+        // written in a declaration is a body of its own, which runs when it
+        // is called.)
+        const at =
+          address === undefined
+            ? undefined
+            : program.root.position(chunkOfAddress(address));
+        if (at && !runsAfterReset(program.root, at.sequence)) {
+          return this.programBreakpoint(
+            undefined,
+            "A declaration runs before the story starts",
+          );
+        }
+        if (address !== undefined) {
+          this._lineBreakAddresses.add(address);
+        }
+        return this.programBreakpoint(
+          address,
+          "No instruction found at the breakpoint",
+        );
+      });
+      this.joinBreakAddresses();
+      return actual;
+    }
+    this._lineBreakAddresses = new Set();
     const actualBreakpoints = Game.getActualBreakpoints(
       this.locator,
       breakpoints,
@@ -1079,12 +1360,44 @@ export class Game<T extends M = {}> {
       }
     }
     this._breakpointMap = breakpointMap;
+    this.joinBreakAddresses();
     return actualBreakpoints;
   }
 
   protected updateFunctionBreakpointsMap(
     functionBreakpoints: { name: string }[],
   ) {
+    this._requestedBreakpoints.functions = functionBreakpoints;
+    const program = this.programStory;
+    if (program) {
+      // A function's breakpoint is the address its code starts at.
+      this._functionBreakpointMap = {};
+      this._functionBreakAddresses = new Set();
+      const actual = functionBreakpoints.map((b) => {
+        const declared = this._program.functionLocations?.[b.name];
+        const address = programFunctionAddress(
+          program.root,
+          b.name,
+          declared && this._scripts[declared[0]] !== undefined
+            ? {
+                uri: this._scripts[declared[0]]!,
+                line: declared[1],
+                column: declared[2],
+              }
+            : undefined,
+        );
+        if (address !== undefined) {
+          this._functionBreakAddresses.add(address);
+        }
+        return this.programBreakpoint(
+          address,
+          "No instruction found at the breakpoint",
+        );
+      });
+      this.joinBreakAddresses();
+      return actual;
+    }
+    this._functionBreakAddresses = new Set();
     const actualBreakpoints = Game.getActualFunctionBreakpoints(
       this._program.functionLocations,
       functionBreakpoints,
@@ -1103,10 +1416,77 @@ export class Game<T extends M = {}> {
       }
     }
     this._functionBreakpointMap = breakpointMap;
+    this.joinBreakAddresses();
     return actualBreakpoints;
   }
 
   protected updateDataBreakpointsMap(dataBreakpoints: { dataId: string }[]) {
+    this._requestedBreakpoints.data = dataBreakpoints;
+    const program = this.programStory;
+    if (program) {
+      // A variable's breakpoint watches the variable itself, which a
+      // temporary of the same name can shadow, so it is no set of
+      // addresses: the game stops after a step that wrote another value to
+      // it. It is placed on the first instruction in the source that
+      // assigns that name in its scope.
+      this._dataBreakpointMap = {};
+      const watches: typeof this._dataWatches = [];
+      const actual = dataBreakpoints.map((b) => {
+        const dot = b.dataId.lastIndexOf(".");
+        const scope = dot < 0 ? undefined : b.dataId.slice(0, dot);
+        const name = dot < 0 ? b.dataId : b.dataId.slice(dot + 1);
+        const { assignments, declarations } = programAssignmentAddresses(
+          program.root,
+          b.dataId,
+          (symbol, isFunction) =>
+            isFunction
+              ? program.root.labelOf(symbol)
+              : program.flowName(symbol),
+        );
+        const exists =
+          scope === undefined
+            ? program.state.variablesState.globalEntries.has(name)
+            : assignments.length > 0 || declarations.length > 0;
+        if (!exists) {
+          return this.programBreakpoint(
+            undefined,
+            "No variable found at the breakpoint",
+          );
+        }
+        watches.push({
+          scope,
+          name,
+          last: undefined,
+          binding: null,
+          redeclarations: new Set(
+            scope === undefined
+              ? []
+              : declarations.filter((address) =>
+                  declaresName(program.root, address, name),
+                ),
+          ),
+        });
+        // A global is placed where it is declared, since a temporary that
+        // shadows it is assigned by the same name; a temporary where it is
+        // first assigned.
+        const first =
+          scope === undefined
+            ? (this.firstInSource(declarations) ??
+              this.firstInSource(assignments))
+            : (this.firstInSource(assignments) ??
+              this.firstInSource(declarations));
+        // A variable no statement in the program writes is watched all the
+        // same, at no line.
+        return first === undefined
+          ? { verified: true }
+          : this.programBreakpoint(first, "No variable found at the breakpoint");
+      });
+      this._dataWatches = watches;
+      this.refreshDataWatches();
+      this.joinBreakAddresses();
+      return actual;
+    }
+    this._dataWatches = [];
     const actualBreakpoints = Game.getActualDataBreakpoints(
       this._program.dataLocations,
       dataBreakpoints,
@@ -1125,6 +1505,7 @@ export class Game<T extends M = {}> {
       }
     }
     this._dataBreakpointMap = breakpointMap;
+    this.joinBreakAddresses();
     return actualBreakpoints;
   }
 
@@ -2179,6 +2560,7 @@ export class Game<T extends M = {}> {
     }
 
     this.resetExecutionBudget();
+    this.refreshDataWatches();
 
     this.clearVariableReferences();
     this._coordinator = null;
@@ -2212,7 +2594,25 @@ export class Game<T extends M = {}> {
     // would display over the step's.
     this.cancelPreview();
     this.resetExecutionBudget();
-    const done = this.stepWithinBudget(traversal);
+    this.refreshDataWatches();
+    // A step in, over or out runs until it stops where it says it stops, or
+    // at a breakpoint or a beat to show, however many lines that takes: the
+    // debugger sends one request and waits for the stop, which it hears as
+    // a step's or a breakpoint's. A beat to show is announced as the step's
+    // stop too, since the debugger hears a wait for the player only while
+    // it follows the execution.
+    const origin = {
+      depth: this._story.state.callstackDepth,
+      location: this._executingLocation,
+    };
+    this._announcedStop = false;
+    let done = this.stepWithinBudget(traversal, origin);
+    while (!done && traversal !== "continue") {
+      done = this.stepWithinBudget(traversal, origin);
+    }
+    if (traversal !== "continue" && !this._announcedStop) {
+      this.notifyStepped();
+    }
     // A step gates nothing: a beat it reaches displays at once, since the
     // game is previewing, and one it does not reach issues no gate. Nothing
     // waits, so an abandoned pin goes now.
@@ -2222,9 +2622,12 @@ export class Game<T extends M = {}> {
 
   protected stepWithinBudget(
     traversal: "in" | "out" | "over" | "continue" = "continue",
+    origin?: { depth: number; location: ScriptLocation | null },
   ): boolean {
-    const initialCallstackDepth = this._story.state.callstackDepth;
-    const initialExecutedLocation = this._executingLocation;
+    const initialCallstackDepth =
+      origin?.depth ?? this._story.state.callstackDepth;
+    const initialExecutedLocation =
+      origin?.location ?? this._executingLocation;
 
     while (true) {
       if (this._executionStepsRemaining <= 0) {
@@ -2360,6 +2763,17 @@ export class Game<T extends M = {}> {
         // inside the step that called it, and those count too: the limit stops
         // them where the budget runs out, and what they took is charged after.
         const stepsBefore = this._story.stepCount;
+        // On the program engine the step appends the address of each
+        // instruction it runs, a Luau callback's among them, to the log,
+        // which the game reads once the step returns: it records them as
+        // the addresses this beat ran, and a breakpoint stops the game when
+        // its set holds one of them. No call and no string per step.
+        const program = this.programStory;
+        const log = this._executedLog;
+        log.length = 0;
+        if (program) {
+          program.executedLog = log;
+        }
         this._story.stepLimit =
           stepsBefore + 1 + this._executionStepsRemaining;
         let stopped = false;
@@ -2376,6 +2790,17 @@ export class Game<T extends M = {}> {
             0,
             this._story.stepCount - stepsBefore - 1,
           );
+          if (program) {
+            program.executedLog = null;
+          }
+        }
+        let hit = false;
+        for (let i = 0; i < log.length; i += 1) {
+          const address = log[i]!;
+          this._runtimeState.recordExecution(address);
+          if (this._breakAddresses.has(address)) {
+            hit = true;
+          }
         }
         if (stopped) {
           // The budget ran out part way through the step. The story cannot
@@ -2386,6 +2811,11 @@ export class Game<T extends M = {}> {
           this._story.CancelAsyncContinue();
           this._story.state.ForceEnd();
           continue;
+        }
+        // A data breakpoint stops the game once a step has written another
+        // value to its variable.
+        if (this._dataWatches.length > 0 && this.dataWatchesChanged()) {
+          hit = true;
         }
         if (this._story.state.callstackDepth > this._callDepthLimit) {
           // Recursion that does not end. The story ends here, as a runtime
@@ -2431,12 +2861,27 @@ export class Game<T extends M = {}> {
         }
 
         if (this._simulation !== "simulating") {
+          // On the program engine a breakpoint is a set of addresses, and
+          // a step stops the game when the set holds the address of an
+          // instruction it ran. Each instruction of a line has an address
+          // of its own, so a breakpoint stops once each time its
+          // instruction runs; one inside a Luau callback stops the game
+          // once the step that called it returns.
+          if (hit) {
+            this._lastHitBreakpointLocation = this._executingLocation;
+            this.notifyHitBreakpoint();
+            // DONE - hit breakpoint
+            return true;
+          }
+          // With no traversal asked for and no line breakpoint of the
+          // current engine, nothing below can stop the game.
+          if (traversal === "continue" && !this._hasLineBreakpoints) {
+            return false;
+          }
           // Skip duplicate stops (avoid breaking at the same location)
           if (
-            JSON.stringify(prevExecutedLocation) ===
-              JSON.stringify(this._executingLocation) ||
-            JSON.stringify(initialExecutedLocation) ===
-              JSON.stringify(this._executingLocation)
+            sameLocation(prevExecutedLocation, this._executingLocation) ||
+            sameLocation(initialExecutedLocation, this._executingLocation)
           ) {
             continue;
           }
@@ -2558,6 +3003,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyHitBreakpoint() {
+    this._announcedStop = true;
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -2710,6 +3156,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyStepped() {
+    this._announcedStop = true;
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -2812,23 +3259,55 @@ export class Game<T extends M = {}> {
     return variables;
   }
 
-  getTempVariables(): Variable[] {
+  /** The temporaries of a frame (`frameId`, an index into the call stack of
+   *  thread `threadId` as `getStackTrace` numbers its frames), by default
+   *  the frame that runs, each with the scope a data breakpoint names it
+   *  by. */
+  getTempVariables(threadId?: number, frameId?: number): Variable[] {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
-    const contextIndex = variableState.callStack.currentElementIndex + 1;
-    let contextElement =
-      variableState.callStack.currentThread.callstack[contextIndex - 1];
-    if (contextElement?.temporaryVariables) {
-      for (const [
-        name,
-        valueObj,
-      ] of contextElement?.temporaryVariables.entries()) {
-        if (!name.startsWith("$")) {
+    const callStack = variableState.callStack;
+    const thread =
+      threadId != null
+        ? callStack.ThreadWithIndex(threadId)
+        : callStack.currentThread;
+    const frameIndex =
+      frameId ??
+      (threadId != null && thread
+        ? thread.callstack.length - 1
+        : callStack.currentElementIndex);
+    const contextElement = thread?.callstack[frameIndex];
+    // On the program engine a temporary's scope is the name of the frame it
+    // is a temporary of; on the current engine, the runtime path the game
+    // last ran, without its indices.
+    const program = this.programStory;
+    const programScope = program
+      ? program.debugFrames(thread?.threadIndex ?? 0)?.[frameIndex]?.name
+      : undefined;
+    // Every block scope of the frame, from the innermost out, so a temporary
+    // of an outer block (a function's parameters and the variables its
+    // closure captured, beside the locals of its body) is shown while the
+    // frame runs an inner one, and an inner temporary hides an outer one of
+    // the same name, as reading the name does.
+    const scopes = contextElement?.temporaryScopes ?? [];
+    const seen = new Set<string>();
+    for (let s = scopes.length - 1; s >= 0; s -= 1) {
+      for (const [name, scoped] of scopes[s]!.entries()) {
+        // A name with a `$` is the compiler's own (a loop's hidden index,
+        // stop and step), which no author wrote.
+        if (!name.includes("$") && !seen.has(name)) {
+          seen.add(name);
+          // A temporary bound to a pointer (a variable passed by reference,
+          // or one a closure captured, as the current engine binds it)
+          // shows the value it points to.
+          const valueObj =
+            scoped instanceof VariablePointerValue
+              ? variableState.ValueAtVariablePointer(scoped)
+              : scoped;
           const value = this.getRuntimeValue(name, valueObj);
-          // A scope is named by its runtime path, which the program engine
-          // does not have (#702).
-          const scopePath =
-            typeof this._executingAddress === "string"
+          const scopePath = program
+            ? programScope
+            : typeof this._executingAddress === "string"
             ? this._executingAddress
                 .split(".")
                 .filter(
@@ -3009,14 +3488,57 @@ export class Game<T extends M = {}> {
   getThreads(): Thread[] {
     const threads: Thread[] = [];
     const callStack = this._story.state.callStack;
+    const program = this.programStory;
     for (const thread of callStack._threads) {
       const threadId = thread.threadIndex;
+      // On the program engine a thread is named by the frame it runs.
+      const name = program
+        ? program.debugFrames(threadId)?.at(-1)?.name
+        : thread.previousPointer.path?.toString();
       threads.push({
         id: threadId,
-        name: thread.previousPointer.path?.toString() || "<unknown thread>",
+        name: name || "<unknown thread>",
       });
     }
     return threads;
+  }
+
+  /** The program engine's stack trace: each frame named from its symbol,
+   *  at the line of the address it stands at (`ProgramStory.debugFrames`). */
+  protected getProgramStackTrace(
+    program: ProgramStory,
+    threadId: number,
+    startFrame: number,
+    levels?: number,
+  ): { stackFrames: StackFrame[]; totalFrames: number } {
+    const stackFrames: StackFrame[] = [];
+    const frames = program.debugFrames(threadId);
+    if (!frames) {
+      return { stackFrames, totalFrames: 0 };
+    }
+    const frameCount =
+      levels != null ? Math.min(startFrame + levels, frames.length) : frames.length;
+    // A frame that stands at no address is the one running after a load,
+    // which keeps no last instruction: it stands where the game last ran,
+    // or where the runtime record the save carried last ran.
+    const ran =
+      this._executingLocation && this._executingLocation[0] >= 0
+        ? this._executingLocation
+        : this.lastExecutedScriptLocation();
+    for (let i = startFrame; i < frameCount; i++) {
+      const f = frames[i]!;
+      const location =
+        this.scriptLocationOf(f.address >= 0 ? f.address : undefined) ?? ran;
+      const isFunction = f.type == PushPopType.Function;
+      stackFrames.unshift({
+        id: i,
+        name: f.name || (isFunction ? "<unknown function>" : "<unknown tunnel>"),
+        moduleId: isFunction ? "function" : "tunnel",
+        presentationHint: "normal",
+        location: this.getDocumentLocation(location),
+      });
+    }
+    return { stackFrames, totalFrames: frames.length };
   }
 
   getStackTrace(
@@ -3024,6 +3546,10 @@ export class Game<T extends M = {}> {
     startFrame: number = 0,
     levels?: number,
   ): { stackFrames: StackFrame[]; totalFrames: number } {
+    const program = this.programStory;
+    if (program) {
+      return this.getProgramStackTrace(program, threadId, startFrame, levels);
+    }
     const stackFrames: StackFrame[] = [];
     const callStack = this._story.state.callStack;
     const threadIndex = threadId;
@@ -3381,13 +3907,19 @@ export class Game<T extends M = {}> {
   }
 
   getLastExecutedDocumentLocation() {
+    const location = this.lastExecutedScriptLocation();
+    return location ? this.getDocumentLocation(location) : null;
+  }
+
+  /** Where the last address the runtime record holds a location for
+   *  stands. */
+  protected lastExecutedScriptLocation(): ScriptLocation | null {
     const lastExecuted = this._runtimeState.pathsExecutedThisFrame
       .toArray()
       .findLast((address) => this.scriptLocationOf(address) !== undefined);
-    if (lastExecuted != null) {
-      return this.documentLocationOf(lastExecuted);
-    }
-    return null;
+    return lastExecuted != null
+      ? (this.scriptLocationOf(lastExecuted) ?? null)
+      : null;
   }
 
   /** Where an address stands, as a script index and a range, or, for a
