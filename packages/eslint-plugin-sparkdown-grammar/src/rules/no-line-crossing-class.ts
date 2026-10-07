@@ -92,15 +92,15 @@ function skipQuantifier(source: string, at: number): number {
   return i;
 }
 
-const isLookbehind = (g: RegexGroup) =>
+export const isLookbehind = (g: RegexGroup) =>
   g.kind === "lookbehind" || g.kind === "negative-lookbehind";
-const isLookahead = (g: RegexGroup) =>
+export const isLookahead = (g: RegexGroup) =>
   g.kind === "lookahead" || g.kind === "negative-lookahead";
 
 // Whether the pattern can read on after the atom that ends at `after`
 // (the offset just past it): something other than the end of its
 // lookahead or of the whole pattern comes next.
-function readsOnAfter(source: string, after: number, groups: RegexGroup[]): boolean {
+export function readsOnAfter(source: string, after: number, groups: RegexGroup[]): boolean {
   let i = skipQuantifier(source, after);
   for (;;) {
     if (i >= source.length) return false;
@@ -137,7 +137,7 @@ function crossesLine(source: string, cls: CharClass, groups: RegexGroup[]): bool
 // `text`, `rawOffset` is its offset in the written pattern (or -1 when a
 // variable brought it in) and `variables` the references it came through,
 // outermost first.
-interface Expanded {
+export interface Expanded {
   text: string;
   rawOffset: number[];
   variables: string[][];
@@ -158,7 +158,7 @@ function variableValue(value: YAMLNode | null): string | null {
   return null;
 }
 
-function expand(source: string, index: GrammarIndex): Expanded {
+export function expand(source: string, index: GrammarIndex): Expanded {
   const out: Expanded = { text: "", rawOffset: [], variables: [] };
   const visit = (text: string, chain: string[], top: boolean) => {
     let last = 0;

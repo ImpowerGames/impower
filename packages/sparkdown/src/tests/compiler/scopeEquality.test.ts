@@ -65,6 +65,19 @@ const TARGETED: Record<string, string> = {
   "blockaction-comment-lines":
     ":\n    Line one.\n    // a comment line\n    Line two.\nnot indented\n",
 
+  // --- a column-0 line after an if expression whose condition, `then`,
+  // then arm or `else` ends its line: the reassignment around it ends at the
+  // start of that line, in a narrative body (the root, a scene, an `if`
+  // block) and in a function body (#1494).
+  "column-0-after-if-expression-narrative":
+    "scene s\n  x = if c then 1\nprint(x)\n  x = if c then\nHello.\n  if c then\n    x = if c\nprint(x)\n  end\nend\n",
+  "column-0-after-else-narrative":
+    "x = if c then 1 else\nprint(x)\nscene s\n  x = if c then 1 else\nHello.\n  x = if c then 1 else\ny = 6\nend\n",
+  "column-0-after-if-expression-function":
+    "function f(c)\n  x = if c then 1\nprint(x)\n  x = if c then\nprint(x)\n  return x\nend\n",
+  "column-0-after-else-function":
+    "function f(c)\n  x = if c then 1 else\nprint(x)\n  local y = if c then 1 else\ny = 6\n  return y\nend\n",
+
   // --- a sampling of other top-level constructs
   "include": "include script.sd\n",
   "front-matter": "---\ntitle: Test\n---\n\nAction line.\n",
