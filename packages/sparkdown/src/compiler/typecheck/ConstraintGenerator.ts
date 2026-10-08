@@ -182,7 +182,7 @@ import {
 import { TypeOnceVisitor } from "./VisitType";
 
 // Luau's `DFInt::LuauConstraintGeneratorRecursionLimit`.
-const CONSTRAINT_GENERATOR_RECURSION_LIMIT = 300;
+export const CONSTRAINT_GENERATOR_RECURSION_LIMIT = 300;
 // Luau's `FInt::LuauPrimitiveInferenceInTableLimit`.
 const PRIMITIVE_INFERENCE_IN_TABLE_LIMIT = 500;
 
