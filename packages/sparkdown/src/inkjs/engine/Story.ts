@@ -39,7 +39,10 @@ import { DebugMetadata } from "../../runtime/DebugMetadata";
 import { throwNullException } from "../../runtime/NullException";
 import { SimpleJson } from "../../runtime/SimpleJson";
 import { ErrorType, type RaisedError, type RuntimeErrorHandler } from "../../runtime/Error";
-import { StructDefinition } from "../../runtime/StructDefinition";
+import {
+  StructDefinition,
+  structDefinitionTable,
+} from "../../runtime/StructDefinition";
 import type { Simulator } from "../../runtime/Simulator";
 
 export { InkList } from "../../runtime/InkList";
@@ -295,17 +298,7 @@ export class Story extends InkObject {
     }
 
     if (structs != null) {
-      this._structDefinitions = {};
-      for (const struct of structs) {
-        const type = struct.type;
-        const name = struct.name;
-        if (type) {
-          this._structDefinitions[type] ??= {};
-          if (name) {
-            this._structDefinitions[type][name] = struct.value;
-          }
-        }
-      }
+      this._structDefinitions = structDefinitionTable(structs);
     }
 
     this._externals = new Map();

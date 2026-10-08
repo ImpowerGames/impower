@@ -37,15 +37,36 @@ export const scriptFiles = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
-/** A compiler over `texts`, keyed by uri, with the story each compile
- *  produced in `stories` (the compile result leaves the story out). It
- *  compiles for the current engine unless `config` turns `programChunks` on,
- *  so that a test compares the program engine with it (#705 deletes that
- *  engine and these comparisons with it). */
+/** A compiler over `texts`, keyed by uri, as `programCompiler` returns it:
+ *  each compile's program with the current engine's story the compile made
+ *  (the compile result leaves the story out), which is `S`. */
+export interface ProgramCompiler<S extends Story | undefined> {
+  compiler: SparkdownCompiler;
+  compile(uri?: string): { program: SparkProgram; story: S };
+}
+
+/** A compiler over `texts`, keyed by uri. It compiles for the current engine
+ *  unless `config` turns `programChunks` on, so that a test compares the
+ *  program engine with it (#705 deletes that engine and these comparisons
+ *  with it). A compile for the current engine makes its story. One with
+ *  statement chunks makes none unless its program falls back, so its
+ *  `story` may be undefined: typed so wherever `programChunks` can be on. */
+export function programCompiler(
+  texts: Record<string, string>,
+  config: SparkdownCompilerConfig & { programChunks: true },
+): ProgramCompiler<Story | undefined>;
+export function programCompiler(
+  texts: Record<string, string>,
+  config?: SparkdownCompilerConfig & { programChunks?: false },
+): ProgramCompiler<Story>;
+export function programCompiler(
+  texts: Record<string, string>,
+  config: SparkdownCompilerConfig,
+): ProgramCompiler<Story | undefined>;
 export function programCompiler(
   texts: Record<string, string>,
   config: SparkdownCompilerConfig = {},
-) {
+): ProgramCompiler<Story | undefined> {
   const compiler = new SparkdownCompiler();
   const compiled: { story?: Story } = {};
   compiler.addEventListener("compiler/didCompile", (params) => {
@@ -58,7 +79,7 @@ export function programCompiler(
   });
   return {
     compiler,
-    compile(uri = MAIN_URI): { program: SparkProgram; story: Story } {
+    compile(uri = MAIN_URI) {
       ProgramResolver.factFailures = [];
       const program = compiler.compile({ textDocument: { uri } }).program;
       if (ProgramResolver.factFailures.length > 0) {
@@ -66,15 +87,29 @@ export function programCompiler(
           `ProgramResolver.verifyFacts: ${ProgramResolver.factFailures.join("; ")}`,
         );
       }
-      return { program, story: compiled.story! };
+      return { program, story: compiled.story };
     },
   };
 }
 
+/** `programCompiler` over one script, compiled once: its program, the story
+ *  as `programCompiler` gives it, and the compiler. */
+export function compileScript(
+  text: string,
+  config: SparkdownCompilerConfig & { programChunks: true },
+): { program: SparkProgram; story: Story | undefined; compiler: SparkdownCompiler };
+export function compileScript(
+  text: string,
+  config?: SparkdownCompilerConfig & { programChunks?: false },
+): { program: SparkProgram; story: Story; compiler: SparkdownCompiler };
+export function compileScript(
+  text: string,
+  config: SparkdownCompilerConfig,
+): { program: SparkProgram; story: Story | undefined; compiler: SparkdownCompiler };
 export function compileScript(
   text: string,
   config: SparkdownCompilerConfig = {},
-): { program: SparkProgram; story: Story; compiler: SparkdownCompiler } {
+): { program: SparkProgram; story: Story | undefined; compiler: SparkdownCompiler } {
   const c = programCompiler({ [MAIN_URI]: text }, config);
   return { ...c.compile(), compiler: c.compiler };
 }
