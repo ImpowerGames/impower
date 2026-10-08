@@ -1688,7 +1688,7 @@ export class ProgramResolver {
   }
 
   /** The runtime definition of `struct`, which `DeclareStoryTables` and
-   *  `InitializeGlobals` ask for: built when its statement is generated, and
+   *  `PrepareGlobals` ask for: built when its statement is prepared, and
    *  otherwise the one built then, with the diagnostics building it reported
    *  reported again. Building it a second time in one compile reports nothing,
    *  as each diagnostic of a parsed object is reported once per compile. */

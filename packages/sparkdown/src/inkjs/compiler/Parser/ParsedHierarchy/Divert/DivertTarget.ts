@@ -86,9 +86,15 @@ export class DivertTarget extends Expression {
   }
 
   /** What `GenerateIntoContainer` does without the runtime value: its
-   *  divert prepared, as generation generates it, on every call. */
+   *  divert prepared, as generation generates it, on every call. A divert
+   *  to DONE or END builds no runtime divert, and generation, reading it,
+   *  throws, which stops the compile; preparation throws there too, so that
+   *  the compile stops as it did (#1703 reports the error in its place). */
   public override PrepareIntoContainer(): void {
     this.divert.PrepareUncached();
+    if (this.divert.isDone || this.divert.isEnd) {
+      throw new Error();
+    }
     this._preparedTarget = true;
   }
 
