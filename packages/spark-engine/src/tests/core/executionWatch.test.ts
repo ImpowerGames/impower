@@ -68,7 +68,7 @@ const runtimeErrors = (messages: any[]) =>
 const playWatched = async (
   source: string,
   line: number,
-  programChunks = false,
+  programChunks = true,
 ) => {
   const heard: { story: WatchedStory; line: number | null }[] = [];
   const h = createHarness(source, line, { programChunks });

@@ -211,7 +211,7 @@ class Session {
     {
       withoutChangeSummary = false,
       emitCompiledProgram = false,
-      programChunks = false,
+      programChunks = true,
     }: {
       withoutChangeSummary?: boolean;
       /** Off, the game routes the compiler's own story and no bytecode is
@@ -576,6 +576,15 @@ afterEach(() => {
 // Everything below rests on `expectSameAnswer`, so it is worth knowing that it
 // can fail. A comparison that quietly accepts a difference turns every test
 // that uses it into a test of nothing.
+// The tests that name it run on the current engine: what they rest on is
+// how the current engine resumes a route across a compile (its paths, its
+// change summary's confinement, its bytecode), where the program engine
+// resumes by address and searches on from a checkpoint (#700; "on the
+// program engine", below). With those expectations removed, the program
+// engine answers each of their hazards as a search from the top does.
+// #705's deletion removes them with the current engine.
+const CURRENT_ENGINE = { programChunks: false } as const;
+
 describe("the comparison the rest of these tests rest on", () => {
   const save = (over: Record<string, unknown> = {}) =>
     JSON.stringify({
@@ -645,7 +654,7 @@ describe("the comparison the rest of these tests rest on", () => {
 describe("a compile whose edit is below the route's last checkpoint", () => {
   test("replays the route it has, with no search and from that checkpoint", () => {
     const { text, at } = screenplay();
-    const session = new Session(text);
+    const session = new Session(text, CURRENT_ENGINE);
     const target = at["tail_6"]!;
     session.compile(target);
     const deepest = deepestCheckpoint(session.game!.plannedRoute!);
@@ -745,7 +754,7 @@ describe("a compile that adds a line at the bottom of the scene", () => {
 describe("a compile that changes a statement the route already ran", () => {
   test("resumes from no checkpoint captured after it", () => {
     const { text, at } = screenplay();
-    const session = new Session(text);
+    const session = new Session(text, CURRENT_ENGINE);
     const target = at["tail_6"]!;
     session.compile(target);
     const route = session.game!.plannedRoute!;
@@ -778,7 +787,7 @@ describe("a compile that changes a statement the route already ran", () => {
 describe("a preview compile", () => {
   test("reuses the route and answers what a search from the top would", () => {
     const { text, at } = screenplay();
-    const session = new Session(text);
+    const session = new Session(text, CURRENT_ENGINE);
     const target = at["tail_6"]!;
     session.compile(target);
 
@@ -795,7 +804,7 @@ describe("a preview compile", () => {
 
   test("leaves the real program's next route able to resume too", () => {
     const { text, at } = screenplay();
-    const session = new Session(text);
+    const session = new Session(text, CURRENT_ENGINE);
     const target = at["tail_6"]!;
     session.compile(target);
     session.preview(
@@ -877,7 +886,7 @@ describe.each(EMISSION)("a change the route's own lines cannot account for, $mod
   for (const hazard of HAZARDS) {
     test(`is searched again (${hazard.name})`, () => {
       const { text, at } = screenplay();
-      const session = new Session(text, { emitCompiledProgram });
+      const session = new Session(text, { emitCompiledProgram, ...CURRENT_ENGINE });
       const target = at["tail_6"]!;
       session.compile(target);
 
@@ -909,7 +918,7 @@ describe.each(EMISSION)("a change the route's own lines cannot account for, $mod
     expect(target, "the line being routed to is in the fixture").toBeGreaterThan(
       0,
     );
-    const session = new Session(labelled, { emitCompiledProgram });
+    const session = new Session(labelled, { emitCompiledProgram, ...CURRENT_ENGINE });
     const before = session.compile(target);
     expect(
       (before.program.diagnostics?.[URI] ?? []).filter(
@@ -1009,7 +1018,7 @@ describe("randomized edit sequences", () => {
 describe("a compile that emits no bytecode", () => {
   test("certifies an edit inside one beat and replays with no search", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, { emitCompiledProgram: false });
+    const session = new Session(text, { emitCompiledProgram: false, ...CURRENT_ENGINE });
     const target = at["tail_6"]!;
     session.compile(target);
     const deepest = deepestCheckpoint(session.game!.plannedRoute!);
@@ -1034,7 +1043,7 @@ describe("a compile that emits no bytecode", () => {
 
   test("never serializes the program", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, { emitCompiledProgram: false });
+    const session = new Session(text, { emitCompiledProgram: false, ...CURRENT_ENGINE });
     session.compiler.profilerId = "713";
     const proto = SparkdownCompiler.prototype as unknown as Record<string, any>;
     const serialize = vi.spyOn(proto, "serializeCompiledProgram");
