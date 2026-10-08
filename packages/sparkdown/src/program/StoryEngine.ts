@@ -101,9 +101,16 @@ export interface StoryEngine {
     args: AbstractValue[],
   ): { ok: boolean; values: AbstractValue[]; errorMessage?: string };
 
-  // Errors.
+  // Errors, and the call stack the standard library's `debug` builtins read.
   Error(message: string, useEndLineNumber?: boolean): never;
+  /** Raises `message` for an error a Luau callback raised (`cause`), at the
+   *  instruction that raised it. */
+  ErrorFrom(message: string, cause: unknown): never;
+  Warning(message: string): void;
   AddError(message: string, isWarning?: boolean, useEndLineNumber?: boolean): void;
+  CallStackTrace(): string;
+  CallFrameCount(): number;
+  CallFramePath(index: number): string | null;
   onError: StoryErrorHandler | null;
   errorMessageFormatter?: (story: any, message: string) => string;
 

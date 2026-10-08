@@ -17,6 +17,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { describe, expect, test } from "vitest";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -39,10 +40,11 @@ const LEAVING = [
   "outputWhitespace.ts -> inkjs/engine/ControlCommand",
 ];
 
-// Every module specifier a file names: `import ... from`, `export ... from`,
-// a side-effect `import "..."`, and `import("...")`, `typeof import(...)`
-// included.
-const SPECIFIER = /(?:\bfrom|\bimport)\s*\(?\s*["']([^"'\n]+)["']/g;
+/** Every module specifier a file names, as TypeScript reads them past any
+ *  comment: `import ... from`, `export ... from`, a side-effect
+ *  `import "..."`, `import type`, and `import("...")`. */
+const specifiersOf = (text: string): string[] =>
+  ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
 
 /** Every `.ts` file under `dir`, at any depth. */
 const sourcesUnder = (dir: string): string[] =>
@@ -67,12 +69,12 @@ const importsLeaving = (
   const leaving = new Set<string>();
   for (const file of sourcesUnder(layer)) {
     const text = readFileSync(file, "utf8");
-    for (const [, spec] of text.matchAll(SPECIFIER)) {
+    for (const spec of specifiersOf(text)) {
       let target: string;
-      if (spec!.startsWith(".")) {
-        target = normalize(join(dirname(file), spec!));
-      } else if (spec!.startsWith(PACKAGE)) {
-        target = normalize(join(packageRoot, spec!.slice(PACKAGE.length)));
+      if (spec.startsWith(".")) {
+        target = normalize(join(dirname(file), spec));
+      } else if (spec.startsWith(PACKAGE)) {
+        target = normalize(join(packageRoot, spec.slice(PACKAGE.length)));
       } else {
         continue;
       }
@@ -112,6 +114,18 @@ describe("the scan the list is held to", () => {
     expect(
       withLayer({
         "runtime/A.ts": `import { X } from "../inkjs/engine/X";\nexport { Y } from "../inkjs/engine/Y";\nconst z = await import("../inkjs/engine/Z");\n`,
+      }),
+    ).toEqual([
+      "A.ts -> inkjs/engine/X",
+      "A.ts -> inkjs/engine/Y",
+      "A.ts -> inkjs/engine/Z",
+    ]);
+  });
+
+  test("finds an import with a comment where the specifier stands", () => {
+    expect(
+      withLayer({
+        "runtime/A.ts": `import /* hierarchy */ "../inkjs/engine/X";\nimport { Y } from /* y */ "../inkjs/engine/Y";\nconst z = await import(/* z */ "../inkjs/engine/Z");\n`,
       }),
     ).toEqual([
       "A.ts -> inkjs/engine/X",
