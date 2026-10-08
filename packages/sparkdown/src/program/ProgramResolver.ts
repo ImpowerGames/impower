@@ -337,6 +337,8 @@ interface MemoTally {
   refused: string | null;
   /** Whether the plain assignment the candidate is made an auto-global. */
   autoGlobal: boolean;
+  /** Whether the local declaration the candidate is declared its local. */
+  declares: boolean;
 }
 
 const sameMembers = (a: readonly ParsedObject[], b: readonly ParsedObject[]) =>
@@ -1825,6 +1827,7 @@ export class ProgramResolver {
         context: null,
         refused: null,
         autoGlobal: false,
+        declares: false,
       };
       this._tallies.set(candidate.entry, tally);
     }
@@ -1871,7 +1874,7 @@ export class ProgramResolver {
       (assignment
         ? parsedChildren(objects[0]!).some(walks)
         : objects.some(walks)) ||
-      localsDeclaredIn(objects as ParsedObject[], objects.length).size > 0
+      (!assignment && localsDeclaredIn(objects as ParsedObject[], objects.length).size > 0)
     ) {
       return undefined;
     }
@@ -1900,6 +1903,7 @@ export class ProgramResolver {
       resolver: this._id,
       at: this._compile,
       autoGlobal: tally.autoGlobal,
+      declares: tally.declares,
     };
   }
 
@@ -1957,6 +1961,18 @@ export class ProgramResolver {
     // The auto-global the assignment made, made again where its resolution
     // would make it, while no name resolves the assignment's name: the
     // lookup reads the names, as the resolution's own did.
+    if (phase === "generate") {
+      // The local a local declaration declared, declared again where its
+      // generation would declare it; a block statement's stand-in declares
+      // those of the statements inside it.
+      for (const held of [statement, ...(entry.owner ? statement.content : [])]) {
+        const declares =
+          held === statement ? resolution.declares : (memoOf(held) as StatementMemoEntry | undefined)?.resolution?.declares;
+        if (declares && held instanceof VariableAssignment) {
+          this.event({ kind: "declare", declaration: held }, held.RegisterDeclaration);
+        }
+      }
+    }
     if (phase === "resolve") {
       // A block statement's stand-in holds the stand-ins of the statements
       // inside it, whose auto-globals it makes again.
@@ -2198,7 +2214,20 @@ export class ProgramResolver {
       // The plain assignment a candidate is makes the auto-global, which
       // its stand-in makes again (`repeatMemo`).
       frame.tally.autoGlobal = true;
-    } else if (event.kind === "autoGlobal" && memoOf(event.assignment)) {
+    } else if (
+      event.kind === "declare" &&
+      frame &&
+      frame.tally.candidate.objects.length === 1 &&
+      frame.tally.candidate.objects[0] === event.declaration &&
+      event.declaration.isNewTemporaryDeclaration
+    ) {
+      // The local declaration a candidate is declares its local, which its
+      // stand-in declares again (`repeatMemo`).
+      frame.tally.declares = true;
+    } else if (
+      (event.kind === "autoGlobal" && memoOf(event.assignment)) ||
+      (event.kind === "declare" && memoOf(event.declaration))
+    ) {
       // A stand-in makes it again, as the block statement that holds it
       // will (`repeatMemo`).
     } else if (this._candidates) {

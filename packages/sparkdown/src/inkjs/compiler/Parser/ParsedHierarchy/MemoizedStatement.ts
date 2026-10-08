@@ -1,4 +1,5 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
+import { DebugMetadata } from "../../../engine/DebugMetadata";
 import type { InkObject as RuntimeObject } from "../../../engine/Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { ParsedObject } from "./Object";
@@ -13,6 +14,48 @@ const MEMO = Symbol("statementMemo");
  *  its memo instead of lowering it (#656), or undefined. */
 export const memoOf = (obj: ParsedObject | null | undefined): object | undefined =>
   obj ? (obj as unknown as { [MEMO]?: object })[MEMO] : undefined;
+
+/** Where an object's name stands, relative to the object's own position:
+ *  lines counted from its first line, and the columns they start and end
+ *  at. */
+export interface MemoPosition {
+  readonly line: number;
+  readonly endLine: number;
+  readonly start: number;
+  readonly end: number;
+}
+
+/** Where `obj`'s name stands relative to `obj` (`MemoPosition`), or null
+ *  when either has no position. */
+export const namePosition = (obj: ParsedObject): MemoPosition | null => {
+  const own = obj.ownDebugMetadata;
+  const name = obj.identifier?.debugMetadata;
+  if (!own || !name) {
+    return null;
+  }
+  return {
+    line: name.startLineNumber - own.startLineNumber,
+    endLine: name.endLineNumber - own.startLineNumber,
+    start: name.startCharacterNumber,
+    end: name.endCharacterNumber,
+  };
+};
+
+/** Places a stand-in's name where the statement's stood (`namePosition`),
+ *  once the stand-in has its own position: what the story reports about
+ *  the name (a local or a label declared twice) is reported there. */
+export const placeIdentifier = (obj: ParsedObject, at: MemoPosition | null): void => {
+  const own = obj.ownDebugMetadata;
+  if (!at || !own || !obj.identifier) {
+    return;
+  }
+  const position = new DebugMetadata(own);
+  position.startLineNumber = own.startLineNumber + at.line;
+  position.endLineNumber = own.startLineNumber + at.endLine;
+  position.startCharacterNumber = at.start;
+  position.endCharacterNumber = at.end;
+  obj.identifier.debugMetadata = position;
+};
 
 /** Marks `obj` as the stand-in of a statement served from `memo`. */
 export const markMemoized = (obj: ParsedObject, memo: object): void => {

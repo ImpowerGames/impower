@@ -773,3 +773,43 @@ describe("a statement whose objects another pass reads", () => {
     sameAsCold(s);
   });
 });
+
+// ---- Local declarations ------------------------------------------------------
+
+describe("a local declaration", () => {
+  // A local declared in the clause and read after it, among lines no edit
+  // below touches.
+  const localScript = (top: readonly string[] = []) =>
+    clauseScript(
+      ["Line one.", ...FILLER, "local here = 2", ...FILLER, "Here {here}.", ...FILLER, "Line last."],
+      top,
+    );
+
+  it("is served when an edit elsewhere lowers its block again, and declares its local again for the statements after it", () => {
+    const s = warmed(localScript());
+    const before = new Set(rootChunks(s.root));
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    // The edited line's chunk, and no other: the line that reads the local
+    // reads it as it did, from the local its served declaration declared.
+    expect(rootChunks(s.root).filter((chunk) => !before.has(chunk)).length).toBe(1);
+    sameAsCold(s);
+    // A line that reads the local, lowered anew while the declaration is
+    // served, resolves the name to the local the stand-in declared.
+    s.edit("Here {here}.", "Here {here}!");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(3 * FILLER.length);
+    sameAsCold(s);
+  });
+
+  it("is lowered again when a global of its name is declared above it, and no other statement is", () => {
+    // A global of the local's name, declared above the scene: the local now
+    // shadows it, which its resolution read the name for. The line that
+    // reads the local still reads the local its served declaration declares.
+    const s = warmed(localScript(["store other = 1", ""]));
+    s.edit("store other = 1", "store here = 1");
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual(["local here = 2"]);
+    sameAsCold(s);
+  });
+});

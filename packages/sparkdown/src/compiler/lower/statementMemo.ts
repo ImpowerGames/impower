@@ -1,4 +1,3 @@
-import type { SyntaxNode } from "@lezer/common";
 import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { AuthorWarning } from "../../inkjs/compiler/Parser/ParsedHierarchy/AuthorWarning";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
@@ -18,6 +17,7 @@ import {
 import {
   MemoizedStatement,
   memoOf,
+  placeIdentifier,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import {
   MemoizedAssignment,
@@ -67,28 +67,41 @@ type SparkdownNode = GrammarSyntaxNode<SparkdownNodeName>;
  * statement stands in the block as a `MemoizedStatement`, which holds no
  * object of the statement, and keeps the program chunk the memo holds.
  *
+ * A statement whose objects another pass reads for what they are stands as
+ * an object of that class built from what its memo recorded (`memoOf`,
+ * #1676): a divert with no arguments (`MemoizedDivert`), a plain assignment
+ * or a local declaration (`MemoizedAssignment`), a label (`MemoizedGather`).
+ * An `if` block is remembered with the memos of the statements of its
+ * bodies and what their lowerings read of the context as it found it
+ * (`MemoOwner`), and is served with them.
+ *
  * What a memo holds is no parsed object: the statement's chunk, which holds
  * the symbols it exports and refers to; the reads its lowering made; the
- * diagnostics its lowering reported; and what its resolution reported and
- * read (`MemoResolution`). A statement is remembered only when nothing else
- * reads its parsed objects: its lowering wrote nothing into the context but
- * its diagnostics, it is no block statement, and its owner's lowering and the
- * story's weave read nothing of it (no choice, gather, weave, divert other
- * than a call's, tunnel return, author warning or flow). The resolver and the
- * chunk store complete the memo once the compile that lowered the statement
- * has resolved it and committed its chunk, and leave it incomplete when the
- * statement declares anything, reads a table whole, or reports a position
- * outside itself (`ProgramResolver`, `ChunkStore.memoChunk`).
+ * diagnostics its lowering reported; and what its resolution reported, read
+ * and declared (`MemoResolution`). A statement is remembered only when what
+ * else reads its parsed objects reads nothing its memo cannot stand for: its
+ * lowering wrote nothing into the context but its diagnostics, and its own
+ * objects hold no choice, gather, weave, divert other than a call's, tunnel
+ * return, author warning or flow, but those the stand-ins above stand for.
+ * Still lowered whenever their block is: loops and `choose` blocks written
+ * in a body, whose own objects are weave points numbered by place and a
+ * weave of choices (#1683). The resolver and the chunk store complete the
+ * memo once the compile that lowered the statement has resolved it and
+ * committed its chunk, and leave it incomplete when the statement declares
+ * anything the whole program keeps (a global, a constant, a list, a struct,
+ * an external, a flow), reads the story's assignments or function values,
+ * or reports a position outside itself (`ProgramResolver.memoResolutionOf`,
+ * `ChunkStore.memoChunk`). A name its resolution read that is declared
+ * otherwise since makes it stale (`ProgramResolver.readsOtherwise`).
  */
 export class StatementMemoEntry {
   /** What the compile completes the memo with, or nothing while it is not
    *  complete (`complete`). */
   resolution?: MemoResolution;
   chunk?: StatementChunk;
-  /** The table generation of the chunk's ids, and the compiler's memo epoch
-   *  when it was completed (`StatementMemoHost.usable`). */
+  /** The table generation of the chunk's ids, which the store's current
+   *  one must be for the memo to be served (`StatementMemoHost.usable`). */
   generation = -1;
-  epoch = -1;
   /** Set when a compile found the memo cannot be served: a name its
    *  resolution read is declared otherwise, or its chunk cannot be kept. */
   stale = false;
@@ -207,6 +220,9 @@ export interface MemoResolution {
    *  it is assigns, which no name resolved (an auto-global), which its
    *  stand-in makes again while the name is still undeclared. */
   readonly autoGlobal: boolean;
+  /** Whether its generation declared the local the local declaration it is
+   *  declares, which its stand-in declares again. */
+  readonly declares: boolean;
 }
 
 /** Thrown when a compile meets a statement its memo served that it cannot
@@ -371,9 +387,17 @@ export class StatementMemoSession {
    *  its text. */
   syntaxOf(node: SparkdownNode, ctx: LowerContext, to = node.to): string {
     const names: string[] = [];
-    for (let at: SyntaxNode | null = node; at && at.from < to; at = at.nextSibling) {
+    for (
+      let at: SparkdownNode | null = node;
+      at && at.from < to;
+      at = at.nextSibling as SparkdownNode | null
+    ) {
       const children: string[] = [];
-      for (let child = at.firstChild; child; child = child.nextSibling) {
+      for (
+        let child = at.firstChild as SparkdownNode | null;
+        child;
+        child = child.nextSibling as SparkdownNode | null
+      ) {
         children.push(child.name);
       }
       names.push(`${at.name}(${children.join(",")})`);
@@ -382,7 +406,7 @@ export class StatementMemoSession {
       }
     }
     const ancestors: string[] = [];
-    for (let at = node.parent; at; at = at.parent) {
+    for (let at = node.parent as SparkdownNode | null; at; at = at.parent as SparkdownNode | null) {
       ancestors.push(at.name);
     }
     return [
@@ -656,6 +680,7 @@ export class StatementMemoSession {
             : new MemoizedStatement(entry);
     const range = statementBounds(from, to, ctx);
     statement.debugMetadata = buildDebugMetadata(range.from, range.to, ctx);
+    placeIdentifier(statement, entry.stand?.kind === "divert" ? null : (entry.stand?.at ?? null));
     return statement;
   }
 

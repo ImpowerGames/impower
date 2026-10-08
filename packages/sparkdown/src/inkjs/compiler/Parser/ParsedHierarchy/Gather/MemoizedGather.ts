@@ -3,6 +3,8 @@ import type { InkObject as RuntimeObject } from "../../../../engine/Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Identifier } from "../Identifier";
 import {
+  type MemoPosition,
+  namePosition,
   markMemoized,
   memoGenerate,
   memoResolve,
@@ -20,6 +22,8 @@ export interface MemoGather {
   readonly name: string;
   readonly indentationDepth: number;
   readonly endsChooseBlock: boolean;
+  /** Where its name stands relative to it. */
+  readonly at: MemoPosition | null;
 }
 
 /** What a statement's memo records of the label the statement lowered to,
@@ -35,6 +39,7 @@ export const memoGatherOf = (gather: Gather): MemoGather | null => {
     name,
     indentationDepth: gather.indentationDepth,
     endsChooseBlock: gather.endsChooseBlock,
+    at: namePosition(gather),
   };
 };
 
