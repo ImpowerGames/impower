@@ -70,6 +70,21 @@ export function headerLineRange(
   return { from: from + start, to: from + line.trimEnd().length };
 }
 
+// The range a statement's objects are stamped with (`stampStatement`), and
+// a statement served from its memo is placed at (#656): the statement's
+// source range without its indentation and its trailing whitespace.
+export function statementBounds(
+  rangeFrom: number,
+  rangeTo: number,
+  ctx: LowerContext,
+): { from: number; to: number } {
+  // value-level: the statement's isolated source range, trimming its trailing whitespace
+  const text = ctx.read(rangeFrom, rangeTo).replace(/\s+$/, "");
+  // value-level: the isolated statement text, measuring its indentation
+  const indentation = text.length - text.replace(/^[ \t]+/, "").length;
+  return { from: rangeFrom + indentation, to: rangeFrom + text.length };
+}
+
 // Stamps the given ParsedObjects with debug metadata derived from the
 // absolute byte range `[from, to]`. Existing metadata on a child is left
 // alone so a more-specific lowerer can override the dispatcher-level
