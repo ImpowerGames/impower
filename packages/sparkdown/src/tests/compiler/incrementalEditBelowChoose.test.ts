@@ -118,9 +118,10 @@ function screenplay(block: string[]): string {
 }
 
 // The program's chunks by content, which hold its line tables, in place of
-// the current engine's compiled JSON and path-location table.
+// the current engine's compiled JSON and path-location table; a compile that
+// builds no chunks fails the comparison (`programContent` throws).
 const pick = (p: any) => ({
-  chunks: p.chunks ? programContent(p.chunks) : undefined,
+  chunks: programContent(p.chunks),
   dataLocations: p.dataLocations,
   functionLocations: p.functionLocations,
   sceneLocations: p.sceneLocations,

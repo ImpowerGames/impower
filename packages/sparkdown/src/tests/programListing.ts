@@ -10,7 +10,7 @@ import { ProgramRoot, type SequenceRow } from "../program/ProgramRoot";
 import { SymbolKind } from "../program/ProgramSymbols";
 import { blockCount, type StatementChunk } from "../program/StatementChunk";
 import { testRoot } from "./engineUnderTest";
-import { describeRoot } from "./program/programHarness";
+import { describeRoot } from "./program/describeRoot";
 
 /** The root of a test compile's `program.compiled`, or the root itself (a
  *  compile's `program.chunks`); a compile that made no root (one that fell
