@@ -11,6 +11,7 @@
 // a preview from them, or from the function above them, still reaches them.
 
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { functionSpans } from "@impower/sparkdown/src/tests/programListing";
 import { describe, expect, test } from "vitest";
 import { Game } from "../../game/core/classes/Game";
 import {
@@ -225,9 +226,6 @@ describe("a function declaration after the last story line (#835)", () => {
   });
 });
 
-// On the current engine (`programChunks: false`): the included script holds
-// top-level content, which the program path does not emit yet (#1681), so its
-// compile falls back.
 describe("a function declared in an included script (#835)", () => {
   const OTHER_URI = "inmemory:///other.sd";
   const MAIN = [`include other.sd`, ``, `A`, ``].join("\n");
@@ -243,12 +241,11 @@ describe("a function declared in an included script (#835)", () => {
   ].join("\n");
 
   test("records the lines of its declaration in that script", () => {
-    const { program } = compileUI(MAIN, {
-      scripts: { [OTHER_URI]: OTHER },
-      programChunks: false,
-    });
+    const { program } = compileUI(MAIN, { scripts: { [OTHER_URI]: OTHER } });
     const scripts = Object.keys(program.scripts);
-    expect(program.pathLocations?.functions).toContainEqual({
+    // The function's flow row (`functionSpans`), for the path-location
+    // table's `functions`.
+    expect(functionSpans(program as any)).toContainEqual({
       path: "less",
       lines: [scripts.indexOf(OTHER_URI), 2, 4],
     });
@@ -258,7 +255,6 @@ describe("a function declared in an included script (#835)", () => {
     const run = await playFrom(MAIN, 2, {
       file: OTHER_URI,
       scripts: { [OTHER_URI]: OTHER },
-      programChunks: false,
     });
     expect(run.errors).toEqual([]);
     expect(run.startFile).toBe(OTHER_URI);
