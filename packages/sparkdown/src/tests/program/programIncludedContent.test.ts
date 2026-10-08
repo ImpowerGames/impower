@@ -323,6 +323,60 @@ describe("an included script's top-level content", () => {
   });
 });
 
+describe("the consumers of an included script's top-level content", () => {
+  const texts = {
+    [MAIN]: lines("include includes/first.sd", "[[show backdrop room]] Main."),
+    [FIRST]: lines("local x = 1", "[[show portrait bunny]] Included {x}.", "Still included."),
+  };
+  const image = (name: string, ext: string) => ({
+    uri: `file://proj/${name}.${ext}`,
+    type: "image",
+    name,
+    ext,
+    src: `/file:/proj/${name}.${ext}?v=1`,
+  });
+
+  it("records the content's beats and assets under the top level, in the order they run", () => {
+    const program = quiet(() =>
+      programCompiler(texts, {
+        programChunks: true,
+        files: [...scriptFiles(texts), image("room", "png"), image("bunny", "svg")] as never,
+      }).compile(MAIN),
+    ).program;
+    expect(program.fallback).toBeUndefined();
+    const root = program.chunks!;
+    const assets = program.sceneAssets!;
+    expect(Object.keys(assets)).toEqual(["0"]);
+    expect(assets["0"]!.image).toEqual(["bunny", "room"]);
+    const beats = assets["0"]!.beats.map((beat) => ({
+      at: root.locationOf(beat.address as number),
+      image: beat.image,
+    }));
+    expect(beats).toMatchObject([
+      { at: { uri: FIRST, startLine: 1 }, image: ["bunny"] },
+      { at: { uri: MAIN, startLine: 1 }, image: ["room"] },
+    ]);
+    // The beat a preview of the included line finds is its own.
+    const address = root.addressAt(FIRST, 1)!;
+    expect(root.sceneAt(address)).toBe("0");
+    expect(assets["0"]!.beats.findIndex((beat) => beat.address === address)).toBe(0);
+  });
+
+  it("names the frame it runs in as the top level's, inside the content and after it", () => {
+    const story = new ProgramStory(rootOf(texts));
+    const frameNames = () =>
+      story
+        .debugFrames(story.state.callStack.currentThread.threadIndex)!
+        .map((frame) => frame.name);
+    expect(story.Continue()).toContain("Included 1.");
+    expect(frameNames()).toEqual(["0"]);
+    expect(story.Continue()).toBe("Still included.\n");
+    expect(frameNames()).toEqual(["0"]);
+    expect(story.Continue()).toContain("Main.");
+    expect(frameNames()).toEqual(["0"]);
+  });
+});
+
 function posAt(text: string, offset: number) {
   const before = text.slice(0, offset).split("\n");
   return { line: before.length - 1, character: before.at(-1)!.length };

@@ -33,6 +33,11 @@ export const UNDEFINED_KIND = -1;
 /** The name the flow of the top-level content is registered under. */
 export const ROOT_FLOW_NAME = "";
 
+/** How the names of the symbols of an included script's top-level content
+ *  start: its flow's and the label its content jumps back to
+ *  (`programFlows.ts`, `IncludeEntry`). Both stand in the top level. */
+export const INCLUDED_FLOW_PREFIX = "$include:";
+
 /** The id of the symbol named `name`, interned when it is new, with a count
  *  id when `counted`. The id is the name's in every root the table serves,
  *  whatever each root's program defines it as. Every kind the build-out

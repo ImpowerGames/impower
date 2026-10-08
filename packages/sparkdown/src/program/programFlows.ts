@@ -36,7 +36,11 @@ import type {
 import type { ProgramEmitter } from "./ProgramEmitter";
 import { parameterKinds } from "./ProgramFacts";
 import { Op } from "./ProgramInstructions";
-import { ROOT_FLOW_NAME, SymbolKind } from "./ProgramSymbols";
+import {
+  INCLUDED_FLOW_PREFIX,
+  ROOT_FLOW_NAME,
+  SymbolKind,
+} from "./ProgramSymbols";
 
 /** What the compile knows of one top-level statement: where it stands, its
  *  syntax, the lowering inputs it recorded, and the shape its lowering found
@@ -609,7 +613,7 @@ const flowEntry = (
  *  segments are separated by `.`, after `$`, which no name an author writes
  *  holds. */
 export const includedFlowName = (uri: string): string =>
-  `$include:${uri.replace(/\./g, "%2E")}`;
+  `${INCLUDED_FLOW_PREFIX}${uri.replace(/\./g, "%2E")}`;
 
 /** The name of the label the flow of an included script's content jumps
  *  back to: where the statement that ran it ends (`IncludeEntry`). */
