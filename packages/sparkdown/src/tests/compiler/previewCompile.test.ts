@@ -198,7 +198,9 @@ describe("a preview compile", () => {
     expect(c.documents.get(URI)!.getText()).toBe(base);
   });
 
-  it("is announced to preview listeners only, with the runtime story", () => {
+  // The preview's program runs from its statement chunks: the event says it
+  // produced one and carries no runtime story.
+  it("is announced to preview listeners only, with the program it produced", () => {
     const base = screenplay();
     const c = compilerFor(base);
     quiet(() => c.compile({ textDocument: { uri: URI } }));
@@ -214,7 +216,9 @@ describe("a preview compile", () => {
 
     expect(compiled).toEqual([]);
     expect(previewed).toHaveLength(1);
-    expect(previewed[0].story).toBeTruthy();
+    expect(previewed[0].produced).toBe(true);
+    expect(previewed[0].program.chunks).toBeDefined();
+    expect(previewed[0].story).toBeUndefined();
     expect(previewed[0].startFrom).toEqual({ file: URI, line: 12 });
     expect(preview.checkpoint).toBe("from the listener");
   });
