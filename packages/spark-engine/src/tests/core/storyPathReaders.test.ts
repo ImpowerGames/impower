@@ -20,12 +20,13 @@ import { GameExecutedMessage } from "../../game/core/classes/messages/GameExecut
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..");
 
 /** Where story paths may be read: the compiler, which builds the current
- *  engine's path locations, and the engine, which runs on them until the
- *  current engine is deleted. */
+ *  engine's path locations, and the engine and its runtime layer (#705),
+ *  which run on them until the current engine is deleted. */
 const ENGINE_AND_COMPILER = [
   "packages/sparkdown/src/compiler/",
   "packages/sparkdown/src/program/",
   "packages/sparkdown/src/inkjs/",
+  "packages/sparkdown/src/runtime/",
   "packages/sparkdown/src/binary/",
   "packages/spark-engine/src/game/",
 ];
