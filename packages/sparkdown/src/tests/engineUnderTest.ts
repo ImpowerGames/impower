@@ -1,15 +1,13 @@
 // The engine a story-running test runs its story on: the binary program's
-// engine (docs/engine/binary-program.md), in the ordinary suite and in the
-// differential run alike. A test compiles through `testCompiler`, which builds
-// statement chunks, and makes its story with `testStory`, which runs them, so
-// its assertions hold of the program engine (#705 moves the tests off the
-// current engine before deleting it).
+// engine (docs/engine/binary-program.md). A test compiles through
+// `testCompiler` and makes its story with `testStory`, which runs the
+// program's statement chunks.
 import "../inkjs/engine/Container";
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../compiler/types/SparkdownCompilerConfig";
 import type { SparkProgram } from "../compiler/types/SparkProgram";
 import { STDLIB, type StdLibEntry } from "../runtime/StdLib";
-import { Story as RuntimeStory } from "../inkjs/engine/Story";
+import type { Story as RuntimeStory } from "../inkjs/engine/Story";
 import type { ProgramRoot } from "../program/ProgramRoot";
 import { ProgramStory } from "../program/ProgramStory";
 
@@ -18,10 +16,8 @@ import { ProgramStory } from "../program/ProgramStory";
 // section 3).
 const TEST_EXTERNAL = "__test_external";
 
-// The root a chunked compile's `program.compiled` stands for on the program
-// engine, and the construct a compile that fell back fell back for.
+// The root a compile's `program.compiled` stands for on the program engine.
 const roots = new WeakMap<object, ProgramRoot>();
-const fallbacks = new WeakMap<object, NonNullable<SparkProgram["fallback"]>>();
 
 // `external NAME(PARAMS)` on a line of its own.
 const EXTERNAL = /^external[ \t]+([A-Za-z_]\w*)[ \t]*\(([^)]*)\)[ \t]*$/gm;
@@ -58,17 +54,6 @@ class TestProgramStory extends ProgramStory {
   }
 }
 
-/** The current engine's story of a program that fell back, whose external
- *  functions are the functions `withTestExternals` wrote, as on the program
- *  engine. */
-class TestRuntimeStory extends RuntimeStory {
-  readonly externals = new Map<string, (...args: any[]) => unknown>();
-
-  override BindExternalFunction(name: string, fn: (...args: any[]) => unknown): void {
-    this.externals.set(name, fn);
-  }
-}
-
 if (!STDLIB[TEST_EXTERNAL]) {
   // As `Story.CallExternalFunction` calls a bound function: with each
   // argument's JS value, and what it returns made a value again, or nothing.
@@ -89,14 +74,13 @@ if (!STDLIB[TEST_EXTERNAL]) {
   } as StdLibEntry;
 }
 
-/** A compiler that builds statement chunks and scripts for the program
- *  engine (`withTestExternals`). A chunked compile's `program.compiled`
- *  stands for its root. */
+/** A compiler that compiles scripts for the program engine
+ *  (`withTestExternals`). A compile's `program.compiled` stands for its
+ *  root. */
 class ProgramEngineCompiler extends SparkdownCompiler {
   override configure(config: SparkdownCompilerConfig) {
     return super.configure({
       ...config,
-      programChunks: true,
       files: config.files?.map((file) =>
         typeof file.text === "string"
           ? { ...file, text: withTestExternals(file.text) }
@@ -121,30 +105,17 @@ class ProgramEngineCompiler extends SparkdownCompiler {
       };
       roots.set(handle, program.chunks);
       program.compiled = handle;
-    } else if (program.compiled && program.fallback) {
-      fallbacks.set(program.compiled, program.fallback);
     }
     return result;
   }
 }
 
-/** The root a chunked compile's `program.compiled` stands for, or nothing
- *  for a compile that fell back or made no program. */
+/** The root a compile's `program.compiled` stands for, or nothing for a
+ *  compile that made no program. */
 export function testRoot(compiled: unknown): ProgramRoot | undefined {
   return compiled && typeof compiled === "object"
     ? roots.get(compiled)
     : undefined;
-}
-
-/** A compiler on the current engine's compile path, for a test of what only
- *  that path makes: its compiled JSON, its path-location table, its flow
- *  cache, #314's encoding. Every other compile a test makes builds statement
- *  chunks (`programChunksByDefault.ts`). #705's deletion removes that path,
- *  and deletes or moves each test that still compiles here. */
-export function currentEngineCompiler(): SparkdownCompiler {
-  const compiler = new SparkdownCompiler();
-  compiler.configure({ programChunks: false });
-  return compiler;
 }
 
 /** The compiler a story-running test compiles with. */
@@ -152,34 +123,13 @@ export function testCompiler(): SparkdownCompiler {
   return new ProgramEngineCompiler();
 }
 
-/**
- * The constructs a test's program may fall back for, which then runs on the
- * current engine, each one a test reaches: a choice outside any `choose`
- * block's code, which the tests write beside the choice-mark error the
- * compile reports (#705 makes every such choice an error). An included
- * script's top-level content, a `run` statement's script among it, runs on
- * the program engine since #1681.
- */
-const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set(["Choice"]);
-
-/** The story of a compile's `program.compiled`: on the program engine, the
- *  engine over its root. A program that fell back to the current engine runs
- *  there only for a construct the program engine leaves to another slice
- *  (`FALLS_BACK_ELSEWHERE`), and is refused for any other, so that no test
- *  passes on the current engine unnoticed. */
+/** The story of a compile's `program.compiled`: the program engine over its
+ *  root. A compile that built no statement chunks made no program, and is
+ *  refused. */
 export function testStory(compiled: Record<string, any>): RuntimeStory {
-  const root = roots.get(compiled);
-  if (root) {
-    return new TestProgramStory(root) as unknown as RuntimeStory;
+  const root = compiled && typeof compiled === "object" ? roots.get(compiled) : undefined;
+  if (!root) {
+    throw new Error("The compile built no statement chunks, so there is no story to run.");
   }
-  const fallback = fallbacks.get(compiled);
-  if (!fallback) {
-    return new RuntimeStory(compiled);
-  }
-  if (!FALLS_BACK_ELSEWHERE.has(fallback.construct)) {
-    throw new Error(
-      `The program falls back to the current engine for ${fallback.construct} at ${fallback.uri} line ${fallback.line + 1}.`,
-    );
-  }
-  return new TestRuntimeStory(compiled);
+  return new TestProgramStory(root) as unknown as RuntimeStory;
 }
