@@ -178,6 +178,18 @@ describe("a runtime error", () => {
     ]);
   });
 
+  // The comparator runs inside the metamethod's call, so two callbacks unwind:
+  // the report names the innermost statement, not the metamethod's sort.
+  test("raised inside a comparator a metamethod's sort calls is reported where the comparator raised it", async () => {
+    const source = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  table.sort(items, compare)\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n\nA\nB\n`;
+    expect(await clickReports(source)).toEqual([
+      [
+        lineOf(source, `error("bad compare")`),
+        expect.stringMatching(/bad compare$/),
+      ],
+    ]);
+  });
+
   test("carries no runtime location prefix in its message", async () => {
     const h = await play(`A\nB {error("boom")}\nC\n`);
     h.game.continue();
