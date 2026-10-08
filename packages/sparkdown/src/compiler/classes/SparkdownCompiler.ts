@@ -134,7 +134,7 @@ import {
   SET_DECLARE,
   SET_GLOBAL,
 } from "../../program/ProgramInstructions";
-import { H_CODE_WORDS, HEADER_WORDS } from "../../program/StatementChunk";
+import { H_CODE_WORDS, HEADER_WORDS } from "../../program/ProgramChunk";
 import { rootChanges } from "../../program/rootChanges";
 import { captureProgramAssets } from "../../program/programSceneAssets";
 import {
@@ -3070,9 +3070,7 @@ export class SparkdownCompiler {
   // in document order in a third sequence, so a container's name depends
   // only on the tag lines above it and an edit below it leaves the name, and
   // any path through the container, as it was.
-  protected canonicalizeSyntheticFlowNames(
-    root: ParsedObject,
-  ): Set<ParsedObject> | undefined {
+  protected canonicalizeSyntheticFlowNames(root: ParsedObject): void {
     // Every offset-derived synthetic family minted in the lowerers — PLUS the
     // canonical `__synth_<n>` form this pass itself produces. The pass mutates
     // the parsed IR in place and the incremental pipeline carries those nodes
@@ -3335,29 +3333,16 @@ export class SparkdownCompiler {
       }
     }
     if (!changed) {
-      return undefined;
+      return;
     }
 
     // Rewrite phase: only the recorded matches, then re-key each FlowBase's
     // `_subFlowsByName` index and `variableDeclarations` map (both keyed by
-    // pre-rename names) after all names are final. Every node whose name
-    // actually CHANGED marks its enclosing top-level flow, which the method
-    // returns.
-    const renamedTopLevelFlows = new Set<ParsedObject>();
-    const markRenamed = (owner: ParsedObject) => {
-      let n: ParsedObject | null = owner;
-      while (n && n.parent && !(n.parent instanceof Story)) {
-        n = n.parent;
-      }
-      if (n && n.parent instanceof Story) {
-        renamedTopLevelFlows.add(n);
-      }
-    };
+    // pre-rename names) after all names are final.
     for (const { id, owner } of matchedIds) {
       const next = id.name ? remap.get(id.name) : undefined;
       if (next) {
         if (next !== id.name) {
-          markRenamed(owner);
           this._renamedNames.push(owner);
         }
         id.name = next;
@@ -3368,7 +3353,6 @@ export class SparkdownCompiler {
       const next = remap.get(name);
       if (next) {
         if (next !== name) {
-          markRenamed(node);
           this._renamedNames.push(node);
         }
         node[field] = next;
@@ -3382,7 +3366,6 @@ export class SparkdownCompiler {
     }
     for (const { group, next } of matchedGroups) {
       if (next !== group.text) {
-        markRenamed(group);
         group.text = next;
         // A kept chunk recorded the group's name (`StatementWatch`).
         noteResolved(group);
@@ -3390,7 +3373,6 @@ export class SparkdownCompiler {
     }
     for (const { node, next } of matchedUuids) {
       if (next !== node.uuid) {
-        markRenamed(node);
         node.uuid = next;
       }
     }
@@ -3417,7 +3399,6 @@ export class SparkdownCompiler {
         flow.variableDeclarations = decls;
       }
     }
-    return renamedTopLevelFlows;
   }
 
   // Whole-document scene/`end` + branch pairing validation. Walks the file's

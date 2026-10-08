@@ -4,7 +4,7 @@ import type { ProgramStory as Story } from "../../program/ProgramStory";
 import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { chunkOfAddress } from "../../program/StatementChunk";
+import { chunkOfAddress } from "../../program/ProgramChunk";
 import type { ProgramAddress } from "../types/ProgramAddress";
 
 export interface RoutePlan {
@@ -123,7 +123,7 @@ export interface RouteStep {
   decision: number;
   /** The index of the latest checkpoint made so far */
   checkpoint?: number;
-  /** On the deleted object engine, where this step's path pointed in the program
+  /** On the object engine, where this step's path pointed in the program
    *  it was REPLAYED in: the script, and the location the compiler recorded
    *  for the path (`Game`'s replay stamps both). A step on the program engine
    *  needs neither: its address names its statement's chunk, which a later

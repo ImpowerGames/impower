@@ -368,7 +368,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
     headerLines.push({ uri: record.uri, line: record.line });
     // A scene whose content starts with a branch enters that branch, as the
-    // deleted object engine's knot diverted to its first stitch: one that
+    // object engine's knot diverted to its first stitch: one that
     // takes no parameters by
     // its row in the root, and one that takes some from its entry, after it
     // binds them.
@@ -537,10 +537,10 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
  * The code that binds the parameters of a scene or a branch where the flow
  * is entered (docs/engine/binary-program.md, section 1): a `SetVar` with the
  * declare flag per parameter, last first as a divert pushed the arguments,
- * the `...` with the varargs flag, as the deleted object engine's flow container
+ * the `...` with the varargs flag, as the object engine's flow container
  * starts (`FlowBase.GenerateArgumentVariableAssignments`); then, for a scene
  * whose content starts with a branch that takes no parameters, the jump to
- * that branch, as the deleted object engine's knot diverts to its first stitch
+ * that branch, as the object engine's knot diverted to its first stitch
  * after it binds.
  */
 export class FlowEntry extends ParsedObject {
@@ -644,11 +644,11 @@ const includeEndName = (flow: string): string => `${flow}$end`;
  * story places it, at the include (`Story.PreProcessTopLevelObjects`): a
  * `JumpSym` to the flow of that content (`includedFlowName`), then the
  * `Visit` of a label of its own, which the chunk exports, for that flow to
- * jump back to when its content has run (`IncludeExit`). The deleted object engine
- * runs the content in place, in the including flow's frame, so the jumps
+ * jump back to when its content has run (`IncludeExit`). The object engine
+ * ran the content in place, in the including flow's frame, so the jumps
  * keep the frame, its temporaries and its call stack as they are. A jump to
  * a label of the content runs on through the rest of it and back, as the
- * content of an include runs everywhere else; the deleted object engine instead
+ * content of an include runs everywhere else; the object engine instead
  * ends the story where the content of an included script that holds a label
  * ends, which the program engine does not copy (docs/engine/binary-program.md,
  * What is built). Neither jump reads a fact of its target.

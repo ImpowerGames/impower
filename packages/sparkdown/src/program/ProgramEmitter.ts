@@ -27,7 +27,7 @@ export interface ProgramEmitter {
   emitBranchBody(branch: object): void;
   /** Emits a function (a `FlowBase`) that runs where it is written: one
    *  written at the top level inside a block that the story leaves it in,
-   *  whose container the deleted object engine runs as content of the block. Its
+   *  whose container the object engine ran as content of the block. Its
    *  parameters are bound from the evaluation stack, the locals the lowering
    *  hoisted to the top of its body are declared, and its body runs as a
    *  block of the statement. */

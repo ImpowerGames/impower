@@ -5,7 +5,7 @@ import type {
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { rootLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import type { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
-import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
+import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 
 /**
  * Where a game's story stands, in the program engine's addresses

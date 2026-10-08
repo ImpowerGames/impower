@@ -39,7 +39,7 @@ export class ControlCommand extends InkObject {
   // is how many content elements (the RHS operand's ops) to jump over
   // when the LHS alone decides the result. Populated by
   // `ShortCircuit(op, n)` (the count is patched in by
-  // `BinaryExpression.GenerateIntoContainer` after the RHS is
+  // the binary expression's code generation (deleted in #705) after the RHS was
   // generated) and encoded as `"sc:<op>:<n>"` in JSON.
   public _shortCircuitOp: string = "";
   public _shortCircuitSkipCount: number = 0;

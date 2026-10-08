@@ -167,7 +167,7 @@ export class NativeFunctionCall extends InkObject {
 
   // Whether this native (call-site or prototype) is variadic. Variadic
   // natives validate arity at runtime inside the method impl rather
-  // than at compile time, so FunctionCall.GenerateIntoContainer skips
+  // than at compile time, so the call's code generation (deleted in #705) skipped
   // its arity assertion when this returns true.
   get isVariadic(): boolean {
     const arity = this._prototype
@@ -227,7 +227,7 @@ export class NativeFunctionCall extends InkObject {
     // Lua argument semantics for PURE number stdlib ops (`math.abs`,
     // `math.floor`, ...): numeric strings coerce to numbers
     // (`math.abs('-5')` is 5); a missing argument — the `Void`
-    // sentinel padded in by FunctionCall.GenerateIntoContainer for
+    // sentinel padded in for
     // under-applied call sites, or an empty multi-return — raises
     // "missing argument #N to 'abs'"; nil / tables / non-numeric
     // strings raise "invalid argument #N to 'abs'". Both are Lua's
@@ -975,7 +975,7 @@ export class NativeFunctionCall extends InkObject {
       // Builtin method dispatch (`obj:method(args)` → `__method_<name>`).
       // Each entry from `METHOD_DISPATCH` registers as a variadic native:
       // `numberOfParameters` is set to `VARIADIC_ARITY` so neither the
-      // compiler's call-site arity check (FunctionCall.GenerateIntoContainer)
+      // compiler's call-site arity check
       // nor `Call`'s runtime check rejects calls. The actual arity and
       // receiver-type validation happens inside each method impl. See
       // `MethodDispatch.ts` for the implementations and docs/runtime/METHODS.md for

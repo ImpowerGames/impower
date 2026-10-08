@@ -257,15 +257,6 @@ export class Story extends FlowBase {
     return names;
   }
 
-  // Build setting for exporting:
-  // When true, the visit count for *all* knots, stitches, choices,
-  // and gathers is counted. When false, only those that are direclty
-  // referenced by the ink are recorded. Use this flag to allow game-side
-  // querying of  arbitrary knots/stitches etc.
-  // Storing all counts is more robust and future proof (updates to the story file
-  // that reference previously uncounted visits are possible, but generates a much
-  // larger safe file, with a lot of potentially redundant counts.
-  public countAllVisits: boolean = false;
 
   constructor(toplevelObjects: ParsedObject[], isInclude: boolean = false) {
     // Don't do anything much on construction, leave it lightweight until

@@ -6,7 +6,7 @@ import type {
   SequenceRow,
 } from "@impower/sparkdown/src/program/ProgramRoot";
 import { SymbolKind } from "@impower/sparkdown/src/program/ProgramSymbols";
-import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
+import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 
 /**
  * How much of a route planned on the program engine still describes the next

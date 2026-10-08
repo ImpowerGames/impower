@@ -390,8 +390,8 @@ function collectChoiceCondition(
 // ContentList. Text outside of `Tag` nodes is emitted as `Text` parsed
 // objects (preserving authorial spacing — `foo [bar] baz` with
 // surrounding spaces survives). Each `Tag` descendant is emitted as the
-// `Tag(true) + Text(name) + Tag(false)` triple that, before #705, the
-// current engine's `Choice.GenerateRuntimeObject` translated into a
+// `Tag(true) + Text(name) + Tag(false)` triple that the choice's code
+// generation (deleted in #705) translated into a
 // `BeginTag`/`EndTag` pair in the choice's runtime container — those tags
 // then attached to `Choice.tags` (when in start/choice-only content) or
 // flowed into `currentTags` (when in inner content).

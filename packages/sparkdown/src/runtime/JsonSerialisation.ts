@@ -926,20 +926,6 @@ export class JsonSerialisation {
     throw new Error("Failed to convert runtime object to Json token: " + obj);
   }
 
-  // Fingerprint of ONLY a flow's CROSS-FLOW-MUTABLE serialized bits: the `#f`
-  // count flags on every (sub)container and the resolved `targetPath` of every
-  // divert. These are the parts of a flow's serialized bytecode that can change
-  // even when the flow's own SOURCE is unchanged — a remote read-count / TURNS_SINCE
-  // sets this flow's `visitsShouldBeCounted` (changing `#f`), `countAllVisits` flips
-  // all `#f`, and renaming/restructuring a divert target changes the resolved path.
-  //
-  // The incremental ToJson cache (Design B') reuses a flow's serialized JSON iff
-  // its source CHUNK is unchanged (which covers all the OTHER serialized bytes —
-  // string/value/control content) AND this cross-flow fingerprint is unchanged.
-  // Walking only containers+diverts (skipping every string/value/control object and
-  // the JS-tree build) makes this ~7x cheaper than re-serializing. The encoding is
-  // injective (length-prefixed variable text + structural brackets), so equal
-  // fingerprints guarantee equal cross-flow bytes (compared as full strings, no hash).
   public static JObjectToDictionaryRuntimeObjs(jObject: Record<string, any>) {
     let dict: Map<string, InkObject> = new Map();
 

@@ -30,8 +30,8 @@ import {
   blockScopes,
   chunkId,
   codeWords,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 import { Op, opOf } from "./ProgramInstructions";
 import { Choice } from "../runtime/Choice";
 
@@ -97,14 +97,14 @@ export const blockStackOf = (
 
 /** Where a thread a fork suspended resumes, the blocks it is inside there,
  *  and the flow its last instruction ran in (`previousFlow`), which each
- *  thread of the deleted object engine keeps as its own previous pointer. */
+ *  thread of the object engine kept as its own previous pointer. */
 interface SuspendedThread {
   position: ProgramPosition | null;
   blocks: BlockEntry[];
   previousFlow: number;
 }
 
-/** A choice the program engine raised (`Choice`): as the deleted object engine's
+/** A choice the program engine raised (`Choice`): as the object engine's
  *  choice, with its text, tags, index, whether it is an invisible default and
  *  the thread it holds, and in place of paths, the address of its `Choice`
  *  instruction as `sourcePath`, its identity (docs/engine/binary-program.md,
@@ -115,7 +115,7 @@ export class ProgramChoice extends Choice {
   constructor(
     readonly target: ProgramPosition,
     readonly blocks: BlockEntry[],
-    readonly chunk: StatementChunk,
+    readonly chunk: ProgramChunk,
     readonly previousFlow: number,
   ) {
     super();
@@ -281,7 +281,7 @@ export interface ThreadCuts {
 /** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
  *  its `EndScope`s, read once in order (docs/engine/binary-program.md,
  *  section 1). */
-const scopesBefore = (chunk: StatementChunk, offset: number): number => {
+const scopesBefore = (chunk: ProgramChunk, offset: number): number => {
   let scopes = 0;
   for (let at = 0; at < offset && at < codeWords(chunk); at += 2) {
     const op = opOf(chunk[HEADER_WORDS + at]!);
@@ -348,7 +348,7 @@ export interface SuspendedLineEnd {
  * `VariablesState` reads and writes them. A call pushes an element and the program frame beside it
  * (`frameOf`), and a return pops them.
  *
- * The output is the deleted object engine's, member for member, so that the builtins
+ * The output is the object engine's, member for member, so that the builtins
  * a chunk calls (`display`) read and write it as they read and write a
  * `StoryState`: the newline rule and the splitting of a pushed string's
  * surrounding whitespace (`PushToOutputStreamIndividual`,
@@ -376,7 +376,7 @@ export class ProgramStoryState {
   previousRandom = 0;
   /** The symbol of the flow the current thread's last instruction ran in, or
    *  -1: what a path chosen without resetting the call stack is entered
-   *  from, as the deleted object engine's thread keeps its `previousPointer`. A fork
+   *  from, as the object engine's thread kept its `previousPointer`. A fork
    *  suspends it with the thread it forks, a forced end clears it, and a
    *  save writes it by name, for each thread. */
   previousFlow = -1;
@@ -446,7 +446,7 @@ export class ProgramStoryState {
    *  in: for each thread, where each of its frames returns to and, for a
    *  suspended thread, where it resumes, which runs on into those frames'
    *  returns; then the position (`ProgramStory.stackAddresses`), as the
-   *  deleted object engine's call stack names every thread's elements. */
+   *  object engine's call stack named every thread's elements. */
   stackAddresses(): number[] {
     const out: number[] = [];
     const add = (position: ProgramPosition | null | undefined) => {
@@ -569,8 +569,8 @@ export class ProgramStoryState {
   }
 
   /** The turns since count id `id` was last visited, or -1 for never. A
-   *  visit before the first turn records turn -1, as the deleted object engine's
-   *  does, so "never" is a turn of its own (`NEVER_VISITED`). */
+   *  visit before the first turn records turn -1, as the object engine's
+   *  did, so "never" is a turn of its own (`NEVER_VISITED`). */
   TurnsSince(id: number): number {
     const turn = id >= 0 ? (this.turns[id] ?? NEVER_VISITED) : NEVER_VISITED;
     return turn === NEVER_VISITED ? -1 : this.currentTurnIndex - turn;
@@ -689,8 +689,8 @@ export class ProgramStoryState {
   PopEvaluationStack(count: number): InkObject[];
   PopEvaluationStack(count?: number): InkObject | InkObject[] {
     if (count === undefined) {
-      // One pop from an empty stack gives null, as the deleted object engine's
-      // does (`StoryState.PopEvaluationStack`): the arm of a `match` whose
+      // One pop from an empty stack gives null, as the object engine's
+      // did (`StoryState.PopEvaluationStack`): the arm of a `match` whose
       // key is not a name compares the value with its own copy and pops the
       // copy the comparison already took.
       return (this.evaluationStack.pop() ?? null) as InkObject;
@@ -996,7 +996,7 @@ export class ProgramStoryState {
     this.carried = suspended.carried;
   }
 
-  /** Ends the flow, with a fresh frame for the next, as the deleted object engine's
+  /** Ends the flow, with a fresh frame for the next, as the object engine's
    *  `StoryState.ForceEnd` resets its call stack: a `ChoosePathString` that
    *  resets the call stack keeps no temporary, no scope and no function frame
    *  of the flow it left. */
@@ -1113,7 +1113,7 @@ export class ProgramStoryState {
 
   // The counts are keyed outside the engine by their symbol's qualified name,
   // or `#<id>` for an anonymous symbol of this root's table generation, as
-  // the deleted object engine keys them by path (the checkpoint store's readers).
+  // the object engine keyed them by path (the checkpoint store's readers).
 
   /** Each counted symbol that was visited, by its key, with its visits. */
   GetVisitCountEntries(): [string, number][] {
@@ -1224,7 +1224,7 @@ export class ProgramStoryState {
    *  sequence alone. The blocks a position is inside are not written: they
    *  follow from its sequence. A position holds within a session, for as
    *  long as a root holds its chunk or, past the last statement, its
-   *  sequence. `ToJson` is the same, under the deleted object engine's other name
+   *  sequence. `ToJson` is the same, under the object engine's other name
    *  for it (`StoryState.ToJson`). */
   ToJson(): string {
     return this.toJson();
@@ -1418,7 +1418,7 @@ export class ProgramStoryState {
       w.WriteArrayEnd();
       w.WritePropertyEnd();
       // The cells still open on the frame, by the ids the closures holding
-      // them are written with, as the deleted object engine's frames write them,
+      // them are written with, as the object engine's frames wrote them,
       // and the cells it borrowed, closed or not: a waiting choice's thread
       // borrows the cells of the thread it was copied from, and adopts them
       // when the choice is taken (`CallStack.Element.Copy`).

@@ -21,7 +21,7 @@ export type StoryErrorHandler = (
 /** One call frame as the debugger reads it (`StoryEngine.debugFrames`). */
 export interface DebugFrame {
   /** Whether the frame runs a function or a tunnel; the flow's own frame
-   *  is a tunnel's, as on the deleted object engine. */
+   *  is a tunnel's, as on the object engine. */
   readonly type: PushPopType;
   /** The symbol of the function or tunnel the frame runs, or of the flow
    *  the flow's own frame stands in (-1 for a declaration). */

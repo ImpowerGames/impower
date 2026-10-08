@@ -20,7 +20,7 @@ import {
   chunkOfAddress,
   codeWords,
   offsetOfAddress,
-} from "@impower/sparkdown/src/program/StatementChunk";
+} from "@impower/sparkdown/src/program/ProgramChunk";
 
 /**
  * The breakpoints of a program that runs on the program engine

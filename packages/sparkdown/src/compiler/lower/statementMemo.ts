@@ -34,7 +34,7 @@ import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/O
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
-import type { StatementChunk } from "../../program/StatementChunk";
+import type { ProgramChunk } from "../../program/ProgramChunk";
 import type {
   CompiledBlock,
   InkDiagnostic,
@@ -103,7 +103,7 @@ export class StatementMemoEntry {
   /** What the compile completes the memo with, or nothing while it is not
    *  complete (`complete`). */
   resolution?: MemoResolution;
-  chunk?: StatementChunk;
+  chunk?: ProgramChunk;
   /** The table generation of the chunk's ids, which the store's current
    *  one must be for the memo to be served (`StatementMemoHost.usable`). */
   generation = -1;

@@ -29,8 +29,8 @@ import {
   lineRowAt,
   lineTableStart,
   offsetOfAddress,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /**
  * The ordered chunks of one body and each entry's first line relative to the
@@ -39,7 +39,7 @@ import {
  * builds new ones, and a root that does not change it shares them.
  */
 export interface SequenceArrays {
-  readonly chunks: readonly StatementChunk[];
+  readonly chunks: readonly ProgramChunk[];
   readonly lineStarts: readonly number[];
 }
 
@@ -160,7 +160,7 @@ export interface DefinitionArrays {
   /** For a branch, its scene's symbol; -1 otherwise. */
   parent: Int32Array;
   /** For a scene whose content starts with a branch, which it enters when
-   *  it is entered, as the deleted object engine's knot diverts to its first stitch,
+   *  it is entered, as the object engine's knot diverted to its first stitch,
    *  that branch's symbol; -1 otherwise. */
   start: Int32Array;
 }
@@ -191,7 +191,7 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
 /** Whether a sequence's arrays hold `chunk`. */
 export const holdsChunk = (
   arrays: SequenceArrays,
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
 ): boolean => {
   const entry = entryIndex(arrays).get(chunkId(chunk));
   return entry !== undefined && arrays.chunks[entry] === chunk;
@@ -200,7 +200,7 @@ export const holdsChunk = (
 /** Whether `root` holds `chunk`, in the sequence its chunk table names. */
 export const holdsChunkIn = (
   root: ProgramRoot,
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
 ): boolean => {
   const at = root.position(chunkId(chunk));
   return !!at && at.sequence.arrays.chunks[at.entry] === chunk;
@@ -249,15 +249,15 @@ export class ProgramRoot {
     readonly tables: ProgramStoryTables | null = null,
     protected _declarations: ReadonlyMap<string, number> = new Map(),
     /** The declaration chunks in the order `ResetState` runs them, which is
-     *  the order the deleted object engine's `global decl` container initializes
+     *  the order the object engine's `global decl` container initialized
      *  the globals in: constants first, then the others as the story
      *  declares them. */
-    readonly initialization: readonly StatementChunk[] = [],
+    readonly initialization: readonly ProgramChunk[] = [],
     /** Where each symbol is defined, and what as. */
     protected _definitions: DefinitionArrays = emptyDefinitions(),
     /** The name each function is shown by in a stack trace or a printed
      *  value: a function declared at the top level its qualified name, and
-     *  one a statement writes the name the deleted object engine gives its
+     *  one a statement writes the name the object engine gave its
      *  container. */
     protected _labels: ReadonlyMap<number, string> = new Map(),
     /** The symbol remap of each reseed of the table, by the generation it
@@ -321,7 +321,7 @@ export class ProgramRoot {
   }
 
   /** The row of block `block` of the chunk `owner`'s body. */
-  body(owner: StatementChunk, block: number): SequenceRow | undefined {
+  body(owner: ProgramChunk, block: number): SequenceRow | undefined {
     return this._sequences.get(blockField(owner, block, B_SEQUENCE));
   }
 
@@ -332,10 +332,10 @@ export class ProgramRoot {
    *  with. `owners`, when given, receives the owner of each statement of a
    *  body. */
   statementOrder(
-    owners?: Map<StatementChunk, StatementChunk>,
-  ): StatementChunk[] {
-    const out: StatementChunk[] = [];
-    const walk = (row: SequenceRow | undefined, owner?: StatementChunk) => {
+    owners?: Map<ProgramChunk, ProgramChunk>,
+  ): ProgramChunk[] {
+    const out: ProgramChunk[] = [];
+    const walk = (row: SequenceRow | undefined, owner?: ProgramChunk) => {
       for (const chunk of row?.arrays.chunks ?? []) {
         out.push(chunk);
         if (owner) {
@@ -344,7 +344,7 @@ export class ProgramRoot {
         walkBodies(chunk);
       }
     };
-    const walkBodies = (chunk: StatementChunk) => {
+    const walkBodies = (chunk: ProgramChunk) => {
       for (let k = 0; k < blockCount(chunk); k += 1) {
         walk(this.body(chunk, k), chunk);
       }
@@ -365,17 +365,17 @@ export class ProgramRoot {
    *  this root does not hold `after`, or when `limit` statements are listed
    *  without meeting `before`. */
   statementOrderBetween(
-    after: StatementChunk | undefined,
-    before: StatementChunk | undefined,
+    after: ProgramChunk | undefined,
+    before: ProgramChunk | undefined,
     limit: number,
-    owners?: Map<StatementChunk, StatementChunk>,
-  ): StatementChunk[] | undefined {
-    const out: StatementChunk[] = [];
+    owners?: Map<ProgramChunk, ProgramChunk>,
+  ): ProgramChunk[] | undefined {
+    const out: ProgramChunk[] = [];
     let met = false;
     let over = false;
     const walk = (
       row: SequenceRow | undefined,
-      owner: StatementChunk | undefined,
+      owner: ProgramChunk | undefined,
       from: number,
     ) => {
       const chunks = row?.arrays.chunks ?? [];
@@ -396,14 +396,14 @@ export class ProgramRoot {
         walkBodies(chunk, 0);
       }
     };
-    const walkBodies = (chunk: StatementChunk, from: number) => {
+    const walkBodies = (chunk: ProgramChunk, from: number) => {
       for (let k = from; k < blockCount(chunk) && !met && !over; k += 1) {
         walk(this.body(chunk, k), chunk, 0);
       }
     };
     // What `statementOrder` lists in turn: each flow's sequence, then each
     // body of each declaration chunk.
-    const units: { row: SequenceRow | undefined; owner?: StatementChunk }[] =
+    const units: { row: SequenceRow | undefined; owner?: ProgramChunk }[] =
       this.flowSequences().map((row) => ({ row }));
     const flowUnits = units.length;
     for (const chunk of this.initialization) {
@@ -1019,7 +1019,7 @@ export class ProgramRoot {
 
 /** The offset of the first `LineStart` in the code of `chunk` from `from` up
  *  to `to`, or -1. */
-const lineStartIn = (chunk: StatementChunk, from: number, to: number): number => {
+const lineStartIn = (chunk: ProgramChunk, from: number, to: number): number => {
   for (let offset = from; offset < to; offset += 2) {
     if (opOf(chunk[HEADER_WORDS + offset]!) === Op.LineStart) {
       return offset;

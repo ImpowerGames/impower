@@ -16,7 +16,7 @@ import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { ProgramStory } from "../../packages/sparkdown/src/program/ProgramStory";
 import type { ProgramRoot } from "../../packages/sparkdown/src/program/ProgramRoot";
-import { codeWords } from "../../packages/sparkdown/src/program/StatementChunk";
+import { codeWords } from "../../packages/sparkdown/src/program/ProgramChunk";
 import { MAIN_URI, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
 
 interface ProgramBenchConfig {

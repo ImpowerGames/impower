@@ -93,7 +93,7 @@ export interface StdLibEntry {
    *   substring predicates like `string.contains`).
    * - `pure: ["number", "string"]` registers both.
    *
-   * The dispatch decision happens in `FunctionCall.GenerateIntoContainer`:
+   * The dispatch decision happened in the call's code generation (deleted in #705):
    * pure entries fall through to the existing `NativeFunctionCall`
    * branch (because they're registered there); non-pure entries match
    * `isStateAwareStdLib` and emit `RunStdLibFunction`.
@@ -138,8 +138,8 @@ export type StateAwareStdLibEntry = StdLibEntry;
 
 // Sentinel for native functions whose arity can't be statically checked
 // (currently: the `__method_*` builtin-method family, which validates
-// arity inside each implementation). FunctionCall.GenerateIntoContainer
-// and NativeFunctionCall.Call both skip arity assertions when they see
+// arity inside each implementation). NativeFunctionCall.Call skips arity
+// assertions, as the call's code generation (deleted in #705) did, when it sees
 // this value.
 export const VARIADIC_ARITY = -1;
 
@@ -1941,7 +1941,7 @@ export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 // At lowering, `makeGlobalFunctionCall` (lowerExpression.ts) and
 // `lookupStdLibBuiltin` (below) consult this table by dotted full
 // name. The `FunctionCall` constructed carries that name verbatim;
-// dispatch in `GenerateIntoContainer` branches on `pure`.
+// dispatch in the call's code generation (deleted in #705) branched on `pure`.
 
 // ----------------------------------------------------------------
 // Built-in iterators (for `pairs` / `ipairs`)
@@ -6075,7 +6075,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
 };
 
 // Luau-style names that resolve to ink-runtime builtin names. These
-// builtins have special handling in `FunctionCall.GenerateIntoContainer`
+// builtins had special handling in the call's code generation (deleted in #705)
 // (they emit dedicated ControlCommands rather than NativeFunctionCall
 // dispatch) — the lowerer just needs to translate the source name to
 // the ink name and FunctionCall does the rest.
@@ -6129,7 +6129,7 @@ export const INK_BUILTIN_ALIASES: Record<
 // For STDLIB entries, the returned name is the dotted full name
 // (`"math.floor"`) which `NativeFunctionCall` dispatches on. For
 // INK_BUILTIN_ALIASES entries, it's the ink name (`"TURNS"`) which
-// `FunctionCall.GenerateIntoContainer` dispatches on.
+// the call's code generation (deleted in #705) dispatched on.
 //
 // `argCount` lets a single Luau-style method name resolve to different
 // ink builtins based on arity (see `count.turns` in

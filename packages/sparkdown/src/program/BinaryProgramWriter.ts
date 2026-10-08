@@ -86,8 +86,8 @@ import {
   REFERENCE_ROW_WORDS,
   exportCount,
   exportSymbol,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /** One body of the statement being written: which body it is, the id of
  *  its sequence, and its lines. */
@@ -158,7 +158,7 @@ export interface DeclarationInput extends StatementInput {
 
 /** A statement the writer emitted. */
 export interface EmittedStatement {
-  chunk: StatementChunk;
+  chunk: ProgramChunk;
   /** The values the emission recorded with `recordRead`, in order. */
   reads: readonly string[];
   /** The resolutions the emission recorded with `recordResolution`,
@@ -302,7 +302,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   /** A declaration statement's chunk: each global's initializer, then its
-   *  declaration as a global under the name the deleted object engine's `global
+   *  declaration as a global under the name the object engine's `global
    *  decl` container assigns it. */
   writeDeclaration(input: DeclarationInput): EmittedStatement {
     this.begin(input);
@@ -703,7 +703,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
           end += 1;
         }
         // A label between two such choices makes the later one a choice the
-        // deleted object engine raises only once the earlier is taken, which its
+        // object engine raised only once the earlier is taken, which its
         // weave reaches through the label.
         if (
           end < objects.length &&
@@ -1464,10 +1464,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
     let endColumn = Math.max(0, range.endCharacterNumber - 1);
     // A range that takes its last line's break (a dialogue block's does)
     // ends at the start of the next line, which holds none of it: it ends
-    // with the line before, as the deleted object engine's locations do, so that a
+    // with the line before, as the object engine's locations did, so that a
     // reader of the last line of a location (the preview's executed-line
     // label and ranges, the editor's selection after STOP) reads the line
-    // the deleted object engine gave it. That line's end is read from the script
+    // the object engine gave it. That line's end was read from the script
     // when the statement can read it (a block statement can, whose source
     // has its bodies cut out), and otherwise from the statement's own
     // source, which is whole and which its fingerprint hashes.
@@ -1569,7 +1569,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return part >= 0 ? `function#${part}` : "function";
   }
 
-  protected assemble(input: StatementInput): StatementChunk {
+  protected assemble(input: StatementInput): ProgramChunk {
     const code = this._code;
     const rows = this._rows;
     // The rows after the last instruction cover nothing, except the first row
@@ -2036,7 +2036,7 @@ const longBracketAt = (s: string, i: number): [string, string] | null => {
  *  exports as `function#<k>`, its export row, and another as `symbolName`
  *  describes it, or as `function`. */
 export const describeInstruction = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   offset: number,
   table: ProgramTable,
   symbolName?: (symbol: number) => string,

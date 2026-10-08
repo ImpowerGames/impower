@@ -5,8 +5,8 @@ import {
   chunkId,
   exportCount,
   exportSymbol,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 const ascending = (a: number, b: number) => a - b;
 
@@ -71,7 +71,7 @@ const buildChanges = (
   after: ProgramRoot,
 ): ChunkChanges => {
   const symbols = new Set<number>();
-  const exports = (chunk: StatementChunk) => {
+  const exports = (chunk: ProgramChunk) => {
     for (let row = 0; row < exportCount(chunk); row += 1) {
       symbols.add(exportSymbol(chunk, row));
     }
@@ -111,8 +111,8 @@ const buildChanges = (
 };
 
 /** Every chunk a root holds, with its id. */
-const chunksOf = (root: ProgramRoot): Map<number, StatementChunk> => {
-  const out = new Map<number, StatementChunk>();
+const chunksOf = (root: ProgramRoot): Map<number, ProgramChunk> => {
+  const out = new Map<number, ProgramChunk>();
   for (const row of root.sequences()) {
     for (const chunk of row.arrays.chunks) {
       out.set(chunkId(chunk), chunk);
@@ -130,7 +130,7 @@ const wholeRootChanges = (
   before: ProgramRoot | undefined,
   after: ProgramRoot,
 ): ChunkChanges => {
-  const old = before ? chunksOf(before) : new Map<number, StatementChunk>();
+  const old = before ? chunksOf(before) : new Map<number, ProgramChunk>();
   const now = chunksOf(after);
   const dropped: number[] = [];
   const emitted: number[] = [];

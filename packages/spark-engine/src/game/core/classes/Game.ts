@@ -14,7 +14,7 @@ import {
   durableAddress,
   placeDurableAddress,
 } from "@impower/sparkdown/src/program/ProgramSave";
-import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
+import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 import {
   buildRouteSimulator,
   lastSearchStats,

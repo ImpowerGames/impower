@@ -55,8 +55,8 @@ import {
   chunkOfAddress,
   codeWords,
   offsetOfAddress,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /**
  * The durable save of the program engine (docs/engine/binary-program.md,
@@ -175,13 +175,13 @@ const MIGRATIONS: Record<number, (save: Record<string, any>) => Record<string, a
 };
 
 // A 64-bit hash of a chunk, as 16 hex digits.
-const hex = (chunk: StatementChunk, at: number): string =>
+const hex = (chunk: ProgramChunk, at: number): string =>
   (chunk[at]! >>> 0).toString(16).padStart(8, "0") +
   (chunk[at + 1]! >>> 0).toString(16).padStart(8, "0");
 
-const fingerprints = new WeakMap<StatementChunk, string>();
+const fingerprints = new WeakMap<ProgramChunk, string>();
 
-export const fingerprintOf = (chunk: StatementChunk): string => {
+export const fingerprintOf = (chunk: ProgramChunk): string => {
   let print = fingerprints.get(chunk);
   if (print === undefined) {
     print = hex(chunk, H_FINGERPRINT);
@@ -190,7 +190,7 @@ export const fingerprintOf = (chunk: StatementChunk): string => {
   return print;
 };
 
-export const layoutOf = (chunk: StatementChunk): string =>
+export const layoutOf = (chunk: ProgramChunk): string =>
   hex(chunk, H_LAYOUT_HASH);
 
 // A part's fingerprint, the normalized source the store aligns it by, as
@@ -201,7 +201,7 @@ const partPrint = (fingerprint: string): string =>
     .join("");
 
 // The fingerprints of a chunk's parts of one kind, as a save writes them.
-const partPrints = (chunk: StatementChunk, kind: ChunkPartKind): string[] =>
+const partPrints = (chunk: ProgramChunk, kind: ChunkPartKind): string[] =>
   (chunkPartsOf(chunk)?.[kind] ?? []).map((part) => partPrint(part.fingerprint));
 
 // ------------------------------------------------------------- saved forms
@@ -297,7 +297,7 @@ const merged = (ranges: [number, number][]): [number, number][] => {
 /** Each `Choice` instruction of a chunk, in order: its offset and the
  *  offset of its entry. */
 const choiceInstructions = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
 ): { at: number; entry: number }[] => {
   const out: { at: number; entry: number }[] = [];
   for (let at = 0; at < codeWords(chunk); at += 2) {
@@ -339,7 +339,7 @@ const bindingLayout = (root: ProgramRoot, symbol: number): string | undefined =>
 /** The choices of a chunk whose `Choice` instructions stand one for each
  *  choice part, in order, or nothing. */
 const choicesByPart = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
 ): { at: number; entry: number }[] | undefined => {
   const parts = chunkPartsOf(chunk)?.choices;
   const choices = choiceInstructions(chunk);
@@ -350,9 +350,9 @@ const choicesByPart = (
  *  with the listings and part listings they name. */
 class FormWriter {
   protected _listings = new Map<number, { index: number; sequence: SequenceRow; ranges: [number, number][] }>();
-  protected _parts = new Map<StatementChunk, Map<ChunkPartKind, number>>();
+  protected _parts = new Map<ProgramChunk, Map<ChunkPartKind, number>>();
   protected _partList: SavedParts[] = [];
-  protected _owners: Map<number, { chunk: StatementChunk; kind: ChunkPartKind; index: number }> | null =
+  protected _owners: Map<number, { chunk: ProgramChunk; kind: ChunkPartKind; index: number }> | null =
     null;
 
   constructor(readonly root: ProgramRoot) {}
@@ -380,7 +380,7 @@ class FormWriter {
   }
 
   // The part listing of `chunk`'s parts of `kind`.
-  protected partList(chunk: StatementChunk, kind: ChunkPartKind): number {
+  protected partList(chunk: ProgramChunk, kind: ChunkPartKind): number {
     let kinds = this._parts.get(chunk);
     if (!kinds) {
       kinds = new Map();
@@ -453,7 +453,7 @@ class FormWriter {
   // The anchor a position at `offset` of `chunk` takes: the start, after or
   // at the break of a body its part heads, the entry of a choice its part
   // is, or the offset with the layout hash.
-  protected anchorOf(chunk: StatementChunk, offset: number): SavedAnchor {
+  protected anchorOf(chunk: ProgramChunk, offset: number): SavedAnchor {
     if (offset === 0) {
       return "start";
     }
@@ -533,7 +533,7 @@ class FormWriter {
   // part that own it.
   protected owners() {
     if (!this._owners) {
-      const owners = new Map<number, { chunk: StatementChunk; kind: ChunkPartKind; index: number }>();
+      const owners = new Map<number, { chunk: ProgramChunk; kind: ChunkPartKind; index: number }>();
       const root = this.root;
       for (const chunk of [...root.statementOrder(), ...root.initialization]) {
         const parts = chunkPartsOf(chunk);
@@ -1007,14 +1007,14 @@ class FormPlacer {
 
   /** The block of a chunk that the part `ref` of a saved part listing heads
    *  now, by aligning the listing with the chunk's parts, or -1. */
-  protected blockOfPart(chunk: StatementChunk, ref: PartRef): number {
+  protected blockOfPart(chunk: ProgramChunk, ref: PartRef): number {
     const index = this.partIndex(chunk, ref);
     return index >= 0 ? chunkPartsOf(chunk)![ref[1]][index]!.block : -1;
   }
 
   // The ordinal among `chunk`'s parts of `ref`'s kind of the part `ref`
   // names in its saved listing, by aligning the two, or -1.
-  protected partIndex(chunk: StatementChunk, ref: PartRef): number {
+  protected partIndex(chunk: ProgramChunk, ref: PartRef): number {
     const [p, kind, ordinal] = ref;
     const saved = this._parts[p];
     const now = chunkPartsOf(chunk)?.[kind];
@@ -2477,7 +2477,7 @@ export const placeDurableAddress = (
       : form.d !== undefined
         ? root.declarations(form.d)
         : undefined;
-  let chunk: StatementChunk | undefined;
+  let chunk: ProgramChunk | undefined;
   for (let i = 0; i < form.l.length; i += 1) {
     const [block, entry] = form.l[i]!;
     if (i > 0) {

@@ -126,8 +126,8 @@ import {
   exportSymbol,
   lineRowAt,
   lineRowField,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
 
 /** The function a symbol names, as the call handlers the two engines share
@@ -137,7 +137,7 @@ import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
  *  with, the first of which binds the last parameter, and whether that one
  *  is a variadic flow's or function's `...`. */
 const entryBindings = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   offset: number,
 ): { bindings: number; variadic: boolean } => {
   let bindings = 0;
@@ -355,7 +355,7 @@ interface SuspendedStep {
  * of every counted symbol in typed arrays, decisions the route simulator can
  * force, and a continue that returns at its line's newline.
  *
- * It presents the members of the deleted object engine's `Story` that a `Game` uses
+ * It presents the members of the object engine's `Story` (deleted in #705) that a `Game` uses
  * to create a game from a compile, continue, read a beat's display
  * instructions, run a preview compile's program and evaluate a function
  * (`HasFunction`, `EvaluateFunction`), and the members the builtins read
@@ -367,10 +367,10 @@ interface SuspendedStep {
  *
  * Each reset gives the engine a call stack of its own (`CallStack.ForProgram`)
  * and a `VariablesState` over it with the story's lists and constants
- * (`ProgramRoot.tables`), as the deleted object engine's state builds them: the
+ * (`ProgramRoot.tables`), as the object engine's state built them: the
  * globals hold this engine's variables, and the call stack this engine's
  * frames, whose scopes hold the temporaries and whose open upvalues close as
- * the deleted object engine's do. `ResetState` runs the
+ * the object engine's did. `ResetState` runs the
  * program's declaration sequences against those globals. Engines built from
  * one root share its chunks and nothing they write.
  */
@@ -385,7 +385,7 @@ export class ProgramStory implements StoryEngine {
   /** Called with the address of each instruction as it runs
    *  (docs/engine/binary-program.md, section 9, The Story surface), when
    *  set: the game keeps the addresses a beat ran, as it keeps the paths the
-   *  deleted object engine's `onExecute` names. */
+   *  object engine's `onExecute` named. */
   onExecute: ((address: number) => void) | null = null;
   /** When set, each instruction's address is appended to it as it runs,
    *  the instructions of a Luau callback the step calls included: what a
@@ -394,8 +394,8 @@ export class ProgramStory implements StoryEngine {
   executedLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
 
-  /** Formats the message the `error` builtin raises, as the deleted object engine's
-   *  `Story.errorMessageFormatter` does; it reads `currentDebugMetadata`. */
+  /** Formats the message the `error` builtin raises, as the object engine's
+   *  `Story.errorMessageFormatter` did; it reads `currentDebugMetadata`. */
   errorMessageFormatter?: (story: any, message: string) => string;
 
   /** Forces the verdict of a decision (a `JumpIfFalse` with the decision
@@ -1033,7 +1033,7 @@ export class ProgramStory implements StoryEngine {
     return choices;
   }
 
-  // A menu counts as something shown, as on the deleted object engine's `Story`: a
+  // A menu counts as something shown, as on the object engine's `Story`: a
   // `choose` block with no caption raises its choices from a continue that
   // returns no text and no display instruction (binary-program.md sections 4
   // and 7), and the game queues a beat only when a continue showed something.
@@ -1068,7 +1068,7 @@ export class ProgramStory implements StoryEngine {
   /** A fresh state: a call stack of the engine's own and its variables
    *  (`CallStack.ForProgram`, `ProgramRoot.tables`), with no global
    *  initialized, then the program's declaration chunks run in the order the
-   *  deleted object engine's `global decl` container initializes the globals in. */
+   *  object engine's `global decl` container initialized the globals in. */
   /** Resets the story to its initial state, a fresh playthrough, whose
    *  history of beats starts empty. */
   ResetState(): void {
@@ -1171,8 +1171,8 @@ export class ProgramStory implements StoryEngine {
    *  content's flow is `""` or `"0"`), or of a label; a position in the
    *  source is chosen by its address (`ChooseAddress`). The host's arguments
    *  go on the stack as they are, for the entry of a flow that takes
-   *  parameters to bind, as the deleted object engine's `ChoosePathString` passes
-   *  them to the knot it chooses. */
+   *  parameters to bind, as the object engine's `ChoosePathString` passed
+   *  them to the knot it chose. */
   ChoosePathString(path: string, resetCallstack = true, args: any[] = []): void {
     this.IfAsyncWeCant("call ChoosePathString right now");
     if (this.onChoosePathString !== null) this.onChoosePathString(path, args);
@@ -1210,8 +1210,8 @@ export class ProgramStory implements StoryEngine {
   ): void {
     // The flows the choice enters are counted from the flow the last
     // instruction ran in, which a save keeps, or from none when the call
-    // stack is reset, as the deleted object engine's `ChoosePath` counts them from
-    // its thread's previous pointer after the turn it starts.
+    // stack is reset, as the object engine's `ChoosePath` counted them from
+    // its thread's previous pointer after the turn it started.
     const left = resetCallstack ? -1 : this._state.previousFlow;
     if (resetCallstack) {
       this.ResetCallstack();
@@ -1284,7 +1284,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Takes the first choice when every choice waiting is an invisible
-   *  default, as the deleted object engine does when the flow can no longer
+   *  default, as the object engine did when the flow could no longer
    *  continue (`Story.TryFollowDefaultInvisibleChoice`): in the same turn,
    *  entered from the flow it was raised in. */
   protected tryFollowDefaultInvisibleChoice(): boolean {
@@ -1299,7 +1299,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Whether a scene or a function declared at the top level has the name,
-   *  as the deleted object engine finds a knot by name (`Story.HasFunction`). */
+   *  as the object engine found a knot by name (`Story.HasFunction`). */
   HasFunction(functionName: string): boolean {
     try {
       return this.FlowValueNamed(functionName) !== null;
@@ -1311,8 +1311,8 @@ export class ProgramStory implements StoryEngine {
   /** Runs the function or scene declared at the top level under
    *  `functionName` with `args` from outside the story, in a frame of its own
    *  that ends when the function returns or the scene ends, collecting the
-   *  text it writes against an output of its own, as the deleted object engine's
-   *  `Story.EvaluateFunction` does: its result is what the function returns,
+   *  text it writes against an output of its own, as the object engine's
+   *  `Story.EvaluateFunction` did: its result is what the function returns,
    *  as a JS value. */
   EvaluateFunction(
     functionName: string,
@@ -1343,9 +1343,9 @@ export class ProgramStory implements StoryEngine {
       state.evaluationStack.length,
     );
     // A scene with no content of its own runs its first branch, which it
-    // enters from the scene, as the deleted object engine's knot diverts to its
-    // first stitch; the scene itself is not counted, as the deleted object engine
-    // counts no container a host's evaluation starts in.
+    // enters from the scene, as the object engine's knot diverted to its
+    // first stitch; the scene itself is not counted, as the object engine
+    // counted no container a host's evaluation started in.
     const scene = found ? this.root.flow(found.ref.symbol) : undefined;
     if (scene && target.entry.sequence !== scene) {
       this.countEntered(target.entry.sequence, scene.flow);
@@ -1354,7 +1354,7 @@ export class ProgramStory implements StoryEngine {
     // A function takes the host's arguments as a call gives them
     // (`arrangeArgsFor`), and so does a scene that takes parameters, for
     // what its entry binds (`sceneTargetOf`); a scene that takes none takes
-    // them as they are, as on the deleted object engine.
+    // them as they are, as the object engine did.
     if (target.bindings > 0) {
       arrangeArgsFor(this, target, args?.length ?? 0);
     }
@@ -1482,7 +1482,7 @@ export class ProgramStory implements StoryEngine {
 
   /**
    * The protected form of `CallLuauFunction`, which `pcall` and `xpcall`
-   * call, as the deleted object engine's `Story.CallLuauFunctionProtected` does: an
+   * call, as the object engine's `Story.CallLuauFunctionProtected` did: an
    * error the function raises, thrown or added, is trapped and taken off the
    * story's errors, and returned as the call's error message.
    */
@@ -1633,7 +1633,7 @@ export class ProgramStory implements StoryEngine {
 
   /** The value a read of `name` gives when no variable has that name but a
    *  scene or a function declared at the top level does: the symbol value of
-   *  its flow, as the deleted object engine gives a divert target to its knot
+   *  its flow, as the object engine gave a divert target to its knot
    *  (`Story.FlowValueNamed`), or null. */
   FlowValueNamed(name: string): SymbolValue | null {
     const symbol = this.root.table.symbolIds.get(name);
@@ -1664,8 +1664,8 @@ export class ProgramStory implements StoryEngine {
     this.enter(target as SymbolTarget, PushPopType.Function);
   }
 
-  /** The stack trace `debug.traceback` prints, as the deleted object engine's call
-   *  stack prints it: each call frame from the outermost, with the function
+  /** The stack trace `debug.traceback` prints, as the object engine's call
+   *  stack printed it: each call frame from the outermost, with the function
    *  it runs, named by its symbol, or for the flow's own frame, the flow's
    *  name. */
   CallStackTrace(): string {
@@ -1693,8 +1693,8 @@ export class ProgramStory implements StoryEngine {
   /** The name of call frame `index`, counting from the outermost, as
    *  `debug.info` names a frame: the name of the function a call frame runs,
    *  or for the flow's own frame, the name of the flow it is in (`0` for the
-   *  top-level content, as the deleted object engine's path of that container
-   *  reads); null for a frame with no position. */
+   *  top-level content, as the object engine's path of that container
+   *  read); null for a frame with no position. */
   CallFramePath(index: number): string | null {
     const state = this._state;
     const elements = state.callStack.elements;
@@ -1720,8 +1720,8 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** The name a frame that runs no function shows: the name of the flow it
-   *  stands in, `0` for the top-level content, as the deleted object engine's path
-   *  of that container reads, and `global decl` for a declaration. An
+   *  stands in, `0` for the top-level content, as the object engine's path
+   *  of that container read, and `global decl` for a declaration. An
    *  included script's top-level content runs in the top level's frame
    *  (`IncludeEntry`), so its flow shows `0` too. */
   flowName(flow: number): string {
@@ -1744,8 +1744,8 @@ export class ProgramStory implements StoryEngine {
    * in (`CallFramePath`), and stands at an address: the frame that runs at
    * the instruction that ran last, or -1 when none has since a reset or a
    * load (a suspended thread's at where it resumes), and a frame below
-   * another at the call that pushed the one above, as the deleted object engine's
-   * elements name the pointers they last ran. Its call stack element holds
+   * another at the call that pushed the one above, as the object engine's
+   * elements named the pointers they last ran. Its call stack element holds
    * its temporaries.
    */
   debugFrames(threadIndex: number): DebugFrame[] | undefined {
@@ -1854,7 +1854,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Records an error or warning at the instruction running, prefixed with
-   *  its script and line as the deleted object engine prefixes it
+   *  its script and line as the object engine prefixed it
    *  (`Story.AddError`). An error a callback raised names the instruction
    *  that raised it (`StoryException.raisedAddress`) for where it was
    *  raised; the prefix names the instruction running, as the deleted object
@@ -1904,7 +1904,7 @@ export class ProgramStory implements StoryEngine {
 
   /** The address of the instruction at `offset` of the statement `chunk`,
    *  which names a decision to the route simulator. */
-  static addressOf(chunk: StatementChunk, offset: number): string {
+  static addressOf(chunk: ProgramChunk, offset: number): string {
     return String(addressOf(chunkId(chunk), offset));
   }
 
@@ -1918,8 +1918,8 @@ export class ProgramStory implements StoryEngine {
 
   /** The addresses the story will come back to, from the outermost thread
    *  in: where each thread a fork suspended resumes, where each frame of the
-   *  current thread returns to, and the position, as the deleted object engine's
-   *  call stack names them by the pointer of each element. */
+   *  current thread returns to, and the position, as the object engine's
+   *  call stack named them by the pointer of each element. */
   stackAddresses(): number[] {
     return this._state.stackAddresses();
   }
@@ -2046,7 +2046,7 @@ export class ProgramStory implements StoryEngine {
     this._recursiveContinueCount--;
     this.reportErrors();
     // A route simulation takes the choice its route forces at the menu, as
-    // the deleted object engine does, asked by the address of the instruction that
+    // the object engine did, asked by the address of the instruction that
     // stopped the flow.
     const running = this._running;
     if (
@@ -2137,7 +2137,7 @@ export class ProgramStory implements StoryEngine {
       // does not move. A decision the route simulator forces is not one to
       // stop at: a route search that forked at it runs on through it with
       // the verdict it forces, which it asks by the decision's address, as
-      // the deleted object engine's search asks by the path it stands at.
+      // the object engine's search asked by the path it stood at.
       const address = ProgramStory.addressOf(chunk, position.offset);
       if (!this.simulator?.willForceCondition(address)) {
         this.pausedBeforeCondition = address;
@@ -2181,7 +2181,7 @@ export class ProgramStory implements StoryEngine {
    *  statement and each body the position has reached the end of, closing
    *  the pass scope of a body that runs in one (`BLOCK_PASS_SCOPE`); nothing
    *  when the flow has run out. */
-  protected fetch(position: ProgramPosition): StatementChunk | undefined {
+  protected fetch(position: ProgramPosition): ProgramChunk | undefined {
     const state = this._state;
     for (;;) {
       const chunks = position.sequence.arrays.chunks;
@@ -2212,7 +2212,7 @@ export class ProgramStory implements StoryEngine {
 
   // Whether the instruction at `offset` is a decision: a conditional's jump,
   // or a choice with a condition.
-  protected pausesAt(chunk: StatementChunk, offset: number): boolean {
+  protected pausesAt(chunk: ProgramChunk, offset: number): boolean {
     const w0 = chunk[HEADER_WORDS + offset]!;
     const op = opOf(w0);
     return (
@@ -2231,7 +2231,7 @@ export class ProgramStory implements StoryEngine {
    * blocks the entry is inside; its identity is the instruction's address.
    */
   protected raiseChoice(
-    chunk: StatementChunk,
+    chunk: ProgramChunk,
     position: ProgramPosition,
     flags: number,
     arg: number,
@@ -2302,7 +2302,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Runs the instruction at the position, which `fetch` found in `chunk`. */
-  protected execute(position: ProgramPosition, chunk: StatementChunk): void {
+  protected execute(position: ProgramPosition, chunk: ProgramChunk): void {
     const state = this._state;
     this._running = {
       sequence: position.sequence,
@@ -2598,11 +2598,11 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Pops a condition and tests it: by Luau truthiness for an `if`
-   *  expression, and otherwise as the deleted object engine tests a conditional
+   *  expression, and otherwise as the object engine tested a conditional
    *  divert's condition. A decision's verdict is the route simulator's when
    *  it forces one, and the story reports every decision's verdict. */
   protected condition(
-    chunk: StatementChunk,
+    chunk: ProgramChunk,
     offset: number,
     flags: number,
   ): boolean {
@@ -2629,8 +2629,8 @@ export class ProgramStory implements StoryEngine {
     return truthy;
   }
 
-  /** A condition's truth as the deleted object engine tests a conditional divert's
-   *  (`Story.IsTruthy`): a function value is refused, named as the deleted object
+  /** A condition's truth as the object engine tested a conditional divert's
+   *  (`Story.IsTruthy`): a function value is refused, named as the object
    *  engine names its divert target. */
   protected isTruthy(obj: InkObject): boolean {
     if (obj instanceof Value) {
@@ -2670,8 +2670,8 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** The function value of `symbol`, made once. It holds the symbol's name,
-   *  or nothing for an anonymous symbol, and prints as the deleted object engine
-   *  prints the divert target of the function's container. */
+   *  or nothing for an anonymous symbol, and prints as the object engine
+   *  printed the divert target of the function's container. */
   protected symbolValue(symbol: number): SymbolValue {
     let value = this._symbols.get(symbol);
     if (!value) {
@@ -2789,7 +2789,7 @@ export class ProgramStory implements StoryEngine {
    *  function's frame and resumes its caller where the call left it. A frame
    *  a host's evaluation pushed ends the evaluation and stays, for
    *  `completeFunctionEvaluation` to pop. A return outside a function is the
-   *  deleted object engine's error. */
+   *  object engine's error. */
   protected returnFromFunction(): void {
     const state = this._state;
     const callStack = state.callStack;
@@ -3028,7 +3028,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** `JumpSym`: moves to where `symbol` is defined, counting the flows the
-   *  jump enters from the position it left, or raises the deleted object engine's
+   *  jump enters from the position it left, or raises the object engine's
    *  error for a target the program does not define, with the jump's line. */
   protected jumpTo(
     symbol: number,
@@ -3046,8 +3046,8 @@ export class ProgramStory implements StoryEngine {
 
   /** A divert that passes no arguments to a scene or a branch whose last
    *  parameter is `...` gives it nil for each fixed parameter and an empty
-   *  `...`, as the deleted object engine's divert pushes a `PackTuple(0)` for a
-   *  variadic target, whether it writes arguments or not. The divert's chunk
+   *  `...`, as the object engine's divert pushed a `PackTuple(0)` for a
+   *  variadic target, whether it wrote arguments or not. The divert's chunk
    *  reads no fact about its target, so that it stays the same while the
    *  target disappears and comes back (docs/engine/binary-program.md,
    *  section 2), and the flow's entry says what it binds: the `SetVar`s its
@@ -3074,12 +3074,12 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** A jump to a label counts too the labels written right before it with
-   *  nothing between, as the deleted object engine's does: its weave nests a label
+   *  nothing between, as the object engine's did: its weave nested a label
    *  as the first content of the label before it, and a divert counts each
    *  label container it enters at its start
    *  (`Story.VisitChangedContainersDueToDivert`). A statement with no code
-   *  and no export (`const`, `store`) is nothing between: the deleted object engine
-   *  makes no runtime object of it, so its weave nests the labels around it
+   *  and no export (`const`, `store`) is nothing between: the object engine
+   *  made no runtime object of it, so its weave nests the labels around it
    *  all the same. */
   protected countLabelsAbove(place: ProgramPosition): void {
     const chunks = place.sequence.arrays.chunks;
@@ -3099,7 +3099,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** A scene with no content of its own before its first branch enters that
-   *  branch when it is entered, as the deleted object engine's knot diverts to its
+   *  branch when it is entered, as the object engine's knot diverted to its
    *  first stitch; the branch is entered from the scene. */
   protected enterStart(symbol: number, at: SequenceRow): void {
     const start = this.root.startOf(symbol);
@@ -3177,7 +3177,7 @@ export class ProgramStory implements StoryEngine {
 
   /** `TunnelReturn`: pops a tunnel frame and resumes its caller after the
    *  tunnel call, or with a symbol value on the stack, jumps to it from the
-   *  tunnel; a frame that is no tunnel's raises the deleted object engine's error
+   *  tunnel; a frame that is no tunnel's raises the object engine's error
    *  (`PopTunnel`). */
   protected tunnelReturn(): void {
     const state = this._state;
@@ -3215,13 +3215,13 @@ export class ProgramStory implements StoryEngine {
         this.Error("Divert target not found.");
       }
       // The onward jump leaves from the caller the frame returned to, as
-      // the deleted object engine's divert after `PopTunnel` does.
+      // the object engine's divert after `PopTunnel` did.
       this.jumpTo(symbol, state.position?.sequence ?? null);
     }
   }
 
   /** The symbol the variable `name` holds as a symbol value, for a jump or a
-   *  tunnel to it, or the deleted object engine's error for anything else. */
+   *  tunnel to it, or the object engine's error for anything else. */
   protected symbolOfVariable(name: string): number {
     const value = this._state.variablesState.GetVariableWithName(name);
     if (value == null) {
@@ -3251,8 +3251,8 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** `CountOf`: pops a symbol value and pushes its visits, or the turns
-   *  since its last visit, as the deleted object engine's `ReadCount` and
-   *  `TurnsSince` do. */
+   *  since its last visit, as the object engine's `ReadCount` and
+   *  `TurnsSince` did. */
   protected countOf(turns: boolean): void {
     const state = this._state;
     const target = state.PopEvaluationStack();
@@ -3318,7 +3318,7 @@ export class ProgramStory implements StoryEngine {
     const pause = this.pauseBeforeEvaluatingConditions;
     this.pauseBeforeEvaluatingConditions = false;
     // The declarations run no story: the game hears none of their
-    // instructions, as the deleted object engine's `global decl` container is
+    // instructions, as the object engine's `global decl` container was
     // none of the game's executed paths.
     const onExecute = this.onExecute;
     this.onExecute = null;
@@ -3384,8 +3384,8 @@ export class ProgramStory implements StoryEngine {
     this.reportErrors();
   }
 
-  /** Calls a state-aware builtin as the deleted object engine's `RunStdLibFunction`
-   *  does, with this story as the story it is given. */
+  /** Calls a state-aware builtin as the object engine's `RunStdLibFunction`
+   *  did, with this story as the story it is given. */
   protected callStd(name: string, arity: number, discard: boolean): void {
     const entry = lookupStateAwareStdLib(name);
     if (!entry) {
@@ -3465,7 +3465,7 @@ export class ProgramStory implements StoryEngine {
 
 /** Whether `chunk` is a `label` statement's: its code the one `Visit` of the
  *  symbol it exports. */
-const isLabelChunk = (chunk: StatementChunk | undefined): boolean =>
+const isLabelChunk = (chunk: ProgramChunk | undefined): boolean =>
   !!chunk &&
   codeWords(chunk) === 2 &&
   opOf(chunk[HEADER_WORDS]!) === Op.Visit &&
@@ -3474,7 +3474,7 @@ const isLabelChunk = (chunk: StatementChunk | undefined): boolean =>
 
 /** Whether `chunk` runs nothing and defines nothing: a declaration whose
  *  value the declaration sequence sets (`const`, `store`). */
-const isEmptyChunk = (chunk: StatementChunk | undefined): boolean =>
+const isEmptyChunk = (chunk: ProgramChunk | undefined): boolean =>
   !!chunk && codeWords(chunk) === 0 && exportCount(chunk) === 0;
 
 /** Whether two block stack entries name one block of one owner. */

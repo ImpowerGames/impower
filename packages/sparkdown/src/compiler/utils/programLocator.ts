@@ -24,7 +24,7 @@ import {
   lineRowAt,
   lineTableStart,
   offsetOfAddress,
-} from "../../program/StatementChunk";
+} from "../../program/ProgramChunk";
 import type {
   AddressQuery,
   LineBeat,
@@ -155,7 +155,7 @@ const NOT_A_CONDITION =
  *  A part past a statement's start (a `choose` preamble's assignment or
  *  `if`, which the writer puts in the `choose` statement's own code) is read
  *  by the code of its line table row, as a statement of its own. This is the
- *  set the deleted object engine's path locations stopped at for these constructs,
+ *  set the object engine's path locations stopped at for these constructs,
  *  which the language server's navigation keeps. */
 const isStop = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
@@ -247,7 +247,7 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
  * no address. It is the program's accessor's, but for an address that is no
  * stop (`isStop`): the program engine gives every statement and part an
  * address of its own, which the Game Preview routes to, so such a line takes
- * the beat of the lines below it, as it did on the deleted object engine's path
+ * the beat of the lines below it, as it did on the object engine's path
  * locations.
  */
 export const beatAt = (
