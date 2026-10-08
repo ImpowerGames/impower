@@ -20,6 +20,7 @@ import {
   collectDiagnostics,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
+import { programListing } from "../programListing";
 
 const storyOpeningWith = (name: string) => `-> ${name}
 scene ${name}
@@ -89,10 +90,12 @@ describe("targets named after prelude entries that are not runtime globals", () 
   );
 
   test("the divert is emitted as a direct path, not a variable divert", () => {
+    // A direct divert jumps to the scene's symbol (`JumpSym`); a variable
+    // divert would read the variable of that name (`JumpVar`).
     const ctx = makeRuntimeStoryFromSource(storyOpeningWith("main"));
-    const json = JSON.stringify(ctx.compiledJson);
-    expect(json).toContain('{"->":"main"}');
-    expect(json).not.toContain('{"->":"main","var":true}');
+    const listing = programListing(ctx.compiledJson);
+    expect(listing).toContain('JumpSym "main"');
+    expect(listing.filter((line) => line.startsWith("JumpVar"))).toEqual([]);
   });
 
   test("a scene may still be reached from a later divert, not only the opening one", () => {

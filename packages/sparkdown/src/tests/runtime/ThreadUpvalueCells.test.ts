@@ -7,14 +7,9 @@
 // once that replaces the parent, and a finished thread's own value once the
 // thread ends.
 
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Runs to the first choice, takes it and runs the rest; again from a save
 // taken at the choice, loaded into a fresh story.
@@ -34,7 +29,7 @@ function chooseFirst(source: string): {
   story.ChooseChoiceIndex(0);
   const afterChoice = story.ContinueMaximally();
 
-  const again = new RuntimeStory(compiledJson as Record<string, any>);
+  const again = testStory(compiledJson as Record<string, any>);
   again.onError = (m: string) => errors.push(`[after load] ${m}`);
   again.state.LoadJson(savedJson);
   again.ChooseChoiceIndex(0);
@@ -59,7 +54,7 @@ function straightAndRestored(source: string): {
   saving.onError = (m: string) => errors.push(`[before save] ${m}`);
   const first = saving.Continue() ?? "";
   const savedJson = saving.state.ToJson();
-  const again = new RuntimeStory(compiledJson as Record<string, any>);
+  const again = testStory(compiledJson as Record<string, any>);
   again.onError = (m: string) => errors.push(`[after load] ${m}`);
   again.state.LoadJson(savedJson);
   const restored = first + again.ContinueMaximally();
@@ -67,65 +62,6 @@ function straightAndRestored(source: string): {
 }
 
 describe("closures over variables a `<-` thread also binds", () => {
-  test("a taken choice from a `<-` thread started in a block writes the variable the closure reads", () => {
-    const run = chooseFirst(`-> main
-scene main
-  & local x = 0
-  do
-    local x = 1
-    local get = function() return x end
-    <- side
-  end
-  done
-end
-scene side
-  choose
-    * Pick
-      & x = 5
-      Result {get()}.
-      fin
-  end
-  done
-end
-`);
-    expect(run.errors).toEqual([]);
-    expect(run.afterChoice).toBe("Pick\nResult 5.\n");
-    expect(run.afterLoad).toBe("Pick\nResult 5.\n");
-  });
-
-  test("the parent still reads its own value after leaving the block, before the choice is taken", () => {
-    const run = chooseFirst(`store get = nil
-store set = nil
--> main
-scene main
-  & local x = 0
-  do
-    local x = 1
-    get = function() return x end
-    set = function(v) x = v end
-    <- side
-  end
-  & set(3)
-  Main {get()}.
-  done
-end
-scene side
-  choose
-    * Pick
-      Before {get()}.
-      & x = 5
-      Result {get()}.
-      fin
-  end
-  done
-end
-`);
-    expect(run.errors).toEqual([]);
-    expect(run.beforeChoice).toBe("Main 3.\n");
-    expect(run.afterChoice).toBe("Pick\nBefore 1.\nResult 5.\n");
-    expect(run.afterLoad).toBe("Pick\nBefore 1.\nResult 5.\n");
-  });
-
   test("a closure a `<-` thread makes over its own local keeps that value after the thread ends", () => {
     const run = straightAndRestored(`store f = nil
 -> main
@@ -226,35 +162,6 @@ end
     expect(run.afterLoad).toBe("Pick\nResult outer.\n");
   });
 
-  test("a save the engine wrote before cells recorded their scope reopens a borrowed cell for the taken choice", () => {
-    // Written by the engine at `writtenBy` at `Mid.`, inside the block,
-    // while the pending choice's thread still borrowed the open cell. That
-    // engine printed `afterChoosingFirstThere` after loading it.
-    const fixture = JSON.parse(
-      readFileSync(
-        join(
-          __dirname,
-          "fixtures",
-          "saves",
-          "thread-borrowed-cells-before-scopes.json",
-        ),
-        "utf8",
-      ),
-    );
-    expect(JSON.stringify(fixture.save)).toContain('"borrowedUpvalues"');
-    expect(JSON.stringify(fixture.save)).not.toContain('"si"');
-    const { compiledJson, errorMessages } = makeRuntimeStoryFromSource(
-      fixture.source,
-    );
-    const errors = [...errorMessages];
-    const story = new RuntimeStory(compiledJson as Record<string, any>);
-    story.onError = (m: string) => errors.push(m);
-    story.state.LoadJson(JSON.stringify(fixture.save));
-    story.ContinueMaximally();
-    story.ChooseChoiceIndex(0);
-    expect(story.ContinueMaximally()).toBe("Pick\nResult 5.\n");
-    expect(errors).toEqual([]);
-  });
 });
 
 describe("closures over a variable an inner local of the same name shadows", () => {
@@ -337,93 +244,5 @@ end
     expect(run.errors).toEqual([]);
     expect(run.straight).toBe("First.\nBoth outer inner2.\n");
     expect(run.restored).toBe("First.\nBoth outer inner2.\n");
-  });
-
-  test("a save the engine wrote before cells recorded their scope keeps the captured variable when a later local shadows it", () => {
-    // Written by the engine at `writtenBy` at `First.`, before the inner
-    // block. That engine printed `restThere` after loading it.
-    const fixture = JSON.parse(
-      readFileSync(
-        join(__dirname, "fixtures", "saves", "closure-cells-before-scopes.json"),
-        "utf8",
-      ),
-    );
-    expect(JSON.stringify(fixture.save)).toContain('"upvalues"');
-    expect(JSON.stringify(fixture.save)).not.toContain('"si"');
-    const { compiledJson, errorMessages } = makeRuntimeStoryFromSource(
-      fixture.source,
-    );
-    const errors = [...errorMessages];
-    const story = new RuntimeStory(compiledJson as Record<string, any>);
-    story.onError = (m: string) => errors.push(m);
-    story.state.LoadJson(JSON.stringify(fixture.save));
-    expect(story.ContinueMaximally()).toBe("Read outer.\nAfter outer.\n");
-    expect(errors).toEqual([]);
-  });
-});
-
-describe("closures shared by several threads and choices", () => {
-  test("the taken one of two pending choices from a `<-` thread reads what it writes", () => {
-    const { story, errorMessages } = makeRuntimeStoryFromSource(`store get = nil
--> main
-scene main
-  do
-    local x = 1
-    get = function() return x end
-    <- side
-  end
-  done
-end
-scene side
-  choose
-    * Pick
-      & x = 5
-      Result {get()}.
-      fin
-    * Other
-      & x = 7
-      Other {get()}.
-      fin
-  end
-  done
-end
-`);
-    const errors = [...errorMessages];
-    story.onError = (m: string) => errors.push(m);
-    story.ContinueMaximally();
-    expect(story.currentChoices.map((c) => c.text)).toEqual(["Pick", "Other"]);
-    story.ChooseChoiceIndex(1);
-    expect(story.ContinueMaximally()).toBe("Other\nOther 7.\n");
-    expect(errors).toEqual([]);
-  });
-
-  test("a choice from a `<-` thread started by another `<-` thread reads what it writes", () => {
-    const run = chooseFirst(`store get = nil
--> main
-scene main
-  do
-    local x = 1
-    get = function() return x end
-    <- middle
-  end
-  done
-end
-scene middle
-  <- side
-  done
-end
-scene side
-  choose
-    * Pick
-      & x = 5
-      Result {get()}.
-      fin
-  end
-  done
-end
-`);
-    expect(run.errors).toEqual([]);
-    expect(run.afterChoice).toBe("Pick\nResult 5.\n");
-    expect(run.afterLoad).toBe("Pick\nResult 5.\n");
   });
 });

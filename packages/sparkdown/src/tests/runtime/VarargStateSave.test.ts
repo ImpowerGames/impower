@@ -11,7 +11,7 @@
 // loads the save and runs the rest of the function.
 
 import { describe, expect, test } from "vitest";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function source(callArgs: string): string {
@@ -54,7 +54,7 @@ function saveInsideVarargAndResume(callArgs: string): {
   expect(storyA.pausedBeforeCondition).not.toBeNull();
   const savedJson = storyA.state.toJson();
 
-  const storyB = new RuntimeStory(compiledJson as Record<string, any>);
+  const storyB = testStory(compiledJson as Record<string, any>);
   const recorded: unknown[] = [];
   storyB.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);

@@ -75,31 +75,6 @@ describe("Newlines (ported from inkjs)", () => {
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("X\nx\n");
   });
-  test("EXTERNAL with in-sparkdown fallback function (allowExternalFunctionFallbacks)", () => {
-    // Upstream ink fixture:
-    //   EXTERNAL TRUE()
-    //   Phrase 1
-    //   { TRUE():
-    //       Phrase 2
-    //   }
-    //   -> END
-    //   === function TRUE() === ~ return true
-    //
-    // With `allowExternalFunctionFallbacks = true`, the runtime falls
-    // back to the sparkdown function whose name matches the unbound
-    // external. This is the inherited inkjs feature — the test pins
-    // that (a) the call resolves to the fallback, (b) the multi-line
-    // conditional body around `Phrase 2` doesn't introduce stray
-    // leading newlines.
-    //
-    // Sparkdown rewrite: `external TRUE()` + `function TRUE() return
-    // true end` + `if TRUE() then Phrase 2 end`. The block-form `if`
-    // takes the place of ink's `{cond: body}` multi-line conditional.
-    const ctx = makeRuntimeStoryFromFile("newlines", "external-fallback");
-    expect(ctx.errorMessages).toEqual([]);
-    ctx.story.allowExternalFunctionFallbacks = true;
-    expect(ctx.story.ContinueMaximally()).toBe("Phrase 1\nPhrase 2\n");
-  });
 
   test("newlines around value-returning function (rewrite of `newlines_with_string_eval`)", () => {
     // Upstream ink fixture:

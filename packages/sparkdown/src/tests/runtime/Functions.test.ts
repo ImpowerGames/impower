@@ -9,7 +9,10 @@
 // Runtime-level function behavior is covered by `CallStack.test.ts`.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
+import {
+  collectDiagnosticsFromFile,
+  makeRuntimeStoryFromFile,
+} from "./runtimeTestHarness";
 
 describe("Functions — clean-compile invariants", () => {
   // These tests assert "no diagnostics emitted" for valid sparkdown
@@ -67,7 +70,11 @@ describe("Functions — clean-compile invariants", () => {
     //
     // Sparkdown rewrite: `& aKnot()` for the bad-call form (sparkdown's
     // explicit-statement marker), `-> myFunc` for the bad-divert form.
-    const ctx = makeRuntimeStoryFromFile(
+    //
+    // The compile reports both errors and makes no program a story runs
+    // (its divert to a function is no construct the program engine
+    // carries), so only its diagnostics are read.
+    const ctx = collectDiagnosticsFromFile(
       "functions",
       "function-call-restrictions",
     );

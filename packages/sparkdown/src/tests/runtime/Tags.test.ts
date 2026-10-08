@@ -1,8 +1,7 @@
 // Ported from inkjs `src/tests/specs/ink/Tags.spec.ts`.
 //
-// Sparkdown supports tags — `story.globalTags`, `currentTags`,
-// `TagsForContentAtPath`, and `# tag {expr}` interpolation all work
-// and are validated by the choice-tag tests in `Choices.test.ts` plus
+// Sparkdown supports tags — `currentTags` and `# tag {expr}` interpolation
+// work and are validated by the choice-tag tests in `Choices.test.ts` plus
 // the knot/stitch/sequence/dynamic-content tests below.
 
 import { describe, expect, test } from "vitest";
@@ -16,7 +15,7 @@ function trimmedTags(tags: readonly string[]): string[] {
 }
 
 describe("Tags (ported from inkjs)", () => {
-  test("knot/stitch tags + globalTags + TagsForContentAtPath", () => {
+  test("knot/stitch tags", () => {
     // Upstream ink fixture exercises three tag-API surfaces:
     //   - `globalTags`: tags above the first content line are returned
     //     by `story.globalTags` (file-level metadata).
@@ -36,22 +35,18 @@ describe("Tags (ported from inkjs)", () => {
     // wrapping container). The walker now descends into single-Tag
     // containers at the front of the flow so subsequent tags are also
     // visible.
+    //
+    // The program engine presents neither `globalTags` nor
+    // `TagsForContentAtPath`, the current engine's static reads of the tags
+    // at the top of a container, which nothing outside the engine's tests
+    // calls (#705); the tags each line carries are `currentTags`, as below.
     const ctx = makeRuntimeStoryFromFile("tags", "knot-stitch-tags");
     expect(ctx.errorMessages).toEqual([]);
 
-    expect(trimmedTags(ctx.story.globalTags ?? [])).toEqual([
-      "author: Joe",
-      "version: 1.0",
-    ]);
     expect(ctx.story.Continue()).toBe("This is the content\n");
     expect(trimmedTags(ctx.story.currentTags ?? [])).toEqual([
       "author: Joe",
       "version: 1.0",
-    ]);
-
-    expect(ctx.story.TagsForContentAtPath("knot")).toEqual(["knot tag"]);
-    expect(ctx.story.TagsForContentAtPath("knot.stitch")).toEqual([
-      "stitch tag",
     ]);
 
     ctx.story.ChoosePathString("knot", true, []);

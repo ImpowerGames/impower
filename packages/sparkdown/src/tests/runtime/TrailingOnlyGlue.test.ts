@@ -18,6 +18,7 @@ import {
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
+import { programListing, stringCount } from "../programListing";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { pathLocation } from "../../compiler/utils/pathLocationTable";
 
@@ -99,39 +100,20 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
     }));
 }
 
-// The compiled program's tokens, flattened, with every nested container
-// visited.
-function tokens(json: unknown): unknown[] {
-  const out: unknown[] = [];
-  const visit = (value: unknown): void => {
-    if (Array.isArray(value)) {
-      for (const item of value) visit(item);
-    } else if (value && typeof value === "object") {
-      out.push(value);
-      for (const item of Object.values(value)) visit(item);
-    } else {
-      out.push(value);
-    }
-  };
-  visit(json);
-  return out;
-}
-
-// What the compiled program holds: its `Glue` objects, its `line` markers,
-// its `display` calls, and how many of those tables carry `open`, `glue`,
-// `extend` or `caption`.
+// What the compiled program holds: its `display` calls, and how many of those
+// tables carry `open`, `glue`, `extend` or `caption`, read from the keys its
+// chunks push (`programListing`). The program's instruction set has no
+// instruction for ink's glue or a `line` marker, so no join can emit either.
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
-  const all = tokens(ctx.compiledJson);
+  const all = programListing(ctx.compiledJson);
   return {
-    inkGlue: all.filter((t) => t === "<>").length,
-    line: all.filter((t) => t === "line").length,
-    display: all.filter((t) => t === "stdlib:display:1").length,
-    open: all.filter((t) => t === "^open").length,
-    glue: all.filter((t) => t === "^glue").length,
-    extend: all.filter((t) => t === "^extend").length,
-    caption: all.filter((t) => t === "^caption").length,
+    display: all.filter((t) => /^CallStd display\/1\b/.test(t)).length,
+    open: stringCount(all, "open"),
+    glue: stringCount(all, "glue"),
+    extend: stringCount(all, "extend"),
+    caption: stringCount(all, "caption"),
   };
 }
 
@@ -806,13 +788,11 @@ describe("the compiled program", () => {
     ],
   ];
   for (const [label, source, glue, open] of cases) {
-    test(`${label} emits no Glue and marks each join \`glue\` or \`open\``, () => {
+    test(`${label} marks each join \`glue\` or \`open\``, () => {
       const shape = programShape(source);
-      expect(shape.inkGlue).toBe(0);
       expect(shape.glue).toBe(glue);
       expect(shape.open).toBe(open);
       expect(shape.display).toBeGreaterThan(0);
-      expect(shape.line).toBe(0);
     });
   }
 
@@ -820,19 +800,16 @@ describe("the compiled program", () => {
     ["a touching click", `A.. >\n..B\n`],
     ["a spaced click", `A .. >\n.. B\n`],
   ] as const) {
-    test(`${label} emits no Glue and marks its break \`extend\``, () => {
+    test(`${label} marks its break \`extend\``, () => {
       const shape = programShape(source);
-      expect(shape.inkGlue).toBe(0);
       expect(shape.glue).toBe(0);
       expect(shape.open).toBe(0);
       expect(shape.extend).toBe(1);
-      expect(shape.line).toBe(0);
     });
   }
 
   test("a choose caption is marked `caption`, not `open`", () => {
     const shape = programShape(`choose\n  First.\n  Pick one.\n  * One\nend\n`);
-    expect(shape.inkGlue).toBe(0);
     expect(shape.glue).toBe(0);
     expect(shape.open).toBe(0);
     expect(shape.caption).toBe(1);

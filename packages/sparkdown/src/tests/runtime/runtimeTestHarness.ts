@@ -286,6 +286,32 @@ export function collectDiagnostics(
   return { errorMessages, warningMessages };
 }
 
+/** The visits of the scene, branch or label named `name` (`scene.branch` for
+ *  a branch), as `VisitCountAtPathString` read the current engine's count of
+ *  the container of that path: on the program engine, the count of the
+ *  symbol of that qualified name, which every counted symbol keeps, or 0 for
+ *  one never visited. */
+export function visitCountOf(story: RuntimeStory, name: string): number {
+  const entries = (
+    story.state as unknown as { GetVisitCountEntries(): [string, number][] }
+  ).GetVisitCountEntries();
+  return entries.find(([key]) => key === name)?.[1] ?? 0;
+}
+
+/** The diagnostics of a fixture, by feature folder and name, compiled with no
+ *  story made: for a fixture whose compile reports an error and makes no
+ *  program the engine runs. */
+export function collectDiagnosticsFromFile(
+  feature: string,
+  name: string,
+): { errorMessages: string[]; warningMessages: string[] } {
+  const path = join(FIXTURE_ROOT, feature, `${name}.sd`);
+  return collectDiagnostics(
+    readFileSync(path, "utf8"),
+    `inmemory://${feature}/${name}.sd`,
+  );
+}
+
 // Convenience: run the story to completion and return the accumulated output.
 // Mirrors inkjs's `story.ContinueMaximally()` flow used in their specs.
 export function runToEnd(story: RuntimeStory): string {
