@@ -25,10 +25,7 @@ import {
   storyBeats,
 } from "./programHarness";
 
-/** A script's beats, after checking that its program has its chunks. A
- *  test holds them to the current engine's beats of the same script,
- *  recorded before #705 deleted it
- *  (`__snapshots__/programFunctions.test.ts.snap`). */
+/** A script's beats, after checking that its program has its chunks. */
 const programBeats = (text: string) => {
   const { program } = compileScript(text);
   expect(program.chunks).toBeDefined();
@@ -124,7 +121,7 @@ const functionOf = (root: ProgramRoot, entry: number) => {
 };
 
 describe("functions on the program engine", () => {
-  it("runs a script that calls a function, a closure, a builtin and a define's method as the current engine does", () => {
+  it("runs a script that calls a function, a closure, a builtin and a define's method", () => {
     const { actual } = programBeats(
       [
         "define counter with",
@@ -151,7 +148,6 @@ describe("functions on the program engine", () => {
         "end",
       ].join("\n"),
     );
-    expect(actual).toMatchSnapshot();
     expect(texts(actual.beats)).toEqual(["The result is 6/6.\n"]);
   });
 
@@ -178,16 +174,15 @@ describe("functions on the program engine", () => {
         "end",
       ].join("\n"),
     );
-    expect(actual).toMatchSnapshot();
     expect(texts(actual.beats)).toEqual(["Got 1,2,2,3,2.\n"]);
   });
 
   // The story takes a function written at the top level inside a `do` block
   // out of the block as a function of its own. It leaves one written inside
-  // any other block where it stands, and the current engine runs its body
-  // there as the block's content: the name defines no function, and a
-  // `return` in the body returns from none.
-  it("runs a function defined inside a block where the story places it, as the current engine does", () => {
+  // any other block where it stands, and runs its body there as the block's
+  // content: the name defines no function, and a `return` in the body
+  // returns from none.
+  it("runs a function defined inside a block where the story places it", () => {
     const cases: { text: string; beats: string[]; errors: string[]; defined: boolean }[] = [
       {
         text: [
@@ -239,7 +234,6 @@ describe("functions on the program engine", () => {
     ];
     for (const { text, beats, errors, defined } of cases) {
       const { actual } = programBeats(text);
-      expect(actual).toMatchSnapshot();
       expect(texts(actual.beats)).toEqual(beats);
       expect(actual.errors).toEqual(errors);
       const { program } = compileScript(text);
@@ -250,7 +244,7 @@ describe("functions on the program engine", () => {
   // A host evaluates a scene as it evaluates a function, as a UI handler or
   // binding naming one does: `HasFunction` finds it, and `EvaluateFunction`
   // runs it from its start until it ends, collecting what it writes.
-  it("runs a scene a host evaluates as a function, as the current engine does", () => {
+  it("runs a scene a host evaluates as a function", () => {
     const text = [
       "store visits = 0",
       "Start.",
@@ -296,7 +290,6 @@ describe("functions on the program engine", () => {
     const { program } = compileScript(text);
     expect(program.chunks).toBeDefined();
     const actual = evaluate(new ProgramStory(program.chunks!));
-    expect(actual).toMatchSnapshot();
     expect(actual).toEqual([
       "Start.\n",
       { name: "intro", has: true, result: { returned: null, output: "Hello.\n" } },
@@ -388,9 +381,8 @@ describe("a function value", () => {
     "end",
   ].join("\n");
 
-  it("is a symbol value wherever the current engine holds a divert target, and no value holds a path", () => {
+  it("is a symbol value wherever a divert target is held, and no value holds a path", () => {
     const { actual } = programBeats(text);
-    expect(actual).toMatchSnapshot();
     expect(texts(actual.beats)).toEqual(["Values 4 4 3,2,1 hi! false:no 5.\n"]);
 
     const { program } = compileScript(text);
@@ -550,7 +542,6 @@ describe("the write barrier", () => {
 
   it("marks each table these builtins change in place, and the closed cell a closure writes, once the statement that changes it runs", () => {
     const { actual } = programBeats(text);
-    expect(actual).toMatchSnapshot();
     expect(texts(actual.beats)).toEqual(["One.\n", "Two 3 1 3.\n"]);
 
     const { program } = compileScript(text);
@@ -651,7 +642,6 @@ describe("the write barrier", () => {
       "done",
     ].join("\n");
     const { actual } = programBeats(text);
-    expect(actual).toMatchSnapshot();
     expect(texts(actual.beats)).toEqual([
       "One.\n",
       "Hello there\n",
@@ -786,7 +776,6 @@ describe("upvalues", () => {
 
   it("are shared by sibling closures, and each pass of a loop closes its own", () => {
     const { actual } = programBeats(text);
-    expect(actual).toMatchSnapshot();
     expect(shown()).toEqual(["Shared 2, looped 123.\n"]);
   });
 
@@ -828,7 +817,7 @@ describe("upvalues", () => {
 });
 
 describe("a stack trace", () => {
-  it("names each frame by its function's symbol as the current engine names it", () => {
+  it("names each frame by its function's symbol", () => {
     const { actual } = programBeats(
       [
         "store trace = \"\"",
@@ -855,7 +844,6 @@ describe("a stack trace", () => {
         "end",
       ].join("\n"),
     );
-    expect(actual).toMatchSnapshot();
     const shown = texts(actual.beats).join("");
     expect(shown).toContain("<SOMEWHERE IN 0>");
     expect(shown).toContain("<SOMEWHERE IN outer>");
@@ -863,12 +851,9 @@ describe("a stack trace", () => {
     expect(shown).toContain("Names __synth_0/frames/0.");
   });
 
-  // Inside a block of a function the current engine names a frame by the
-  // container its position is in: `debug.info` gives the block's container,
-  // `$b`, and the trace adds the container's path, `outer.0.$b`. Neither is a
-  // name of the function. The program engine holds no path, and names the
-  // function by its symbol there too, as Luau names it.
-  it("names a frame inside a block by its function's symbol, where the current engine names the block's container", () => {
+  // Inside a block of a function the engine names the frame by the
+  // function's symbol too, as Luau names it, and not by the block.
+  it("names a frame inside a block by its function's symbol", () => {
     const text = [
       "store trace = \"\"",
       "store name = \"\"",

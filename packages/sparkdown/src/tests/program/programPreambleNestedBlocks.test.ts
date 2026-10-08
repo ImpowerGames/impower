@@ -8,28 +8,16 @@
 // that offers a choice is the `choose` statement's own code, so the chunk
 // that raises the choice holds its entry.
 import "../../inkjs/engine/Container";
-import { afterEach, describe, expect, it } from "vitest";
-import { shuffleDraws } from "../../runtime/evaluation";
+import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
-import { ProgramStory } from "../../program/ProgramStory";
 import {
   compileScript,
   describeRoot,
   programSession,
   rootChunks,
-  storyRun,
 } from "./programHarness";
 import { run, silence } from "./programScopes";
-
-const injectDraws = () => {
-  let s = 0x1681;
-  shuffleDraws.next = () => (s = (s * 1103515245 + 12345) & 0x7fffffff);
-};
-
-afterEach(() => {
-  shuffleDraws.next = null;
-});
 
 /** A script whose only scene holds a `choose` block with `preamble` before
  *  its last choice, `Outer`, and a line after the block. */
@@ -47,21 +35,6 @@ const scene = (preamble: readonly string[]) =>
     "",
   ].join("\n");
 
-/** What a script shows on each engine when the choices `picks` names are
- *  taken in turn. */
-const bothEngines = (text: string, picks: number[]) =>
-  silence(() => {
-    const { program } = compileScript(text);
-    expect(program.chunks).toBeDefined();
-    const current = compileScript(text);
-    injectDraws();
-    current.story.ResetState();
-    const expected = storyRun(current.story, picks);
-    injectDraws();
-    const actual = storyRun(new ProgramStory(program.chunks!), picks);
-    return { expected, actual };
-  });
-
 describe("a choice in a block nested inside another block of a choose block's preamble", () => {
   const IF_AROUND_DO = [
     "    if true then",
@@ -73,12 +46,8 @@ describe("a choice in a block nested inside another block of a choose block's pr
     "    end",
   ];
 
-  it("is offered with the block's own choices when an if holds the do, as on the current engine", () => {
+  it("is offered with the block's own choices when an if holds the do", () => {
     const text = scene(IF_AROUND_DO);
-    for (const picks of [[0], [1]]) {
-      const { expected, actual } = bothEngines(text, picks);
-      expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
-    }
     expect(run(text, [0])).toEqual({
       beats: ["Inner 1", "Chose inner 1.", "After."],
       menus: [["Inner 1", "Outer"]],
@@ -91,10 +60,6 @@ describe("a choice in a block nested inside another block of a choose block's pr
 
   it("is not offered when the if that holds the do is false", () => {
     const text = scene(IF_AROUND_DO.map((line) => line.replace("if true", "if false")));
-    for (const picks of [[0]]) {
-      const { expected, actual } = bothEngines(text, picks);
-      expect(actual).toEqual(expected);
-    }
     expect(run(text, [0])).toEqual({
       beats: ["Outer", "Chose outer.", "After."],
       menus: [["Outer"]],
@@ -103,9 +68,7 @@ describe("a choice in a block nested inside another block of a choose block's pr
 
   // The reference offers every pass's choice together with the block's own,
   // as the program engine does for a choice written in the loop's body
-  // itself (#1503). The current engine offers only the first pass's, and
-  // after it is taken offers the block's own choices again, which the
-  // reference does not describe, so the loops are not compared with it.
+  // itself (#1503).
   const LOOPS: Record<string, readonly string[]> = {
     while: [
       "    local i = 0",
@@ -150,7 +113,7 @@ describe("a choice in a block nested inside another block of a choose block's pr
 
   // A choice's body is the lines after it up to the next choice, and a
   // block that offers one is where the next choice is.
-  it("ends the body of a gated choice at a do block after it that offers a choice, and offers both, as on the current engine", () => {
+  it("ends the body of a gated choice at a do block after it that offers a choice, and offers both", () => {
     const text = scene([
       "    if true then",
       "      * Gated",
@@ -161,17 +124,13 @@ describe("a choice in a block nested inside another block of a choose block's pr
       "      end",
       "    end",
     ]);
-    for (const picks of [[0], [1], [2]]) {
-      const { expected, actual } = bothEngines(text, picks);
-      expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
-    }
     const menus = [["Gated", "Nested", "Outer"]];
     expect(run(text, [0])).toEqual({ beats: ["Gated", "Chose gated.", "After."], menus });
     expect(run(text, [1])).toEqual({ beats: ["Nested", "Chose nested.", "After."], menus });
     expect(run(text, [2])).toEqual({ beats: ["Outer", "Chose outer.", "After."], menus });
   });
 
-  it("is offered through a do, an if and a do around it, as on the current engine", () => {
+  it("is offered through a do, an if and a do around it", () => {
     const text = scene([
       "    do",
       "      local x = 2",
@@ -183,12 +142,12 @@ describe("a choice in a block nested inside another block of a choose block's pr
       "      end",
       "    end",
     ]);
-    for (const picks of [[0], [1]]) {
-      const { expected, actual } = bothEngines(text, picks);
-      expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
-    }
     expect(run(text, [0])).toEqual({
       beats: ["Deep 2", "Chose deep 2.", "After."],
+      menus: [["Deep 2", "Outer"]],
+    });
+    expect(run(text, [1])).toEqual({
+      beats: ["Outer", "Chose outer.", "After."],
       menus: [["Deep 2", "Outer"]],
     });
   });

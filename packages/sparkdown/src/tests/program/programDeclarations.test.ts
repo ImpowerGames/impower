@@ -1,6 +1,6 @@
 // A script's top-level declarations compile to its declaration sequence
 // (#695, docs/engine/binary-program.md, section 1): one chunk per declaration
-// statement, run in the order the current engine initializes the globals. A
+// statement, run in the order the story initializes the globals. A
 // compile that re-emitted a declaration chunk, or changed a function, runs
 // every declaration again; one that re-emitted only statements of flows runs
 // none.
@@ -86,11 +86,10 @@ const globalsOf = (
   names: readonly string[],
 ) => Object.fromEntries(names.map((name) => [name, story.variablesState.$(name)]));
 
-/** The globals a cold compile of `text` gives on the current engine. */
+/** The globals a cold compile of `text` gives. */
 const coldGlobals = (text: string, names: readonly string[]) => {
-  const { story } = compileScript(text);
-  story.ResetState();
-  return globalsOf(story, names);
+  const { program } = compileScript(text);
+  return globalsOf(new ProgramStory(program.chunks!), names);
 };
 
 /** Every global a story holds, by the name it is stored under, each read as
@@ -147,9 +146,8 @@ describe("the declaration sequence", () => {
     // The flow holds the line alone: the declarations stand in their
     // sequence.
     expect(root.flowNamed("")!.arrays.chunks).toHaveLength(1);
-    // The sequence is in line order, and the declarations run in the order
-    // the current engine's `global decl` container assigns the globals in,
-    // constants first.
+    // The sequence is in line order, and the declarations run constants
+    // first, then the rest in line order.
     const declared = (chunk: Int32Array) =>
       declarationCode(root)[root.declarations(MAIN_URI)!.arrays.chunks.indexOf(chunk)]!
         .at(-1)!
@@ -160,14 +158,7 @@ describe("the declaration sequence", () => {
       "C",
       "$character_hero",
     ]);
-    const decl = (compileScript(text).program.compiled as { root: unknown[] }).root.at(-1) as {
-      "global decl": unknown[];
-    };
-    const assigned = decl["global decl"].flatMap((obj) =>
-      obj && typeof obj === "object" && "VAR=" in obj ? [(obj as { "VAR=": string })["VAR="]] : [],
-    );
-    expect(root.initialization.map(declared)).toEqual(assigned);
-    expect(assigned).toEqual(["C", "a", "b", "$character_hero"]);
+    expect(root.initialization.map(declared)).toEqual(["C", "a", "b", "$character_hero"]);
     const story = new ProgramStory(root);
     expect(story.declarationsRun).toBe(4);
     expect(globalsOf(story, ["a", "b", "C"])).toEqual({ a: 1, b: 2, C: 3 });
@@ -177,17 +168,24 @@ describe("the declaration sequence", () => {
   // channel. The story keeps each under its own name (`typewriter`,
   // `$typewriter_typewriter`, `$mixer_typewriter`, `$channel_typewriter`),
   // while every one of those declarations is named `typewriter` itself.
-  it("gives every global, the builtins' included, the name and value the current engine gives it", () => {
+  it("declares the builtins' globals, with their values, before the script's own", () => {
     const text = "store count = 1\nHello {count}.\n";
     const config = { seedBuiltinsIntoStory: true };
-    const current = compileScript(text, config).story;
-    current.ResetState();
     const { program } = compileScript(text, { ...config });
     expect(program.chunks).toBeDefined();
-    const expected = everyGlobal(current);
-    expect(Object.keys(expected).length).toBeGreaterThan(300);
-    expect(expected).toHaveProperty("$typewriter_typewriter");
-    expect(everyGlobal(new ProgramStory(program.chunks!))).toEqual(expected);
+    const actual = everyGlobal(new ProgramStory(program.chunks!));
+    expect(Object.keys(actual).length).toBeGreaterThan(300);
+    expect(actual).toHaveProperty("$typewriter_typewriter");
+    // The prelude declares its stores first, then its definitions; the
+    // script's store comes last.
+    expect(Object.keys(actual).slice(0, 4)).toEqual(["metadata", "world", "config", "$config_ui"]);
+    expect(Object.keys(actual).at(-1)).toBe("count");
+    expect(actual).toMatchObject({
+      world: { src: "" },
+      $config_typecheck: { mode: "nonstrict" },
+      video: { src: "" },
+      count: 1,
+    });
   });
 
   // The story initializes every constant before any variable, so a block
@@ -260,9 +258,8 @@ describe("the declaration sequence", () => {
       return c.compile().program;
     };
     const cold = () => {
-      const current = compileScript(text, { seedBuiltinsIntoStory: true }).story;
-      current.ResetState();
-      return everyGlobal(current);
+      const { program } = compileScript(text, { seedBuiltinsIntoStory: true });
+      return everyGlobal(new ProgramStory(program.chunks!));
     };
     c.compile();
     const shadowing = "define action as typewriter with\n  letter_pause = 0.5\nend\nLine.\n";
@@ -366,8 +363,8 @@ describe("the declaration sequence", () => {
 });
 
 describe("a bad initializer", () => {
-  const diagnostics = (text: string, programChunks: boolean) => {
-    const { program } = compileScript(text, { programChunks });
+  const diagnostics = (text: string) => {
+    const { program } = compileScript(text);
     return Object.values(program.diagnostics ?? {})
       .flat()
       .map((d) => ({
@@ -392,41 +389,37 @@ describe("a bad initializer", () => {
     );
   });
 
-  it("reports a constant that reads a variable on the line it reports it without chunks", () => {
+  it("reports a constant that reads a variable at the constant's line", () => {
     const text = "store y = 2\nconst C = y + 1\nHello.\n";
-    const reported = diagnostics(text, true);
-    expect(reported).toEqual(diagnostics(text, false));
-    expect(reported.map((d) => d.line)).toEqual([1]);
+    const reported = diagnostics(text);
+    expect(reported).toEqual([
+      { line: 1, message: "A const must be initialized to a constant expression; `y` is not a const." },
+    ]);
   });
 
-  // The declarations the store runs raise the error, and the program falls
-  // back to the current engine, whose reset raises it as it does without
-  // chunks: the compile logs it and emits no program.
-  it("raises an initializer's error from the compile as the current engine does", () => {
+  // The declarations the store runs raise the error, which stops the
+  // compile: it logs the error and emits no program.
+  it("raises an initializer's error from the compile, which emits no program", () => {
     const text = 'const A = 2\nconst C = A * 3 + "x"\nHello.\n';
-    const compiled = (programChunks: boolean) => {
+    const compiled = () => {
       const { warn, error } = console;
       const logged: string[] = [];
       console.warn = console.error = (...args: unknown[]) => {
         logged.push(String(args[0]));
       };
       try {
-        const { program } = compileScript(text, { programChunks });
+        const { program } = compileScript(text);
         return { program, logged };
       } finally {
         console.warn = warn;
         console.error = error;
       }
     };
-    const withChunks = compiled(true);
-    const without = compiled(false);
-    expect(withChunks.program.fallback?.construct).toBe("initializer error");
-    expect(withChunks.program.chunks).toBeUndefined();
-    expect(withChunks.program.compiled).toBeUndefined();
-    expect(without.program.compiled).toBeUndefined();
-    expect(withChunks.logged).toEqual(without.logged);
-    expect(withChunks.logged.join("\n")).toContain(
-      "attempt to perform arithmetic (+) on a string value",
-    );
+    const result = compiled();
+    expect(result.program.chunks).toBeUndefined();
+    expect(result.program.compiled).toBeUndefined();
+    expect(result.logged).toEqual([
+      "StoryException: Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: RUNTIME ERROR: 'main' line 2: attempt to perform arithmetic (+) on a string value",
+    ]);
   });
 });

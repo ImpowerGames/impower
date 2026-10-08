@@ -1,8 +1,7 @@
 // Display beats compiled to statement chunks and run by the program engine
 // (#694, docs/engine/binary-program.md): what the writer emits for a display
-// statement, that the engine shows every beat the current engine shows, and
-// that a program holding a construct the writer does not emit falls back
-// whole and names it.
+// statement, the beats the engine shows for it, and that a construct the
+// writer does not emit is a compile error at the line of its statement.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
@@ -16,8 +15,7 @@ import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedCon
 import { compileScript, errorsOf, storyBeats } from "./programHarness";
 
 // An `if` written in a `choose` block's preamble that gates two choices with
-// a label between them, which the writer does not emit: the current engine
-// raises the second only once the first is taken.
+// a label between them, which the writer does not emit.
 const PREAMBLE_THEN =
   "  if true then\n    * [B]\n    label mid\n    * [C]\n  end\n";
 const PREAMBLE_THEN_CONSTRUCT = "a label between choices an if gates";
@@ -101,41 +99,87 @@ describe("the writer", () => {
   });
 });
 
-// Each script runs from its top on both engines. The current engine is the
-// story the compile produced, which holds the debug metadata a warning names
-// its line from.
-const PARITY: Record<string, string> = {
-  "action and dialogue": "Hello there.\nBOB: Hi.\nThe end.\n",
-  "a trailing-glue chain": "Some ..\n.. content ..\n.. with glue.\ndone\n",
-  "glued dialogue": "HERO: One ..\nHERO: .. two ..\nHERO: .. three.\ndone\n",
-  "a glued line before a plain one": "You see a ..\nIt is locked.\nAfter.\n",
-  "a leading glue that joins nothing":
+/** A beat a script shows: its text, trimmed, or that with its tags and the
+ *  tables of its display calls, each table's entries in order. */
+type Shown = string | { text: string; tags?: string[]; tables?: [string, unknown][][] };
+
+const UNJOINED =
+  "RUNTIME WARNING: 'main' line 3: This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
+
+// Each script runs from its top (from MAIN when it is one scene), and shows
+// these beats and reports these errors.
+const SHOWS: Record<string, [string, Shown[], string[]?]> = {
+  "action and dialogue": [
+    "Hello there.\nBOB: Hi.\nThe end.\n",
+    [
+      { text: "Hello there.", tables: [[["target", "action"], ["text", "Hello there."]]] },
+      { text: "Hi.", tables: [[["target", "dialogue"], ["character", "BOB"], ["text", "Hi."]]] },
+      { text: "The end.", tables: [[["target", "action"], ["text", "The end."]]] },
+    ],
+  ],
+  "a trailing-glue chain": ["Some ..\n.. content ..\n.. with glue.\ndone\n", ["Some content with glue."]],
+  "glued dialogue": ["HERO: One ..\nHERO: .. two ..\nHERO: .. three.\ndone\n", ["One two three."]],
+  "a glued line before a plain one": [
+    "You see a ..\nIt is locked.\nAfter.\n",
+    ["You see a", "It is locked.", "After."],
+  ],
+  "a leading glue that joins nothing": [
     "scene MAIN\n  First.\n  .. Second.\n  Third.\nend\n",
-  "a lone leading glue in a block body": "HERO:\n  First.\n  .. second.\ndone\n",
-  "breaks": "First >\nLast.\ndone\n",
-  "a trailing glue before a break": "First .. >\n.. second.\nLast.\ndone\n",
-  "a continuation's beats after a break":
+    ["First.", "Second.", "Third."],
+    [`2: ${UNJOINED}`],
+  ],
+  "a lone leading glue in a block body": [
+    "HERO:\n  First.\n  .. second.\ndone\n",
+    ["First.\nsecond."],
+    [`2: ${UNJOINED}`],
+  ],
+  "breaks": ["First >\nLast.\ndone\n", ["First", "Last."]],
+  "a trailing glue before a break": ["First .. >\n.. second.\nLast.\ndone\n", ["First", "second.", "Last."]],
+  "a continuation's beats after a break": [
     "HERO: Wait ..\n.. right there. > And then more.\nAfter.\n",
-  "tags": "# chapter one\nA line. # mood\nB line # a # b\n",
-  "a load line": "load hero villain\nAfter the load.\n",
-  "a scene with a block dialogue":
+    ["Wait right there.", "And then more.", "After."],
+  ],
+  "tags": [
+    "# chapter one\nA line. # mood\nB line # a # b\n",
+    [
+      { text: "A line.", tags: ["chapter one", "mood"] },
+      { text: "B line", tags: ["a", "b"] },
+    ],
+  ],
+  "a load line": [
+    "load hero villain\nAfter the load.\n",
+    [{ text: "", tables: [[["load", "hero villain"]]] }, "After the load."],
+  ],
+  "a scene with a block dialogue": [
     "scene MAIN\n  In the scene.\n  BOB:\n    (quietly)\n    Hello.\nend\n",
-  "fin": "One.\nfin\nTwo.\n",
-  "a store beside the lines": "store x = 3\nA plain line.\n",
-  "glue inside a block body": "HERO:\n  First ..\n  .. second.\ndone\n",
-  "a line with a comment": "A line // with a comment\nB line\n",
-  "content after a scene's end": "scene MAIN\n  Inside.\nend\nAfter end.\n",
+    ["In the scene.", "(quietly)\nHello."],
+  ],
+  "fin": ["One.\nfin\nTwo.\n", ["One."]],
+  "a store beside the lines": ["store x = 3\nA plain line.\n", ["A plain line."]],
+  "glue inside a block body": ["HERO:\n  First ..\n  .. second.\ndone\n", ["First second."]],
+  "a line with a comment": ["A line // with a comment\nB line\n", ["A line", "B line"]],
+  "content after a scene's end": ["scene MAIN\n  Inside.\nend\nAfter end.\n", ["Inside.", "After end."]],
 };
 
 describe("the engine", () => {
-  for (const [name, text] of Object.entries(PARITY)) {
-    it(`shows ${name} as the current engine does`, () => {
+  for (const [name, [text, beats, errors = []]] of Object.entries(SHOWS)) {
+    it(`shows ${name}`, () => {
       const from = text.startsWith("scene MAIN") ? "MAIN" : undefined;
       const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
       const actual = storyBeats(new ProgramStory(program.chunks!), from);
-      expect(actual).toMatchSnapshot();
-      expect(actual.beats.length).toBeGreaterThan(0);
+      const shown = actual.beats.map((beat, i): Shown => {
+        const want = beats[i];
+        const text = beat.text.trim();
+        if (typeof want !== "object") return text;
+        return {
+          text,
+          ...(want.tags ? { tags: beat.tags } : {}),
+          ...(want.tables ? { tables: beat.tables as [string, unknown][][] } : {}),
+        };
+      });
+      expect(shown).toEqual(beats);
+      expect(actual.errors).toEqual(errors);
     });
   }
 
