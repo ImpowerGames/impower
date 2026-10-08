@@ -48,7 +48,7 @@ export class TunnelOnwards extends ParsedObject {
       if (key !== null) {
         emitter.recordResolution(key);
       }
-      const variable = after.runtimeDivert.variableDivertName;
+      const variable = after.variableDivertName;
       if (variable != null) {
         emitter.emit(Op.GetVar, emitter.variable(variable));
       } else {
@@ -61,6 +61,13 @@ export class TunnelOnwards extends ParsedObject {
       }
     }
     emitter.emit(Op.TunnelReturn);
+  }
+
+  /** What `GenerateRuntimeObject` does without the runtime objects: the
+   *  divert it goes on with prepared, as generation generates it, uncached. */
+  protected override Prepare(): boolean {
+    this.divertAfter?.PrepareUncached();
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

@@ -26,6 +26,14 @@ export class BinaryExpression extends Expression {
     return "BinaryExpression";
   }
 
+  public override PrepareIntoContainer(): void {
+    // Generation names the operator by its native name, which is what a
+    // divert target compared with `!=` reads afterwards.
+    this.opName = this.NativeNameForOp(this.opName);
+    this.leftExpression.PrepareIntoContainer();
+    this.rightExpression.PrepareIntoContainer();
+  }
+
   public readonly GenerateIntoContainer = (container: RuntimeContainer) => {
     this.opName = this.NativeNameForOp(this.opName);
     // Lua `and`/`or` short-circuit: evaluate the LHS, then a

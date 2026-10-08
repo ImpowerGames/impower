@@ -14,6 +14,9 @@ import { Op } from "../../../../../program/ProgramInstructions";
 
 export class IncDecExpression extends Expression {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
+  // Whether preparation on the program path made the assignment, as
+  // `_runtimeAssignment` says generation did; kept as that is.
+  private _preparedAssignment = false;
 
   public isInc: boolean;
   public expression: Expression | null = null;
@@ -38,6 +41,11 @@ export class IncDecExpression extends Expression {
 
   override get typeName(): string {
     return "IncDecExpression";
+  }
+
+  public override PrepareIntoContainer(): void {
+    this.expression?.PrepareIntoContainer();
+    this._preparedAssignment = true;
   }
 
   public readonly GenerateIntoContainer = (
@@ -103,11 +111,11 @@ export class IncDecExpression extends Expression {
       );
     }
 
-    if (!this._runtimeAssignment) {
+    if (program ? !this._preparedAssignment : !this._runtimeAssignment) {
       throw new Error();
     }
 
-    if (!program) {
+    if (!program && this._runtimeAssignment) {
       this._runtimeAssignment.isGlobal = varResolveResult.isGlobal;
     }
 

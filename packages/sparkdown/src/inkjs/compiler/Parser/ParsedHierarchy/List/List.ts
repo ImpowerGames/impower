@@ -15,6 +15,11 @@ export class List extends Expression {
     return "List";
   }
 
+  /** Sparkdown builds no list expression (`docs/runtime/DIVERGENCES.md`). */
+  public override PrepareIntoContainer(): void {
+    throw new Error(`${this.typeName} has no preparation for the program path`);
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

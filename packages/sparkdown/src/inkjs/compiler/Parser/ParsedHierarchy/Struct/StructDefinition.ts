@@ -56,6 +56,10 @@ export class StructDefinition extends ParsedObject {
     this.AddContent(propertyDefinitions as any);
   }
 
+  protected override Prepare(): boolean {
+    throw new Error("Not implemented.");
+  }
+
   public readonly GenerateRuntimeObject = () => {
     throw new Error("Not implemented.");
   };

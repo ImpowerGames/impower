@@ -12,35 +12,16 @@
 // diagnostics on main's `ExportRuntime` are checked to be the resolver's
 // (`diverts/dotted-divert-targets-with-arguments.sd`, at bbc912833).
 import "../../inkjs/engine/Container";
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import { autoGlobalScreenplay } from "./autoGlobalScreenplay";
-import { chooseScreenplay } from "./chooseScreenplay";
-import { displayScreenplay } from "./displayScreenplay";
-import { flowScreenplay } from "./flowScreenplay";
-import { captureScreenplay, functionScreenplay } from "./functionScreenplay";
-import { logicScreenplay } from "./logicScreenplay";
+import { fixtures } from "./differentialFixtures";
 import { MAIN_URI, programCompiler } from "./programHarness";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURES = join(HERE, "..", "runtime", "fixtures");
 const RECORD = join(HERE, "fixtures", "resolver-diagnostics.json");
-
-const fixtureFiles = (dir: string, out: string[] = []): string[] => {
-  for (const name of readdirSync(dir).sort()) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
-      fixtureFiles(full, out);
-    } else if (name.endsWith(".sd")) {
-      out.push(full);
-    }
-  }
-  return out;
-};
 
 function stable(value: unknown): string {
   const walk = (v: any): any => {
@@ -54,25 +35,6 @@ function stable(value: unknown): string {
   };
   return JSON.stringify(walk(value));
 }
-
-/** The fixtures of the differential run, by name. */
-const fixtures = (): [string, string][] => {
-  const { files } = buildBeatsFixture({ lines: 300 });
-  const beats = files.get("main.sd")!.replace("include scripts/characters\n", "");
-  return [
-    ...fixtureFiles(FIXTURES).map(
-      (file): [string, string] => [relative(FIXTURES, file).split(sep).join("/"), readFileSync(file, "utf8")],
-    ),
-    ["beats", beats],
-    ["display screenplay", displayScreenplay()],
-    ["logic screenplay", logicScreenplay(3)],
-    ["function screenplay", functionScreenplay(3)],
-    ["capture screenplay", captureScreenplay(3)],
-    ["flow screenplay", flowScreenplay(3)],
-    ["choose screenplay", chooseScreenplay(3)],
-    ["auto-global screenplay", autoGlobalScreenplay(4)],
-  ];
-};
 
 interface Recorded {
   /** The construct the program falls back for, or none. */

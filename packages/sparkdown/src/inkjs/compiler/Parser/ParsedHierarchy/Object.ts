@@ -148,6 +148,60 @@ export abstract class ParsedObject {
     this._runtimeObject = value;
   }
 
+  /**
+   * Prepares the object for the program path's resolution, as `runtimeObject`
+   * generates it for the current engine, and builds nothing (#705): the
+   * object's `Prepare` does what its `GenerateRuntimeObject` does besides
+   * building runtime objects (the declarations it makes, the diagnostics it
+   * reports, the early resolution of a divert's target, the parsed fields a
+   * resolution or the writer reads afterwards) and prepares the children
+   * generation generates, in its order. The resolver taps hear it as they
+   * hear a generation (`visited`, `left`), and an object is prepared once, as
+   * a generated object keeps its runtime object, until `ResetRuntime`; one
+   * whose generation makes no runtime object (a global's declaration) is
+   * prepared again each time it is asked, as it is generated again.
+   */
+  public prepare(): void {
+    if (this._prepared) {
+      return;
+    }
+    const tap = resolutionTap();
+    let made: boolean;
+    if (tap) {
+      tap.visited(this, true);
+      try {
+        made = this.Prepare();
+      } finally {
+        tap.left(this, true);
+      }
+    } else {
+      made = this.Prepare();
+    }
+    this._prepared = made;
+  }
+
+  /** What a direct call of `GenerateRuntimeObject` does on the program path
+   *  (a divert target's divert, a choice's contents, an onward return's
+   *  divert): `Prepare`, heard by no tap and kept by nothing, as such a
+   *  generation is. */
+  public PrepareUncached(): boolean {
+    return this.Prepare();
+  }
+
+  /** Whether the object has been prepared since its last `ResetRuntime`. */
+  get isPrepared(): boolean {
+    return this._prepared;
+  }
+
+  /** What generating the object does on the program path, without the
+   *  runtime objects (`prepare`); whether its generation makes a runtime
+   *  object. Each class that generates says what its generation does. */
+  protected Prepare(): boolean {
+    throw new Error(`${this.typeName} has no preparation for the program path`);
+  }
+
+  private _prepared = false;
+
   get runtimePath(): RuntimePath {
     if (!this.runtimeObject.path) {
       throw new Error();
@@ -438,6 +492,7 @@ export abstract class ParsedObject {
 
   public ResetRuntime() {
     this._runtimeObject = null;
+    this._prepared = false;
     this._errorEpoch = 0;
     this._warningEpoch = 0;
     this.OnResetRuntime();

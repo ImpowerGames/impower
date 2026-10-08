@@ -242,12 +242,22 @@ function buildDisplayCalls(
 // A `..` that ends a line of a display body, held in the body until
 // `buildDisplayCalls` or `joinMidBodyGlue` resolves it. It generates nothing.
 class GlueMark extends ParsedObject {
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
   public readonly GenerateRuntimeObject = (): null => null;
 }
 
 // A `..` that begins a line of a body, held in the body in the same way,
 // with the source range of the mark.
 class LeadMark extends ParsedObject {
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
   public readonly GenerateRuntimeObject = (): null => null;
   constructor(public readonly range: { from: number; to: number }) {
     super();

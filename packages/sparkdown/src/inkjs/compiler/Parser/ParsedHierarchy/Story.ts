@@ -773,6 +773,51 @@ export class Story extends FlowBase {
     return { variableInitialization, runtimeLists };
   }
 
+  /** What `InitializeGlobals` does on the program path, which builds no
+   *  container (#705): the story's globals in the order the story declared
+   *  them, each list's and struct's runtime definition, and `prepare` called
+   *  for each global with an initializer, where `InitializeGlobals` has
+   *  `generate` write it (`ProgramResolver.initialize`). Returns the lists'
+   *  runtime definitions. */
+  public PrepareGlobals(
+    implicitParentNames: ReadonlySet<string>,
+    runtimeStructs: RuntimeStructDefinition[],
+    prepare: (value: VariableAssignment) => void,
+    runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
+  ): RuntimeListDefinition[] {
+    const runtimeLists: RuntimeListDefinition[] = [];
+    for (const [key, value] of this.variableDeclarations) {
+      if (
+        implicitParentNames.has(key) ||
+        (value.isPreludeDeclaration &&
+          !value.expression &&
+          !value.structDefinition &&
+          !value.listDefinition)
+      ) {
+        continue;
+      }
+      if (value.isGlobalDeclaration) {
+        if (value.listDefinition) {
+          this._listDefs.set(key, value.listDefinition);
+          runtimeLists.push(value.listDefinition.runtimeListDefinition);
+          value.listDefinition.prepare();
+        } else {
+          if (value.structDefinition) {
+            this._structDefs.set(key, value.structDefinition);
+            runtimeStructs.push(runtimeStructOf(value.structDefinition));
+          }
+          if (value.expression) {
+            prepare(value);
+          } else if (!value.structDefinition) {
+            // Non-struct global declaration must have an expression.
+            throw new Error();
+          }
+        }
+      }
+    }
+    return runtimeLists;
+  }
+
   /** Set while the program path's resolver resolves the story
    *  (`ProgramResolver`, `SparkdownCompilerConfig.programChunks`): the program
    *  runs nothing of the runtime tree and counts every counted symbol

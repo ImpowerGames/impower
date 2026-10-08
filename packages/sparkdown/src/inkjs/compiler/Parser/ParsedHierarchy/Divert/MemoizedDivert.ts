@@ -59,6 +59,13 @@ export class MemoizedDivert extends Divert {
     this.isEmpty = recorded.isEmpty;
   }
 
+  /** What its generation does: the memo's record reported again (`memoGenerate`), and a divert with no variable target. */
+  protected override Prepare(): boolean {
+    memoGenerate(this);
+    this.beginGeneration();
+    return true;
+  }
+
   public override readonly GenerateRuntimeObject = () => {
     memoGenerate(this);
     const divert = new RuntimeDivert();

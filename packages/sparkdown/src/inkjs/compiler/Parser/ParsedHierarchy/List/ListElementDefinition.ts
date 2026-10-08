@@ -36,6 +36,10 @@ export class ListElementDefinition extends ParsedObject {
     this.parent = this.parent as ListDefinition;
   }
 
+  protected override Prepare(): boolean {
+    throw new Error("Not implemented.");
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     throw new Error("Not implemented.");
   };

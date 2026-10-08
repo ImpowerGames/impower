@@ -24,6 +24,10 @@ export class SingleValueExpression extends Expression {
     return "SingleValue";
   }
 
+  public override PrepareIntoContainer(): void {
+    this.innerExpression.PrepareIntoContainer();
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

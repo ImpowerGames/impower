@@ -57,6 +57,21 @@ export class ObjectExpression extends Expression {
     return "Object";
   }
 
+  public override PrepareIntoContainer(): void {
+    for (const entry of this._entries) {
+      if (entry.key instanceof Expression) {
+        entry.key.PrepareIntoContainer();
+      } else {
+        // A static key's string, parented and kept by nothing, as
+        // generation builds it.
+        const keyExpr = new StringExpression([new Text(entry.key)]);
+        keyExpr.parent = this;
+        keyExpr.PrepareIntoContainer();
+      }
+      entry.value.PrepareIntoContainer();
+    }
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

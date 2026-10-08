@@ -28,6 +28,9 @@ export class DivertTarget extends Expression {
   }
 
   private _runtimeDivertTargetValue: DivertTargetValue | null = null;
+  // Whether the target was prepared on the program path since its last
+  // `ResetRuntime`, as `_runtimeDivert` says it was generated.
+  private _preparedTarget = false;
   get runtimeDivertTargetValue(): DivertTargetValue {
     if (!this._runtimeDivertTargetValue) {
       throw new Error();
@@ -70,7 +73,7 @@ export class DivertTarget extends Expression {
       emitter.emit(Op.Sym, symbol);
       return;
     }
-    if (this._runtimeDivert?.variableDivertName != null) {
+    if (this.divert.variableDivertName != null) {
       emitter.unsupported(this.typeName);
     }
     const key = this.divert.programJumpKey;
@@ -80,6 +83,13 @@ export class DivertTarget extends Expression {
     const symbol = emitter.targetSymbol(target, this.divert.writtenTargetName);
     emitter.referenceTarget(symbol);
     emitter.emit(Op.Sym, symbol);
+  }
+
+  /** What `GenerateIntoContainer` does without the runtime value: its
+   *  divert prepared, as generation generates it, on every call. */
+  public override PrepareIntoContainer(): void {
+    this.divert.PrepareUncached();
+    this._preparedTarget = true;
   }
 
   public readonly GenerateIntoContainer = (
@@ -194,7 +204,13 @@ export class DivertTarget extends Expression {
     // than a variable name. We can't really intelligently recover from this (e.g. if blah happens to
     // contain a divert target itself) since really we should be generating a variable reference
     // rather than a concrete DivertTarget, so we list it as an error.
-    if (this.runtimeDivert.hasVariableTarget) {
+    if (!program && !this._runtimeDivert) {
+      throw new Error();
+    }
+    if (program && !this._preparedTarget) {
+      throw new Error();
+    }
+    if (this.divert.variableDivertName != null) {
       if (!this.divert.target) {
         throw new Error();
       }
@@ -288,5 +304,6 @@ export class DivertTarget extends Expression {
   override OnResetRuntime(): void {
     this._runtimeDivert = null;
     this._runtimeDivertTargetValue = null;
+    this._preparedTarget = false;
   }
 }

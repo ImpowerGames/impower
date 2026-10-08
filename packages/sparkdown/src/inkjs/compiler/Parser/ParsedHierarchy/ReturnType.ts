@@ -34,6 +34,11 @@ export class ReturnType extends ParsedObject {
     emitter.emit(Op.Return);
   }
 
+  protected override Prepare(): boolean {
+    this.returnedExpression?.prepare();
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
 

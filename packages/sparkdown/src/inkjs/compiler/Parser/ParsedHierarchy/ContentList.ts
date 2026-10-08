@@ -50,6 +50,13 @@ export class ContentList extends ParsedObject {
     }
   };
 
+  protected override Prepare(): boolean {
+    for (const obj of this.content ?? []) {
+      obj.prepare();
+    }
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
     if (this.content !== null) {

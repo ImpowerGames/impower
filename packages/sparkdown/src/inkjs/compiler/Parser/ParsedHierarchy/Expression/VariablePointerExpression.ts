@@ -32,6 +32,10 @@ export class VariablePointerExpression extends Expression {
     return "VariablePointerExpression";
   }
 
+  /** Nothing but the pointer it pushes. */
+  public override PrepareIntoContainer(): void {
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

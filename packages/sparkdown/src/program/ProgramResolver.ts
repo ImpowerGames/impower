@@ -922,12 +922,11 @@ export class ProgramResolver {
       this.generateFlow(root);
 
       const implicitParentNames = story.DeclareImplicitParents(structs);
-      const { runtimeLists } = story.InitializeGlobals(
+      const runtimeLists = story.PrepareGlobals(
         implicitParentNames,
         runtimeStructs,
-        (value, container) => this.initialize(value, container),
+        (value) => this.initialize(value),
         this.runtimeStructOf,
-        false,
       );
       runtimeStory = story.MakeRuntimeStory(
         new RuntimeContainer(),
@@ -1621,7 +1620,7 @@ export class ProgramResolver {
           break;
         case "loose":
           this.passesLastResolve.loose += 1;
-          void item.obj.runtimeObject;
+          item.obj.prepare();
           break;
         case "flow":
           this.generateFlow(item.node);
@@ -1643,15 +1642,15 @@ export class ProgramResolver {
     this.record(unit, unit.next!.gen, () => {
       for (const member of unit.members) {
         if (!unit.skipGeneration?.has(member)) {
-          void member.runtimeObject;
+          member.prepare();
         }
       }
     });
   }
 
-  /** Writes the initializer of the global `value`, which `InitializeGlobals`
+  /** Prepares the initializer of the global `value`, which `PrepareGlobals`
    *  hands over in the order the story declared the globals. */
-  protected initialize(value: VariableAssignment, container: RuntimeContainer): void {
+  protected initialize(value: VariableAssignment): void {
     // The global of a constant or of a struct's property is made anew by
     // every compile, and its initializer is the statement's own.
     const initializer = value.expression!;
@@ -1662,7 +1661,7 @@ export class ProgramResolver {
       // resolve.
       this.passesLastResolve.initialized += 1;
       this.outside(initializer);
-      initializer.GenerateIntoContainer(container);
+      initializer.PrepareIntoContainer();
       return;
     }
     if (!unit.fresh) {
@@ -1677,14 +1676,14 @@ export class ProgramResolver {
         // resolved again: written, and nothing recorded.
         this.passesLastResolve.initialized += 1;
         this.outside(initializer);
-        initializer.GenerateIntoContainer(container);
+        initializer.PrepareIntoContainer();
       }
       return;
     }
     this.passesLastResolve.initialized += 1;
     const events: ResolutionEvent[] = [];
     unit.next!.init.set(initializer, events);
-    this.record(unit, events, () => initializer.GenerateIntoContainer(container));
+    this.record(unit, events, () => initializer.PrepareIntoContainer());
   }
 
   /** The runtime definition of `struct`, which `DeclareStoryTables` and

@@ -10,6 +10,16 @@ export class Wrap<T extends RuntimeObject> extends ParsedObject {
     super();
   }
 
+  /** The runtime-layer object it stands for: a scope marker or a tag. */
+  get wrapped(): T {
+    return this._objToWrap;
+  }
+
+  /** Nothing but the object it wraps. */
+  protected override Prepare(): boolean {
+    return this._objToWrap != null;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => this._objToWrap;
 
   // A block's scope markers are the instructions of the same names, and a

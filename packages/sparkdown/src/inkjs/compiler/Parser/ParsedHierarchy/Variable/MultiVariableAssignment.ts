@@ -91,6 +91,16 @@ export class MultiVariableAssignment extends ParsedObject {
     }
   }
 
+  protected override Prepare(): boolean {
+    for (const expr of this.expressions) {
+      expr.prepare();
+    }
+    for (const va of this.targetAssignments) {
+      va.prepare();
+    }
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
     for (const expr of this.expressions) {

@@ -78,6 +78,28 @@ export class ConditionalSingleBranch extends ParsedObject {
   //  - Branch to a named container if true
   //       - Divert back to main flow
   //         (owner Conditional is in control of this target point)
+  /** What `GenerateRuntimeObject` does without the runtime objects: the
+   *  `else:` written as content reported, the branch's test prepared, and
+   *  the branch's weave. */
+  protected override Prepare(): boolean {
+    if (this._innerWeave) {
+      for (const c of this._innerWeave.content) {
+        const text = asOrNull(c, Text);
+        if (text && text.text.startsWith("else:")) {
+          this.Warning(
+            "Saw the text 'else:' which is being treated as content. Did you mean '- else:'?",
+            text,
+          );
+        }
+      }
+    }
+    if (!this.isTrueBranch && !this.isElse && this.ownExpression) {
+      this.ownExpression.PrepareIntoContainer();
+    }
+    this._innerWeave?.prepareRoot();
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     // Check for common mistake, of putting "else:" instead of "- else:"
     if (this._innerWeave) {
@@ -211,12 +233,16 @@ export class ConditionalSingleBranch extends ParsedObject {
   };
 
   public override ResolveWith(context: Story, program: boolean): void {
-    if (!this._conditionalDivert || !this._contentContainer) {
+    if (
+      program
+        ? !this.isPrepared
+        : !this._conditionalDivert || !this._contentContainer
+    ) {
       throw new Error();
     }
 
     if (!program) {
-      this._conditionalDivert.targetPath = this._contentContainer.path;
+      this._conditionalDivert!.targetPath = this._contentContainer!.path;
     }
     super.ResolveWith(context, program);
   }

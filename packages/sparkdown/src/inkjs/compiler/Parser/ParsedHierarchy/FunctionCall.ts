@@ -140,6 +140,84 @@ export class FunctionCall extends Expression {
     this.AddContent(subContent);
   }
 
+  /** What `GenerateIntoContainer` does without the runtime objects: the
+   *  same branch by the call's name, with its diagnostics, the target a read
+   *  count or turns since counts taken into the call's content, the
+   *  arguments prepared, and the proxy divert prepared for a call of a
+   *  function and taken out of the content for any other call. */
+  public override PrepareIntoContainer(): void {
+    let usingProxyDivert: boolean = false;
+
+    if (this.isTurnsSince || this.isReadCount) {
+      const divertTarget = asOrNull(this.args[0], DivertTarget);
+      const variableDivertTarget = asOrNull(this.args[0], VariableReference);
+
+      if (
+        this.args.length !== 1 ||
+        (divertTarget === null && variableDivertTarget === null)
+      ) {
+        this.Error(
+          `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(-> myKnot)`,
+        );
+        return;
+      }
+
+      if (divertTarget) {
+        this._divertTargetToCount = divertTarget;
+        this.AddContentOnce(this._divertTargetToCount);
+        this._divertTargetToCount.PrepareIntoContainer();
+      } else if (variableDivertTarget) {
+        this._variableReferenceToCount = variableDivertTarget;
+        this.AddContentOnce(this._variableReferenceToCount);
+        this._variableReferenceToCount.PrepareIntoContainer();
+      }
+    } else if (this.isListRange) {
+      if (this.args.length !== 3) {
+        this.Error(
+          "LIST_RANGE should take 3 parameters - a list, a min and a max",
+        );
+      }
+      for (let ii = 0; ii < this.args.length; ii += 1) {
+        this.args[ii]!.PrepareIntoContainer();
+      }
+    } else if (this.isListRandom) {
+      if (this.args.length !== 1) {
+        this.Error("LIST_RANDOM should take 1 parameter - a list");
+      }
+      this.args[0]!.PrepareIntoContainer();
+    } else if (this.isStateAwareStdLib) {
+      for (const arg of this.args) {
+        arg.PrepareIntoContainer();
+      }
+    } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
+      const nativeCall = NativeFunctionCall.CallWithName(this.name);
+      if (
+        !nativeCall.isVariadic &&
+        nativeCall.numberOfParameters !== this.args.length
+      ) {
+        let msg = `${this.name} should take ${nativeCall.numberOfParameters} parameter`;
+        if (nativeCall.numberOfParameters > 1) {
+          msg += "s";
+        }
+        msg += `, got ${this.args.length}`;
+        this.Error(msg, this, true);
+      }
+      for (let ii = 0; ii < this.args.length; ii += 1) {
+        this.args[ii]!.PrepareIntoContainer();
+      }
+    } else {
+      this._proxyDivert.prepare();
+      usingProxyDivert = true;
+    }
+
+    if (!usingProxyDivert) {
+      const proxyIndex = this.content.indexOf(this._proxyDivert);
+      if (proxyIndex >= 0) {
+        this.content.splice(proxyIndex, 1);
+      }
+    }
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {
@@ -396,12 +474,15 @@ export class FunctionCall extends Expression {
 
     if (this._divertTargetToCount) {
       const divert = this._divertTargetToCount.divert;
+      if (!divert.isGenerated) {
+        throw new Error();
+      }
       const attemptingTurnCountOfVariableTarget =
-        divert.runtimeDivert.variableDivertName != null;
+        divert.variableDivertName != null;
 
       if (attemptingTurnCountOfVariableTarget) {
         this.Error(
-          `When getting the TURNS_SINCE() of a variable target, remove the '->' - i.e. it should just be TURNS_SINCE(${divert.runtimeDivert.variableDivertName})`,
+          `When getting the TURNS_SINCE() of a variable target, remove the '->' - i.e. it should just be TURNS_SINCE(${divert.variableDivertName})`,
         );
 
         return;
@@ -425,7 +506,11 @@ export class FunctionCall extends Expression {
       }
     } else if (this._variableReferenceToCount) {
       const runtimeVarRef = this._variableReferenceToCount.runtimeVarRef;
-      if (!runtimeVarRef) {
+      if (
+        program
+          ? !this._variableReferenceToCount.isReferencePrepared
+          : !runtimeVarRef
+      ) {
         throw new Error();
       }
 
@@ -434,7 +519,7 @@ export class FunctionCall extends Expression {
       // write.
       const readsCount = program
         ? this._variableReferenceToCount.resolvedAs === "count"
-        : runtimeVarRef.pathForCount !== null;
+        : runtimeVarRef!.pathForCount !== null;
       if (readsCount) {
         this.Error(
           `Should be \`${FunctionCall.name}(-> ${this._variableReferenceToCount.name})\`. Usage without \`->\` only makes sense for variable targets.`,

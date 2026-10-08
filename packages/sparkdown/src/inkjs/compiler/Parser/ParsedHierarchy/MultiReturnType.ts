@@ -42,6 +42,13 @@ export class MultiReturnType extends ParsedObject {
     emitter.emit(Op.Return);
   }
 
+  protected override Prepare(): boolean {
+    for (const expr of this.expressions) {
+      expr.prepare();
+    }
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
     for (const expr of this.expressions) {

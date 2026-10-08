@@ -48,6 +48,13 @@ export class StorePropertyAssignment extends ParsedObject {
     emitter.emit(Op.StoreIndex);
   }
 
+  protected override Prepare(): boolean {
+    this.baseExpression.PrepareIntoContainer();
+    this.keyExpression.PrepareIntoContainer();
+    this.valueExpression.PrepareIntoContainer();
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
     container.AddContent(RuntimeControlCommand.EvalStart());

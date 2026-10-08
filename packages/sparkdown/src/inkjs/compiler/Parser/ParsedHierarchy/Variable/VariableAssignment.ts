@@ -19,6 +19,10 @@ import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
 
 export class VariableAssignment extends ParsedObject {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
+  // Whether generation, or preparation on the program path, made the
+  // assignment a statement that runs (not a global's declaration, which the
+  // story initializes). Kept, as the runtime assignment is, across compiles.
+  private _madeAssignment = false;
 
   get variableName(): string {
     return this.identifier?.name!;
@@ -216,6 +220,30 @@ export class VariableAssignment extends ParsedObject {
     }
   };
 
+  /** What `GenerateRuntimeObject` does without the runtime objects: the
+   *  declaration a global or a local makes, then the value's preparation
+   *  for an assignment that runs. */
+  protected override Prepare(): boolean {
+    if (this.isGlobalDeclaration || this.isNewTemporaryDeclaration) {
+      const tap = resolutionTap();
+      if (tap) {
+        tap.declare(this, this.RegisterDeclaration);
+      } else {
+        this.RegisterDeclaration();
+      }
+    }
+    if (this.isGlobalDeclaration) {
+      return false;
+    }
+    if (this.expression) {
+      this.expression.prepare();
+    } else if (this.listDefinition) {
+      this.listDefinition.prepare();
+    }
+    this._madeAssignment = true;
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
     if (this.isGlobalDeclaration || this.isNewTemporaryDeclaration) {
       const tap = resolutionTap();
@@ -246,6 +274,7 @@ export class VariableAssignment extends ParsedObject {
       this.variableName,
       this.isNewTemporaryDeclaration,
     );
+    this._madeAssignment = true;
 
     container.AddContent(this._runtimeAssignment);
 
@@ -328,8 +357,8 @@ export class VariableAssignment extends ParsedObject {
         // so we just suppress the compile-time error here and let the
         // runtime auto-create the global. Mark the runtime assignment
         // as global so the dispatcher routes correctly.
-        if (this._runtimeAssignment) {
-          if (!program) {
+        if (this._madeAssignment) {
+          if (this._runtimeAssignment && !program) {
             this._runtimeAssignment.isGlobal = true;
           }
           // ALSO register the auto-global in the story's variable

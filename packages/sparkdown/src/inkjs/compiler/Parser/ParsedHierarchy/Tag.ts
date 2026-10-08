@@ -16,6 +16,11 @@ export class Tag extends ParsedObject {
   override get typeName(): string {
     return "Tag";
   }
+  /** Nothing but the marker it writes. */
+  protected override Prepare(): boolean {
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     if (this.isStart) {
       return ControlCommand.BeginTag();

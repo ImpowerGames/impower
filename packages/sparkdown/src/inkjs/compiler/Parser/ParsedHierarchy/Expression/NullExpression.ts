@@ -17,6 +17,10 @@ export class NullExpression extends Expression {
     return "Null";
   }
 
+  /** Nothing but the nil it pushes. */
+  public override PrepareIntoContainer(): void {
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

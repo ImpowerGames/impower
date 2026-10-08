@@ -31,6 +31,12 @@ export class StringExpression extends Expression {
     return "String";
   }
 
+  public override PrepareIntoContainer(): void {
+    for (const c of this.content) {
+      c.prepare();
+    }
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

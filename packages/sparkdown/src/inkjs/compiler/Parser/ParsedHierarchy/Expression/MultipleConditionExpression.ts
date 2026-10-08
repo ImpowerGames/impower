@@ -28,6 +28,12 @@ export class MultipleConditionExpression extends Expression {
     });
   }
 
+  public override PrepareIntoContainer(): void {
+    for (const conditionExpr of this.subExpressions) {
+      conditionExpr.PrepareIntoContainer();
+    }
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

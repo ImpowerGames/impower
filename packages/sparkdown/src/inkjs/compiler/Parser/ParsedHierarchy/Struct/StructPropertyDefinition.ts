@@ -67,6 +67,10 @@ export class StructPropertyDefinition extends ParsedObject {
     return undefined;
   };
 
+  protected override Prepare(): boolean {
+    throw new Error("Not implemented.");
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     throw new Error("Not implemented.");
   };

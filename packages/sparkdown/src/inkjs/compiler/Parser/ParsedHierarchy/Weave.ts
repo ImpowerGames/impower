@@ -39,6 +39,18 @@ export class Weave extends ParsedObject {
     return this._rootContainer;
   }
 
+  // Whether the weave was prepared on the program path since its last
+  // `ResetRuntime`, as `_rootContainer` says it was generated.
+  private _rootPrepared = false;
+
+  /** What `rootContainer` does on the program path: the weave prepared
+   *  once, heard by no tap. */
+  public prepareRoot(): void {
+    if (!this._rootPrepared) {
+      this.Prepare();
+    }
+  }
+
   private _structuredContent: ParsedObject[] | null = null;
 
   public get structuredContent() {
@@ -273,6 +285,24 @@ export class Weave extends ParsedObject {
     // No weave points, so it doesn't matter
     return 0;
   };
+
+  /** What `GenerateRuntimeObject` does without the runtime containers: each
+   *  object of the weave's hierarchy prepared in its order, a gather and a
+   *  choice as weave points, a nested weave as its root, and anything else
+   *  as itself. */
+  protected override Prepare(): boolean {
+    this._rootPrepared = true;
+    for (const obj of this.structuredContent) {
+      if (obj instanceof Choice || obj instanceof Gather) {
+        obj.prepare();
+      } else if (obj instanceof Weave) {
+        obj.prepareRoot();
+      } else {
+        obj.prepare();
+      }
+    }
+    return true;
+  }
 
   public readonly GenerateRuntimeObject = (): RuntimeContainer => {
     this._rootContainer = new RuntimeContainer();
@@ -934,6 +964,7 @@ export class Weave extends ParsedObject {
     this._unnamedGatherCount = 0;
     this._choiceCount = 0;
     this._rootContainer = null;
+    this._rootPrepared = false;
     this.gatherPointsToResolve = [];
     // The hierarchy holds weaves built from `content` that a reset walk over
     // `content` never reaches, each keeping the runtime container it last

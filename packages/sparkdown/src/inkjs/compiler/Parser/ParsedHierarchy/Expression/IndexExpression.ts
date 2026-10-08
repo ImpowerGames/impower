@@ -23,6 +23,11 @@ export class IndexExpression extends Expression {
     return "IndexExpression";
   }
 
+  public override PrepareIntoContainer(): void {
+    this.baseExpression.PrepareIntoContainer();
+    this.keyExpression.PrepareIntoContainer();
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

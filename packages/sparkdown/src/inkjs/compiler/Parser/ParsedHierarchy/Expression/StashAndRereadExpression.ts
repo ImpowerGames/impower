@@ -35,6 +35,10 @@ export class StashAndRereadExpression extends Expression {
     return "StashAndReread";
   }
 
+  public override PrepareIntoContainer(): void {
+    this.innerExpression.PrepareIntoContainer();
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {
@@ -67,6 +71,10 @@ export class StashedTempReadExpression extends Expression {
 
   override get typeName(): string {
     return "StashedTempRead";
+  }
+
+  /** Nothing but the read it pushes. */
+  public override PrepareIntoContainer(): void {
   }
 
   public readonly GenerateIntoContainer = (

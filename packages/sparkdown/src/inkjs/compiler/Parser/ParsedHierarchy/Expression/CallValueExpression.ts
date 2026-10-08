@@ -41,6 +41,13 @@ export class CallValueExpression extends Expression {
     return "CallValueExpression";
   }
 
+  public override PrepareIntoContainer(): void {
+    for (const arg of this.args) {
+      arg.PrepareIntoContainer();
+    }
+    this.targetExpression.PrepareIntoContainer();
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

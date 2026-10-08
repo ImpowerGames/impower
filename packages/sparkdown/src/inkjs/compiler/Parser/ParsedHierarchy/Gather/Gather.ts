@@ -71,6 +71,13 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
     emitter.emitObjects(this.content);
   }
 
+  protected override Prepare(): boolean {
+    for (const c of this.content ?? []) {
+      c.prepare();
+    }
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
     container.name = this.name;

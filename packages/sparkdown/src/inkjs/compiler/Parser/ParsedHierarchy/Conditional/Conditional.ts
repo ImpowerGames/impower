@@ -33,6 +33,14 @@ export class Conditional extends ParsedObject {
     return "Conditional";
   }
 
+  protected override Prepare(): boolean {
+    this.initialCondition?.prepare();
+    for (const branch of this.branches) {
+      branch.prepare();
+    }
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
 
@@ -90,18 +98,18 @@ export class Conditional extends ParsedObject {
   }
 
   public override ResolveWith(context: Story, program: boolean): void {
-    if (!this._reJoinTarget) {
+    if (program ? !this.isPrepared : !this._reJoinTarget) {
       throw new TypeError("A conditional resolved before it was generated");
     }
-    const pathToReJoin = program ? null : this._reJoinTarget.path;
+    const pathToReJoin = program ? null : this._reJoinTarget!.path;
 
     for (const branch of this.branches) {
-      if (!branch.returnDivert) {
+      if (program ? !branch.isPrepared : !branch.returnDivert) {
         throw new Error();
       }
 
       if (pathToReJoin) {
-        branch.returnDivert.targetPath = pathToReJoin;
+        branch.returnDivert!.targetPath = pathToReJoin;
       }
     }
 

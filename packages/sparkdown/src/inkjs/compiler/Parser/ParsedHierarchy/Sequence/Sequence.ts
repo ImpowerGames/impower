@@ -128,6 +128,13 @@ export class Sequence extends ParsedObject {
   //
   //    no-op
   //
+  protected override Prepare(): boolean {
+    for (const el of this.sequenceElements) {
+      el.prepare();
+    }
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
     container.visitsShouldBeCounted = true;

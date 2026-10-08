@@ -52,6 +52,24 @@ export class TernaryExpression extends Expression {
     return "TernaryExpression";
   }
 
+  public override PrepareIntoContainer(): void {
+    this.prepareFrom(0);
+  }
+
+  private prepareFrom(index: number): void {
+    const branch = this.branches[index];
+    if (!branch) {
+      return;
+    }
+    if (branch.condition === null) {
+      branch.value.PrepareIntoContainer();
+      return;
+    }
+    branch.condition.PrepareIntoContainer();
+    branch.value.PrepareIntoContainer();
+    this.prepareFrom(index + 1);
+  }
+
   public readonly GenerateIntoContainer = (container: RuntimeContainer) => {
     this.emitFrom(0, container);
   };
