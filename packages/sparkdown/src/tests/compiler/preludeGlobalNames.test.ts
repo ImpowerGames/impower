@@ -73,7 +73,7 @@ const namesInGlobalDecl = (compiled: unknown): Set<string> => {
 describe("the builtins prelude's global names", () => {
   test("are the globals its declaration chunks declare, as its serialized story's global decl names them", () => {
     const chunked = compilePrelude(true);
-    expect(chunked.fallback).toBeUndefined();
+    expect(chunked.chunks).toBeDefined();
     expect(chunked.chunks).toBeDefined();
     const fromChunks = declaredGlobalNames(chunked.chunks!);
 

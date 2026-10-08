@@ -41,11 +41,11 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script that an edit replaces `before` with `after`
  *  in, one occurrence, and compiles again. */
 const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   let current = text;
   let version = 1;
   const first = silence(() => c.compile().program);
-  expect(first.fallback).toBeUndefined();
+  expect(first.chunks).toBeDefined();
   return {
     first: first.chunks!,
     store: () => c.compiler.chunkStore!,
@@ -67,7 +67,7 @@ const session = (text: string) => {
       });
       current = current.slice(0, at) + after + current.slice(at + before.length);
       const program = silence(() => c.compile().program);
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       return program.chunks!;
     },
   };

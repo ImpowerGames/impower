@@ -32,7 +32,7 @@ const silence = <T>(run: () => T): T => {
 };
 
 const rootOf = (text: string): ProgramRoot | undefined =>
-  silence(() => compileScript(text, { programChunks: true }).program.chunks);
+  silence(() => compileScript(text).program.chunks);
 
 /** A story that keeps its beats' images, as a game does, sharing the
  *  pristine copies of `images` when given, as the engines of one game do. */

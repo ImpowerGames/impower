@@ -39,8 +39,8 @@ const silence = <T>(run: () => T): T => {
 };
 
 const rootOf = (text: string): ProgramRoot => {
-  const program = silence(() => compileScript(text, { programChunks: true }).program);
-  expect(program.fallback).toBeUndefined();
+  const program = silence(() => compileScript(text).program);
+  expect(program.chunks).toBeDefined();
   return program.chunks!;
 };
 

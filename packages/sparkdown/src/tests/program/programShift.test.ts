@@ -32,7 +32,7 @@ function coldCompile(project: Project): SparkProgram {
     const texts = Object.fromEntries(
       Object.entries(project).map(([name, text]) => [uriOf(name), text]),
     );
-    return programCompiler(texts, { programChunks: true }).compile(uriOf("main")).program;
+    return programCompiler(texts).compile(uriOf("main")).program;
   } finally {
     console.warn = warn;
     console.error = error;
@@ -99,7 +99,7 @@ function expectShiftInvariant(project: Project, name: string, shift: number) {
     expect(shifted.fallback).toEqual({ ...fallback, line: moved(fallback.uri, fallback.line) });
     return;
   }
-  expect(shifted.fallback).toBeUndefined();
+  expect(shifted.chunks).toBeDefined();
   expect(content(shifted.chunks!)).toEqual(content(plain.chunks));
   expect(positions(shifted.chunks!)).toEqual(
     positions(plain.chunks).map(([at, line]) => [at, moved(at, line)]),

@@ -51,8 +51,8 @@ const scene = (preamble: readonly string[]) =>
  *  taken in turn. */
 const bothEngines = (text: string, picks: number[]) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const current = compileScript(text);
     injectDraws();
     current.story.ResetState();
@@ -207,7 +207,7 @@ describe("a choice in a block nested inside another block of a choose block's pr
       ["& n30 = 30", "& n30 = 31"],
     ] as const) {
       const root = s.edit(find, replace);
-      const { program } = silence(() => compileScript(s.text, { programChunks: true }));
+      const { program } = silence(() => compileScript(s.text));
       expect(describeRoot(root), find).toEqual(describeRoot(program.chunks!));
       expect(run(s.text, [1]).menus).toEqual([["Inner 1", "Inner 2", "Inner 1", "Outer"]]);
     }
@@ -216,9 +216,9 @@ describe("a choice in a block nested inside another block of a choose block's pr
   it("raises every choice from the choose block's chunk, which holds their entries", () => {
     for (const preamble of [IF_AROUND_DO, LOOPS["while"]!, LOOPS["for"]!]) {
       const { program } = silence(() =>
-        compileScript(scene(preamble), { programChunks: true }),
+        compileScript(scene(preamble)),
       );
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       const root = program.chunks!;
       const reader = new BinaryProgramReader(root);
       const raising = rootChunks(root).filter((chunk) =>

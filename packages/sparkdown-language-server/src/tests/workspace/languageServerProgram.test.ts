@@ -233,7 +233,7 @@ describe("the language server's compiler", () => {
     expect(ls.compiler.config.programChunks).toBe(true);
     // The worker's program runs from its chunks, and the copy the language
     // server holds carries neither the root nor a path location table.
-    expect(ls.compiled.fallback).toBeUndefined();
+    expect(ls.compiled.chunks).toBeDefined();
     expect(ls.compiled.chunks == null).toBe(false);
     expect(ls.program.chunks == null).toBe(true);
     expect(ls.program.pathLocations == null).toBe(true);
@@ -336,7 +336,7 @@ describe("the language server's locations", () => {
       "",
     ].join(NEWLINE);
     const ls = await languageServer(text);
-    expect(ls.compiled.fallback).toBeUndefined();
+    expect(ls.compiled.chunks).toBeDefined();
     const remote = ls.workspace.locatorOf(ls.program);
     const current = coldCompile(text, false);
     const lines = text.split(NEWLINE).length;

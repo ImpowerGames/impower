@@ -28,8 +28,8 @@ import {
 /** A script's beats on both engines, after checking that its program has
  *  its chunks. */
 const bothEngines = (text: string) => {
-  const { program } = compileScript(text, { programChunks: true });
-  expect(program.fallback).toBeUndefined();
+  const { program } = compileScript(text);
+  expect(program.chunks).toBeDefined();
   const current = compileScript(text);
   current.story.ResetState();
   return {
@@ -55,7 +55,7 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script with statement chunks on, which edits it and
  *  compiles, or compiles an edit as a preview. */
 function session(initial: string) {
-  const c = programCompiler({ [MAIN_URI]: initial }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: initial });
   let text = initial;
   let version = 1;
   let root = c.compile().program.chunks!;
@@ -91,7 +91,7 @@ function session(initial: string) {
       });
       text = after;
       const program = c.compile().program;
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       root = program.chunks!;
       return root;
     },
@@ -111,7 +111,7 @@ function session(initial: string) {
 
 /** A cold compile's root of `text`. */
 const cold = (text: string): ProgramRoot =>
-  programCompiler({ [MAIN_URI]: text }, { programChunks: true }).compile()
+  programCompiler({ [MAIN_URI]: text }).compile()
     .program.chunks!;
 
 // The chunk of entry `entry` of the top-level flow, and the symbol of the
@@ -243,7 +243,7 @@ describe("functions on the program engine", () => {
       expect(actual).toEqual(expected);
       expect(texts(expected.beats)).toEqual(beats);
       expect(expected.errors).toEqual(errors);
-      const { program } = compileScript(text, { programChunks: true });
+      const { program } = compileScript(text);
       expect(new ProgramStory(program.chunks!).HasFunction("run")).toBe(defined);
     }
   });
@@ -294,8 +294,8 @@ describe("functions on the program engine", () => {
         result: story.EvaluateFunction(name, args, true),
       })),
     ];
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const current = compileScript(text);
     current.story.ResetState();
     const expected = evaluate(current.story);
@@ -396,7 +396,7 @@ describe("a function value", () => {
     expect(actual).toEqual(expected);
     expect(texts(expected.beats)).toEqual(["Values 4 4 3,2,1 hi! false:no 5.\n"]);
 
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const story = new ProgramStory(program.chunks!);
     // Every value the run pushes, and every value the story holds after it.
     const pushed: unknown[] = [];
@@ -425,8 +425,8 @@ describe("a function value", () => {
   // here; the value carries its function's name.
   it("that a save of another program holds calls the function of its name, not the one its id names here", () => {
     const run = (lines: string[]) => {
-      const { program } = compileScript(lines.join("\n"), { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(lines.join("\n"));
+      expect(program.chunks).toBeDefined();
       return { story: new ProgramStory(program.chunks!), root: program.chunks! };
     };
     const saving = run([
@@ -556,7 +556,7 @@ describe("the write barrier", () => {
     expect(actual).toEqual(expected);
     expect(texts(expected.beats)).toEqual(["One.\n", "Two 3 1 3.\n"]);
 
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const story = new ProgramStory(program.chunks!);
     const globals = story.variablesState;
     globals.trackWrites = true;
@@ -662,7 +662,7 @@ describe("the write barrier", () => {
       "Two.\n",
     ]);
 
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const story = new ProgramStory(program.chunks!);
     // The warning the unjoined line raises.
     story.onError = () => {};
@@ -706,8 +706,8 @@ describe("the write barrier", () => {
       "One.",
       "done",
     ].join("\n");
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     // The declarations run as the story is made, before a test can set
     // `trackWrites` on its globals, so every call to the barrier is counted.
     const barrier = vi.spyOn(VariablesState.prototype, "WriteBarrier");
@@ -776,8 +776,8 @@ describe("upvalues", () => {
     "end",
   ].join("\n");
   const shown = () => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     return texts(storyBeats(new ProgramStory(program.chunks!)).beats);
   };
   const findOpenUpvalue = CallStack.prototype.FindOpenUpvalue;
@@ -895,8 +895,8 @@ describe("a stack trace", () => {
       "  end",
       "end",
     ].join("\n");
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     expect(texts(storyBeats(new ProgramStory(program.chunks!)).beats)).toEqual([
       "here\nstack traceback:\n=== THREAD 1/1 (current) ===\n[TUNNEL] <SOMEWHERE IN 0>\n[FUNCTION] <SOMEWHERE IN outer>\n\n",
       "Named outer loop.\n",

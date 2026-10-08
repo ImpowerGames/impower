@@ -86,7 +86,7 @@ const lineOf = (text: string, needle: string) =>
 
 describe.each([
   { engine: "the current engine", programChunks: false },
-  { engine: "the program engine", programChunks: true },
+  { engine: "the program engine" },
 ])("previous and next beat navigation on $engine", ({ programChunks }) => {
   const program = compile(programChunks);
   const at = (file: string, line: number, offset: number) =>
@@ -201,7 +201,7 @@ describe("previous and next beat navigation", () => {
   const differences = async (main: string, chapter: string) => {
     const current = compile(false, main, chapter);
     const chunked = compile(true, main, chapter);
-    expect(chunked.fallback).toBeUndefined();
+    expect(chunked.chunks).toBeDefined();
     const differing: string[] = [];
     for (const [uri, text] of [
       [MAIN, main],
@@ -317,7 +317,7 @@ describe("previous and next beat navigation", () => {
       "",
     ].join(NEWLINE);
     const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), CHOOSE);
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     const beats = ownBeats(program);
     for (const caption of ["Caption.", "Second caption."]) {
       const beat = await beats.beatAt(CHAPTER, lineOf(CHOOSE, caption));

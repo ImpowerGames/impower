@@ -58,7 +58,7 @@ const compiled = (text: string): { record: Recorded; finished: boolean } => {
   const { warn, error } = console;
   console.warn = console.error = () => {};
   try {
-    const program = programCompiler({ [MAIN_URI]: text }, { programChunks: true }).compile().program;
+    const program = programCompiler({ [MAIN_URI]: text }).compile().program;
     return { record: recorded(program), finished: !!program.chunks || !!program.fallback };
   } finally {
     console.warn = warn;

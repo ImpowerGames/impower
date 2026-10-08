@@ -89,7 +89,7 @@ describe("a compile with statement chunks", () => {
     const { first, edited, phases } = editInsideOneBeat(true);
     expect(first.chunks).toBeDefined();
     expect(edited.chunks).toBeDefined();
-    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks).toBeDefined();
     // The compile was measured, and built its chunks.
     expect(phases.some((name) => name.includes("program/chunks"))).toBe(true);
     expect(phases.filter((name) => /populateLocations|sortPathLocations/.test(name))).toEqual([]);
@@ -110,7 +110,6 @@ describe("a compile with statement chunks", () => {
 
   it("reads its scene assets from its chunks, each beat at its LineStart's address", () => {
     const c = programCompiler({ [MAIN_URI]: TEXT }, {
-      programChunks: true,
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
     } as never);
@@ -189,7 +188,6 @@ describe("a compile with statement chunks", () => {
       "",
     ].join("\n");
     const c = programCompiler({ [MAIN_URI]: text }, {
-      programChunks: true,
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
     } as never);
@@ -225,7 +223,6 @@ describe("a compile with statement chunks", () => {
       "",
     ].join("\n");
     const c = programCompiler({ [MAIN_URI]: text }, {
-      programChunks: true,
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
     } as never);

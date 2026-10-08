@@ -54,8 +54,8 @@ const silence = <T>(run: () => T): T => {
  *  `picks` names at its menus, and the program's root. */
 const bothEngines = (text: string, picks: number[] = []) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const current = compileScript(text);
     injectDraws();
     current.story.ResetState();
@@ -97,7 +97,7 @@ const session = (
 };
 
 const cold = (text: string) =>
-  silence(() => programCompiler({ [MAIN_URI]: text }, { programChunks: true }).compile().program);
+  silence(() => programCompiler({ [MAIN_URI]: text }).compile().program);
 
 describe("the fixtures that fell back for a flow's parameters", () => {
   // Every shared fixture that declared a flow with parameters fell back,
@@ -279,8 +279,8 @@ describe("an onward return to a variable target", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const run = silence(() => storyRun(new ProgramStory(program.chunks!), []));
     expect(texts(run)).toEqual(["In the tunnel.", "After by onward."]);
     expect(run.errors).toEqual([]);
@@ -307,8 +307,8 @@ describe("a host entering a scene that takes parameters", () => {
       story.ChoosePathString("pair", true, [1, 2]);
       return story.Continue();
     };
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const current = silence(() => compileScript(text)).story;
     current.ResetState();
     const expected = silence(() => run(current as never));
@@ -320,7 +320,7 @@ describe("a host entering a scene that takes parameters", () => {
   // The current engine arranges `EvaluateFunction`'s arguments for the
   // knot's parameters when its container binds some.
   it("arranges EvaluateFunction's arguments for the scene's parameters, as the current engine does", () => {
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    const { program } = silence(() => compileScript(text));
     const current = silence(() => compileScript(text)).story;
     current.ResetState();
     const engine = new ProgramStory(program.chunks!);
@@ -359,10 +359,10 @@ describe("a flow's entry", () => {
         "",
       ].join("\n"),
     );
-    expect(s.first.fallback).toBeUndefined();
+    expect(s.first.chunks).toBeDefined();
     const entry = s.first.chunks!.flowNamed("outer")!.arrays.chunks[0]!;
     const edited = s.edit("scene outer(a)", "scene outer( a )");
-    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks).toBeDefined();
     expect(edited.chunks!.flowNamed("outer")!.arrays.chunks[0]).toBe(entry);
     expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold(s.text).chunks!));
   });
@@ -379,7 +379,7 @@ describe("a compile whose builtin call reports its arguments", () => {
     // The edit the flow screenplay's fuzz made (#56 of its per-edit run).
     const text = flowScreenplay(3);
     const s = session(text);
-    expect(s.first.fallback).toBeUndefined();
+    expect(s.first.chunks).toBeDefined();
     const edited = s.edit(
       "Done looping {FLOW_2.side} {count.turns(-> FLOW_2.side)} {READ_COUNT(-",
       "Done looping {FLOW_2.side} {count.turns(-> FLOW_2.side)} {READ_COUNT(--- c",
@@ -425,10 +425,10 @@ describe("a flow's parameter list", () => {
   ] as const) {
     it(`emits again, for ${what}, the chunks that pass the flow arguments and its entry, and no other`, () => {
       const s = session(text);
-      expect(s.first.fallback).toBeUndefined();
+      expect(s.first.chunks).toBeDefined();
       const before = new Set(rootChunks(s.first.chunks!));
       const edited = s.edit("scene target(a)", after);
-      expect(edited.fallback).toBeUndefined();
+      expect(edited.chunks).toBeDefined();
       expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold(s.text).chunks!));
       const emitted = rootChunks(edited.chunks!).filter((chunk) => !before.has(chunk));
       const reader = new BinaryProgramReader(edited.chunks!);
@@ -483,12 +483,12 @@ describe("a flow's parameter list", () => {
       internals._chunkStore = new RefStore(internals._binaryTable);
     });
     const first = s.first;
-    expect(first.fallback).toBeUndefined();
+    expect(first.chunks).toBeDefined();
     const before = new Set(rootChunks(first.chunks!));
     expect(chunksWith(first.chunks!, Op.VarPtr)).toEqual([]);
     kinds = PARAM_REFERENCE;
     const after = s.edit("Plain line.", "Plain line, again.");
-    expect(after.fallback).toBeUndefined();
+    expect(after.chunks).toBeDefined();
     const emitted = rootChunks(after.chunks!).filter((chunk) => !before.has(chunk));
     // The two tunnels that pass the flow arguments, and the edited line.
     expect(emitted).toHaveLength(3);

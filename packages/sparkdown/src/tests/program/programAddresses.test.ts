@@ -41,7 +41,7 @@ const quiet = <T>(run: () => T): T => {
 };
 
 const rootOf = (text: string): ProgramRoot => {
-  const { program } = quiet(() => compileScript(text, { programChunks: true }));
+  const { program } = quiet(() => compileScript(text));
   if (!program.chunks) {
     throw new Error(`falls back: ${JSON.stringify(program.fallback)}`);
   }
@@ -159,7 +159,7 @@ describe("the address of a beat", () => {
   it("ends on the line the current engine's location of the line ends on", () => {
     const current = programLocator(quiet(() => compileScript(text)).program);
     const lines = text.split("\n").length;
-    const program = programLocator(quiet(() => compileScript(text, { programChunks: true })).program);
+    const program = programLocator(quiet(() => compileScript(text)).program);
     const ends = (locator: typeof current) =>
       Array.from({ length: lines }, (_, line) => {
         const address = locator.addressAt(MAIN_URI, line, { beat: "last" });
@@ -199,7 +199,7 @@ describe("the address of a beat", () => {
     ].join("\r\n");
     const current = programLocator(quiet(() => compileScript(blockText)).program);
     const program = programLocator(
-      quiet(() => compileScript(blockText, { programChunks: true })).program,
+      quiet(() => compileScript(blockText)).program,
     );
     const end = (locator: typeof current, needle: string) => {
       const address = locator.addressAt(MAIN_URI, lineOf(blockText, needle), { beat: "last" });
@@ -376,12 +376,12 @@ describe("two scripts with a statement on the same line", () => {
     [CHAPTER]: ["", "", "scene B", "  Bunny arrives.", "end", "", "scene C", "  Later.", "end", ""].join("\n"),
   };
   const { program } = quiet(() =>
-    programCompiler(texts, { programChunks: true }).compile(MAIN),
+    programCompiler(texts).compile(MAIN),
   );
   const root = program.chunks!;
 
   it("compiles to statement chunks", () => {
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     expect(root).toBeDefined();
   });
 

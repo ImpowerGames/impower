@@ -239,7 +239,7 @@ describe("the player's worker", () => {
       ]);
       expect(await h.compile()).not.toHaveProperty("error");
       await h.select(SECOND);
-      expect(h.workerState.gameState.game?.program.fallback).toBeUndefined();
+      expect(h.workerState.gameState.game?.program.chunks).toBeDefined();
       expect(engine()).toBe("program");
       expect(h.overlay.textContent).toContain("The second line.");
 

@@ -45,8 +45,8 @@ afterEach(() => {
  *  taken in turn (the first one at every menu past them). */
 const bothEngines = (text: string, picks: number[]) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const current = compileScript(text);
     injectDraws();
     current.story.ResetState();
@@ -128,7 +128,7 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       ],
     ]) {
       const { program } = silence(() =>
-        compileScript(scene(preamble), { programChunks: true }),
+        compileScript(scene(preamble)),
       );
       const root = program.chunks!;
       const reader = new BinaryProgramReader(root);
@@ -155,7 +155,7 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       "      * Second",
       "    end",
     ]);
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    const { program } = silence(() => compileScript(text));
     expect(program.chunks).toBeUndefined();
     expect(program.fallback?.construct).toBe("a label between choices an if gates");
   });
@@ -575,7 +575,7 @@ describe("a loop of a choose block's preamble that offers choices", () => {
       "        break",
       "    end",
     ]);
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    const { program } = silence(() => compileScript(text));
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
       construct: "a break or continue inside a choice's body",
@@ -586,7 +586,7 @@ describe("a loop of a choose block's preamble that offers choices", () => {
 
   it("emits the same chunks after an edit inside the loop's body as a cold compile", () => {
     const text = scene(LOOPS["while"]!);
-    const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+    const c = programCompiler({ [MAIN_URI]: text });
     silence(() => c.compile());
     const before = "Chose inner {i}.";
     const after = "Took inner {i}.";
@@ -605,9 +605,9 @@ describe("a loop of a choose block's preamble that offers choices", () => {
       ],
     });
     const edited = silence(() => c.compile().program);
-    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks).toBeDefined();
     const cold = silence(() =>
-      compileScript(text.replace(before, after), { programChunks: true }).program,
+      compileScript(text.replace(before, after)).program,
     );
     expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold.chunks!));
     expect(run(text.replace(before, after), [1]).beats).toEqual([

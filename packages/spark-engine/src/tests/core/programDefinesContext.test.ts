@@ -41,7 +41,7 @@ function contexts(files: any[]) {
   const current = compile(files, false);
   current.story.ResetState();
   const chunked = compile(files, true);
-  expect(chunked.program.fallback).toBeUndefined();
+  expect(chunked.program.chunks).toBeDefined();
   return {
     current: buildDefinesContext(current.story),
     program: buildDefinesContext(

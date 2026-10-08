@@ -16,7 +16,7 @@ import { rootChanges } from "../../program/rootChanges";
 import { cumulativeEdits } from "./cumulativeEdits";
 import { MAIN_URI, programCompiler } from "./programHarness";
 
-const CONFIG = { programChunks: true, seedBuiltinsIntoStory: true };
+const CONFIG = { seedBuiltinsIntoStory: true };
 
 function quiet<T>(fn: () => T): T {
   const { warn, error } = console;

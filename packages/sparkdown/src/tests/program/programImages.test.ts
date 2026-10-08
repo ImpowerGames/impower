@@ -19,7 +19,7 @@ import { chunkId } from "../../program/StatementChunk";
 import { compileScript, programSession, rootChunks } from "./programHarness";
 
 const story = (text: string) =>
-  new ProgramStory(compileScript(text, { programChunks: true }).program.chunks!);
+  new ProgramStory(compileScript(text).program.chunks!);
 
 /** The text of the next `count` beats. */
 const next = (s: ProgramStory, count: number): string[] => {
@@ -461,7 +461,7 @@ describe("a route search on the program engine", () => {
   ].join("\n");
 
   it("forks images that are deltas, and expands the nodes the JSON round trip expands", () => {
-    const root = compileScript(BRANCHES, { programChunks: true }).program.chunks!;
+    const root = compileScript(BRANCHES).program.chunks!;
     const search = (stateImages: boolean) => {
       const story = new ProgramStory(root);
       const before = { ...story.images.stats };

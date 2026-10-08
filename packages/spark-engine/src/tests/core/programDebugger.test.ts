@@ -66,7 +66,7 @@ function debugGame(
     programChunks,
   );
   if (programChunks) {
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
   }
   const game = new Game({
     now: () => 0,
@@ -493,7 +493,6 @@ describe("the debugger on the program engine", () => {
       log: () => {},
       program: fallback.program,
       story: fallback.story,
-      programChunks: true,
     } as never);
     expect(game.programStory).toBeNull();
     game.setBreakpoints([{ file: MAIN, line: 14 }]);

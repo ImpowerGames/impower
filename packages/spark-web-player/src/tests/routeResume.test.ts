@@ -1186,7 +1186,7 @@ describe("randomized edit sequences, emitting and not", () => {
 // reused must still be a shortcut and not a different answer: the route, the
 // verdict and the checkpoint equal a search and replay from the top of the
 // scene in a fresh game.
-const PROGRAM = { programChunks: true } as const;
+const PROGRAM = {} as const;
 
 /** The story steps the program engine ran during `run`, past any story's
  *  declarations: the search's and the replay's. */

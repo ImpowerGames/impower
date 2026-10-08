@@ -43,8 +43,8 @@ import {
 } from "./programTrace";
 
 const chunked = (text: string): ProgramRoot => {
-  const { program } = compileScript(text, { programChunks: true });
-  expect(program.fallback).toBeUndefined();
+  const { program } = compileScript(text);
+  expect(program.chunks).toBeDefined();
   return program.chunks!;
 };
 
@@ -1026,8 +1026,8 @@ const CONSTRUCTS: Record<string, string> = {
 describe("the fallback", () => {
   for (const [name, text] of Object.entries(CONSTRUCTS)) {
     it(`names no construct for ${name}`, () => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback?.construct).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       expect(program.chunks).toBeDefined();
     });
   }
@@ -1041,8 +1041,8 @@ describe("the fallback", () => {
       "store x = true\nif x then\n  function run()\n    return 1\n  end\nend\nHello.\n",
       "while false do\n  function run()\n    return 1\n  end\nend\nHello.\n",
     ]) {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback?.construct).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       expect(program.chunks).toBeDefined();
     }
   });
@@ -1098,7 +1098,6 @@ describe("the fallback", () => {
   it("names an operand wider than its field", () => {
     const args = Array.from({ length: 70_000 }, () => "1").join(", ");
     const { program } = compileScript(`local n = tonumber(${args})\n`, {
-      programChunks: true,
     });
     expect(program.chunks).toBeUndefined();
     expect(program.fallback?.construct).toBe("an operand of CallStd");

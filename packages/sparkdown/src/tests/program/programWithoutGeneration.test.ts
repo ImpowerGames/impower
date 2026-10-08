@@ -52,7 +52,7 @@ describe("a compile with statement chunks", () => {
     const unbuilt: string[] = [];
     let compiled = 0;
     for (const [name, text] of fixtures()) {
-      const compiler = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+      const compiler = programCompiler({ [MAIN_URI]: text });
       const { result: program, generated } = generationDuring(() =>
         quietly(() => compiler.compile().program),
       );
@@ -76,9 +76,9 @@ describe("a compile with statement chunks", () => {
 
   it("generates nothing when an edit compiles it again", () => {
     const [, text] = fixtures().find(([name]) => name === "beats")!;
-    const compiler = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+    const compiler = programCompiler({ [MAIN_URI]: text });
     const cold = quietly(() => compiler.compile().program);
-    expect(cold.fallback).toBeUndefined();
+    expect(cold.chunks).toBeDefined();
     expect(cold.chunks).toBeTruthy();
     const lines = text.split("\n");
     const at = lines.findIndex((line) => line.trim().length > 0 && !line.trim().startsWith("-"));
@@ -94,7 +94,7 @@ describe("a compile with statement chunks", () => {
     const { result: program, generated } = generationDuring(() =>
       quietly(() => compiler.compile().program),
     );
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     expect(program.chunks).toBeTruthy();
     expect(generated).toBe(0);
   });

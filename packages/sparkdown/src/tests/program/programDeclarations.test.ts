@@ -28,7 +28,7 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script with statement chunks on, and an editor that
  *  compiles after each edit. */
 function session(initial: string) {
-  const c = programCompiler({ [MAIN_URI]: initial }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: initial });
   let text = initial;
   let version = 1;
   let root = c.compile().program.chunks!;
@@ -64,7 +64,7 @@ function session(initial: string) {
       });
       text = text.slice(0, offset) + replace + text.slice(offset + find.length);
       const program = c.compile().program;
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       root = program.chunks!;
       return root;
     },
@@ -128,7 +128,7 @@ describe("the declaration sequence", () => {
       "Line {b}.",
       "",
     ].join("\n");
-    const root = compileScript(text, { programChunks: true }).program.chunks!;
+    const root = compileScript(text).program.chunks!;
     const code = declarationCode(root);
     expect(code.slice(0, 3)).toEqual([
       ["Int 1", "SetVar a flags 3"],
@@ -182,8 +182,8 @@ describe("the declaration sequence", () => {
     const config = { seedBuiltinsIntoStory: true };
     const current = compileScript(text, config).story;
     current.ResetState();
-    const { program } = compileScript(text, { ...config, programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text, { ...config });
+    expect(program.chunks).toBeDefined();
     const expected = everyGlobal(current);
     expect(Object.keys(expected).length).toBeGreaterThan(300);
     expect(expected).toHaveProperty("$typewriter_typewriter");
@@ -203,8 +203,8 @@ describe("the declaration sequence", () => {
       "Line {y}.",
       "",
     ].join("\n");
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const names = ["X", "y", "Z"];
     expect(globalsOf(new ProgramStory(program.chunks!), names)).toEqual({ X: 1, y: 6, Z: 5 });
     expect(coldGlobals(text, names)).toEqual({ X: 1, y: 6, Z: 5 });
@@ -228,7 +228,7 @@ describe("the declaration sequence", () => {
     ].join("\n");
     const s = session(text);
     const cold = (source: string) =>
-      compileScript(source, { programChunks: true }).program.chunks!;
+      compileScript(source).program.chunks!;
     const names = ["X", "y"];
     expect(declarationCode(s.root)).toEqual(declarationCode(cold(s.text)));
     s.edit("const Z = 5\n", "");
@@ -246,7 +246,7 @@ describe("the declaration sequence", () => {
   it("emits a builtin's declaration again when an author's declaration shadows it or stops shadowing it", () => {
     const c = programCompiler(
       { [MAIN_URI]: "Line.\n" },
-      { programChunks: true, seedBuiltinsIntoStory: true },
+      { seedBuiltinsIntoStory: true },
     );
     let text = "Line.\n";
     let version = 1;
@@ -268,7 +268,7 @@ describe("the declaration sequence", () => {
     const shadowing = "define action as typewriter with\n  letter_pause = 0.5\nend\nLine.\n";
     for (const next of [shadowing, "Line.\n", shadowing]) {
       const program = edit(next);
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       expect(everyGlobal(new ProgramStory(program.chunks!))).toEqual(cold());
     }
   });
@@ -381,7 +381,6 @@ describe("a bad initializer", () => {
   // that broke that.
   it("stops the declarations at a chunk the root cannot place, and names it", () => {
     const { program } = compileScript("store a = 1\nstore b = 2\nHello {a} {b}.\n", {
-      programChunks: true,
     });
     const root = program.chunks!;
     expect(root.initialization).toHaveLength(2);

@@ -68,7 +68,6 @@ function session(
   configure?: (compiler: SparkdownCompiler) => void,
 ) {
   const c = programCompiler(texts, {
-    programChunks: true,
     seedBuiltinsIntoStory: true,
   });
   configure?.(c.compiler);
@@ -122,7 +121,7 @@ function session(
 const cold = (texts: Record<string, string>): SparkProgram =>
   quietly(
     () =>
-      programCompiler(texts, { programChunks: true, seedBuiltinsIntoStory: true })
+      programCompiler(texts, { seedBuiltinsIntoStory: true })
         .compile().program,
   );
 
@@ -286,7 +285,7 @@ describe("an edit inside one beat", () => {
     };
     const s = session({ [MAIN_URI]: text });
     s.edit("Knocked", "Knocked, again,");
-    expect(s.program.fallback).toBeUndefined();
+    expect(s.program.chunks).toBeDefined();
     const current = containers(
       quietly(() => programCompiler({ [MAIN_URI]: text.replace("Knocked", "Knocked, again,") }).compile())
         .story,
@@ -344,7 +343,7 @@ describe("the bookkeeping of a build over an edit", () => {
       const [find, replace] = edit(s.text);
       const before = s.root;
       const after = s.edit(find, replace)!;
-      expect(s.program.fallback).toBeUndefined();
+      expect(s.program.chunks).toBeDefined();
       expect(newChunks(before, after).length).toBeLessThanOrEqual(2);
       const { order, assembly } = s.store.passesLastBuild;
       return { order, assembly, statements: after.statementOrder().length };
@@ -1119,7 +1118,7 @@ describe("a program that falls back after compiles that did not", () => {
     // A read of a list builtin, which the writer has no emit path for.
     const FALL = "\n  Rolled {LIST_RANDOM(knock)}.";
     const s = session({ [MAIN_URI]: text });
-    expect(s.program.fallback).toBeUndefined();
+    expect(s.program.chunks).toBeDefined();
     const current = (script: string) =>
       quietly(
         () =>
@@ -1220,7 +1219,7 @@ describe("a program that falls back after compiles that did not", () => {
     const { program, story } = quietly(() =>
       programCompiler(
         { [MAIN_URI]: text },
-        { programChunks: true, seedBuiltinsIntoStory: true },
+        { seedBuiltinsIntoStory: true },
       ).compile(),
     );
     expect(program.fallback?.construct).toBe("list");

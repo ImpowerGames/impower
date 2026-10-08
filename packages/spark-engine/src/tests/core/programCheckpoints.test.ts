@@ -43,7 +43,6 @@ function compiler(texts: Record<string, string>) {
     files: scriptFiles(texts) as never,
     seedBuiltinsIntoStory: true,
     emitCompiledProgram: false,
-    programChunks: true,
   });
   return {
     compiler: c,
@@ -70,7 +69,6 @@ function createGame(
     log: () => {},
     program,
     story,
-    programChunks: true,
     startFrom: { file: MAIN, line: FIRST_LINE },
     ...config,
   } as never);
@@ -130,7 +128,7 @@ const FIRST_LINE =
 describe("the checkpoints of a game on the program engine", () => {
   it("are images, a keyframe every base interval beats and deltas between", () => {
     const { program, story } = compiler(TEXTS).compile();
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     const game = createGame(program, story, { checkpointBaseInterval: 10 });
     const run = drive(game);
     expect(run.finished).toBe(true);

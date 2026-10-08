@@ -289,7 +289,6 @@ describe("the game's execution report on the program engine", () => {
       story,
       incrementalCheckpoints: true,
       verifyCheckpoints: false,
-      programChunks: true,
       startFrom,
     } as never);
     const reports: Record<string, unknown>[] = [];

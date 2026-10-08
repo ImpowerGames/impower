@@ -83,7 +83,7 @@ const quietly = <T>(run: () => T): T => {
 /** A compiler over `texts` with statement chunks on, and an editor of its
  *  main script that compiles after each edit. */
 function session(texts: Record<string, string>) {
-  const c = programCompiler(texts, { programChunks: true });
+  const c = programCompiler(texts);
   let text = texts[MAIN_URI]!;
   let version = 1;
   let program = quietly(() => c.compile().program);
@@ -123,7 +123,7 @@ function session(texts: Record<string, string>) {
 }
 
 const cold = (texts: Record<string, string>): SparkProgram =>
-  quietly(() => programCompiler(texts, { programChunks: true }).compile().program);
+  quietly(() => programCompiler(texts).compile().program);
 
 /** Every diagnostic of a program, by script, in the order it was reported. */
 const diagnostics = (program: SparkProgram): string[] =>
@@ -651,7 +651,7 @@ const kindsScript = (clause: readonly string[] = [], top: readonly string[] = []
  *  compile's story: the names plain assignments write, and the globals,
  *  auto-globals included. */
 const coldFacts = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   quietly(() => c.compile());
   return storyFacts(c.compiler as SparkdownCompiler);
 };

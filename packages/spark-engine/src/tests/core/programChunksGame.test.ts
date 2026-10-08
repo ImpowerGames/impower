@@ -134,7 +134,7 @@ describe("a game that runs statement chunks", () => {
     };
     const startFrom = { file: MAIN, line: 3 };
     const on = compile(texts, true);
-    expect(on.program.fallback).toBeUndefined();
+    expect(on.program.chunks).toBeDefined();
     expect(on.program.chunks).toBeDefined();
     const chunks = play(on.program, on.story, true, startFrom);
     expect(chunks.engine).toBeInstanceOf(ProgramStory);
@@ -163,7 +163,7 @@ describe("a game that runs statement chunks", () => {
     };
     const startFrom = { file: MAIN, line: 1 };
     const on = compile(texts, true);
-    expect(on.program.fallback).toBeUndefined();
+    expect(on.program.chunks).toBeDefined();
     const chunks = play(on.program, on.story, true, startFrom);
     expect(chunks.engine).toBeInstanceOf(ProgramStory);
     const off = compile(texts, false);
@@ -268,7 +268,7 @@ describe("a game that runs statement chunks", () => {
     };
     const startFrom = { file: MAIN, line: 1 };
     const on = compile(texts, true);
-    expect(on.program.fallback).toBeUndefined();
+    expect(on.program.chunks).toBeDefined();
     const chunks = play(on.program, on.story, true, startFrom);
     expect(chunks.engine).toBeInstanceOf(ProgramStory);
     const off = compile(texts, false);
@@ -298,7 +298,7 @@ describe("a game that runs statement chunks", () => {
     };
     const startFrom = { file: MAIN, line: 1 };
     const on = compile(texts, true);
-    expect(on.program.fallback).toBeUndefined();
+    expect(on.program.chunks).toBeDefined();
     const chunks = play(on.program, on.story, true, startFrom);
     expect(chunks.engine).toBeInstanceOf(ProgramStory);
     const off = compile(texts, false);
@@ -332,7 +332,7 @@ describe("a game started at a line", () => {
     it(`plays ${name} from its first beat as the current engine does`, () => {
       const startFrom = { file: MAIN, line };
       const on = compile({ [MAIN]: text }, true);
-      expect(on.program.fallback).toBeUndefined();
+      expect(on.program.chunks).toBeDefined();
       const chunks = play(on.program, on.story, true, startFrom);
       expect(chunks.engine).toBeInstanceOf(ProgramStory);
       const off = compile({ [MAIN]: text }, false);

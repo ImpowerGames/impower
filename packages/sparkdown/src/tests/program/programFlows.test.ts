@@ -57,8 +57,8 @@ const silence = <T>(run: () => T): T => {
  *  with the same shuffle draws, and the program's root. */
 const bothEngines = (text: string, from?: string) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const current = compileScript(text);
     injectDraws();
     current.story.ResetState();
@@ -116,7 +116,7 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script that an edit replaces `before` with `after`
  *  in, one occurrence, and compiles again. */
 const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   let current = text;
   let version = 1;
   const first = silence(() => c.compile().program);
@@ -278,8 +278,8 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const current = compileScript(text).story;
       current.ResetState();
       const story = new ProgramStory(program.chunks!);
@@ -330,7 +330,7 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
+      const { program } = compileScript(text);
       const run = () => {
         const story = new ProgramStory(program.chunks!);
         story.state.storySeed = 3;
@@ -493,7 +493,7 @@ describe("flows on the program engine", () => {
         return out;
       };
       const edited = s.edit("  Reader.", "  Reader {main.visit}.");
-      expect(edited.fallback).toBeUndefined();
+      expect(edited.chunks).toBeDefined();
       const after = edited.chunks!;
       // Every chunk of the counted flow is the one the first compile emitted.
       const before = flowChunks(first);
@@ -542,10 +542,10 @@ describe("flows on the program engine", () => {
         "store i = 0",
         "",
         ].join("\n"),
-        { programChunks: true },
+        {},
       ),
     );
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     const root = program.chunks!;
     expect(texts(storyBeats(new ProgramStory(root)))).toEqual([
       "Outer.",
@@ -578,8 +578,8 @@ describe("flows on the program engine", () => {
 
   it("runs a jump to a target the program does not define as the current engine's runtime error, at the jump's line", () => {
     const text = ["-> main", "scene main", "  Before.", "  -> nowhere", "end", ""].join("\n");
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const messages = Object.values(program.diagnostics ?? {})
       .flat()
       .map((d: any) => d.message?.value ?? d.message);
@@ -597,7 +597,7 @@ describe("flows on the program engine", () => {
     const referring = chunksWith(s.first.chunks!, Op.JumpSym, symbol);
     expect(referring).toHaveLength(1);
     const gone = s.edit(target, "");
-    expect(gone.fallback).toBeUndefined();
+    expect(gone.chunks).toBeDefined();
     expect(chunksWith(gone.chunks!, Op.JumpSym, symbol)[0]).toBe(referring[0]);
     expect(gone.chunks!.definition(symbol)).toBeUndefined();
     expect(storyBeats(new ProgramStory(gone.chunks!)).errors).toEqual([
@@ -671,7 +671,7 @@ describe("flows on the program engine", () => {
           "store n = 0",
           "",
         ].join("\n"),
-        { programChunks: true },
+        {},
       ),
     );
     const root = program.chunks!;
@@ -788,8 +788,8 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const current = compileScript(text).story;
       current.ResetState();
       const expected = current.EvaluateFunction("hall", [], true);
@@ -808,7 +808,7 @@ describe("flows on the program engine", () => {
     const store = s.compiler.chunkStore!;
     const before = store.initializerRuns;
     const edited = s.edit("  Line {x}.", "  label extra\n  Line {x}.");
-    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks).toBeDefined();
     expect(chunksWith(edited.chunks!, Op.Visit)).toHaveLength(1);
     expect(store.initializerRuns).toBe(before);
   });
@@ -835,7 +835,7 @@ describe("flows on the program engine", () => {
     expect(texts(storyBeats(new ProgramStory(s.first.chunks!)))).toEqual(["Pass 1.", "Pass 2."]);
     const coldOf = () =>
       silence(() =>
-        programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+        programCompiler({ [MAIN_URI]: s.text }).compile().program,
       );
     const renamed = s.edit("-> A\nscene A", "-> B\nscene B");
     expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(coldOf().chunks!));
@@ -877,7 +877,7 @@ describe("flows on the program engine", () => {
     const s = session(text);
     const renamed = s.edit("-> A\nscene A", "-> B\nscene B");
     const cold = silence(
-      () => programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+      () => programCompiler({ [MAIN_URI]: s.text }).compile().program,
     );
     expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(cold.chunks!));
     expect(texts(storyBeats(new ProgramStory(renamed.chunks!)))).toEqual(["Entered.", "Left 2."]);
@@ -1009,8 +1009,8 @@ describe("flows on the program engine", () => {
   it("counts a path chosen without a reset from the flow a loaded or reset story last ran in", () => {
     const text = ["scene main", "  Visits {main}.", "  done", "end", ""].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const lines = (game: any) => {
         const out: string[] = [];
         while (game.canContinue) {
@@ -1065,8 +1065,8 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const lines = (game: ProgramStory) => {
         const out: string[] = [];
         while (game.canContinue) {
@@ -1133,9 +1133,9 @@ describe("flows on the program engine", () => {
     const before = new Set(rootChunks(s.first.chunks!));
     const renamed = s.edit("scene place", "scene spot");
     // The edit leaves the top-level divert without its target.
-    expect(renamed.fallback).toBeUndefined();
+    expect(renamed.chunks).toBeDefined();
     const cold = silence(() =>
-      programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+      programCompiler({ [MAIN_URI]: s.text }).compile().program,
     );
     expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(cold.chunks!));
     const emitted = rootChunks(renamed.chunks!).filter((chunk) => !before.has(chunk));
@@ -1169,7 +1169,7 @@ describe("symbols", () => {
           "end",
           "",
         ].join("\n"),
-        { programChunks: true },
+        {},
       ),
     );
     const root = program.chunks!;
@@ -1206,7 +1206,7 @@ describe("symbols", () => {
     const { program } = silence(() =>
       compileScript(
         ["-> hall", "scene hall", "  label cellar", "  Hall.", "  branch cellar", "    Cellar.", "  end", "end", ""].join("\n"),
-        { programChunks: true },
+        {},
       ),
     );
     expect(program.fallback?.construct).toBe("a label named as another");

@@ -63,8 +63,8 @@ const silence = <T>(run: () => T): T => {
  *  root. */
 const bothEngines = (text: string, picks: number[] = [], from?: string) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const current = compileScript(text);
     injectDraws();
     current.story.ResetState();
@@ -106,11 +106,11 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script that an edit replaces `before` with `after`
  *  in, one occurrence, and compiles again. */
 const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   let current = text;
   let version = 1;
   const first = silence(() => c.compile().program);
-  expect(first.fallback).toBeUndefined();
+  expect(first.chunks).toBeDefined();
   return {
     compiler: c.compiler,
     first,
@@ -129,7 +129,7 @@ const session = (text: string) => {
       });
       current = current.slice(0, at) + after + current.slice(at + before.length);
       const program = silence(() => c.compile().program);
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       return program.chunks!;
     },
     get emitted() {
@@ -784,8 +784,8 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const current = compileScript(text).story;
       current.ResetState();
       const story = new ProgramStory(program.chunks!);
@@ -825,7 +825,7 @@ describe("the choose chunk", () => {
   ].join("\n");
 
   it("is one chunk whose choices' bodies and then clause are blocks, with a Choice per choice targeting the Visit of its count", () => {
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const root = program.chunks!;
     const [chunk, ...others] = chooseChunks(root);
     expect(others).toEqual([]);
@@ -879,7 +879,7 @@ describe("the choose chunk", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = compileScript(script, { programChunks: true });
+    const { program } = compileScript(script);
     const root = program.chunks!;
     const [chunk] = chooseChunks(root);
     const [enter, wait] = choicesOf(chunk!).map((c) =>
@@ -941,7 +941,7 @@ describe("the choose chunk", () => {
         "end",
         "",
       ].join("\n"),
-      { programChunks: true },
+      {},
     );
     const [chunk] = chooseChunks(program.chunks!);
     const ops = [...new BinaryProgramReader(program.chunks!).instructions(chunk!)];
@@ -1199,7 +1199,7 @@ describe("a menu restored from the beat before it", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const root = program.chunks!;
     const story = new ProgramStory(root);
     // Every choice waiting, invisible defaults included, as a menu holds it.
@@ -1272,8 +1272,8 @@ describe("a state saved at a waiting menu", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const root = program.chunks!;
     for (const pick of [0, 1]) {
       const story = new ProgramStory(root);
@@ -1309,8 +1309,8 @@ describe("large blocks", () => {
     }
     lines.push("  end", "  After.", "end", "");
     const text = lines.join("\n");
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const story = new ProgramStory(program.chunks!);
     expect(story.Continue()).toBe("Pick one.\n");
     while (story.canContinue) story.Continue();
@@ -1372,9 +1372,9 @@ describe("a label in the body of a then clause", () => {
   ].join("\n");
 
   it("is not reported as a duplicate, and the program keeps its chunks", () => {
-    const { program } = silence(() => compileScript(reentered, { programChunks: true }));
+    const { program } = silence(() => compileScript(reentered));
     expect(diagnostics(program)).toEqual([]);
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     expect(program.chunks).toBeDefined();
     expect(diagnostics(silence(() => compileScript(reentered)).program)).toEqual([]);
   });

@@ -111,8 +111,8 @@ function shown(text: string) {
   const current = compileScript(text);
   current.story.ResetState();
   const json = new Story(current.program.compiled as Record<string, unknown>);
-  const { program } = compileScript(text, { programChunks: true });
-  expect(program.fallback).toBeUndefined();
+  const { program } = compileScript(text);
+  expect(program.chunks).toBeDefined();
   return {
     current: lines(storyBeats(current.story)),
     program: lines(storyBeats(new ProgramStory(program.chunks!))),
@@ -534,8 +534,8 @@ describe("a function a host evaluates (`EvaluateFunction`)", () => {
     const current = compileScript(HOST);
     current.story.ResetState();
     const json = new Story(current.program.compiled as Record<string, unknown>);
-    const { program } = compileScript(HOST, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(HOST);
+    expect(program.chunks).toBeDefined();
     const stories = {
       current: current.story,
       program: new ProgramStory(program.chunks!),

@@ -27,9 +27,9 @@ const indent = (text: string) =>
     .join("\n");
 
 const listing = (text: string, flow = "") => {
-  const { program } = compileScript(text, { programChunks: true });
+  const { program } = compileScript(text);
   const root = program.chunks!;
-  expect(program.fallback).toBeUndefined();
+  expect(program.chunks).toBeDefined();
   return new BinaryProgramReader(root)
     .listing(root.flowNamed(flow)!)
     .filter((line) => line.startsWith(" "))
@@ -76,7 +76,7 @@ describe("the writer", () => {
 
   it("keeps a statement's fingerprint and layout when the statement moves", () => {
     const at = (text: string) => {
-      const { program } = compileScript(text, { programChunks: true });
+      const { program } = compileScript(text);
       const chunks = program.chunks!.flowNamed("")!.arrays.chunks;
       const moved = chunks[chunks.length - 1]!;
       return [...moved.subarray(H_FINGERPRINT, H_LAYOUT_HASH + 2)];
@@ -88,7 +88,6 @@ describe("the writer", () => {
 
   it("gives each display call a line table row of its own range", () => {
     const { program } = compileScript("Intro.\nFirst > Second.\n", {
-      programChunks: true,
     });
     const root = program.chunks!;
     const flow = root.flowNamed("")!;
@@ -134,8 +133,8 @@ describe("the engine", () => {
       const current = compileScript(text);
       current.story.ResetState();
       const expected = storyBeats(current.story, from);
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const actual = storyBeats(new ProgramStory(program.chunks!), from);
       expect(actual).toEqual(expected);
       expect(expected.beats.length).toBeGreaterThan(0);
@@ -144,7 +143,6 @@ describe("the engine", () => {
 
   it("reports a warning with the line of the call that raised it", () => {
     const { program } = compileScript("First.\n.. Second.\n", {
-      programChunks: true,
     });
     const { errors } = storyBeats(new ProgramStory(program.chunks!));
     expect(errors).toEqual([
@@ -154,7 +152,6 @@ describe("the engine", () => {
 
   it("runs a display beat once, one instruction a step", () => {
     const { program } = compileScript("One.\nTwo.\nThree.\n", {
-      programChunks: true,
     });
     const story = new ProgramStory(program.chunks!);
     const steps: number[] = [];
@@ -171,7 +168,6 @@ describe("the engine", () => {
   // that ends it: a position in no chunk.
   it("restores a state saved after any beat, the last included", () => {
     const { program } = compileScript("One.\nTwo. > Three.\nFour.\n", {
-      programChunks: true,
     });
     const root = program.chunks!;
     const whole = storyBeats(new ProgramStory(root)).beats;
@@ -197,9 +193,9 @@ describe("the engine", () => {
   it("keeps the globals of engines that share a root apart", () => {
     const { program } = compileScript(
       "store x = 3\nfunction read_x() return x end\nA line.\n",
-      { programChunks: true },
+      {},
     );
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     const root = program.chunks!;
     const first = new ProgramStory(root);
     first.variablesState.$("x", 9);
@@ -218,7 +214,7 @@ describe("the fallback", () => {
   it("names a construct at the top level, and emits the current program", () => {
     const { program } = compileScript(
       "One.\nTwo.\nexternal message(x)\n\n& message(1)\nThree.\n",
-      { programChunks: true },
+      {},
     );
     expect(program.chunks).toBeUndefined();
     expect(program.compiled).toBeTruthy();
@@ -234,7 +230,7 @@ describe("the fallback", () => {
   it("names a block statement at the top level", () => {
     const { program } = compileScript(
       `One.\nchoose\n${PREAMBLE_THEN}  + [A]\n    Took A.\nend\n`,
-      { programChunks: true },
+      {},
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
@@ -249,7 +245,7 @@ describe("the fallback", () => {
   it("names a construct nested in a block, with the line of its statement", () => {
     const { program } = compileScript(
       "scene MAIN\n  One.\n  BOB: You were here {LIST_RANDOM(MAIN)} times.\nend\n",
-      { programChunks: true },
+      {},
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
@@ -262,7 +258,7 @@ describe("the fallback", () => {
   it("names a construct in a scene with the line of its statement", () => {
     const { program } = compileScript(
       `scene MAIN\n  One.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`,
-      { programChunks: true },
+      {},
     );
     expect(program.fallback).toEqual({
       construct: PREAMBLE_THEN_CONSTRUCT,
@@ -273,7 +269,7 @@ describe("the fallback", () => {
 
   it("runs a program that fell back on the current engine", () => {
     const text = `One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`;
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const current = compileScript(text);
     expect(program.compiled).toEqual(current.program.compiled);
   });
@@ -283,12 +279,12 @@ describe("the switch", () => {
   it("is off by default and then leaves the program as it was", () => {
     const { program } = compileScript("One.\nTwo.\n");
     expect(program.chunks).toBeUndefined();
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     expect(program.compiled).toBeTruthy();
   });
 
   it("emits no compiled story for a program that has its chunks", () => {
-    const { program } = compileScript("One.\nTwo.\n", { programChunks: true });
+    const { program } = compileScript("One.\nTwo.\n");
     expect(program.chunks).toBeDefined();
     expect(program.compiled).toBeUndefined();
   });

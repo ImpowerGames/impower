@@ -40,7 +40,7 @@ import { CHOOSE_INSERTS, chooseScreenplay } from "./chooseScreenplay";
 import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 
 // As programChunkIdentity's `session` compiles.
-const CONFIG = { programChunks: true, seedBuiltinsIntoStory: true };
+const CONFIG = { seedBuiltinsIntoStory: true };
 
 function quiet<T>(fn: () => T): T {
   const { warn, error } = console;
@@ -517,7 +517,7 @@ describe("a closure statement an edit moves between a scene and a block body", (
       expect(offset, find).toBeGreaterThanOrEqual(0);
       const after = update(c.compiler, text, 2, offset, offset + deleted, insert);
       const program = c.compile().program;
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       return divergence(surface(program), coldSurface(after)) ?? "none";
     });
 
@@ -1231,7 +1231,7 @@ describe("a preview compile's root", () => {
     quiet(() => {
       const c = programCompiler({ [MAIN_URI]: SHARING }, CONFIG);
       const first = c.compile().program;
-      expect(first.fallback).toBeUndefined();
+      expect(first.chunks).toBeDefined();
       const real = first.chunks!;
       const store = c.compiler.chunkStore!;
       expect(store.current === real, "the compile's root is current").toBe(true);
@@ -1248,7 +1248,7 @@ describe("a preview compile's root", () => {
       const inserted = SHARING.slice(0, at) + INSERTED + SHARING.slice(at);
       const result = preview(c.compiler, 1, at, at, SHARING, INSERTED);
       expect(result.outdated ?? false).toBe(false);
-      expect(result.program?.fallback).toBeUndefined();
+      expect(result.program?.chunks).toBeDefined();
       const previewRoot = result.program!.chunks!;
       expect(c.compiler.lastProgramBuild?.root === previewRoot, "the preview's build is its program's root").toBe(true);
       expect(previewRoot === real, "the preview built a root of its own").toBe(false);
@@ -1262,7 +1262,7 @@ describe("a preview compile's root", () => {
       const ifAt = SHARING.indexOf(IF_LINES);
       const removed = SHARING.slice(0, ifAt) + SHARING.slice(ifAt + IF_LINES.length);
       const second = preview(c.compiler, 1, ifAt, ifAt + IF_LINES.length, SHARING, "");
-      expect(second.program?.fallback).toBeUndefined();
+      expect(second.program?.chunks).toBeDefined();
       const without = second.program!.chunks!;
       expect(store.current === real, "the store's current root is the real one").toBe(true);
       expect(parts.ifBodies.filter((id) => without.sequence(id) !== undefined)).toEqual([]);

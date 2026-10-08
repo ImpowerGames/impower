@@ -47,7 +47,7 @@ const quietly = <T>(run: () => T): T => {
  *  server's configuration otherwise, and an editor of its main script that
  *  compiles after each edit. */
 function session(texts: Record<string, string>, config = {}) {
-  const c = programCompiler(texts, { programChunks: true, ...config });
+  const c = programCompiler(texts, { ...config });
   let text = texts[MAIN_URI]!;
   let version = 1;
   let program = quietly(() => c.compile().program);
@@ -84,7 +84,7 @@ function session(texts: Record<string, string>, config = {}) {
 }
 
 const cold = (texts: Record<string, string>, config = {}): SparkProgram =>
-  quietly(() => programCompiler(texts, { programChunks: true, ...config }).compile().program);
+  quietly(() => programCompiler(texts, { ...config }).compile().program);
 
 /** Every diagnostic of a program, by script, in the order it was reported. */
 const diagnostics = (program: SparkProgram): string[] =>

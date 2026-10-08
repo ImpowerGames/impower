@@ -28,8 +28,8 @@ export const silence = <T>(run: () => T): T => {
  *  must not fall back. */
 export const programStory = (text: string) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     return new ProgramStory(program.chunks!);
   });
 
