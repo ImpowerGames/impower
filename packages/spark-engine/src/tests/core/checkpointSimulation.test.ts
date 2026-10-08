@@ -24,24 +24,48 @@ const URI = "inmemory:///main.sd";
 // (ON) stores periodic keyframes + per-beat deltas and must reconstruct
 // byte-identically (a small baseInterval forces many delta beats between
 // keyframes so the delta path is actually exercised).
-const CHECKPOINT_MODES: { label: string; config: Record<string, unknown> }[] = [
-  { label: "full-save checkpoints (flag OFF)", config: {} },
+//
+// Those two modes are the current engine's checkpoint storage, and run there
+// (`programChunks: false`): the program engine's checkpoints are its beat
+// images (`CheckpointStore.capture`'s image branch), which neither mode nor
+// the verifier reaches. The net runs a third time on the program engine, for
+// its images; #705's deletion removes the two current-engine modes.
+const CHECKPOINT_MODES: {
+  label: string;
+  config: Record<string, unknown>;
+  programEngine: boolean;
+}[] = [
+  {
+    label: "full-save checkpoints (flag OFF)",
+    config: { programChunks: false },
+    programEngine: false,
+  },
   {
     label: "incremental delta checkpoints (flag ON)",
     config: {
+      programChunks: false,
       incrementalCheckpoints: true,
       verifyCheckpoints: true,
       checkpointBaseInterval: 3,
     },
+    programEngine: false,
+  },
+  {
+    label: "the program engine's checkpoint images",
+    config: {},
+    programEngine: true,
   },
 ];
 
-// Set by the outer describe.each iteration; folded into every Game created below.
+// Set by the outer describe.each iteration; folded into every compile and
+// Game created below.
 let ACTIVE_CHECKPOINT_CONFIG: Record<string, unknown> = {};
+let ACTIVE_PROGRAM_ENGINE = true;
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    ...(ACTIVE_PROGRAM_ENGINE ? {} : { programChunks: false }),
     useBuiltinsPrelude: true,
     // The Game sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
@@ -51,7 +75,9 @@ function compileSrc(src: string) {
     ],
   });
   const result = compiler.compile({ textDocument: { uri: URI }, countAllVisits: true });
-  return requireChunks(result.program, "checkpoint fixture");
+  return ACTIVE_PROGRAM_ENGINE
+    ? requireChunks(result.program, "checkpoint fixture")
+    : result.program;
 }
 
 function newGame(program: unknown) {
@@ -71,11 +97,13 @@ function fp(game: Game, vars: string[]) {
   const vs: any = game.story.variablesState;
   const o: Record<string, unknown> = {
     text: (game.story.currentText ?? "").trim(),
-    // The program engine's state counts visits by flow name.
-    startVisits:
-      (game.story.state as any)
-        .GetVisitCountEntries()
-        .find(([key]: [string, number]) => key === "start")?.[1] ?? 0,
+    // The program engine's state counts visits by flow name; the current
+    // engine's by path.
+    startVisits: game.programStory
+      ? ((game.story.state as any)
+          .GetVisitCountEntries()
+          .find(([key]: [string, number]) => key === "start")?.[1] ?? 0)
+      : (game.story.state as any).VisitCountAtPathString("start"),
   };
   for (const n of vars) o[n] = vs.$(n);
   return JSON.stringify(o);
@@ -116,6 +144,7 @@ const LINEAR_VARS = ["score", "flag"];
 describe.each(CHECKPOINT_MODES)("$label", (mode) => {
   beforeEach(() => {
     ACTIVE_CHECKPOINT_CONFIG = mode.config;
+    ACTIVE_PROGRAM_ENGINE = mode.programEngine;
   });
 
 describe("save / load / simulate (linear)", () => {

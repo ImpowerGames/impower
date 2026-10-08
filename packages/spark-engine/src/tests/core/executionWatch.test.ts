@@ -105,6 +105,7 @@ afterEach(() => {
 describe("the execution watch (#679)", () => {
   test("hears a Luau loop inside one function call, on the loop's lines", async () => {
     const { game, heard, errors } = await playWatched(LUAU_LOOP, 9);
+    expect(game.story).toBeInstanceOf(ProgramStory);
     // The engine's own ceiling stopped it, which is what ends the test.
     expect(errors.join("\n")).toContain("possible infinite loop");
     // Called on the interval, from the story the game runs, throughout.
@@ -127,35 +128,13 @@ describe("the execution watch (#679)", () => {
   }, 120_000);
 
   test("is not called by a beat that ends", async () => {
-    const { heard, errors, steps } = await playWatched(
-      "BOB:\n  One.\n\nBOB:\n  Two.\n",
-      0,
-    );
-    expect(errors).toEqual([]);
-    // A beat is far shorter than the interval, so it is never heard.
-    expect(steps).toBeGreaterThan(0);
-    expect(steps).toBeLessThan(EXECUTION_WATCH_STEPS);
-    expect(heard).toEqual([]);
-  }, 120_000);
-
-  // The first and the third above, naming the engine: the story the watch
-  // hears is the program engine's.
-  test("hears a Luau loop inside one function call on the program engine", async () => {
-    const { game, heard, errors } = await playWatched(LUAU_LOOP, 9, true);
-    expect(game.story).toBeInstanceOf(ProgramStory);
-    expect(errors.join("\n")).toContain("possible infinite loop");
-    expect(heard.length).toBeGreaterThanOrEqual(LEAST_CALLS);
-    expect(heard.every((h) => h.story === game.story)).toBe(true);
-  }, 120_000);
-
-  test("is not called by a beat that ends on the program engine", async () => {
     const { game, heard, errors, steps } = await playWatched(
       "BOB:\n  One.\n\nBOB:\n  Two.\n",
       0,
-      true,
     );
     expect(game.story).toBeInstanceOf(ProgramStory);
     expect(errors).toEqual([]);
+    // A beat is far shorter than the interval, so it is never heard.
     expect(steps).toBeGreaterThan(0);
     expect(steps).toBeLessThan(EXECUTION_WATCH_STEPS);
     expect(heard).toEqual([]);
