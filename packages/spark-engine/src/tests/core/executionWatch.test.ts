@@ -62,9 +62,9 @@ const runtimeErrors = (messages: any[]) =>
     .map((m) => String(m.params.message));
 
 /** PLAY `source` from `line` (zero-based) with a lowered step budget, and
- *  every story the watch heard from, with the line each was running. With
- *  `programChunks`, the game runs the program engine if the program compiles
- *  to statement chunks. */
+ *  every story the watch heard from, with the line each was running. The
+ *  game runs the program engine, as every host's does, unless
+ *  `programChunks` is false. */
 const playWatched = async (
   source: string,
   line: number,
@@ -138,8 +138,8 @@ describe("the execution watch (#679)", () => {
     expect(heard).toEqual([]);
   }, 120_000);
 
-  // The program engine has no runtime paths, so the story it passes names no
-  // line; that it is still running is what the worker needs to hear.
+  // The first and the third above, naming the engine: the story the watch
+  // hears is the program engine's.
   test("hears a Luau loop inside one function call on the program engine", async () => {
     const { game, heard, errors } = await playWatched(LUAU_LOOP, 9, true);
     expect(game.story).toBeInstanceOf(ProgramStory);
