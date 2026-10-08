@@ -11,7 +11,6 @@ import {
   type BodyShape,
 } from "../compiler/lower/utils/statementShape";
 import type { DebugMetadata } from "../runtime/DebugMetadata";
-import type { Story } from "../inkjs/engine/Story";
 import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
@@ -56,6 +55,7 @@ import {
   type DefinitionArrays,
   type SequenceArrays,
   type SequenceRow,
+  type ProgramStoryTables,
 } from "./ProgramRoot";
 import { identityOf, StatementWatch } from "./StatementWatch";
 import { Op, opOf } from "./ProgramInstructions";
@@ -509,8 +509,8 @@ export class ChunkStore {
   /** Builds a root for the program, whose flows are in the order the
    *  program runs them. A build that is not committed (a preview compile's)
    *  leaves `current`, and everything the store keeps of it, as it was.
-   *  `runtimeStory` is the current engine's story of the same compile (see
-   *  `ProgramRoot.runtimeStory`).
+   *  `tables` are what the engine reads of the story besides its chunks
+   *  (`ProgramRoot.tables`).
    *
    *  The build is proportional to the edit (docs/engine/binary-program.md,
    *  section 1, Identity): a statement the incremental parse carried, whose
@@ -523,7 +523,7 @@ export class ChunkStore {
   build(
     source: ProgramSource | readonly FlowSource[],
     commit: boolean,
-    runtimeStory: Story | null = null,
+    tables: ProgramStoryTables | null = null,
   ): ProgramBuild {
     const program: ProgramSource = Array.isArray(source)
       ? { flows: source }
@@ -1072,7 +1072,7 @@ export class ChunkStore {
       scriptFlows,
       this.chunkTable(previous, build, dropped),
       this.table.generation,
-      runtimeStory,
+      tables,
       declarationIds,
       declarationChunks,
       definitions,

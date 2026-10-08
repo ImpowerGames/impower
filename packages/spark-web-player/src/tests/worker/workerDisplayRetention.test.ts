@@ -1,10 +1,11 @@
 // What the worker keeps to display the preview from its own game (#680) is
 // bounded: however many suggestions an author browses and however long they
-// edit, it keeps the stories of the real programs the page can still name, the
-// two newest suggestions, the one the page shows, the one it displayed last,
-// the one a display under way asks for and the one its game holds, and lets
-// every other go as soon as nothing keeps it, so nothing it holds grows with
-// the browsing or the editing.
+// edit, it keeps the real programs the page can still name, the two newest
+// suggestions, the one the page shows, the one it displayed last, the one a
+// display under way asks for and the one its game holds, and lets every other
+// go as soon as nothing keeps it, so nothing it holds grows with the browsing
+// or the editing. The programs run from their statement chunks, so the
+// compiler keeps no story of the current engine for any of them.
 import type { CompiledProgramParams } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
@@ -42,18 +43,27 @@ const harness = () =>
     recordMessages: false,
   });
 
-/** The story of each real program the worker compiles, in order, and the
- *  journal that keeps them. */
-const recordStories = (h: Harness) => {
+/** Each real program the worker compiles, in order, and whether the worker
+ *  keeps it. */
+const recordPrograms = (h: Harness) => {
   const compiler = h.workerState.compilerState.compiler as any;
-  const stories: object[] = [];
+  const ids: string[] = [];
   compiler.addEventListener("compiler/didCompile", (params: any) => {
-    if (params.story) {
-      stories.push(params.story);
+    if (params.produced) {
+      ids.push(programIdentity(params.program)!);
     }
   });
-  const journal = compiler._storyJournal;
-  return { stories, kept: () => stories.map((story) => journal.isKept(story)) };
+  const keptIds = () => h.workerState.player.keptPrograms();
+  return { ids, kept: () => ids.map((id) => keptIds().includes(id)) };
+};
+
+/** How many stories of the current engine the compiler keeps, and the
+ *  entries their records hold: none, for programs with statement chunks. */
+const keptStories = (h: Harness) => {
+  const journal = (h.workerState.compilerState.compiler as any)._storyJournal;
+  let entries = 0;
+  for (const table of journal._tables.values()) entries += table.entries.size;
+  return { stories: journal._tables.size as number, entries };
 };
 
 /** Rewrites the action of scene 3, differently each time. */
@@ -92,7 +102,7 @@ const suggestLine = (h: Harness, text: string) =>
     LINE,
   );
 
-describe("the stories the worker keeps", () => {
+describe("the programs the worker keeps", () => {
   it("stay bounded across 150 highlighted suggestions", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: TEXT }],
@@ -102,12 +112,6 @@ describe("the stories the worker keeps", () => {
     try {
       await h.compile();
       await h.select(LINE);
-      const journal = (h.workerState.compilerState.compiler as any)._storyJournal;
-      const recorded = () => {
-        let entries = 0;
-        for (const table of journal._tables.values()) entries += table.entries.size;
-        return entries;
-      };
       const lineText = TEXT.split("\n")[LINE]!;
       // Run with `--expose-gc` to also print the process's heap around the
       // browsing; the assertions below do not depend on it.
@@ -120,7 +124,7 @@ describe("the stories the worker keeps", () => {
       const heapBefore = gc ? heapMB() : undefined;
       const heapRounds: number[] = [];
       const counts: number[] = [];
-      const recordedCounts: number[] = [];
+      const storyCounts: { stories: number; entries: number }[] = [];
       for (let n = 0; n < 150; n++) {
         await h.suggest(
           [
@@ -133,23 +137,23 @@ describe("the stories the worker keeps", () => {
         );
         if (n % 10 === 9) {
           await h.closeSuggestions();
-          counts.push(journal._tables.size);
-          recordedCounts.push(recorded());
+          counts.push(h.workerState.player.keptPrograms().length);
+          storyCounts.push(keptStories(h));
           if (gc) heapRounds.push(heapMB());
         }
       }
       if (heapBefore !== undefined) {
         process.stderr.write(
-          `heap before ${heapBefore} MB, after each round of 10 suggestions ${JSON.stringify(heapRounds)} MB; stories kept per round ${JSON.stringify(counts)}; entries recorded per round ${JSON.stringify(recordedCounts)}\n`,
+          `heap before ${heapBefore} MB, after each round of 10 suggestions ${JSON.stringify(heapRounds)} MB; programs kept per round ${JSON.stringify(counts)}\n`,
         );
       }
       expect(h.overlay.textContent).toContain("Line one of dialogue in scene 3.");
-      // The newest story, the canonical one, and at most the four suggestions
-      // the worker can be asked for again.
+      // The newest program, the canonical one, and at most the four
+      // suggestions the worker can be asked for again.
       expect(Math.max(...counts)).toBeLessThanOrEqual(6);
-      // And what they record does not grow round after round: an entry for an
-      // object no kept story holds would keep a discarded story alive.
-      expect(recordedCounts.at(-1)).toBeLessThanOrEqual(Math.max(...recordedCounts.slice(0, 3)));
+      // And the compiler keeps no story of the current engine for them, nor
+      // any record of one.
+      expect(storyCounts.every((c) => c.stories === 0 && c.entries === 0)).toBe(true);
     } finally {
       h.dispose();
     }
@@ -168,7 +172,6 @@ describe("the stories the worker keeps", () => {
     try {
       await h.compile();
       await h.select(LINE);
-      const journal = (h.workerState.compilerState.compiler as any)._storyJournal;
       const lines = TEXT.split("\n");
       const lineText = lines[LINE]!;
       const ACTION = lines.indexOf("  Action describing room 3.");
@@ -193,7 +196,7 @@ describe("the stories the worker keeps", () => {
         ]);
         action = edited;
         await h.compile();
-        counts.push(journal._tables.size);
+        counts.push(h.workerState.player.keptPrograms().length);
       }
       expect(counts.at(-1)).toBeLessThanOrEqual(counts[1]!);
     } finally {
@@ -206,7 +209,7 @@ describe("the stories the worker keeps", () => {
     // suggestion holds the screen, and asks for no other display.
     const h = await harness();
     try {
-      const { kept } = recordStories(h);
+      const { kept } = recordPrograms(h);
       await h.compile();
       await h.select(LINE);
       await suggestLine(h, "A suggestion for scene 3.");
@@ -229,7 +232,7 @@ describe("the stories the worker keeps", () => {
     // it, and restarts the game only once the compiles pause.
     const h = await harness();
     try {
-      const { kept } = recordStories(h);
+      const { kept } = recordPrograms(h);
       await h.compile();
       await h.select(LINE);
       expect(await h.controller.startGameAndApp()).toBe(true);
@@ -255,7 +258,7 @@ describe("the stories the worker keeps", () => {
     // it takes the newest and never names those between.
     const h = await harness();
     try {
-      const { kept } = recordStories(h);
+      const { kept } = recordPrograms(h);
       await h.compile();
       await h.select(LINE);
       const edit = actionEditor(h);
@@ -331,7 +334,7 @@ describe("the stories the worker keeps", () => {
   it("keep the program the worker's game holds until PLAY gives it another", async () => {
     const h = await harness();
     try {
-      const { kept } = recordStories(h);
+      const { kept } = recordPrograms(h);
       await playBehindCompile(h, kept);
       await h.controller.restartGame();
       expect(h.playing()?.state).toBe("running");
@@ -345,7 +348,7 @@ describe("the stories the worker keeps", () => {
   it("keep the program the worker's game holds until a selection gives it another", async () => {
     const h = await harness();
     try {
-      const { kept } = recordStories(h);
+      const { kept } = recordPrograms(h);
       await playBehindCompile(h, kept);
       // A selection while PLAY runs in the worker leaves the game that
       // previews as it is (#682), and the one after STOP gives it the real

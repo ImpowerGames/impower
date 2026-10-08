@@ -42,10 +42,11 @@ import { MultiVariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarch
 import { memoGatherOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { Container as RuntimeContainer } from "../inkjs/engine/Container";
 import { DebugMetadata } from "../runtime/DebugMetadata";
 import type { SourceMetadata } from "../runtime/Error";
-import type { Story as RuntimeStory } from "../inkjs/engine/Story";
+import { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
+import { structDefinitionTable } from "../runtime/StructDefinition";
+import type { ProgramStoryTables } from "./ProgramRoot";
 import type { StructDefinition as RuntimeStructDefinition } from "../runtime/StructDefinition";
 import type {
   MemoReported,
@@ -651,9 +652,9 @@ export class ProgramResolver {
 
   /**
    * Resolves `story`, reporting its diagnostics to `onDiagnostic`, and
-   * returns the runtime story the program's engine runs on: one with the
-   * story's lists, structs and constants and no content
-   * (`ProgramRoot.runtimeStory`).
+   * returns what the program's engine reads of the story besides its
+   * chunks: its lists, its structs and its constants' names
+   * (`ProgramRoot.tables`).
    */
   resolve(
     story: Story,
@@ -663,7 +664,7 @@ export class ProgramResolver {
       type: ErrorType,
       metadata: SourceMetadata | null,
     ) => void,
-  ): RuntimeStory {
+  ): ProgramStoryTables {
     this._compile += 1;
     const cold = this._needsCold || input.cold;
     this._needsCold = false;
@@ -825,7 +826,7 @@ export class ProgramResolver {
       this.prepare(unit, shapes.get(unit)!);
     }
 
-    let runtimeStory: RuntimeStory;
+    let tables: ProgramStoryTables;
     const tap = tapResolution(this.tap);
     const onPrinted = DebugMetadata.onPrinted;
     const onCreated = DebugMetadata.onCreated;
@@ -928,11 +929,11 @@ export class ProgramResolver {
         (value) => this.initialize(value),
         this.runtimeStructOf,
       );
-      runtimeStory = story.MakeRuntimeStory(
-        new RuntimeContainer(),
-        runtimeLists,
-        runtimeStructs,
-      );
+      tables = {
+        listDefinitions: new ListDefinitionsOrigin(runtimeLists),
+        structDefinitions: structDefinitionTable(runtimeStructs),
+        constantNames: story.RegisteredConstantNames(),
+      };
 
       // What the walks of the whole story that resolution makes would find
       // in each statement generated anew, as generation left it.
@@ -1010,7 +1011,7 @@ export class ProgramResolver {
     if (ProgramResolver.verifyFacts) {
       this.verifyFacts(story);
     }
-    return runtimeStory;
+    return tables;
   }
 
   // ---- What the story's walks find, from each statement's syntax ----------

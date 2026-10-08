@@ -22,8 +22,8 @@ const configure = SparkdownCompiler.prototype.configure;
 const compile = SparkdownCompiler.prototype.compile;
 
 // The compiler compiles the builtins prelude with a compiler of its own
-// (`getCompiledPrelude`), whose compiled story it reads; that compile is the
-// compiler's, not a test's, and is left as it is.
+// (`getCompiledPrelude`), whose statement chunks it reads; that compile is
+// the compiler's, not a test's, and is left as it is.
 const PRELUDE_URI = "file:///__builtins__.sd";
 
 // The compilers this file turned `programChunks` on for.

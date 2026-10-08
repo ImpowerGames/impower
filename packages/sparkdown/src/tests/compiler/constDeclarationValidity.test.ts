@@ -52,9 +52,10 @@ function check(body: string) {
       body + "\nscene main\n:\n  Value {SHOW}.\n-> DONE\nend\n",
     );
     // The program's constants are the names its story registers as constant
-    // (`constantNames`, which the current engine's compiled JSON listed as
-    // `constants`, and left out when there were none).
-    const constants = [...(p.chunks?.runtimeStory?.constantNames ?? [])];
+    // (`ProgramRoot.tables.constantNames`, which the current engine's
+    // compiled JSON listed as `constants`, and left out when there were
+    // none).
+    const constants = [...(p.chunks?.tables?.constantNames ?? [])];
     return {
       hasProgram: Boolean(p.chunks),
       errors: errorsOf(p).length,

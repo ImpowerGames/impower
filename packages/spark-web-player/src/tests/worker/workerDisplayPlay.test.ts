@@ -1,8 +1,9 @@
 // PLAY runs the program the preview shows, which is the last one that compiled
 // and ran (#682): the page holds its summary, and the worker builds PLAY's
-// game from the same program written out whole. A later edit that does not
-// compile leaves both where they were.
+// game from the same program whole, with its statement chunks. A later edit
+// that does not compile leaves both where they were.
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
+import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
@@ -100,7 +101,8 @@ describe("the program PLAY runs", () => {
       expect(played).toHaveLength(1);
       expect(programIdentity(played[0])).toBe(goodId);
       expect(played[0].summary).toBeUndefined();
-      expect(played[0].compiled ?? played[0].compiledBuffer).toBeTruthy();
+      expect(played[0].chunks).toBeTruthy();
+      expect(isRunnableProgram(played[0])).toBe(true);
       await h.controller.destroyGameAndApp();
     } finally {
       h.dispose();

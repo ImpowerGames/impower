@@ -1,4 +1,5 @@
-import { Container } from "../inkjs/engine/Container";
+// Loaded first, as the runtime layer's modules are loaded after it.
+import "../inkjs/engine/Container";
 import { debugFileName } from "../compiler/utils/debugFileName";
 import { ControlCommand } from "../runtime/ControlCommand";
 import { DebugMetadata } from "../runtime/DebugMetadata";
@@ -14,7 +15,6 @@ import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
 import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
 import { lookupStateAwareStdLib } from "../runtime/StdLib";
-import { Story } from "../inkjs/engine/Story";
 import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
@@ -39,7 +39,10 @@ import {
   VariablePointerValue,
 } from "../runtime/Value";
 import { VariableAssignment } from "../runtime/VariableAssignment";
-import type { VariablesState } from "../runtime/VariablesState";
+import { VariablesState } from "../runtime/VariablesState";
+import { CallStack } from "../runtime/CallStack";
+import type { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
+import type { StructDefinitionTable } from "../runtime/StructDefinition";
 import { Void } from "../runtime/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
@@ -364,11 +367,12 @@ interface SuspendedStep {
  * belongs to later slices of #692: images and saves across compiles (#699),
  * addresses (#700) and the debugger (#702).
  *
- * Each engine keeps its own copy of the current engine's story of the same
- * compile (`ProgramRoot.runtimeStory`, `Story.CopyWithOwnState`), which runs
- * nothing: its `VariablesState` holds this engine's globals, and its call
- * stack this engine's frames, whose scopes hold the temporaries and whose
- * open upvalues close as the current engine's do. `ResetState` runs the
+ * Each reset gives the engine a call stack of its own (`CallStack.ForProgram`)
+ * and a `VariablesState` over it with the story's lists and constants
+ * (`ProgramRoot.tables`), as the current engine's state builds them: the
+ * globals hold this engine's variables, and the call stack this engine's
+ * frames, whose scopes hold the temporaries and whose open upvalues close as
+ * the current engine's do. `ResetState` runs the
  * program's declaration sequences against those globals. Engines built from
  * one root share its chunks and nothing they write.
  */
@@ -427,7 +431,6 @@ export class ProgramStory implements StoryEngine {
   protected _asyncContinueActive = false;
   protected _recursiveContinueCount = 0;
   protected _stateIsPristine = false;
-  protected _runtimeStory: Story;
 
   /** The pristine copies the images of this engine read, shared with the
    *  engines of the programs before and after it in one game, so that an
@@ -480,9 +483,6 @@ export class ProgramStory implements StoryEngine {
     } = {},
   ) {
     this._reader = new BinaryProgramReader(root);
-    this._runtimeStory =
-      root.runtimeStory?.CopyWithOwnState() ??
-      new Story(new Container(), null, null);
     this.history = options.history ?? new BeatHistory(options.rewindBeats ?? 128);
     if (options.rewindBeats !== undefined) {
       this.history.limit = options.rewindBeats;
@@ -989,12 +989,12 @@ export class ProgramStory implements StoryEngine {
     return this._state.variablesState;
   }
 
-  get listDefinitions() {
-    return this._runtimeStory.listDefinitions;
+  get listDefinitions(): ListDefinitionsOrigin | null {
+    return this.root.tables?.listDefinitions ?? null;
   }
 
-  get structDefinitions() {
-    return this._runtimeStory.structDefinitions;
+  get structDefinitions(): StructDefinitionTable {
+    return this.root.tables?.structDefinitions ?? {};
   }
 
   get canContinue(): boolean {
@@ -1081,8 +1081,9 @@ export class ProgramStory implements StoryEngine {
     this.IfAsyncWeCant("ResetState");
     const reactiveDepsEnabled =
       this._state?.variablesState?.reactiveDepsEnabled ?? false;
-    this._runtimeStory.ResetState(false);
-    const variablesState = this._runtimeStory.state.variablesState;
+    const callStack = CallStack.ForProgram();
+    const variablesState = new VariablesState(callStack, this.listDefinitions);
+    variablesState.constantNames = new Set(this.root.tables?.constantNames ?? []);
     variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
     this._state = new ProgramStoryState(
       this.root,
@@ -1091,7 +1092,7 @@ export class ProgramStory implements StoryEngine {
       () => {
         this._stateIsPristine = false;
       },
-      this._runtimeStory.state.callStack,
+      callStack,
     );
     // A state loaded in place (`LoadJson`, a route search's port) stands
     // at no beat this engine took.
@@ -3397,7 +3398,7 @@ export class ProgramStory implements StoryEngine {
       args.unshift(this._state.PopEvaluationStack());
     }
     spreadCallArgs(args);
-    const result = entry.fn(this as unknown as Story, args);
+    const result = entry.fn(this, args);
     if (discard) {
       return;
     }
