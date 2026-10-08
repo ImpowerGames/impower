@@ -588,7 +588,72 @@ describe("an edit inside an included script", () => {
   });
 });
 
+/** An engine on `root` that keeps its beat images, as a game's does. */
+const saving = (root: ProgramRoot) => {
+  const story = new ProgramStory(root);
+  story.keepBeatImages = true;
+  story.onError = () => {};
+  return story;
+};
+
 describe("a save taken inside an included script's content", () => {
+  it("loads after an edit above it at a menu the content raised, and takes a choice there", () => {
+    const s = session(PROJECT);
+    const story = saving(s.root);
+    while (story.canContinue) {
+      story.Continue();
+    }
+    expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Pick"]);
+    const save = story.toSave();
+    const after = s.edit(FIRST, "First three.", "First two and a half.\nFirst three.");
+    const loaded = saving(after);
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(storyRun(loaded, [0]).beats.map((beat) => beat.text)).toEqual([
+      "Pick\n",
+      "Picked.\n",
+      "After pick.\n",
+      "First four.\n",
+      "Main one.\n",
+      "Main two.\n",
+    ]);
+  });
+
+  it("loads after an edit above it inside a tunnel the content called, and returns into the content", () => {
+    const texts = {
+      [MAIN]: lines("include includes/first.sd", "Main."),
+      [FIRST]: lines(
+        "Before.",
+        "-> side ->",
+        "Back in the content.",
+        "",
+        "scene side",
+        "  Side one.",
+        "  Side two.",
+        "  ->->",
+        "end",
+      ),
+    };
+    const s = session(texts);
+    const story = saving(s.root);
+    const shown: string[] = [];
+    while (story.canContinue && shown.length < 2) {
+      shown.push(story.Continue()!.trim());
+    }
+    expect(shown).toEqual(["Before.", "Side one."]);
+    const save = story.toSave();
+    const after = s.edit(FIRST, "Before.", "Before.\nAlso before.");
+    const loaded = saving(after);
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(storyRun(loaded).beats.map((beat) => beat.text)).toEqual([
+      "Side two.\n",
+      "Back in the content.\n",
+      "Main.\n",
+    ]);
+  });
+
+
   it("loads after a line was inserted above its statement, at the same statement", () => {
     const s = session(PROJECT);
     const story = new ProgramStory(s.root);
