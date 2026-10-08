@@ -80,6 +80,7 @@ import {
   stampDebugMetadata,
   statementBounds,
 } from "./utils/debugMetadata";
+import { CONSTRAINT_GENERATOR_RECURSION_LIMIT } from "../typecheck/ConstraintGenerator";
 import { offsetAt, readBlockAst } from "./utils/luauAst";
 import { forwardBlockDiagnostics } from "./utils/unwrapBlock";
 import {
@@ -325,6 +326,28 @@ export function lowerStatements(
   body?: BodyShape,
 ): ParsedObject[] {
   if (!parent) return [];
+  // Blocks nested past Luau's block recursion limit are not lowered: the
+  // checker reports `CodeTooComplex` at the block its limit is reached in
+  // (`ConstraintGenerator.visitBlockWithoutChildScope`, which counts every
+  // block and expression this counts and more), and the program is not
+  // run. The bound keeps the lowering's recursion, several frames per
+  // level, within the engine's stack whatever its size (#1688).
+  const depth = ctx.blockDepth ?? 0;
+  if (depth >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) return [];
+  ctx.blockDepth = depth + 1;
+  try {
+    return lowerBlockStatements(parent, ctx, skipNames, body);
+  } finally {
+    ctx.blockDepth = depth;
+  }
+}
+
+function lowerBlockStatements(
+  parent: SyntaxNode,
+  ctx: LowerContext,
+  skipNames: ReadonlySet<string>,
+  body: BodyShape | undefined,
+): ParsedObject[] {
   // The block is on the context's block stack while its statements lower:
   // what its `local`s hide is undone when it ends (`blockEndStack`). No
   // frame is added for it, since a block nests this function once per level.
