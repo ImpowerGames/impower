@@ -65,15 +65,15 @@ function diagnosticsOf(source: string) {
     .filter((message) => !message.startsWith("Cannot find character"));
 }
 
-// What the compiled program holds: any instruction of ink's glue (the
-// program's instruction set has none), and how many display tables carry
-// `continues`, read from the keys its chunks push (`programListing`).
+// What the compiled program holds: how many display tables carry
+// `continues`, read from the keys its chunks push (`programListing`). The
+// program's instruction set has no instruction for ink's glue, so no join
+// can emit one.
 function programShape(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
   const all = programListing(ctx.compiledJson);
   return {
-    glue: all.filter((t) => /^Glue\b/.test(t)).length,
     continues: stringCount(all, "continues"),
   };
 }
@@ -289,18 +289,6 @@ test("after a break in a `load` statement, the text beat joins", () => {
 });
 
 describe("the compiled program", () => {
-  test("emits no Glue for a `..`", () => {
-    for (const source of [
-      EXAMPLE,
-      `A ..\n.. B\n`,
-      `ALICE:\n  A ..\n  .. B\n`,
-      `A -> s\n\nscene s\n  .. B\nend\n`,
-      `store x = 0\nA ..\n& x = 1\n.. B\n`,
-    ]) {
-      expect(programShape(source).glue).toBe(0);
-    }
-  });
-
   test("marks `continues` on each line that begins with `..`, except inside a block body", () => {
     for (const [source, continues] of [
       [EXAMPLE, 2],

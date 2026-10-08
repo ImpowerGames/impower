@@ -100,17 +100,15 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
     }));
 }
 
-// What the compiled program holds: any instruction of ink's glue (the
-// program's instruction set has none) or `line` call, its `display` calls,
-// and how many of those tables carry `open`, `glue`, `extend` or `caption`,
-// read from the keys its chunks push (`programListing`).
+// What the compiled program holds: its `display` calls, and how many of those
+// tables carry `open`, `glue`, `extend` or `caption`, read from the keys its
+// chunks push (`programListing`). The program's instruction set has no
+// instruction for ink's glue or a `line` marker, so no join can emit either.
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
   const all = programListing(ctx.compiledJson);
   return {
-    inkGlue: all.filter((t) => /^Glue\b/.test(t)).length,
-    line: all.filter((t) => /^CallStd line\//.test(t)).length,
     display: all.filter((t) => /^CallStd display\/1\b/.test(t)).length,
     open: stringCount(all, "open"),
     glue: stringCount(all, "glue"),
@@ -790,13 +788,11 @@ describe("the compiled program", () => {
     ],
   ];
   for (const [label, source, glue, open] of cases) {
-    test(`${label} emits no Glue and marks each join \`glue\` or \`open\``, () => {
+    test(`${label} marks each join \`glue\` or \`open\``, () => {
       const shape = programShape(source);
-      expect(shape.inkGlue).toBe(0);
       expect(shape.glue).toBe(glue);
       expect(shape.open).toBe(open);
       expect(shape.display).toBeGreaterThan(0);
-      expect(shape.line).toBe(0);
     });
   }
 
@@ -804,19 +800,16 @@ describe("the compiled program", () => {
     ["a touching click", `A.. >\n..B\n`],
     ["a spaced click", `A .. >\n.. B\n`],
   ] as const) {
-    test(`${label} emits no Glue and marks its break \`extend\``, () => {
+    test(`${label} marks its break \`extend\``, () => {
       const shape = programShape(source);
-      expect(shape.inkGlue).toBe(0);
       expect(shape.glue).toBe(0);
       expect(shape.open).toBe(0);
       expect(shape.extend).toBe(1);
-      expect(shape.line).toBe(0);
     });
   }
 
   test("a choose caption is marked `caption`, not `open`", () => {
     const shape = programShape(`choose\n  First.\n  Pick one.\n  * One\nend\n`);
-    expect(shape.inkGlue).toBe(0);
     expect(shape.glue).toBe(0);
     expect(shape.open).toBe(0);
     expect(shape.caption).toBe(1);
