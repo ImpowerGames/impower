@@ -10,7 +10,10 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, test } from "vitest";
-import { getOffsetSourceLocation } from "../../utils/providers/getOffsetSourceLocation";
+import {
+  getOffsetSourceLocation,
+  ownBeats,
+} from "../../utils/providers/getOffsetSourceLocation";
 
 const MAIN = "file://proj/main.sd";
 const CHAPTER = "file://proj/chapter.sd";
@@ -56,16 +59,17 @@ const script = (uri: string, name: string, text: string) => ({
   languageId: "sparkdown",
 });
 
-const compile = (programChunks: boolean): SparkProgram => {
+const compile = (
+  programChunks: boolean,
+  main = MAIN_SRC,
+  chapter = CHAPTER_SRC,
+): SparkProgram => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     programChunks,
-    files: [
-      script(MAIN, "main", MAIN_SRC),
-      script(CHAPTER, "chapter", CHAPTER_SRC),
-    ],
+    files: [script(MAIN, "main", main), script(CHAPTER, "chapter", chapter)],
   } as never);
   const { warn, error } = console;
   console.warn = console.error = () => {};
@@ -86,7 +90,7 @@ describe.each([
 ])("previous and next beat navigation on $engine", ({ programChunks }) => {
   const program = compile(programChunks);
   const at = (file: string, line: number, offset: number) =>
-    getOffsetSourceLocation(program, file, line, offset);
+    getOffsetSourceLocation(program, ownBeats(program), file, line, offset);
   const main = (needle: string) => lineOf(MAIN_SRC, needle);
 
   test("compiles the program the engine runs", () => {
@@ -94,66 +98,253 @@ describe.each([
     expect(program.pathLocations !== undefined).toBe(!programChunks);
   });
 
-  test("goes to the next beat from a beat's line, a blank line and a line inside a beat", () => {
-    expect(at(MAIN, main("He looks around."), 1)).toEqual({
+  test("goes to the next beat from a beat's line, a blank line and a line inside a beat", async () => {
+    expect(await at(MAIN, main("He looks around."), 1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("He looks around.") + 1, 1)).toEqual({
+    expect(await at(MAIN, main("He looks around.") + 1, 1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("Nobody here."), 1)).toEqual({
+    expect(await at(MAIN, main("Nobody here."), 1)).toEqual({
       file: MAIN,
       line: main("He looks again."),
     });
   });
 
-  test("goes to the previous beat's start, and from inside a beat to its own start", () => {
-    expect(at(MAIN, main("He looks again."), -1)).toEqual({
+  test("goes to the previous beat's start, and from inside a beat to its own start", async () => {
+    expect(await at(MAIN, main("He looks again."), -1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("Nobody here."), -1)).toEqual({
+    expect(await at(MAIN, main("Nobody here."), -1)).toEqual({
       file: MAIN,
       line: main("(quietly)"),
     });
-    expect(at(MAIN, main("(quietly)"), -1)).toEqual({
+    expect(await at(MAIN, main("(quietly)"), -1)).toEqual({
       file: MAIN,
       line: main("He looks around."),
     });
   });
 
-  test("counts several beats at once", () => {
-    expect(at(MAIN, main("He looks around."), 2)).toEqual({
+  test("counts several beats at once", async () => {
+    expect(await at(MAIN, main("He looks around."), 2)).toEqual({
       file: MAIN,
       line: main("He looks again."),
     });
-    expect(at(MAIN, main("He looks again."), -2)).toEqual({
+    expect(await at(MAIN, main("He looks again."), -2)).toEqual({
       file: MAIN,
       line: main("He looks around."),
     });
   });
 
-  test("stays in its script, and lands nowhere past either end", () => {
+  test("stays in its script, and lands nowhere past either end", async () => {
     const bunny = lineOf(CHAPTER_SRC, "Bunny arrives.");
-    expect(at(CHAPTER, bunny, 1)).toEqual({
+    expect(await at(CHAPTER, bunny, 1)).toEqual({
       file: CHAPTER,
       line: lineOf(CHAPTER_SRC, "Bunny leaves."),
     });
-    // A scene's header is a path location of its own on the current engine,
-    // as it was before (#700), and holds no statement on the program engine.
-    expect(at(CHAPTER, bunny, -1)).toEqual(
-      programChunks ? null : { file: CHAPTER, line: 0 },
-    );
-    expect(at(MAIN, 0, -1)).toBeNull();
-    expect(at(MAIN, main("end"), 1)).toBeNull();
-    expect(at(MAIN, main("He looks around."), 1000)).toBeNull();
+    // A scene's header is a stop of its own on both engines: a path location
+    // on the current engine, and a header the program lists on the program
+    // engine, whose root gives it no statement (#704).
+    expect(await at(CHAPTER, bunny, -1)).toEqual({ file: CHAPTER, line: 0 });
+    expect(await at(MAIN, 0, -1)).toBeNull();
+    expect(await at(MAIN, main("end"), 1)).toBeNull();
+    expect(await at(MAIN, main("He looks around."), 1000)).toBeNull();
   });
 
-  test("a file the program does not know, and no program at all, land nowhere", () => {
-    expect(getOffsetSourceLocation(program, "file://proj/absent.sd", 0, 1)).toBeNull();
-    expect(getOffsetSourceLocation(program, undefined, 0, 1)).toBeNull();
-    expect(getOffsetSourceLocation(undefined, MAIN, 0, 1)).toBeNull();
+  test("a file the program does not know, and no program at all, land nowhere", async () => {
+    const locator = ownBeats(program);
+    expect(await getOffsetSourceLocation(program, locator, "file://proj/absent.sd", 0, 1)).toBeNull();
+    expect(await getOffsetSourceLocation(program, locator, undefined, 0, 1)).toBeNull();
+    expect(await getOffsetSourceLocation(undefined, locator, MAIN, 0, 1)).toBeNull();
+    expect(await getOffsetSourceLocation(program, undefined, MAIN, 0, 1)).toBeNull();
+  });
+});
+
+describe("previous and next beat navigation", () => {
+  // The language server answers it from the program engine's root since
+  // #704, where it answered from the current engine's path locations. A
+  // scene's and a branch's header is a stop on both, and a divert, a `done`
+  // or a `fin` at a flow's own level on neither, while one inside a block's
+  // body is a stop on both.
+  const FLOWS = [
+    "store n = 0",
+    "",
+    "scene A",
+    "  Hello.",
+    "  -> A.side",
+    "  Unreached.",
+    "  if n > 0 then",
+    "    -> B",
+    "  end",
+    "  & n = n + 1",
+    "  fin",
+    "  branch side",
+    "    Side.",
+    "    -> B",
+    "  end",
+    "end",
+    "",
+    "scene B",
+    "  Bye.",
+    "  done",
+    "end",
+    "",
+    "function f(x)",
+    "  return x",
+    "end",
+    "",
+  ].join(NEWLINE);
+
+  const differences = async (main: string, chapter: string) => {
+    const current = compile(false, main, chapter);
+    const chunked = compile(true, main, chapter);
+    expect(chunked.fallback).toBeUndefined();
+    const differing: string[] = [];
+    for (const [uri, text] of [
+      [MAIN, main],
+      [CHAPTER, chapter],
+    ] as const) {
+      const lines = text.split(NEWLINE).length;
+      for (let line = 0; line < lines; line++) {
+        for (const offset of [-2, -1, 1, 2]) {
+          const want = await getOffsetSourceLocation(current, ownBeats(current), uri, line, offset);
+          const got = await getOffsetSourceLocation(chunked, ownBeats(chunked), uri, line, offset);
+          if (JSON.stringify(want) !== JSON.stringify(got)) {
+            differing.push(`${uri} line ${line} offset ${offset}: ${JSON.stringify(want)} against ${JSON.stringify(got)}`);
+          }
+        }
+      }
+    }
+    return differing;
+  };
+
+  test("lands where it lands on the current engine, from every line of every script, on the program engine", async () => {
+    expect(await differences(MAIN_SRC, CHAPTER_SRC)).toEqual([]);
+  });
+
+  test("lands where it lands on the current engine around diverts, `done`, `fin`, branches and functions", async () => {
+    expect(await differences(["include chapter.sd", ""].join(NEWLINE), FLOWS)).toEqual([]);
+    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), FLOWS);
+    const at = (line: number, offset: number) =>
+      getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
+    // Past a divert at the scene's own level, onto the line below it.
+    expect(await at(lineOf(FLOWS, "Hello."), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "Unreached.") });
+    // A divert inside an `if` is a stop of its own.
+    expect(await at(lineOf(FLOWS, "if n > 0"), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "    -> B") });
+    // Past `fin`, onto the branch header.
+    expect(await at(lineOf(FLOWS, "& n = n + 1"), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "branch side") });
+    // Nothing past the last beat before `done`.
+    expect(await at(lineOf(FLOWS, "Bye."), 1)).toBeNull();
+  });
+
+  // A divert's arguments are expressions, which compute what they compute
+  // (an operator, a call, several values) before the divert leaves.
+  const ARGS = [
+    "store n = 0",
+    "store s = \"abc\"",
+    "",
+    "scene A",
+    "  Before.",
+    "  -> B(n + 1)",
+    "  After.",
+    "  -> B(f(n) * 2)",
+    "  Later.",
+    "  -> B(#tostring(n))",
+    "  Last.",
+    "  -> B(\"value {n}\")",
+    "  Captured.",
+    "  -> B(s:upper())",
+    "  Method.",
+    "  -> B(function()",
+    "    return 1",
+    "  end)",
+    "  Function.",
+    "  -> B({ 1, n })",
+    "  Table.",
+    "  -> B(if n > 0 then 1 else 2)",
+    "  Choice of value.",
+    "  -> B(n > 0 and s or \"none\")",
+    "  Logic.",
+    "end",
+    "",
+    "scene B(x)",
+    "  Value {x}.",
+    "  done",
+    "end",
+    "",
+    "function f(v)",
+    "  return v",
+    "end",
+    "",
+  ].join(NEWLINE);
+
+  // A `choose` is a block statement, which a divert in its preamble does not
+  // make a divert: its caption is a beat of its own, whether the divert is
+  // written before it or in a branch of an `if` the preamble skips.
+  test("keeps a choose block's caption a beat when its preamble diverts first", async () => {
+    const CHOOSE = [
+      "store n = 0",
+      "",
+      "scene A",
+      "  Before.",
+      "  choose",
+      "    -> B",
+      "    Caption.",
+      "    * Continue",
+      "      Taken.",
+      "  end",
+      "  Middle.",
+      "  choose",
+      "    if n > 0 then",
+      "      -> B",
+      "      + [Gated]",
+      "        Gone.",
+      "    end",
+      "    Second caption.",
+      "    * Onward",
+      "      Went.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+      "scene B",
+      "  Bye.",
+      "  done",
+      "end",
+      "",
+    ].join(NEWLINE);
+    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), CHOOSE);
+    expect(program.fallback).toBeUndefined();
+    const beats = ownBeats(program);
+    for (const caption of ["Caption.", "Second caption."]) {
+      const beat = await beats.beatAt(CHAPTER, lineOf(CHOOSE, caption));
+      expect(beat?.location?.startLine, caption).toBe(lineOf(CHOOSE, caption));
+    }
+    const at = (line: number, offset: number) =>
+      getOffsetSourceLocation(program, beats, CHAPTER, line, offset);
+    expect(await at(lineOf(CHOOSE, "* Continue"), -1)).toEqual({ file: CHAPTER, line: lineOf(CHOOSE, "Caption.") });
+    expect(await at(lineOf(CHOOSE, "* Onward"), -1)).toEqual({ file: CHAPTER, line: lineOf(CHOOSE, "Second caption.") });
+  });
+
+  test("lands where it lands on the current engine around diverts that pass arguments", async () => {
+    expect(await differences(["include chapter.sd", ""].join(NEWLINE), ARGS)).toEqual([]);
+    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), ARGS);
+    const at = (line: number, offset: number) =>
+      getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
+    expect(await at(lineOf(ARGS, "Before."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "After.") });
+    expect(await at(lineOf(ARGS, "After."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Before.") });
+    expect(await at(lineOf(ARGS, "After."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Later.") });
+    expect(await at(lineOf(ARGS, "Later."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Last.") });
+    // A captured string's text and a method call's stashed receiver are the
+    // argument's computation, not a beat or an assignment of the author's.
+    expect(await at(lineOf(ARGS, "Last."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
+    expect(await at(lineOf(ARGS, "Captured."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Method.") });
+    expect(await at(lineOf(ARGS, "Method."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
+    // A function an argument writes is entry code after the divert leaves.
+    expect(await at(lineOf(ARGS, "Method."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Function.") });
+    expect(await at(lineOf(ARGS, "Function."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Method.") });
   });
 });

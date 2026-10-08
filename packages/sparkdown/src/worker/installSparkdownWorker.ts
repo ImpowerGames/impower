@@ -5,12 +5,14 @@ import { PreviewCompileProgramMessage } from "../compiler/classes/messages/Previ
 import { CompilerInitializedMessage } from "../compiler/classes/messages/CompilerInitializedMessage";
 import { CompilerInitializeMessage } from "../compiler/classes/messages/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "../compiler/classes/messages/ConfigureCompilerMessage";
+import { LocateProgramMessage } from "../compiler/classes/messages/LocateProgramMessage";
 import { RemoveCompilerFileMessage } from "../compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "../compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "../compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "../compiler/classes/messages/UpdateCompilerFileMessage";
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../compiler/types/SparkProgram";
+import { answerLocateQueries } from "../compiler/utils/programLocator";
 import { programSummary } from "../compiler/utils/programSummary";
 import { ProgramTransportEncoder } from "../workspace/utils/programTransport";
 
@@ -42,6 +44,11 @@ export function installSparkdownWorker(
   // Whether the compile being answered produced a story, which a summary
   // reports in place of the compiled program.
   let producedStory = false;
+  // The last program compiled for each uri, which a host holding the
+  // program's copy asks for its locations (`LocateProgramMessage`): the copy
+  // leaves the statement chunks' root behind, by which a program compiled
+  // with them is located. A preview compile's program is not kept.
+  const compiledPrograms = new Map<string, SparkProgram>();
   const noteStory = (params: { story?: unknown }) => {
     producedStory = params.story != null;
   };
@@ -75,9 +82,17 @@ export function installSparkdownWorker(
         return;
       }
       if (ConfigureCompilerMessage.type.is(message)) {
-        connection.sendResponse(message, () =>
-          state.compiler.configure(message.params),
-        );
+        connection.sendResponse(message, () => {
+          const result = state.compiler.configure(message.params);
+          // A configuration can replace the project's scripts: the programs
+          // of scripts it no longer holds go with them.
+          for (const uri of [...compiledPrograms.keys()]) {
+            if (!state.compiler.documents.has(uri)) {
+              compiledPrograms.delete(uri);
+            }
+          }
+          return result;
+        });
         return;
       }
       if (AddCompilerFileMessage.type.is(message)) {
@@ -93,6 +108,8 @@ export function installSparkdownWorker(
         return;
       }
       if (RemoveCompilerFileMessage.type.is(message)) {
+        // A removed script's program, and its root, go with it.
+        compiledPrograms.delete(message.params.file.uri);
         connection.sendResponse(message, () =>
           state.compiler.removeFile(message.params),
         );
@@ -107,6 +124,9 @@ export function installSparkdownWorker(
         connection.sendResponse(message, () => {
           producedStory = false;
           const result = state.compiler.compile(message.params);
+          if (result.program?.uri) {
+            compiledPrograms.set(result.program.uri, result.program);
+          }
           return answer(result, message.params.emitCompiledProgram);
         });
         return;
@@ -117,6 +137,15 @@ export function installSparkdownWorker(
           const result = state.compiler.previewCompile(message.params);
           return answer(result, false);
         });
+        return;
+      }
+      if (LocateProgramMessage.type.is(message)) {
+        connection.sendResponse(message, () =>
+          answerLocateQueries(
+            compiledPrograms.get(message.params.program),
+            message.params.queries,
+          ),
+        );
         return;
       }
       if (SelectCompilerDocumentMessage.type.is(message)) {

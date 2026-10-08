@@ -1,6 +1,17 @@
+import type {
+  LocateProgramResult,
+  LocateQuery,
+} from "../classes/messages/LocateProgramMessage";
+import { Op, opOf } from "../../program/ProgramInstructions";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import {
+  chunkOfAddress,
+  codeWords,
+  HEADER_WORDS,
+} from "../../program/StatementChunk";
 import type {
   AddressQuery,
+  LineBeat,
   ProgramAddress,
   ProgramLocator,
   SourceLocation,
@@ -122,3 +133,99 @@ export const documentRangeOf = (location: SourceLocation) => ({
     end: { line: location.endLine, character: location.endColumn },
   },
 });
+
+/** The answers of a program's accessor to `queries`, in order, with null
+ *  where it has none, for a host that asks the worker holding the program
+ *  (`LocateProgramMessage`). */
+export const answerLocateQueries = (
+  program: SparkProgram | undefined,
+  queries: readonly LocateQuery[],
+): LocateProgramResult => {
+  const locator = program ? programLocator(program) : undefined;
+  return queries.map((q) => {
+    if (!locator) {
+      return null;
+    }
+    if ("addressAt" in q) {
+      const { uri, line, query } = q.addressAt;
+      return locator.addressAt(uri, line, query) ?? null;
+    }
+    if ("beatAt" in q) {
+      const { uri, line, query } = q.beatAt;
+      return beatAt(program!, uri, line, query) ?? null;
+    }
+    return locator.locationOf(q.locationOf) ?? null;
+  });
+};
+
+// How a divert, a `done` or a `fin` leaves its flow.
+const LEAVES = new Set<number>([Op.JumpSym, Op.JumpVar, Op.Done, Op.End]);
+// What only another kind of statement holds: a beat (every line an author
+// displays starts with `LineStart`), a choice and a thread. A divert's
+// arguments are expressions, whatever their code does to compute them: a
+// captured string writes text and values into its capture, and a method
+// call stashes its receiver in a generated temporary.
+const NOT_A_DIVERT = new Set<number>([Op.LineStart, Op.Choice, Op.Thread]);
+
+/** Whether the statement an address stands in is a divert, a `done` or a
+ *  `fin` at its flow's own level, with whatever arguments it passes: its
+ *  code leaves the flow and holds no beat, choice or thread anywhere, the
+ *  entry code of a function an argument writes included. A `choose` whose
+ *  preamble diverts before its caption holds the caption's beat and its
+ *  choices, and is no divert. */
+const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
+  const position = root.position(chunkOfAddress(address));
+  if (!position || root.ownerOf(position.sequence)) {
+    return false;
+  }
+  const chunk = position.sequence.arrays.chunks[position.entry]!;
+  const words = codeWords(chunk);
+  let leaves = false;
+  for (let offset = 0; offset < words; offset += 2) {
+    const op = opOf(chunk[HEADER_WORDS + offset]!);
+    if (NOT_A_DIVERT.has(op)) {
+      return false;
+    }
+    leaves ||= LEAVES.has(op);
+  }
+  return leaves;
+};
+
+/**
+ * The beat a line takes for the previous and next beat: its address and
+ * where that address stands, from one program, or nothing for a line with
+ * no address. It is the program's accessor's, but for a divert, a `done` or a
+ * `fin` that stands at its flow's own level: the program engine gives such a
+ * statement an address of its own, which the Game Preview routes to, and the
+ * current engine's path locations give it none, so it takes the beat of the
+ * lines below it as it does on the current engine. One inside a block's body
+ * has an address on both.
+ */
+export const beatAt = (
+  program: SparkProgram,
+  uri: string,
+  line: number,
+  query?: AddressQuery,
+): LineBeat | undefined => {
+  const locator = programLocator(program);
+  const root = program.chunks && !program.fallback ? program.chunks : undefined;
+  let from = line;
+  for (;;) {
+    const address = locator.addressAt(uri, from, query);
+    if (address === undefined) {
+      return undefined;
+    }
+    const location = locator.locationOf(address);
+    if (
+      root &&
+      typeof address === "number" &&
+      location &&
+      location.endLine >= from &&
+      leavesFlowOnly(root, address)
+    ) {
+      from = location.endLine + 1;
+      continue;
+    }
+    return location ? { address, location } : { address };
+  }
+};
