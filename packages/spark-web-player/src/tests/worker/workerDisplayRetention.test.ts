@@ -57,13 +57,20 @@ const recordPrograms = (h: Harness) => {
   return { ids, kept: () => ids.map((id) => keptIds().includes(id)) };
 };
 
-/** How many stories of the current engine the compiler keeps, and the
- *  entries their records hold: none, for programs with statement chunks. */
+/** What the compiler's story journal holds: how many stories it keeps, its
+ *  tables, and the entries they record. For programs with statement chunks
+ *  it keeps none, and holds only the table of the newest program, which
+ *  stands in for a story it does not have (`StoryJournal.endCompile`), with
+ *  nothing recorded. */
 const keptStories = (h: Harness) => {
   const journal = (h.workerState.compilerState.compiler as any)._storyJournal;
   let entries = 0;
   for (const table of journal._tables.values()) entries += table.entries.size;
-  return { stories: journal._tables.size as number, entries };
+  return {
+    stories: journal._kept.size as number,
+    tables: journal._tables.size as number,
+    entries,
+  };
 };
 
 /** Rewrites the action of scene 3, differently each time. */
@@ -124,7 +131,7 @@ describe("the programs the worker keeps", () => {
       const heapBefore = gc ? heapMB() : undefined;
       const heapRounds: number[] = [];
       const counts: number[] = [];
-      const storyCounts: { stories: number; entries: number }[] = [];
+      const storyCounts: { stories: number; tables: number; entries: number }[] = [];
       for (let n = 0; n < 150; n++) {
         await h.suggest(
           [
@@ -153,7 +160,9 @@ describe("the programs the worker keeps", () => {
       expect(Math.max(...counts)).toBeLessThanOrEqual(6);
       // And the compiler keeps no story of the current engine for them, nor
       // any record of one.
-      expect(storyCounts.every((c) => c.stories === 0 && c.entries === 0)).toBe(true);
+      expect(storyCounts).toEqual(
+        storyCounts.map(() => ({ stories: 0, tables: 1, entries: 0 })),
+      );
     } finally {
       h.dispose();
     }
