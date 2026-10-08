@@ -687,11 +687,8 @@ export class Story extends FlowBase {
    *  the container the current engine runs them from, with each list's
    *  runtime definition, and each struct a global carries added to
    *  `runtimeStructs`. `generate` writes a global's initializer into the
-   *  container; the program path's resolver writes only the initializers of
-   *  the statements it generates again (`ProgramResolver`), into a container
-   *  nothing runs, which it has assemble nothing else (`assemble` false).
-   *  `runtimeStructOf` builds a struct's runtime definition, as for
-   *  `DeclareStoryTables`. */
+   *  container. `runtimeStructOf` builds a struct's runtime definition, as
+   *  for `DeclareStoryTables`. */
   public InitializeGlobals(
     implicitParentNames: ReadonlySet<string>,
     runtimeStructs: RuntimeStructDefinition[],
@@ -699,7 +696,6 @@ export class Story extends FlowBase {
     runtimeStructOf: (
       struct: StructDefinition,
     ) => RuntimeStructDefinition = (struct) => struct.runtimeStructDefinition,
-    assemble = true,
   ): {
     variableInitialization: RuntimeContainer;
     runtimeLists: RuntimeListDefinition[];
@@ -707,10 +703,66 @@ export class Story extends FlowBase {
     // Export initialisation of global variables
     // TODO: We *could* add this as a declarative block to the story itself...
     const variableInitialization = new RuntimeContainer();
-    if (assemble) {
-      variableInitialization.AddContent(RuntimeControlCommand.EvalStart());
-    }
+    variableInitialization.AddContent(RuntimeControlCommand.EvalStart());
+    const runtimeLists = this.EachGlobal(
+      implicitParentNames,
+      runtimeStructs,
+      runtimeStructOf,
+      (list) => {
+        variableInitialization.AddContent(list.runtimeObject!);
+      },
+      (key, value) => {
+        generate(value, variableInitialization);
+        const runtimeVarAss = new RuntimeVariableAssignment(key, true);
+        runtimeVarAss.isGlobal = true;
+        variableInitialization.AddContent(runtimeVarAss);
+      },
+    );
+    variableInitialization.AddContent(RuntimeControlCommand.EvalEnd());
+    variableInitialization.AddContent(RuntimeControlCommand.End());
+    return { variableInitialization, runtimeLists };
+  }
 
+  /** What `InitializeGlobals` does on the program path, which builds no
+   *  container (#705): the story's globals in the order the story declared
+   *  them, each list's and struct's runtime definition, each list prepared,
+   *  and `prepare` called for each global with an initializer, where
+   *  `InitializeGlobals` has `generate` write it
+   *  (`ProgramResolver.initialize`). Returns the lists' runtime
+   *  definitions. */
+  public PrepareGlobals(
+    implicitParentNames: ReadonlySet<string>,
+    runtimeStructs: RuntimeStructDefinition[],
+    prepare: (value: VariableAssignment) => void,
+    runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
+  ): RuntimeListDefinition[] {
+    return this.EachGlobal(
+      implicitParentNames,
+      runtimeStructs,
+      runtimeStructOf,
+      (list) => {
+        list.prepare();
+      },
+      (_key, value) => {
+        prepare(value);
+      },
+    );
+  }
+
+  /** The globals both engines initialize, in the order the story declared
+   *  them, which `InitializeGlobals` and `PrepareGlobals` share: each list
+   *  registered, its runtime definition listed and then handed to `list`;
+   *  each struct a global carries registered and its runtime definition
+   *  (`runtimeStructOf`) added to `runtimeStructs`; and each global with an
+   *  initializer handed to `initializer`, under its key. Returns the lists'
+   *  runtime definitions. */
+  protected EachGlobal(
+    implicitParentNames: ReadonlySet<string>,
+    runtimeStructs: RuntimeStructDefinition[],
+    runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
+    list: (definition: ListDefinition) => void,
+    initializer: (key: string, value: VariableAssignment) => void,
+  ): RuntimeListDefinition[] {
     // Global variables are those that are local to the story and marked as global
     const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
@@ -732,10 +784,7 @@ export class Story extends FlowBase {
         if (value.listDefinition) {
           this._listDefs.set(key, value.listDefinition);
           runtimeLists.push(value.listDefinition.runtimeListDefinition);
-          const list = value.listDefinition.runtimeObject!;
-          if (assemble) {
-            variableInitialization.AddContent(list);
-          }
+          list(value.listDefinition);
         } else {
           // Struct registration — populates `structDefinitions` for the
           // engine's character / UI / asset spec system. A `define` can
@@ -751,63 +800,7 @@ export class Story extends FlowBase {
           // A pure struct VA (no expression) is intentionally NOT
           // initialized at runtime, matching the legacy behavior.
           if (value.expression) {
-            generate(value, variableInitialization);
-            if (assemble) {
-              const runtimeVarAss = new RuntimeVariableAssignment(key, true);
-              runtimeVarAss.isGlobal = true;
-              variableInitialization.AddContent(runtimeVarAss);
-            }
-          } else if (!value.structDefinition) {
-            // Non-struct global declaration must have an expression.
-            throw new Error();
-          }
-        }
-      }
-    }
-
-    if (assemble) {
-      variableInitialization.AddContent(RuntimeControlCommand.EvalEnd());
-      variableInitialization.AddContent(RuntimeControlCommand.End());
-    }
-
-    return { variableInitialization, runtimeLists };
-  }
-
-  /** What `InitializeGlobals` does on the program path, which builds no
-   *  container (#705): the story's globals in the order the story declared
-   *  them, each list's and struct's runtime definition, and `prepare` called
-   *  for each global with an initializer, where `InitializeGlobals` has
-   *  `generate` write it (`ProgramResolver.initialize`). Returns the lists'
-   *  runtime definitions. */
-  public PrepareGlobals(
-    implicitParentNames: ReadonlySet<string>,
-    runtimeStructs: RuntimeStructDefinition[],
-    prepare: (value: VariableAssignment) => void,
-    runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
-  ): RuntimeListDefinition[] {
-    const runtimeLists: RuntimeListDefinition[] = [];
-    for (const [key, value] of this.variableDeclarations) {
-      if (
-        implicitParentNames.has(key) ||
-        (value.isPreludeDeclaration &&
-          !value.expression &&
-          !value.structDefinition &&
-          !value.listDefinition)
-      ) {
-        continue;
-      }
-      if (value.isGlobalDeclaration) {
-        if (value.listDefinition) {
-          this._listDefs.set(key, value.listDefinition);
-          runtimeLists.push(value.listDefinition.runtimeListDefinition);
-          value.listDefinition.prepare();
-        } else {
-          if (value.structDefinition) {
-            this._structDefs.set(key, value.structDefinition);
-            runtimeStructs.push(runtimeStructOf(value.structDefinition));
-          }
-          if (value.expression) {
-            prepare(value);
+            initializer(key, value);
           } else if (!value.structDefinition) {
             // Non-struct global declaration must have an expression.
             throw new Error();
