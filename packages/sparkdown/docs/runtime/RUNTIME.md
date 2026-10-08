@@ -1,5 +1,7 @@
 # Sparkdown Runtime Guide
 
+> **The engine this guide describes was deleted in #705.** Stories run on the binary program engine (`src/program/ProgramStory.ts`), whose design of record is [`docs/engine/binary-program.md`](../../../../docs/engine/binary-program.md); the value layer it kept (values, operators, the standard library, the variables and the call stack) is described in [`src/runtime/README.md`](../../src/runtime/README.md). The sections below describe the deleted interpreter (`src/inkjs/engine/`, its bytecode containers and `ExportRuntime`) and stay as history until the guide is rewritten for the program engine (#1707).
+
 The runtime is the bytecode interpreter that executes a compiled story. It lives in `src/inkjs/engine/` and is forked from inkjs with sparkdown-specific extensions. Most of the interpreter is general-purpose ink semantics; the deltas this guide focuses on are the points where sparkdown's language design needs runtime support.
 
 If the grammar produces the tree and the lowerer produces the ParsedHierarchy, the runtime executes the bytecode the lowerer's emit eventually becomes (via inkjs's `ExportRuntime`).

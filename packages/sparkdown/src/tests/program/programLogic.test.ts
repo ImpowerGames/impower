@@ -3,9 +3,8 @@
 // the writer emits for each class of the parsed hierarchy, what each
 // instruction does to the eval stack, the output and the frame, a block
 // statement's bodies and the scopes around them, a continue that returns
-// between two lines, a decision the route simulator forces, the current
-// engine's beats of each script, recorded before #705 deleted it
-// (`__snapshots__/programLogic.test.ts.snap`), and the constructs a compile
+// between two lines, a decision the route simulator forces, the beats each
+// script shows (literals read from the script), and the constructs a compile
 // builds or reports.
 import { describe, expect, it } from "vitest";
 import { buildRouteSimulator } from "../../compiler/utils/planRoute";

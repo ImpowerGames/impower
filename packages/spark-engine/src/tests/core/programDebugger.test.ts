@@ -9,7 +9,6 @@
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { unsupportedConstructMessage } from "@impower/sparkdown/src/compiler/utils/unsupportedConstructMessage";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { Game } from "../../game/core/classes/Game";
 
@@ -442,7 +441,10 @@ describe("the debugger on the program engine", () => {
       ]);
     // `NESTED` holds lines 0 to 21, so the scene starts on line 22 and the
     // divert is line 23.
-    expect(errors).toContainEqual([23, unsupportedConstructMessage("Divert")]);
+    expect(errors).toContainEqual([
+      23,
+      "A function can't be diverted to: call it instead, as `& name()` on a line of its own or `{name()}` in a line.",
+    ]);
     expect(program.chunks).toBeUndefined();
   });
 

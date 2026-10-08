@@ -43,6 +43,8 @@ const NOT_SYNTAX: RegExp[] = [
   /^(?:Scene|Branch) is missing its closing `end` keyword\./,
   // A construct the program cannot compile (`unsupportedConstructMessage`).
   /^`external` functions are not supported: /,
+  /^A function can't be diverted to: /,
+  /^This statement cannot be compiled: /,
 ];
 
 function messageOf(d: SparkDiagnostic): string {

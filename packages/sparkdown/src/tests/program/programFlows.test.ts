@@ -291,21 +291,80 @@ describe("flows on the program engine", () => {
     lines.push("  Tagged .. queue|red # red|blue # blue .. sequence.");
     lines.push("  if i < 5 then", "    -> start", "  end", "  done", "end", "store i = 0", "");
     const { actual, root } = programBeats(lines.join("\n"));
-    expect(actual.beats.length).toBeGreaterThan(40);
+    expect(actual.errors).toEqual([]);
+    const shown = texts(actual);
+    /** What kind `k` shows in each form over the five passes. */
+    const forms = (k: number) => ({
+      inline: shown.filter((t) => t.startsWith(`Inline ${k} `)),
+      glued: shown.filter((t) => t.startsWith(`Glued ${k} `)),
+      line: shown.filter((t) => new RegExp(`^(One|Two|Three) ${k}\\.$`).test(t)),
+      block: shown.filter((t) => new RegExp(`^(First|Second) ${k}\\.$`).test(t)),
+    });
     // The kinds that draw nothing, pass by pass: a queue shows each arm once
     // and then nothing, a cycle starts again, and a chain stays on its last.
-    const inline = (k: number) => texts(actual).filter((t) => t.startsWith(`Inline ${k} `));
-    expect(inline(0)).toEqual(["Inline 0 A.", "Inline 0 B.", "Inline 0 C.", "Inline 0 .", "Inline 0 ."]);
-    expect(inline(1)).toEqual(["Inline 1 A.", "Inline 1 B.", "Inline 1 C.", "Inline 1 A.", "Inline 1 B."]);
-    expect(inline(2)).toEqual(["Inline 2 A.", "Inline 2 B.", "Inline 2 C.", "Inline 2 C.", "Inline 2 C."]);
-    expect(texts(actual).filter((t) => /^(First|Second) [0-2]\.$/.test(t))).toEqual([
-      ...["First 0.", "First 1.", "First 2."],
-      ...["Second 0.", "Second 1.", "Second 2."],
-      ...["First 1.", "Second 2."],
-      ...["Second 1.", "Second 2."],
-      ...["First 1.", "Second 2."],
-    ]);
-    expect(texts(actual).filter((t) => t.startsWith("Tagged"))).toEqual([
+    expect(forms(0)).toEqual({
+      inline: ["Inline 0 A.", "Inline 0 B.", "Inline 0 C.", "Inline 0 .", "Inline 0 ."],
+      glued: ["Glued 0 A after.", "Glued 0 B after.", "Glued 0 C after.", "Glued 0 after.", "Glued 0 after."],
+      line: ["One 0.", "Two 0.", "Three 0."],
+      block: ["First 0.", "Second 0."],
+    });
+    expect(forms(1)).toEqual({
+      inline: ["Inline 1 A.", "Inline 1 B.", "Inline 1 C.", "Inline 1 A.", "Inline 1 B."],
+      glued: ["Glued 1 A after.", "Glued 1 B after.", "Glued 1 C after.", "Glued 1 A after.", "Glued 1 B after."],
+      line: ["One 1.", "Two 1.", "Three 1.", "One 1.", "Two 1."],
+      block: ["First 1.", "Second 1.", "First 1.", "Second 1.", "First 1."],
+    });
+    expect(forms(2)).toEqual({
+      inline: ["Inline 2 A.", "Inline 2 B.", "Inline 2 C.", "Inline 2 C.", "Inline 2 C."],
+      glued: ["Glued 2 A after.", "Glued 2 B after.", "Glued 2 C after.", "Glued 2 C after.", "Glued 2 C after."],
+      line: ["One 2.", "Two 2.", "Three 2.", "Three 2.", "Three 2."],
+      block: ["First 2.", "Second 2.", "Second 2.", "Second 2.", "Second 2."],
+    });
+    // The kinds that draw: every pass shows one of the arms. The injected
+    // draws come from one stream shared by every alternator of the run
+    // (`injectDraws`), so a draw does not repeat a shuffle's own sequence
+    // and the arms a pass shows are no permutation; what the kind does once
+    // its arms are drawn is still its own: a shuffle queue then shows
+    // nothing, and a shuffle chain stays on the arm it showed last.
+    const arms = {
+      inline: ["A", "B", "C"].map((arm) => (k: number) => `Inline ${k} ${arm}.`),
+      glued: ["A", "B", "C"].map((arm) => (k: number) => `Glued ${k} ${arm} after.`),
+      line: ["One", "Two", "Three"].map((arm) => (k: number) => `${arm} ${k}.`),
+      block: ["First", "Second"].map((arm) => (k: number) => `${arm} ${k}.`),
+    };
+    const drawsArms = (k: number, form: keyof typeof arms, passes: number, drawn = passes) => {
+      const out = forms(k)[form];
+      expect(out, `${form} ${k}`).toHaveLength(passes);
+      for (const text of out.slice(0, drawn)) {
+        expect(arms[form].map((arm) => arm(k)), `${form} ${k}`).toContain(text);
+      }
+      return out;
+    };
+    // shuffle queue: three draws, then nothing.
+    for (const form of ["inline", "glued"] as const) {
+      drawsArms(3, form, 5, 3);
+    }
+    expect(forms(3).inline.slice(3)).toEqual(["Inline 3 .", "Inline 3 ."]);
+    expect(forms(3).glued.slice(3)).toEqual(["Glued 3 after.", "Glued 3 after."]);
+    drawsArms(3, "line", 3);
+    drawsArms(3, "block", 2);
+    // shuffle cycle: a draw every pass.
+    for (const form of ["inline", "glued", "line", "block"] as const) {
+      drawsArms(4, form, 5);
+    }
+    // shuffle chain: its arms drawn, then the last one again.
+    for (const form of ["inline", "glued", "line", "block"] as const) {
+      const out = drawsArms(5, form, 5);
+      const last = form === "block" ? 1 : 2;
+      expect(out.slice(last + 1), `${form} 5`).toEqual(out.slice(last + 1).map(() => out[last]));
+    }
+    // shuffle: a draw every pass. A glued plain `shuffle` is not read as an
+    // alternator and shows its text as written (#1706), so it is left
+    // out here.
+    for (const form of ["inline", "line", "block"] as const) {
+      drawsArms(6, form, 5);
+    }
+    expect(shown.filter((t) => t.startsWith("Tagged"))).toEqual([
       "Tagged red sequence.",
       "Tagged blue sequence.",
       "Tagged sequence.",

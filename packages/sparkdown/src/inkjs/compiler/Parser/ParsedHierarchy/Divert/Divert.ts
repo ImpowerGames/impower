@@ -31,6 +31,7 @@ import {
   isLoopInternal,
   loopExitOf,
 } from "../../../../../compiler/lower/utils/statementShape";
+import { FUNCTION_DIVERT } from "../../../../../compiler/utils/unsupportedConstructMessage";
 
 export class Divert extends ParsedObject {
   public readonly args: Expression[] = [];
@@ -265,7 +266,7 @@ export class Divert extends ParsedObject {
     }
     const target = this.targetContent;
     if (target instanceof FlowBase && target.isFunction) {
-      emitter.unsupported(this.typeName);
+      emitter.unsupported(FUNCTION_DIVERT);
     }
     const symbol = emitter.targetSymbol(target, this.writtenTargetName);
     emitter.referenceTarget(symbol);

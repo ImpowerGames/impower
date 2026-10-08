@@ -5,6 +5,10 @@
 export const CHOICE_OUTSIDE_CHOOSE_MESSAGE =
   "Choice mark (`*` / `+`) must appear inside a `choose ... end` block. Wrap the choices in `choose` or remove the mark.";
 
+/** The construct a divert to a function names: a function is called, never
+ *  diverted to (`Divert.EmitProgram`). */
+export const FUNCTION_DIVERT = "a divert to a function";
+
 /**
  * The error a compile reports at a statement that holds a construct the
  * program has no emit path for, named as the program's build names it
@@ -18,6 +22,8 @@ export const unsupportedConstructMessage = (construct: string): string => {
     case "external":
     case "ExternalDeclaration":
       return "`external` functions are not supported: write the function in Sparkdown.";
+    case FUNCTION_DIVERT:
+      return "A function can't be diverted to: call it instead, as `& name()` on a line of its own or `{name()}` in a line.";
     case "list":
     case "List":
     case "ListDefinition":

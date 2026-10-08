@@ -20,7 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
+import { FUNCTION_DIVERT, unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { fixtures } from "./differentialFixtures";
 import { MAIN_URI, programCompiler } from "./programHarness";
 
@@ -50,6 +50,11 @@ interface Recorded {
 /** The construct an unsupported construct's error names, or null for any
  *  other diagnostic. */
 const unsupportedConstructOf = (message: string): string | null => {
+  // The record names the class that fell back, `Divert`, where the compile
+  // now names the construct, a divert to a function.
+  if (message === unsupportedConstructMessage(FUNCTION_DIVERT)) {
+    return "Divert";
+  }
   for (const construct of ["external", "list"]) {
     if (message === unsupportedConstructMessage(construct)) {
       return construct;
