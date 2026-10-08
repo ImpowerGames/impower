@@ -3,7 +3,9 @@
 // whose choices' bodies and `then` clause are blocks, a choice's count is an
 // anonymous symbol the statement owns that goes with the choice when the
 // statement is emitted again, and the engine raises, presents and takes
-// choices as the current engine does.
+// choices as the current engine did. Each run is held to the run the current
+// engine made of the same script and picks, recorded before #705 deleted it
+// (`__snapshots__/programChoices.test.ts.snap`).
 import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
@@ -58,29 +60,24 @@ const silence = <T>(run: () => T): T => {
   }
 };
 
-/** What a script shows on each engine when the choices `picks` names are
- *  taken in turn (the first one at every menu past them), and the program's
- *  root. */
-const bothEngines = (text: string, picks: number[] = [], from?: string) =>
+/** What a script shows when the choices `picks` names are taken in turn
+ *  (the first one at every menu past them), and the program's root. */
+const programRun = (text: string, picks: number[] = [], from?: string) =>
   silence(() => {
     const { program } = compileScript(text);
     expect(program.chunks).toBeDefined();
-    const current = compileScript(text);
     injectDraws();
-    current.story.ResetState();
-    const expected = storyRun(current.story, picks, { from });
-    injectDraws();
-    const actual = storyRun(new ProgramStory(program.chunks!), picks, { from });
-    return { expected, actual, root: program.chunks! };
+    const run = storyRun(new ProgramStory(program.chunks!), picks, { from });
+    return { run, root: program.chunks! };
   });
 
-/** Compares a script on both engines for each of `pickLists`, and returns
- *  the runs. */
+/** Runs a script for each of `pickLists`, holds each run to the current
+ *  engine's run of it, recorded, and returns the runs. */
 const agrees = (text: string, pickLists: number[][], from?: string) =>
   pickLists.map((picks) => {
-    const run = bothEngines(text, picks, from);
-    expect(run.actual, `picks ${picks.join(",")}`).toEqual(run.expected);
-    return run;
+    const result = programRun(text, picks, from);
+    expect(result.run, `picks ${picks.join(",")}`).toMatchSnapshot();
+    return result;
   });
 
 /** The texts of a run's beats, trimmed. */
@@ -189,17 +186,17 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const [first, second] = agrees(text, [[0], [1]]);
-    expect(menuTexts(first!.expected)).toEqual([["Open the door", "Knock"]]);
+    expect(menuTexts(first!.run)).toEqual([["Open the door", "Knock"]]);
     // A choice whose words are all choice-only shows an empty line when
     // taken.
-    expect(texts(first!.actual)).toEqual([
+    expect(texts(first!.run)).toEqual([
       "The door is shut.",
       "",
       "The door swings open.",
       "You step back.",
       "After.",
     ]);
-    expect(texts(second!.actual)).toEqual([
+    expect(texts(second!.run)).toEqual([
       "The door is shut.",
       "Knock",
       "Nobody answers.",
@@ -232,7 +229,7 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const [a, b, c] = agrees(text, [[0, 0], [0, 1], [1]]);
-    expect(texts(a!.actual)).toEqual([
+    expect(texts(a!.run)).toEqual([
       "Outer one",
       "Inside one.",
       "Inner A",
@@ -241,8 +238,8 @@ describe("choose blocks on the program engine", () => {
       "Back in outer one.",
       "Outer then.",
     ]);
-    expect(menuTexts(b!.actual)).toEqual([["Outer one", "Outer two"], ["Inner A", "Inner B"]]);
-    expect(texts(c!.actual)).toEqual(["Outer two", "Outer then."]);
+    expect(menuTexts(b!.run)).toEqual([["Outer one", "Outer two"], ["Inner A", "Inner B"]]);
+    expect(texts(c!.run)).toEqual(["Outer two", "Outer then."]);
   });
 
   it("hides a conditional choice whose condition is false, and an `if` that gates a choice", () => {
@@ -269,9 +266,9 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const [pay, beg] = agrees(text, [[0], [1]]);
-    expect(menuTexts(pay!.actual)).toEqual([["Pay", "Beg"]]);
-    expect(texts(pay!.actual)).toEqual(["Pay", "Paid.", "After."]);
-    expect(texts(beg!.actual)).toEqual(["for more", "Begged.", "After."]);
+    expect(menuTexts(pay!.run)).toEqual([["Pay", "Beg"]]);
+    expect(texts(pay!.run)).toEqual(["Pay", "Paid.", "After."]);
+    expect(texts(beg!.run)).toEqual(["for more", "Begged.", "After."]);
   });
 
   it("hides a once-only choice taken before, and offers a sticky one again", () => {
@@ -295,7 +292,7 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const [run] = agrees(text, [[0, 0, 0, 0]]);
-    expect(menuTexts(run!.actual).slice(0, 5)).toEqual([
+    expect(menuTexts(run!.run).slice(0, 5)).toEqual([
       ["Once", "Sticky", "Leave"],
       ["Sticky", "Leave"],
       ["Sticky", "Leave"],
@@ -381,9 +378,9 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const runs = agrees(text, [[0], [1], [1, 2], [2, 0, 1, 2, 3], [0, 1, 2, 3, 4], [4, 3, 2, 1]]);
-    expect(texts(runs[0]!.actual)).toContain("Value A 7 o.");
-    expect(texts(runs[1]!.actual)).toContain("Value B 8.");
-    expect(texts(runs[2]!.actual)).toContain("Deep 9.");
+    expect(texts(runs[0]!.run)).toContain("Value A 7 o.");
+    expect(texts(runs[1]!.run)).toContain("Value B 8.");
+    expect(texts(runs[2]!.run)).toContain("Deep 9.");
     // A gate before the choice that does not hold opens no scope, and the
     // line after the block reads the global again.
     const [after] = agrees(
@@ -409,7 +406,7 @@ describe("choose blocks on the program engine", () => {
       ].join("\n"),
       [[0]],
     );
-    expect(texts(after!.actual)).toEqual(["Pick", "Inside true.", "After false."]);
+    expect(texts(after!.run)).toEqual(["Pick", "Inside true.", "After false."]);
   });
 
   // A gated branch's scope closes where the branch ends, as Luau closes a
@@ -418,7 +415,7 @@ describe("choose blocks on the program engine", () => {
   // the rest of the presentation and finds the local, which is its defect;
   // `programChoiceScopes.test.ts` asserts the rest of the rule.
   it("reads the global in a later choice's condition, not the local of the branch that gated an earlier choice", () => {
-    const { actual } = bothEngines(
+    const { run: actual } = programRun(
       [
         "store open = false",
         "-> main",
@@ -470,8 +467,8 @@ describe("choose blocks on the program engine", () => {
         "",
       ].join("\n");
       const runs = agrees(text, [[0, 2], [1, 2], [2], [0, 0, 0, 2]]);
-      expect(menuTexts(runs[0]!.actual)[0]).toContain("Inner A");
-      expect(menuTexts(runs[0]!.actual)[0]).toContain("Outer");
+      expect(menuTexts(runs[0]!.run)[0]).toContain("Inner A");
+      expect(menuTexts(runs[0]!.run)[0]).toContain("Outer");
     }
     const [inner, middle, outer] = agrees(
       [
@@ -497,9 +494,9 @@ describe("choose blocks on the program engine", () => {
       ].join("\n"),
       [[0], [1], [2]],
     );
-    expect(texts(inner!.actual)).toEqual(["Inner", "Inner then.", "Middle then.", "Outer then."]);
-    expect(texts(middle!.actual)).toEqual(["Middle", "Middle then.", "Outer then."]);
-    expect(texts(outer!.actual)).toEqual(["Outer", "Outer then."]);
+    expect(texts(inner!.run)).toEqual(["Inner", "Inner then.", "Middle then.", "Outer then."]);
+    expect(texts(middle!.run)).toEqual(["Middle", "Middle then.", "Outer then."]);
+    expect(texts(outer!.run)).toEqual(["Outer", "Outer then."]);
   });
 
   // A block written in another block's preamble whose choices an `if` gates:
@@ -530,7 +527,7 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const program = (text: string, picks: number[]) => bothEngines(text, picks).actual;
+    const program = (text: string, picks: number[]) => programRun(text, picks).run;
     expect(menuTexts(program(nested, [0]))).toEqual([["Inner", "Outer"]]);
     expect(texts(program(nested, [0]))).toEqual([
       "Inner",
@@ -632,12 +629,12 @@ describe("choose blocks on the program engine", () => {
         "",
       ].join("\n");
       const [inner, outer] = agrees(text, [[0], [1]]);
-      expect(texts(inner!.actual)).toEqual([
+      expect(texts(inner!.run)).toEqual([
         preamble.length === 6 ? "Inner" : "Inner 1",
         "Chose inner.",
         "After.",
       ]);
-      expect(texts(outer!.actual)).toEqual(["Outer", "After."]);
+      expect(texts(outer!.run)).toEqual(["Outer", "After."]);
     }
   });
 
@@ -665,7 +662,7 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const [run] = agrees(text, [[0]]);
-    expect(texts(run!.actual)).toEqual([
+    expect(texts(run!.run)).toEqual([
       "Look",
       "Looked.",
       "Given up 1.",
@@ -698,16 +695,16 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const [side, hub] = agrees(text, [[0], [1]]);
-    expect(menuTexts(side!.actual)).toEqual([["Side choice", "Hub choice"]]);
+    expect(menuTexts(side!.run)).toEqual([["Side choice", "Hub choice"]]);
     // Taking the side's choice enters the side scene from the hub, where the
     // flow stopped, so the scene counts a second visit.
-    expect(texts(side!.actual)).toEqual([
+    expect(texts(side!.run)).toEqual([
       "Hub 1.",
       "Side choice",
       "In the side 2 1.",
       "Side after.",
     ]);
-    expect(texts(hub!.actual)).toEqual(["Hub 1.", "Hub choice", "In the hub.", "Hub after."]);
+    expect(texts(hub!.run)).toEqual(["Hub 1.", "Hub choice", "In the hub.", "Hub after."]);
   });
 
   it("runs a labelled then clause another scene diverts to, and the scene after the clause", () => {
@@ -732,8 +729,8 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     const [stay, away] = agrees(text, [[0], [1]]);
-    expect(texts(stay!.actual)).toEqual(["Stay", "Stayed.", "Rejoined 1.", "More of the scene."]);
-    expect(texts(away!.actual)).toEqual(["Away", "Away.", "Rejoined 1.", "More of the scene."]);
+    expect(texts(stay!.run)).toEqual(["Stay", "Stayed.", "Rejoined 1.", "More of the scene."]);
+    expect(texts(away!.run)).toEqual(["Away", "Away.", "Rejoined 1.", "More of the scene."]);
   });
 
   it("gives a choice its tags and its text in parts, and a named choice a count that a divert reaches", () => {
@@ -786,10 +783,8 @@ describe("choose blocks on the program engine", () => {
     silence(() => {
       const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
-      const current = compileScript(text).story;
-      current.ResetState();
       const story = new ProgramStory(program.chunks!);
-      for (const engine of [current, story] as const) {
+      for (const engine of [story] as const) {
         expect(engine.Continue()).toBe("First line.\n");
         expect(engine.variablesState.$("x")).toBe(0);
         expect(engine.Continue()).toBe("Second line 1.\n");
@@ -1333,10 +1328,10 @@ describe("large blocks", () => {
       .replace("include scripts/characters\n", "")
       .replace("include scripts/portraits\n", "");
     const [first, other] = agrees(text, [[0], [1]], "MAIN");
-    expect(first!.expected.beats.length).toBeGreaterThan(700);
-    expect(texts(first!.expected).at(-1)).toBe("A CRASH of thunder.");
-    expect(first!.expected.menus).toHaveLength(1);
-    expect(other!.actual.menus[0]!.picked).toBe(1);
+    expect(first!.run.beats.length).toBeGreaterThan(700);
+    expect(texts(first!.run).at(-1)).toBe("A CRASH of thunder.");
+    expect(first!.run.menus).toHaveLength(1);
+    expect(other!.run.menus[0]!.picked).toBe(1);
   });
 });
 
@@ -1381,7 +1376,7 @@ describe("a label in the body of a then clause", () => {
 
   it("is reached by a divert from another scene on both engines", () => {
     const [run] = agrees(reentered, [[0]]);
-    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+    expect(texts(run!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
   });
 
   it("keeps both names when the clause names its own label", () => {
@@ -1390,8 +1385,8 @@ describe("a label in the body of a then clause", () => {
       .replace("-> main.inner", "-> main.after");
     expect(diagnostics(silence(() => compileScript(named)).program)).toEqual([]);
     const [run] = agrees(named, [[0]]);
-    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+    expect(texts(run!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
     const [inner] = agrees(named.replace("-> main.after", "-> main.inner"), [[0]]);
-    expect(texts(inner!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+    expect(texts(inner!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
   });
 });

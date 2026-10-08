@@ -53,19 +53,17 @@ const silence = <T>(run: () => T): T => {
   }
 };
 
-/** What a script shows on each engine, from its top or from scene `from`,
- *  with the same shuffle draws, and the program's root. */
-const bothEngines = (text: string, from?: string) =>
+/** What a script shows, from its top or from scene `from`, with the
+ *  injected shuffle draws, and the program's root. A test holds what it
+ *  shows to what the current engine showed of the same script, recorded
+ *  before #705 deleted it (`__snapshots__/programFlows.test.ts.snap`). */
+const programBeats = (text: string, from?: string) =>
   silence(() => {
     const { program } = compileScript(text);
     expect(program.chunks).toBeDefined();
-    const current = compileScript(text);
-    injectDraws();
-    current.story.ResetState();
-    const expected = storyBeats(current.story, from);
     injectDraws();
     const actual = storyBeats(new ProgramStory(program.chunks!), from);
-    return { expected, actual, root: program.chunks! };
+    return { actual, root: program.chunks! };
   });
 
 /** The texts of a run's beats. */
@@ -147,7 +145,7 @@ const session = (text: string) => {
 
 describe("flows on the program engine", () => {
   it("runs a divert into the middle of a scene from another scene, counting the scene it enters", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "-> A",
         "scene A",
@@ -163,7 +161,7 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["In A 1.", "B's middle 1 1 1."]);
     expect(opsOf(root)).toContain("JumpSym");
     expect(opsOf(root)).toContain("Visit");
@@ -171,7 +169,7 @@ describe("flows on the program engine", () => {
   });
 
   it("runs a divert to the target a variable holds", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "store target = -> there",
         "-> here",
@@ -186,14 +184,14 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["Here.", "There 1."]);
     expect(opsOf(root)).toContain("JumpVar");
     expect(opsOf(root)).toContain("Sym");
   });
 
   it("runs a tunnel that returns, and one that returns onward to a named target", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "-> main",
         "scene main",
@@ -219,14 +217,14 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["Start.", "In back.", "Returned 1.", "In A.", "In B 1 1."]);
     expect(opsOf(root)).toContain("TunnelReturn");
     expect(chunksWith(root, Op.Call).length).toBeGreaterThan(0);
   });
 
   it("runs a thread that forks inside a scene, and resumes the scene when the thread is done", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "-> main",
         "scene main",
@@ -244,7 +242,7 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["Before.", "In side.", "After 1.", "In side.", "Again 2."]);
     expect(opsOf(root)).toContain("Thread");
     // A state saved while the fork runs holds the thread it suspended, and
@@ -280,10 +278,8 @@ describe("flows on the program engine", () => {
     silence(() => {
       const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
-      const current = compileScript(text).story;
-      current.ResetState();
       const story = new ProgramStory(program.chunks!);
-      for (const engine of [current, story] as const) {
+      for (const engine of [story] as const) {
         expect(engine.Continue()).toBe("First line.\n");
         expect(engine.variablesState.$("x")).toBe(0);
         expect(engine.Continue()).toBe("Second line 1.\n");
@@ -303,8 +299,8 @@ describe("flows on the program engine", () => {
     });
     lines.push("  Tagged .. queue|red # red|blue # blue .. sequence.");
     lines.push("  if i < 5 then", "    -> start", "  end", "  done", "end", "store i = 0", "");
-    const { expected, actual, root } = bothEngines(lines.join("\n"));
-    expect(actual).toEqual(expected);
+    const { actual, root } = programBeats(lines.join("\n"));
+    expect(actual).toMatchSnapshot();
     expect(actual.beats.length).toBeGreaterThan(40);
     for (const op of ["Visit", "VisitIndex", "ShuffleIndex", "Tag"]) {
       expect(opsOf(root), op).toContain(op);
@@ -344,7 +340,7 @@ describe("flows on the program engine", () => {
     // #653: the bottom line reads one label's count, then the other's.
     for (const label of ["alpha", "beta"]) {
       it(`agree with the current engine when the bottom line reads {main.${label}}`, () => {
-        const { expected, actual } = bothEngines(
+        const { actual } = programBeats(
           [
             "-> main",
             "scene main",
@@ -365,13 +361,13 @@ describe("flows on the program engine", () => {
             "",
           ].join("\n"),
         );
-        expect(actual).toEqual(expected);
+        expect(actual).toMatchSnapshot();
         expect(texts(actual)).toEqual([`Counted ${label === "alpha" ? 3 : 4}.`]);
       });
     }
 
     it("count a flow entered by a jump into its middle", () => {
-      const { expected, actual } = bothEngines(
+      const { actual } = programBeats(
         [
           "-> outside",
           "scene outside",
@@ -386,12 +382,12 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
+      expect(actual).toMatchSnapshot();
       expect(texts(actual)).toEqual(["Inside 1, middle 1."]);
     });
 
     it("do not count a flow again for a jump from inside it to its own first statement", () => {
-      const { expected, actual } = bothEngines(
+      const { actual } = programBeats(
         [
           "-> main",
           "scene main",
@@ -406,12 +402,12 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
+      expect(actual).toMatchSnapshot();
       expect(texts(actual)).toEqual(["Pass 1: 1.", "Pass 2: 1.", "Pass 3: 1."]);
     });
 
     it("count a label passed once by falling through and once by a jump", () => {
-      const { expected, actual } = bothEngines(
+      const { actual } = programBeats(
         [
           "-> main",
           "scene main",
@@ -427,12 +423,12 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
+      expect(actual).toMatchSnapshot();
       expect(texts(actual)).toEqual(["Here 1.", "Here 2."]);
     });
 
     it("count a branch and its scene, a scene that starts with a branch, and turns since, read through the language", () => {
-      const { expected, actual, root } = bothEngines(
+      const { actual, root } = programBeats(
         [
           "store spot = -> hall.lobby",
           "-> hall.lobby ->",
@@ -450,7 +446,7 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
+      expect(actual).toMatchSnapshot();
       expect(texts(actual).at(-1)).toBe("Lobby 3, hall 3, turns 0, read 3 3 true.");
       expect(opsOf(root)).toContain("CountOf");
     });
@@ -611,7 +607,7 @@ describe("flows on the program engine", () => {
   // Round 1 of the review of #1431: a jump keeps the bindings of the blocks
   // it stays in.
   it("keeps the locals of the blocks a jump stays in", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "-> main",
         "scene main",
@@ -626,14 +622,14 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["Value 7."]);
   });
 
   // Round 1 of the review of #1431: an onward return leaves from the caller
   // the tunnel returned to, so it does not count the caller's flow again.
   it("counts an onward return to the caller's own flow from the caller", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "-> main",
         "scene main",
@@ -648,7 +644,7 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["Visits 1."]);
   });
 
@@ -707,7 +703,7 @@ describe("flows on the program engine", () => {
   // as the first content of the label written right before it, and a jump
   // to the second counts the first as it enters its container at its start.
   it("counts the labels written right before the label a jump lands on, as the current engine does", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "-> main.beta",
         "scene main",
@@ -727,7 +723,7 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["Counts 1 1.", "Then 1 1 1 1.", "Then 1 1 2 2."]);
   });
 
@@ -735,7 +731,7 @@ describe("flows on the program engine", () => {
   // labels is nothing between them, since the current engine makes no runtime
   // object of it; a line of text, a local or a function is something.
   it("counts the label above across declarations that run no code, as the current engine does", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "-> main.beta",
         "scene main",
@@ -765,7 +761,7 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual([
       "Counts 1 1.",
       "Then 1 1 1.",
@@ -790,11 +786,8 @@ describe("flows on the program engine", () => {
     silence(() => {
       const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
-      const current = compileScript(text).story;
-      current.ResetState();
-      const expected = current.EvaluateFunction("hall", [], true);
       const actual = new ProgramStory(program.chunks!).EvaluateFunction("hall", [], true);
-      expect(actual).toEqual(expected);
+      expect(actual).toMatchSnapshot();
       expect(actual.output).toBe("Lobby 1 0.\n");
     });
   });
@@ -871,8 +864,8 @@ describe("flows on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const { expected, actual } = bothEngines(text);
-    expect(actual).toEqual(expected);
+    const { actual } = programBeats(text);
+    expect(actual).toMatchSnapshot();
     expect(texts(actual)).toEqual(["Entered.", "Left 2."]);
     const s = session(text);
     const renamed = s.edit("-> A\nscene A", "-> B\nscene B");
@@ -1039,9 +1032,8 @@ describe("flows on the program engine", () => {
         const afterReset = lines(game);
         return [first, afterLoad, inSession, afterForcedEnd, afterReset];
       };
-      const current = runs(() => compileScript(text).story);
       const actual = runs(() => new ProgramStory(program.chunks!));
-      expect(actual).toEqual(current);
+      expect(actual).toMatchSnapshot();
       expect(actual).toEqual(["Visits 1.", "Visits 1.", "Visits 1.", "Visits 2.", "Visits 1."]);
     });
   });
@@ -1202,14 +1194,22 @@ describe("symbols", () => {
     expect(isAnonymousSymbol(root.table, door)).toBe(false);
   });
 
-  it("falls back for a label named as another flow's symbol", () => {
+  // A construct the program has no emit path for is a compile error at its
+  // statement, and the compile makes no program (#705).
+  it("reports a label named as another flow's symbol as an error, and makes no program", () => {
     const { program } = silence(() =>
       compileScript(
         ["-> hall", "scene hall", "  label cellar", "  Hall.", "  branch cellar", "    Cellar.", "  end", "end", ""].join("\n"),
-        {},
       ),
     );
-    expect(program.fallback?.construct).toBe("a label named as another");
+    expect(program.chunks).toBeUndefined();
+    const errors = Object.values(program.diagnostics ?? {})
+      .flat()
+      .filter((d) => d.severity === 1)
+      .map((d) => [d.range.start.line, typeof d.message === "string" ? d.message : d.message.value]);
+    expect(errors).toEqual([
+      [2, "This statement cannot be compiled: a label named as another."],
+    ]);
   });
 });
 
@@ -1308,10 +1308,10 @@ describe("the flow screenplay", () => {
   it("runs each scene as the current engine does", () => {
     const text = flowScreenplay(3);
     for (const scene of ["FLOW_0", "FLOW_1", "FLOW_2", "ENDING"]) {
-      const { expected, actual } = bothEngines(text, scene);
-      expect(actual).toEqual(expected);
-      expect(expected.beats.length).toBeGreaterThan(0);
-      expect(expected.errors).toEqual([]);
+      const { actual } = programBeats(text, scene);
+      expect(actual).toMatchSnapshot();
+      expect(actual.beats.length).toBeGreaterThan(0);
+      expect(actual.errors).toEqual([]);
     }
   });
 });

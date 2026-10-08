@@ -1,0 +1,4494 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`flows on the program engine > counts > agree with the current engine when the bottom line reads {main.alpha} 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Counted 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Counted 3.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts > agree with the current engine when the bottom line reads {main.beta} 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Counted 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Counted 4.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts > count a branch and its scene, a scene that starts with a branch, and turns since, read through the language 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the lobby.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the lobby.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the lobby.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the lobby.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the lobby.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the lobby.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Lobby 3, hall 3, turns 0, read 3 3 true.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Lobby 3, hall 3, turns 0, read 3 3 true.
+",
+    },
+  ],
+  "continues": 5,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts > count a flow entered by a jump into its middle 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inside 1, middle 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inside 1, middle 1.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts > count a label passed once by falling through and once by a jump 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Here 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Here 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Here 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Here 2.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts > do not count a flow again for a jump from inside it to its own first statement 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Pass 1: 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Pass 1: 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Pass 2: 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Pass 2: 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Pass 3: 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Pass 3: 1.
+",
+    },
+  ],
+  "continues": 4,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts a path chosen without a reset from the flow a loaded or reset story last ran in 1`] = `
+[
+  "Visits 1.",
+  "Visits 1.",
+  "Visits 1.",
+  "Visits 2.",
+  "Visits 1.",
+]
+`;
+
+exports[`flows on the program engine > counts an onward return to the caller's own flow from the caller 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Visits 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Visits 1.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts the first branch a host's evaluation of its scene runs 1`] = `
+{
+  "output": "Lobby 1 0.
+",
+  "returned": null,
+}
+`;
+
+exports[`flows on the program engine > counts the label above across declarations that run no code, as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Counts 1 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Counts 1 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Then 1 1 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Then 1 1 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Then 1 1 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Then 1 1 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Then 2 2 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Then 2 2 3.
+",
+    },
+  ],
+  "continues": 5,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > counts the labels written right before the label a jump lands on, as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Counts 1 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Counts 1 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Then 1 1 1 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Then 1 1 1 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Then 1 1 2 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Then 1 1 2 2.
+",
+    },
+  ],
+  "continues": 4,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > keeps a target written in a loop's header as the author's through a rename 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Entered.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Entered.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Left 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Left 2.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > keeps the locals of the blocks a jump stays in 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Value 7.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Value 7.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > runs a divert into the middle of a scene from another scene, counting the scene it enters 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In A 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In A 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "B's middle 1 1 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "B's middle 1 1 1.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > runs a divert to the target a variable holds 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "There 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "There 1.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > runs a thread that forks inside a scene, and resumes the scene when the thread is done 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Before.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Before.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In side.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In side.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In side.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In side.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Again 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Again 2.
+",
+    },
+  ],
+  "continues": 6,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > runs a tunnel that returns, and one that returns onward to a named target 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Start.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Start.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In back.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In back.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Returned 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Returned 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In B 1 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In B 1 1.
+",
+    },
+  ],
+  "continues": 6,
+  "errors": [],
+}
+`;
+
+exports[`flows on the program engine > runs every kind of alternator, inline, glued, on one line and as a block, as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 0 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 0 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 0 A after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 0 A after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 1 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 1 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 1 A after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 1 A after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 2 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 2 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 2 A after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 2 A after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 3 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 3 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 3 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 3 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 4 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 4 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 4 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 4 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 5 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 5 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 5 A after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 5 A after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 6 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 6 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 6 .. shuffle|A|B|C .. after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 6 .. shuffle|A|B|C .. after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Tagged red sequence.",
+          ],
+        ],
+      ],
+      "tags": [
+        "red",
+      ],
+      "text": "Tagged red sequence.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 0 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 0 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 0 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 0 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 1 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 1 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 1 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 1 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 2 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 2 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 2 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 2 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 3 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 3 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 3 A after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 3 A after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 4 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 4 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 4 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 4 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 5 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 5 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 5 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 5 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 6 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 6 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 6 .. shuffle|A|B|C .. after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 6 .. shuffle|A|B|C .. after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Tagged blue sequence.",
+          ],
+        ],
+      ],
+      "tags": [
+        "blue",
+      ],
+      "text": "Tagged blue sequence.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 0 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 0 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 0 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 0 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 1 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 1 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 1 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 1 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 2 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 2 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 2 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 2 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 3 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 3 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 3 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 3 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 4 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 4 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 4 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 4 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 5 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 5 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 5 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 5 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 6 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 6 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 6 .. shuffle|A|B|C .. after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 6 .. shuffle|A|B|C .. after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Tagged  sequence.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Tagged sequence.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 0 .",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 0 .
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 0  after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 0 after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 1 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 1 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 1 A after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 1 A after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 2 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 2 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 2 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 2 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 3 .",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 3 .
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 3  after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 3 after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 4 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 4 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 4 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 4 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 5 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 5 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 5 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 5 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 6 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 6 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 6 .. shuffle|A|B|C .. after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 6 .. shuffle|A|B|C .. after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Tagged  sequence.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Tagged sequence.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 0 .",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 0 .
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 0  after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 0 after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 1 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 1 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 1 B after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 1 B after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Two 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 2 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 2 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 2 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 2 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 3 .",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 3 .
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 3  after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 3 after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 4 B.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 4 B.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 4 A after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 4 A after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 4.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 5 C.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 5 C.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 5 C after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 5 C after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Three 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Three 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second 5.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inline 6 A.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inline 6 A.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Glued 6 .. shuffle|A|B|C .. after.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Glued 6 .. shuffle|A|B|C .. after.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "One 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First 6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First 6.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Tagged  sequence.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Tagged sequence.
+",
+    },
+  ],
+  "continues": 136,
+  "errors": [],
+}
+`;
+
+exports[`the flow screenplay > runs each scene as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 0",
+          ],
+          [
+            "text",
+            "1 time, top 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First pass of 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First pass of 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour red and pick c.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour red and pick c.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained one here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained one here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Lucky.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Lucky.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 0 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 0 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 1 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 1 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 0",
+          ],
+          [
+            "text",
+            "1 time, top 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second pass.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second pass.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour green and pick b.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour green and pick b.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained two here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained two here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Plain.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Plain.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 0 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 0 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 2 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 2 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 0",
+          ],
+          [
+            "text",
+            "1 time, top 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour red and pick c.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour red and pick c.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained three here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained three here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 0 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 0 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 0.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 3 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 3 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Done looping 3 0 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Done looping 3 0 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Going onward.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Going onward.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After 0, mid 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After 0, mid 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "The end, after 3 passes.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "The end, after 3 passes.
+",
+    },
+  ],
+  "continues": 30,
+  "errors": [],
+}
+`;
+
+exports[`the flow screenplay > runs each scene as the current engine does 2`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 1",
+          ],
+          [
+            "text",
+            "1 time, top 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First pass of 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First pass of 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour red and pick c.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour red and pick c.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained one here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained one here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Lucky.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Lucky.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 1 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 1 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 1 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 1 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 1",
+          ],
+          [
+            "text",
+            "1 time, top 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second pass.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second pass.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour green and pick b.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour green and pick b.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained two here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained two here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Plain.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Plain.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 1 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 1 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 2 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 2 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 1",
+          ],
+          [
+            "text",
+            "1 time, top 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour red and pick c.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour red and pick c.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained three here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained three here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 1 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 1 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 3 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 3 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Done looping 3 0 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Done looping 3 0 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Going onward.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Going onward.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After 1, mid 1, k 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After 1, mid 1, k 2.
+",
+    },
+  ],
+  "continues": 29,
+  "errors": [],
+}
+`;
+
+exports[`the flow screenplay > runs each scene as the current engine does 3`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 2",
+          ],
+          [
+            "text",
+            "1 time, top 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First pass of 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First pass of 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour red and pick c.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour red and pick c.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained one here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained one here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Lucky.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Lucky.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 2 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 2 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 1 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 1 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 2",
+          ],
+          [
+            "text",
+            "1 time, top 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Second pass.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second pass.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour green and pick b.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour green and pick b.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained two here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained two here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Plain.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Plain.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 2 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 2 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 2 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 2 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "Visiting 2",
+          ],
+          [
+            "text",
+            "1 time, top 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "1 time, top 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Colour red and pick c.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Colour red and pick c.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Chained three here.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Chained three here.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Side 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Side 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Carried 2 by tunnel.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Carried 2 by tunnel.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the thread of 2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the thread of 2.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Forked on pass 3 with 2 more.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Forked on pass 3 with 2 more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Done looping 3 0 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Done looping 3 0 3.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Going onward.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Going onward.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After 2, mid 1.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After 2, mid 1.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "The end, after 3 passes.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "The end, after 3 passes.
+",
+    },
+  ],
+  "continues": 30,
+  "errors": [],
+}
+`;
+
+exports[`the flow screenplay > runs each scene as the current engine does 4`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "The end, after 0 passes.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "The end, after 0 passes.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;

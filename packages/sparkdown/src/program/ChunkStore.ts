@@ -1050,8 +1050,8 @@ export class ChunkStore {
       build,
       dropped,
       previous,
-      (construct) => {
-        fallback ??= { construct, uri: flows[0]?.uri ?? "", line: 0 };
+      (construct, uri, line) => {
+        fallback ??= { construct, uri, line };
       },
     );
     if (fallback || !definitions) {
@@ -1182,9 +1182,10 @@ export class ChunkStore {
    * function at its entry; and the kind of each alternator and choice. Only
    * the rows of the flows, of the chunks the build dropped and of the chunks
    * it placed in a sequence built again are written. A label whose qualified
-   * name another label or a flow of the program has makes the program fall
-   * back, naming `a label named as another`, since a jump to the name could
-   * reach either.
+   * name another label or a flow of the program has keeps the program from
+   * being built, naming `a label named as another` at the flow or the
+   * statement whose name clashes, since a jump to the name could reach
+   * either.
    */
   protected definitionArrays(
     flows: readonly FlowSource[],
@@ -1193,7 +1194,7 @@ export class ChunkStore {
     build: SequenceBuild,
     dropped: ReadonlySet<StatementChunk>,
     previous: ProgramRoot | undefined,
-    fail: (construct: string) => void,
+    fail: (construct: string, uri: string, line: number) => void,
   ): DefinitionArrays | undefined {
     const defs = copyDefinitions(
       previous?.definitionArrays,
@@ -1235,7 +1236,9 @@ export class ChunkStore {
         }
       }
     }
-    let failed = false;
+    // Where the first clash of a name stands: the flow named as a label, or
+    // the statement of a label named as another.
+    let failed: { uri: string; line: number } | undefined;
     flows.forEach((flow, f) => {
       const symbol = symbols[f]!;
       defs.sequence[symbol] = flowIds.get(symbol) ?? -1;
@@ -1244,7 +1247,7 @@ export class ChunkStore {
       // flow of the name does not displace, and a label, which collides.
       if (defs.chunk[symbol]! >= 0) {
         if (defs.kind[symbol] === SymbolKind.Label) {
-          failed = true;
+          failed ??= { uri: flow.uri, line: flow.firstLine };
         }
       } else {
         defs.kind[symbol] = flow.kind;
@@ -1284,7 +1287,21 @@ export class ChunkStore {
             before !== UNDEFINED_KIND &&
             (label || before === SymbolKind.Label)
           ) {
-            failed = true;
+            const row = build.sequences.get(place.sequence);
+            const entry = row ? row.arrays.chunks.indexOf(chunk) : -1;
+            failed ??= {
+              uri: row?.uri ?? flows[0]?.uri ?? "",
+              // A flow's entries start at lines from the flow's first, and a
+              // declaration sequence's at their own; a body's place is its
+              // owner's.
+              line: !row
+                ? 0
+                : entry < 0 || row.block >= 0
+                  ? row.firstLine
+                  : row.flow >= 0
+                    ? row.firstLine + row.arrays.lineStarts[entry]!
+                    : row.arrays.lineStarts[entry]!,
+            };
           }
         }
         defs.chunk[symbol] = chunkId(chunk);
@@ -1308,7 +1325,7 @@ export class ChunkStore {
       }
     }
     if (failed) {
-      fail("a label named as another");
+      fail("a label named as another", failed.uri, failed.line);
       return undefined;
     }
     return defs;
