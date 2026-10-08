@@ -156,15 +156,11 @@ export function testCompiler(): SparkdownCompiler {
  * The constructs a test's program may fall back for, which then runs on the
  * current engine, each one a test reaches: a choice outside any `choose`
  * block's code, which the tests write beside the choice-mark error the
- * compile reports (#705 makes every such choice an error), and an included
- * script's
- * top-level content, a `run` statement's script among it, which the writer
- * does not emit yet (#1681).
+ * compile reports (#705 makes every such choice an error). An included
+ * script's top-level content, a `run` statement's script among it, runs on
+ * the program engine since #1681.
  */
-const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
-  "Choice",
-  "IncludedFile",
-]);
+const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set(["Choice"]);
 
 /** The story of a compile's `program.compiled`: on the program engine, the
  *  engine over its root. A program that fell back to the current engine runs

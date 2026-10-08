@@ -694,8 +694,15 @@ export class BinaryProgramWriter implements ProgramEmitter {
         if (!this._choose) {
           this.unsupported(obj.typeName);
         }
+        // The body ends at the next choice, or at a `do` block or a loop
+        // whose body raises one, which is the statement's own code too
+        // (`inlineChoiceBranches`).
         let end = i + 1;
-        while (end < objects.length && !(objects[end] instanceof Choice)) {
+        while (
+          end < objects.length &&
+          !(objects[end] instanceof Choice) &&
+          !opensChoices(objects[end]!)
+        ) {
           end += 1;
         }
         // A label between two such choices makes the later one a choice the
@@ -1649,6 +1656,16 @@ const raisesChoice = (obj: ParsedObject): boolean =>
   obj instanceof Choice ||
   ((obj as { isChooseBlock?: boolean }).isChooseBlock !== true &&
     (obj.content ?? []).some(raisesChoice));
+
+/** Whether `obj` starts a `do` block (its `BeginScope`) or a loop (its first
+ *  object) whose body is the statement's own code and raises a choice of
+ *  the presentation (`inlinedBodies`). */
+const opensChoices = (obj: ParsedObject): boolean => {
+  const body = loopOf.get(obj)?.body ?? bodyOfBlock.get(obj);
+  return (
+    !!body && inlinedBodies.has(body) && heldObjectsOf(body).some(raisesChoice)
+  );
+};
 
 /** A multiple assignment's targets: its values unpacked to as many as it
  *  has targets, and each target assigned in order, the first first, as its
