@@ -813,3 +813,65 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 });
+
+describe("a local declaration of several names", () => {
+  it("is served when an edit elsewhere lowers its block again, and declares its locals again for the statements after it", () => {
+    const s = warmed(
+      clauseScript(["Line one.", ...FILLER, "local a, b = 1, 2", ...FILLER, "Values {a}, {b}.", ...FILLER, "Line last."]),
+    );
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    // A line that reads them, lowered anew while the declaration is served.
+    s.edit("Values {a}, {b}.", "Values {a}, {b}!");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+});
+
+// ---- Statements that read alike ---------------------------------------------
+
+describe("statements that read alike", () => {
+  // Two lines written alike, far apart, among lines no edit below touches.
+  const sameScript = () =>
+    clauseScript(["Line one.", ...FILLER, "Same.", ...FILLER, "Same.", ...FILLER, "Line last."]);
+
+  it("each keep their own memo when an edit writes another line like them above them", () => {
+    const s = warmed(sameScript());
+    const before = new Set(rootChunks(s.root));
+    s.edit("    Line one.\n", "    Line one.\n    Same.\n");
+    expect(loweredOutside(s)).toEqual([]);
+    // The new line's chunk, and no other.
+    expect(rootChunks(s.root).filter((chunk) => !before.has(chunk)).length).toBe(1);
+    sameAsCold(s);
+  });
+
+  it("each keep their own memo when an edit takes away a line like them above them", () => {
+    const s = warmed(
+      clauseScript(["Line one.", "Same.", ...FILLER, "Same.", ...FILLER, "Same.", ...FILLER, "Line last."]),
+    );
+    s.edit("    Line one.\n    Same.\n", "    Line one.\n");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+});
+
+describe("a local declared inside an `if` block's body", () => {
+  it("keeps the block lowered, so the local stays in the block's scope: a line after the block, lowered anew, reads the global of its name", () => {
+    const s = warmed(
+      clauseScript(
+        ["Line one.", ...FILLER, "if 1 > 0 then", "  local scoped = 1", "  Inside {scoped}.", "end", ...FILLER, "After {scoped}.", ...FILLER, "Line last."],
+        ["store scoped = 5", ""],
+      ),
+    );
+    s.edit("Line last.", "Line last, edited.");
+    // A block statement's stand-in holds the stand-ins of its bodies' statements
+    // with none of the scopes its branches open, so a block that declares a
+    // local is lowered, and its body's statements served inside it.
+    expect(loweredOutside(s)).toContain("if 1 > 0 then");
+    expect(loweredOutside(s)).not.toContain("Inside {scoped}.");
+    sameAsCold(s);
+    s.edit("After {scoped}.", "After {scoped}!");
+    sameAsCold(s);
+  });
+});

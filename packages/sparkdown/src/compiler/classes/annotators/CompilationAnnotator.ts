@@ -488,15 +488,21 @@ export class CompilationAnnotator extends SparkdownAnnotator<
 
   /** The memos of the statements the previous lowering of the node at
    *  `[from, to)` held, by syntax. */
-  protected memoLookup(from: number, to: number): Map<string, StatementMemoEntry[]> {
-    const lookup = new Map<string, StatementMemoEntry[]>();
+  protected memoLookup(from: number, to: number): Map<string, StatementMemoEntry> {
+    const lookup = new Map<string, StatementMemoEntry>();
     const inverse = this._inverse;
     const oldFrom = inverse ? inverse.mapPos(from, -1) : from;
     const oldTo = inverse ? inverse.mapPos(to, 1) : to;
-    this.current.between(oldFrom, oldTo, (_f, _t, value) => {
-      collectMemos(value.type.statement, lookup);
+    this.current.between(oldFrom, oldTo, (f, _t, value) => {
+      collectMemos(value.type.statement, f, lookup);
     });
     return lookup;
+  }
+
+  /** Where a position of the document stood before the update the
+   *  annotator is making. */
+  protected before(pos: number): number {
+    return this._inverse ? this._inverse.mapPos(pos, 1) : pos;
   }
 
   /**
@@ -643,6 +649,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           ? new StatementMemoSession(
               host,
               this.memoLookup(nodeRef.from, nodeRef.to),
+              (pos) => this.before(pos),
               this.rebuilt,
               this.memoStats,
               this._served,

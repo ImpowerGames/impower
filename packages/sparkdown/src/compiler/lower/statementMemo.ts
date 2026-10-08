@@ -21,9 +21,13 @@ import {
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import {
   MemoizedAssignment,
+  MemoizedMultiAssignment,
   memoAssignmentOf,
+  memoMultiOf,
   type MemoAssignment,
+  type MemoMultiAssignment,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
+import { MultiVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
@@ -132,7 +136,7 @@ export class StatementMemoEntry {
      *  what it stands as when it is served: a divert (`MemoizedDivert`), a
      *  plain assignment (`MemoizedAssignment`). Null for one that stands as
      *  a `MemoizedStatement`. */
-    readonly stand: MemoDivert | MemoAssignment | MemoGather | null = null,
+    readonly stand: MemoDivert | MemoAssignment | MemoMultiAssignment | MemoGather | null = null,
     /** For a block statement, its bodies and the memos of the statements in
      *  them, with what their lowerings read of the context outside the
      *  block statement (`MemoOwner`). */
@@ -216,13 +220,13 @@ export interface MemoResolution {
    *  resolves: a name declared otherwise since makes the memo stale. */
   readonly resolver: number;
   readonly at: number;
-  /** Whether its resolution made a global of the name the plain assignment
-   *  it is assigns, which no name resolved (an auto-global), which its
-   *  stand-in makes again while the name is still undeclared. */
-  readonly autoGlobal: boolean;
-  /** Whether its generation declared the local the local declaration it is
-   *  declares, which its stand-in declares again. */
-  readonly declares: boolean;
+  /** The names its resolution made globals of, which no name resolved (an
+   *  auto-global), which its stand-in makes again while each is still
+   *  undeclared. */
+  readonly autoGlobals: readonly string[];
+  /** The locals its generation declared, which its stand-in declares
+   *  again. */
+  readonly declares: readonly string[];
 }
 
 /** Thrown when a compile meets a statement its memo served that it cannot
@@ -279,7 +283,8 @@ const eachStatement = (shape: StatementShape, visit: (statement: StatementShape)
 /** The memos of the statements of `shape`'s bodies, by syntax, in order. */
 export const collectMemos = (
   shape: StatementShape | undefined,
-  into: Map<string, StatementMemoEntry[]>,
+  base: number,
+  into: Map<string, StatementMemoEntry>,
 ): void => {
   if (!shape) {
     return;
@@ -287,15 +292,14 @@ export const collectMemos = (
   eachStatement(shape, (statement) => {
     const entry = statement.memo;
     if (entry && !entry.stale) {
-      let list = into.get(entry.syntax);
-      if (!list) {
-        list = [];
-        into.set(entry.syntax, list);
-      }
-      list.push(entry);
+      into.set(memoKey(entry.syntax, base + statement.from), entry);
     }
   });
 };
+
+/** How a memo is found: by its statement's syntax and where the statement
+ *  started in the document when the memo was last lowered or served. */
+export const memoKey = (syntax: string, at: number): string => `${syntax}\u0001${at}`;
 
 /** Whether `obj`, or anything it holds, is something the lowering of its
  *  owner or the story's weave reads of a statement's objects: a weave point
@@ -357,12 +361,14 @@ export class StatementMemoSession {
   // The nodes of the statements served that hold no block, by where each
   // starts, as `name:to` (`servedWithoutBlocks`).
   protected _withoutBlocks = new Map<number, string>();
-  // For each syntax, where `find` looks for its next memo.
-  protected _cursors = new Map<string, number>();
 
   constructor(
     protected readonly host: StatementMemoHost,
-    protected readonly lookup: ReadonlyMap<string, readonly StatementMemoEntry[]>,
+    /** The memos of the statements the node's previous lowering held, by
+     *  their syntax and where each started (`memoKey`). */
+    protected readonly lookup: ReadonlyMap<string, StatementMemoEntry>,
+    /** Where a position of the document stood before the update. */
+    protected readonly before: (pos: number) => number,
     /** The range the incremental parse rebuilt, whose statements are lowered
      *  however they read, or null. */
     protected readonly rebuilt: { from: number; to: number } | null,
@@ -597,23 +603,20 @@ export class StatementMemoSession {
     ctx: LowerContext,
     shape: StatementShape,
   ): StatementMemoEntry | undefined {
-    // Where the search for the syntax's next memo starts: the memos before
-    // it are taken, and stay taken, so statements that read alike take the
-    // memos of their syntax in one pass over them.
-    const candidates = this.lookup.get(syntax);
-    let at = this._cursors.get(syntax) ?? 0;
-    while (candidates && at < candidates.length && this.used.has(candidates[at]!)) {
-      at += 1;
-    }
-    const entry = candidates?.[at];
-    if (!entry) {
+    // A statement the parse rebuilt takes no memo, and the others take the
+    // memo of the statement of their syntax that stood where they stood
+    // before the update: statements that read alike (the same line written
+    // twice) each find their own, whatever an edit wrote or took away
+    // between them.
+    if (!this.host.enabled || !this.servable(node, to, ctx)) {
       return undefined;
     }
-    this._cursors.set(syntax, at + 1);
+    const entry = this.lookup.get(memoKey(syntax, this.before(node.from)));
+    if (!entry || this.used.has(entry)) {
+      return undefined;
+    }
     this.used.add(entry);
     if (
-      !this.host.enabled ||
-      !this.servable(node, to, ctx) ||
       entry.stale ||
       !entry.complete ||
       !this.host.usable(entry)
@@ -675,12 +678,22 @@ export class StatementMemoSession {
         ? new MemoizedDivert(entry, entry.stand)
         : entry.stand?.kind === "assignment"
           ? new MemoizedAssignment(entry, entry.stand)
+          : entry.stand?.kind === "multi"
+            ? new MemoizedMultiAssignment(entry, entry.stand)
           : entry.stand?.kind === "gather"
             ? new MemoizedGather(entry, entry.stand)
             : new MemoizedStatement(entry);
     const range = statementBounds(from, to, ctx);
     statement.debugMetadata = buildDebugMetadata(range.from, range.to, ctx);
-    placeIdentifier(statement, entry.stand?.kind === "divert" ? null : (entry.stand?.at ?? null));
+    if (statement instanceof MultiVariableAssignment && entry.stand?.kind === "multi") {
+      const at = entry.stand.at;
+      statement.targetAssignments.forEach((target, i) => {
+        target.debugMetadata = statement.ownDebugMetadata;
+        placeIdentifier(target, at[i] ?? null);
+      });
+    } else if (entry.stand && entry.stand.kind !== "divert" && entry.stand.kind !== "multi") {
+      placeIdentifier(statement, entry.stand.at);
+    }
     return statement;
   }
 
@@ -842,6 +855,8 @@ const remember = (
       ? memoDivertOf(only)
       : only instanceof VariableAssignment
         ? memoAssignmentOf(only)
+        : only instanceof MultiVariableAssignment
+          ? memoMultiOf(only)
         : only instanceof Gather
           ? memoGatherOf(only)
           : null;
@@ -924,7 +939,19 @@ const ownerOf = (pending: Pending): MemoOwner | null => {
       nestedObjects.add(obj);
     }
   });
-  if (!remembered || shape.objects.some((obj) => ownerReadsOwn(obj, nestedObjects))) {
+  // Its stand-in holds the stand-ins of its bodies' statements with none of
+  // the scopes its branches open, so a local declared inside it would be
+  // found in scope after it: such a block statement is lowered, and its
+  // bodies' statements served inside it.
+  const declaresLocal = descendants.some(
+    (entry) =>
+      (entry.stand?.kind === "assignment" || entry.stand?.kind === "multi") && entry.stand.local,
+  );
+  if (
+    !remembered ||
+    declaresLocal ||
+    shape.objects.some((obj) => ownerReadsOwn(obj, nestedObjects))
+  ) {
     return null;
   }
   const at = (offset: number) => offset - shape.from;

@@ -34,7 +34,11 @@ import { ReturnType } from "../inkjs/compiler/Parser/ParsedHierarchy/ReturnType"
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { StructDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
-import { memoAssignmentOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
+import {
+  memoAssignmentOf,
+  memoMultiOf,
+} from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
+import { MultiVariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { memoGatherOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -216,6 +220,39 @@ interface UnitRecord {
   diverts: Divert[];
 }
 
+/** Whether `obj` is a stand-in of a statement served from its memo, or a
+ *  target of one. */
+const standsIn = (obj: ParsedObject): boolean =>
+  !!memoOf(obj) || (obj.parent instanceof MultiVariableAssignment && !!memoOf(obj.parent));
+
+/** The assignments a stand-in, or a block statement's stand-in, holds that
+ *  made auto-globals or declared locals, each with what its memo recorded
+ *  they made (`MemoResolution`). */
+const assignmentsOf = (
+  statement: ParsedObject,
+  resolution: MemoResolution,
+  owner: boolean,
+): { assignment: VariableAssignment; made: MemoResolution }[] => {
+  const out: { assignment: VariableAssignment; made: MemoResolution }[] = [];
+  for (const held of owner ? [statement, ...statement.content] : [statement]) {
+    const made =
+      held === statement ? resolution : (memoOf(held) as StatementMemoEntry | undefined)?.resolution;
+    if (!made || (made.declares.length === 0 && made.autoGlobals.length === 0)) {
+      continue;
+    }
+    const targets =
+      held instanceof VariableAssignment
+        ? [held]
+        : held instanceof MultiVariableAssignment
+          ? held.targetAssignments
+          : [];
+    for (const assignment of targets) {
+      out.push({ assignment, made });
+    }
+  }
+  return out;
+};
+
 /** The object at the top of `obj`'s parents: its story, for an object a
  *  story holds. */
 const rootOf = (obj: ParsedObject): ParsedObject => {
@@ -335,10 +372,10 @@ interface MemoTally {
   reads: Set<string>;
   context: string | null;
   refused: string | null;
-  /** Whether the plain assignment the candidate is made an auto-global. */
-  autoGlobal: boolean;
-  /** Whether the local declaration the candidate is declared its local. */
-  declares: boolean;
+  /** The auto-globals the assignment the candidate is made. */
+  autoGlobals: string[];
+  /** The locals the local declaration the candidate is declared. */
+  declares: string[];
 }
 
 const sameMembers = (a: readonly ParsedObject[], b: readonly ParsedObject[]) =>
@@ -1826,8 +1863,8 @@ export class ProgramResolver {
         reads: new Set(),
         context: null,
         refused: null,
-        autoGlobal: false,
-        declares: false,
+        autoGlobals: [],
+        declares: [],
       };
       this._tallies.set(candidate.entry, tally);
     }
@@ -1861,19 +1898,23 @@ export class ProgramResolver {
     // they read it; what it holds they read no more of.
     // A label stands as a label of its name (`MemoizedGather`), as a plain
     // assignment as an assignment of its name.
+    const only = objects.length === 1 ? objects[0]! : undefined;
+    const multi = only instanceof MultiVariableAssignment && memoMultiOf(only) !== null ? only : undefined;
     const assignment =
-      objects.length === 1 &&
-      ((objects[0] instanceof VariableAssignment && memoAssignmentOf(objects[0]) !== null) ||
-        (objects[0] instanceof Gather && memoGatherOf(objects[0]) !== null));
+      !!multi ||
+      (only instanceof VariableAssignment && memoAssignmentOf(only) !== null) ||
+      (only instanceof Gather && memoGatherOf(only) !== null);
     // A block statement holds the objects of the statements of its bodies,
     // which their own memos judge, and stand-ins of them when it is served.
     const nested = tally.candidate.nested;
     const walks = (obj: ParsedObject): boolean =>
       nested?.has(obj) ? false : holdsWhatTheStoryWalks(obj, nested);
     if (
-      (assignment
-        ? parsedChildren(objects[0]!).some(walks)
-        : objects.some(walks)) ||
+      (multi
+        ? multi.expressions.some(walks)
+        : assignment
+          ? parsedChildren(objects[0]!).some(walks)
+          : objects.some(walks)) ||
       (!assignment && localsDeclaredIn(objects as ParsedObject[], objects.length).size > 0)
     ) {
       return undefined;
@@ -1902,7 +1943,7 @@ export class ProgramResolver {
       context: tally.context,
       resolver: this._id,
       at: this._compile,
-      autoGlobal: tally.autoGlobal,
+      autoGlobals: tally.autoGlobals,
       declares: tally.declares,
     };
   }
@@ -1961,31 +2002,21 @@ export class ProgramResolver {
     // The auto-global the assignment made, made again where its resolution
     // would make it, while no name resolves the assignment's name: the
     // lookup reads the names, as the resolution's own did.
-    if (phase === "generate") {
-      // The local a local declaration declared, declared again where its
-      // generation would declare it; a block statement's stand-in declares
-      // those of the statements inside it.
-      for (const held of [statement, ...(entry.owner ? statement.content : [])]) {
-        const declares =
-          held === statement ? resolution.declares : (memoOf(held) as StatementMemoEntry | undefined)?.resolution?.declares;
-        if (declares && held instanceof VariableAssignment) {
-          this.event({ kind: "declare", declaration: held }, held.RegisterDeclaration);
-        }
+    // The locals a local declaration declared, declared again where its
+    // generation would declare them, and the auto-globals an assignment
+    // made, made again where its resolution would, while no name resolves
+    // the name (the lookup reads the names, as the resolution's own did); a
+    // block statement's stand-in does so for the statements inside it.
+    for (const { assignment, made } of assignmentsOf(statement, resolution, !!entry.owner)) {
+      if (phase === "generate" && made.declares.includes(assignment.variableName)) {
+        this.event({ kind: "declare", declaration: assignment }, assignment.RegisterDeclaration);
       }
-    }
-    if (phase === "resolve") {
-      // A block statement's stand-in holds the stand-ins of the statements
-      // inside it, whose auto-globals it makes again.
-      for (const held of [statement, ...(entry.owner ? statement.content : [])]) {
-        const autoGlobal =
-          held === statement ? resolution.autoGlobal : (memoOf(held) as StatementMemoEntry | undefined)?.resolution?.autoGlobal;
-        if (
-          autoGlobal &&
-          held instanceof VariableAssignment &&
-          !this._story.ResolveVariableWithName(held.variableName, held).found
-        ) {
-          this.event({ kind: "autoGlobal", assignment: held }, held.RegisterAutoGlobal);
-        }
+      if (
+        phase === "resolve" &&
+        made.autoGlobals.includes(assignment.variableName) &&
+        !this._story.ResolveVariableWithName(assignment.variableName, assignment).found
+      ) {
+        this.event({ kind: "autoGlobal", assignment }, assignment.RegisterAutoGlobal);
       }
     }
   }
@@ -2205,28 +2236,32 @@ export class ProgramResolver {
 
   protected event(event: ResolutionEvent, register: () => void): void {
     const frame = this._frames[this._frames.length - 1];
-    if (
-      event.kind === "autoGlobal" &&
-      frame &&
-      frame.tally.candidate.objects.length === 1 &&
-      frame.tally.candidate.objects[0] === event.assignment
-    ) {
+    // Whether `obj` is the assignment the running candidate is, or a target
+    // of the assignment of several names it is.
+    const own = (obj: ParsedObject): boolean => {
+      const objects = frame?.tally.candidate.objects;
+      return (
+        !!objects &&
+        objects.length === 1 &&
+        (objects[0] === obj ||
+          (objects[0] instanceof MultiVariableAssignment && obj.parent === objects[0]))
+      );
+    };
+    if (event.kind === "autoGlobal" && own(event.assignment)) {
       // The plain assignment a candidate is makes the auto-global, which
       // its stand-in makes again (`repeatMemo`).
-      frame.tally.autoGlobal = true;
+      frame!.tally.autoGlobals.push(event.assignment.variableName);
     } else if (
       event.kind === "declare" &&
-      frame &&
-      frame.tally.candidate.objects.length === 1 &&
-      frame.tally.candidate.objects[0] === event.declaration &&
+      own(event.declaration) &&
       event.declaration.isNewTemporaryDeclaration
     ) {
       // The local declaration a candidate is declares its local, which its
       // stand-in declares again (`repeatMemo`).
-      frame.tally.declares = true;
+      frame!.tally.declares.push(event.declaration.variableName);
     } else if (
-      (event.kind === "autoGlobal" && memoOf(event.assignment)) ||
-      (event.kind === "declare" && memoOf(event.declaration))
+      (event.kind === "autoGlobal" && standsIn(event.assignment)) ||
+      (event.kind === "declare" && standsIn(event.declaration))
     ) {
       // A stand-in makes it again, as the block statement that holds it
       // will (`repeatMemo`).
