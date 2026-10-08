@@ -257,8 +257,14 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
   if (opOf(word(offset)) === Op.Visit) {
     return false;
   }
-  if (offset > 0 && opOf(word(offset - 2)) === Op.Jump) {
-    // Reached only past the jump that ends the branch above: an `elseif`.
+  if (
+    offset > 0 &&
+    opOf(word(offset - 2)) === Op.Jump &&
+    word(offset - 1) !== 0
+  ) {
+    // Reached only past the jump that ends the branch above, which jumps
+    // over it: an `elseif`. The last branch's jump lands right here, on
+    // whatever is written after the `if`.
     return false;
   }
   if (offset === 0) {

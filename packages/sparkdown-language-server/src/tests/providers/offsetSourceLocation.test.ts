@@ -442,6 +442,45 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
+    // Logic written after an `if` the preamble inlines follows the jump
+    // that ends the `if`'s last branch (round 1, comment 6049466824).
+    const AFTER_IF = [
+      "store gate = true",
+      "scene start",
+      "  Start.",
+      "  choose",
+      "    if gate then",
+      "      + Continue",
+      "        Continue body.",
+      "    end",
+      "    & gate = false",
+      "    if gate then",
+      "      + Again",
+      "        Again body.",
+      "    elseif not gate then",
+      "      + Instead",
+      "        Instead body.",
+      "    end",
+      "    + Other",
+      "      Other body.",
+      "  end",
+      "end",
+      "",
+    ].join(NEWLINE);
+    for (const engine of [false, true]) {
+      const afterIf = compile(engine, AFTER_IF, "");
+      const at = async (line: number, offset: number) =>
+        (await getOffsetSourceLocation(afterIf, ownBeats(afterIf), MAIN, line, offset))?.line;
+      const label = `chunks ${engine}`;
+      expect(await at(lineOf(AFTER_IF, "Continue body."), 1), label).toBe(lineOf(AFTER_IF, "& gate = false"));
+      expect(await at(lineOf(AFTER_IF, "& gate = false"), 1), label).toBe(lineOf(AFTER_IF, "& gate = false") + 1);
+      // Past the `elseif`, onto the next branch's body. The current engine
+      // stops on a choice's line inside a preamble's `if` (`+ Instead`), a
+      // choice line the program engine never stops on.
+      if (engine) {
+        expect(await at(lineOf(AFTER_IF, "Again body."), 1), label).toBe(lineOf(AFTER_IF, "Instead body."));
+      }
+    }
     for (const engine of [false, true]) {
       const preamble = compile(engine, PREAMBLE, "");
       const stored = compile(engine, STORED, "");
