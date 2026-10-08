@@ -783,9 +783,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return true;
   }
 
-  /** The checks generation makes of the flow's own control flow first:
-   *  what a function may not contain, and a return a scene, a branch or the
-   *  file's top level holds. */
+  /** The checks of the flow's own control flow, which generation and
+   *  preparation both make first: what a function may not contain, and a
+   *  return a scene, a branch or the file's top level holds. */
   protected CheckOwnControlFlow(): void {
     // A scene also contains its branches, and a weave can hold function
     // definitions. Each flow validates its own returns, rather than taking
@@ -802,6 +802,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       this.flowLevel === FlowLevel.Knot ||
       this.flowLevel === FlowLevel.Stitch
     ) {
+      // Scenes and branches cannot return function values.
       const foundReturn =
         this.Find(ReturnType)(belongsToThisFlow) ??
         this.Find(MultiReturnType)(belongsToThisFlow);
@@ -809,6 +810,15 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         this.ReportReturnOutsideFunction(foundReturn);
       }
     } else if (this.flowLevel === FlowLevel.Story) {
+      // Explicit Luau return nodes are only valid inside a function body:
+      // their PopFunction needs an active function-call frame. Bare return
+      // lines in narrative scope are ordinary prose and produce no return
+      // node; misplaced marked returns are validated at runtime export.
+      //
+      // `_rootWeave` holds the Story's free-floating top-level content
+      // (everything outside a `scene` / `branch` / `function`). Search the
+      // weave with the same ownership predicate as child flows, so returns
+      // belonging to functions remain valid.
       if (this._rootWeave !== null) {
         const rootReturn =
           this._rootWeave.Find(ReturnType)(belongsToThisFlow) ??
@@ -821,45 +831,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    let foundReturn: ReturnType | MultiReturnType | null = null;
-    // A scene also contains its branches, and a weave can hold function
-    // definitions. Each flow validates its own returns, rather than taking
-    // a return from a child flow and reporting it as the parent's mistake.
-    const belongsToThisFlow = (returned: ParsedObject): boolean => {
-      for (let parent = returned.parent; parent; parent = parent.parent) {
-        if (parent instanceof FlowBase) return parent === this;
-      }
-      return false;
-    };
-    if (this.isFunction) {
-      this.CheckForDisallowedFunctionFlowControl();
-    } else if (
-      this.flowLevel === FlowLevel.Knot ||
-      this.flowLevel === FlowLevel.Stitch
-    ) {
-      // Scenes and branches cannot return function values.
-      foundReturn = this.Find(ReturnType)(belongsToThisFlow) ?? this.Find(MultiReturnType)(belongsToThisFlow);
-
-      if (foundReturn !== null) {
-        this.ReportReturnOutsideFunction(foundReturn);
-      }
-    } else if (this.flowLevel === FlowLevel.Story) {
-      // Explicit Luau return nodes are only valid inside a function body:
-      // their PopFunction needs an active function-call frame. Bare return
-      // lines in narrative scope are ordinary prose and produce no return
-      // node; misplaced marked returns are validated at runtime export.
-      //
-      // `_rootWeave` holds the Story's free-floating top-level content
-      // (everything outside a `scene` / `branch` / `function`). Inkjs's
-      // Search the weave, with the same ownership predicate as child
-      // flows, so returns belonging to functions remain valid.
-      if (this._rootWeave !== null) {
-        const rootReturn = this._rootWeave.Find(ReturnType)(belongsToThisFlow) ?? this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
-        if (rootReturn !== null) {
-          this.ReportReturnOutsideFunction(rootReturn);
-        }
-      }
-    }
+    // The checks of the flow's own control flow, which preparation makes
+    // too (`CheckOwnControlFlow`).
+    this.CheckOwnControlFlow();
 
     const container = new RuntimeContainer();
     container.name = this.identifier?.name as string;
