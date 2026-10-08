@@ -1148,6 +1148,15 @@ export class ProgramStory {
     };
     this.runDeclarations();
     variablesState.SnapshotDefaultGlobals();
+    // A global written from outside the story (`variablesState[name] = v`)
+    // leaves the state no longer the one this reset built, as the current
+    // engine's `VariableStateDidChangeEvent` records (#1692). Registered after
+    // the declarations run, whose own writes are part of the reset; the
+    // `_stateIsPristine = true` below comes later still. Each reset gets a
+    // fresh `VariablesState`, so the callbacks do not accumulate.
+    variablesState.ObserveVariableChange(() => {
+      this._stateIsPristine = false;
+    });
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
     if (this._imagesOn) {
@@ -1505,6 +1514,15 @@ export class ProgramStory {
         results.unshift(state.PopEvaluationStack() as AbstractValue);
       }
       return results;
+    } catch (e) {
+      // The running instruction is restored to the caller's below, so an
+      // error the callback raised keeps the address of the instruction that
+      // raised it. An error from a callback nested inside this one already
+      // carries its own.
+      if (e instanceof StoryException && e.raisedAddress == null) {
+        e.raisedAddress = this.runningAddress() ?? null;
+      }
+      throw e;
     } finally {
       this.resumeStep(suspended, false);
     }
@@ -1874,6 +1892,7 @@ export class ProgramStory {
     const e = new StoryException(message);
     if (cause instanceof StoryException) {
       e.raisedPath = cause.raisedPath;
+      e.raisedAddress = cause.raisedAddress;
     }
     throw e;
   }
@@ -1884,17 +1903,24 @@ export class ProgramStory {
 
   /** Records an error or warning at the instruction running, prefixed with
    *  its script and line as the current engine prefixes it
-   *  (`Story.AddError`). */
-  AddError(message: string, isWarning = false, useEndLineNumber = false): void {
+   *  (`Story.AddError`). An error a callback raised names the instruction
+   *  that raised it (`StoryException.raisedAddress`) for where it was
+   *  raised; the prefix names the instruction running, as the current
+   *  engine's names the content its pointer stands at. */
+  AddError(
+    message: string,
+    isWarning = false,
+    useEndLineNumber = false,
+    raisedAddress: number | null = null,
+  ): void {
     // The raised record keeps the text without the prefix, and no path: the
     // instruction running is a chunk's word, which no runtime path names. It
     // keeps that instruction's address, which `ForceEnd` below forgets
     // before the error is reported.
     const raised: RaisedError = { message, path: null };
-    const running = this._running;
-    const chunk = running?.sequence.arrays.chunks[running.entry];
-    if (running && chunk) {
-      raised.address = addressOf(chunkId(chunk), running.offset);
+    const address = raisedAddress ?? this.runningAddress();
+    if (address !== undefined) {
+      raised.address = address;
     }
     const where = this.sourceOfRunning();
     const kind = isWarning ? "WARNING" : "ERROR";
@@ -1906,6 +1932,14 @@ export class ProgramStory {
     }
     this._state.AddError(message, isWarning, raised);
     if (!isWarning) this._state.ForceEnd();
+  }
+
+  /** The address of the instruction running, or of the last one that ran,
+   *  or undefined when none has. */
+  protected runningAddress(): number | undefined {
+    const running = this._running;
+    const chunk = running?.sequence.arrays.chunks[running.entry];
+    return running && chunk ? addressOf(chunkId(chunk), running.offset) : undefined;
   }
 
   CleanOutputWhitespace(str: string): string {
@@ -2006,7 +2040,12 @@ export class ProgramStory {
           this._recursiveContinueCount--;
           throw e;
         }
-        this.AddError(e.message, undefined, e.useEndLineNumber);
+        this.AddError(
+          e.message,
+          undefined,
+          e.useEndLineNumber,
+          e.raisedAddress,
+        );
         break;
       }
       if (this.pausedBeforeCondition !== null || this._asyncContinueActive) {
@@ -3372,7 +3411,12 @@ export class ProgramStory {
         if (!(e instanceof StoryException)) {
           throw e;
         }
-        this.AddError(e.message, undefined, e.useEndLineNumber);
+        this.AddError(
+          e.message,
+          undefined,
+          e.useEndLineNumber,
+          e.raisedAddress,
+        );
         break;
       }
       if (state.hasError) {

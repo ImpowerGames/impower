@@ -121,19 +121,17 @@ describe("a long scene replays to its end", () => {
   // machine abandons it partway and reports a possible infinite loop, on a
   // scene that contains no loop at all.
   test("a 10,000 line scene previews its last beat instead of reporting a loop", () => {
-    // On the current engine: the program engine's simulation of this scene
-    // comes within a few percent of the test's heap, and runs out of it
-    // (#1694).
     const beats = 10_000;
-    const program = compileSrc(longScene(beats), true);
-    const result = previewLastBeat(program, beats, undefined, true);
+    const program = compileSrc(longScene(beats));
+    const result = previewLastBeat(program, beats);
 
     expect(result.route).toBeTruthy();
     expect(result.simulation).toBe("success");
     expect(result.errors).toEqual([]);
     // However long it took, the replay was ordinary work: comfortably inside
-    // the ceiling, which is what makes the verdict machine-independent.
-    expect(result.advancesUsed).toBeGreaterThan(100_000);
+    // the ceiling, which is what makes the verdict machine-independent. The
+    // program engine spends about 8 advances on a display line.
+    expect(result.advancesUsed).toBeGreaterThan(50_000);
     expect(result.advancesUsed).toBeLessThan(500_000);
   }, 300_000);
 });
