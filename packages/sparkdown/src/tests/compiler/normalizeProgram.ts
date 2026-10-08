@@ -1,8 +1,12 @@
 
-// Tables of source positions, a per-compiler revision counter, and the forms
-// of the program derived from the same data as `compiled` (the binary buffer
-// and its chunks), which is compared itself.
+import { programListing } from "../programListing";
+
+// Tables of source positions, a per-compiler revision counter, the binary
+// buffer, and the chunks, whose instructions are compared without their line
+// tables (`program`, below), which hold source positions too. A compile with
+// chunks has no `compiled`.
 const IGNORED = new Set([
+  "compiled",
   "pathLocations",
   "functionLocations",
   "sceneLocations",
@@ -73,7 +77,10 @@ function renameGenerated(value: unknown, names: Map<string, string>): unknown {
  * plain data: location tables dropped, the layout tree's spans dropped, the
  * generated names its `exprId`s hold numbered in the order the tree holds
  * them and renamed wherever they appear exactly (authored text is never
- * renamed), and each diagnostic as its severity, code and message.
+ * renamed), the program's code as each instruction of its chunks
+ * (`programListing`), with those names renamed wherever the instruction
+ * names them, and each diagnostic as its severity, code and message. A
+ * compile that builds no chunks fails (`programListing` throws).
  */
 export function normalizeProgram(program: any) {
   const names = new Map<string, string>();
@@ -87,6 +94,12 @@ export function normalizeProgram(program: any) {
     string,
     unknown
   >;
+  // An instruction names a generated name inside its text (`Sym "<name>"`),
+  // so each is renamed wherever it occurs, longest first.
+  const generated = [...names.entries()].sort((a, b) => b[0].length - a[0].length);
+  normalized["program"] = programListing(program.chunks).map((line) =>
+    generated.reduce((text, [name, alias]) => text.split(name).join(alias), line),
+  );
   // A diagnostic's range is a source position, and the text it underlines
   // can be the converted syntax itself (`- targets:` becomes `{`), so a
   // diagnostic is compared by its severity, code and message.
