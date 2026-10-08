@@ -35,10 +35,17 @@ export const resolveChild = (
   context: Story,
   program: boolean,
 ): void => {
-  if (program) {
-    resolutionTap()?.visited(obj, false);
+  const tap = program ? resolutionTap() : null;
+  if (tap) {
+    tap.visited(obj, false);
+    try {
+      obj.ResolveWith(context, program);
+    } finally {
+      tap.left(obj, false);
+    }
+  } else {
+    obj.ResolveWith(context, program);
   }
-  obj.ResolveWith(context, program);
   noteResolved(obj);
 };
 
@@ -118,8 +125,17 @@ export abstract class ParsedObject {
 
   get runtimeObject(): RuntimeObject {
     if (!this._runtimeObject) {
-      resolutionTap()?.visited(this, true);
-      this._runtimeObject = this.GenerateRuntimeObject();
+      const tap = resolutionTap();
+      if (tap) {
+        tap.visited(this, true);
+        try {
+          this._runtimeObject = this.GenerateRuntimeObject();
+        } finally {
+          tap.left(this, true);
+        }
+      } else {
+        this._runtimeObject = this.GenerateRuntimeObject();
+      }
       if (this._runtimeObject) {
         this._runtimeObject.debugMetadata = this.debugMetadata;
       }

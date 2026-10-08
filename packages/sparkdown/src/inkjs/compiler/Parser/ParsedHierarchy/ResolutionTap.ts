@@ -38,6 +38,14 @@ export interface ResolutionTap {
   /** An object whose runtime object was generated (`generated`) or whose
    *  references were resolved, which the resolver counts. */
   visited(obj: ParsedObject, generated: boolean): void;
+  /** The end of what `visited` began: the object is generated or resolved,
+   *  with everything it holds. */
+  left(obj: ParsedObject, generated: boolean): void;
+  /** A statement served from its memo (`MemoizedStatement`) where its
+   *  generation (`generate`) or its resolution would be: the resolver
+   *  reports again what its memo recorded, and reads again the names it
+   *  read. */
+  memo(statement: ParsedObject, phase: "generate" | "resolve"): void;
   /** The names of the locals `obj` declares where an object after it reads
    *  them (`localsDeclaredIn`), when `obj` is an object a statement holds at
    *  its top: the resolver reads them once, when the statement is lowered,
