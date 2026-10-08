@@ -63,10 +63,7 @@ function probe(source: string): {
   const recorded: unknown[] = [];
   let output = "";
   let runtimeError: string | null = null;
-  // A compile that falls back (a choice outside a `choose` block, beside the
-  // error it reports) makes no program the program engine runs.
-  const compiled =
-    result.program.compiled != null && result.program.fallback == null;
+  const compiled = result.program.compiled != null;
   if (compiled) {
     const story = testStory(
       result.program.compiled as Record<string, any>,

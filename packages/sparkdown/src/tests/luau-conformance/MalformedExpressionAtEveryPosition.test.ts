@@ -56,15 +56,23 @@ function compileDocument(text: string) {
     .filter((d) => d.severity === 1)
     .sort((a, b) => a.range!.start.line - b.range!.start.line || a.range!.start.character - b.range!.start.character)
     .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${diagnosticMessage(d)}`);
-  return { errors, functions: program.chunks ? functionSpans(program) : currentEngineFunctions(text) };
+  return { errors, functions: program.chunks ? functionSpans(program) : currentEngineFunctions(text, program) };
 }
 
 /** The functions' spans the current engine's path-location table gives, for
- *  a document whose compile builds no statement chunks: one whose loop test
- *  is malformed, which the program writer has no form for (`a loop's
- *  test`), and one whose resolution throws in a malformed `store`'s
- *  initializer. #705's deletion decides these. */
-function currentEngineFunctions(text: string) {
+ *  the two documents whose compile builds no statement chunks: one whose loop
+ *  test is malformed, which the program writer has no form for (it falls back
+ *  naming `a loop's test`), and one with a malformed `store`, whose
+ *  resolution throws in its initializer or whose declarations raise an error
+ *  when the compile runs them (it falls back naming `initializer error`).
+ *  Any other compile
+ *  that builds no chunks fails the test. #705's deletion decides these. */
+function currentEngineFunctions(text: string, program: { fallback?: { construct: string } }) {
+  const loopTest = program.fallback?.construct === "a loop's test";
+  const malformedStore =
+    (!program.fallback || program.fallback.construct === "initializer error") &&
+    /(^|\n) *store /.test(text);
+  expect(loopTest || malformedStore, `the compile builds no chunks: ${JSON.stringify(text)}`).toBe(true);
   const compiler = new SparkdownCompiler();
   compiler.configure({
     programChunks: false,

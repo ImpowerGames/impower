@@ -6,7 +6,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { testCompiler, testStory } from "../engineUnderTest";
+import { currentEngineCompiler, testCompiler, testStory } from "../engineUnderTest";
 import { programContent } from "../programListing";
 
 const MAIN_URI = "file://proj/main.sd";
@@ -44,13 +44,13 @@ type Project = Record<string, string>;
 const uriOf = (name: string) => `file://proj/${name}.sd`;
 
 // A project whose script holds top-level content an include splices in
-// compiles for the current engine (`currentEngine`): the program writer does
-// not emit that content yet (#1681).
+// compiles on the current engine's compile path (`currentEngine`, with
+// `currentEngineCompiler`): the program writer does not emit that content
+// yet (#1681).
 let currentEngine = false;
 
 function configure(compiler: SparkdownCompiler, project: Project, version: number) {
   compiler.configure({
-    ...(currentEngine ? { programChunks: false } : {}),
     files: Object.entries(project).map(([name, text]) => file(uriOf(name), text, version)),
   });
 }
@@ -85,8 +85,9 @@ function compiled(compiler: SparkdownCompiler): Compiled {
 // returns the compile before the edit, the incremental compile of the edited
 // project and a cold compile of it.
 function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [Compiled, Compiled, Compiled] {
+  const newCompiler = currentEngine ? currentEngineCompiler : testCompiler;
   return quiet(() => {
-    const compiler = testCompiler();
+    const compiler = newCompiler();
     configure(compiler, project, 1);
     const before = compiled(compiler);
     const text = project[name]!;
@@ -97,7 +98,7 @@ function incrementalAndCold(project: Project, name: string, offset: number, inse
     });
     const incremental = compiled(compiler);
     const edited = { ...project, [name]: text.slice(0, offset) + insert + text.slice(offset) };
-    const fresh = testCompiler();
+    const fresh = newCompiler();
     configure(fresh, edited, 2);
     return [before, incremental, compiled(fresh)];
   });
