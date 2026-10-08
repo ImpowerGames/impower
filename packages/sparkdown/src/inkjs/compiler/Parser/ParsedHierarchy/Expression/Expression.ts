@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { ParsedObject } from "../Object";
 import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -28,6 +28,20 @@ export abstract class Expression extends ParsedObject {
 
     return container;
   };
+
+  protected override Prepare(): boolean {
+    this.PrepareIntoContainer();
+    return true;
+  }
+
+  /** What `GenerateIntoContainer` does on the program path, without the
+   *  runtime objects it adds (`ParsedObject.prepare`): an expression
+   *  generated into its parent's container is heard by no resolver tap and
+   *  kept by nothing, so it is prepared again each time it is asked. Each
+   *  expression says what its generation does. */
+  public PrepareIntoContainer(): void {
+    throw new Error(`${this.typeName} has no preparation for the program path`);
+  }
 
   // (Constants used to be materialized here, once per reference site, by
   // copying a prototype of their runtime objects — each runtime object can

@@ -121,6 +121,12 @@ export class MemoizedMultiAssignment extends MultiVariableAssignment {
     markMemoized(this, memo);
   }
 
+  /** What its generation does: the memo's record reported again (`memoGenerate`). */
+  protected override Prepare(): boolean {
+    memoGenerate(this);
+    return true;
+  }
+
   public override readonly GenerateRuntimeObject = (): RuntimeObject => {
     memoGenerate(this);
     return new RuntimeContainer();
@@ -145,6 +151,12 @@ export class MemoizedAssignment extends VariableAssignment {
       isTemporaryNewDeclaration: recorded.local,
     });
     markMemoized(this, memo);
+  }
+
+  /** What its generation does: the memo's record reported again (`memoGenerate`). */
+  protected override Prepare(): boolean {
+    memoGenerate(this);
+    return true;
   }
 
   public override readonly GenerateRuntimeObject = (): RuntimeObject | null => {

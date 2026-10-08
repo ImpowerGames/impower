@@ -41,6 +41,10 @@ export class NumberExpression extends Expression {
 
   public isBool = (): boolean => this.subtype == "bool";
 
+  /** Nothing but the value it pushes. */
+  public override PrepareIntoContainer(): void {
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {

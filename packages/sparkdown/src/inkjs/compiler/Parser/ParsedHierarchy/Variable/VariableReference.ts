@@ -69,6 +69,13 @@ export class VariableReference extends Expression {
     return this._runtimeVarRef;
   }
 
+  // Whether the reference was prepared on the program path since its last
+  // `ResetRuntime`, as `runtimeVarRef` says it was generated.
+  private _preparedReference = false;
+  get isReferencePrepared(): boolean {
+    return this._preparedReference;
+  }
+
   constructor(public readonly pathIdentifiers: Identifier[]) {
     super();
     this.identifier = new Identifier(...this.pathIdentifiers);
@@ -76,6 +83,29 @@ export class VariableReference extends Expression {
 
   override get typeName(): string {
     return "ref";
+  }
+
+  /** What `GenerateIntoContainer` does without the runtime reference: the
+   *  story's constants read, and a list item looked up. */
+  public override PrepareIntoContainer(): void {
+    this._preparedReference = true;
+    if (this.story.constants.has(this.name)) {
+      return;
+    }
+    if (this.path.length === 1 || this.path.length === 2) {
+      let listItemName: string = "";
+      let listName: string = "";
+      if (this.path.length === 1) {
+        listItemName = this.path[0]!;
+      } else {
+        listName = this.path[0]!;
+        listItemName = this.path[1]!;
+      }
+      const listItem = this.story.ResolveListItem(listName, listItemName, this);
+      if (listItem) {
+        this.isListItemReference = true;
+      }
+    }
   }
 
   public readonly GenerateIntoContainer = (
@@ -356,5 +386,6 @@ export class VariableReference extends Expression {
 
   override OnResetRuntime(): void {
     this._runtimeVarRef = null;
+    this._preparedReference = false;
   }
 }

@@ -3,7 +3,7 @@ import { ValueType, Value, StringValue, ListValue, ObjectValue } from "../../run
 import { PushPopType } from "../../runtime/PushPop";
 import { Tag } from "../../runtime/Tag";
 import { Path } from "../../runtime/Path";
-import { ControlCommand } from "./ControlCommand";
+import { ControlCommand } from "../../runtime/ControlCommand";
 import { StringBuilder } from "../../runtime/StringBuilder";
 import { JsonSerialisation } from "../../runtime/JsonSerialisation";
 import { PRNG } from "../../runtime/PRNG";

@@ -1,5 +1,5 @@
 import { ParsedObject } from "./Object";
-import { ControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand } from "../../../../runtime/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Tag as RuntimeTag } from "../../../../runtime/Tag";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
@@ -8,6 +8,16 @@ import { Op } from "../../../../program/ProgramInstructions";
 export class Wrap<T extends RuntimeObject> extends ParsedObject {
   constructor(private _objToWrap: T) {
     super();
+  }
+
+  /** The runtime-layer object it stands for: a scope marker or a tag. */
+  get wrapped(): T {
+    return this._objToWrap;
+  }
+
+  /** Nothing but the object it wraps. */
+  protected override Prepare(): boolean {
+    return this._objToWrap != null;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => this._objToWrap;

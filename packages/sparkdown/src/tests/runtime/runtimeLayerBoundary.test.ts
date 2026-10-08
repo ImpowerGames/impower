@@ -29,15 +29,11 @@ const LEAVING = [
   "InkList.ts -> inkjs/engine/Story",
   "JsonSerialisation.ts -> inkjs/engine/ChoicePoint",
   "JsonSerialisation.ts -> inkjs/engine/Container",
-  "JsonSerialisation.ts -> inkjs/engine/ControlCommand",
   "JsonSerialisation.ts -> inkjs/engine/Divert",
   "JsonSerialisation.ts -> inkjs/engine/VariableReference",
   "Object.ts -> inkjs/engine/Container",
   "Object.ts -> inkjs/engine/SearchResult",
   "Pointer.ts -> inkjs/engine/Container",
-  "StdLib.ts -> inkjs/engine/ControlCommand",
-  "evaluation.ts -> inkjs/engine/ControlCommand",
-  "outputWhitespace.ts -> inkjs/engine/ControlCommand",
 ];
 
 /** Every module specifier a file names, as TypeScript reads them past any

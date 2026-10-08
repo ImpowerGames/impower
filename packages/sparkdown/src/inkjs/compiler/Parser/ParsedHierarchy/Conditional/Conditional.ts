@@ -1,6 +1,6 @@
 import { ConditionalSingleBranch } from "./ConditionalSingleBranch";
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
 import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
@@ -31,6 +31,14 @@ export class Conditional extends ParsedObject {
 
   override get typeName(): string {
     return "Conditional";
+  }
+
+  protected override Prepare(): boolean {
+    this.initialCondition?.prepare();
+    for (const branch of this.branches) {
+      branch.prepare();
+    }
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
@@ -90,18 +98,18 @@ export class Conditional extends ParsedObject {
   }
 
   public override ResolveWith(context: Story, program: boolean): void {
-    if (!this._reJoinTarget) {
+    if (program ? !this.isPrepared : !this._reJoinTarget) {
       throw new TypeError("A conditional resolved before it was generated");
     }
-    const pathToReJoin = program ? null : this._reJoinTarget.path;
+    const pathToReJoin = program ? null : this._reJoinTarget!.path;
 
     for (const branch of this.branches) {
-      if (!branch.returnDivert) {
+      if (program ? !branch.isPrepared : !branch.returnDivert) {
         throw new Error();
       }
 
       if (pathToReJoin) {
-        branch.returnDivert.targetPath = pathToReJoin;
+        branch.returnDivert!.targetPath = pathToReJoin;
       }
     }
 

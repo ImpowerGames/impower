@@ -558,6 +558,11 @@ export class FlowEntry extends ParsedObject {
     return "FlowEntry";
   }
 
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
   public readonly GenerateRuntimeObject = () => null;
 
   public override EmitProgram(emitter: ProgramEmitter): void {
@@ -662,6 +667,11 @@ export class IncludeEntry extends ParsedObject {
     return "IncludeEntry";
   }
 
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
   public readonly GenerateRuntimeObject = () => null;
 
   public override EmitProgram(emitter: ProgramEmitter): void {
@@ -687,6 +697,11 @@ export class IncludeExit extends ParsedObject {
 
   override get typeName(): string {
     return "IncludeExit";
+  }
+
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
   }
 
   public readonly GenerateRuntimeObject = () => null;

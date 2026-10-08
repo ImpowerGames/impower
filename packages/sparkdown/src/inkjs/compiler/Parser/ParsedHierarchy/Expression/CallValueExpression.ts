@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
@@ -39,6 +39,13 @@ export class CallValueExpression extends Expression {
 
   override get typeName(): string {
     return "CallValueExpression";
+  }
+
+  public override PrepareIntoContainer(): void {
+    for (const arg of this.args) {
+      arg.PrepareIntoContainer();
+    }
+    this.targetExpression.PrepareIntoContainer();
   }
 
   public readonly GenerateIntoContainer = (

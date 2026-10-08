@@ -1,4 +1,4 @@
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "./ControlCommand";
 import { throwNullException } from "./NullException";
 import type { InkObject } from "./Object";
 import { StringBuilder } from "./StringBuilder";

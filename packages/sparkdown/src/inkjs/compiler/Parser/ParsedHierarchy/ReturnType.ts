@@ -1,7 +1,7 @@
 import { Expression } from "./Expression/Expression";
 import { ParsedObject } from "./Object";
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Void } from "../../../../runtime/Void";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
@@ -32,6 +32,11 @@ export class ReturnType extends ParsedObject {
       emitter.emit(Op.Const, 0, ConstValue.Void);
     }
     emitter.emit(Op.Return);
+  }
+
+  protected override Prepare(): boolean {
+    this.returnedExpression?.prepare();
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

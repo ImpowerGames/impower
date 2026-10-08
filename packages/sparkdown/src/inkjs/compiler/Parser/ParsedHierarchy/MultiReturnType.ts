@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Expression } from "./Expression/Expression";
 import { ParsedObject } from "./Object";
@@ -40,6 +40,13 @@ export class MultiReturnType extends ParsedObject {
     }
     emitter.emit(Op.Pack, this.expressions.length);
     emitter.emit(Op.Return);
+  }
+
+  protected override Prepare(): boolean {
+    for (const expr of this.expressions) {
+      expr.prepare();
+    }
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

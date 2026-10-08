@@ -28,6 +28,17 @@ export class ExternalDeclaration extends ParsedObject implements INamedContent {
     this.story.AddExternal(this);
   };
 
+  /** The external its generation registers. */
+  protected override Prepare(): boolean {
+    const tap = resolutionTap();
+    if (tap) {
+      tap.external(this, this.RegisterExternal);
+    } else {
+      this.RegisterExternal();
+    }
+    return false;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
     const tap = resolutionTap();
     if (tap) {

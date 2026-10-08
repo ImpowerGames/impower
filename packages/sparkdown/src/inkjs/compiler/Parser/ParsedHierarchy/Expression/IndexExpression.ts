@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -21,6 +21,11 @@ export class IndexExpression extends Expression {
 
   override get typeName(): string {
     return "IndexExpression";
+  }
+
+  public override PrepareIntoContainer(): void {
+    this.baseExpression.PrepareIntoContainer();
+    this.keyExpression.PrepareIntoContainer();
   }
 
   public readonly GenerateIntoContainer = (

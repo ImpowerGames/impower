@@ -1,5 +1,5 @@
 import { ParsedObject } from "./Object";
-import { ControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand } from "../../../../runtime/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { Op } from "../../../../program/ProgramInstructions";
@@ -16,6 +16,11 @@ export class Tag extends ParsedObject {
   override get typeName(): string {
     return "Tag";
   }
+  /** Nothing but the marker it writes. */
+  protected override Prepare(): boolean {
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     if (this.isStart) {
       return ControlCommand.BeginTag();

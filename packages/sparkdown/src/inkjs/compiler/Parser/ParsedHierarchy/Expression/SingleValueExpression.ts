@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
@@ -22,6 +22,10 @@ export class SingleValueExpression extends Expression {
 
   override get typeName(): string {
     return "SingleValue";
+  }
+
+  public override PrepareIntoContainer(): void {
+    this.innerExpression.PrepareIntoContainer();
   }
 
   public readonly GenerateIntoContainer = (

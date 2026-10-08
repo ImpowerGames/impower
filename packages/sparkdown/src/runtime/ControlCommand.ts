@@ -1,4 +1,4 @@
-import { InkObject } from "../../runtime/Object";
+import { InkObject } from "./Object";
 
 export class ControlCommand extends InkObject {
   private _commandType: ControlCommand.CommandType;

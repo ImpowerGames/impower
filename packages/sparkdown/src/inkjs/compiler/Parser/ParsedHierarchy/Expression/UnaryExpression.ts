@@ -75,6 +75,10 @@ export class UnaryExpression extends Expression {
     return "UnaryExpression";
   }
 
+  public override PrepareIntoContainer(): void {
+    this.innerExpression.PrepareIntoContainer();
+  }
+
   public readonly GenerateIntoContainer = (container: RuntimeContainer) => {
     this.innerExpression.GenerateIntoContainer(container);
     container.AddContent(NativeFunctionCall.CallWithName(this.nativeNameForOp));

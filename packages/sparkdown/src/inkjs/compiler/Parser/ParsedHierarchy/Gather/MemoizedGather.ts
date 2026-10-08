@@ -60,6 +60,12 @@ export class MemoizedGather extends Gather {
     this.endsChooseBlock = recorded.endsChooseBlock;
   }
 
+  /** What its generation does: the memo's record reported again (`memoGenerate`). */
+  protected override Prepare(): boolean {
+    memoGenerate(this);
+    return true;
+  }
+
   public override readonly GenerateRuntimeObject = (): RuntimeObject => {
     memoGenerate(this);
     const container = new RuntimeContainer();

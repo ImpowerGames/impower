@@ -1,6 +1,6 @@
 import { ChoicePoint } from "../../../engine/ChoicePoint";
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import type { INamedContent } from "../../../../runtime/INamedContent";
 import { InkObject as RuntimeObject } from "../../../../runtime/Object";
@@ -40,6 +40,17 @@ export class ChoiceStartEcho extends ParsedObject {
       emitter.unsupported(this.typeName);
     }
     emitter.emitObjects(this.choice.startContent.content);
+  }
+
+  /** Whether its choice was prepared on the program path, which places the
+   *  echo as generating the choice does (`generated`). */
+  public preparedByChoice = false;
+
+  protected override Prepare(): boolean {
+    if (!this.preparedByChoice) {
+      throw new Error("ChoiceStartEcho generated before its choice");
+    }
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
@@ -174,6 +185,28 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   // `emitObjects`), which this is never reached from.
   public override EmitProgram(emitter: ProgramEmitter): void {
     emitter.unsupported(this.typeName);
+  }
+
+  /** What `GenerateRuntimeObject` does without the runtime containers: the
+   *  start content, the choice-only content, the condition and the inner
+   *  content prepared in its order, and the start content's echo placed. */
+  protected override Prepare(): boolean {
+    if (this.startContent) {
+      this.startContent.PrepareUncached();
+    }
+    if (this.choiceOnlyContent) {
+      this.choiceOnlyContent.PrepareUncached();
+    }
+    if (this.condition) {
+      this.condition.PrepareIntoContainer();
+    }
+    if (this.startContent && this.repeatsStartContent && this.startEcho) {
+      this.startEcho.preparedByChoice = true;
+    }
+    if (this.innerContent) {
+      this.innerContent.PrepareUncached();
+    }
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

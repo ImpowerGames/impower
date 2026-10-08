@@ -7,6 +7,11 @@ export class IncludedFile extends ParsedObject {
     super();
   }
 
+  /** Nothing: the story places the included content. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
     // Left to the main story to process
     return null;

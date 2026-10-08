@@ -13,7 +13,7 @@
 import { describe, expect, test } from "vitest";
 // The harness first: it loads the engine in the order its classes need.
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
-import { ControlCommand } from "../../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../../runtime/ControlCommand";
 import { StringValue } from "../../runtime/Value";
 
 // Runs the story as `Game` does, recording the most newlines that sat after

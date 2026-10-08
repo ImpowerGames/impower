@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -24,6 +24,14 @@ export class BinaryExpression extends Expression {
 
   override get typeName(): string {
     return "BinaryExpression";
+  }
+
+  public override PrepareIntoContainer(): void {
+    // Generation names the operator by its native name, which is what a
+    // divert target compared with `!=` reads afterwards.
+    this.opName = this.NativeNameForOp(this.opName);
+    this.leftExpression.PrepareIntoContainer();
+    this.rightExpression.PrepareIntoContainer();
   }
 
   public readonly GenerateIntoContainer = (container: RuntimeContainer) => {

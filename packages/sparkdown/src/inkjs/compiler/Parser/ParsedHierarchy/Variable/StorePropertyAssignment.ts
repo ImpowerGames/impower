@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
@@ -46,6 +46,13 @@ export class StorePropertyAssignment extends ParsedObject {
     emitter.emitObject(this.keyExpression);
     emitter.emitObject(this.valueExpression);
     emitter.emit(Op.StoreIndex);
+  }
+
+  protected override Prepare(): boolean {
+    this.baseExpression.PrepareIntoContainer();
+    this.keyExpression.PrepareIntoContainer();
+    this.valueExpression.PrepareIntoContainer();
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

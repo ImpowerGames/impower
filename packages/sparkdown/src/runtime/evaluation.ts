@@ -4,7 +4,7 @@
 // they run on duck-typed, as `StdLib` does. Moved here from `Story.ts` (#705).
 import { InkObject } from "./Object";
 import type { CallStack } from "./CallStack";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "./ControlCommand";
 import {
   Value,
   StringValue,

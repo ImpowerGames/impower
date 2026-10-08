@@ -9,7 +9,7 @@
 // the stream can be counted.
 import { Container } from "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { ControlCommand } from "../../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../../runtime/ControlCommand";
 import type { InkObject } from "../../runtime/Object";
 import { Story } from "../../inkjs/engine/Story";
 import { StringValue } from "../../runtime/Value";

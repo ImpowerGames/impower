@@ -160,9 +160,19 @@ function configured(text: string): SparkdownCompiler {
   return c;
 }
 
+/** Compiles, and requires the compile to have finished building its chunks:
+ *  a compile that threw answers with none, having prepared nothing past the
+ *  throw. */
+function compileBuilt(compiler: SparkdownCompiler): void {
+  const { program } = quiet(() =>
+    compiler.compile({ textDocument: { uri: URI } } as never),
+  );
+  expect(!!program.chunks, "the compile built its statement chunks").toBe(true);
+}
+
 function compiledOnce(text: string): SparkdownCompiler {
   const compiler = configured(text);
-  quiet(() => compiler.compile({ textDocument: { uri: URI } } as never));
+  compileBuilt(compiler);
   return compiler;
 }
 
@@ -252,6 +262,13 @@ describe("FunctionCall generation leaves `content` intact", () => {
       // same fixture.
       expect(new Set(emitted).size).toBe(1);
       expect(emitted[0]).toBeGreaterThan(0);
+
+      // The program path prepares the call instead (`PrepareIntoContainer`,
+      // #705), which changes `content` as generation does.
+      for (let i = 0; i < 5; i++) {
+        quiet(() => call.PrepareIntoContainer());
+        expectContentIsCountedArgOnly(call, `after extra preparation ${i + 1}`);
+      }
     });
   }
 
@@ -280,22 +297,32 @@ describe("FunctionCall generation leaves `content` intact", () => {
       length: call.content.length,
       survived: call.content[0] === sentinel,
     }).toEqual({ length: 1, survived: true });
+
+    // Nor does the program path's preparation of the call (#705).
+    quiet(() => call.PrepareIntoContainer());
+    expect({
+      prepared: true,
+      length: call.content.length,
+      survived: call.content[0] === sentinel,
+    }).toEqual({ prepared: true, length: 1, survived: true });
   });
 
   it("survives the real multi-pass path: deleting the divert target", () => {
     const base = doc(CALLER_LINE);
     const compiler = compiledOnce(base);
 
-    // Generation pass 1 has happened. Instrument the carried-forward node so
-    // the assertions below cannot pass vacuously by never regenerating.
-    // `GenerateIntoContainer` is an instance field and every caller reaches it
-    // by property access on the instance, so this wrapper sees every pass.
+    // Pass 1 has happened. Instrument the carried-forward node so the
+    // assertions below cannot pass vacuously by never preparing it again.
+    // The compiles build statement chunks, whose resolver prepares the call
+    // rather than generating it (`PrepareIntoContainer`, #705); every caller
+    // reaches the method by property access on the instance, so this wrapper
+    // on the instance sees every pass.
     const call = soleCall(compiler, "TURNS_SINCE");
     let passes = 0;
-    const generate = call.GenerateIntoContainer;
-    (call as any).GenerateIntoContainer = (container: RuntimeContainer) => {
+    const prepare = call.PrepareIntoContainer.bind(call);
+    (call as any).PrepareIntoContainer = () => {
       passes += 1;
-      return generate(container);
+      return prepare();
     };
 
     let text = base;
@@ -330,8 +357,8 @@ describe("FunctionCall generation leaves `content` intact", () => {
             },
           ],
         } as never);
-        compiler.compile({ textDocument: { uri: URI } } as never);
       });
+      compileBuilt(compiler);
       text =
         text.slice(0, offset) +
         step.replace +

@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Expression } from "../Expression/Expression";
 import { Identifier } from "../Identifier";
@@ -89,6 +89,16 @@ export class MultiVariableAssignment extends ParsedObject {
         target.isNewTemporaryDeclaration ? SET_DECLARE : 0,
       );
     }
+  }
+
+  protected override Prepare(): boolean {
+    for (const expr of this.expressions) {
+      expr.prepare();
+    }
+    for (const va of this.targetAssignments) {
+      va.prepare();
+    }
+    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

@@ -65,6 +65,11 @@ export class ListDefinition extends ParsedObject {
     this.AddContent(itemDefinitions as any);
   }
 
+  /** Nothing but the list value it builds; sparkdown builds no list definition. */
+  protected override Prepare(): boolean {
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): ListValue => {
     const initialValues = new RuntimeInkList();
     for (const itemDef of this.itemDefinitions) {

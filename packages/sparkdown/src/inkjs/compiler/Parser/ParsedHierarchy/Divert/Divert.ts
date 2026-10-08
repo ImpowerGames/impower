@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { DebugMetadata } from "../../../../../runtime/DebugMetadata";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Path as RuntimePath } from "../../../../../runtime/Path";
@@ -89,6 +89,46 @@ export class Divert extends ParsedObject {
     this._runtimeDivert = value;
   }
 
+  // What the divert's generation, or its preparation on the program path
+  // (`Prepare`), leaves on the divert itself (#705): that it ran, the
+  // variable a divert to a variable's value names, and whether the divert
+  // calls an external function. The current engine's runtime divert holds
+  // the same two values while it is built (`setVariableDivertName`).
+  protected _generated = false;
+  private _variableDivertName: string | null = null;
+  private _isExternal = false;
+
+  /** The variable whose value the divert goes to, when its target is one. */
+  get variableDivertName(): string | null {
+    return this._variableDivertName;
+  }
+
+  /** Whether the divert was generated, or prepared, since its last
+   *  `ResetRuntime`. */
+  get isGenerated(): boolean {
+    return this._generated;
+  }
+
+  /** Whether the divert calls a function the host binds (`external`). */
+  get isExternal(): boolean {
+    return this._isExternal;
+  }
+
+  protected setVariableDivertName(name: string | null): void {
+    this._variableDivertName = name;
+    if (this._runtimeDivert) {
+      this._runtimeDivert.variableDivertName = name;
+    }
+  }
+
+  /** What generation sets afresh when it builds the divert's runtime
+   *  divert, and its preparation sets as it would. */
+  protected beginGeneration(): void {
+    this._generated = true;
+    this._variableDivertName = null;
+    this._isExternal = false;
+  }
+
   public isFunctionCall: boolean = false;
   public isEmpty: boolean = false;
   public isTunnel: boolean = false;
@@ -149,7 +189,7 @@ export class Divert extends ParsedObject {
       emitter.emitLoopExit(this, exit);
       return;
     }
-    if (this._runtimeDivert?.isExternal) {
+    if (this._isExternal) {
       emitter.unsupported("external");
     }
     // The arguments go on the stack before the thread forks, as the current
@@ -185,7 +225,7 @@ export class Divert extends ParsedObject {
       return false;
     }
     let kinds: string[] = [];
-    if (this._runtimeDivert?.variableDivertName == null) {
+    if (this._variableDivertName == null) {
       const symbol = emitter.targetSymbol(
         this.targetContent,
         this.writtenTargetName,
@@ -240,7 +280,7 @@ export class Divert extends ParsedObject {
     if (key !== null) {
       emitter.recordResolution(key);
     }
-    const variable = this._runtimeDivert?.variableDivertName;
+    const variable = this._variableDivertName;
     if (variable != null) {
       if (tunnelFlags >= 0) {
         emitter.emit(Op.CallVar, emitter.string(variable), 0, tunnelFlags);
@@ -285,7 +325,7 @@ export class Divert extends ParsedObject {
     ) {
       return null;
     }
-    const variable = this._runtimeDivert?.variableDivertName;
+    const variable = this._variableDivertName;
     if (variable != null) {
       return `jump:${variable}:variable`;
     }
@@ -313,8 +353,8 @@ export class Divert extends ParsedObject {
    *  rest packed into the one value its `...` binds. */
   public EmitCall(emitter: ProgramEmitter): void {
     const target = this.targetContent;
-    const variable = this._runtimeDivert?.variableDivertName;
-    if (this._runtimeDivert?.isExternal) {
+    const variable = this._variableDivertName;
+    if (this._isExternal) {
       emitter.unsupported("external");
     }
     emitter.recordResolution(this.callResolutionKey);
@@ -346,7 +386,7 @@ export class Divert extends ParsedObject {
    *  pointer at its argument). */
   get callResolutionKey(): string {
     const name = this.target?.dotSeparatedComponents ?? "";
-    const variable = this._runtimeDivert?.variableDivertName;
+    const variable = this._variableDivertName;
     if (variable != null) {
       return `call:${variable}:variable`;
     }
@@ -360,6 +400,81 @@ export class Divert extends ParsedObject {
     return `call:${name}:${flow.isFunction ? "function" : "flow"}:${params}`;
   }
 
+  /** What `GenerateRuntimeObject` does without the runtime divert: the
+   *  early resolution of the target, the checks of the arguments against
+   *  the target's parameters, and the arguments it generates, stopping at
+   *  the first by-reference argument it refuses. */
+  protected override Prepare(): boolean {
+    if (this.isEnd || this.isDone) {
+      return true;
+    }
+    this.beginGeneration();
+    this.ResolveTargetContent();
+    this.CheckArgumentValidity();
+    let targetArguments: Argument[] | null = null;
+    if (this.targetContent) {
+      targetArguments = (this.targetContent as FlowBase).args;
+    }
+    const targetIsVariadic =
+      !!targetArguments &&
+      targetArguments.length > 0 &&
+      !!targetArguments[targetArguments.length - 1]!.isVararg;
+    const packsArguments = targetIsVariadic && !this.isFunctionCall;
+    const requiresArgCodeGen =
+      (this.args !== null && this.args.length > 0) || packsArguments;
+    if (!requiresArgCodeGen) {
+      return true;
+    }
+    for (let ii = 0; ii < this.args.length; ++ii) {
+      const argToPass: Expression = this.args[ii]!;
+      let argExpected: Argument | null = null;
+      if (targetArguments && ii < targetArguments.length) {
+        argExpected = targetArguments[ii]!;
+      }
+      if (argExpected && argExpected.isByReference) {
+        if (!this.CheckByReferenceArgument(argToPass, argExpected)) {
+          break;
+        }
+      } else {
+        argToPass.PrepareIntoContainer();
+      }
+    }
+    return true;
+  }
+
+  /** The checks generation and preparation both make of an argument passed
+   *  to a by-reference parameter: it names a variable, and not a flow whose
+   *  read count it would pass. The first that fails is reported and the
+   *  result is null, which stops the arguments; otherwise the result is the
+   *  variable's reference. */
+  protected CheckByReferenceArgument(
+    argToPass: Expression,
+    argExpected: Argument,
+  ): VariableReference | null {
+    const varRef = asOrNull(argToPass, VariableReference);
+    if (!varRef) {
+      this.Error(
+        `Expected variable name to pass by reference to 'ref ${argExpected.identifier}' but saw ${argToPass}`,
+      );
+      return null;
+    }
+    // Check that we're not attempting to pass a read count by reference
+    const targetPath = new Path(varRef.pathIdentifiers);
+    const targetForCount: ParsedObject | null =
+      targetPath.ResolveFromContext(this);
+    if (targetForCount) {
+      this.Error(
+        `can't pass a read count by reference. \`${
+          targetPath.dotSeparatedComponents
+        }\` is a knot/stitch/label, but \`${
+          this.target!.dotSeparatedComponents
+        }\` requires the name of a variable to be passed.`,
+      );
+      return null;
+    }
+    return varRef;
+  }
+
   public readonly GenerateRuntimeObject = () => {
     // End = end flow immediately
     // Done = return from thread or instruct the flow that it's safe to exit
@@ -370,6 +485,7 @@ export class Divert extends ParsedObject {
     }
 
     this.runtimeDivert = new RuntimeDivert();
+    this.beginGeneration();
 
     // Normally we resolve the target content during the
     // Resolve phase, since we expect all runtime objects to
@@ -469,28 +585,11 @@ export class Divert extends ParsedObject {
 
           // Pass by reference: argument needs to be a variable reference
           if (argExpected && argExpected.isByReference) {
-            const varRef = asOrNull(argToPass, VariableReference);
+            const varRef = this.CheckByReferenceArgument(
+              argToPass,
+              argExpected,
+            );
             if (!varRef) {
-              this.Error(
-                `Expected variable name to pass by reference to 'ref ${argExpected.identifier}' but saw ${argToPass}`,
-              );
-
-              break;
-            }
-
-            // Check that we're not attempting to pass a read count by reference
-            const targetPath = new Path(varRef.pathIdentifiers);
-            const targetForCount: ParsedObject | null =
-              targetPath.ResolveFromContext(this);
-            if (targetForCount) {
-              this.Error(
-                `can't pass a read count by reference. \`${
-                  targetPath.dotSeparatedComponents
-                }\` is a knot/stitch/label, but \`${
-                  this.target!.dotSeparatedComponents
-                }\` requires the name of a variable to be passed.`,
-              );
-
               break;
             }
 
@@ -665,7 +764,7 @@ export class Divert extends ParsedObject {
           ) {
             // A parameter needs no divert-target marking to be diverted to:
             // parameters are untyped, and `name: ->` is only an annotation.
-            this.runtimeDivert.variableDivertName = variableTargetName;
+            this.setVariableDivertName(variableTargetName);
             this._variableDivertEpoch = currentResolutionEpoch();
             return;
           }
@@ -683,7 +782,7 @@ export class Divert extends ParsedObject {
   public override ResolveWith(context: Story, program: boolean): void {
     if (this.isEmpty || this.isEnd || this.isDone) {
       return;
-    } else if (!this._runtimeDivert) {
+    } else if (!this._generated) {
       // A divert whose generation never ran has nothing to resolve: the
       // proxy divert of a builtin call that reported its arguments, as
       // `READ_COUNT(-> a > b)` does, stays among the call's content without
@@ -698,10 +797,10 @@ export class Divert extends ParsedObject {
     // must be re-derived against the current tree — see
     // `_variableDivertEpoch`. Clearing it re-opens both retry paths below.
     if (
-      this.runtimeDivert.variableDivertName != null &&
+      this.variableDivertName != null &&
       this._variableDivertEpoch !== currentResolutionEpoch()
     ) {
-      this.runtimeDivert.variableDivertName = null;
+      this.setVariableDivertName(null);
     }
 
     // Retry variable-target resolution. `ResolveTargetContent` ran
@@ -715,7 +814,7 @@ export class Divert extends ParsedObject {
     // `ResolveTargetContent`.
     if (
       this.targetContent === null &&
-      this.runtimeDivert.variableDivertName == null
+      this.variableDivertName == null
     ) {
       this.ResolveTargetContent();
     }
@@ -726,7 +825,7 @@ export class Divert extends ParsedObject {
       // makes, is read nowhere.
     } else if (this.targetContent) {
       this.runtimeDivert.targetPath = this.targetContent.runtimePath;
-    } else if (this.runtimeDivert.variableDivertName == null) {
+    } else if (this.variableDivertName == null) {
       // Re-resolution found no target this compile. A REUSED runtime divert
       // may still hold the path it resolved in a previous compile (e.g. its
       // target flow was since deleted) — restore the fresh-generation state
@@ -745,7 +844,7 @@ export class Divert extends ParsedObject {
     // an assignment to the global anywhere, is recorded as uncertain
     // (`warning`): whether that binding holds a divert target when the
     // divert runs depends on the path taken (see `hasAuthoredBinding`).
-    const capturedBy = this.runtimeDivert.variableDivertName;
+    const capturedBy = this.variableDivertName;
     if (
       capturedBy != null &&
       !this.isFunctionCall &&
@@ -835,15 +934,18 @@ export class Divert extends ParsedObject {
         }
 
         if (isExternal) {
-          this.runtimeDivert.isExternal = true;
-          if (this.args !== null) {
-            this.runtimeDivert.externalArgs = this.args.length;
-          }
+          this._isExternal = true;
+          if (this._runtimeDivert) {
+            this._runtimeDivert.isExternal = true;
+            if (this.args !== null) {
+              this._runtimeDivert.externalArgs = this.args.length;
+            }
 
-          this.runtimeDivert.pushesToStack = false;
-          this.runtimeDivert.targetPath = new RuntimePath(
-            this.target.firstComponent,
-          );
+            this._runtimeDivert.pushesToStack = false;
+            this._runtimeDivert.targetPath = new RuntimePath(
+              this.target.firstComponent,
+            );
+          }
 
           this.CheckExternalArgumentValidity(context);
         }
@@ -853,7 +955,7 @@ export class Divert extends ParsedObject {
     }
 
     // Variable target?
-    if (this.runtimeDivert.variableDivertName != null) {
+    if (this.variableDivertName != null) {
       return;
     }
 
@@ -881,7 +983,7 @@ export class Divert extends ParsedObject {
         this.target.numberOfComponents === 1 &&
         this.target.firstComponent
       ) {
-        this.runtimeDivert.variableDivertName = this.target.firstComponent;
+        this.setVariableDivertName(this.target.firstComponent);
         this._variableDivertEpoch = currentResolutionEpoch();
         return;
       }
@@ -1090,6 +1192,9 @@ export class Divert extends ParsedObject {
 
   public override OnResetRuntime(): void {
     this._runtimeDivert = null;
+    this._generated = false;
+    this._variableDivertName = null;
+    this._isExternal = false;
     this.targetContent = null;
   }
 }

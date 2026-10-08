@@ -2,7 +2,7 @@ import { Container } from "./Container";
 import { InkObject } from "../../runtime/Object";
 import { JsonSerialisation } from "../../runtime/JsonSerialisation";
 import { StoryState } from "./StoryState";
-import { ControlCommand } from "./ControlCommand";
+import { ControlCommand } from "../../runtime/ControlCommand";
 import { PushPopType } from "../../runtime/PushPop";
 import { ChoicePoint } from "./ChoicePoint";
 import { Choice } from "../../runtime/Choice";

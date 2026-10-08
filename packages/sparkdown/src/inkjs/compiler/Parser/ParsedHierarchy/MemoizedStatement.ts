@@ -114,6 +114,12 @@ export class MemoizedStatement extends ParsedObject {
     return "MemoizedStatement";
   }
 
+  /** What its generation does: the memo's record reported again (`memoGenerate`). */
+  protected override Prepare(): boolean {
+    memoGenerate(this);
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
     memoGenerate(this);
     return new RuntimeContainer();

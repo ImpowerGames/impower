@@ -16,6 +16,15 @@ export class Statement extends ParsedObject {
     return "Paragraph";
   }
 
+  protected override Prepare(): boolean {
+    for (const obj of this.content ?? []) {
+      if (!(obj instanceof FlowBase)) {
+        obj.prepare();
+      }
+    }
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     const container = new RuntimeContainer();
 

@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { NullExpression } from "./NullExpression";
 import type {
@@ -50,6 +50,24 @@ export class TernaryExpression extends Expression {
 
   override get typeName(): string {
     return "TernaryExpression";
+  }
+
+  public override PrepareIntoContainer(): void {
+    this.prepareFrom(0);
+  }
+
+  private prepareFrom(index: number): void {
+    const branch = this.branches[index];
+    if (!branch) {
+      return;
+    }
+    if (branch.condition === null) {
+      branch.value.PrepareIntoContainer();
+      return;
+    }
+    branch.condition.PrepareIntoContainer();
+    branch.value.PrepareIntoContainer();
+    this.prepareFrom(index + 1);
   }
 
   public readonly GenerateIntoContainer = (container: RuntimeContainer) => {

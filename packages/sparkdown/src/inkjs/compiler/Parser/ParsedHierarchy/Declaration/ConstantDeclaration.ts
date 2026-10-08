@@ -60,6 +60,11 @@ export class ConstantDeclaration extends ParsedObject {
   // globals (see `VariableAssignment.EmitProgram`).
   public override EmitProgram(_emitter: ProgramEmitter): void {}
 
+  /** Nothing: the constant's initializer is written with the globals. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
     // Global declarations don't generate actual procedural
     // runtime objects, but instead add a global variable to the story itself.

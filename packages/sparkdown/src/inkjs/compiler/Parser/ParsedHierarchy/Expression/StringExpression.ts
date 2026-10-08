@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import { Text } from "../Text";
@@ -29,6 +29,12 @@ export class StringExpression extends Expression {
 
   override get typeName(): string {
     return "String";
+  }
+
+  public override PrepareIntoContainer(): void {
+    for (const c of this.content) {
+      c.prepare();
+    }
   }
 
   public readonly GenerateIntoContainer = (

@@ -18,6 +18,11 @@ export class Text extends ParsedObject {
     return false;
   }
 
+  /** Nothing but the string it writes. */
+  protected override Prepare(): boolean {
+    return true;
+  }
+
   public readonly GenerateRuntimeObject = (): RuntimeObject =>
     new StringValue(this.text);
 

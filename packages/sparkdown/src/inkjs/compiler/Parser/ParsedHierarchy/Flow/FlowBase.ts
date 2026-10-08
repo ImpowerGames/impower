@@ -21,7 +21,7 @@ import { ClosestFlowBase } from "./ClosestFlowBase";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import { DebugMetadata } from "../../../../../runtime/DebugMetadata";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
 import { RecordingMap, recordRead, resolutionTap } from "../ResolutionTap";
@@ -269,10 +269,8 @@ function* openObjects(
   for (let i = end - 1; i >= 0; i--) {
     const obj = content[i]!;
     if (obj instanceof Wrap) {
-      const command = asOrNull(
-        obj.GenerateRuntimeObject(),
-        RuntimeControlCommand,
-      )?.commandType;
+      const command = asOrNull(obj.wrapped, RuntimeControlCommand)
+        ?.commandType;
       if (command === RuntimeControlCommand.CommandType.EndScope) {
         closedScopes++;
       } else if (
@@ -761,8 +759,34 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
   };
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    let foundReturn: ReturnType | MultiReturnType | null = null;
+  /** What `GenerateRuntimeObject` does without the runtime containers: the
+   *  flow's checks of its own control flow (a function's diverts, choices
+   *  and stitches; a return where a scene, a branch or the file holds it),
+   *  then its content prepared in order, a flow written under it reported
+   *  when one before it has its name. */
+  protected override Prepare(): boolean {
+    this.CheckOwnControlFlow();
+    const children = new Map<string, FlowBase>();
+    for (const obj of this.content ?? []) {
+      if (obj instanceof FlowBase) {
+        obj.prepare();
+        const name = obj.identifier?.name as string;
+        const existing = children.get(name);
+        if (existing) {
+          this.ReportDuplicateChildFlow(obj, existing.debugMetadata);
+        }
+        children.set(name, obj);
+      } else if (obj) {
+        obj.prepare();
+      }
+    }
+    return true;
+  }
+
+  /** The checks of the flow's own control flow, which generation and
+   *  preparation both make first: what a function may not contain, and a
+   *  return a scene, a branch or the file's top level holds. */
+  protected CheckOwnControlFlow(): void {
     // A scene also contains its branches, and a weave can hold function
     // definitions. Each flow validates its own returns, rather than taking
     // a return from a child flow and reporting it as the parent's mistake.
@@ -779,8 +803,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       this.flowLevel === FlowLevel.Stitch
     ) {
       // Scenes and branches cannot return function values.
-      foundReturn = this.Find(ReturnType)(belongsToThisFlow) ?? this.Find(MultiReturnType)(belongsToThisFlow);
-
+      const foundReturn =
+        this.Find(ReturnType)(belongsToThisFlow) ??
+        this.Find(MultiReturnType)(belongsToThisFlow);
       if (foundReturn !== null) {
         this.ReportReturnOutsideFunction(foundReturn);
       }
@@ -791,16 +816,24 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // node; misplaced marked returns are validated at runtime export.
       //
       // `_rootWeave` holds the Story's free-floating top-level content
-      // (everything outside a `scene` / `branch` / `function`). Inkjs's
-      // Search the weave, with the same ownership predicate as child
-      // flows, so returns belonging to functions remain valid.
+      // (everything outside a `scene` / `branch` / `function`). Search the
+      // weave with the same ownership predicate as child flows, so returns
+      // belonging to functions remain valid.
       if (this._rootWeave !== null) {
-        const rootReturn = this._rootWeave.Find(ReturnType)(belongsToThisFlow) ?? this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
+        const rootReturn =
+          this._rootWeave.Find(ReturnType)(belongsToThisFlow) ??
+          this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
         if (rootReturn !== null) {
           this.ReportReturnOutsideFunction(rootReturn);
         }
       }
     }
+  }
+
+  public readonly GenerateRuntimeObject = (): RuntimeObject => {
+    // The checks of the flow's own control flow, which preparation makes
+    // too (`CheckOwnControlFlow`).
+    this.CheckOwnControlFlow();
 
     const container = new RuntimeContainer();
     container.name = this.identifier?.name as string;

@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
@@ -78,22 +78,38 @@ export class ConditionalSingleBranch extends ParsedObject {
   //  - Branch to a named container if true
   //       - Divert back to main flow
   //         (owner Conditional is in control of this target point)
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    // Check for common mistake, of putting "else:" instead of "- else:"
+  /** What `GenerateRuntimeObject` does without the runtime objects: the
+   *  `else:` written as content reported, the branch's test prepared, and
+   *  the branch's weave. */
+  protected override Prepare(): boolean {
+    this.CheckElseWrittenAsContent();
+    if (!this.isTrueBranch && !this.isElse && this.ownExpression) {
+      this.ownExpression.PrepareIntoContainer();
+    }
+    this._innerWeave?.prepareRoot();
+    return true;
+  }
+
+  /** The check generation and preparation both make first: the common
+   *  mistake of writing "else:" instead of "- else:", which the branch's
+   *  weave holds as content. */
+  protected CheckElseWrittenAsContent(): void {
     if (this._innerWeave) {
       for (const c of this._innerWeave.content) {
         const text = asOrNull(c, Text);
-        if (text) {
-          // Don't need to trim at the start since the parser handles that already
-          if (text.text.startsWith("else:")) {
-            this.Warning(
-              "Saw the text 'else:' which is being treated as content. Did you mean '- else:'?",
-              text,
-            );
-          }
+        // Don't need to trim at the start since the parser handles that already
+        if (text && text.text.startsWith("else:")) {
+          this.Warning(
+            "Saw the text 'else:' which is being treated as content. Did you mean '- else:'?",
+            text,
+          );
         }
       }
     }
+  }
+
+  public readonly GenerateRuntimeObject = (): RuntimeObject => {
+    this.CheckElseWrittenAsContent();
 
     const container = new RuntimeContainer();
 
@@ -211,12 +227,16 @@ export class ConditionalSingleBranch extends ParsedObject {
   };
 
   public override ResolveWith(context: Story, program: boolean): void {
-    if (!this._conditionalDivert || !this._contentContainer) {
+    if (
+      program
+        ? !this.isPrepared
+        : !this._conditionalDivert || !this._contentContainer
+    ) {
       throw new Error();
     }
 
     if (!program) {
-      this._conditionalDivert.targetPath = this._contentContainer.path;
+      this._conditionalDivert!.targetPath = this._contentContainer!.path;
     }
     super.ResolveWith(context, program);
   }
