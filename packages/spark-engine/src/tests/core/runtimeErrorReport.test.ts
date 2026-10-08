@@ -119,8 +119,7 @@ describe("a runtime error", () => {
   //
   // These two run on the current engine (`programChunks: false`): the program
   // engine reports an error a metamethod or a comparator raises at the
-  // statement of the handler's function that reached it (filed from #705's
-  // batch 3).
+  // statement of the handler's function that reached it (#1691).
   const clickReports = async (source: string) => {
     const h = createHarness(source, 0, { programChunks: false });
     await h.ready;

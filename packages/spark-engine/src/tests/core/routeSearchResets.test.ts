@@ -133,7 +133,7 @@ describe("route search resets (#650)", () => {
   test("a search after a global is written from outside evaluates the globals", () => {
     // On the current engine: the program engine's story stays pristine after
     // a global is written through its variables, so the search does not reset
-    // it and plans against the written value (filed from #705's batch 3).
+    // it and plans against the written value (#1692).
     const program = compileSrc(SRC, true);
     const game = newGame(program, true);
     // Nothing has run this story, so a search would otherwise take it as it

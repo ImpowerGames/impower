@@ -122,7 +122,8 @@ describe("a long scene replays to its end", () => {
   // scene that contains no loop at all.
   test("a 10,000 line scene previews its last beat instead of reporting a loop", () => {
     // On the current engine: the program engine's simulation of this scene
-    // runs out of the test's heap (filed from #705's batch 3).
+    // comes within a few percent of the test's heap, and runs out of it
+    // (#1694).
     const beats = 10_000;
     const program = compileSrc(longScene(beats), true);
     const result = previewLastBeat(program, beats, undefined, true);
@@ -216,7 +217,7 @@ describe("a replay that runs away is still stopped", () => {
   test("a ceiling below what the scene needs stops it and says so", () => {
     // On the current engine: on the program engine the stopped replay throws
     // reading its last checkpoint, whose save refuses a line left open
-    // (filed from #705's batch 3).
+    // (#1693).
     const beats = 400;
     const program = compileSrc(longScene(beats), true);
     const generous = previewLastBeat(program, beats, undefined, true);
