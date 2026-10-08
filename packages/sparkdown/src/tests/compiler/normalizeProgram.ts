@@ -1,5 +1,5 @@
 
-import { programListing } from "../programListing";
+import { declarationListing, flowListings } from "../programListing";
 
 // Tables of source positions, a per-compiler revision counter, the binary
 // buffer, and the chunks, whose instructions are compared without their line
@@ -77,10 +77,11 @@ function renameGenerated(value: unknown, names: Map<string, string>): unknown {
  * plain data: location tables dropped, the layout tree's spans dropped, the
  * generated names its `exprId`s hold numbered in the order the tree holds
  * them and renamed wherever they appear exactly (authored text is never
- * renamed), the program's code as each instruction of its chunks
- * (`programListing`), with those names renamed wherever the instruction
- * names them, and each diagnostic as its severity, code and message. A
- * compile that builds no chunks fails (`programListing` throws).
+ * renamed), the program's code as each flow's instructions under its name
+ * and the declarations' (`flowListings`, `declarationListing`), with those
+ * names renamed where an instruction names a symbol or a variable, and each
+ * diagnostic as its severity, code and message. A compile that builds no
+ * chunks fails (the listings throw).
  */
 export function normalizeProgram(program: any) {
   const names = new Map<string, string>();
@@ -94,12 +95,28 @@ export function normalizeProgram(program: any) {
     string,
     unknown
   >;
-  // An instruction names a generated name inside its text (`Sym "<name>"`),
-  // so each is renamed wherever it occurs, longest first.
+  // The program's code: each flow's instructions under the flow's name (a
+  // binding's evaluator is a flow named by a generated name, which is
+  // renamed), with the bodies its statements enter, and the declarations'
+  // instructions in the order they run. An instruction that names a symbol
+  // or a variable (`Sym "<name>"`, `Call "<name>" 0`) has each generated name
+  // in it renamed, longest first; the string an instruction pushes (`Str`,
+  // `Text`) is data and is kept as it is.
   const generated = [...names.entries()].sort((a, b) => b[0].length - a[0].length);
-  normalized["program"] = programListing(program.chunks).map((line) =>
-    generated.reduce((text, [name, alias]) => text.split(name).join(alias), line),
-  );
+  const renameName = (name: string) => names.get(name) ?? name;
+  const renameOperands = (line: string) =>
+    /^(Str|Text)\b/.test(line)
+      ? line
+      : generated.reduce((text, [name, alias]) => text.split(name).join(alias), line);
+  normalized["program"] = {
+    flows: Object.fromEntries(
+      [...flowListings(program.chunks)].map(([flow, lines]) => [
+        renameName(flow),
+        lines.map(renameOperands),
+      ]),
+    ),
+    declarations: declarationListing(program.chunks).map(renameOperands),
+  };
   // A diagnostic's range is a source position, and the text it underlines
   // can be the converted syntax itself (`- targets:` becomes `{`), so a
   // diagnostic is compared by its severity, code and message.

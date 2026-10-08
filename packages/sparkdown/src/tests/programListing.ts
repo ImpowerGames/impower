@@ -73,17 +73,22 @@ export function flowListings(compiled: unknown): Map<string, string[]> {
   return listings;
 }
 
-/** Every instruction of the program: its flows', and its declarations' with
- *  the bodies they enter (a `store`'s closure, a `define`'s methods), which
- *  stand in no flow. */
-export function programListing(compiled: unknown): string[] {
+/** The instructions of the program's declarations, in the order they run,
+ *  with the bodies they enter (a `store`'s closure, a `define`'s methods),
+ *  which stand in no flow. */
+export function declarationListing(compiled: unknown): string[] {
   const root = rootOf(compiled);
   const reader = new BinaryProgramReader(root);
-  const out = [...flowListings(compiled).values()].flat();
+  const out: string[] = [];
   for (const chunk of root.initialization) {
     chunkListing(root, reader, chunk, out);
   }
   return out;
+}
+
+/** Every instruction of the program: its flows', then its declarations'. */
+export function programListing(compiled: unknown): string[] {
+  return [...flowListings(compiled).values()].flat().concat(declarationListing(compiled));
 }
 
 /** A compile's chunks by content (`describeRoot`): what an incremental
