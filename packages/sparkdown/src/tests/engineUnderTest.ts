@@ -109,7 +109,16 @@ class ProgramEngineCompiler extends SparkdownCompiler {
     const result = super.compile(params);
     const program = result.program;
     if (program.chunks) {
-      const handle = {};
+      // A handle for the root, which `testStory` and `testRoot` read. It holds
+      // no program: comparing it as JSON would compare nothing, so that
+      // throws (compare `programContent` instead).
+      const handle = {
+        toJSON(): never {
+          throw new Error(
+            "A test compile's `program.compiled` stands for its root and holds no program: compare programContent(program.compiled) (programListing.ts).",
+          );
+        },
+      };
       roots.set(handle, program.chunks);
       program.compiled = handle;
     } else if (program.compiled && program.fallback) {
