@@ -260,11 +260,12 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
   if (
     offset > 0 &&
     opOf(word(offset - 2)) === Op.Jump &&
-    word(offset - 1) !== 0
+    word(offset - 1) > 0
   ) {
     // Reached only past the jump that ends the branch above, which jumps
-    // over it: an `elseif`. The last branch's jump lands right here, on
-    // whatever is written after the `if`.
+    // forward over it: an `elseif`. The last branch's jump lands right
+    // here, on whatever is written after the `if`, and a loop the preamble
+    // inlines ends in a jump back to its condition.
     return false;
   }
   if (offset === 0) {

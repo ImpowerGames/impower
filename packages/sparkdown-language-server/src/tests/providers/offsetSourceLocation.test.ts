@@ -410,7 +410,8 @@ describe("previous and next beat navigation", () => {
   // code, so it stands at addresses past the statement's start; an
   // assignment and an `if` there are stops as they are elsewhere, and a
   // `store` there is none on either engine (round 1 of PR #1680).
-  test("stops on an assignment and an if inside a choose preamble", async () => {
+  // Eight compiles, two per script and engine.
+  test("stops on an assignment and an if inside a choose preamble", { timeout: 60000 }, async () => {
     const PREAMBLE = [
       "store gate = true",
       "scene start",
@@ -467,6 +468,33 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
+    // A loop the preamble inlines ends in a jump back to its condition,
+    // which the logic written after it follows (round 2, comment
+    // 6049680360).
+    const AFTER_LOOP = [
+      "store n = 0",
+      "scene main",
+      "  Start.",
+      "  choose",
+      "    while n < 1 do",
+      "      & n += 1",
+      "      + First",
+      "        First body.",
+      "    end",
+      "    & n = 2",
+      "    + Second",
+      "      Second body.",
+      "  end",
+      "end",
+      "",
+    ].join(NEWLINE);
+    for (const engine of [false, true]) {
+      const afterLoop = compile(engine, AFTER_LOOP, "");
+      const at = async (line: number, offset: number) =>
+        (await getOffsetSourceLocation(afterLoop, ownBeats(afterLoop), MAIN, line, offset))?.line;
+      expect(await at(lineOf(AFTER_LOOP, "First body."), 1), `chunks ${engine}`).toBe(lineOf(AFTER_LOOP, "& n = 2"));
+      expect(await at(lineOf(AFTER_LOOP, "Second body."), -1), `chunks ${engine}`).toBe(lineOf(AFTER_LOOP, "& n = 2"));
+    }
     for (const engine of [false, true]) {
       const afterIf = compile(engine, AFTER_IF, "");
       const at = async (line: number, offset: number) =>
