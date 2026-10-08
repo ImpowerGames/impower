@@ -5,6 +5,7 @@
 // function's own body, where they would sit after its `return`.
 
 import { describe, expect, test } from "vitest";
+import { flowListings, pushesString } from "../programListing";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const LESS = `function less(a, b)\n  return a < b\nend\n`;
@@ -24,20 +25,21 @@ function linesFromTop(source: string): string[] {
   return lines;
 }
 
-/** The named top-level containers of the compiled story, keyed by name. */
-function namedContainers(source: string): Record<string, unknown> {
+/** The instructions of each flow of the compiled program (a scene, a
+ *  function), keyed by its name (`flowListings`). */
+function namedContainers(source: string): Record<string, string[]> {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
-  const root = (ctx.compiledJson as { root: unknown[] }).root;
-  return (root.at(-1) ?? {}) as Record<string, unknown>;
+  return Object.fromEntries(flowListings(ctx.compiledJson));
 }
 
 // Luau's parser's error for a line of words in a function body.
 const INCOMPLETE =
   "Incomplete statement: expected assignment or a function call";
 
-const holds = (container: unknown, text: string) =>
-  JSON.stringify(container).includes(JSON.stringify(`^${text}`));
+/** Whether a flow's code writes `text`. */
+const holds = (flow: string[] | undefined, text: string) =>
+  pushesString(flow ?? [], text);
 
 describe("story lines after a function declaration", () => {
   test("lines after a function declared first play from the top", () => {
@@ -93,9 +95,8 @@ describe("story lines after a function declaration", () => {
       }
     }
     expect(lines).toEqual(["After it.\n"]);
-    const root = (ctx.compiledJson as { root: unknown[] }).root;
-    const named = (root.at(-1) ?? {}) as Record<string, unknown>;
-    expect(holds(named["greet"], "After it.")).toBe(false);
+    const named = flowListings(ctx.compiledJson);
+    expect(holds(named.get("greet"), "After it.")).toBe(false);
   });
 
   test("lines after a function declared inside a scene stay in the scene", () => {

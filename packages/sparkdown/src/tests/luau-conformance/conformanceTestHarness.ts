@@ -14,7 +14,8 @@
 // and end up in `errorMessages` alongside compile-time errors.
 
 import { pathLocation } from "../../compiler/utils/pathLocationTable";
-import { PROGRAM_ENGINE, testCompiler, testStory } from "../engineUnderTest";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { ProgramStory } from "../../program/ProgramStory";
 
 export interface ConformanceResult {
   /** Compile-time errors surfaced by sparkdown's diagnostics pipeline. */
@@ -182,7 +183,7 @@ export function runConformanceSource(
   const lookupUserLineFromPointer = (): number | null => {
     // The program engine knows the line of the instruction running from its
     // chunk's line table.
-    if (PROGRAM_ENGINE) {
+    if ((story as unknown) instanceof ProgramStory) {
       const dm = story.currentDebugMetadata;
       return dm ? Math.max(1, dm.startLineNumber - PREAMBLE_LINE_COUNT) : null;
     }

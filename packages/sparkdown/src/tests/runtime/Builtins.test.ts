@@ -15,7 +15,11 @@
 // are skipped with notes.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromFile, runToEnd } from "./runtimeTestHarness";
+import {
+  makeRuntimeStoryFromFile,
+  runToEnd,
+  visitCountOf,
+} from "./runtimeTestHarness";
 
 describe("Builtins (ported from inkjs)", () => {
   test("count.turns() returns the current turn count", () => {
@@ -215,8 +219,9 @@ describe("Builtins (ported from inkjs)", () => {
     // `VisitCountAtPathString(name)` before and after `ChoosePathString`,
     // a Continue, a ChooseChoiceIndex, and a second Continue — verifying
     // that visit counts increment only when control actually enters the
-    // named container. The `VisitCountAtPathString` runtime API is
-    // available on `state` (inherited from inkjs's `StoryState`).
+    // named container. The program engine counts every scene, which
+    // `visitCountOf` reads by its name, as the current engine's
+    // `VisitCountAtPathString` read a container's count by its path.
     //
     // Sparkdown rewrite uses `scene` for `=== knot ===` and a
     // single-choice `choose` block for the `* [Next] -> TestKnot2`
@@ -234,30 +239,29 @@ describe("Builtins (ported from inkjs)", () => {
       { countAllVisits: true },
     );
     expect(ctx.errorMessages).toEqual([]);
-    const state = ctx.story.state;
 
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(0);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.ChoosePathString("TestKnot", true, []);
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.Continue();
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     // The next continue raises the choice, and enters nothing.
     ctx.story.Continue();
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.ChooseChoiceIndex(0);
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.Continue();
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(1);
   });
 
   test("visit count bug due to nested containers", () => {
