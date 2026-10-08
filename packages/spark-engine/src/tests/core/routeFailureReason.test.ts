@@ -35,6 +35,7 @@ import {
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
 
@@ -114,10 +115,10 @@ function plainScene(beats: number): string {
 }
 
 /** Resolve a source line the way a click in the editor would. */
-function startAddressForLine(program: unknown, line: number): string {
+function startAddressForLine(program: unknown, line: number): ProgramAddress {
   const game: any = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return game.startAddress as string;
+  return game.startAddress!;
 }
 
 describe("the planner says how its search ended", () => {

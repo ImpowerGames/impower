@@ -159,7 +159,7 @@ end
       source.split("\n").findIndex((l) => l.includes(text));
     const planTo = (game: any, line: number) => {
       game.setStartFrom({ file: MAIN_URI, line });
-      const toPath = game.startAddress as string;
+      const toPath = game.startAddress!;
       return Game.planRoute(
         game.story,
         game.program,
@@ -225,7 +225,7 @@ end
       source.split("\n").findIndex((l) => l.includes(text));
     const planTo = (game: any, line: number) => {
       game.setStartFrom({ file: MAIN_URI, line });
-      const toPath = game.startAddress as string;
+      const toPath = game.startAddress!;
       return Game.planRoute(
         game.story,
         game.program,

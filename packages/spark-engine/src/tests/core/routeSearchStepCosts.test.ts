@@ -26,6 +26,7 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
 
@@ -83,10 +84,10 @@ function targetPathForLine(
   program: unknown,
   line: number,
   currentEngine = false,
-): string {
+): ProgramAddress {
   const game = newGame(program, currentEngine);
   game.setStartFrom({ file: URI, line });
-  return game.startAddress as string;
+  return game.startAddress!;
 }
 
 const BEATS = 50;

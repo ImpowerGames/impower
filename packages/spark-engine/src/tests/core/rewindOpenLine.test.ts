@@ -374,7 +374,7 @@ describe("the route planner lets go of an open line too", () => {
     };
 
     game.setStartFrom({ file: URI, line: 3 });
-    const toPath = anyGame.startAddress as string;
+    const toPath = anyGame.startAddress!;
     expect(toPath).toBeTruthy();
 
     expect(() =>

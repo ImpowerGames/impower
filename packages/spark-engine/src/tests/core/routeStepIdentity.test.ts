@@ -125,7 +125,7 @@ end
 
   const planTo = (game: Game, program: any, line: number) => {
     game.setStartFrom({ file: URI, line });
-    const toPath = game.startAddress as string;
+    const toPath = game.startAddress!;
     return Game.planRoute(
       game.story,
       program,
@@ -256,7 +256,7 @@ end
         }) as any,
       } as any);
       game.setStartFrom({ file: URI, line: 12 });
-      const toPath = game.startAddress as string;
+      const toPath = game.startAddress!;
       const route = Game.planRoute(
         game.story,
         program as any,
@@ -310,7 +310,7 @@ describe("a planned route does not grow quadratically", () => {
     } as any);
     // Target the last beat so the route spans the whole scene.
     game.setStartFrom({ file: URI, line: 400 });
-    const toPath = game.startAddress as string;
+    const toPath = game.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,

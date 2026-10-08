@@ -302,7 +302,7 @@ const checkpointFor = (story: string, line: number): string | null => {
     setTimeout: syncTimeout,
   } as any);
   sim.setStartFrom({ file: MAIN_URI, line });
-  const to = sim.startAddress as string;
+  const to = sim.startAddress!;
   const from = sim.routeStartOf(to);
   const route = Game.planRoute(sim.story, program as any, from, to);
   return route ? sim.patchAndSimulateRoute(route) : null;

@@ -95,7 +95,7 @@ const previewLastBeat = (
   };
 
   game.setStartFrom({ file: URI, line: beats + 1 });
-  const toPath = anyGame.startAddress as string;
+  const toPath = anyGame.startAddress!;
   const route = Game.planRoute(
     game.story,
     program as any,
@@ -168,7 +168,7 @@ describe("no clock governs execution", () => {
     };
 
     game.setStartFrom({ file: URI, line: beats + 1 });
-    const toPath = anyGame.startAddress as string;
+    const toPath = anyGame.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,

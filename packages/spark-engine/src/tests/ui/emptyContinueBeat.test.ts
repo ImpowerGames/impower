@@ -172,7 +172,7 @@ describe("a route replay", () => {
     } as any);
     const line = SCENE.split("\n").findIndex((l) => l.includes("Last line."));
     game.setStartFrom({ file: URI, line });
-    const toPath = game.startAddress as string;
+    const toPath = game.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,
