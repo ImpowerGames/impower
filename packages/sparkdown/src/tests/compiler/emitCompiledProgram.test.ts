@@ -7,7 +7,7 @@
 // that must be untouched.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -26,7 +26,7 @@ function quiet<T>(fn: () => T): T {
 
 function compile(text: string, emitCompiledProgram?: boolean) {
   return quiet(() => {
-    const c = new SparkdownCompiler();
+    const c = currentEngineCompiler();
     c.configure({
       ...(emitCompiledProgram === undefined ? {} : { emitCompiledProgram }),
       files: [
@@ -133,7 +133,7 @@ describe("emitCompiledProgram (#345)", () => {
     // The incremental ToJson cache is not maintained while emission is off, so
     // a re-enable must not serve subtrees from a compile that never ran.
     const c = quiet(() => {
-      const compiler = new SparkdownCompiler();
+      const compiler = currentEngineCompiler();
       compiler.configure({
         emitCompiledProgram: false,
         files: [

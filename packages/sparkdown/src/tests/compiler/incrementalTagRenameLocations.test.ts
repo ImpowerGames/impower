@@ -4,7 +4,7 @@
 // (#978).
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -16,7 +16,7 @@ const SCENES = Array.from(
 const SCRIPT = `-> s0\n\n${SCENES}\nscene last\n  # mood happy\n  Last line.\nend\n`;
 
 function configured(text: string) {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   });

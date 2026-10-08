@@ -6,7 +6,8 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { currentEngineCompiler, testCompiler, testStory } from "../engineUnderTest";
+import { programContent } from "../programListing";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -42,6 +43,12 @@ type Project = Record<string, string>;
 
 const uriOf = (name: string) => `file://proj/${name}.sd`;
 
+// A project whose script holds top-level content an include splices in
+// compiles on the current engine's compile path (`currentEngine`, with
+// `currentEngineCompiler`): the program writer does not emit that content
+// yet (#1681).
+let currentEngine = false;
+
 function configure(compiler: SparkdownCompiler, project: Project, version: number) {
   compiler.configure({
     files: Object.entries(project).map(([name, text]) => file(uriOf(name), text, version)),
@@ -60,7 +67,10 @@ function compiled(compiler: SparkdownCompiler): Compiled {
   const { program } = compiler.compile({ textDocument: { uri: MAIN_URI } });
   const spans: Compiled["spans"] = [];
   const text = JSON.stringify(
-    { compiled: program.compiled, sparkle: program.sparkle },
+    {
+      compiled: currentEngine ? program.compiled : programContent(program.compiled),
+      sparkle: program.sparkle,
+    },
     function (this: any, key, value) {
       if (key === "span" && this && typeof this.exprId === "string" && value.file === MAIN_URI) {
         spans.push({ line: value.line, from: value.from, to: value.to });
@@ -75,8 +85,9 @@ function compiled(compiler: SparkdownCompiler): Compiled {
 // returns the compile before the edit, the incremental compile of the edited
 // project and a cold compile of it.
 function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [Compiled, Compiled, Compiled] {
+  const newCompiler = currentEngine ? currentEngineCompiler : testCompiler;
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = newCompiler();
     configure(compiler, project, 1);
     const before = compiled(compiler);
     const text = project[name]!;
@@ -87,7 +98,7 @@ function incrementalAndCold(project: Project, name: string, offset: number, inse
     });
     const incremental = compiled(compiler);
     const edited = { ...project, [name]: text.slice(0, offset) + insert + text.slice(offset) };
-    const fresh = new SparkdownCompiler();
+    const fresh = newCompiler();
     configure(fresh, edited, 2);
     return [before, incremental, compiled(fresh)];
   });
@@ -95,7 +106,7 @@ function incrementalAndCold(project: Project, name: string, offset: number, inse
 
 function compileOnce(main: string, others: Project = {}) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     configure(compiler, { main, ...others }, 1);
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
@@ -111,7 +122,7 @@ function diagnostics(program: any): string[] {
 function firstBindingValue(program: any, layout: string): unknown {
   const id = JSON.stringify(program.sparkle?.layouts?.[layout]).match(/__binding_\w+/)?.[0];
   expect(id).toBeDefined();
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.compiled as Record<string, any>);
   return story.EvaluateFunction(id!);
 }
 
@@ -140,9 +151,14 @@ describe("synthetic names after an edit", () => {
     // so every carried canonical name moves up. It goes after the line already
     // there, so its offsets differ from the shared temps' offsets.
     const pre = project["pre"]!;
-    const [, incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
-    expect(incremental.text).toContain("__synth_");
-    expect(incremental.text).toBe(cold.text);
+    currentEngine = true;
+    try {
+      const [, incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
+      expect(incremental.text).toContain("__synth_");
+      expect(incremental.text).toBe(cold.text);
+    } finally {
+      currentEngine = false;
+    }
   });
 
   it("a layout binding moved by an edit above it keeps the cold name", () => {
@@ -207,7 +223,7 @@ describe("synthetic names after an edit", () => {
       return { line: posAt(source, from).line, from, to: from + "{a}".length };
     };
     quiet(() => {
-      const compiler = new SparkdownCompiler();
+      const compiler = testCompiler();
       configure(compiler, { main: text }, 1);
       const first = compiled(compiler);
       expect(first.spans).toEqual([spanOf(text)]);

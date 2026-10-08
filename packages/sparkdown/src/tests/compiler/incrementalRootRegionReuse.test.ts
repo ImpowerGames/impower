@@ -17,7 +17,11 @@
 // happened — that is the property under test.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+// The guard is the current engine's flow reuse (`_reusedFlowsThisCompile`),
+// and an `external` declaration makes a program fall back to that engine:
+// these compiles take its compile path until #705's deletion removes or
+// moves this test.
+import { currentEngineCompiler } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -73,7 +77,7 @@ const quiet = <T,>(fn: () => T): T => {
 };
 
 function configured(text: string) {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     files: [
       {

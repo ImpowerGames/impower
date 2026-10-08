@@ -29,6 +29,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { File } from "../../compiler/types/File";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { servedFlowNames } from "./servedFlows";
@@ -58,6 +59,13 @@ const file = (text: string, version: number): File => ({
 class Probe extends SparkdownCompiler {
   lastBytecodeReuse?: { reusable: Set<string>; ok: boolean };
   private previousFlowCache?: Map<string, { value: unknown }>;
+
+  // The caches are the current engine's compile path, which #705's deletion
+  // removes with this test, or moves it.
+  constructor() {
+    super();
+    this.configure({ programChunks: false });
+  }
 
   captures(): Map<string, unknown> {
     return new Map(this._flowAssetAccum ?? []);
@@ -167,7 +175,7 @@ function compiledOf(compiler: SparkdownCompiler) {
 }
 
 function coldCompiledOf(text: string) {
-  return compiledOf(configured(new SparkdownCompiler(), text));
+  return compiledOf(configured(currentEngineCompiler(), text));
 }
 
 /**

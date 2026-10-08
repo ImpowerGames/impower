@@ -12,7 +12,7 @@
 // what prove it actually does.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { materializeNode } from "../../binary/programBinary";
 import {
   ProgramBinaryWriter,
@@ -36,7 +36,7 @@ function quiet<T>(fn: () => T): T {
 }
 
 function makeCompiler(text: string, binaryProgram: boolean) {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     binaryProgram,
     files: [

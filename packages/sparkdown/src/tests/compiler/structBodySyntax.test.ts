@@ -63,13 +63,21 @@ test.each(["none", "uniform", "random"])("builtins struct bodies compile identic
     const count = mode === "none" ? 0 : mode === "uniform" ? 4 : seed % 13;
     return " ".repeat(count) + line.trimStart();
   }).join("\n");
+  // Compares the current engine's compiled JSON (`normalizeProgram`). The
+  // program's instruction listing leaves out where a body resumes, and
+  // renaming generated names in it rewrites a tag's text, so it is no
+  // comparison of the program's code yet: #705's deletion has to give this
+  // test one.
   const compile = (source: string) => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
+      programChunks: false,
       useBuiltinsPrelude: false, definitions: { builtins: {} },
       files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }],
     } as any);
     return normalizeProgram(compiler.compile({ textDocument: { uri: URI } }).program);
   };
-  expect(isDeepStrictEqual(compile(changed), compile(text))).toBe(true);
+  const original = compile(text);
+  expect(original).toHaveProperty("compiled");
+  expect(isDeepStrictEqual(compile(changed), original)).toBe(true);
 });

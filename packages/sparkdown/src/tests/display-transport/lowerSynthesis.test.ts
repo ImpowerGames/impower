@@ -5,12 +5,11 @@
 // `currentText` (the step's visible text).
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../inkjs/engine/Value";
 
 function run(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -30,7 +29,7 @@ function run(source: string) {
   if (!result.program.compiled) {
     throw new Error("lower-synthesis fixture failed to compile");
   }
-  const story = new RuntimeStory(
+  const story = testStory(
     result.program.compiled as Record<string, any>,
   );
   const errors: string[] = [];

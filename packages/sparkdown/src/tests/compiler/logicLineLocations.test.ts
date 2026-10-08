@@ -10,7 +10,7 @@
 // Compiled the way the player compiles, with the builtins prelude.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import {
   locationAtRow,
   pathLocation,
@@ -21,7 +21,7 @@ const URI = "inmemory:///main.sd";
 const MAIN_SCRIPT = 0;
 
 function compile(text: string) {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,

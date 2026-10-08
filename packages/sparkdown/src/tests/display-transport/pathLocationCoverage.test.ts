@@ -6,11 +6,11 @@
 // flat-text lowering the calls replaced.
 
 import { describe, expect, test, vi } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { startLineAtRow } from "../../compiler/utils/pathLocationTable";
 
 function coveredLines(source: string): number[] {
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   compiler.configure({
     files: [
       {
@@ -148,7 +148,7 @@ function compileErrors(source: string) {
 }
 
 function placedErrors(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   compiler.configure({
     files: [
       {

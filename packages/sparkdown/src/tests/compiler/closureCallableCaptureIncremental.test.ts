@@ -6,9 +6,9 @@
 // reach it.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { programContent } from "../programListing";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -42,7 +42,7 @@ function position(text: string, offset: number) {
 
 function coldCompile(text: string) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     compiler.configure({ files: [file(text, 1)] });
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
@@ -52,7 +52,7 @@ function coldCompile(text: string) {
 // `updateDocument`, and compiles again.
 function incrementalAfterEdit(base: string, from: number, to: number, insert: string) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     compiler.configure({ files: [file(base, 1)] });
     compiler.compile({ textDocument: { uri: MAIN_URI } });
     compiler.updateDocument({
@@ -66,7 +66,7 @@ function incrementalAfterEdit(base: string, from: number, to: number, insert: st
 }
 
 function run(program: any) {
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.compiled as Record<string, any>);
   const errors: string[] = [];
   story.onError = (message: string) => {
     errors.push(message);
@@ -114,7 +114,7 @@ describe("a carried closure follows the document's top-level functions", () => {
     expect(run(cold)).toEqual({ output: "Result 7.\n", errors: [] });
     expect(run(incremental)).toEqual(run(cold));
     expect(diagnostics(incremental)).toEqual(diagnostics(cold));
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
   });
 
   it("calls a top-level function an edit declares at the end of the document", () => {
@@ -127,13 +127,13 @@ describe("a carried closure follows the document's top-level functions", () => {
     expect(run(cold)).toEqual({ output: "Result 7.\n", errors: [] });
     expect(run(incremental)).toEqual(run(cold));
     expect(diagnostics(incremental)).toEqual(diagnostics(cold));
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
   });
 
   it("stops calling a top-level function an edit removes", () => {
     const incremental = incrementalAfterEdit(HELPER + BODY, 0, HELPER.length, "");
     const cold = coldCompile(BODY);
     expect(diagnostics(incremental)).toEqual(diagnostics(cold));
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
   });
 });

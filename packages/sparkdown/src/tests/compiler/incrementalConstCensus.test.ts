@@ -15,8 +15,9 @@
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 const URI = "inmemory:///main.sd";
-const pick = (p: any) => ({ compiled: p.compiled, diagnostics: p.diagnostics });
+const pick = (p: any) => ({ chunks: programContent(p.chunks), diagnostics: p.diagnostics });
 const stable = (v: any): string => {
   const seen = new WeakSet();
   const walk = (x: any): any => {

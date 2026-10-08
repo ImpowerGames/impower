@@ -12,7 +12,7 @@
 // over unchanged.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -49,8 +49,11 @@ function stable(value: unknown): string {
   return JSON.stringify(walk(value));
 }
 
+// The edits check the current engine's flow reuse (`_reusedFlowsThisCompile`)
+// and its compiled containers, which #705's deletion removes with this test,
+// or moves it.
 function configured(text: string) {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     files: [
       {

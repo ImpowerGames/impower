@@ -26,6 +26,7 @@ import {
   defineTypeNameWalkStats,
   resetDefineTypeNameWalkStats,
 } from "../../compiler/utils/collectDefineTypeNames";
+import { programContent } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -311,8 +312,8 @@ describe("define type names are collected incrementally (#649)", () => {
 
     // The scoping this change steers shows up in the compiled ink's global
     // keys, so compare the compiled output rather than the set alone.
-    expect(JSON.stringify(incrementalProgram.compiled)).toEqual(
-      JSON.stringify(coldProgram.compiled),
+    expect(programContent(incrementalProgram.chunks)).toEqual(
+      programContent(coldProgram.chunks),
     );
     expect(JSON.stringify(incrementalProgram.context)).toEqual(
       JSON.stringify(coldProgram.context),

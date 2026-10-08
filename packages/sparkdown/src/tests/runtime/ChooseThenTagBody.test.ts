@@ -11,8 +11,7 @@
 
 import { describe, expect, test } from "vitest";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const SRC = `-> main
 
@@ -38,7 +37,7 @@ end
 
 describe("choose…then…end tag body", () => {
   test("a `##` tag line in the then-body parses as a Tag and runs", () => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     compiler.configure({
       files: [
         {
@@ -72,7 +71,7 @@ describe("choose…then…end tag body", () => {
     expect(tree).toContain("Tag");
 
     // And picking a choice runs the then-body to the divert (no dead-end).
-    const story = new RuntimeStory((result.program as any).compiled);
+    const story = testStory((result.program as any).compiled);
     const rtErrors: string[] = [];
     story.onError = (m: string) => rtErrors.push(m);
     story.ContinueMaximally();

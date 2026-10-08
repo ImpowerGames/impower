@@ -9,6 +9,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -62,7 +63,7 @@ describe("synthetic names carried into an incremental compile", () => {
   it("compiles an edit beside a kept synthetic temp the same as a cold compile", () => {
     const incremental = configured(SOURCE);
     expect(
-      incremental.compile({ textDocument: { uri: URI } }).program.compiled,
+      incremental.compile({ textDocument: { uri: URI } }).program.chunks,
     ).toBeDefined();
 
     const anchor = "function first()";
@@ -82,9 +83,9 @@ describe("synthetic names carried into an incremental compile", () => {
       textDocument: { uri: URI },
     }).program;
 
-    expect(coldProgram.compiled).toBeDefined();
-    expect(JSON.stringify(incrementalProgram.compiled)).toEqual(
-      JSON.stringify(coldProgram.compiled),
+    expect(coldProgram.chunks).toBeDefined();
+    expect(programContent(incrementalProgram.chunks)).toEqual(
+      programContent(coldProgram.chunks),
     );
   });
 });

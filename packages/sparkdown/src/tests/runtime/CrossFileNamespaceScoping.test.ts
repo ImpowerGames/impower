@@ -12,14 +12,13 @@
 // project_define_namespace_scoping.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileMultiFile(
   files: { rel: string; text: string }[],
 ): { errors: string[]; recorded: unknown[] } {
   const base = "inmemory://crossfile/";
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: files.map((f) => ({
       uri: `${base}${f.rel}`,
@@ -38,7 +37,7 @@ function compileMultiFile(
   if (!result.program.compiled) {
     return { errors: ["NO_COMPILED"], recorded: [] };
   }
-  const story = new RuntimeStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.compiled as Record<string, any>);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);

@@ -39,7 +39,15 @@ function fixture(): string {
   return L.join("\n");
 }
 
+// The per-flow location cache is the current engine's compile path, which
+// #705's deletion removes with this test, or moves it; a program's scene
+// assets come from its chunks (`captureProgramAssets`).
 class Probe extends SparkdownCompiler {
+  constructor() {
+    super();
+    this.configure({ programChunks: false });
+  }
+
   captureOf(name: string) {
     return this._flowAssetAccum?.get(name);
   }
@@ -58,7 +66,7 @@ function posAt(text: string, offset: number) {
 }
 
 function coldSceneAssets(text: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = new Probe();
   compiler.configure({ files: [file(text, 1)] });
   return compiler.compile({ textDocument: { uri: URI } }).program.sceneAssets;
 }
@@ -128,7 +136,7 @@ describe("incremental sceneAssets", () => {
   it("a recompile with no change keeps sceneAssets on the returned program", () => {
     quiet(() => {
       const text = fixture();
-      const compiler = new SparkdownCompiler();
+      const compiler = new Probe();
       compiler.configure({ files: [file(text, 1)] });
       const first = compiler.compile({ textDocument: { uri: URI } }).program;
       const second = compiler.compile({ textDocument: { uri: URI } }).program;

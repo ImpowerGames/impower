@@ -4,6 +4,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
 import { parseSource } from "./grammarSnapshot";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
+import { functionSpans } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 function compile(text: string, compiler = new SparkdownCompiler(), version = 1) {
@@ -111,7 +112,7 @@ describe("return is the final Luau statement in its block (#1298)", () => {
 
   it.each(cases)("preserves the function's own end for %s", (_name, source, endLine) => {
     const program = compile(source + "\nBOB:\n  Hello after.\n");
-    expect(program.pathLocations.functions).toEqual([{ path: "f", lines: [0, 0, endLine] }]);
+    expect(functionSpans(program)).toEqual([{ path: "f", lines: [0, 0, endLine] }]);
   });
 
   it.each([

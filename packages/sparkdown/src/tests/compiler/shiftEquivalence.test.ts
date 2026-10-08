@@ -17,8 +17,12 @@
 // compared as they are.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
+// This oracle compares the current engine's compiled JSON and its shifted
+// path-location table, and one fixture (#848) includes a script's top-level
+// content (#1681): it compiles on that engine's path. The program's shift
+// oracle is `programShift.test.ts`; #705's deletion removes or moves this one.
+import { currentEngineCompiler } from "../engineUnderTest";
 import { SparkProgram, ScriptLocation } from "../../compiler/types/SparkProgram";
 import { SHIFT_CASES, type Project } from "./fixtures/shiftCases";
 
@@ -44,7 +48,7 @@ function coldCompile(project: Project): SparkProgram {
   console.warn = () => {};
   console.error = () => {};
   try {
-    const compiler = new SparkdownCompiler();
+    const compiler = currentEngineCompiler();
     compiler.configure({ files: Object.entries(project).map(([name, text]) => file(name, text)) });
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   } finally {

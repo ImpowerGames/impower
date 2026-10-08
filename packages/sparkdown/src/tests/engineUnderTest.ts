@@ -109,7 +109,16 @@ class ProgramEngineCompiler extends SparkdownCompiler {
     const result = super.compile(params);
     const program = result.program;
     if (program.chunks) {
-      const handle = {};
+      // A handle for the root, which `testStory` and `testRoot` read. It holds
+      // no program: comparing it as JSON would compare nothing, so that
+      // throws (compare `programContent` instead).
+      const handle = {
+        toJSON(): never {
+          throw new Error(
+            "A test compile's `program.compiled` stands for its root and holds no program: compare programContent(program.compiled) (programListing.ts).",
+          );
+        },
+      };
       roots.set(handle, program.chunks);
       program.compiled = handle;
     } else if (program.compiled && program.fallback) {
@@ -127,6 +136,17 @@ export function testRoot(compiled: unknown): ProgramRoot | undefined {
     : undefined;
 }
 
+/** A compiler on the current engine's compile path, for a test of what only
+ *  that path makes: its compiled JSON, its path-location table, its flow
+ *  cache, #314's encoding. Every other compile a test makes builds statement
+ *  chunks (`programChunksByDefault.ts`). #705's deletion removes that path,
+ *  and deletes or moves each test that still compiles here. */
+export function currentEngineCompiler(): SparkdownCompiler {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({ programChunks: false });
+  return compiler;
+}
+
 /** The compiler a story-running test compiles with. */
 export function testCompiler(): SparkdownCompiler {
   return new ProgramEngineCompiler();
@@ -134,17 +154,13 @@ export function testCompiler(): SparkdownCompiler {
 
 /**
  * The constructs a test's program may fall back for, which then runs on the
- * current engine: a choice outside any `choose` block's code, which a script
- * holds only beside a compile error, and a label between two choices an `if`
- * of a block's preamble gates and a choice inside a block of a presentation
- * that the writer does not make the presentation's own code, which it
- * leaves to the current engine (#697, #1503).
+ * current engine, each one a test reaches: a choice outside any `choose`
+ * block's code, which the tests write beside the choice-mark error the
+ * compile reports (#705 makes every such choice an error). An included
+ * script's top-level content, a `run` statement's script among it, runs on
+ * the program engine since #1681.
  */
-const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
-  "Choice",
-  "a label between choices an if gates",
-  "a choice inside a block of a presentation",
-]);
+const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set(["Choice"]);
 
 /** The story of a compile's `program.compiled`: on the program engine, the
  *  engine over its root. A program that fell back to the current engine runs
