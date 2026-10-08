@@ -6,7 +6,7 @@
 import { BinaryProgramReader } from "../program/BinaryProgramReader";
 import { describeInstruction } from "../program/BinaryProgramWriter";
 import type { ProgramRoot, SequenceRow } from "../program/ProgramRoot";
-import { blockCount } from "../program/StatementChunk";
+import { blockCount, type StatementChunk } from "../program/StatementChunk";
 import { testRoot } from "./engineUnderTest";
 
 /** The root of a test compile's `program.compiled`; a compile that made no
@@ -19,6 +19,25 @@ export function rootOf(compiled: unknown): ProgramRoot {
   return root;
 }
 
+/** The instructions of a chunk and of the bodies it enters (a block's, a
+ *  function's a statement writes), in order. */
+function chunkListing(
+  root: ProgramRoot,
+  reader: BinaryProgramReader,
+  chunk: StatementChunk,
+  out: string[],
+): void {
+  for (const { offset } of reader.instructions(chunk)) {
+    out.push(describeInstruction(chunk, offset, root.table));
+  }
+  for (let k = 0; k < blockCount(chunk); k += 1) {
+    const body = root.body(chunk, k);
+    if (body) {
+      sequenceListing(root, reader, body, out);
+    }
+  }
+}
+
 /** The instructions of a sequence's chunks and of the bodies they enter, in
  *  order. */
 function sequenceListing(
@@ -28,15 +47,7 @@ function sequenceListing(
   out: string[],
 ): void {
   for (const chunk of sequence.arrays.chunks) {
-    for (const { offset } of reader.instructions(chunk)) {
-      out.push(describeInstruction(chunk, offset, root.table));
-    }
-    for (let k = 0; k < blockCount(chunk); k += 1) {
-      const body = root.body(chunk, k);
-      if (body) {
-        sequenceListing(root, reader, body, out);
-      }
-    }
+    chunkListing(root, reader, chunk, out);
   }
 }
 
@@ -55,15 +66,15 @@ export function flowListings(compiled: unknown): Map<string, string[]> {
   return listings;
 }
 
-/** Every instruction of the program: its flows' and its declarations'. */
+/** Every instruction of the program: its flows', and its declarations' with
+ *  the bodies they enter (a `store`'s closure, a `define`'s methods), which
+ *  stand in no flow. */
 export function programListing(compiled: unknown): string[] {
   const root = rootOf(compiled);
   const reader = new BinaryProgramReader(root);
   const out = [...flowListings(compiled).values()].flat();
   for (const chunk of root.initialization) {
-    for (const { offset } of reader.instructions(chunk)) {
-      out.push(describeInstruction(chunk, offset, root.table));
-    }
+    chunkListing(root, reader, chunk, out);
   }
   return out;
 }
