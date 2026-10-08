@@ -309,62 +309,34 @@ describe("a continuation inside a block", () => {
   const BLOCK_LINE = 1;
   const EDITED_LINE = 12;
 
-  for (const programChunks of [false, true]) {
-    it(`is not lowered again by an edit below it, with statement chunks ${programChunks ? "on" : "off"}`, () => {
-      const c = programCompiler({ [MAIN]: text }, { programChunks });
-      c.compile();
-      const before = blockLines(c.compiler);
-      expect(blockAt(c.compiler, "if x then").reads !== undefined).toBe(programChunks);
-      const find = "Filler line 7.";
-      const offset = text.indexOf(find);
-      c.compiler.updateDocument({
-        textDocument: { uri: MAIN, version: 2 },
-        contentChanges: [
-          {
-            range: {
-              start: posAt(text, offset),
-              end: posAt(text, offset + find.length),
-            },
-            text: "Filler line 7!",
-          },
-        ],
-      });
-      c.compile();
-      // The first lines of the blocks the edit lowered again. The lines are
-      // compared rather than the blocks, whose difference is too large to
-      // print.
-      const lowered = [...blockLines(c.compiler)]
-        .filter(([block]) => !before.has(block))
-        .map(([, line]) => line);
-      expect(lowered).toContain(EDITED_LINE);
-      expect(lowered).not.toContain(BLOCK_LINE);
-    });
-  }
-});
-
-// Statements lowered with statement chunks off hold no reads, so turning them
-// on lowers every statement again, and the next compile builds the root a
-// cold compile builds.
-describe("statement chunks turned on after a compile", () => {
-  it("lower every statement again, with its reads", () => {
-    const text = [
-      "HERO: Wait ..",
-      "// a comment between",
-      ".. right there. > And then more.",
-      "After.",
-      "",
-    ].join("\n");
-    const c = programCompiler({ [MAIN]: text }, { programChunks: false });
+  it("is not lowered again by an edit below it", () => {
+    const c = programCompiler({ [MAIN]: text });
     c.compile();
-    expect(blockAt(c.compiler, ".. right there.").reads).toBeUndefined();
-    c.compiler.configure({});
-    const { program } = c.compile();
-    expect(blockAt(c.compiler, ".. right there.").reads).toHaveLength(1);
-    const cold = programCompiler({ [MAIN]: text })
-      .compile().program;
-    expect(program.chunks).toBeDefined();
-    expect(cold.chunks).toBeDefined();
-    expect(describeRoot(program.chunks!)).toEqual(describeRoot(cold.chunks!));
+    const before = blockLines(c.compiler);
+    expect(blockAt(c.compiler, "if x then").reads).toBeDefined();
+    const find = "Filler line 7.";
+    const offset = text.indexOf(find);
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN, version: 2 },
+      contentChanges: [
+        {
+          range: {
+            start: posAt(text, offset),
+            end: posAt(text, offset + find.length),
+          },
+          text: "Filler line 7!",
+        },
+      ],
+    });
+    c.compile();
+    // The first lines of the blocks the edit lowered again. The lines are
+    // compared rather than the blocks, whose difference is too large to
+    // print.
+    const lowered = [...blockLines(c.compiler)]
+      .filter(([block]) => !before.has(block))
+      .map(([, line]) => line);
+    expect(lowered).toContain(EDITED_LINE);
+    expect(lowered).not.toContain(BLOCK_LINE);
   });
 });
 
@@ -668,7 +640,7 @@ describe("a name a chunk reads", () => {
     const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
     const text = [...filler, "Seen {extra}.", ...filler, ""].join("\n");
     const c = programCompiler({ [MAIN]: text });
-    expect(c.compile().program.fallback).toBeUndefined();
+    expect(c.compile().program.chunks).toBeDefined();
     const added = "scene extra\n  Inside.\nend\n";
     c.compiler.updateDocument({
       textDocument: { uri: MAIN, version: 2 },

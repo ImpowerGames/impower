@@ -1,12 +1,11 @@
-// A compile with statement chunks resolves its program without generating
-// the current engine's runtime objects (#705): the resolver prepares each
-// statement (`ParsedObject.prepare`), which does what generating it did
-// besides building runtime objects, and no parsed object's `runtimeObject`
-// is read and no runtime container is filled. Held for every fixture of the
-// differential run that does not fall back, cold and after an edit; a
-// program that falls back is exported by the current engine, which
-// generates. A compile without chunks generates, which shows the spies hear
-// generation.
+// A compile resolves its program without generating the current engine's
+// runtime objects (#705): the resolver prepares each statement
+// (`ParsedObject.prepare`), which does what generating it did besides
+// building runtime objects, and no parsed object's `runtimeObject` is read
+// and no runtime container is filled. Held for every fixture of the
+// differential run, cold and after an edit, a fixture holding a construct
+// the program cannot compile included: its compile reports the error and
+// generates nothing either.
 import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Container as RuntimeContainer } from "../../inkjs/engine/Container";
@@ -43,12 +42,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("a compile with statement chunks", () => {
-  it("generates nothing for any fixture of the differential run that does not fall back", () => {
+describe("a compile", () => {
+  it("generates nothing for any fixture of the differential run", () => {
     const generating: string[] = [];
-    // A compile that threw answers with neither chunks nor a fallback, and
+    // A compile that threw answers with neither chunks nor an error, and
     // generated nothing only because it stopped: each must have built its
-    // chunks.
+    // chunks or reported why it could not.
     const unbuilt: string[] = [];
     let compiled = 0;
     for (const [name, text] of fixtures()) {
@@ -56,10 +55,10 @@ describe("a compile with statement chunks", () => {
       const { result: program, generated } = generationDuring(() =>
         quietly(() => compiler.compile().program),
       );
-      if (program.fallback) {
-        continue;
-      }
-      if (!program.chunks) {
+      const reportsError = Object.values(program.diagnostics ?? {})
+        .flat()
+        .some((d) => d.severity === 1);
+      if (!program.chunks && !reportsError) {
         unbuilt.push(name);
         continue;
       }
@@ -70,8 +69,7 @@ describe("a compile with statement chunks", () => {
     }
     expect(unbuilt).toEqual([]);
     expect(generating).toEqual([]);
-    // Most fixtures compile without falling back, so the check covers them.
-    expect(compiled).toBeGreaterThan(100);
+    expect(compiled).toBeGreaterThan(200);
   }, 600_000);
 
   it("generates nothing when an edit compiles it again", () => {
@@ -79,7 +77,6 @@ describe("a compile with statement chunks", () => {
     const compiler = programCompiler({ [MAIN_URI]: text });
     const cold = quietly(() => compiler.compile().program);
     expect(cold.chunks).toBeDefined();
-    expect(cold.chunks).toBeTruthy();
     const lines = text.split("\n");
     const at = lines.findIndex((line) => line.trim().length > 0 && !line.trim().startsWith("-"));
     compiler.compiler.updateDocument({
@@ -95,17 +92,21 @@ describe("a compile with statement chunks", () => {
       quietly(() => compiler.compile().program),
     );
     expect(program.chunks).toBeDefined();
-    expect(program.chunks).toBeTruthy();
     expect(generated).toBe(0);
   });
 });
 
+// No compile generates any more, so the spies are shown to hear a read of a
+// runtime object and a filled container directly.
 describe("the spies", () => {
-  it("hear a compile without chunks generate", () => {
-    const [, text] = fixtures().find(([name]) => name === "beats")!;
-    const { generated } = generationDuring(() =>
-      quietly(() => programCompiler({ [MAIN_URI]: text }, { programChunks: false }).compile()),
-    );
-    expect(generated).toBeGreaterThan(1000);
+  it("hear a parsed object's runtime object read and a runtime container filled", () => {
+    class Generated extends ParsedObject {
+      public override readonly GenerateRuntimeObject = () => new RuntimeContainer();
+    }
+    const { generated } = generationDuring(() => {
+      const container = new RuntimeContainer();
+      container.AddContent(new Generated().runtimeObject);
+    });
+    expect(generated).toBe(2);
   });
 });

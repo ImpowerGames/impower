@@ -12,10 +12,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { parsedChildren, ProgramResolver } from "../../program/ProgramResolver";
-import { describeRoot, MAIN_URI, programCompiler } from "./programHarness";
+import { describeRoot, errorsOf, MAIN_URI, programCompiler } from "./programHarness";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
 
@@ -247,7 +248,7 @@ const resolvedOnlyLoweredAnew = (resolver: ProgramResolver, most: number) => {
 };
 
 describe("a compile with statement chunks on", () => {
-  it("calls neither ExportRuntime nor ResolveReferences, and a program that falls back calls both", () => {
+  it("calls neither ExportRuntime nor ResolveReferences, a program it cannot compile included", () => {
     // The builtins prelude's context is compiled once per process, by a
     // compiler of its own with statement chunks off.
     cold({ [MAIN_URI]: "Line.\n" });
@@ -259,13 +260,13 @@ describe("a compile with statement chunks on", () => {
     expect(s.program.chunks).toBeDefined();
     expect(exportRuntime).not.toHaveBeenCalled();
     expect(resolve).not.toHaveBeenCalled();
-    // An external function makes the program fall back, and the current
-    // engine's story is exported for it.
-    const fallback = cold({ [MAIN_URI]: "external ext(a)\nscene MAIN\n  ~ ext(1)\n  Line.\nend\n" });
-    expect(fallback.chunks).toBeUndefined();
-    expect(fallback.fallback?.construct).toBe("external");
-    expect(exportRuntime).toHaveBeenCalledTimes(1);
-    expect(resolve).toHaveBeenCalled();
+    // An external function is reported at its line, and the compile makes no
+    // program and exports no story.
+    const external = cold({ [MAIN_URI]: "external ext(a)\nscene MAIN\n  ~ ext(1)\n  Line.\nend\n" });
+    expect(external.chunks).toBeUndefined();
+    expect(errorsOf(external)).toContainEqual([0, unsupportedConstructMessage("external")]);
+    expect(exportRuntime).not.toHaveBeenCalled();
+    expect(resolve).not.toHaveBeenCalled();
   });
 });
 

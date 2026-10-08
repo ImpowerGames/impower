@@ -94,9 +94,17 @@ function expectShiftInvariant(project: Project, name: string, shift: number) {
   const shifted = coldCompile({ ...project, [name]: "\n".repeat(shift) + project[name]! });
   const moved = (at: string, line: number) => (at === uri ? line + shift : line);
   if (!plain.chunks) {
+    // A program the compile cannot build reports its errors on the lines the
+    // shift moved them to.
     expect(shifted.chunks).toBeUndefined();
-    const fallback = plain.fallback!;
-    expect(shifted.fallback).toEqual({ ...fallback, line: moved(fallback.uri, fallback.line) });
+    const errors = (program: SparkProgram) =>
+      Object.entries(program.diagnostics ?? {}).flatMap(([at, list]) =>
+        list
+          .filter((d) => d.severity === 1)
+          .map((d) => [at, d.range.start.line, typeof d.message === "string" ? d.message : d.message.value] as const),
+      );
+    expect(errors(plain).length).toBeGreaterThan(0);
+    expect(errors(shifted)).toEqual(errors(plain).map(([at, line, message]) => [at, moved(at, line), message]));
     return;
   }
   expect(shifted.chunks).toBeDefined();

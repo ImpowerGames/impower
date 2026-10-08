@@ -25,9 +25,8 @@ const position = (text: string, offset: number) => {
 function compareAfterEdit(
   before: string,
   edit: { from: number; to: number; text: string },
-  programChunks: boolean,
 ) {
-  const c = programCompiler({ [MAIN_URI]: before }, { programChunks });
+  const c = programCompiler({ [MAIN_URI]: before });
   c.compile();
   c.compiler.updateDocument({
     textDocument: { uri: MAIN_URI, version: 2 },
@@ -43,7 +42,6 @@ function compareAfterEdit(
   const cold = new SparkdownCompiler();
   cold.configure({
     files: [{ uri: MAIN_URI, type: "script", name: "main", ext: "sd", text: after, version: 1, languageId: "sparkdown" }] as never,
-    programChunks,
   });
   return { incremental, cold: diagnostics(cold.compile({ textDocument: { uri: MAIN_URI } }).program) };
 }
@@ -82,37 +80,33 @@ describe("incremental diagnostics agree with a cold compile", () => {
     "  Plain line.\n".repeat(20) +
     `${line}\n  local q =\n--[=[ a\nb\n]]\nc\nd\ne\nf\n]=]\n  local r = 1\n  Plain line.\n`;
 
-  for (const programChunks of [true, false]) {
-    for (const [where, line] of FALSE_OPENERS) {
-      it(`reports it there after a --[[ in ${where} above the comment (programChunks=${programChunks})`, () => {
-        const source = falseOpenerSource(line!);
-        const split = source.indexOf("  local r") + 3;
-        const inside = source.indexOf("\ne\n");
-        for (const edit of [
-          { from: split, to: split, text: "\n" },
-          { from: inside, to: inside + 3, text: "\n]=] l\n" },
-        ]) {
-          const { incremental, cold } = compareAfterEdit(source, edit, programChunks);
-          expect(cold.some((d) => d.startsWith("21:10-21:11 Expected identifier when parsing expression"))).toBe(true);
-          expect(incremental).toEqual(cold);
-        }
-      });
-    }
-  }
-
-  for (const programChunks of [true, false]) {
-    it(`reports a value missing after = where a cold compile does (programChunks=${programChunks})`, () => {
-      const at = BEFORE.indexOf("  local q = function") + 3;
-      const { incremental, cold } = compareAfterEdit(BEFORE, { from: at, to: at, text: "\n" }, programChunks);
-      expect(cold).toContain("7:10-7:11 Expected identifier when parsing expression, got 'l'");
-      expect(incremental).toEqual(cold);
-    });
-
-    it(`reports it there after an edit inside a comment between them (programChunks=${programChunks})`, () => {
-      const at = COMMENT_BEFORE.indexOf("\ne\n");
-      const { incremental, cold } = compareAfterEdit(COMMENT_BEFORE, { from: at, to: at + 3, text: "\n]] l\n" }, programChunks);
-      expect(cold.some((d) => d.startsWith("20:10-20:11 Expected identifier when parsing expression"))).toBe(true);
-      expect(incremental).toEqual(cold);
+  for (const [where, line] of FALSE_OPENERS) {
+    it(`reports it there after a --[[ in ${where} above the comment`, () => {
+      const source = falseOpenerSource(line!);
+      const split = source.indexOf("  local r") + 3;
+      const inside = source.indexOf("\ne\n");
+      for (const edit of [
+        { from: split, to: split, text: "\n" },
+        { from: inside, to: inside + 3, text: "\n]=] l\n" },
+      ]) {
+        const { incremental, cold } = compareAfterEdit(source, edit);
+        expect(cold.some((d) => d.startsWith("21:10-21:11 Expected identifier when parsing expression"))).toBe(true);
+        expect(incremental).toEqual(cold);
+      }
     });
   }
+
+  it("reports a value missing after = where a cold compile does", () => {
+    const at = BEFORE.indexOf("  local q = function") + 3;
+    const { incremental, cold } = compareAfterEdit(BEFORE, { from: at, to: at, text: "\n" });
+    expect(cold).toContain("7:10-7:11 Expected identifier when parsing expression, got 'l'");
+    expect(incremental).toEqual(cold);
+  });
+
+  it("reports it there after an edit inside a comment between them", () => {
+    const at = COMMENT_BEFORE.indexOf("\ne\n");
+    const { incremental, cold } = compareAfterEdit(COMMENT_BEFORE, { from: at, to: at + 3, text: "\n]] l\n" });
+    expect(cold.some((d) => d.startsWith("20:10-20:11 Expected identifier when parsing expression"))).toBe(true);
+    expect(incremental).toEqual(cold);
+  });
 });

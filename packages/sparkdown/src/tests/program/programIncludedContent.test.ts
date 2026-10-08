@@ -9,7 +9,6 @@
 // it.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import type { Story } from "../../inkjs/engine/Story";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { SymbolKind } from "../../program/ProgramSymbols";
@@ -74,21 +73,14 @@ const rootOf = (texts: Record<string, string>, luau: Record<string, string> = {}
   return program.chunks!;
 };
 
-/** What `texts` shows on the program engine, taking `picks` at its menus,
- *  after checking that the current engine shows the same. */
+/** What `texts` shows, taking `picks` at its menus. */
 const shows = (
   texts: Record<string, string>,
   picks: number[] = [],
   luau: Record<string, string> = {},
 ) => {
   const root = rootOf(texts, luau);
-  const current = quiet(() =>
-    programCompiler(texts, { files: projectFiles(texts, luau) as never }).compile(MAIN),
-  ).story as Story;
-  current.ResetState();
-  const expected = quiet(() => storyRun(current, picks));
   const actual = quiet(() => storyRun(new ProgramStory(root), picks));
-  expect(actual).toEqual(expected);
   return {
     beats: actual.beats.map((beat) => beat.text),
     menus: actual.menus.map((menu) => menu.choices.map((choice) => choice.text)),

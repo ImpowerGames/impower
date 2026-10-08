@@ -775,7 +775,6 @@ describe("upvalues", () => {
   });
 
   it("are shared by sibling closures, and each pass of a loop closes its own", () => {
-    const { actual } = programBeats(text);
     expect(shown()).toEqual(["Shared 2, looped 123.\n"]);
   });
 

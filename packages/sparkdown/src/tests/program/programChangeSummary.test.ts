@@ -116,7 +116,6 @@ describe("the change summary of an edit inside one beat", () => {
       let text = screenplay(60);
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
       const first = c.compile().program;
-      expect(first.fallback ?? null).toBe(null);
       expect(first.chunks).toBeDefined();
       const symbols = first.chunks!.table.symbols.length;
       expect(symbols).toBeGreaterThan(60);

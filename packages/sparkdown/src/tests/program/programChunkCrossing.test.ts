@@ -201,7 +201,7 @@ describe("statements whose recorded facts an edit invalidates", () => {
       "",
     ].join("\n");
     const c = programCompiler({ [MAIN_URI]: text });
-    expect(c.compile().program.fallback).toBeUndefined();
+    expect(c.compile().program.chunks).toBeDefined();
     const store = c.compiler.chunkStore!;
     const info = (store as unknown as { _info: WeakMap<object, unknown> })._info;
     const get = info.get.bind(info);
@@ -555,7 +555,7 @@ describe("statements whose recorded values an edit changes", () => {
     const n = 256;
     const text = [...Array(n).fill("Seen {extra}."), ""].join("\n");
     const c = programCompiler({ [MAIN_URI]: text });
-    expect(c.compile().program.fallback).toBeUndefined();
+    expect(c.compile().program.chunks).toBeDefined();
     const count = counted(c);
     const added = "scene extra\n  Inside.\nend\n";
     c.compiler.updateDocument({
@@ -579,7 +579,7 @@ describe("statements whose recorded values an edit changes", () => {
     const n = 512;
     const text = "Anchor.\n";
     const c = programCompiler({ [MAIN_URI]: text });
-    expect(c.compile().program.fallback).toBeUndefined();
+    expect(c.compile().program.chunks).toBeDefined();
     const names = Array.from({ length: n }, (_, k) => `v${String((k * 7919) % n).padStart(6, "0")}`);
     const prototype = ChunkStore.prototype as unknown as {
       align: (...args: unknown[]) => unknown;
@@ -612,7 +612,7 @@ describe("statements whose recorded values an edit changes", () => {
           },
         ],
       });
-      expect(c.compile().program.fallback).toBeUndefined();
+      expect(c.compile().program.chunks).toBeDefined();
     } finally {
       prototype.align = align;
       prototype.statementValues = statementValues;
@@ -629,7 +629,7 @@ describe("statements whose recorded values an edit changes", () => {
         ["f = function()", `  function ${name}() return 7 end`, "  return 2", "end"].join("\n");
       const text = ["store f = nil", ...Array(n).fill(section("g")), "done", ""].join("\n");
       const c = programCompiler({ [MAIN_URI]: text });
-      expect(c.compile().program.fallback).toBeUndefined();
+      expect(c.compile().program.chunks).toBeDefined();
       const count = counted(c);
       const document = c.compiler.documents.get(MAIN_URI)!;
       c.compiler.updateDocument({
@@ -644,7 +644,7 @@ describe("statements whose recorded values an edit changes", () => {
           },
         ],
       });
-      expect(c.compile().program.fallback).toBeUndefined();
+      expect(c.compile().program.chunks).toBeDefined();
       return count.lookups;
     };
     const small = lookupsFor(64);
@@ -752,7 +752,7 @@ describe("block statements an edit reorders", () => {
       now.push(ownerOf(`x${k}`, []), anchors[k + 1]!);
     }
     const built = store.build(flow(now), true);
-    expect(built.chunks).toBeDefined();
+    expect(built.fallback).toBeUndefined();
     const chunks = built.root!.flowNamed("")!.arrays.chunks;
     expect(new Set(chunks).size).toBe(chunks.length);
     expect(reads).toBeLessThan(20 * n);
@@ -846,7 +846,7 @@ describe("block statements an edit reorders", () => {
     }
     screens = 0;
     const built = store.build(flow(now), true);
-    expect(built.chunks).toBeDefined();
+    expect(built.fallback).toBeUndefined();
     const after = built.root!.flowNamed("")!.arrays.chunks;
     for (let k = 0; k < n; k += 1) {
       expect(after[2 + 2 * k] === before[2 * k]).toBe(true);

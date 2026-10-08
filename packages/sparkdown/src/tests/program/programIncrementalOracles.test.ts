@@ -99,14 +99,18 @@ const definedSymbols = (root: ProgramRoot): string[] => {
 /** What an incremental compile and a cold compile of the same text must
  *  agree on. */
 interface Surface {
-  fallback: string;
+  /** Whether the compile reported an error, which a compile that builds no
+   *  chunks does for the statement it could not compile. */
+  reportsError: boolean;
   chunks: string[] | null;
   symbols: string[] | null;
   diagnostics: string[];
 }
 
 const surface = (program: SparkProgram): Surface => ({
-  fallback: stable(program.fallback ?? null),
+  reportsError: Object.values(program.diagnostics ?? {})
+    .flat()
+    .some((d) => d.severity === 1),
   chunks: program.chunks ? describeRoot(program.chunks) : null,
   symbols: program.chunks ? definedSymbols(program.chunks) : null,
   diagnostics: Object.keys(program.diagnostics ?? {})
@@ -131,19 +135,17 @@ const firstDifference = (a: readonly string[], b: readonly string[]) => {
 /** How `incremental` differs from `cold`, field by field, or nothing. */
 function divergence(incremental: Surface, cold: Surface): string | undefined {
   const fields: string[] = [];
-  if (incremental.fallback !== cold.fallback) {
-    fields.push(`fallback ${incremental.fallback} vs cold ${cold.fallback}`);
+  // A compile that built no root and reported no error threw on its way (a
+  // failed `ChunkStore.verifyBuilds`, which the compiler logs and the tests
+  // silence): that is a failure on either side, even when both sides fail
+  // alike, and a root on one side alone is a divergence. The diagnostics,
+  // compared below, hold the error of a statement the compile could not
+  // compile.
+  if (!incremental.chunks && !incremental.reportsError) {
+    fields.push("incremental compile built no root and reported no error");
   }
-  // A compile with statement chunks on that built no root and names no
-  // fallback threw on its way (a failed `ChunkStore.verifyBuilds`, which the
-  // compiler logs and the tests silence): that is a failure on either side,
-  // even when both sides fail alike, and a root on one side alone is a
-  // divergence.
-  if (!incremental.chunks && incremental.fallback === "null") {
-    fields.push("incremental compile built no root and named no fallback");
-  }
-  if (!cold.chunks && cold.fallback === "null") {
-    fields.push("cold compile built no root and named no fallback");
+  if (!cold.chunks && !cold.reportsError) {
+    fields.push("cold compile built no root and reported no error");
   }
   if (!!incremental.chunks !== !!cold.chunks) {
     fields.push(
@@ -427,7 +429,6 @@ describe("incrementalEquivalence on the binary program", () => {
   // whose body holds a `for` and a `while` loop (bodies two deep).
   it("compiles the fixture cold to its chunks", () => {
     const cold = coldSurface(coupledScreenplay());
-    expect(cold.fallback).toBe("null");
     expect(cold.chunks).not.toBeNull();
     expect(bodyLines(coupledScreenplay()).filter((b) => b.depth >= 2).length).toBeGreaterThan(0);
   });
@@ -512,7 +513,7 @@ describe("a closure statement an edit moves between a scene and a block body", (
   const moved = (text: string, find: string, deleted: number, insert: string) =>
     quiet(() => {
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
-      expect(c.compile().program.fallback).toBeUndefined();
+      expect(c.compile().program.chunks).toBeDefined();
       const offset = text.indexOf(find);
       expect(offset, find).toBeGreaterThanOrEqual(0);
       const after = update(c.compiler, text, 2, offset, offset + deleted, insert);
@@ -622,7 +623,7 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
   // `cfg` define and the glued continuations, with the same blocks.
   it("incremental == cold across many cumulative edits on ONE compiler, half inside nested blocks", () => {
     quiet(() => {
-      expect(coldSurface(cumulativeScreenplay()).fallback).toBe("null");
+      expect(coldSurface(cumulativeScreenplay()).chunks).not.toBeNull();
       const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5", "\n& f = function() return 9 end\n", "then", ":add(1)", " += 1", "{t.a}", "function() return 1 end", "\ndefine header with\n"];
       const EDIT_COUNT = 140;
       const { failures, chunked, nested, served } = cumulativeRun(
@@ -648,7 +649,7 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
   it("incremental == cold across many cumulative edits of the choose screenplay, half inside nested blocks", () => {
     quiet(() => {
       const text = chooseScreenplay(2);
-      expect(coldSurface(text).fallback).toBe("null");
+      expect(coldSurface(text).chunks).not.toBeNull();
       expect(bodyLines(text).filter((b) => b.depth >= 3).length).toBeGreaterThan(0);
       const EDIT_COUNT = 70;
       // An edit of a `choose` block's structure (an `end`, a `then`, a
@@ -760,7 +761,7 @@ describe("the oracles over long block bodies, served from their memos", () => {
   it("incremental == cold across many cumulative edits on ONE compiler, half inside the long bodies", () => {
     quiet(() => {
       const text = longBodiesScreenplay();
-      expect(coldSurface(text).fallback).toBe("null");
+      expect(coldSurface(text).chunks).not.toBeNull();
       const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "HERO:", "-> ENDING", "then", " += 1", "[[", "label late"];
       const EDIT_COUNT = 80;
       const { failures, chunked, nested, served } = cumulativeRun(text, 0x656a1, EDIT_COUNT, inserts, LONG_LINES, [], true);
@@ -816,7 +817,7 @@ function syntheticNestedBase() {
 describe("incrementalSyntheticAppend on the binary program", () => {
   const run = (text: string, steps: Edit[]) =>
     quiet(() => {
-      expect(coldSurface(text).fallback).toBe("null");
+      expect(coldSurface(text).chunks).not.toBeNull();
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
       c.compile();
       const log: string[] = [];
@@ -826,7 +827,7 @@ describe("incrementalSyntheticAppend on the binary program", () => {
         text = update(c.compiler, text, i + 2, offset, offset + step.find.length, step.replace);
         const program = c.compile().program;
         const detail = divergence(surface(program), coldSurface(text));
-        log.push(`step ${i + 1} ${step.name}: ${program.chunks ? "chunks" : "fallback"} ${detail ?? "ok"}`);
+        log.push(`step ${i + 1} ${step.name}: ${program.chunks ? "chunks" : "no chunks"} ${detail ?? "ok"}`);
       });
       return log;
     });
@@ -877,7 +878,7 @@ const AUTO_LINES = [
 describe("the oracles over auto-globals and functions of their names", () => {
   it("compiles the fixture cold to its chunks, with auto-globals read before their assignments", () => {
     const cold = coldSurface(autoGlobalScreenplay(4));
-    expect(cold.fallback).toBe("null");
+    expect(cold.chunks).not.toBeNull();
     expect(cold.diagnostics.some((d) => d.includes("Cannot find variable named `tally`"))).toBe(true);
   });
 
@@ -934,7 +935,7 @@ describe("the oracles over auto-globals and functions of their names", () => {
   it("stays == cold as an assignment, a function and a declaration of a read name come and go", () => {
     let text = autoGlobalScreenplay(4);
     quiet(() => {
-      expect(coldSurface(text).fallback).toBe("null");
+      expect(coldSurface(text).chunks).not.toBeNull();
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
       c.compile();
       const steps: Edit[] = [
@@ -955,7 +956,7 @@ describe("the oracles over auto-globals and functions of their names", () => {
         text = update(c.compiler, text, i + 2, offset, offset + step.find.length, step.replace);
         const program = c.compile().program;
         const detail = divergence(surface(program), coldSurface(text));
-        log.push(`step ${i + 1} ${step.name}: ${program.chunks ? "chunks" : "fallback"} ${detail ?? "ok"}`);
+        log.push(`step ${i + 1} ${step.name}: ${program.chunks ? "chunks" : "no chunks"} ${detail ?? "ok"}`);
       });
       expect(log.filter((l) => !l.endsWith(" ok"))).toEqual([]);
     });
@@ -1041,7 +1042,7 @@ describe("previewCompileRestore's interleaved oracle on the binary program", () 
     it(`interleaved with random edits never changes the cumulative program of ${run.name}`, () => {
       quiet(() => {
         let text = run.text();
-        expect(coldSurface(text).fallback).toBe("null");
+        expect(coldSurface(text).chunks).not.toBeNull();
         const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
         c.compile();
         const store = c.compiler.chunkStore!;

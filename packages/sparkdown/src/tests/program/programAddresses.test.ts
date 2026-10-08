@@ -43,7 +43,7 @@ const quiet = <T>(run: () => T): T => {
 const rootOf = (text: string): ProgramRoot => {
   const { program } = quiet(() => compileScript(text));
   if (!program.chunks) {
-    throw new Error(`falls back: ${JSON.stringify(program.fallback)}`);
+    throw new Error(`no chunks: ${JSON.stringify(program.diagnostics)}`);
   }
   return program.chunks;
 };

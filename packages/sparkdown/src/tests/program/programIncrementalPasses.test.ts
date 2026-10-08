@@ -13,8 +13,7 @@ import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import { Container } from "../../inkjs/engine/Container";
-import type { Story } from "../../inkjs/engine/Story";
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { ChunkStore, type FlowSource } from "../../program/ChunkStore";
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
@@ -30,6 +29,7 @@ import {
 } from "../../program/StatementChunk";
 import {
   describeRoot,
+  errorsOf,
   MAIN_URI,
   programCompiler,
   rootChunks,
@@ -81,9 +81,6 @@ function session(
     },
     get program() {
       return program;
-    },
-    get story() {
-      return compiled.story;
     },
     get text() {
       return text;
@@ -246,11 +243,10 @@ describe("an edit inside one beat", () => {
     expect(passes.chunkTable).toBeLessThanOrEqual(2);
   });
 
-  it("builds no runtime tree, and counts no container", () => {
-    // A read count of a label and a once-only choice: the current engine's
-    // resolution sets their containers' count flags, and flattening inlines
-    // every unnamed container. A program that runs from its chunks needs
-    // neither, and its compile builds no runtime story (#1607, #705): its
+  it("builds no runtime tree", () => {
+    // A read count of a label and a once-only choice, which the current
+    // engine's resolution counted in their containers. A program runs from
+    // its chunks, and its compile builds no runtime story (#1607, #705): its
     // root holds what the engine reads of the story besides its chunks, the
     // lists, structs and constants (`ProgramRoot.tables`).
     const text = [
@@ -264,34 +260,10 @@ describe("an edit inside one beat", () => {
       "end",
       "",
     ].join("\n");
-    const containers = (story: Story) => {
-      let unnamed = 0;
-      let knock: Container | undefined;
-      const walk = (c: Container) => {
-        if (!c.hasValidName) {
-          unnamed += 1;
-        }
-        if (c.name === "knock") {
-          knock = c;
-        }
-        for (const child of [...c.content, ...(c.namedOnlyContent?.values() ?? [])]) {
-          if (child instanceof Container) {
-            walk(child);
-          }
-        }
-      };
-      walk(story.mainContentContainer);
-      return { unnamed, knock };
-    };
     const s = session({ [MAIN_URI]: text });
     s.edit("Knocked", "Knocked, again,");
     expect(s.program.chunks).toBeDefined();
-    const current = containers(
-      quietly(() => programCompiler({ [MAIN_URI]: text.replace("Knocked", "Knocked, again,") }).compile())
-        .story,
-    );
-    expect(current.knock?.visitsShouldBeCounted).toBe(true);
-    expect(s.story).toBeUndefined();
+    expect(s.program.compiled).toBeUndefined();
     const tables = s.compiler.chunkStore!.current!.tables;
     expect(tables).not.toBeNull();
     expect(tables!.structDefinitions).toBeTypeOf("object");
@@ -1082,13 +1054,12 @@ describe("a naming collision", () => {
   });
 });
 
-// A compile whose program falls back runs on the current engine, whose
-// runtime story the switch-on path exports only then (`Story.ExportRuntime`,
-// after the program path's resolver, #1607), and whose containers a later
-// compile reuses. Through one compiler that goes back and forth between the
-// two, each fallen-back program is the current engine's program of its text.
-describe("a program that falls back after compiles that did not", () => {
-  it("compiles to the current engine's program, however often it goes back and forth", () => {
+// An edit that writes a construct the writer has no emit path for makes the
+// compile report it at its line and make no program (#705); the edit that
+// removes it builds the root a cold compile builds, however often one
+// compiler goes back and forth between the two.
+describe("a construct the program cannot compile, written and removed by edits", () => {
+  it("is reported at its line, and its removal builds the cold compile's root, however often it goes back and forth", () => {
     const scene = (name: string, next: string) => [
       `scene ${name}`,
       "  label knock",
@@ -1119,12 +1090,6 @@ describe("a program that falls back after compiles that did not", () => {
     const FALL = "\n  Rolled {LIST_RANDOM(knock)}.";
     const s = session({ [MAIN_URI]: text });
     expect(s.program.chunks).toBeDefined();
-    const current = (script: string) =>
-      quietly(
-        () =>
-          programCompiler({ [MAIN_URI]: script }, { seedBuiltinsIntoStory: true }).compile()
-            .program.compiled,
-      );
     const steps: [string, string][] = [
       ["  Knocked {knock} times in SECOND.", `  Knocked {knock} times in SECOND.${FALL}`],
       [FALL, ""],
@@ -1136,17 +1101,16 @@ describe("a program that falls back after compiles that did not", () => {
     const outcomes: string[] = [];
     for (const [find, replace] of steps) {
       s.edit(find, replace);
-      if (s.program.fallback) {
-        expect(s.program.fallback.construct).toBe("list");
-        expect(s.program.compiled).toBeDefined();
-        expect(s.program.compiled).toEqual(current(s.text));
-        outcomes.push("fell back");
+      if (!s.program.chunks) {
+        const line = s.text.split("\n").findIndex((l) => l.includes("LIST_RANDOM"));
+        expect(errorsOf(s.program)).toContainEqual([line, unsupportedConstructMessage("list")]);
+        outcomes.push("error");
       } else {
         expect(describeRoot(s.root)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
         outcomes.push("chunks");
       }
     }
-    expect(outcomes).toEqual(["fell back", "chunks", "fell back", "fell back", "chunks", "fell back"]);
+    expect(outcomes).toEqual(["error", "chunks", "error", "error", "chunks", "error"]);
   });
 
   it("builds the root a cold compile builds after a preview whose compile reseeded the table", () => {
@@ -1197,11 +1161,11 @@ describe("a program that falls back after compiles that did not", () => {
     expect(describeRoot(s.root)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
   });
 
-  it("reads a name as the current engine reads it when an assignment below makes the name a global", () => {
+  it("reads a label's count above an assignment below that makes the name a global", () => {
     // Resolution makes `knock` a global as it reaches the bare assignment,
-    // after the line above it has read the label's count. A program that
-    // falls back is resolved again for the current engine, which must start
-    // from the declarations it started from the first time.
+    // after the line above it has read the label's count. A scene that reads
+    // a list builtin makes the compile report it, at its line, and make no
+    // program.
     const text = [
       "-> MAIN",
       "scene MAIN",
@@ -1211,27 +1175,20 @@ describe("a program that falls back after compiles that did not", () => {
       "  done",
       "end",
       "",
-      "scene UNUSED",
-      "  Rolled {LIST_RANDOM(knock)}.",
-      "end",
-      "",
     ].join("\n");
-    const { program, story } = quietly(() =>
-      programCompiler(
-        { [MAIN_URI]: text },
-        { seedBuiltinsIntoStory: true },
-      ).compile(),
-    );
-    expect(program.fallback?.construct).toBe("list");
-    const current = quietly(() =>
+    const unused = ["scene UNUSED", "  Rolled {LIST_RANDOM(knock)}.", "end", ""].join("\n");
+    const { program } = quietly(() =>
       programCompiler({ [MAIN_URI]: text }, { seedBuiltinsIntoStory: true }).compile(),
     );
-    expect(program.compiled).toEqual(current.program.compiled);
-    const beatTexts = (s: Story) => storyBeats(s).beats.map((b) => b.text.trim());
-    // The program falls back, so its compile made the current engine's story.
-    const ran = beatTexts(story!);
-    expect(ran).toEqual(["Count 1."]);
-    expect(ran).toEqual(beatTexts(current.story));
+    expect(program.chunks).toBeDefined();
+    expect(storyBeats(new ProgramStory(program.chunks!)).beats.map((b) => b.text.trim())).toEqual([
+      "Count 1.",
+    ]);
+    const listed = quietly(() =>
+      programCompiler({ [MAIN_URI]: `${text}\n${unused}` }, { seedBuiltinsIntoStory: true }).compile(),
+    ).program;
+    expect(listed.chunks).toBeUndefined();
+    expect(errorsOf(listed)).toContainEqual([9, unsupportedConstructMessage("list")]);
   });
 });
 
