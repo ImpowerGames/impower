@@ -1096,25 +1096,18 @@ export class ChunkStore {
     // The declarations run again when a declaration chunk or a function
     // changed, since an initializer may read another global or call a
     // function: a compile that changed only the statements of flows runs
-    // none. An initializer that raises an error makes the program fall back,
-    // whose story then raises it as the current engine does.
+    // none. An initializer that raises an error stops the build with that
+    // error, which the compile reports as a compile that threw, and makes no
+    // program, as a story's reset raising it did.
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
-      const failed = !this.runDeclarations(root);
+      const raised = this.runDeclarations(root);
       // A preview's run leaves the next compile's decision as it was.
       if (commit) {
-        this._declarationsFailed = failed;
+        this._declarationsFailed = raised !== null;
       }
-      if (failed) {
-        return {
-          fallback: {
-            construct: "initializer error",
-            uri: flows[0]?.uri ?? "",
-            line: 0,
-          },
-          coverage,
-          declarationsChanged,
-        };
+      if (raised) {
+        throw raised;
       }
     }
     if (commit) {
@@ -1401,15 +1394,15 @@ export class ChunkStore {
     }
   }
 
-  /** Runs a root's declarations on a new engine, and returns whether they
-   *  ran without an error. */
-  protected runDeclarations(root: ProgramRoot): boolean {
+  /** Runs a root's declarations on a new engine, and returns the error one
+   *  of them raised, or null when they ran without one. */
+  protected runDeclarations(root: ProgramRoot): StoryException | null {
     try {
       new ProgramStory(root);
-      return true;
+      return null;
     } catch (e) {
       if (e instanceof StoryException) {
-        return false;
+        return e;
       }
       throw e;
     }

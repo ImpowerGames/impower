@@ -4134,7 +4134,7 @@ export class SparkdownCompiler {
 
   /** Reports the construct that kept the program from being built as an
    *  error over the line of the statement that holds it, unless the compile
-   *  reported that error on that line already. */
+   *  reported an error on that line already. */
   protected reportUnsupportedConstruct(
     unsupported: ProgramFallback,
     program: SparkProgram,
@@ -4146,11 +4146,13 @@ export class SparkdownCompiler {
   ): void {
     const message = unsupportedConstructMessage(unsupported.construct);
     const line = unsupported.line;
+    // A statement the compile already reported an error at is in error for
+    // that reason, which keeps it from being built (a malformed loop test,
+    // a stray choice mark): its error is the one to read.
     const reported = program.diagnostics?.[unsupported.uri]?.some(
       (d) =>
         d.range.start.line === line &&
-        (typeof d.message === "string" ? d.message : d.message.value) ===
-          message,
+        d.severity === DiagnosticSeverity.Error,
     );
     if (reported) {
       return;
