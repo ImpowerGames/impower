@@ -149,59 +149,25 @@ export class FunctionCall extends Expression {
     let usingProxyDivert: boolean = false;
 
     if (this.isTurnsSince || this.isReadCount) {
-      const divertTarget = asOrNull(this.args[0], DivertTarget);
-      const variableDivertTarget = asOrNull(this.args[0], VariableReference);
-
-      if (
-        this.args.length !== 1 ||
-        (divertTarget === null && variableDivertTarget === null)
-      ) {
-        this.Error(
-          `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(-> myKnot)`,
-        );
+      const countTarget = this.TakeCountTarget();
+      if (!countTarget) {
         return;
       }
-
-      if (divertTarget) {
-        this._divertTargetToCount = divertTarget;
-        this.AddContentOnce(this._divertTargetToCount);
-        this._divertTargetToCount.PrepareIntoContainer();
-      } else if (variableDivertTarget) {
-        this._variableReferenceToCount = variableDivertTarget;
-        this.AddContentOnce(this._variableReferenceToCount);
-        this._variableReferenceToCount.PrepareIntoContainer();
-      }
+      countTarget.PrepareIntoContainer();
     } else if (this.isListRange) {
-      if (this.args.length !== 3) {
-        this.Error(
-          "LIST_RANGE should take 3 parameters - a list, a min and a max",
-        );
-      }
+      this.CheckListFunctionArity();
       for (let ii = 0; ii < this.args.length; ii += 1) {
         this.args[ii]!.PrepareIntoContainer();
       }
     } else if (this.isListRandom) {
-      if (this.args.length !== 1) {
-        this.Error("LIST_RANDOM should take 1 parameter - a list");
-      }
+      this.CheckListFunctionArity();
       this.args[0]!.PrepareIntoContainer();
     } else if (this.isStateAwareStdLib) {
       for (const arg of this.args) {
         arg.PrepareIntoContainer();
       }
     } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
-      const nativeCall = NativeFunctionCall.CallWithName(this.name);
-      if (
-        !nativeCall.isVariadic &&
-        nativeCall.numberOfParameters !== this.args.length
-      ) {
-        let msg = `${this.name} should take ${nativeCall.numberOfParameters} parameter`;
-        if (nativeCall.numberOfParameters > 1) {
-          msg += "s";
-        }
-        msg += `, got ${this.args.length}`;
-        this.Error(msg, this, true);
-      }
+      this.CheckNativeArity(NativeFunctionCall.CallWithName(this.name));
       for (let ii = 0; ii < this.args.length; ii += 1) {
         this.args[ii]!.PrepareIntoContainer();
       }
@@ -215,6 +181,75 @@ export class FunctionCall extends Expression {
       if (proxyIndex >= 0) {
         this.content.splice(proxyIndex, 1);
       }
+    }
+  }
+
+  /** The target a read count or turns since counts, which generation and
+   *  preparation both check and take into the call's content: the call's
+   *  one argument, a divert target or a variable's reference. Any other
+   *  arguments are reported and the result is null, which ends the call's
+   *  generation. */
+  protected TakeCountTarget(): DivertTarget | VariableReference | null {
+    const divertTarget = asOrNull(this.args[0], DivertTarget);
+    const variableDivertTarget = asOrNull(this.args[0], VariableReference);
+
+    if (
+      this.args.length !== 1 ||
+      (divertTarget === null && variableDivertTarget === null)
+    ) {
+      this.Error(
+        `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(-> myKnot)`,
+      );
+      return null;
+    }
+
+    if (divertTarget) {
+      this._divertTargetToCount = divertTarget;
+      this.AddContentOnce(this._divertTargetToCount);
+      return divertTarget;
+    }
+    this._variableReferenceToCount = variableDivertTarget;
+    this.AddContentOnce(this._variableReferenceToCount!);
+    return variableDivertTarget;
+  }
+
+  /** The check of a LIST_RANGE's or a LIST_RANDOM's number of arguments,
+   *  which generation and preparation both make. */
+  protected CheckListFunctionArity(): void {
+    if (this.isListRange && this.args.length !== 3) {
+      this.Error(
+        "LIST_RANGE should take 3 parameters - a list, a min and a max",
+      );
+    } else if (this.isListRandom && this.args.length !== 1) {
+      this.Error("LIST_RANDOM should take 1 parameter - a list");
+    }
+  }
+
+  /** The check of a native call's number of arguments, which generation
+   *  and preparation both make. */
+  protected CheckNativeArity(nativeCall: NativeFunctionCall): void {
+    // Variadic natives (currently the `__method_*` builtin-method
+    // family) validate arity at runtime inside the method impl, so
+    // skip the compile-time assertion for those.
+    if (
+      !nativeCall.isVariadic &&
+      nativeCall.numberOfParameters !== this.args.length
+    ) {
+      let msg = `${this.name} should take ${nativeCall.numberOfParameters} parameter`;
+      if (nativeCall.numberOfParameters > 1) {
+        msg += "s";
+      }
+      msg += `, got ${this.args.length}`;
+      // Demoted from error → warning so Luau patterns that
+      // deliberately call a native with the wrong arity to trigger
+      // a trappable runtime error (e.g. `pcall(function() return
+      // math.abs() end)` to verify the runtime "missing argument"
+      // path) compile cleanly. The runtime still validates arity
+      // and throws "Unexpected number of parameters" — which pcall
+      // catches as a regular Luau error. Calls outside pcall fail
+      // at runtime with the same error message, matching what Luau
+      // does.
+      this.Error(msg, this, true);
     }
   }
 
@@ -241,30 +276,11 @@ export class FunctionCall extends Expression {
     let usingProxyDivert: boolean = false;
 
     if (this.isTurnsSince || this.isReadCount) {
-      const divertTarget = asOrNull(this.args[0], DivertTarget);
-      const variableDivertTarget = asOrNull(this.args[0], VariableReference);
-
-      if (
-        this.args.length !== 1 ||
-        (divertTarget === null && variableDivertTarget === null)
-      ) {
-        this.Error(
-          `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(-> myKnot)`,
-        );
+      const countTarget = this.TakeCountTarget();
+      if (!countTarget) {
         return;
       }
-
-      if (divertTarget) {
-        this._divertTargetToCount = divertTarget;
-        this.AddContentOnce(this._divertTargetToCount);
-
-        this._divertTargetToCount.GenerateIntoContainer(container);
-      } else if (variableDivertTarget) {
-        this._variableReferenceToCount = variableDivertTarget;
-        this.AddContentOnce(this._variableReferenceToCount);
-
-        this._variableReferenceToCount.GenerateIntoContainer(container);
-      }
+      countTarget.GenerateIntoContainer(container);
 
       if (this.isTurnsSince) {
         container.AddContent(RuntimeControlCommand.TurnsSince());
@@ -272,11 +288,7 @@ export class FunctionCall extends Expression {
         container.AddContent(RuntimeControlCommand.ReadCount());
       }
     } else if (this.isListRange) {
-      if (this.args.length !== 3) {
-        this.Error(
-          "LIST_RANGE should take 3 parameters - a list, a min and a max",
-        );
-      }
+      this.CheckListFunctionArity();
 
       for (let ii = 0; ii < this.args.length; ii += 1) {
         this.args[ii]!.GenerateIntoContainer(container);
@@ -284,9 +296,7 @@ export class FunctionCall extends Expression {
 
       container.AddContent(RuntimeControlCommand.ListRange());
     } else if (this.isListRandom) {
-      if (this.args.length !== 1) {
-        this.Error("LIST_RANDOM should take 1 parameter - a list");
-      }
+      this.CheckListFunctionArity();
 
       this.args[0]!.GenerateIntoContainer(container);
 
@@ -311,29 +321,7 @@ export class FunctionCall extends Expression {
       );
     } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
       const nativeCall = NativeFunctionCall.CallWithName(this.name);
-      // Variadic natives (currently the `__method_*` builtin-method
-      // family) validate arity at runtime inside the method impl, so
-      // skip the compile-time assertion for those.
-      if (
-        !nativeCall.isVariadic &&
-        nativeCall.numberOfParameters !== this.args.length
-      ) {
-        let msg = `${this.name} should take ${nativeCall.numberOfParameters} parameter`;
-        if (nativeCall.numberOfParameters > 1) {
-          msg += "s";
-        }
-        msg += `, got ${this.args.length}`;
-        // Demoted from error → warning so Luau patterns that
-        // deliberately call a native with the wrong arity to trigger
-        // a trappable runtime error (e.g. `pcall(function() return
-        // math.abs() end)` to verify the runtime "missing argument"
-        // path) compile cleanly. The runtime still validates arity
-        // and throws "Unexpected number of parameters" — which pcall
-        // catches as a regular Luau error. Calls outside pcall fail
-        // at runtime with the same error message, matching what Luau
-        // does.
-        this.Error(msg, this, true);
-      }
+      this.CheckNativeArity(nativeCall);
 
       for (let ii = 0; ii < this.args.length; ii += 1) {
         this.args[ii]!.GenerateIntoContainer(container);
