@@ -59,7 +59,6 @@ vi.mock("../../compiler/lower/lowerers/lowerAssetLine", async (importOriginal) =
 // modules are loaded again so that the compiler lowers through the mocks.
 vi.resetModules();
 
-await import("../../inkjs/engine/Container");
 const { parsedChildren, ProgramResolver } = await import("../../program/ProgramResolver");
 const { describeRoot, MAIN_URI, programCompiler, rootChunks } = await import("./programHarness");
 const { programStatements } = await import("./programStatements");

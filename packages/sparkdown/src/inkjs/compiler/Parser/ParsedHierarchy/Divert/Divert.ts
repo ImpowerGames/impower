@@ -1,11 +1,5 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { DebugMetadata } from "../../../../../runtime/DebugMetadata";
-import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { Path as RuntimePath } from "../../../../../runtime/Path";
-import { PushPopType } from "../../../../../runtime/PushPop";
 import { asOrNull } from "../../../../../runtime/TypeAssertion";
-import { NullValue, VariablePointerValue } from "../../../../../runtime/Value";
 import { Argument } from "../Argument";
 import { Expression } from "../Expression/Expression";
 import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
@@ -50,14 +44,14 @@ export class Divert extends ParsedObject {
   // against the old signature and skipping "target not found". A stale epoch
   // reads as `null`, which makes `ResolveTargetContent`'s short-circuit
   // re-resolve once per compile. Within one compile the behavior is
-  // unchanged (generation and resolve share the epoch).
+  // unchanged (preparation and resolve share the epoch).
   private _targetContent: ParsedObject | null = null;
   private _targetContentEpoch: number = -1;
-  // Epoch of the last `runtimeDivert.variableDivertName` assignment (variable
-  // targets and the unresolved-call promotion below). A reused divert keeps
-  // its runtime object across compiles, so a stale variable-divert must be
-  // cleared and re-derived — otherwise `-> foo` promoted while `foo` was
-  // missing would never resolve back to the knot once `foo` exists again.
+  // Epoch of the last `variableDivertName` assignment (variable targets and
+  // the unresolved-call promotion below). A reused divert keeps it across
+  // compiles, so a stale variable-divert must be cleared and re-derived —
+  // otherwise `-> foo` promoted while `foo` was missing would never resolve
+  // back to the knot once `foo` exists again.
   private _variableDivertEpoch: number = -1;
   get targetContent(): ParsedObject | null {
     return this._targetContentEpoch === currentResolutionEpoch()
@@ -76,24 +70,9 @@ export class Divert extends ParsedObject {
     return this._targetContent;
   }
 
-  private _runtimeDivert: RuntimeDivert | null = null;
-  get runtimeDivert(): RuntimeDivert {
-    if (!this._runtimeDivert) {
-      throw new Error();
-    }
-
-    return this._runtimeDivert;
-  }
-
-  set runtimeDivert(value: RuntimeDivert) {
-    this._runtimeDivert = value;
-  }
-
-  // What the divert's generation, or its preparation on the program path
-  // (`Prepare`), leaves on the divert itself (#705): that it ran, the
-  // variable a divert to a variable's value names, and whether the divert
-  // calls an external function. The current engine's runtime divert holds
-  // the same two values while it is built (`setVariableDivertName`).
+  // What the divert's preparation (`Prepare`) leaves on the divert itself
+  // (#705): that it ran, the variable a divert to a variable's value names,
+  // and whether the divert calls an external function.
   protected _generated = false;
   private _variableDivertName: string | null = null;
   private _isExternal = false;
@@ -103,8 +82,7 @@ export class Divert extends ParsedObject {
     return this._variableDivertName;
   }
 
-  /** Whether the divert was generated, or prepared, since its last
-   *  `ResetRuntime`. */
+  /** Whether the divert was prepared since its last `ResetRuntime`. */
   get isGenerated(): boolean {
     return this._generated;
   }
@@ -116,13 +94,9 @@ export class Divert extends ParsedObject {
 
   protected setVariableDivertName(name: string | null): void {
     this._variableDivertName = name;
-    if (this._runtimeDivert) {
-      this._runtimeDivert.variableDivertName = name;
-    }
   }
 
-  /** What generation sets afresh when it builds the divert's runtime
-   *  divert, and its preparation sets as it would. */
+  /** What preparation sets afresh. */
   protected beginGeneration(): void {
     this._generated = true;
     this._variableDivertName = null;
@@ -207,8 +181,8 @@ export class Divert extends ParsedObject {
     }
   }
 
-  /** The arguments a divert that is no call passes the flow it enters, as
-   *  `GenerateRuntimeObject` pushes them, for the jump, the tunnel, the
+  /** The arguments a divert that is no call passes the flow it enters, for
+   *  the jump, the tunnel, the
    *  thread or the onward return that goes there; whether it passes any. A
    *  fixed target's parameters decide how: a pointer at the variable for a
    *  by-reference one, and for a variadic flow nil for each fixed parameter
@@ -344,7 +318,7 @@ export class Divert extends ParsedObject {
 
   /** A function call's code: its arguments, then the call. A function the
    *  compile found is called by its symbol (`Call`), with a pointer for each
-   *  argument it takes by reference, as `GenerateRuntimeObject` pushes them.
+   *  argument it takes by reference.
    *  A name that is no function the compile found is read as a variable
    *  when the call runs (`CallVar`), whatever it holds then. Both carry the
    *  number of arguments written, and the call arranges those arguments for
@@ -400,10 +374,9 @@ export class Divert extends ParsedObject {
     return `call:${name}:${flow.isFunction ? "function" : "flow"}:${params}`;
   }
 
-  /** What `GenerateRuntimeObject` does without the runtime divert: the
-   *  early resolution of the target, the checks of the arguments against
-   *  the target's parameters, and the arguments it generates, stopping at
-   *  the first by-reference argument it refuses. */
+  /** The early resolution of the target, the checks of the arguments
+   *  against the target's parameters, and the arguments prepared, stopping
+   *  at the first by-reference argument it refuses. */
   protected override Prepare(): boolean {
     if (this.isEnd || this.isDone) {
       return true;
@@ -442,8 +415,8 @@ export class Divert extends ParsedObject {
     return true;
   }
 
-  /** The checks generation and preparation both make of an argument passed
-   *  to a by-reference parameter: it names a variable, and not a flow whose
+  /** The checks preparation makes of an argument passed to a by-reference
+   *  parameter: it names a variable, and not a flow whose
    *  read count it would pass. The first that fails is reported and the
    *  result is null, which stops the arguments; otherwise the result is the
    *  variable's reference. */
@@ -474,178 +447,6 @@ export class Divert extends ParsedObject {
     }
     return varRef;
   }
-
-  public readonly GenerateRuntimeObject = () => {
-    // End = end flow immediately
-    // Done = return from thread or instruct the flow that it's safe to exit
-    if (this.isEnd) {
-      return RuntimeControlCommand.End();
-    } else if (this.isDone) {
-      return RuntimeControlCommand.Done();
-    }
-
-    this.runtimeDivert = new RuntimeDivert();
-    this.beginGeneration();
-
-    // Normally we resolve the target content during the
-    // Resolve phase, since we expect all runtime objects to
-    // be available in order to find the final runtime path for
-    // the destination. However, we need to resolve the target
-    // (albeit without the runtime target) early so that
-    // we can get information about the arguments - whether
-    // they're by reference - since it affects the code we
-    // generate here.
-    this.ResolveTargetContent();
-
-    this.CheckArgumentValidity();
-
-    // Passing arguments to the knot. A function call arranges its
-    // arguments for the function it enters when it runs, whichever
-    // function that is, as Luau does (`callArgCount`, the number the call
-    // site pushes): the surplus dropped and the missing nil, or a variadic
-    // function's extras packed for its `...`. A divert, tunnel or thread
-    // to a variadic flow packs them here: even with zero args, it needs a
-    // `PackTuple(0)` emitted so the flow's entry binding still pops a
-    // (empty) `MultiValue` into the `__varargs__` slot.
-    let targetArgumentsPreview: Argument[] | null = null;
-    if (this.targetContent) {
-      targetArgumentsPreview = (this.targetContent as FlowBase).args;
-    }
-    const targetIsVariadicPreview =
-      !!targetArgumentsPreview &&
-      targetArgumentsPreview.length > 0 &&
-      !!targetArgumentsPreview[targetArgumentsPreview.length - 1]!.isVararg;
-    const packsArguments = targetIsVariadicPreview && !this.isFunctionCall;
-    if (this.isFunctionCall) {
-      this.runtimeDivert.callArgCount = this.args.length;
-    }
-    const requiresArgCodeGen =
-      (this.args !== null && this.args.length > 0) || packsArguments;
-    if (
-      requiresArgCodeGen ||
-      this.isFunctionCall ||
-      this.isTunnel ||
-      this.isThread
-    ) {
-      const container = new RuntimeContainer();
-
-      // Generate code for argument evaluation
-      // This argument generation is coded defensively - it should
-      // attempt to generate the code for all the parameters, even if
-      // they don't match the expected arguments. This is so that the
-      // parameter objects themselves are generated correctly and don't
-      // get into a state of attempting to resolve references etc
-      // without being generated.
-      if (requiresArgCodeGen) {
-        // Function calls already in an evaluation context
-        if (!this.isFunctionCall) {
-          container.AddContent(RuntimeControlCommand.EvalStart());
-        }
-
-        const targetArguments: Argument[] | null = targetArgumentsPreview;
-
-        // Variadic target detection: if the target's last formal arg
-        // is marked `isVararg`, a divert that is no function call packs
-        // the surplus args into a single `MultiValue` via
-        // `PackTuple(extra)` after they've all been pushed. The flow's
-        // entry then binds N+1 params normally — regular args plus one
-        // `__varargs__` slot receiving the packed MultiValue. Surplus is
-        // computed as `args.length - regular_arity` (clamped to 0+). The
-        // divert may supply fewer args than the regular arity, in which
-        // case the vararg slot gets `PackTuple(0)` → empty `MultiValue`.
-        const targetIsVariadic =
-          !!targetArguments &&
-          targetArguments.length > 0 &&
-          !!targetArguments[targetArguments.length - 1]!.isVararg;
-        const regularArity = targetIsVariadic
-          ? targetArguments!.length - 1
-          : targetArguments?.length ?? this.args.length;
-
-        const argsToPush = this.args.slice();
-        // For variadic targets, missing regular params become nil
-        // (Lua semantics). Mark each missing slot with a NullExpression
-        // sentinel that pushes `NullValue` at runtime. Non-variadic
-        // targets still hit `CheckArgumentValidity`'s strict check.
-        const nullPadding = Math.max(0, regularArity - argsToPush.length);
-
-        // How many args are pushed: a by-reference error below stops the
-        // pushes, and a function call arranges the args it pushed.
-        let pushed = 0;
-        for (let ii = 0; ii < argsToPush.length; ++ii) {
-          const argToPass: Expression = argsToPush[ii]!;
-          let argExpected: Argument | null = null;
-          if (targetArguments && ii < targetArguments.length) {
-            argExpected = targetArguments[ii]!;
-          } else if (targetIsVariadic) {
-            // Surplus arg lands in the vararg slot — same Argument
-            // shape as the formal `...`. Doesn't change codegen, just
-            // suppresses by-reference/divert-target checks.
-            argExpected = null;
-          }
-
-          // Pass by reference: argument needs to be a variable reference
-          if (argExpected && argExpected.isByReference) {
-            const varRef = this.CheckByReferenceArgument(
-              argToPass,
-              argExpected,
-            );
-            if (!varRef) {
-              break;
-            }
-
-            const varPointer = new VariablePointerValue(varRef.name);
-            container.AddContent(varPointer);
-          } else {
-            // Normal value being passed: evaluate it as normal
-            argToPass.GenerateIntoContainer(container);
-          }
-          pushed += 1;
-        }
-
-        if (this.isFunctionCall) {
-          this.runtimeDivert.callArgCount = pushed;
-        } else if (targetIsVariadic) {
-          // Push `NullValue` for any regular params the caller
-          // under-supplied. They land BETWEEN the regular pushed
-          // args and the soon-to-be-packed vararg slot; the
-          // function-entry binding pops them in reverse order.
-          for (let p = 0; p < nullPadding; p++) {
-            container.AddContent(new NullValue());
-          }
-          const extraCount = Math.max(0, argsToPush.length - regularArity);
-          container.AddContent(
-            RuntimeControlCommand.PackTuple(extraCount),
-          );
-        }
-
-        // Function calls were already in an evaluation context
-        if (!this.isFunctionCall) {
-          container.AddContent(RuntimeControlCommand.EvalEnd());
-        }
-      }
-
-      // Starting a thread? A bit like a push to the call stack below... but not.
-      // It sort of puts the call stack on a thread stack (argh!) - forks the full flow.
-      if (this.isThread) {
-        container.AddContent(RuntimeControlCommand.StartThread());
-      } else if (this.isFunctionCall || this.isTunnel) {
-        // If this divert is a function call, tunnel, we push to the call stack
-        // so we can return again
-        this.runtimeDivert.pushesToStack = true;
-        this.runtimeDivert.stackPushType = this.isFunctionCall
-          ? PushPopType.Function
-          : PushPopType.Tunnel;
-      }
-
-      // Jump into the "function" (knot/stitch)
-      container.AddContent(this.runtimeDivert);
-
-      return container;
-    }
-
-    // Simple divert
-    return this.runtimeDivert;
-  };
 
   // When the divert is to a target that's actually a variable name
   // rather than an explicit knot/stitch name, try interpretting it
@@ -723,11 +524,11 @@ export class Divert extends ParsedObject {
   }
 
   // A bare `name = …` makes `name` a global only as its assignment resolves
-  // (`VariableAssignment.ResolveReferences`), after every divert generated in
-  // the compile has found its target. A divert whose runtime object a reused
-  // flow carries finds its target again after that, and gives way to a flow
-  // of the name as a divert generated in the compile does: a function of the
-  // name is called rather than the global.
+  // (`VariableAssignment.ResolveWith`), after every divert prepared in the
+  // compile has found its target. A divert a reused flow carries finds its
+  // target again after that, and gives way to a flow of the name as a divert
+  // prepared in the compile does: a function of the name is called rather
+  // than the global.
   private autoGlobalGivesWay(name: string, isGlobal: boolean): boolean {
     if (!isGlobal) {
       return false;
@@ -779,21 +580,21 @@ export class Divert extends ParsedObject {
     }
   };
 
-  public override ResolveWith(context: Story, program: boolean): void {
+  public override ResolveWith(context: Story): void {
     if (this.isEmpty || this.isEnd || this.isDone) {
       return;
     } else if (!this._generated) {
-      // A divert whose generation never ran has nothing to resolve: the
+      // A divert whose preparation never ran has nothing to resolve: the
       // proxy divert of a builtin call that reported its arguments, as
-      // `READ_COUNT(-> a > b)` does, stays among the call's content without
-      // a runtime object. Throwing here would end the story's resolution at
-      // this object (`Story.ExportRuntime` catches it), leaving every name
-      // after it unresolved in a cold compile while an incremental compile
-      // keeps the resolutions of the statements it carried.
+      // `READ_COUNT(-> a > b)` does, stays among the call's content
+      // unprepared. Throwing here would end the resolution at this object,
+      // leaving every name after it unresolved in a cold compile while an
+      // incremental compile keeps the resolutions of the statements it
+      // carried.
       return;
     }
 
-    // A variable-divert derived in a PREVIOUS compile (reused runtime object)
+    // A variable-divert derived in a PREVIOUS compile (reused divert)
     // must be re-derived against the current tree — see
     // `_variableDivertEpoch`. Clearing it re-opens both retry paths below.
     if (
@@ -804,13 +605,12 @@ export class Divert extends ParsedObject {
     }
 
     // Retry variable-target resolution. `ResolveTargetContent` ran
-    // early during `GenerateRuntimeObject` so the runtime tree could
-    // be built; at that point Luau auto-globals (`Y = function...`)
-    // hadn't yet been registered in `story.variableDeclarations`
-    // (registration happens during `VariableAssignment.ResolveReferences`,
-    // a later phase). Re-running here lets the divert pick up
-    // auto-globals registered between the two phases. Cheap idempotent
-    // re-run — already-resolved targets short-circuit inside
+    // early during `Prepare`; at that point Luau auto-globals
+    // (`Y = function...`) hadn't yet been registered in
+    // `story.variableDeclarations` (registration happens during
+    // `VariableAssignment.ResolveWith`, a later phase). Re-running here
+    // lets the divert pick up auto-globals registered between the two
+    // phases. Cheap idempotent re-run — already-resolved targets short-circuit inside
     // `ResolveTargetContent`.
     if (
       this.targetContent === null &&
@@ -819,20 +619,7 @@ export class Divert extends ParsedObject {
       this.ResolveTargetContent();
     }
 
-    if (program) {
-      // The program jumps to its target's symbol (`EmitJump`), and the
-      // target's runtime object, which another statement's generation
-      // makes, is read nowhere.
-    } else if (this.targetContent) {
-      this.runtimeDivert.targetPath = this.targetContent.runtimePath;
-    } else if (this.variableDivertName == null) {
-      // Re-resolution found no target this compile. A REUSED runtime divert
-      // may still hold the path it resolved in a previous compile (e.g. its
-      // target flow was since deleted) — restore the fresh-generation state
-      // so serialization and diagnostics match a cold compile. (Externals
-      // re-derive their path in the external branch below.)
-      this.runtimeDivert.targetPath = null;
-    }
+    // The program jumps to its target's symbol (`EmitJump`).
 
     // A divert bound to a builtin global's variable (`-> game`, whether the
     // slot holds the prelude's marker or an authored override) can never
@@ -865,7 +652,7 @@ export class Divert extends ParsedObject {
     }
 
     // Resolve children (the arguments)
-    super.ResolveWith(context, program);
+    super.ResolveWith(context);
 
     // May be null if it's a built in function (e.g. TURNS_SINCE)
     // or if it's a variable target.
@@ -894,17 +681,12 @@ export class Divert extends ParsedObject {
     let isBuiltIn: boolean = false;
     let isExternal: boolean = false;
 
-    // NOTE for incremental reuse: the external branch below is a one-way door
-    // like the target paths above (it sets `isExternal`/`externalArgs` and
-    // flips `pushesToStack` to false), but it deliberately gets NO reset here.
-    // A correct reset would have to restore `pushesToStack` to its
-    // GENERATION-time value (set true for calls/tunnels at
-    // `GenerateRuntimeObject`), which resolution cannot recompute — and a
-    // partial reset would half-decay the divert, which is worse than none.
-    // Instead, adding, removing, renaming, or re-arity-ing an `EXTERNAL` is a
-    // structural change that disables flow reuse for that compile (see the
-    // root-region descriptor in `SparkdownCompiler.parseIncrementally`), so a
-    // reused divert can never outlive its external declaration.
+    // NOTE for incremental reuse: the external branch below sets
+    // `isExternal`, which preparation resets. Adding, removing, renaming, or
+    // re-arity-ing an `EXTERNAL` is a structural change that disables flow
+    // reuse for that compile (see the root-region descriptor in
+    // `SparkdownCompiler.parseIncrementally`), so a reused divert can never
+    // outlive its external declaration.
 
     if (!this.target) {
       throw new Error();
@@ -935,17 +717,6 @@ export class Divert extends ParsedObject {
 
         if (isExternal) {
           this._isExternal = true;
-          if (this._runtimeDivert) {
-            this._runtimeDivert.isExternal = true;
-            if (this.args !== null) {
-              this._runtimeDivert.externalArgs = this.args.length;
-            }
-
-            this._runtimeDivert.pushesToStack = false;
-            this._runtimeDivert.targetPath = new RuntimePath(
-              this.target.firstComponent,
-            );
-          }
 
           this.CheckExternalArgumentValidity(context);
         }
@@ -1191,7 +962,6 @@ export class Divert extends ParsedObject {
   };
 
   public override OnResetRuntime(): void {
-    this._runtimeDivert = null;
     this._generated = false;
     this._variableDivertName = null;
     this._isExternal = false;

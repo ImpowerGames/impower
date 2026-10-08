@@ -15,7 +15,6 @@
 // #705 such a compile builds no chunks and reports the construct as an error
 // at its statement, unless the statement's line already holds an error;
 // those errors are not the resolver's and are left out of the comparison.
-import "../../inkjs/engine/Container";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

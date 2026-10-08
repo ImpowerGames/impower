@@ -1,9 +1,6 @@
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { noteResolved } from "../../../../program/StatementWatch";
-import { Container as RuntimeContainer } from "../../../engine/Container";
 import { DebugMetadata } from "../../../../runtime/DebugMetadata";
-import { InkObject as RuntimeObject } from "../../../../runtime/Object";
-import { Path as RuntimePath } from "../../../../runtime/Path";
 import { asOrNull } from "../../../../runtime/TypeAssertion";
 import { currentCompileEpoch } from "./CompileEpoch";
 import type { FindQueryFunc } from "./FindQueryFunc";
@@ -30,28 +27,22 @@ const emptyCollectSubtrees = new WeakMap<
 /** Resolves `obj` as part of its parent's resolution, and reports it to the
  *  statement watch: a chunk kept for the object's statement recorded how
  *  the object resolved, and the watch reads it again here. */
-export const resolveChild = (
-  obj: ParsedObject,
-  context: Story,
-  program: boolean,
-): void => {
-  const tap = program ? resolutionTap() : null;
+export const resolveChild = (obj: ParsedObject, context: Story): void => {
+  const tap = resolutionTap();
   if (tap) {
     tap.visited(obj, false);
     try {
-      obj.ResolveWith(context, program);
+      obj.ResolveWith(context);
     } finally {
       tap.left(obj, false);
     }
   } else {
-    obj.ResolveWith(context, program);
+    obj.ResolveWith(context);
   }
   noteResolved(obj);
 };
 
 export abstract class ParsedObject {
-  public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
-
   /** Writes this object's code into the statement chunk being emitted
    *  (docs/engine/binary-program.md, section 3). A class the binary program
    *  does not cover yet keeps this one, which stops the emission and names
@@ -72,12 +63,11 @@ export abstract class ParsedObject {
 
   // Diagnostic-dedup state: the compile epoch (see CompileEpoch.ts) at which
   // this node last emitted an error/warning. Comparing against the CURRENT
-  // epoch makes flags from a prior `ExportRuntime` stale automatically —
+  // epoch makes flags from a prior compile stale automatically —
   // reused parsed nodes need no per-compile clearing walk.
   private _errorEpoch: number = 0;
   private _warningEpoch: number = 0;
   private _debugMetadata: DebugMetadata | null = null;
-  private _runtimeObject: RuntimeObject | null = null;
 
   public content: ParsedObject[] = [];
   public parent: ParsedObject | null = null;
@@ -123,43 +113,14 @@ export abstract class ParsedObject {
     return ancestor as Story;
   }
 
-  get runtimeObject(): RuntimeObject {
-    if (!this._runtimeObject) {
-      const tap = resolutionTap();
-      if (tap) {
-        tap.visited(this, true);
-        try {
-          this._runtimeObject = this.GenerateRuntimeObject();
-        } finally {
-          tap.left(this, true);
-        }
-      } else {
-        this._runtimeObject = this.GenerateRuntimeObject();
-      }
-      if (this._runtimeObject) {
-        this._runtimeObject.debugMetadata = this.debugMetadata;
-      }
-    }
-
-    return this._runtimeObject as RuntimeObject;
-  }
-
-  set runtimeObject(value: RuntimeObject | null) {
-    this._runtimeObject = value;
-  }
-
   /**
-   * Prepares the object for the program path's resolution, as `runtimeObject`
-   * generates it for the current engine, and builds nothing (#705): the
-   * object's `Prepare` does what its `GenerateRuntimeObject` does besides
-   * building runtime objects (the declarations it makes, the diagnostics it
-   * reports, the early resolution of a divert's target, the parsed fields a
-   * resolution or the writer reads afterwards) and prepares the children
-   * generation generates, in its order. The resolver taps hear it as they
-   * hear a generation (`visited`, `left`), and an object is prepared once, as
-   * a generated object keeps its runtime object, until `ResetRuntime`; one
-   * whose generation makes no runtime object (a global's declaration) is
-   * prepared again each time it is asked, as it is generated again.
+   * Prepares the object for the program path's resolution (#705): the
+   * object's `Prepare` makes its declarations, reports its diagnostics,
+   * resolves a divert's target early, sets the parsed fields a resolution
+   * or the writer reads afterwards, and prepares its children in order. The
+   * resolver taps hear it (`visited`, `left`), and an object is prepared
+   * once, until `ResetRuntime`; one whose `Prepare` returns false (a
+   * global's declaration) is prepared again each time it is asked.
    */
   public prepare(): void {
     if (this._prepared) {
@@ -180,10 +141,9 @@ export abstract class ParsedObject {
     this._prepared = made;
   }
 
-  /** What a direct call of `GenerateRuntimeObject` does on the program path
-   *  (a divert target's divert, a choice's contents, an onward return's
-   *  divert): `Prepare`, heard by no tap and kept by nothing, as such a
-   *  generation is. */
+  /** `Prepare` heard by no tap and kept by nothing, for an object its
+   *  parent prepares directly (a divert target's divert, a choice's
+   *  contents, an onward return's divert). */
   public PrepareUncached(): boolean {
     return this.Prepare();
   }
@@ -193,30 +153,14 @@ export abstract class ParsedObject {
     return this._prepared;
   }
 
-  /** What generating the object does on the program path, without the
-   *  runtime objects (`prepare`); whether its generation makes a runtime
-   *  object. Each class that generates says what its generation does. */
+  /** What preparing the object does (`prepare`); whether the object stays
+   *  prepared. Each class that the program path prepares says what its
+   *  preparation does. */
   protected Prepare(): boolean {
     throw new Error(`${this.typeName} has no preparation for the program path`);
   }
 
   private _prepared = false;
-
-  get runtimePath(): RuntimePath {
-    if (!this.runtimeObject.path) {
-      throw new Error();
-    }
-
-    return this.runtimeObject.path;
-  }
-
-  // When counting visits and turns since, different object
-  // types may have different containers that needs to be counted.
-  // For most it'll just be the object's main runtime object,
-  // but for e.g. choices, it'll be the target container.
-  get containerForCounting(): RuntimeContainer | null {
-    return this.runtimeObject as RuntimeContainer;
-  }
 
   get ancestry(): ParsedObject[] {
     let result = [];
@@ -398,26 +342,15 @@ export abstract class ParsedObject {
     return found;
   };
 
-  /** Resolves the object's references for the current engine
-   *  (`Story.ExportRuntime`), which also writes what its runtime tree reads:
-   *  the runtime paths of diverts and choices, and the count flags of the
-   *  containers a read count or a once-only choice counts. */
-  public ResolveReferences(context: Story): void {
-    this.ResolveWith(context, false);
-  }
-
-  /** The resolution both engines share, which a class overrides: with
-   *  `program`, the program path's (`ProgramResolver`,
-   *  docs/engine/binary-program.md, section 2), everything only the current
-   *  engine's runtime tree reads is left out, so that resolving one statement
-   *  reads no runtime object of another. Called on the object's content by
-   *  its own resolution through `resolveChild`, which the program path's
-   *  resolver calls on each object a statement holds at its top, and
-   *  otherwise through `ResolveReferences`. */
-  public ResolveWith(context: Story, program: boolean): void {
+  /** The program path's resolution (`ProgramResolver`,
+   *  docs/engine/binary-program.md, section 2), which a class overrides.
+   *  Called on the object's content by its own resolution through
+   *  `resolveChild`, which the program path's resolver calls on each object
+   *  a statement holds at its top. */
+  public ResolveWith(context: Story): void {
     if (this.content !== null) {
       for (const obj of this.content) {
-        resolveChild(obj, context, program);
+        resolveChild(obj, context);
       }
     }
   }
@@ -491,7 +424,6 @@ export abstract class ParsedObject {
   };
 
   public ResetRuntime() {
-    this._runtimeObject = null;
     this._prepared = false;
     this._errorEpoch = 0;
     this._warningEpoch = 0;

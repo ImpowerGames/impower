@@ -28,7 +28,7 @@ import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
 import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
-import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { InkList } from "@impower/sparkdown/src/runtime/InkList";
 import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
 import { VariablePointerValue } from "@impower/sparkdown/src/runtime/Value";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
@@ -51,7 +51,6 @@ import type { Thread } from "../types/Thread";
 import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { lineRanges } from "../utils/executedLineRanges";
-import { possibleBreakpointLines } from "../utils/possibleBreakpointLines";
 import {
   programAssignmentAddresses,
   programBreakpointLines,
@@ -61,7 +60,6 @@ import {
 } from "../utils/programBreakpoints";
 import {
   validAddressPrefixLength,
-  validRoutePrefixLength,
 } from "../utils/routeResume";
 import { storyPositions, type StoryPositions } from "../utils/storyPositions";
 import { CheckpointStore } from "./CheckpointStore";
@@ -172,7 +170,7 @@ export class Game<T extends M = {}> {
     return this._connection;
   }
 
-  protected _story!: Story;
+  protected _story!: ProgramStory;
   get story() {
     return this._story;
   }
@@ -540,8 +538,7 @@ export class Game<T extends M = {}> {
    *  beats: the checkpoints are its images, and a save is its durable save
    *  (docs/engine/binary-program.md, section 7). */
   get programStory(): ProgramStory | null {
-    const story: unknown = this._story;
-    return story instanceof ProgramStory ? story : null;
+    return this._story ?? null;
   }
 
   constructor(
@@ -730,7 +727,7 @@ export class Game<T extends M = {}> {
       rewindBeats: this._rewindBeats,
     });
     engine.keepBeatImages = true;
-    this._story = engine as unknown as Story;
+    this._story = engine;
     this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
     this.restoreReactiveTracking();
@@ -883,7 +880,7 @@ export class Game<T extends M = {}> {
     this._definesContextBuilds++;
   }
 
-  setupStory(story: Story) {
+  setupStory(story: ProgramStory) {
     story.collapseWhitespace = false;
     story.processEscapes = false;
     story.onError = (message, type, _source, raised) => {
@@ -894,26 +891,14 @@ export class Game<T extends M = {}> {
       this.Error(
         raised?.message ?? message,
         type === InkErrorType.Warning ? ErrorType.Warning : ErrorType.Error,
-        this.scriptLocationOf(
-          this.programStory
-            ? (raised?.address ?? this._positions.previous())
-            : raised?.path,
-        ) ?? this._executingLocation,
+        this.scriptLocationOf(raised?.address ?? this._positions.previous()) ??
+          this._executingLocation,
       );
     };
     // The program engine calls no hook per step: the game reads the address
     // of each step it takes (`stepWithinBudget`), which records it and
-    // compares it with the breakpoints' addresses. The current engine
-    // builds the path it names a step by only for a hook.
-    const engine: unknown = story;
-    story.onExecute =
-      engine instanceof ProgramStory
-        ? null
-        : (((address: ProgramAddress | undefined) => {
-            if (address != null && address !== "") {
-              this._runtimeState.recordExecution(address);
-            }
-          }) as never);
+    // compares it with the breakpoints' addresses.
+    story.onExecute = null;
     story.onMakeChoice = (choice) => {
       this._runtimeState.recordChoice(story, choice);
     };
@@ -1140,14 +1125,7 @@ export class Game<T extends M = {}> {
     range: { start: { line: number }; end: { line: number } };
   }): number[] {
     const program = this.programStory;
-    if (program) {
-      return programBreakpointLines(program.root, search);
-    }
-    return possibleBreakpointLines(
-      this._program.pathLocations,
-      this._scripts,
-      search,
-    );
+    return program ? programBreakpointLines(program.root, search) : [];
   }
 
   setBreakpoints(breakpoints: { file: string; line: number }[]) {
@@ -1526,31 +1504,21 @@ export class Game<T extends M = {}> {
       this.joinBreakAddresses();
       return actual;
     }
+    // No program yet: a variable's breakpoint resolves when one arrives.
     this._dataWatches = [];
-    const actualBreakpoints = Game.getActualDataBreakpoints(
-      this._program.dataLocations,
-      dataBreakpoints,
-      this._scripts,
-    );
-    const breakpointMap: Record<number, Map<number, Breakpoint>> = {};
-    for (const b of actualBreakpoints) {
-      if (b.location?.uri) {
-        const scriptIndex = this._scripts.indexOf(b.location.uri);
-        if (scriptIndex >= 0) {
-          breakpointMap[scriptIndex] ??= new Map();
-          if (b.location.range.start.line != null) {
-            breakpointMap[scriptIndex].set(b.location.range.start.line, b);
-          }
-        }
-      }
-    }
-    this._dataBreakpointMap = breakpointMap;
+    this._dataBreakpointMap = {};
     this.joinBreakAddresses();
-    return actualBreakpoints;
+    return dataBreakpoints.map(
+      (): Breakpoint => ({
+        verified: false,
+        reason: "failed",
+        message: "No variable found at the breakpoint",
+      }),
+    );
   }
 
   static planRoute(
-    story: Story,
+    story: ProgramStory,
     program: SparkProgram,
     from: string,
     to: ProgramAddress,
@@ -1789,12 +1757,7 @@ export class Game<T extends M = {}> {
           this._program.changes,
           this._plannedRouteChangeId,
         )
-      : validRoutePrefixLength(
-          route.steps,
-          this._program,
-          this._program.changes,
-          this._plannedRouteChangeId,
-        );
+      : 0;
     const resume = this.findResumePoint(validSteps);
     if (!resume) {
       return { validSteps, replayOnly: false };
@@ -3539,9 +3502,7 @@ export class Game<T extends M = {}> {
     for (const thread of callStack._threads) {
       const threadId = thread.threadIndex;
       // On the program engine a thread is named by the frame it runs.
-      const name = program
-        ? program.debugFrames(threadId)?.at(-1)?.name
-        : thread.previousPointer.path?.toString();
+      const name = program?.debugFrames(threadId)?.at(-1)?.name;
       threads.push({
         id: threadId,
         name: name || "<unknown thread>",
@@ -3597,46 +3558,7 @@ export class Game<T extends M = {}> {
     if (program) {
       return this.getProgramStackTrace(program, threadId, startFrame, levels);
     }
-    const stackFrames: StackFrame[] = [];
-    const callStack = this._story.state.callStack;
-    const threadIndex = threadId;
-    const thread = callStack.ThreadWithIndex(threadIndex);
-    if (thread) {
-      const frameCount =
-        levels != null ? startFrame + levels : thread.callstack.length;
-      for (let i = startFrame; i < frameCount; i++) {
-        const f = thread.callstack[i]!;
-        if (f) {
-          const pointerPath =
-            f.previousPointer.path?.toString() ??
-            f.previousPointer.container?.path?.toString();
-          if (pointerPath) {
-            const location =
-              this.scriptLocationOf(pointerPath) ?? this._executingLocation;
-            const documentLocation = this.getDocumentLocation(location);
-            if (f.type == PushPopType.Function) {
-              stackFrames.unshift({
-                id: i,
-                name: pointerPath || "<unknown function>",
-                moduleId: "function",
-                presentationHint: "normal",
-                location: documentLocation,
-              });
-            } else {
-              stackFrames.unshift({
-                id: i,
-                name: pointerPath || "<unknown tunnel>",
-                moduleId: "tunnel",
-                presentationHint: "normal",
-                location: documentLocation,
-              });
-            }
-          }
-        }
-      }
-      return { stackFrames, totalFrames: thread.callstack.length };
-    }
-    return { stackFrames, totalFrames: 0 };
+    return { stackFrames: [], totalFrames: 0 };
   }
 
   protected Error(
@@ -4027,7 +3949,6 @@ export class Game<T extends M = {}> {
     }
     return (
       program.knotLocations?.[address] ||
-      program.stitchLocations?.[address] ||
       program.functionLocations?.[address] ||
       program.sceneLocations?.[address] ||
       program.branchLocations?.[address] ||
@@ -4038,7 +3959,7 @@ export class Game<T extends M = {}> {
   /** Where the story that runs `program` stands: the position its last step
    *  ran, which the player's worker names when the story runs away. */
   static storyLocation(
-    story: Story,
+    story: ProgramStory,
     program: SparkProgram,
   ): DocumentLocation | null {
     const positions = storyPositions(story, program);
@@ -4158,43 +4079,4 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  static getActualDataBreakpoints(
-    dataLocations: Record<string, ScriptLocation> | undefined,
-    breakpoints: { dataId: string }[],
-    scripts: string[],
-  ) {
-    const actualBreakpoints: Breakpoint[] = [];
-    for (const breakpoint of breakpoints) {
-      const dataId = breakpoint.dataId;
-      const dataLocation = dataLocations?.[dataId];
-      if (dataLocation) {
-        const [scriptIndex, line] = dataLocation;
-        const validBreakpoint = {
-          verified: true,
-          location: {
-            uri: scripts[scriptIndex]!,
-            range: {
-              start: {
-                line: line,
-                character: 0,
-              },
-              end: {
-                line: line,
-                character: 0,
-              },
-            },
-          },
-        };
-        actualBreakpoints.push(validBreakpoint);
-      } else {
-        const invalidBreakpoint: Breakpoint = {
-          verified: false,
-          reason: "failed",
-          message: "No variable found at the breakpoint",
-        };
-        actualBreakpoints.push(invalidBreakpoint);
-      }
-    }
-    return actualBreakpoints;
-  }
 }

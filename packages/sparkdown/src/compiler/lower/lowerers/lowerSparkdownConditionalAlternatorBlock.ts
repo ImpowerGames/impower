@@ -105,7 +105,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
 
   // Multi-line block form (`plural(n)\n  | one = ...\nend`) places each
   // arm on its own logical line — `ConditionalSingleBranch.
-  // GenerateRuntimeObject` inserts a leading `\n` into the branch body
+  // EmitProgram` emits a leading `\n` into the branch body
   // when `isInline` is false. For the inline forms (`{plural(n)|...|...}`
   // inside `{...}`, `..plural(n)|...|.. ..` inline-glued, and the
   // single-line block form `plural(n)|one=…|other=… end`), arms are

@@ -21,7 +21,7 @@ export type StoryErrorHandler = (
 /** One call frame as the debugger reads it (`StoryEngine.debugFrames`). */
 export interface DebugFrame {
   /** Whether the frame runs a function or a tunnel; the flow's own frame
-   *  is a tunnel's, as on the current engine. */
+   *  is a tunnel's, as on the deleted object engine. */
   readonly type: PushPopType;
   /** The symbol of the function or tunnel the frame runs, or of the flow
    *  the flow's own frame stands in (-1 for a declaration). */
@@ -117,7 +117,7 @@ export interface StoryEngine {
   // What a game hears as the story runs.
   onExecute: ((address: number) => void) | null;
   executedLog: number[] | null;
-  onMakeChoice: ((choice: unknown) => void) | null;
+  onMakeChoice: ((choice: ProgramChoice) => void) | null;
   onEvaluateCondition: ((value: boolean) => void) | null;
 
   // The route planner's control (section 9, `planRoute.ts`).

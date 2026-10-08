@@ -37,7 +37,7 @@ class HandWritten extends ParsedObject {
 export function handWrittenProgram(
   emit: (emitter: ProgramEmitter) => void,
 ): ProgramRoot {
-  const { root, fallback } = new ChunkStore().build(
+  const { root, unsupported } = new ChunkStore().build(
     [
       {
         name: "",
@@ -61,7 +61,7 @@ export function handWrittenProgram(
     true,
   );
   if (!root) {
-    throw new Error(`the hand-written statement fell back: ${fallback?.construct}`);
+    throw new Error(`the hand-written statement holds a construct the writer cannot emit: ${unsupported?.construct}`);
   }
   return root;
 }

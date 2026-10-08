@@ -5,7 +5,6 @@
 // (a first compile, a preview's, the compile after a preview) compares the two
 // whole roots. Either way it equals the whole-root comparison of the root it
 // is measured against and the root the compile built.
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { ChunkChanges } from "../../compiler/types/ProgramChangeSummary";

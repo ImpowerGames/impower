@@ -60,7 +60,7 @@ export interface LowerContext {
   characterNumber: (pos: number) => number;
   /**
    * URI of the document being lowered. Stamped onto `DebugMetadata.filePath`
-   * so inkjs's `ExportRuntime` diagnostics route back to the right URI in
+   * so the resolver's diagnostics route back to the right URI in
    * `program.diagnostics`. Optional for snapshot-tool callers that don't
    * surface diagnostics.
    */
@@ -116,9 +116,9 @@ export interface LowerContext {
    * span. Enabled only while lowering a Sparkle binding body
    * (`buildSparkleBody`), where bindings are hoisted into synthetic functions
    * with no natural statement-level metadata to inherit, so the reference and
-   * the runtime objects it compiles to get the binding's own position. It stays
-   * scoped to Sparkle because a reference's `DebugMetadata` feeds its runtime
-   * objects and `pathLocations`. Unresolved-name warnings do not depend on it:
+   * the code it compiles to get the binding's own position. It stays scoped to
+   * Sparkle because a reference's `DebugMetadata` feeds the positions its chunk
+   * records. Unresolved-name warnings do not depend on it:
    * `VariableReference` reports them on its positioned `identifier` in every
    * expression.
    */

@@ -132,8 +132,7 @@ export function lowerSparkdownChooseBlock(
                 // line, as a statement unwrapped from its weave takes it
                 // (`appendBlockContent`), in place of the block's header
                 // line, which `stampStatement` gives the block's choices.
-                // Only when shapes are recorded, which the current engine's
-                // compile leaves as it was.
+                // Only when shapes are recorded (`currentStatement`).
                 if (
                   currentStatement(ctx) &&
                   obj.ownDebugMetadata &&

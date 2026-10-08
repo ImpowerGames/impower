@@ -1,44 +1,19 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
 export abstract class Expression extends ParsedObject {
-  public abstract GenerateIntoContainer: (container: RuntimeContainer) => void;
-
   public outputWhenComplete: boolean = false;
-
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    const container = new RuntimeContainer();
-
-    // Tell Runtime to start evaluating the following content as an expression
-    container.AddContent(RuntimeControlCommand.EvalStart());
-
-    this.GenerateIntoContainer(container);
-
-    // Tell Runtime to output the result of the expression evaluation to the output stream
-    if (this.outputWhenComplete) {
-      container.AddContent(RuntimeControlCommand.EvalOutput());
-    }
-
-    // Tell Runtime to stop evaluating the content as an expression
-    container.AddContent(RuntimeControlCommand.EvalEnd());
-
-    return container;
-  };
 
   protected override Prepare(): boolean {
     this.PrepareIntoContainer();
     return true;
   }
 
-  /** What `GenerateIntoContainer` does on the program path, without the
-   *  runtime objects it adds (`ParsedObject.prepare`): an expression
-   *  generated into its parent's container is heard by no resolver tap and
-   *  kept by nothing, so it is prepared again each time it is asked. Each
-   *  expression says what its generation does. */
+  /** The expression's preparation (`ParsedObject.prepare`), which its
+   *  parent calls directly: it is heard by no resolver tap and kept by
+   *  nothing, so it is prepared again each time it is asked. Each expression
+   *  says what its preparation does. */
   public PrepareIntoContainer(): void {
     throw new Error(`${this.typeName} has no preparation for the program path`);
   }

@@ -1,6 +1,4 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "./Expression";
-import { BoolValue, FloatValue, IntValue } from "../../../../../runtime/Value";
 import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -44,18 +42,6 @@ export class NumberExpression extends Expression {
   /** Nothing but the value it pushes. */
   public override PrepareIntoContainer(): void {
   }
-
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    if (this.isInt()) {
-      container.AddContent(new IntValue(this.value as number));
-    } else if (this.isFloat()) {
-      container.AddContent(new FloatValue(this.value as number));
-    } else if (this.isBool()) {
-      container.AddContent(new BoolValue(this.value as boolean));
-    }
-  };
 
   public override EmitExpression(emitter: ProgramEmitter): void {
     if (this.isBool()) {

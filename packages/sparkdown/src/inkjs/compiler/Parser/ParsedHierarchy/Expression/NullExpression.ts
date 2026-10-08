@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { NullValue } from "../../../../../runtime/Value";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -20,12 +18,6 @@ export class NullExpression extends Expression {
   /** Nothing but the nil it pushes. */
   public override PrepareIntoContainer(): void {
   }
-
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    container.AddContent(new NullValue());
-  };
 
   public override EmitExpression(emitter: ProgramEmitter): void {
     emitter.emit(Op.Const, 0, ConstValue.Nil);

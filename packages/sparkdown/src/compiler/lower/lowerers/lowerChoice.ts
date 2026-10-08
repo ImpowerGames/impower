@@ -225,10 +225,8 @@ export function lowerChoice(
 
   // Choice condition (`* if cond text`) — captured by the grammar as a
   // `ChoiceCondition` named wrapper child. `collectChoiceCondition`
-  // walks for that wrapper and lowers its inner expression. inkjs's
-  // `Choice.GenerateRuntimeObject` emits the condition and sets
-  // `runtimeChoice.hasCondition = true`; an empty/no-condition choice
-  // keeps its current runtime shape.
+  // walks for that wrapper and lowers its inner expression, which the
+  // choice's emission (`Choice.EmitProgram`) emits.
   const condition = collectChoiceCondition(nodeRef.node, ctx);
   if (condition) {
     choice.condition = condition;
@@ -239,8 +237,8 @@ export function lowerChoice(
   // (text inside the brackets). Forms: `* -> target` (no text, divert),
   // `* []` (empty bracket), `* {cond} -> target` (guarded fallback).
   // The runtime's `TryFollowDefaultInvisibleChoice` auto-picks these
-  // when no visible choices remain. inkjs's `Choice.GenerateRuntimeObject`
-  // propagates this flag to `ChoicePoint.isInvisibleDefault`.
+  // when no visible choices remain. The program writer carries this flag
+  // onto the choice it emits.
   if (
     startContent.content.length === 0 &&
     choiceOnlyContent.content.length === 0
@@ -381,8 +379,7 @@ function collectChoiceCondition(
   // `not` prefix and parenthesized expressions are also accepted.
   // Lowering treats the captured node as a normal expression
   // (`LuauAccessPath`, `LuauParenthetical`, etc.) and assigns it to
-  // `choice.condition` — inkjs's `Choice.GenerateRuntimeObject` then
-  // emits the condition + flips `hasCondition` on the runtime choice.
+  // `choice.condition`, which `Choice.EmitProgram` then emits.
   const condCapture = getDescendent("ChoiceCondition", choiceNode);
   if (!condCapture) return null;
   return lowerExpressionFromContainer(condCapture, ctx);
@@ -393,11 +390,11 @@ function collectChoiceCondition(
 // ContentList. Text outside of `Tag` nodes is emitted as `Text` parsed
 // objects (preserving authorial spacing — `foo [bar] baz` with
 // surrounding spaces survives). Each `Tag` descendant is emitted as the
-// `Tag(true) + Text(name) + Tag(false)` triple that inkjs's
-// `Choice.GenerateRuntimeObject` translates into a `BeginTag`/`EndTag`
-// pair in the choice's runtime container — those tags then attach to
-// `Choice.tags` (when in start/choice-only content) or flow into
-// `currentTags` (when in inner content).
+// `Tag(true) + Text(name) + Tag(false)` triple that, before #705, the
+// current engine's `Choice.GenerateRuntimeObject` translated into a
+// `BeginTag`/`EndTag` pair in the choice's runtime container — those tags
+// then attached to `Choice.tags` (when in start/choice-only content) or
+// flowed into `currentTags` (when in inner content).
 function appendTextFromCapture(
   parent: SyntaxNode,
   captureName: string,

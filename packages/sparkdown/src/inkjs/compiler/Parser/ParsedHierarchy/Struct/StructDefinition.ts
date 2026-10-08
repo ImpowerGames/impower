@@ -60,12 +60,8 @@ export class StructDefinition extends ParsedObject {
     throw new Error("Not implemented.");
   }
 
-  public readonly GenerateRuntimeObject = () => {
-    throw new Error("Not implemented.");
-  };
-
-  public override ResolveWith(context: Story, program: boolean): void {
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Struct);
   }
 

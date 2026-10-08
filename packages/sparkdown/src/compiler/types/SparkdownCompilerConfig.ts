@@ -18,7 +18,7 @@ export interface SparkdownCompilerConfig {
   // defines' inheritance from builtin types (e.g. `as animation` → builtin
   // `timing`) via the runtime `__index` chain. This is how the Game sources its
   // define context (the static `program.defines` channel was retired). Only
-  // affects `program.compiled` — `program.context` still comes from
+  // affects the program's declarations — `program.context` still comes from
   // mergePreludeContext, unchanged. Default OFF (the prelude parse adds cost, so
   // the pure-LSP diagnostics path leaves it off; any compile feeding a Game must
   // turn it on — the player worker and the test harnesses do).

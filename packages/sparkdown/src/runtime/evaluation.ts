@@ -19,7 +19,6 @@ import {
   NullValue,
   SymbolValue,
 } from "./Value";
-import { Path } from "./Path";
 import { Void } from "./Void";
 import { oneValue, spreadCallArgs } from "./CallArgs";
 import { Tag } from "./Tag";
@@ -71,44 +70,6 @@ export interface FunctionTarget {
   /** How many values the function's entry binds, its `...` slot
    *  included. */
   readonly bindings: number;
-}
-
-/** The function a container of the current engine's tree is. */
-export class ContainerTarget implements FunctionTarget {
-  constructor(
-    readonly container: any,
-    readonly path: Path | null = null,
-  ) {}
-  get variadic(): boolean {
-    return containerBindings(this.container).variadic;
-  }
-  get bindings(): number {
-    return containerBindings(this.container).bindings;
-  }
-}
-
-// The parameter bindings of each function container a call has entered. A
-// container's content is fixed once generated (a compile that changes the
-// function generates a new container), so every call reads them once.
-const CONTAINER_BINDINGS = new WeakMap<
-  object,
-  { variadic: boolean; bindings: number }
->();
-
-function containerBindings(container: any): {
-  variadic: boolean;
-  bindings: number;
-} {
-  if (!container) return { variadic: false, bindings: 0 };
-  let known = CONTAINER_BINDINGS.get(container);
-  if (!known) {
-    known = {
-      variadic: containerIsVariadic(container),
-      bindings: countLeadingParamBindings(container),
-    };
-    CONTAINER_BINDINGS.set(container, known);
-  }
-  return known;
 }
 
 // If `callTarget` is a closure `ObjectValue` (the shape produced by
@@ -556,37 +517,6 @@ function tryUnaryMetamethod(
     | AbstractValue[]
     | null;
   return oneValue((results && results[0]) || new NullValue());
-}
-
-// A function container's content starts with its parameter bindings, one
-// `VariableAssignment` per parameter, which its entry pops off the eval stack
-// (`FlowBase.GenerateArgumentVariableAssignments` writes them before anything
-// else), the vararg slot first for a function that declared `...`. A function
-// with no parameters starts with its body, which can begin with an assignment
-// too (`local t = {}` is a table's commands and then one), so only the run
-// from the first item binds parameters.
-const isParamBinding = (item: unknown): boolean =>
-  typeof (item as { isVarargsSlot?: boolean } | null)?.isVarargsSlot ===
-  "boolean";
-
-// Whether the function declared `...`. Used by the multi-return spread logic
-// to skip spreading for variadic targets (whose extras have already been
-// packed into a `MultiValue` by `PackTuple` at the call site).
-function containerIsVariadic(target: any): boolean {
-  const first = target?._content?.[0];
-  return isParamBinding(first) && first.isVarargsSlot === true;
-}
-
-// How many values the function's entry binds, the `__varargs__` slot of a
-// variadic function included.
-function countLeadingParamBindings(target: any): number {
-  const content = target?._content;
-  if (!Array.isArray(content)) return 0;
-  let n = 0;
-  while (n < content.length && isParamBinding(content[n])) {
-    n++;
-  }
-  return n;
 }
 
 // Spreads the last of the `count` arguments a call site pushed, as Luau

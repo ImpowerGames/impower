@@ -7,7 +7,6 @@
 // statement keeps the old chunk it can keep where that leaves nothing
 // behind, a statement edited in place keeps the parts of its old self, and
 // the work stays linear in the number of statements.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { bodyOfBlock } from "../../compiler/lower/utils/statementShape";
 import { wrapInScope } from "../../compiler/lower/utils/wrapInScope";
@@ -752,7 +751,7 @@ describe("block statements an edit reorders", () => {
       now.push(ownerOf(`x${k}`, []), anchors[k + 1]!);
     }
     const built = store.build(flow(now), true);
-    expect(built.fallback).toBeUndefined();
+    expect(built.unsupported).toBeUndefined();
     const chunks = built.root!.flowNamed("")!.arrays.chunks;
     expect(new Set(chunks).size).toBe(chunks.length);
     expect(reads).toBeLessThan(20 * n);
@@ -800,7 +799,7 @@ describe("block statements an edit reorders", () => {
       now.push(owner(`x${k}`), anchors[k + 1]!);
     }
     identityReads = 0;
-    expect(store.build(flow(now), true).fallback).toBeUndefined();
+    expect(store.build(flow(now), true).unsupported).toBeUndefined();
     expect(identityReads).toBeLessThan(20);
   });
 
@@ -846,7 +845,7 @@ describe("block statements an edit reorders", () => {
     }
     screens = 0;
     const built = store.build(flow(now), true);
-    expect(built.fallback).toBeUndefined();
+    expect(built.unsupported).toBeUndefined();
     const after = built.root!.flowNamed("")!.arrays.chunks;
     for (let k = 0; k < n; k += 1) {
       expect(after[2 + 2 * k] === before[2 * k]).toBe(true);
@@ -1050,7 +1049,7 @@ describe("block statements an edit reorders", () => {
     now.push(anchors[n]!);
     store.build(flow(old), true);
     store.lookups = 0;
-    expect(store.build(flow(now), true).fallback).toBeUndefined();
+    expect(store.build(flow(now), true).unsupported).toBeUndefined();
     expect(store.lookups).toBeLessThan(20 * (3 * n + 1));
   });
 });

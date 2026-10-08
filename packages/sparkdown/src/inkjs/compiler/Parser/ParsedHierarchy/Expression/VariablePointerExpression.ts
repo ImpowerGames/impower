@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { VariablePointerValue } from "../../../../../runtime/Value";
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
@@ -35,12 +33,6 @@ export class VariablePointerExpression extends Expression {
   /** Nothing but the pointer it pushes. */
   public override PrepareIntoContainer(): void {
   }
-
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    container.AddContent(new VariablePointerValue(this.variableName));
-  };
 
   public override EmitExpression(emitter: ProgramEmitter): void {
     emitter.emit(Op.VarPtr, emitter.variable(this.variableName));

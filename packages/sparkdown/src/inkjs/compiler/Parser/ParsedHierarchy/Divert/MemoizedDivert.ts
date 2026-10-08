@@ -1,4 +1,3 @@
-import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Identifier } from "../Identifier";
 import {
@@ -66,15 +65,8 @@ export class MemoizedDivert extends Divert {
     return true;
   }
 
-  public override readonly GenerateRuntimeObject = () => {
-    memoGenerate(this);
-    const divert = new RuntimeDivert();
-    this.runtimeDivert = divert;
-    return divert;
-  };
-
-  public override ResolveWith(_context: Story, program: boolean): void {
-    memoResolve(this, program);
+  public override ResolveWith(_context: Story): void {
+    memoResolve(this);
   }
 
   public override EmitProgram(_emitter: ProgramEmitter): void {

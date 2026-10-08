@@ -1,6 +1,3 @@
-import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
-import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Expression } from "./Expression/Expression";
 import { ParsedObject } from "./Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
@@ -48,16 +45,4 @@ export class MultiReturnType extends ParsedObject {
     }
     return true;
   }
-
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    const container = new RuntimeContainer();
-    for (const expr of this.expressions) {
-      container.AddContent(expr.runtimeObject);
-    }
-    container.AddContent(
-      RuntimeControlCommand.PackTuple(this.expressions.length),
-    );
-    container.AddContent(RuntimeControlCommand.PopFunction());
-    return container;
-  };
 }

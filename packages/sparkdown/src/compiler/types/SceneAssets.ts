@@ -3,9 +3,8 @@ import type { ProgramAddress } from "./ProgramAddress";
 /**
  * One beat that references assets, in document order within its flow.
  *
- * `address` is where the beat stands (`ProgramLocator`): on the program engine
- * the address of the beat's `LineStart`, and on the current engine the
- * runtime path of the leaf that references the assets. It is how the engine
+ * `address` is where the beat stands (`ProgramLocator`): the address of the
+ * beat's `LineStart`. It is how the engine
  * locates the beat the story is on and predicts from there. Names are
  * recorded as authored: image tokens are split on `+` but keep their `~filter`
  * tail (the engine canonicalizes), audio names are bare asset names.

@@ -1,5 +1,5 @@
 import { AuthorWarning } from "./AuthorWarning";
-import { bumpCompileEpoch, bumpResolutionEpoch } from "./CompileEpoch";
+import { bumpCompileEpoch } from "./CompileEpoch";
 import {
   RecordingMap,
   RecordingSet,
@@ -7,11 +7,7 @@ import {
   resolutionTap,
   tapResolution,
 } from "./ResolutionTap";
-import { carriedRuntime } from "./CarriedRuntime";
-import { activation } from "../../../../runtime/StoryActivation";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
-import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import type { ErrorHandler } from "../../../../runtime/Error";
 import { ErrorType } from "../ErrorType";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
@@ -22,10 +18,8 @@ import { ListDefinition } from "./List/ListDefinition";
 import { ListElementDefinition } from "./List/ListElementDefinition";
 import { StructDefinition } from "./Struct/StructDefinition";
 import { ParsedObject } from "./Object";
-import { Story as RuntimeStory } from "../../../engine/Story";
 import { SymbolType } from "./SymbolType";
 import { Text } from "./Text";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../runtime/VariableAssignment";
 import { ListDefinition as RuntimeListDefinition } from "../../../../runtime/ListDefinition";
 import { StructDefinition as RuntimeStructDefinition } from "../../../../runtime/StructDefinition";
 import { Identifier } from "./Identifier";
@@ -119,21 +113,6 @@ export class Story extends FlowBase {
     () => "structs",
   );
 
-  // True while `ExportRuntime` is materializing runtime objects (generation),
-  // false during the later `ResolveReferences` pass. Diagnostics raised during
-  // GENERATION are attributed to their enclosing top-level flow below — the
-  // incremental compiler skips generation for unchanged flows, which would
-  // silently drop such a diagnostic on the next compile, so any flow that
-  // produced one is barred from reuse (resolve-time diagnostics re-emit
-  // naturally because resolution always runs over the full tree).
-  private _generationPhase: boolean = false;
-
-  // Top-level flows that raised a diagnostic during generation this export,
-  // plus a flag for diagnostics that couldn't be attributed to one (no parsed
-  // source or no top-level ancestor) — the compiler reacts by disabling flow
-  // reuse entirely for the next compile.
-  public flowsWithGenerationDiagnostics: Set<ParsedObject> = new Set();
-  public hadUnattributableGenerationDiagnostic: boolean = false;
 
   get flowLevel(): FlowLevel {
     return FlowLevel.Story;
@@ -161,10 +140,10 @@ export class Story extends FlowBase {
    *  without these markers a reference such as `game.loading.percent`
    *  reports "Cannot find item or path" in the editor and nowhere else.
    *
-   *  Runs before ExportRuntime, so the markers are always the incumbents when
-   *  the program's own declarations register during generation. An authored
-   *  define of the same name then takes the slot outright and the marker is
-   *  dropped; an authored `store` or `const` of that name is reported as a
+   *  Runs before the program path's resolution, so the markers are always
+   *  the incumbents when the program's own declarations register during
+   *  preparation. An authored define of the same name then takes the slot
+   *  outright and the marker is dropped; an authored `store` or `const` of that name is reported as a
    *  duplicate identifier, as it is in a seeded compile (see
    *  FlowBase.AddNewVariableDeclaration).
    *
@@ -196,7 +175,7 @@ export class Story extends FlowBase {
   /** The names {@link DeclareBuiltinGlobals} declared for this compile. */
   public builtinGlobalNames: ReadonlySet<string> = new Set();
 
-  /** Diverts whose target resolved, during ResolveReferences, to a global
+  /** Diverts whose target resolved, during resolution, to a global
    *  named in {@link builtinGlobalNames}: `-> game` binds to the builtin's
    *  variable (a table at runtime, whether the prelude's own or an authored
    *  override), so it can never reach a scene, branch, or label of that
@@ -290,7 +269,7 @@ export class Story extends FlowBase {
 
   constructor(toplevelObjects: ParsedObject[], isInclude: boolean = false) {
     // Don't do anything much on construction, leave it lightweight until
-    // the ExportRuntime method is called.
+    // the program path's resolver resolves it.
     super(null, toplevelObjects, null, false, isInclude);
   }
 
@@ -370,113 +349,10 @@ export class Story extends FlowBase {
     topLevelContent.splice(0, 0, ...flowsFromOtherFiles);
   }
 
-  /** Generates the runtime story for the current engine and resolves every
-   *  parsed object of the story against it. A compile with statement chunks
-   *  on calls it only when its program falls back to the current engine: the
-   *  program path resolves with `ProgramResolver`, which makes the same steps
-   *  (`DeclareStoryTables`, `DeclareImplicitParents`, `InitializeGlobals`)
-   *  statement by statement and generates no runtime tree. */
-  public ExportRuntime(
-    errorHandler: ErrorHandler | null = null,
-    initializeGlobals = true,
-  ): RuntimeStory {
-    this.BeginResolution(errorHandler, false);
-    // Every parsed object is resolved again, so every divert finds its
-    // target again.
-    bumpResolutionEpoch();
-
-    // Collect constants, list definitions and struct definitions in a single
-    // top-down traversal instead of three separate full-tree `FindAll` passes.
-    // CollectByType preserves FindAll's depth-first pre-order per type, so each
-    // bucket is identical to the corresponding FindAll result.
-    const constDecls: ConstantDeclaration[] = [];
-    const listDecls: ListDefinition[] = [];
-    const structDecls: StructDefinition[] = [];
-    this.CollectByType(
-      [ConstantDeclaration, ListDefinition, StructDefinition],
-      [constDecls, listDecls, structDecls] as ParsedObject[][],
-    );
-    const runtimeStructs = this.DeclareStoryTables(
-      constDecls,
-      listDecls,
-      structDecls,
-    );
-
-    // Resolution of weave point names has to come first, before any runtime code generation
-    // since names have to be ready before diverts start getting created.
-    // (It used to be done in the constructor for a weave, but didn't allow us to generate
-    // errors when name resolution failed.)
-    this.ResolveWeavePointNaming();
-
-    // Everything from here until `ResolveReferences` is GENERATION — see
-    // `_generationPhase`. Diagnostics raised in this window are attributed to
-    // their top-level flow so the incremental compiler can bar that flow from
-    // reuse (reuse skips generation, which would drop the diagnostic).
-    this.BeginGeneration(true);
-
-    // Get default implementation of runtimeObject, which calls ContainerBase's generation method
-    const rootContainer = this.runtimeObject as RuntimeContainer;
-
-    const implicitParentNames = this.DeclareImplicitParents(structDecls);
-    const { variableInitialization, runtimeLists } = this.InitializeGlobals(
-      implicitParentNames,
-      runtimeStructs,
-      (value, container) => value.expression!.GenerateIntoContainer(container),
-    );
-
-    if (this.variableDeclarations.size > 0) {
-      variableInitialization.name = "global decl";
-      rootContainer.AddToNamedContentOnly(variableInitialization);
-    }
-
-    // Signal that it's safe to exit without error, even if there are no choices generated
-    // (this only happens at the end of top level content that isn't in any particular knot)
-    rootContainer.AddContent(RuntimeControlCommand.Done());
-
-    // Replace runtimeObject with Story object instead of the Runtime.Container generated by Parsed.ContainerBase
-    const runtimeStory = this.MakeRuntimeStory(
-      rootContainer,
-      runtimeLists,
-      runtimeStructs,
-    );
-
-    // Generation is complete (FlattenContainersIn emits no diagnostics).
-    this._generationPhase = false;
-
-    // Optimisation step - inline containers that can be.
-    this.FlattenContainersIn(rootContainer);
-
-    // Now that the story has been fulled parsed into a hierarchy,
-    // and the derived runtime hierarchy has been built, we can
-    // resolve referenced symbols such as variables and paths.
-    // e.g. for paths " -> knotName --> stitchName" into an INKPath (knotName.stitchName)
-    // We don't make any assumptions that the INKPath follows the same
-    // conventions as the script format, so we resolve to actual objects before
-    // translating into an INKPath. (This also allows us to choose whether
-    // we want the paths to be absolute)
-    // Every list and struct is declared by now.
-    this._collisionIndex = null;
-    try {
-      this.ResolveReferences(this);
-    } catch (e) {
-      console.error(e);
-    }
-
-    if (initializeGlobals) {
-      runtimeStory.ResetState();
-    }
-
-    return runtimeStory;
-  }
-
-  /** Begins an export of the story, or a resolution of the program path
-   *  (`programMode`), reporting diagnostics to `errorHandler`. */
-  public BeginResolution(
-    errorHandler: ErrorHandler | null,
-    programMode: boolean,
-  ): void {
+  /** Begins a resolution of the program path, reporting diagnostics to
+   *  `errorHandler`. */
+  public BeginResolution(errorHandler: ErrorHandler | null): void {
     this._errorHandler = errorHandler;
-    this.programMode = programMode;
 
     // Invalidate every node's diagnostic-dedup state from prior exports in
     // O(1) — the incremental pipeline reuses parsed nodes across compiles, and
@@ -485,45 +361,17 @@ export class Story extends FlowBase {
     bumpCompileEpoch();
   }
 
-  /** Begins the generation phase: the diagnostics raised until it ends are
-   *  generation's, which `attribute` attributes to their top-level flows
-   *  for the current engine's flow reuse. */
-  public BeginGeneration(attribute: boolean): void {
-    this._generationPhase = attribute;
-    this.flowsWithGenerationDiagnostics = new Set();
-    this.hadUnattributableGenerationDiagnostic = false;
+  /** Begins preparing the statements (`ProgramResolver`), once the flows'
+   *  labels are named. */
+  public BeginPreparation(): void {
     this.builtinGlobalDiverts = [];
     this._globalAssignmentNames = null;
   }
 
-  /** Ends generation and begins resolving references, once every global,
+  /** Ends preparation and begins resolving references, once every global,
    *  list and struct is declared. */
   public BeginReferenceResolution(): void {
-    this._generationPhase = false;
     this._collisionIndex = null;
-  }
-
-  /** The runtime story of the export: `rootContainer` holds its content,
-   *  and it knows the story's lists, structs and constants. */
-  public MakeRuntimeStory(
-    rootContainer: RuntimeContainer,
-    runtimeLists: RuntimeListDefinition[],
-    runtimeStructs: RuntimeStructDefinition[],
-  ): RuntimeStory {
-    const runtimeStory = new RuntimeStory(
-      rootContainer,
-      runtimeLists,
-      runtimeStructs,
-    );
-
-    // Publish the constant names so the runtime can keep them read-only and
-    // out of save data while still exposing them as inspectable globals.
-    for (const name of this.RegisteredConstantNames()) {
-      runtimeStory.constantNames.add(name);
-    }
-
-    this.runtimeObject = runtimeStory;
-    return runtimeStory;
   }
 
   /** The names of the constants the story registered as globals: a
@@ -692,51 +540,9 @@ export class Story extends FlowBase {
     return implicitParentNames;
   }
 
-  /** Initializes the story's globals, in the order the story declared them:
-   *  the container the current engine runs them from, with each list's
-   *  runtime definition, and each struct a global carries added to
-   *  `runtimeStructs`. `generate` writes a global's initializer into the
-   *  container. `runtimeStructOf` builds a struct's runtime definition, as
-   *  for `DeclareStoryTables`. */
-  public InitializeGlobals(
-    implicitParentNames: ReadonlySet<string>,
-    runtimeStructs: RuntimeStructDefinition[],
-    generate: (value: VariableAssignment, container: RuntimeContainer) => void,
-    runtimeStructOf: (
-      struct: StructDefinition,
-    ) => RuntimeStructDefinition = (struct) => struct.runtimeStructDefinition,
-  ): {
-    variableInitialization: RuntimeContainer;
-    runtimeLists: RuntimeListDefinition[];
-  } {
-    // Export initialisation of global variables
-    // TODO: We *could* add this as a declarative block to the story itself...
-    const variableInitialization = new RuntimeContainer();
-    variableInitialization.AddContent(RuntimeControlCommand.EvalStart());
-    const runtimeLists = this.EachGlobal(
-      implicitParentNames,
-      runtimeStructs,
-      runtimeStructOf,
-      (list) => {
-        variableInitialization.AddContent(list.runtimeObject!);
-      },
-      (key, value) => {
-        generate(value, variableInitialization);
-        const runtimeVarAss = new RuntimeVariableAssignment(key, true);
-        runtimeVarAss.isGlobal = true;
-        variableInitialization.AddContent(runtimeVarAss);
-      },
-    );
-    variableInitialization.AddContent(RuntimeControlCommand.EvalEnd());
-    variableInitialization.AddContent(RuntimeControlCommand.End());
-    return { variableInitialization, runtimeLists };
-  }
-
-  /** What `InitializeGlobals` does on the program path, which builds no
-   *  container (#705): the story's globals in the order the story declared
-   *  them, each list's and struct's runtime definition, each list prepared,
-   *  and `prepare` called for each global with an initializer, where
-   *  `InitializeGlobals` has `generate` write it
+  /** The story's globals in the order the story declared them (#705): each
+   *  list's and struct's runtime definition, each list prepared, and
+   *  `prepare` called for each global with an initializer
    *  (`ProgramResolver.initialize`). Returns the lists' runtime
    *  definitions. */
   public PrepareGlobals(
@@ -758,8 +564,8 @@ export class Story extends FlowBase {
     );
   }
 
-  /** The globals both engines initialize, in the order the story declared
-   *  them, which `InitializeGlobals` and `PrepareGlobals` share: each list
+  /** The globals the story initializes, in the order the story declared
+   *  them, for `PrepareGlobals`: each list
    *  registered, its runtime definition listed and then handed to `list`;
    *  each struct a global carries registered and its runtime definition
    *  (`runtimeStructOf`) added to `runtimeStructs`; and each global with an
@@ -820,31 +626,6 @@ export class Story extends FlowBase {
     return runtimeLists;
   }
 
-  /** Set while the program path's resolver resolves the story
-   *  (`ProgramResolver`, `SparkdownCompilerConfig.programChunks`): the program
-   *  runs nothing of the runtime tree and counts every counted symbol
-   *  (docs/engine/binary-program.md, section 5), so no count flag is set. */
-  public programMode = false;
-
-  /** Has the current engine count a container's visits or turns, as
-   *  resolution finds that a read count, a divert target or a once-only
-   *  choice needs it; outside `programMode` only. */
-  public readonly MarkCounted = (
-    container: RuntimeContainer,
-    visits: boolean,
-    turns: boolean,
-  ): void => {
-    if (this.programMode) {
-      return;
-    }
-    if (visits) {
-      container.visitsShouldBeCounted = true;
-    }
-    if (turns) {
-      container.turnIndexShouldBeCounted = true;
-    }
-  };
-
   /**
    * Register one synthetic global declaration per constant, ordered so that a
    * constant always precedes any constant that references it.
@@ -861,13 +642,13 @@ export class Story extends FlowBase {
    * initialized ahead of every mutable global, so reading a `store` here would
    * see nil. Such a constant is neither registered nor initialized (the nil
    * arithmetic would throw out of `ResetState` and cost the whole program its
-   * bytecode), and `ConstantDeclaration.ResolveReferences` reports it.
+   * bytecode), and `ConstantDeclaration.ResolveWith` reports it.
    */
   /**
    * Constants that could NOT be registered as globals — built from a
    * non-constant, part of a dependency cycle, or reading one of those. They
    * emit no initializer, so their references read nil; each is reported by
-   * `ConstantDeclaration.ResolveReferences`.
+   * `ConstantDeclaration.ResolveWith`.
    */
   public unregisterableConstants: Set<string> = new RecordingSet<string>();
 
@@ -1007,88 +788,6 @@ export class Story extends FlowBase {
     }
   };
 
-  public readonly FlattenContainersIn = (container: RuntimeContainer): void => {
-    // Need to create a collection to hold the inner containers
-    // because otherwise we'd end up modifying during iteration
-    const innerContainers = new Set<RuntimeContainer>();
-    if (container.content) {
-      for (const c of container.content) {
-        const innerContainer = asOrNull(c, RuntimeContainer);
-        if (innerContainer) {
-          innerContainers.add(innerContainer);
-        }
-      }
-    }
-
-    // Can't flatten the named inner containers, but we can at least
-    // iterate through their children
-    if (container.namedContent) {
-      for (const [, value] of container.namedContent) {
-        const namedInnerContainer = asOrNull(value, RuntimeContainer);
-        if (namedInnerContainer) {
-          innerContainers.add(namedInnerContainer);
-        }
-      }
-    }
-
-    for (const innerContainer of innerContainers) {
-      // Count-flag reconcile for incremental container reuse. This walk runs
-      // after ALL generation and before `ResolveReferences`, and visits every
-      // container in the tree exactly once, so it doubles as the reconcile
-      // point: a container seen for the FIRST time (fresh this compile) has
-      // flags that are purely generation-derived — snapshot them as its
-      // intrinsic state. A REUSED container additionally carries last
-      // compile's resolve-time cross-flow sets — restore it to intrinsic so
-      // this compile's resolve pass re-derives exactly the sets that still
-      // exist (a deleted remote read-count decays instead of sticking).
-      if (innerContainer._intrinsicVisits === undefined) {
-        innerContainer._intrinsicVisits = innerContainer.visitsShouldBeCounted;
-        innerContainer._intrinsicTurns = innerContainer.turnIndexShouldBeCounted;
-      } else {
-        carriedRuntime.record?.(innerContainer);
-        innerContainer.visitsShouldBeCounted = innerContainer._intrinsicVisits;
-        innerContainer.turnIndexShouldBeCounted =
-          innerContainer._intrinsicTurns!;
-      }
-      this.TryFlattenContainer(innerContainer);
-      this.FlattenContainersIn(innerContainer);
-    }
-  };
-
-  public readonly TryFlattenContainer = (container: RuntimeContainer): void => {
-    if (
-      (container.namedContent && container.namedContent.size > 0) ||
-      container.hasValidName ||
-      container._dontFlatten
-    ) {
-      return;
-    }
-
-    // Inline all the content in container into the parent
-    const parentContainer = asOrNull(container.parent, RuntimeContainer);
-    if (parentContainer) {
-      let contentIdx = parentContainer.content.indexOf(container);
-      parentContainer.content.splice(contentIdx, 1);
-
-      const dm = container.ownDebugMetadata;
-
-      if (container.content) {
-        for (const innerContent of container.content) {
-          if (activation.reparent !== null && innerContent.parent !== null) {
-            activation.reparent(innerContent);
-          }
-          innerContent.parent = null;
-          if (dm !== null && innerContent.ownDebugMetadata === null) {
-            innerContent.debugMetadata = dm;
-          }
-
-          parentContainer.InsertContent(innerContent, contentIdx);
-          contentIdx += 1;
-        }
-      }
-    }
-  };
-
   public override readonly Error = (
     message: string,
     source: ParsedObject | DebugMetadata | null | undefined,
@@ -1101,30 +800,6 @@ export class Story extends FlowBase {
 
     this._hadError = errorType === ErrorType.Error;
     this._hadWarning = errorType === ErrorType.Warning;
-
-    // Attribute generation-time diagnostics to their top-level flow (see
-    // `_generationPhase`). `source` may be raw DebugMetadata (no parent
-    // chain) — then the diagnostic can't be attributed and the compiler must
-    // assume the worst.
-    if (this._generationPhase) {
-      // Prefer the raiser: `source` is frequently an `Identifier` or raw
-      // `DebugMetadata` (chosen for dedup/reporting), and neither carries a
-      // parent chain to attribute from.
-      let node: ParsedObject | null =
-        raiser ??
-        (source instanceof DebugMetadata ? null : (source ?? null));
-      if (!(node instanceof ParsedObject)) {
-        node = null;
-      }
-      while (node && node.parent && !(node.parent instanceof Story)) {
-        node = node.parent;
-      }
-      if (node && node.parent instanceof Story) {
-        this.flowsWithGenerationDiagnostics.add(node);
-      } else {
-        this.hadUnattributableGenerationDiagnostic = true;
-      }
-    }
 
     if (this._errorHandler !== null) {
       const hidden =
@@ -1146,9 +821,7 @@ export class Story extends FlowBase {
         // `getDiagnostic` logs a diagnostic it drops, with the severity and
         // the 0-based position it would have had, so tests and maintainers
         // can still find it. It also still counts above: it sets `hadError`
-        // or `hadWarning`, and during generation it marks its flow in
-        // `flowsWithGenerationDiagnostics`, which keeps that flow from being
-        // reused.
+        // or `hadWarning`.
         const position = source.debugMetadata;
         console.warn(
           "HIDDEN",
@@ -1221,15 +894,6 @@ export class Story extends FlowBase {
     } else if (decl.name) {
       this.externals.set(decl.name, decl);
     }
-  };
-
-  public readonly DontFlattenContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    // Marked on the container itself (not a per-compile Set on this Story) so
-    // the protection survives container reuse across compiles — a reused
-    // flow's generation is skipped, so it gets no chance to re-register here.
-    container._dontFlatten = true;
   };
 
   // The list and struct declarations by the names a declaration can collide

@@ -17,53 +17,10 @@ export type ScriptLocation = [
   endColumn: number,
 ];
 
-/**
- * Every runtime path that carries a source range, in columns.
- *
- * A long script has tens of thousands of them, so they travel and are searched
- * in this form from the compiler to the worker's game and the page's: the rows
- * are ordered by script, then start line, then start column, which lets a
- * source line be resolved by binary search, and the numbers are one typed
- * array, which crosses a worker boundary as a block of bytes.
- */
-export interface PathLocationTable {
-  /** The paths, ordered by script, then start line, then start column. */
-  paths: string[];
-  /** Five numbers per path — a {@link ScriptLocation} — in `paths` order. */
-  values: Int32Array;
-  /**
-   * The containers that are functions: named `function` declarations, hoisted
-   * function literals and callables nested in a flow. A function's body runs
-   * only when it is called, so a row under one of these containers is not a
-   * place a story can start or a preview can divert into. Binding evaluators
-   * are not listed; their rows are rejected by path.
-   */
-  functions?: FunctionSpan[];
-}
-
-/**
- * A function container and the source lines its declaration spans.
- *
- * Story lines written after a function's `end` can be compiled into the
- * function's container when the grammar cut the function's body off at a
- * line it could not read as Luau (#834), so a row under the container is only
- * function code when it starts within these lines. A hoisted function literal records
- * no lines: nothing but its own body is compiled into its container. Neither
- * does a function whose declaration's script cannot be resolved; every row
- * under a container without lines is function code.
- */
-export interface FunctionSpan {
-  /** The container's runtime path. */
-  path: string;
-  /** The declaration's script and its first and last lines, 0-based. */
-  lines?: [scriptIndex: number, startLine: number, endLine: number];
-}
-
 export interface SparkProgram {
   uri: string;
   scripts: Record<string, number>;
   files: Record<string, Omit<File, "src" | "text" | "data">>;
-  compiled?: Record<string, any>;
   /**
    * The root of the statement chunks the compile built: absent when the
    * compile threw, or met a construct it cannot build, which it reports as
@@ -132,11 +89,6 @@ export interface SparkProgram {
   colorAnnotations?: {
     [uri: string]: Range[];
   };
-  /** The current engine's runtime paths and their source ranges. Absent from
-   *  a program of statement chunks (`chunks`), whose root locates its
-   *  addresses. Nothing outside the engine and the compiler reads it: they go
-   *  through the program's accessor (`programLocator`). */
-  pathLocations?: PathLocationTable;
   functionLocations?: {
     [name: string]: ScriptLocation;
   };
@@ -149,13 +101,7 @@ export interface SparkProgram {
   knotLocations?: {
     [name: string]: ScriptLocation;
   };
-  stitchLocations?: {
-    [name: string]: ScriptLocation;
-  };
   labelLocations?: {
-    [name: string]: ScriptLocation;
-  };
-  dataLocations?: {
     [name: string]: ScriptLocation;
   };
   // Per top-level flow (a scene, a function, or `0` for root content): the

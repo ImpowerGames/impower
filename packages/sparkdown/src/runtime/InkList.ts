@@ -1,7 +1,10 @@
 import { throwNullException } from "./NullException";
 import { StringBuilder } from "./StringBuilder";
 import { ListDefinition } from "./ListDefinition";
-import { Story } from "../inkjs/engine/Story";
+import type { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
+
+/** What a list reads of the story whose lists it holds. */
+type Story = { listDefinitions: ListDefinitionsOrigin | null };
 
 export class InkListItem implements IInkListItem {
   // InkListItem is a struct

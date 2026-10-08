@@ -23,10 +23,6 @@ vi.mock("../src/utils/activateCheatSheetView", () => ({
 vi.mock("../src/utils/activateCommandView", () => ({
   activateCommandView: () => state.activated.push("activateCommandView"),
 }));
-vi.mock("../src/utils/activateCompilationView", () => ({
-  activateCompilationView: () =>
-    state.activated.push("activateCompilationView"),
-}));
 vi.mock("../src/utils/activateCompletionPreview", () => ({
   activateCompletionPreview: () =>
     state.activated.push("activateCompletionPreview"),

@@ -1,17 +1,9 @@
-import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ParsedObject } from "./Object";
-import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Text } from "./Text";
 import { asOrNull } from "../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 
 export class ContentList extends ParsedObject {
-  public dontFlatten: boolean = false;
-
-  get runtimeContainer(): RuntimeContainer {
-    return this.runtimeObject as RuntimeContainer;
-  }
-
   constructor(objects?: ParsedObject[], ...moreObjects: ParsedObject[]) {
     super();
 
@@ -56,26 +48,6 @@ export class ContentList extends ParsedObject {
     }
     return true;
   }
-
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    const container = new RuntimeContainer();
-    if (this.content !== null) {
-      for (const obj of this.content) {
-        const contentObjRuntime = obj.runtimeObject;
-
-        // Some objects (e.g. author warnings) don't generate runtime objects
-        if (contentObjRuntime) {
-          container.AddContent(contentObjRuntime);
-        }
-      }
-    }
-
-    if (this.dontFlatten) {
-      this.story.DontFlattenContainer(container);
-    }
-
-    return container;
-  };
 
   public override toString = (): string => `ContentList(${this.content.join(", ")})`;
 }

@@ -1,6 +1,4 @@
 import { ParsedObject } from "./Object";
-import { InkObject as RuntimeObject } from "../../../../runtime/Object";
-import { StringValue } from "../../../../runtime/Value";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { Op } from "../../../../program/ProgramInstructions";
 
@@ -22,9 +20,6 @@ export class Text extends ParsedObject {
   protected override Prepare(): boolean {
     return true;
   }
-
-  public readonly GenerateRuntimeObject = (): RuntimeObject =>
-    new StringValue(this.text);
 
   public override EmitProgram(emitter: ProgramEmitter): void {
     if (this.text === "\n") {

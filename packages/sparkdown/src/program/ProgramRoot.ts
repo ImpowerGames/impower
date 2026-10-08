@@ -160,7 +160,7 @@ export interface DefinitionArrays {
   /** For a branch, its scene's symbol; -1 otherwise. */
   parent: Int32Array;
   /** For a scene whose content starts with a branch, which it enters when
-   *  it is entered, as the current engine's knot diverts to its first stitch,
+   *  it is entered, as the deleted object engine's knot diverts to its first stitch,
    *  that branch's symbol; -1 otherwise. */
   start: Int32Array;
 }
@@ -249,7 +249,7 @@ export class ProgramRoot {
     readonly tables: ProgramStoryTables | null = null,
     protected _declarations: ReadonlyMap<string, number> = new Map(),
     /** The declaration chunks in the order `ResetState` runs them, which is
-     *  the order the current engine's `global decl` container initializes
+     *  the order the deleted object engine's `global decl` container initializes
      *  the globals in: constants first, then the others as the story
      *  declares them. */
     readonly initialization: readonly StatementChunk[] = [],
@@ -257,7 +257,7 @@ export class ProgramRoot {
     protected _definitions: DefinitionArrays = emptyDefinitions(),
     /** The name each function is shown by in a stack trace or a printed
      *  value: a function declared at the top level its qualified name, and
-     *  one a statement writes the name the current engine gives its
+     *  one a statement writes the name the deleted object engine gives its
      *  container. */
     protected _labels: ReadonlyMap<number, string> = new Map(),
     /** The symbol remap of each reseed of the table, by the generation it

@@ -250,9 +250,6 @@ export class StatementMemoRetry extends Error {
   constructor(
     readonly entries: readonly StatementMemoEntry[],
     readonly reason: string,
-    /** Whether the compile needs every statement's objects, so that every
-     *  statement the blocks were served is lowered again. */
-    readonly all = false,
   ) {
     super(`A statement served from its memo has to be lowered again: ${reason}`);
   }
@@ -319,8 +316,10 @@ export const memoKey = (syntax: string, at: number): string => `${syntax}\u0001$
  *  owner or the story's weave reads of a statement's objects: a weave point
  *  (a choice, a gather), a weave the owner unwraps, a divert or a tunnel
  *  return that ends a weave point's content, an author warning, or a flow
- *  (`Weave.ConstructWeaveHierarchyFromIndentation`, `WeavePointHasLooseEnd`,
- *  `ContentThatFollowsWeavePoint`, `lowerSparkdownChooseBlock`). */
+ *  (`Weave.ConstructWeaveHierarchyFromIndentation`,
+ *  `lowerSparkdownChooseBlock`). Before #705 the current engine's loose-end
+ *  check (`Weave.WeavePointHasLooseEnd`, `ContentThatFollowsWeavePoint`)
+ *  read the diverts, tunnel returns and author warnings too. */
 const ownerReads = (obj: ParsedObject, top: boolean): boolean => {
   if (
     obj instanceof Choice ||

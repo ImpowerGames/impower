@@ -8,7 +8,6 @@
 // moved or dropped. These tests count what each pass of the chunk store
 // visited (`ChunkStore.passesLastBuild`), compare chunks by identity, and run
 // the stories the roots hold.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

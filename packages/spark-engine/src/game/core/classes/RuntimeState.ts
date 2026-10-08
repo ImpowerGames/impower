@@ -1,5 +1,5 @@
-import { Choice } from "@impower/sparkdown/src/runtime/Choice";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import type { ProgramChoice } from "@impower/sparkdown/src/program/ProgramStoryState";
+import type { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
 
 export interface SerializableRuntimeState {
@@ -62,7 +62,7 @@ export class RuntimeState {
     }
   }
 
-  recordChoice(story: Story, choice: Choice) {
+  recordChoice(story: ProgramStory, choice: ProgramChoice) {
     this.choicesEncountered.push({
       options: story.currentChoices.map((c) => c.text),
       selected: story.currentChoices.indexOf(choice),

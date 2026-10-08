@@ -2,7 +2,6 @@
 // (#694, docs/engine/binary-program.md): what the writer emits for a display
 // statement, the beats the engine shows for it, and that a construct the
 // writer does not emit is a compile error at the line of its statement.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";

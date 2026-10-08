@@ -2,11 +2,8 @@ import { BinaryExpression } from "../Expression/BinaryExpression";
 import { Choice } from "../Choice";
 import { Conditional } from "../Conditional/Conditional";
 import { ConditionalSingleBranch } from "../Conditional/ConditionalSingleBranch";
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ParsedObject } from "../Object";
 import { Divert } from "./Divert";
-import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { DivertTargetValue } from "../../../../../runtime/Value";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
@@ -18,26 +15,8 @@ import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
 export class DivertTarget extends Expression {
-  private _runtimeDivert: RuntimeDivert | null = null;
-  get runtimeDivert(): RuntimeDivert {
-    if (!this._runtimeDivert) {
-      throw new Error();
-    }
-
-    return this._runtimeDivert;
-  }
-
-  private _runtimeDivertTargetValue: DivertTargetValue | null = null;
-  // Whether the target was prepared on the program path since its last
-  // `ResetRuntime`, as `_runtimeDivert` says it was generated.
+  // Whether the target was prepared since its last `ResetRuntime`.
   private _preparedTarget = false;
-  get runtimeDivertTargetValue(): DivertTargetValue {
-    if (!this._runtimeDivertTargetValue) {
-      throw new Error();
-    }
-
-    return this._runtimeDivertTargetValue;
-  }
 
   public divert: Divert;
 
@@ -85,11 +64,8 @@ export class DivertTarget extends Expression {
     emitter.emit(Op.Sym, symbol);
   }
 
-  /** What `GenerateIntoContainer` does without the runtime value: its
-   *  divert prepared, as generation generates it, on every call. A divert
-   *  to DONE or END builds no runtime divert, and generation, reading it,
-   *  throws, which stops the compile; preparation throws there too, so that
-   *  the compile stops as it did (#1703 reports the error in its place). */
+  /** Its divert prepared, on every call. A divert to DONE or END throws,
+   *  which stops the compile (#1703 reports the error in its place). */
   public override PrepareIntoContainer(): void {
     this.divert.PrepareUncached();
     if (this.divert.isDone || this.divert.isEnd) {
@@ -98,19 +74,8 @@ export class DivertTarget extends Expression {
     this._preparedTarget = true;
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    this.divert.GenerateRuntimeObject();
-
-    this._runtimeDivert = this.divert.runtimeDivert as RuntimeDivert;
-    this._runtimeDivertTargetValue = new DivertTargetValue();
-
-    container.AddContent(this.runtimeDivertTargetValue);
-  };
-
-  public override ResolveWith(context: Story, program: boolean): void {
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
 
     if (this.divert.isDone || this.divert.isEnd) {
       this.Error(
@@ -210,10 +175,7 @@ export class DivertTarget extends Expression {
     // than a variable name. We can't really intelligently recover from this (e.g. if blah happens to
     // contain a divert target itself) since really we should be generating a variable reference
     // rather than a concrete DivertTarget, so we list it as an error.
-    if (!program && !this._runtimeDivert) {
-      throw new Error();
-    }
-    if (program && !this._preparedTarget) {
+    if (!this._preparedTarget) {
       throw new Error();
     }
     if (this.divert.variableDivertName != null) {
@@ -226,45 +188,10 @@ export class DivertTarget extends Expression {
       );
     }
 
-    // Main resolve. The program pushes the target's symbol (`EmitExpression`)
-    // and writes no runtime value.
-    if (program) {
-      // Nothing of the runtime tree.
-    } else if (this.runtimeDivert.targetPath) {
-      this.runtimeDivertTargetValue.targetPath = this.runtimeDivert.targetPath;
-    } else {
-      // Re-resolution found no target this compile. A REUSED runtime value
-      // survives generation across compiles, so it would otherwise keep the
-      // path it resolved when the target still existed — restore the
-      // fresh-generation state instead (mirrors the same repair in
-      // `Divert.ResolveReferences`). Assign the backing field: the
-      // `targetPath` setter takes a non-null Path, and its getter throws on
-      // null, which is exactly the "unresolved" state a cold compile has.
-      // Defense-in-depth today: deleting a top-level flow also changes the
-      // flow-name map, which disables reuse for that compile. This becomes
-      // load-bearing as soon as those guards are narrowed.
-      this.runtimeDivertTargetValue.value = null;
-    }
-
-    // Tell hard coded (yet variable) divert targets that they also need to be counted
-    // TODO: Only detect DivertTargets that are values rather than being used directly for
-    // read or turn counts. Should be able to detect this by looking for other uses of containerForCounting
+    // The program pushes the target's symbol (`EmitExpression`), and counts
+    // every counted symbol.
     let targetContent = this.divert.targetContent;
     if (targetContent !== null) {
-      // The program counts every counted symbol, and its target's container
-      // is another statement's runtime object.
-      let target = program ? null : targetContent.containerForCounting;
-      if (target !== null) {
-        // Purpose is known: used directly in TURNS_SINCE(-> divTarg)
-        const parentFunc = asOrNull(this.parent, FunctionCall);
-        if (parentFunc && parentFunc.isTurnsSince) {
-          context.MarkCounted(target, false, true);
-        } else {
-          // Unknown purpose, count everything
-          context.MarkCounted(target, true, true);
-        }
-      }
-
       // Unfortunately not possible:
       // https://github.com/inkle/ink/issues/538
       //
@@ -308,8 +235,6 @@ export class DivertTarget extends Expression {
   };
 
   override OnResetRuntime(): void {
-    this._runtimeDivert = null;
-    this._runtimeDivertTargetValue = null;
     this._preparedTarget = false;
   }
 }

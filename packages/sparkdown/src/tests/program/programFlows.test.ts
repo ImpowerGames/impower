@@ -3,7 +3,6 @@
 // threads and tunnels run as statement chunks; the symbols, the definitions
 // and the counts they rest on; the chunk
 // store on the compiler's persistent table and its reseed.
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { shuffleDraws } from "../../runtime/evaluation";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";

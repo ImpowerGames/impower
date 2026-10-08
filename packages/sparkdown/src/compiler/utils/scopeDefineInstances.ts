@@ -19,7 +19,7 @@ import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/
 // and sets `identifier` to match. So it's safe to run every compile on the
 // SAME cached VariableAssignment objects (a leaf stays scoped; a name that
 // GAINED a cross-file type use since the last compile is un-scoped back to
-// bare). Only the VA identifier — the runtime global key read by ExportRuntime —
+// bare). Only the VA identifier — the runtime global key resolution reads —
 // changes; the struct registration and `__def` args stay keyed by the bare name,
 // so `context.T.D` and dialogue-cue resolution are untouched.
 export function scopeDefineInstances(

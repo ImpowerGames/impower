@@ -246,8 +246,6 @@ class GlueMark extends ParsedObject {
   protected override Prepare(): boolean {
     return false;
   }
-
-  public readonly GenerateRuntimeObject = (): null => null;
 }
 
 // A `..` that begins a line of a body, held in the body in the same way,
@@ -258,7 +256,6 @@ class LeadMark extends ParsedObject {
     return false;
   }
 
-  public readonly GenerateRuntimeObject = (): null => null;
   constructor(public readonly range: { from: number; to: number }) {
     super();
   }

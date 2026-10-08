@@ -1,6 +1,3 @@
-// Loads the engine's modules in the order that settles their import cycle
-// (see `CompilationAnnotator`).
-import "../inkjs/engine/Container";
 import { createProgramTable, reseedProgramTable, type ProgramTable } from "./ProgramTable";
 import {
   alternatorSourceOf,
@@ -194,7 +191,7 @@ export interface FlowSource {
   statements: readonly StatementSource[];
   /** For a scene that takes no parameters and whose content starts with a
    *  branch that takes none, that branch's qualified name: entering the
-   *  scene enters it, as the current engine's knot diverts to its first
+   *  scene enters it, as the deleted object engine's knot diverts to its first
    *  stitch. A scene that takes parameters binds them first, and its entry
    *  jumps to the branch. */
   startsWith?: string;
@@ -224,8 +221,9 @@ export interface ProgramSource {
   changed?: ReadonlyMap<string, readonly (readonly [number, number])[]>;
 }
 
-/** The construct that made a compile fall back, where it was first met. */
-export interface ProgramFallback {
+/** A construct the writer has no emit path for, where it was first met:
+ *  a compile error at that line, and a compile that makes no program. */
+export interface UnsupportedConstructSite {
   /** The parsed class's `typeName`, or the builtin's name. */
   construct: string;
   uri: string;
@@ -246,9 +244,10 @@ export interface ProgramCoverage {
 }
 
 export interface ProgramBuild {
-  /** The root, or nothing when the program falls back. */
+  /** The root, or nothing when the program holds a construct the writer
+   *  has no emit path for (`unsupported`). */
   root?: ProgramRoot;
-  fallback?: ProgramFallback;
+  unsupported?: UnsupportedConstructSite;
   coverage: ProgramCoverage;
   /** Whether the build re-emitted a declaration chunk, changed the
    *  declarations' order or a function's code, which is when a compile runs
@@ -541,7 +540,7 @@ export class ChunkStore {
       emitted: 0,
       unsupported: {},
     };
-    let fallback: ProgramFallback | undefined;
+    let unsupported: UnsupportedConstructSite | undefined;
     // Symbols are interned first, so a reference table's facts see every flow
     // this program defines, as the kind this program defines it as, and a
     // function's parameters.
@@ -864,7 +863,7 @@ export class ChunkStore {
       const before = previous?.flowNamed(flow.name);
       const id = before?.id ?? this._nextSequenceId++;
       build.fail = (construct: string, line: number) => {
-        fallback ??= { construct, uri: flow.uri, line };
+        unsupported ??= { construct, uri: flow.uri, line };
       };
       const arrays = this.buildSequence(
         build,
@@ -923,7 +922,7 @@ export class ChunkStore {
           coverage.unsupported[e.construct] =
             (coverage.unsupported[e.construct] ?? 0) + 1;
           build.failed += 1;
-          fallback ??= {
+          unsupported ??= {
             construct: e.construct,
             uri: declaration.uri,
             line: declaration.firstLine,
@@ -957,7 +956,7 @@ export class ChunkStore {
         inWindow.push({ source: declaration, chunk });
       }
       build.fail = (construct, line) => {
-        fallback ??= { construct, uri: declaration.uri, line };
+        unsupported ??= { construct, uri: declaration.uri, line };
       };
       if (unsettled.has(declaration)) {
         this.buildBodies(
@@ -1019,8 +1018,8 @@ export class ChunkStore {
     // no other sequence took, with the bodies it owned that no owner took.
     const dropped = this.droppedChunks(build);
     coverage.statements = build.statements + build.failed;
-    if (fallback) {
-      return { fallback, coverage, declarationsChanged: true };
+    if (unsupported) {
+      return { unsupported, coverage, declarationsChanged: true };
     }
     const functionChunks = new Set(this._functionChunks);
     let functionsChanged = false;
@@ -1051,11 +1050,11 @@ export class ChunkStore {
       dropped,
       previous,
       (construct, uri, line) => {
-        fallback ??= { construct, uri, line };
+        unsupported ??= { construct, uri, line };
       },
     );
-    if (fallback || !definitions) {
-      return { fallback, coverage, declarationsChanged };
+    if (unsupported || !definitions) {
+      return { unsupported, coverage, declarationsChanged };
     }
     for (const ids of scriptFlows.values()) {
       ids.sort(
@@ -4103,7 +4102,7 @@ const qualifiedFlowName = (flow: FlowBase): string | null => {
 };
 
 /** The name a function a statement writes is shown by in a stack trace, as
- *  the current engine names its container: the names of the flows that hold
+ *  the deleted object engine names its container: the names of the flows that hold
  *  it and its own, which the compiler gives it. */
 const functionLabel = (fn: ParsedObject): string => {
   const names: string[] = [];

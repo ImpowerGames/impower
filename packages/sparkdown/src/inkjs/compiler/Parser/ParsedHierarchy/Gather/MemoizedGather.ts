@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import type { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Identifier } from "../Identifier";
 import {
@@ -47,8 +45,7 @@ export const memoGatherOf = (gather: Gather): MemoGather | null => {
  * A label statement served from its memo (`MemoizedStatement`): a gather of
  * the same name and depth, holding nothing, built from what the memo
  * recorded (`MemoGather`), whose generation and resolution go through the
- * memo. Its generation still makes the container the weave places it by, as
- * a label's does.
+ * memo.
  */
 export class MemoizedGather extends Gather {
   constructor(
@@ -66,19 +63,8 @@ export class MemoizedGather extends Gather {
     return true;
   }
 
-  public override readonly GenerateRuntimeObject = (): RuntimeObject => {
-    memoGenerate(this);
-    const container = new RuntimeContainer();
-    container.name = this.name;
-    if (this.story.countAllVisits) {
-      container.visitsShouldBeCounted = true;
-    }
-    container.countingAtStartOnly = true;
-    return container;
-  };
-
-  public override ResolveWith(_context: Story, program: boolean): void {
-    memoResolve(this, program);
+  public override ResolveWith(_context: Story): void {
+    memoResolve(this);
   }
 
   public override EmitProgram(_emitter: ProgramEmitter): void {

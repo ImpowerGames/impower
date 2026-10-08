@@ -1,6 +1,5 @@
 import { ListDefinition } from "./ListDefinition";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";
@@ -40,12 +39,8 @@ export class ListElementDefinition extends ParsedObject {
     throw new Error("Not implemented.");
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    throw new Error("Not implemented.");
-  };
-
-  public override ResolveWith(context: Story, program: boolean): void {
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
     context.CheckForNamingCollisions(
       this,
       this.indentifier,

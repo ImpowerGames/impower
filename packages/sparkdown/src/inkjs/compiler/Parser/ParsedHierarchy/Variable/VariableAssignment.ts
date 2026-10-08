@@ -1,13 +1,10 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
 import { ListDefinition } from "../List/ListDefinition";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../../runtime/VariableAssignment";
 import { VariableReference } from "./VariableReference";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../../runtime/TypeAssertion";
@@ -18,10 +15,9 @@ import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
 
 export class VariableAssignment extends ParsedObject {
-  private _runtimeAssignment: RuntimeVariableAssignment | null = null;
-  // Whether generation, or preparation on the program path, made the
-  // assignment a statement that runs (not a global's declaration, which the
-  // story initializes). Kept, as the runtime assignment is, across compiles.
+  // Whether preparation made the assignment a statement that runs (not a
+  // global's declaration, which the story initializes). Kept across
+  // compiles.
   private _madeAssignment = false;
 
   get variableName(): string {
@@ -54,8 +50,8 @@ export class VariableAssignment extends ParsedObject {
 
   // The compile epoch (see CompileEpoch.ts) in which the story refused this
   // global declaration because its name was already declared. A refused
-  // declaration is never generated, so its contents have no runtime objects
-  // to resolve against. Parsed nodes are reused across compiles, so the
+  // declaration is never prepared, so its contents have nothing to resolve
+  // against. Parsed nodes are reused across compiles, so the
   // refusal holds only for the compile that made it.
   private _refusedEpoch: number = 0;
 
@@ -142,8 +138,8 @@ export class VariableAssignment extends ParsedObject {
       // asset spec system, via `structDefinitions`) AND a runtime
       // table expression that initializes `D` as a live global table
       // (props + methods + inheritance) for in-script access. One
-      // declaration, two behaviors — see the init handling in
-      // ParsedHierarchy/Story's ExportRuntime.
+      // declaration, two behaviors — see the global initialization in
+      // ParsedHierarchy/Story.
       if (assignedExpression) {
         this.expression = this.AddContent(assignedExpression) as Expression;
       }
@@ -158,16 +154,16 @@ export class VariableAssignment extends ParsedObject {
       // would then return this VariableAssignment instead of the Story, and
       // `Error()` would throw "No parent object to send error to" instead of
       // reporting a diagnostic. Sharing the expression is safe because it is
-      // generated exactly once, into the global-init container.
+      // emitted exactly once, into the global initialization.
       this.expression = constantExpression;
       this.isConstantDeclaration = true;
       this.isGlobalDeclaration = true;
     }
   }
 
-  // A global declaration runs nothing where it is written, as it generates
-  // nothing there: its initializer is a chunk of its script's declaration
-  // sequence, which the story runs when its state is reset. Any other
+  // A global declaration runs nothing where it is written: its initializer
+  // is a chunk of its script's declaration sequence, which the story runs
+  // when its state is reset. Any other
   // assignment is its expression, then `SetVar`, which declares a temporary
   // for a `local` and otherwise assigns as `VariablesState.Assign` does.
   public override EmitProgram(emitter: ProgramEmitter): void {
@@ -205,7 +201,7 @@ export class VariableAssignment extends ParsedObject {
   /** Declares the assignment where its kind puts it: a global in the story,
    *  a `local` in the flow around it, and a plain assignment nowhere. The
    *  program path's resolver declares it again for a statement it does not
-   *  generate again (`ResolutionTap.declare`), since every compile declares
+   *  prepare again (`ResolutionTap.declare`), since every compile declares
    *  the story's names anew. */
   public readonly RegisterDeclaration = (): void => {
     let newDeclScope: FlowBase | null | undefined = null;
@@ -220,9 +216,8 @@ export class VariableAssignment extends ParsedObject {
     }
   };
 
-  /** What `GenerateRuntimeObject` does without the runtime objects: the
-   *  declaration a global or a local makes, then the value's preparation
-   *  for an assignment that runs. */
+  /** The declaration a global or a local makes, then the value's
+   *  preparation for an assignment that runs. */
   protected override Prepare(): boolean {
     if (this.isGlobalDeclaration || this.isNewTemporaryDeclaration) {
       const tap = resolutionTap();
@@ -244,49 +239,12 @@ export class VariableAssignment extends ParsedObject {
     return true;
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
-    if (this.isGlobalDeclaration || this.isNewTemporaryDeclaration) {
-      const tap = resolutionTap();
-      if (tap) {
-        tap.declare(this, this.RegisterDeclaration);
-      } else {
-        this.RegisterDeclaration();
-      }
-    }
-
-    // Global declarations don't generate actual procedural
-    // runtime objects, but instead add a global variable to the story itself.
-    // The story then initialises them all in one go at the start of the game.
-    if (this.isGlobalDeclaration) {
-      return null;
-    }
-
-    const container = new RuntimeContainer();
-
-    // The expression's runtimeObject is actually another nested container
-    if (this.expression) {
-      container.AddContent(this.expression.runtimeObject);
-    } else if (this.listDefinition) {
-      container.AddContent(this.listDefinition.runtimeObject);
-    }
-
-    this._runtimeAssignment = new RuntimeVariableAssignment(
-      this.variableName,
-      this.isNewTemporaryDeclaration,
-    );
-    this._madeAssignment = true;
-
-    container.AddContent(this._runtimeAssignment);
-
-    return container;
-  };
-
-  public override ResolveWith(context: Story, program: boolean): void {
-    // Resolving a refused declaration's contents would read the runtime
-    // objects generation never made (a `define`'s `__def` call throws on its
-    // missing divert) and end resolution for the rest of the story.
+  public override ResolveWith(context: Story): void {
+    // Resolving a refused declaration's contents would read what preparation
+    // never made (a `define`'s `__def` call throws on its unprepared divert)
+    // and end resolution for the rest of the story.
     if (!this.isRefusedAsDuplicate) {
-      super.ResolveWith(context, program);
+      super.ResolveWith(context);
     }
 
     // List and struct definitions are checked for conflicts separately
@@ -355,13 +313,9 @@ export class VariableAssignment extends ParsedObject {
         // this in `VariablesState.Assign` (falls back to SetGlobal
         // when neither a local nor a global with this name exists),
         // so we just suppress the compile-time error here and let the
-        // runtime auto-create the global. Mark the runtime assignment
-        // as global so the dispatcher routes correctly.
+        // runtime auto-create the global.
         if (this._madeAssignment) {
-          if (this._runtimeAssignment && !program) {
-            this._runtimeAssignment.isGlobal = true;
-          }
-          // ALSO register the auto-global in the story's variable
+          // Register the auto-global in the story's variable
           // declarations so downstream `Divert.ResolveTargetContent`
           // recognizes a later `x(args)` site as a variable-target
           // (closure-call) rather than a missing flow. Without this,
@@ -377,11 +331,6 @@ export class VariableAssignment extends ParsedObject {
             this.RegisterAutoGlobal();
           }
         }
-      } else if (this._runtimeAssignment && !program) {
-        // A runtime assignment may not have been generated if it's the
-        // initial global declaration, since these are hoisted out and
-        // handled specially in Story.ExportRuntime.
-        this._runtimeAssignment.isGlobal = resolvedVarAssignment.isGlobal;
       }
     }
   }

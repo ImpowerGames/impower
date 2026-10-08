@@ -1,7 +1,6 @@
 // What the tests of the binary program share: a compile (#694), the beats of
 // a story, and a root described by content, which is how two compiles' chunks
 // are compared.
-import "../../inkjs/engine/Container";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";

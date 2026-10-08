@@ -6,7 +6,6 @@
 // name minted from a source offset, which every generated name the writer
 // emits is kept from being. A project that falls back names the same
 // construct, with its line moved the same way.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";

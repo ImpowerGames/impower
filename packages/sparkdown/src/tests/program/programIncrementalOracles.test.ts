@@ -19,7 +19,6 @@
 // identity, every chunk and every array it did not change, and to leave the
 // real root's arrays as they were; and a body an edit removed has no row in
 // the root it leaves.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
