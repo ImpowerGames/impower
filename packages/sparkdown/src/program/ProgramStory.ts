@@ -502,6 +502,10 @@ export class ProgramStory {
   protected _chosenAt: BeatRecord | null = null;
   /** The address of the `Choice` taken there. */
   protected _chosenAddress = -1;
+  /** The menu's beat and the choice taken at it, when the line the story
+   *  last started began just after that choice, which a save taken while
+   *  the line is in progress writes (`toSave`). */
+  protected _lineChosenAt: { record: BeatRecord; address: number } | null = null;
   /** The record of the beat this engine's state is at, until the story
    *  moves on (a step, a jump, a reset, a load, a choice): after a restore,
    *  the restored beat (the history's newest record, or the record an image
@@ -803,16 +807,27 @@ export class ProgramStory {
    */
   toSave(gameVersion = ""): string {
     const held = this._state.beatImage;
-    // A line in progress, which a stop at a breakpoint or at the execution
-    // step ceiling leaves, is no beat. With `keepBeatImages` set the line
-    // started from the image of the beat before it, which the save is, and
-    // the line is put back still in progress (`saveOf`); without it there is
-    // no beat to write (#1693).
-    if (held) {
+    if (held && this._asyncContinueActive) {
+      // A line in progress, which a stop at a breakpoint or at the execution
+      // step ceiling leaves, is no beat. With `keepBeatImages` set the line
+      // started from the image of the beat before it, which the save is, and
+      // the line is put back still in progress (`saveOf`); without it there
+      // is no beat to write, and the guard below refuses (#1693). A line that
+      // started just after a choice was taken is saved as a save before it
+      // would be: the menu's beat with the choice, which a load takes again
+      // only when the choice is still offered.
       this.IfInsideContinueWeCant("save");
-    } else {
-      this.IfAsyncWeCant("save");
+      const chosen = this._lineChosenAt;
+      if (chosen) {
+        const records = this.history.upTo(chosen.record.image) ?? [chosen.record];
+        const save = this.saveOf(records, chosen.address < 0 ? undefined : chosen.address, gameVersion);
+        if (save) {
+          return save;
+        }
+      }
+      return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
     }
+    this.IfAsyncWeCant("save");
     if (held) {
       return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
     }
@@ -1956,6 +1971,9 @@ export class ProgramStory {
         state.beatImage = still ?? this.capture();
         this.adoptBeat(state.beatImage, still);
         this.history.push(state.beatImage, 0);
+        this._lineChosenAt = this._chosenAt
+          ? { record: this._chosenAt, address: this._chosenAddress }
+          : null;
         this._chosenAt = null;
       }
       if (this._recursiveContinueCount == 1) {
