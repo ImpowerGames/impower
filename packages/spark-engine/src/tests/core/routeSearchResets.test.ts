@@ -131,11 +131,8 @@ describe("route search resets (#650)", () => {
   });
 
   test("a search after a global is written from outside evaluates the globals", () => {
-    // On the current engine: the program engine's story stays pristine after
-    // a global is written through its variables, so the search does not reset
-    // it and plans against the written value (#1692).
-    const program = compileSrc(SRC, true);
-    const game = newGame(program, true);
+    const program = compileSrc(SRC);
+    const game = newGame(program);
     // Nothing has run this story, so a search would otherwise take it as it
     // stands. Writing a global through the variables proxy is exactly the case
     // where that would be wrong: the value below is not one the story's own
@@ -149,6 +146,22 @@ describe("route search resets (#650)", () => {
     expect(route).not.toBeNull();
     expect(evaluations()).toBeGreaterThanOrEqual(1);
   });
+
+  test.each([
+    ["the program engine", false],
+    ["the current engine", true],
+  ])(
+    "a global written from outside leaves the story not pristine on %s (#1692)",
+    (_engine, currentEngine) => {
+      const program = compileSrc(SRC, currentEngine);
+      const game = newGame(program, currentEngine);
+      expect(game.story.stateIsPristine).toBe(true);
+
+      (game.story.variablesState as any)["score"] = 999;
+
+      expect(game.story.stateIsPristine).toBe(false);
+    },
+  );
 
   test("a found route leaves a story the caller can reset straight away", () => {
     const program = compileSrc(SRC);

@@ -1119,6 +1119,15 @@ export class ProgramStory {
     };
     this.runDeclarations();
     variablesState.SnapshotDefaultGlobals();
+    // A global written from outside the story (`variablesState[name] = v`)
+    // leaves the state no longer the one this reset built, as the current
+    // engine's `VariableStateDidChangeEvent` records (#1692). Registered after
+    // the declarations run, whose own writes are part of the reset; the
+    // `_stateIsPristine = true` below comes later still. Each reset gets a
+    // fresh `VariablesState`, so the callbacks do not accumulate.
+    variablesState.variableChangedEventCallbacks.push(() => {
+      this._stateIsPristine = false;
+    });
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
     if (this._imagesOn) {
