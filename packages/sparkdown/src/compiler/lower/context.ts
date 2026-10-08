@@ -195,6 +195,12 @@ export interface LowerContext {
    */
   scopeDepth?: number;
   /**
+   * Number of blocks whose statements are lowering (`lowerStatements`)
+   * around the statement currently being lowered, which Luau's block
+   * recursion limit bounds.
+   */
+  blockDepth?: number;
+  /**
    * Names that resolve to globally-addressable callables — top-level
    * function knots, `external NAME(...)` declarations, and `store`
    * declarations at the document root. Populated by a pre-scan of
