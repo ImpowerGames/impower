@@ -26,8 +26,16 @@
 // docs/engine/binary-program.md, section 7) is checkpointed by its beats'
 // images instead: a keyframe image every `baseInterval` beats and a delta
 // image between, which holds the count ids, globals, tables and cells written
-// that beat and no JSON, beside the module state and the runtime collections
-// as above. A checkpoint's full save is written from its image when a caller
+// that beat and no JSON, beside the module state and the runtime collections.
+// Neither holds the runtime collections whole: they grow with every beat run
+// (one executed position or more per beat), so a whole copy in every keyframe
+// would make the store quadratic in the beats (#1694). Every image entry, a
+// keyframe too, holds the collections' changes since the entry before it, and
+// a checkpoint's collections are those changes replayed from the chain's
+// start; a keyframe whose live collections differ from that replay (something
+// replaced them since) starts a new chain with a whole copy. The module state
+// is the save with the story and the collections left out, in a keyframe as
+// in a delta. A checkpoint's full save is written from its image when a caller
 // asks for it (`getJson`), and a game restores a checkpoint's image in place
 // (`imageAt`). Images are deltas by construction, so the store keeps them in
 // this way whether or not `incremental` is set, and there is nothing to
@@ -85,11 +93,20 @@ interface ImageEntry {
   kind: "image";
   keyframe: boolean;
   image: unknown;
-  // SaveData JSON with the story left out, and in a delta the runtime
-  // collections emptied.
+  // SaveData JSON with the story left out and the runtime collections
+  // emptied.
   body: string;
-  // A keyframe's full runtime collections, or a delta's changes this beat.
+  // The runtime collections' changes since the entry before, or, when
+  // `chainStart` is set, the collections whole.
   rt: RuntimeCollections;
+  chainStart: boolean;
+}
+
+// The runtime collections as a chain of image entries replays them.
+interface RuntimeChain {
+  pe: Set<RecencyEntry>;
+  ce: RuntimeCollections["ce"];
+  cde: RuntimeCollections["cde"];
 }
 
 interface KeyframeEntry {
@@ -128,6 +145,12 @@ export class CheckpointStore {
   public onVerifyFallback?: (index: number) => void;
 
   protected _fallbacks = 0;
+
+  // The runtime collections of the last image entry, as `runtimeAt` replays
+  // them, kept up to date as entries are captured so that a keyframe can be
+  // compared with them without a replay; null after a truncate, until the
+  // next capture replays it again.
+  protected _chainEnd: RuntimeChain | null = null;
 
   /** Introspection for tests/diagnostics: how the N checkpoints are stored. */
   get stats(): {
@@ -175,27 +198,31 @@ export class CheckpointStore {
     if (this._host.captureImage) {
       const keyframe = index % this._baseInterval === 0;
       const image = this._host.captureImage(keyframe);
-      if (keyframe) {
-        this._host.drainCountDeltas();
-        const rt = this._host.snapshotRuntime();
-        this._host.drainRuntime();
-        this._entries.push({
-          kind: "image",
-          keyframe,
-          image,
-          body: this._host.saveWithoutStory!(false),
-          rt,
-        });
-      } else {
-        this._host.drainCountDeltas();
-        this._entries.push({
-          kind: "image",
-          keyframe,
-          image,
-          body: this._host.saveWithoutStory!(true),
-          rt: this._host.drainRuntime(),
-        });
+      this._host.drainCountDeltas();
+      const changes = this._host.drainRuntime();
+      const body = this._host.saveWithoutStory!(true);
+      let chainStart = index === 0;
+      let chain = this._chainEnd;
+      if (!chainStart) {
+        chain ??= this.chainAt(index - 1);
+        applyChanges(chain, changes);
+        // A keyframe checks the chain against the live collections, which
+        // something may have replaced since the entry before (a load, a
+        // reset); a delta trusts it, as it did when keyframes held them whole.
+        chainStart =
+          keyframe && !sameCollections(chain, this._host.snapshotRuntime());
       }
+      let rt = changes;
+      if (chainStart) {
+        rt = this._host.snapshotRuntime();
+        chain = {
+          pe: new Set<RecencyEntry>(rt.pe),
+          ce: rt.ce.slice(),
+          cde: rt.cde.slice(),
+        };
+      }
+      this._chainEnd = chain;
+      this._entries.push({ kind: "image", keyframe, image, body, rt, chainStart });
       return;
     }
 
@@ -300,33 +327,40 @@ export class CheckpointStore {
     return { image: entry.image, save };
   }
 
-  // The runtime collections of image entry `index`: its keyframe's, with the
-  // changes of every delta up to it replayed, as `reconstruct` replays them.
+  // The runtime collections of image entry `index`.
   protected runtimeAt(index: number): RuntimeCollections {
+    const chain = this.chainAt(index);
+    return { pe: Array.from(chain.pe), ce: chain.ce, cde: chain.cde };
+  }
+
+  // The runtime collections of image entry `index`: its chain's start's,
+  // with the changes of every entry after it up to `index` replayed, as
+  // `reconstruct` replays a delta's.
+  protected chainAt(index: number): RuntimeChain {
     let base = index;
-    while (base > 0 && !(this._entries[base] as ImageEntry).keyframe) {
+    while (base > 0 && !(this._entries[base] as ImageEntry).chainStart) {
       base--;
     }
     const first = this._entries[base] as ImageEntry;
-    const pe = new Set<RecencyEntry>(first.rt.pe);
-    const ce = first.rt.ce.slice();
-    const cde = first.rt.cde.slice();
+    const chain: RuntimeChain = {
+      pe: new Set<RecencyEntry>(first.rt.pe),
+      ce: first.rt.ce.slice(),
+      cde: first.rt.cde.slice(),
+    };
     for (let i = base + 1; i <= index; i++) {
-      const e = this._entries[i] as ImageEntry;
-      for (const p of e.rt.pe) {
-        pe.delete(p);
-        pe.add(p);
-      }
-      ce.push(...e.rt.ce);
-      cde.push(...e.rt.cde);
+      applyChanges(chain, (this._entries[i] as ImageEntry).rt);
     }
-    return { pe: Array.from(pe), ce, cde };
+    return chain;
   }
 
   /** Keep only the first `keepCount` checkpoints (mirrors the old
    *  `_checkpoints.slice(0, keepCount)`). */
   truncate(keepCount: number): void {
-    this._entries.length = Math.max(0, Math.min(keepCount, this._entries.length));
+    const kept = Math.max(0, Math.min(keepCount, this._entries.length));
+    if (kept < this._entries.length) {
+      this._chainEnd = null;
+    }
+    this._entries.length = kept;
   }
 
   protected reconstruct(index: number): string | null {
@@ -343,15 +377,15 @@ export class CheckpointStore {
       if (story === null) {
         return null;
       }
-      const { save } = this.imageAt(index)!;
+      // The collections are replayed once, since a chain may be long.
+      const save = JSON.parse(entry.body);
       save["story"] = story;
-      if (this._host.durableExecuted) {
-        const rt = this.runtimeAt(index);
-        save["runtime"] = runtimeJson({
-          ...rt,
-          pe: this._host.durableExecuted(rt.pe),
-        });
-      }
+      const rt = this.runtimeAt(index);
+      save["runtime"] = runtimeJson(
+        this._host.durableExecuted
+          ? { ...rt, pe: this._host.durableExecuted(rt.pe) }
+          : rt,
+      );
       return JSON.stringify(save);
     }
 
@@ -426,6 +460,57 @@ export class CheckpointStore {
     return JSON.stringify(saveObj);
   }
 }
+
+// Replays one entry's runtime-collection changes onto a chain: executed
+// positions are a recency-ordered set (delete and add), choices and
+// conditions append.
+const applyChanges = (chain: RuntimeChain, changes: RuntimeCollections): void => {
+  for (const p of changes.pe) {
+    chain.pe.delete(p);
+    chain.pe.add(p);
+  }
+  for (const c of changes.ce) {
+    chain.ce.push(c);
+  }
+  for (const c of changes.cde) {
+    chain.cde.push(c);
+  }
+};
+
+// Whether a chain holds what the live collections hold, in their order.
+const sameCollections = (chain: RuntimeChain, live: RuntimeCollections): boolean => {
+  if (
+    chain.pe.size !== live.pe.length ||
+    chain.ce.length !== live.ce.length ||
+    chain.cde.length !== live.cde.length
+  ) {
+    return false;
+  }
+  let i = 0;
+  for (const p of chain.pe) {
+    if (p !== live.pe[i++]) {
+      return false;
+    }
+  }
+  for (let j = 0; j < live.ce.length; j++) {
+    const a = chain.ce[j]!;
+    const b = live.ce[j]!;
+    if (
+      a !== b &&
+      (a.selected !== b.selected ||
+        a.options.length !== b.options.length ||
+        a.options.some((o, k) => o !== b.options[k]))
+    ) {
+      return false;
+    }
+  }
+  for (let j = 0; j < live.cde.length; j++) {
+    if (chain.cde[j]!.selected !== live.cde[j]!.selected) {
+      return false;
+    }
+  }
+  return true;
+};
 
 // The runtime field of a save, as `RuntimeState.toJSON` writes it.
 const runtimeJson = (rt: RuntimeCollections): string =>
