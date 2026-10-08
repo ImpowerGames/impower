@@ -601,7 +601,7 @@ describe("an edit inside an included script", () => {
       const WRAPPER = "file://proj/includes/wrapper.sd";
       const child = (name: string) => `file://proj/includes/${name}.sd`;
       const at = nested ? "" : "includes/";
-      const includer = lines(
+      const includerText = lines(
         "Own first.",
         `include ${at}a.sd`,
         `include ${at}b.sd`,
@@ -610,25 +610,57 @@ describe("an edit inside an included script", () => {
       );
       const s = session({
         ...(nested
-          ? { [MAIN]: lines("include includes/wrapper.sd", "Main."), [WRAPPER]: includer }
-          : { [MAIN]: includer }),
+          ? { [MAIN]: lines("include includes/wrapper.sd", "Main."), [WRAPPER]: includerText }
+          : { [MAIN]: includerText }),
         [child("a")]: lines("A."),
         [child("b")]: lines("B."),
         [child("c")]: lines("C."),
         [child("d")]: lines("D."),
       });
-      s.edit(nested ? WRAPPER : MAIN, `include ${at}b.sd\ninclude ${at}c.sd`, `include ${at}c.sd\ninclude ${at}b.sd`);
-      matchesCold(s.root, s.texts);
-      expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
-        "A.\n",
-        "C.\n",
-        "B.\n",
-        "D.\n",
+      const includer = nested ? WRAPPER : MAIN;
+      const order = (...letters: string[]) => [
+        ...letters.map((letter) => `${letter}.\n`),
         "Own first.\n",
         ...(nested ? ["Main.\n"] : []),
-      ]);
+      ];
+      const swapped = `include ${at}c.sd\ninclude ${at}b.sd`;
+      const restored = `include ${at}b.sd\ninclude ${at}c.sd`;
+      // The swap, its undo and its redo, each on the same compiler.
+      for (const [find, replace, expected] of [
+        [restored, swapped, order("A", "C", "B", "D")],
+        [swapped, restored, order("A", "B", "C", "D")],
+        [restored, swapped, order("A", "C", "B", "D")],
+      ] as const) {
+        s.edit(includer, find, replace);
+        matchesCold(s.root, s.texts);
+        expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual(
+          expected,
+        );
+      }
     });
   }
+
+  // A script runs where the first include reaches it, so an edit to one
+  // script moves the content of a script another script includes too.
+  it("moves a script included from two places to the include that reaches it first, back and forth, as a cold compile does", () => {
+    const WRAPPER = "file://proj/includes/wrapper.sd";
+    const X = "file://proj/includes/x.sd";
+    const s = session({
+      [MAIN]: lines("include includes/wrapper.sd", "include includes/x.sd", "Main."),
+      [WRAPPER]: lines("include x.sd", "Wrapper."),
+      [X]: lines("X."),
+    });
+    const run = () => storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text);
+    expect(run()).toEqual(["X.\n", "Wrapper.\n", "Main.\n"]);
+    for (let pass = 0; pass < 2; pass += 1) {
+      s.edit(WRAPPER, "include x.sd\n", "");
+      matchesCold(s.root, s.texts);
+      expect(run()).toEqual(["Wrapper.\n", "X.\n", "Main.\n"]);
+      s.edit(WRAPPER, "Wrapper.", "include x.sd\nWrapper.");
+      matchesCold(s.root, s.texts);
+      expect(run()).toEqual(["X.\n", "Wrapper.\n", "Main.\n"]);
+    }
+  });
 
   it("matches a cold compile when the including script gains an include and loses it again", () => {
     const s = session({ ...PROJECT, [INNER]: lines("Inner top.") });

@@ -81,9 +81,11 @@ export interface ProgramFlowsInput {
   record(block: object): StatementRecord | undefined;
   /** For an object of an included script's top level (its weave), which the
    *  story places where the script is included: the included script, and
-   *  the line of the `include` or `run` statement in the script that
-   *  includes it. */
-  includedAt?(obj: ParsedObject): { uri: string; line: number } | undefined;
+   *  the line and compiled block of the `include` or `run` statement in the
+   *  script that includes it. */
+  includedAt?(
+    obj: ParsedObject,
+  ): { uri: string; line: number; block?: object } | undefined;
   /** How many lines a script has. */
   lineCount(uri: string): number;
 }
@@ -160,8 +162,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   ): StatementSource[] => {
     const statements: StatementSource[] = [];
     const entries = new Set<StatementSource>();
-    // The flow the entry before the next one runs (`includeEntry`).
-    let previousEntry = "";
     let block: object | undefined;
     let objects: ParsedObject[] = [];
     const close = () => {
@@ -198,12 +198,10 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
               obj,
               isIncludeNewline(list[i + 1]) ? 1 : 0,
               flowLine,
-              previousEntry,
             );
             if (entry) {
               statements.push(entry);
               entries.add(entry);
-              previousEntry = (entry.objects[0] as IncludeEntry).flow;
             }
           } else if (isDeclaration(obj)) {
             // A declaration placed by no statement the compile recorded;
@@ -257,7 +255,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     weave: Weave,
     newlines: number,
     flowLine: number,
-    previous: string,
   ): StatementSource | undefined => {
     const at = input.includedAt?.(weave);
     const uri = at?.uri ?? scriptOf(weave.content, input);
@@ -280,7 +277,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       },
       newlines,
     });
-    return includeEntry(name, uri, at?.line ?? flowLine, previous);
+    return includeEntry(name, uri, at?.line ?? flowLine, at?.block);
   };
 
   // A function declared at the top level is a flow of its own, whose one
@@ -683,26 +680,31 @@ export class IncludeExit extends ParsedObject {
   }
 }
 
-// The key of each statement that runs or ends an included script's content,
-// so that the statement keeps its chunk with nothing read again while it
-// reads the same and stands where it stood (`ChunkStore.keepCarried`): an
-// exit by its syntax, which names its flow, which names the script, and an
-// entry by its syntax and the flow the entry before it runs. So there are a
-// few keys per script a session includes, and two programs that include one
-// script share them, as each store keeps its own chunk under each.
+// The key of each statement that ends an included script's content, by its
+// syntax, which names its flow, which names the script: the statement stands
+// last in that flow whatever else the flow holds, so it keeps its chunk with
+// nothing read again while it reads the same (`ChunkStore.keepCarried`).
+// There is one key per script a session includes, and two programs that
+// include one script share it, as each store keeps its own chunk under it.
 const includeKeys = new Map<string, object>();
+
+// The key of each statement that runs an included script's content
+// (`includeEntry`), by the compiled block of the `include` or `run`
+// statement it stands for and its syntax, so that it is carried exactly
+// while that block is, as a statement of any other block is.
+const includeEntryKeys = new WeakMap<object, Map<string, object>>();
 
 const includeStatement = (
   syntax: string,
   source: string,
   firstLine: number,
   obj: ParsedObject,
-  key = syntax,
+  keys: Map<string, object> = includeKeys,
 ): StatementSource => {
-  let block = includeKeys.get(key);
+  let block = keys.get(syntax);
   if (!block) {
     block = {};
-    includeKeys.set(key, block);
+    keys.set(syntax, block);
   }
   return {
     block,
@@ -718,26 +720,33 @@ const includeStatement = (
 /** The statement of the including flow that runs the included script `uri`'s
  *  top-level content, the flow `flow` (`IncludeEntry`), on the line of the
  *  `include` statement (`statementsOf` keeps it above the statements after
- *  it). It has no line rows. It is known by its syntax and by the flow the
- *  entry before it runs (`previous`, or the empty string for the first):
- *  entries of includes written below content of the script's own all stand
- *  on that content's line, so the lines of a reorder of them, which the
- *  compile's changed blocks name, do not say which entries moved
- *  (`ChunkStore.reuseOf`), and an entry whose predecessor changed is one the
- *  build aligns anew, by its syntax, which keeps its chunk. */
+ *  it). It has no line rows. It is known by the compiled block of that
+ *  statement (`includeBlock`) and its syntax, so it is carried only while
+ *  the incremental parse carried that block, which an edit to the statement
+ *  or around it lowers anew: entries of includes written below content of
+ *  the script's own all stand on that content's line, so the lines of a
+ *  reorder of them, which the compile's changed blocks name, do not say
+ *  which entries moved (`ChunkStore.reuseOf`), and the entries of the edited
+ *  statements are ones the build aligns anew, by their syntax, which keeps
+ *  their chunks. Without the block (a caller that cannot say), the key is
+ *  the syntax's alone. */
 const includeEntry = (
   flow: string,
   uri: string,
   firstLine: number,
-  previous: string,
+  includeBlock: object | undefined,
 ) => {
-  const syntax = `IncludeEntry\u0000${flow}`;
+  let keys = includeKeys;
+  if (includeBlock) {
+    keys = includeEntryKeys.get(includeBlock) ?? new Map();
+    includeEntryKeys.set(includeBlock, keys);
+  }
   return includeStatement(
-    syntax,
+    `IncludeEntry\u0000${flow}`,
     `include ${uri}`,
     firstLine,
     new IncludeEntry(flow),
-    `${syntax}\u0000after\u0000${previous}`,
+    keys,
   );
 };
 

@@ -768,11 +768,12 @@ export class SparkdownCompiler {
   protected _placedBy = new WeakMap<ParsedObject, object>();
   // Where each top-level object of an included script (its top level's
   // weave), which the story places where the script is included, came from:
-  // the included script and the line of the `include` or `run` statement in
-  // the script that includes it (`programFlows`, `includedAt`).
+  // the included script, and the line and compiled block of the `include` or
+  // `run` statement in the script that includes it (`programFlows`,
+  // `includedAt`).
   protected _includedAt = new WeakMap<
     ParsedObject,
-    { uri: string; line: number }
+    { uri: string; line: number; block: object }
   >();
   // What this compile knows of each compiled block: its script and line, its
   // syntax and the lowering inputs it recorded.
@@ -3450,7 +3451,12 @@ export class SparkdownCompiler {
               program,
               onDiagnostic,
             );
-            this.recordIncludedAt(includedStory, resolvedFilePath, lineNumberOffset);
+            this.recordIncludedAt(
+              includedStory,
+              resolvedFilePath,
+              lineNumberOffset,
+              compiledBlock,
+            );
             topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
           }
           if (state.fileResolutionState) {
@@ -3559,7 +3565,12 @@ export class SparkdownCompiler {
             }
           }
           if (runStory) {
-            this.recordIncludedAt(runStory, virtualUri, lineNumberOffset);
+            this.recordIncludedAt(
+              runStory,
+              virtualUri,
+              lineNumberOffset,
+              compiledBlock,
+            );
           }
           topLevelIncludedFileObjs.push(new IncludedFile(runStory));
         }
@@ -4716,11 +4727,17 @@ export class SparkdownCompiler {
   /** Records where an included script's top level came from: each object of
    *  `story`'s content that the including story places where the script is
    *  included (all but its flows, `Story.PreProcessTopLevelObjects`), with
-   *  the script `uri` and the `line` of the statement that includes it. */
-  protected recordIncludedAt(story: Story, uri: string, line: number): void {
+   *  the script `uri`, and the `line` and compiled `block` of the statement
+   *  that includes it. */
+  protected recordIncludedAt(
+    story: Story,
+    uri: string,
+    line: number,
+    block: object,
+  ): void {
     for (const obj of story.content ?? []) {
       if (!(obj instanceof FlowBase)) {
-        this._includedAt.set(obj, { uri, line });
+        this._includedAt.set(obj, { uri, line, block });
       }
     }
   }
