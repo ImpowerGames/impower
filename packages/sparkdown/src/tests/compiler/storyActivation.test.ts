@@ -472,6 +472,28 @@ describe("a story kept across later compiles", () => {
     expect(carried.parent).toBe("in B");
   });
 
+  // A compile of statement chunks makes no story, but writes into the
+  // objects it carries as any compile does; a story kept from before gets
+  // its values back when it is activated after it.
+  it("puts a kept story's values back after a compile that made no story", () => {
+    const journal = new StoryJournal();
+    const A = { name: "A" };
+    journal.beginCompile();
+    const metadata: any = { _heldAtRuntime: true, startLineNumber: 7 };
+    journal.endCompile(A);
+    journal.keep(A);
+    // A compile of statement chunks restamps the metadata A shares.
+    journal.beginCompile();
+    journal.recordDebugMetadata(metadata);
+    metadata.startLineNumber = 6;
+    journal.endCompile(undefined);
+    expect(journal.active).not.toBe(A);
+    journal.activate(A);
+    expect(metadata.startLineNumber).toBe(7);
+    journal.activate(journal.latest!);
+    expect(metadata.startLineNumber).toBe(6);
+  });
+
   it("records no debug metadata that only a parsed object holds", () => {
     // Stored declarations and scenes whose identifiers' metadata the compiler
     // restamps on every compile, though no runtime object holds it.

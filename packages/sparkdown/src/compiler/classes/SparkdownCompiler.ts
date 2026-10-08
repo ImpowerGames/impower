@@ -1926,7 +1926,11 @@ export class SparkdownCompiler {
       story?: RuntimeStory;
       produced?: boolean;
     } = this.compileStory(params);
-    const event = { ...result, produced: !!result.produced };
+    // The listeners get the result itself, with `produced`, and what they
+    // write into it (the route search's report, `RouteSearchLog.report`) is
+    // what the compile answers with.
+    result.produced = !!result.produced;
+    const event = result as typeof result & { produced: boolean };
     // Only a compile of the real documents can answer for them.
     this._canonical = this._lastCompileResult
       ? {
