@@ -143,12 +143,7 @@ export function testCompiler(): SparkdownCompiler {
  * statement's call among it, which the design leaves to the current engine
  * (docs/engine/binary-program.md, What is built).
  */
-const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
-  "Choice",
-  "a label between choices an if gates",
-  "a choice inside a block of a presentation",
-  "IncludedFile",
-]);
+const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([]);
 
 /** The story of a compile's `program.compiled`: on the program engine, the
  *  engine over its root. A program that fell back to the current engine runs

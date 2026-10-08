@@ -16,6 +16,9 @@ const probe = process.env["SPARKDOWN_PROBE"] === "1";
 
 export default defineConfig({
   test: {
+    // Every compile builds statement chunks unless the test says otherwise
+    // (#705).
+    setupFiles: ["src/tests/programChunksByDefault.ts"],
     include: differential
       ? [`${DIFFERENTIAL}/*.test.ts`]
       : ["src/**/*.{test,spec}.{ts,tsx}"],
