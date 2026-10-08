@@ -60,9 +60,9 @@ export interface DOMHarness {
 }
 
 /** A fixture's program, compiled to statement chunks for the binary
- *  program's engine (#692), where a fixture that falls back to the current
- *  engine is refused; with `programChunks` false, the current engine's. */
-export function compile(source: string, programChunks = true) {
+ *  program's engine (#692); a fixture the compile makes no chunks for is
+ *  refused, with the errors it reported. */
+export function compile(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     // Builtins come from the implicitly-imported builtins prelude (the compiler
@@ -71,7 +71,6 @@ export function compile(source: string, programChunks = true) {
     // The engine sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
-    programChunks,
     files: [
       {
         uri: MAIN_URI,
@@ -85,14 +84,12 @@ export function compile(source: string, programChunks = true) {
     ],
   });
   const result = compiler.compile({ textDocument: { uri: MAIN_URI } });
-  if (programChunks) {
-    if (!result.program.chunks) {
-      throw new Error(
-        `DOM fixture falls back to the current engine for ${result.program.fallback?.construct}`,
-      );
-    }
-  } else if (!result.program.compiled) {
-    throw new Error("DOM fixture failed to compile");
+  if (!result.program.chunks) {
+    const errors = Object.values(result.program.diagnostics ?? {})
+      .flat()
+      .filter((d) => d.severity === 1)
+      .map((d) => `${d.range.start.line}: ${typeof d.message === "string" ? d.message : d.message.value}`);
+    throw new Error(`DOM fixture made no program: ${errors.join("; ")}`);
   }
   return result.program;
 }
@@ -296,13 +293,9 @@ export function createDOMHarness(
     /** Load a saved checkpoint before the connect, as the page does when it
      *  displays a preview from the worker's route. */
     loadCheckpoint?: string;
-    /** Run the game on the binary program's engine (`compile`); default on,
-     *  as every host's game. */
-    programChunks?: boolean;
   },
 ): DOMHarness {
-  const programChunks = opts?.programChunks ?? true;
-  const program = compile(source, programChunks);
+  const program = compile(source);
   const { overlay } = installJSDOM();
 
   // Timers armed with a real delay (an asset gate's timeout, the loading
@@ -313,7 +306,6 @@ export function createDOMHarness(
   const makeGame = (prog: any) => {
     const g = new Game({
       program: prog,
-      programChunks,
       previewFrom: { file: MAIN_URI, line: startLine },
       now: () => 0,
       setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
@@ -402,7 +394,7 @@ export function createDOMHarness(
      * rebuilt. Returns once settled.
      */
     async rerender(newSource: string, line = startLine) {
-      const newProgram = compile(newSource, programChunks);
+      const newProgram = compile(newSource);
       game = makeGame(newProgram);
       router = makeRouter();
       // Faithfully model GamePlayerController.buildApp on an edit: the OLD

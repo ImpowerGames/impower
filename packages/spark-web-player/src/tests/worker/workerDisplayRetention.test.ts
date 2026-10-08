@@ -4,8 +4,7 @@
 // suggestions, the one the page shows, the one it displayed last, the one a
 // display under way asks for and the one its game holds, and lets every other
 // go as soon as nothing keeps it, so nothing it holds grows with the browsing
-// or the editing. The programs run from their statement chunks, so the
-// compiler keeps no story of the current engine for any of them.
+// or the editing.
 import type { CompiledProgramParams } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
@@ -55,14 +54,6 @@ const recordPrograms = (h: Harness) => {
   });
   const keptIds = () => h.workerState.player.keptPrograms();
   return { ids, kept: () => ids.map((id) => keptIds().includes(id)) };
-};
-
-/** Whatever the compiler holds of the current engine's stories: nothing, as
- *  there is no such engine (#705). */
-const keptStories = (h: Harness) => {
-  const compiler = h.workerState.compilerState.compiler as any;
-  return { journal: compiler._storyJournal ?? null, story: compiler._lastCompileResult?.story ?? null };
-};
 };
 
 /** Rewrites the action of scene 3, differently each time. */
@@ -123,7 +114,6 @@ describe("the programs the worker keeps", () => {
       const heapBefore = gc ? heapMB() : undefined;
       const heapRounds: number[] = [];
       const counts: number[] = [];
-      const storyCounts: ReturnType<typeof keptStories>[] = [];
       for (let n = 0; n < 150; n++) {
         await h.suggest(
           [
@@ -137,7 +127,6 @@ describe("the programs the worker keeps", () => {
         if (n % 10 === 9) {
           await h.closeSuggestions();
           counts.push(h.workerState.player.keptPrograms().length);
-          storyCounts.push(keptStories(h));
           if (gc) heapRounds.push(heapMB());
         }
       }
@@ -150,9 +139,6 @@ describe("the programs the worker keeps", () => {
       // The newest program, the canonical one, and at most the four
       // suggestions the worker can be asked for again.
       expect(Math.max(...counts)).toBeLessThanOrEqual(6);
-      // And the compiler keeps no story of the current engine for them, nor
-      // any record of one.
-      expect(storyCounts).toEqual(storyCounts.map(() => ({ journal: null, story: null })));
     } finally {
       h.dispose();
     }

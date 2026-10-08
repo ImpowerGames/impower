@@ -173,8 +173,7 @@ end
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The first stop.")));
     // A resume restores the checkpoint (`restoreCheckpoint`): the program
-    // engine puts its beat image back, where the current engine loaded the
-    // checkpoint's save. Counted when it restores.
+    // engine puts its beat image back. Counted when it restores.
     let loads = 0;
     const realRestore = resumed.restoreCheckpoint.bind(resumed);
     resumed.restoreCheckpoint = (...args: unknown[]) => {
@@ -238,8 +237,7 @@ end
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The later stop.")));
     // A resume restores the checkpoint (`restoreCheckpoint`): the program
-    // engine puts its beat image back, where the current engine loaded the
-    // checkpoint's save. Counted when it restores.
+    // engine puts its beat image back. Counted when it restores.
     let loads = 0;
     const realRestore = resumed.restoreCheckpoint.bind(resumed);
     resumed.restoreCheckpoint = (...args: unknown[]) => {

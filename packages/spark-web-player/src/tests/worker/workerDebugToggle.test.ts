@@ -27,16 +27,10 @@ const FIRST = lineOf("The first line.");
 /** The worker's game that shows the preview. */
 const displayingGame = (h: any) => h.workerState.gameState.game;
 
-/** Whether a game stops at a source breakpoint on `line`: on the program
- *  engine, whether the addresses it compares each step with hold the line's
- *  address; on the current engine, whether its breakpoint map holds the
- *  line. */
+/** Whether a game stops at a source breakpoint on `line`: whether the
+ *  addresses it compares each step with hold the line's address. */
 const stopsAt = (game: any, line: number): boolean =>
-  game.programStory
-    ? (game._lineBreakAddresses as Set<number>).has(game.locator.addressAt(MAIN_URI, line))
-    : Object.values(game._breakpointMap as Record<number, Map<number, unknown>>).some((m) =>
-        m.has(line),
-      );
+  (game._lineBreakAddresses as Set<number>).has(game.locator.addressAt(MAIN_URI, line));
 
 describe("debugger settings", () => {
   it("gives the game it builds the debugger settings made before it existed", async () => {

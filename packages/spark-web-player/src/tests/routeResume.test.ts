@@ -91,19 +91,6 @@ function screenplay(beats = 8): { text: string; at: Marks } {
   return { text: lines.join("\n"), at };
 }
 
-/** The screenplay with two labels in its first act, `alpha` and `beta`, whose
- *  visit counts a later line can read. */
-const withLabels = (text: string) =>
-  text
-    .replace(
-      "  Beat 0 of the first act.",
-      "  label alpha\n  Beat 0 of the first act.",
-    )
-    .replace(
-      "  Beat 2 of the first act.",
-      "  label beta\n  Beat 2 of the first act.",
-    );
-
 const posAt = (text: string, offset: number) => {
   const before = text.slice(0, offset).split("\n");
   return { line: before.length - 1, character: before.at(-1)!.length };
@@ -160,7 +147,6 @@ interface RouteOutcome {
 
 interface CompiledRound extends RouteOutcome {
   program: SparkProgram;
-  story: unknown;
   startFrom: { file: string; line: number };
   /** What the compile said it changed, and what the route already planned
    *  offered it. Kept so a test can assert on the decision rather than on the
@@ -170,13 +156,7 @@ interface CompiledRound extends RouteOutcome {
   /** The favored conditions and choices the search that produced this outcome
    *  started from, so the same search can be run again against it. */
   options: SimulationOptions;
-  /** Whether the round ran on the program engine. */
-  programChunks: boolean;
 }
-
-/** The session a test is driving, so a comparison made after later compiles
- *  can run the story it compares against. */
-let currentSession: Session | undefined;
 
 /**
  * One compiler and one game, driven the way the player's workspace worker
@@ -189,11 +169,10 @@ class Session {
   readonly config: { simulationOptions?: SimulationOptions } = {};
   game?: Game;
   text: string;
-  /** Every story compiled so far, oldest first. The player's worker keeps
-   *  the stories it displays runnable across later compiles, and between
-   *  compiles its game displays one of them, which puts that story's values
-   *  back into the objects the newest story shares with it. */
-  readonly kept: { program: SparkProgram; story: any }[] = [];
+  /** Every program compiled so far, oldest first. The player's worker keeps
+   *  the programs it displays across later compiles, and between compiles
+   *  its game displays one of them. */
+  readonly kept: SparkProgram[] = [];
   version = 1;
   last?: CompiledRound;
 
@@ -202,33 +181,19 @@ class Session {
    *  before there was one: it searches the scene on every compile. */
   readonly withoutChangeSummary: boolean;
 
-  /** Whether the compiler builds statement chunks and the game runs them on
-   *  the program engine, whose route steps are addresses (#700). */
-  readonly programChunks: boolean;
-
   constructor(
     text: string,
     {
       withoutChangeSummary = false,
-      emitCompiledProgram = false,
-      programChunks = true,
     }: {
       withoutChangeSummary?: boolean;
-      /** Off, the game routes the compiler's own story and no bytecode is
-       *  written, as a player that holds the compiler in its own worker does. */
-      emitCompiledProgram?: boolean;
-      programChunks?: boolean;
     } = {},
   ) {
     this.text = text;
     this.withoutChangeSummary = withoutChangeSummary;
-    this.programChunks = programChunks;
-    currentSession = this;
     this.compiler.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
-      emitCompiledProgram,
-      programChunks,
       files: [
         {
           uri: URI,
@@ -243,30 +208,25 @@ class Session {
     } as never);
     this.compiler.addEventListener("compiler/didCompile", (params) => {
       this.log.forget();
-      this.route(params.program, params.story, true);
+      this.route(params.program, true);
     });
     this.compiler.addEventListener("compiler/didPreviewCompile", (params) => {
-      this.route(params.program, params.story, false);
+      this.route(params.program, false);
     });
   }
 
-  protected route(program: SparkProgram, story: unknown, remember: boolean) {
+  protected route(program: SparkProgram, remember: boolean) {
     if (this.withoutChangeSummary) {
       delete program.changes;
     }
-    if (story) {
-      this.compiler.keepStory(story as never);
-      this.kept.push({ program, story });
-    }
+    this.kept.push(program);
     if (!this.game) {
       this.game = new Game({
         program,
-        story,
         ...GAME_OPTIONS,
-        programChunks: this.programChunks,
       } as never);
     } else {
-      this.game.updateProgram(program, story as never);
+      this.game.updateProgram(program);
     }
     const startFrom = program.startFrom;
     this.last = undefined;
@@ -292,12 +252,10 @@ class Session {
     });
     this.last = {
       program,
-      story,
       startFrom,
       changes: program.changes,
       resumption,
       options,
-      programChunks: this.programChunks,
       to,
       checkpoint,
       simulation: this.game.simulation,
@@ -307,28 +265,20 @@ class Session {
     };
   }
 
-  /** Show the story before the newest on the game, as a display of the real
-   *  document after a suggestion, or of a kept suggestion, does between
+  /** Show the program before the newest on the game, as a display of the
+   *  real document after a suggestion, or of a kept suggestion, does between
    *  compiles. */
-  protected displayEarlierStory() {
+  protected displayEarlierProgram() {
     const shown = this.kept.at(-2);
     if (!shown || !this.game) {
       return;
     }
-    this.compiler.activateStory(shown.story);
-    this.game.updateProgram(shown.program, shown.story);
-  }
-
-  /** Make `story` the one that runs, when this session keeps it. */
-  activate(story: unknown) {
-    if (this.kept.some((k) => k.story === story)) {
-      this.compiler.activateStory(story as never);
-    }
+    this.game.updateProgram(shown);
   }
 
   /** Compile the real documents and route to `line`, as a saved edit does. */
   compile(line: number): CompiledRound {
-    this.displayEarlierStory();
+    this.displayEarlierProgram();
     quiet(() =>
       this.compiler.compile({
         textDocument: { uri: URI },
@@ -356,7 +306,7 @@ class Session {
    *  applying it, and route to `line` in that program. */
   preview(find: string, replace: string, line: number): CompiledRound {
     const applied = change(this.text, find, replace);
-    this.displayEarlierStory();
+    this.displayEarlierProgram();
     quiet(() =>
       this.compiler.previewCompile({
         root: { uri: URI },
@@ -378,12 +328,9 @@ class Session {
  * same program.
  */
 function fromTheTop(round: CompiledRound): RouteOutcome {
-  currentSession?.activate(round.story);
   const game = new Game({
     program: round.program,
-    story: round.story,
     ...GAME_OPTIONS,
-    programChunks: round.programChunks,
   } as never);
   game.setStartFrom(round.startFrom);
   const to = game.startAddress;
@@ -576,14 +523,6 @@ afterEach(() => {
 // Everything below rests on `expectSameAnswer`, so it is worth knowing that it
 // can fail. A comparison that quietly accepts a difference turns every test
 // that uses it into a test of nothing.
-// The tests that name it run on the current engine: what they rest on is
-// how the current engine resumes a route across a compile (its paths, its
-// change summary's confinement, its bytecode), where the program engine
-// resumes by address and searches on from a checkpoint (#700; "on the
-// program engine", below). With those expectations removed, the program
-// engine answers each of their hazards as a search from the top does.
-// #705's deletion removes them with the current engine.
-const CURRENT_ENGINE = { programChunks: false } as const;
 
 describe("the comparison the rest of these tests rest on", () => {
   const save = (over: Record<string, unknown> = {}) =>
@@ -652,30 +591,6 @@ describe("the comparison the rest of these tests rest on", () => {
 });
 
 describe("a compile whose edit is below the route's last checkpoint", () => {
-  test("replays the route it has, with no search and from that checkpoint", () => {
-    const { text, at } = screenplay();
-    const session = new Session(text, CURRENT_ENGINE);
-    const target = at["tail_6"]!;
-    session.compile(target);
-    const deepest = deepestCheckpoint(session.game!.plannedRoute!);
-    expect(deepest).toBeGreaterThanOrEqual(0);
-
-    const searches = watchSearches();
-    const replays = watchReplays();
-    session.edit(
-      "Beat 6 of the long tail.",
-      "Beat 6 of the long tail, at last.",
-    );
-    const after = session.compile(target);
-
-    expect(searches).toEqual([]);
-    expect(after.searchSteps).toBe(-1);
-    expect(after.simulation).toBe("success");
-    expect(replays).toHaveLength(1);
-    expect(replays[0]!.checkpoint).toBe(deepest);
-    expect(replays[0]!.fromStep).toBeGreaterThan(0);
-  });
-
   test("answers what a search from the top would answer", () => {
     const { text, at } = screenplay();
     const session = new Session(text);
@@ -754,7 +669,7 @@ describe("a compile that adds a line at the bottom of the scene", () => {
 describe("a compile that changes a statement the route already ran", () => {
   test("resumes from no checkpoint captured after it", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, CURRENT_ENGINE);
+    const session = new Session(text);
     const target = at["tail_6"]!;
     session.compile(target);
     const route = session.game!.plannedRoute!;
@@ -765,7 +680,11 @@ describe("a compile that changes a statement the route already ran", () => {
     const allowed = Math.max(
       -1,
       ...route.steps
-        .filter((s) => s.location != null && s.location[1]! < changedLine)
+        .filter(
+          (s) =>
+            (session.game!.locator.locationOf(s.address)?.startLine ?? Infinity) <
+            changedLine,
+        )
         .map((s) => s.checkpoint ?? -1),
     );
 
@@ -784,49 +703,11 @@ describe("a compile that changes a statement the route already ran", () => {
   });
 });
 
-describe("a preview compile", () => {
-  test("reuses the route and answers what a search from the top would", () => {
-    const { text, at } = screenplay();
-    const session = new Session(text, CURRENT_ENGINE);
-    const target = at["tail_6"]!;
-    session.compile(target);
-
-    const searches = watchSearches();
-    const preview = session.preview(
-      "Beat 6 of the long tail.",
-      "Beat 6 of the long tail, suggested.",
-      target,
-    );
-
-    expect(searches).toEqual([]);
-    expectSameAnswer(preview, fromTheTop(preview));
-  });
-
-  test("leaves the real program's next route able to resume too", () => {
-    const { text, at } = screenplay();
-    const session = new Session(text, CURRENT_ENGINE);
-    const target = at["tail_6"]!;
-    session.compile(target);
-    session.preview(
-      "Beat 6 of the long tail.",
-      "Beat 6 of the long tail, suggested.",
-      target,
-    );
-
-    const searches = watchSearches();
-    const after = session.compile(target);
-
-    expect(searches).toEqual([]);
-    expectSameAnswer(after, fromTheTop(after));
-  });
-});
-
 // Each of these changes what the story does along a route without editing a
 // line the route runs through: a declaration whose value every checkpoint's
-// variables embed, or an edit that moves a visit-count flag or a divert target
-// inside a scene nobody touched. The compile must refuse to call itself
-// confined, the route must be searched again, and the answer must be the one a
-// search from the top gives.
+// variables embed, or a declaration added below the route. The compile must
+// refuse to call itself confined, the route must be searched again, and the
+// answer must be the one a search from the top gives.
 const HAZARDS: { name: string; find: string; replace: string }[] = [
   {
     name: "a store's value changes",
@@ -844,49 +725,17 @@ const HAZARDS: { name: string; find: string; replace: string }[] = [
     replace: "const LATE = 4\n\nscene act_two",
   },
   {
-    name: "a later line first reads an earlier container's visit count",
-    find: "  Beat 0 of the second act.",
-    replace: "  Beat 0 of the second act. It has run {act_one} times.",
-  },
-  {
-    // The same hazard written inside the scene the route runs through. The
-    // scene's own shape is expected to change here, so the comparison that
-    // catches the case above cannot be the one that catches this: what moves is
-    // how much counting the scene requires, and every checkpoint taken before
-    // it started counting is short a visit it cannot reconstruct.
-    name: "a later line first reads the visit count of the scene being routed",
-    find: "  Beat 7 of the long tail.",
-    replace: "  Beat 7 of the long tail. It has run {act_one} times.",
-  },
-  {
-    name: "a flow below the route is renamed",
-    find: "scene act_two",
-    replace: "scene act_three",
-  },
-  {
-    name: "a scene is added below the route",
-    find: "scene act_two",
-    replace: "scene act_interlude\n  A quiet moment.\nend\n\nscene act_two",
-  },
-  {
     name: "a function is added below the route",
     find: "scene act_two",
     replace: "function late(n)\n  return n + 1\nend\n\nscene act_two",
   },
 ];
 
-// Each case runs with the bytecode emitted and without it, because a compile
-// that writes none has to reach the same verdict from the same evidence.
-const EMISSION = [
-  { emitCompiledProgram: true, mode: "emitting" },
-  { emitCompiledProgram: false, mode: "not emitting" },
-];
-
-describe.each(EMISSION)("a change the route's own lines cannot account for, $mode", ({ emitCompiledProgram }) => {
+describe("a change the route's own lines cannot account for", () => {
   for (const hazard of HAZARDS) {
     test(`is searched again (${hazard.name})`, () => {
       const { text, at } = screenplay();
-      const session = new Session(text, { emitCompiledProgram, ...CURRENT_ENGINE });
+      const session = new Session(text);
       const target = at["tail_6"]!;
       session.compile(target);
 
@@ -902,42 +751,6 @@ describe.each(EMISSION)("a change the route's own lines cannot account for, $mod
       expectSameAnswer(after, fromTheTop(after));
     });
   }
-
-  // The same hazard again, written so that nothing which merely adds up how
-  // much counting a scene does can catch it. Two labels stand in the first act
-  // and one of them is read from the bottom of the scene; moving the read to
-  // the other label stops one container counting and starts another under the
-  // same flags. Every checkpoint taken before the move carries a count for the
-  // container that no longer keeps one and none for the container that now
-  // does, so a route resumed from one reports the wrong number of visits.
-  test("is searched again (a later line reads a different container's visit count)", () => {
-    const { text } = screenplay();
-    const READ = "  Beat 7 of the long tail. It has run {act_one.alpha} times.";
-    const labelled = withLabels(text).replace("  Beat 7 of the long tail.", READ);
-    const target = labelled.split("\n").indexOf(READ);
-    expect(target, "the line being routed to is in the fixture").toBeGreaterThan(
-      0,
-    );
-    const session = new Session(labelled, { emitCompiledProgram, ...CURRENT_ENGINE });
-    const before = session.compile(target);
-    expect(
-      (before.program.diagnostics?.[URI] ?? []).filter(
-        (d) => d.severity === 1,
-      ),
-      "the fixture compiles clean",
-    ).toEqual([]);
-
-    const searches = watchSearches();
-    session.edit("{act_one.alpha}", "{act_one.beta}");
-    const after = session.compile(target);
-
-    expect({
-      confined: after.changes?.confined,
-      resumed: after.resumption.stepIndex != null,
-    }).toEqual({ confined: false, resumed: false });
-    expect(searches.length).toBeGreaterThan(0);
-    expectSameAnswer(after, fromTheTop(after));
-  });
 });
 
 /** A small deterministic generator, so a failing sequence is reproducible. */
@@ -1011,173 +824,6 @@ describe("randomized edit sequences", () => {
   });
 });
 
-// A player that holds the compiler in its own worker routes the compiler's own
-// story and never reads bytecode, so it compiles with emission off. Whether a
-// compile is confined is a question about the program, not about whether it was
-// written out, so the verdict has to be the same one.
-describe("a compile that emits no bytecode", () => {
-  test("certifies an edit inside one beat and replays with no search", () => {
-    const { text, at } = screenplay();
-    const session = new Session(text, { emitCompiledProgram: false, ...CURRENT_ENGINE });
-    const target = at["tail_6"]!;
-    session.compile(target);
-    const deepest = deepestCheckpoint(session.game!.plannedRoute!);
-    expect(deepest).toBeGreaterThanOrEqual(0);
-
-    const searches = watchSearches();
-    const replays = watchReplays();
-    session.edit(
-      "Beat 6 of the long tail.",
-      "Beat 6 of the long tail, at last.",
-    );
-    const after = session.compile(target);
-
-    expect(after.program.compiled).toBeUndefined();
-    expect(after.changes?.confined).toBe(true);
-    expect(searches).toEqual([]);
-    expect(after.searchSteps).toBe(-1);
-    expect(replays).toHaveLength(1);
-    expect(replays[0]!.checkpoint).toBe(deepest);
-    expectSameAnswer(after, fromTheTop(after));
-  });
-
-  test("never serializes the program", () => {
-    const { text, at } = screenplay();
-    const session = new Session(text, { emitCompiledProgram: false, ...CURRENT_ENGINE });
-    session.compiler.profilerId = "713";
-    const proto = SparkdownCompiler.prototype as unknown as Record<string, any>;
-    const serialize = vi.spyOn(proto, "serializeCompiledProgram");
-    const measure = vi.spyOn(performance, "measure");
-    const target = at["tail_6"]!;
-
-    session.compile(target);
-    session.edit(
-      "Beat 6 of the long tail.",
-      "Beat 6 of the long tail, at last.",
-    );
-    session.preview(
-      "Beat 5 of the long tail.",
-      "Beat 5 of the long tail, suggested.",
-      target,
-    );
-    const after = session.compile(target);
-
-    const phases = measure.mock.calls.map(([name]) => String(name));
-    expect(serialize).not.toHaveBeenCalled();
-    expect(phases.filter((name) => name.includes("ink/json"))).toEqual([]);
-    // The walk that stands in for serialization is measured under its own name.
-    expect(phases.some((name) => name.includes("ink/flowShapes"))).toBe(true);
-    expect(after.program.compiled).toBeUndefined();
-    expect(after.program.compiledBuffer).toBeUndefined();
-    expect(after.changes?.confined).toBe(true);
-  });
-});
-
-describe("randomized edit sequences, emitting and not", () => {
-  test("reach the same verdict on every compile", () => {
-    const text = withLabels(screenplay().text);
-    const lines = text.split("\n");
-    const targets = [
-      "  Beat 1 of the long tail.",
-      "  Beat 4 of the long tail.",
-      "  Beat 7 of the long tail.",
-      "    The door is open.",
-      "  Beat 5 of the first act.",
-    ].map((line) => lines.indexOf(line));
-    expect(targets.every((line) => line > 0)).toBe(true);
-    const emitting = new Session(text);
-    const silent = new Session(text, { emitCompiledProgram: false });
-    const both = (act: (session: Session) => CompiledRound) => {
-      const a = act(emitting);
-      const b = act(silent);
-      expect(emitting.text).toBe(silent.text);
-      return [a, b] as const;
-    };
-    let target = targets[2]!;
-    both((s) => s.compile(target));
-
-    // The two reproductions #653's reviews found, as edits the sequence can
-    // make: the first `{act_one}` reference inside the scene being routed, and
-    // counting moving between two labels.
-    const SCENE_READ = " It has run {act_one} times.";
-    let sceneRead = false;
-    let labelRead: "alpha" | "beta" | undefined;
-
-    const next = rng(20260921);
-    const rounds: string[] = [];
-    const verdicts = new Set<boolean | undefined>();
-    const seen = new Set<string>();
-    for (let i = 0; i < 40; i += 1) {
-      const roll = next();
-      const beat = Math.floor(next() * 8);
-      const suffix = ` (${i})`;
-      let label: string;
-      let pair: readonly [CompiledRound, CompiledRound];
-      if (roll < 0.15) {
-        target = targets[Math.floor(next() * targets.length)]!;
-        label = "move";
-        pair = both((s) => s.compile(target));
-      } else if (roll < 0.35) {
-        const find = `Beat ${beat} of the long tail.`;
-        label = "preview";
-        pair = both((s) => s.preview(find, `${find}${suffix}`, target));
-      } else if (roll < 0.5) {
-        const find = `Beat ${beat} of the long tail.`;
-        label = "edit tail";
-        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
-      } else if (roll < 0.6) {
-        const find = `Beat ${beat} of the first act.`;
-        label = "edit first act";
-        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
-      } else if (roll < 0.68) {
-        const find = `Beat ${beat} of the second act.`;
-        label = "edit second act";
-        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
-      } else if (roll < 0.8) {
-        const find = "Beat 6 of the long tail.";
-        label = sceneRead ? "drop the scene read" : "add the scene read";
-        pair = both((s) => {
-          if (sceneRead) {
-            s.edit(SCENE_READ, "");
-          } else {
-            s.edit(find, `${find}${SCENE_READ}`);
-          }
-          return s.compile(target);
-        });
-        sceneRead = !sceneRead;
-      } else if (roll < 0.95) {
-        const to = labelRead === "alpha" ? "beta" : "alpha";
-        label = labelRead ? `move the label read to ${to}` : "add a label read";
-        pair = both((s) => {
-          if (labelRead) {
-            s.edit(`{act_one.${labelRead}}`, `{act_one.${to}}`);
-          } else {
-            const find = "Beat 7 of the long tail.";
-            s.edit(find, `${find} Counted {act_one.${to}}.`);
-          }
-          return s.compile(target);
-        });
-        labelRead = to;
-      } else {
-        label = "touch a global";
-        pair = both((s) => (s.edit("store trust = ", "store trust =  "), s.compile(target)));
-      }
-      rounds.push(label);
-      seen.add(label);
-      const note = rounds.join(" | ");
-      const [on, off] = pair;
-      expect(off.changes?.confined, note).toBe(on.changes?.confined);
-      verdicts.add(off.changes?.confined);
-      expectSameAnswer(off, fromTheTop(off), note);
-    }
-    // A sequence that never certified anything, or never refused, or never made
-    // the two edits it exists for, would prove nothing.
-    expect([...verdicts].sort()).toEqual([false, true]);
-    expect(seen).toContain("add the scene read");
-    expect(seen).toContain("move the label read to beta");
-  });
-});
-
 // The same oracle on the program engine (#700). A route step is known by its
 // address, which names its statement's chunk, and a step is reused when the
 // new root still holds its chunk and still moves from the step before it the
@@ -1186,8 +832,6 @@ describe("randomized edit sequences, emitting and not", () => {
 // reused must still be a shortcut and not a different answer: the route, the
 // verdict and the checkpoint equal a search and replay from the top of the
 // scene in a fresh game.
-const PROGRAM = {} as const;
-
 /** The story steps the program engine ran during `run`, past any story's
  *  declarations: the search's and the replay's. */
 const stepsRun = (_session: Session, run: () => CompiledRound) => {
@@ -1235,20 +879,19 @@ const stepsRun = (_session: Session, run: () => CompiledRound) => {
 describe("on the program engine", () => {
   test("a route's steps are addresses, and its checkpoints those of the program engine", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, PROGRAM);
+    const session = new Session(text);
     const round = session.compile(at["tail_6"]!);
     expect(round.simulation).toBe("success");
     expect(typeof round.to).toBe("number");
     expect(round.stepAddresses.length).toBeGreaterThan(20);
     expect(round.stepAddresses.every((a) => typeof a === "number")).toBe(true);
-    expect(round.program.pathLocations).toBeUndefined();
     expect(round.changes?.chunks).toBeDefined();
     expect(session.game!.programStory).not.toBeNull();
   });
 
   test("an edit to a display beat below every checkpoint resumes the last one, and runs only the steps after it", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, PROGRAM);
+    const session = new Session(text);
     const target = at["tail_6"]!;
     const first = stepsRun(session, () => session.compile(target));
     const route = session.game!.plannedRoute!;
@@ -1257,8 +900,8 @@ describe("on the program engine", () => {
     // The last checkpoint standing before the edited beat: the deepest one
     // that a step before the beat's own carries. The beat's statement is
     // emitted again, so the route's steps from it on name an address the new
-    // program does not hold, unlike the current engine's paths, and the
-    // story searches on from that checkpoint instead of replaying (#700).
+    // program does not hold, and the story searches on from that checkpoint
+    // instead of replaying (#700).
     const edited = Math.floor(
       session.game!.programStory!.root.addressAt(URI, target)! / 2 ** 21,
     );
@@ -1324,7 +967,7 @@ describe("on the program engine", () => {
       "end",
       "",
     ];
-    const session = new Session(lines.join("\n"), PROGRAM);
+    const session = new Session(lines.join("\n"));
     const round = session.compile(lines.indexOf("  After the tunnel."));
     expect(round.simulation).toBe("success");
     expect(round.searchSteps).toBeGreaterThan(0);
@@ -1366,7 +1009,7 @@ describe("on the program engine", () => {
       const target = tunnel
         ? lines.indexOf("  After 2, score {score}.")
         : lines.indexOf("    Beat 25 of the branch, score {score}.");
-      const session = new Session(text, PROGRAM);
+      const session = new Session(text);
       const first = session.compile(target);
       expect(first.simulation).toBe("success");
       const route = session.game!.plannedRoute!;
@@ -1400,7 +1043,7 @@ describe("on the program engine", () => {
 
   test("a line added at the bottom of the scene searches on from the last checkpoint", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, PROGRAM);
+    const session = new Session(text);
     const first = session.compile(at["tail_7"]!);
     expect(first.searchSteps).toBeGreaterThan(20);
 
@@ -1420,7 +1063,7 @@ describe("on the program engine", () => {
 
   test("a statement inserted above the route's last checkpoint resumes from none captured after it", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, PROGRAM);
+    const session = new Session(text);
     const target = at["tail_6"]!;
     session.compile(target);
     const route = session.game!.plannedRoute!;
@@ -1458,7 +1101,7 @@ describe("on the program engine", () => {
 
   test("a preview compile reuses the route, and leaves the real program's next route able to resume", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, PROGRAM);
+    const session = new Session(text);
     const target = at["tail_7"]!;
     session.compile(target);
 
@@ -1499,7 +1142,7 @@ describe("on the program engine", () => {
 
   test("randomized edit sequences, with preview compiles between them, never answer differently from a search of the whole scene", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, PROGRAM);
+    const session = new Session(text);
     const targets = ["tail_1", "tail_4", "tail_7", "doorOpen", "one_5"].map(
       (mark) => at[mark]!,
     );
@@ -1625,7 +1268,7 @@ describe("on the program engine, a compile that edits an initializer", () => {
       test(`resumes no checkpoint and replays from the top (${edit.name}, ${layout})`, () => {
         const text = lines.join("\n");
         const target = lines.indexOf("  Beat 4 of the long tail.");
-        const session = new Session(text, PROGRAM);
+        const session = new Session(text);
         const first = session.compile(target);
         expect(first.simulation).toBe("success");
         const route = session.game!.plannedRoute!;

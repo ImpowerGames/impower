@@ -43,7 +43,6 @@ describe("route errors", () => {
     compiler.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
-      emitCompiledProgram: false,
       files: [
         { uri: URI, type: "script", name: "main", ext: "sd", text: SOURCE, version: 1, languageId: "sparkdown" },
       ],
@@ -52,11 +51,10 @@ describe("route errors", () => {
     let game: Game | undefined;
     const rounds: { errors: unknown; resumed: boolean }[] = [];
     compiler.addEventListener("compiler/didCompile", (params) => {
-      const { program, story } = params;
+      const { program } = params;
       if (!game) {
         game = new Game({
           program,
-          story,
           now: () => 0,
           setTimeout: ((fn: Function) => {
             fn();
@@ -66,7 +64,7 @@ describe("route errors", () => {
           verifyCheckpoints: false,
         } as never);
       } else {
-        game.updateProgram(program, story as never);
+        game.updateProgram(program);
       }
       game.setStartFrom({ file: URI, line: TARGET });
       const to = game.startAddress!;

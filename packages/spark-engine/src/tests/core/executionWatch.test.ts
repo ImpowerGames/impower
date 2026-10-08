@@ -63,15 +63,10 @@ const runtimeErrors = (messages: any[]) =>
 
 /** PLAY `source` from `line` (zero-based) with a lowered step budget, and
  *  every story the watch heard from, with the line each was running. The
- *  game runs the program engine, as every host's does, unless
- *  `programChunks` is false. */
-const playWatched = async (
-  source: string,
-  line: number,
-  programChunks = true,
-) => {
+ *  game runs the program engine, as every host's does. */
+const playWatched = async (source: string, line: number) => {
   const heard: { story: WatchedStory; line: number | null }[] = [];
-  const h = createHarness(source, line, { programChunks });
+  const h = createHarness(source, line);
   await h.ready;
   h.reset();
   const game = h.game as any;

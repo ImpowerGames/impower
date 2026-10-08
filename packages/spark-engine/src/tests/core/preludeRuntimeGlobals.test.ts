@@ -1,19 +1,15 @@
 // P5 prerequisite — CHARACTERIZATION (read-only, no production change).
 //
-// The builtins prelude (builtins.sd) is compiled once in isolation; its
-// `compiled` runtime story is cached but currently instantiated by NOBODY (the
-// engine reads builtin defines from the static, lossy program.context channel
-// instead). This test proves whether that cached prelude compiled story is a
-// VALID CARRIER of the builtin `__def` globals — i.e. instantiating it populates
-// the runtime VM's globals and buildDefinesContext can extract the builtin
-// defines WITH inherited type defaults. If so, the engine can read builtins from
-// a separately-instantiated prelude Story (or from a source-injected story)
-// rather than the static channel — the open question P5 must settle.
+// The builtins prelude (builtins.sd) compiled in isolation is a VALID CARRIER
+// of the builtin `__def` globals: the program engine's story of its statement
+// chunks populates the runtime VM's globals, and buildDefinesContext can
+// extract the builtin defines WITH inherited type defaults, so the engine can
+// read builtins from the story (a source-injected one) rather than the static
+// program.context channel.
 
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { programContent } from "@impower/sparkdown/src/tests/programListing";
 import { programStoryOf, requireChunks } from "../harness/compileProgram";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
@@ -50,31 +46,15 @@ function compilePrelude() {
   return compiler.compile({ textDocument: { uri: PRELUDE_URI } });
 }
 
-describe("P5 prerequisite: prelude compiled story carries builtin __def globals", () => {
-  test("the prelude compiles to a runtime story", () => {
+describe("P5 prerequisite: the prelude's story carries builtin __def globals", () => {
+  test("the prelude compiles to statement chunks", () => {
     const result = compilePrelude();
-    expect(result.program.compiled).toBeTruthy();
-  });
-
-  test("the prelude declares no top-level named flows (undefended span invariant)", () => {
-    // The source-injected prelude's cached parse skips the compiler's
-    // flow-reuse machinery on every compile after the first, which is sound
-    // ONLY while the prelude contributes no top-level knot/function/scene:
-    // a prelude flow would inject PRELUDE line numbers into the single
-    // cross-file line space `computeFlowReuse`/`populateAllLocations` sort
-    // over, corrupting span arithmetic for the user's flows. If this test
-    // ever fails because a builtin helper function was added to builtins.sd,
-    // that machinery needs to learn about prelude-owned flows first.
-    const result = compilePrelude();
-    const program: any = result.program;
-    expect(Object.keys(program.functionLocations ?? {})).toEqual([]);
-    expect(Object.keys(program.knotLocations ?? {})).toEqual([]);
-    expect(Object.keys(program.sceneLocations ?? {})).toEqual([]);
+    expect(result.program.chunks).toBeTruthy();
   });
 
   test("instantiating the prelude story populates _globalVariables with defines", () => {
     const result = compilePrelude();
-    const story = new Story(result.program.compiled as any);
+    const story = programStoryOf(result.program, "prelude");
     const globals = (story as any).state?.variablesState?._globalVariables;
     expect(globals instanceof Map).toBe(true);
     expect((globals as Map<string, unknown>).size).toBeGreaterThan(0);
@@ -82,7 +62,7 @@ describe("P5 prerequisite: prelude compiled story carries builtin __def globals"
 
   test("buildDefinesContext on the prelude story extracts builtin instances + props", () => {
     const result = compilePrelude();
-    const story = new Story(result.program.compiled as any);
+    const story = programStoryOf(result.program, "prelude");
     const ctx = buildDefinesContext(story as any);
 
     // `ui as config` → registered under the `config` type with its own props.
@@ -154,7 +134,7 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
 
     // Non-perturbation: program.context (the LSP-only superset the channels are
     // derived from) is byte-identical — the flag only adds builtin globals to
-    // program.compiled, never to the static context.
+    // the story the program runs, never to the static context.
     expect(JSON.stringify(on.program.context)).toBe(
       JSON.stringify(off.program.context),
     );

@@ -316,8 +316,6 @@ type Arrival = {
   simulation?: "fail";
   checkpoint?: string;
   prepare?: (game: Game) => void;
-  /** Compile and run on the current engine (`programChunks: false`). */
-  currentEngine?: boolean;
 };
 
 /** A game connected the way the page connects one for a preview at `line`:
@@ -328,7 +326,6 @@ const connected = (story: string, line: number, arrival: Arrival = {}) =>
     assets: ASSETS,
     holdAssets: true,
     loadCheckpoint: arrival.checkpoint,
-    ...(arrival.currentEngine ? { programChunks: false } : {}),
     beforeConnect: (game) => {
       if (arrival.simulation) {
         game.simulation = arrival.simulation;
@@ -435,10 +432,13 @@ describe("preview prediction and gate", () => {
   it("gates exactly what the preview writes, whatever the source shape", async () => {
     // Beat lines: 1, 3, 5 in the alternating and blank shapes; 1, 2, 4 in
     // the consecutive one; 1 and 3 in the hide shape; 2 and 6 with control
-    // flow between. Line 0 is the scene heading. A jump to a line runs from
-    // that line's path, so a backdrop on the line above is not written.
+    // flow between. Line 0 is the scene heading, which holds no beat: the
+    // program's locator answers it with the first beat below it
+    // (`ProgramLocator.addressAt`), so a preview of it shows line 1 and gates
+    // that beat's backdrop. A jump to a line runs from that line's address,
+    // so a backdrop on the line above is not written.
     const cases: Array<[string, number, string[]]> = [
-      ["alternating", 0, []],
+      ["alternating", 0, ["room.png"]],
       ["alternating", 1, ["room.png"]],
       ["alternating", 3, ["bunny.png"]],
       ["alternating", 5, ["hat.png"]],
@@ -475,13 +475,7 @@ describe("preview prediction and gate", () => {
       ],
     ];
     for (const [shape, line, expected] of cases) {
-      // The scene heading's case on the current engine: the program's
-      // locator answers a line with no beat with the first beat below it
-      // (`ProgramLocator.addressAt`), so the program engine previews line 1
-      // there and gates its backdrop.
-      const got = await previewGate(SHAPES[shape]!, line, {
-        currentEngine: shape === "alternating" && line === 0,
-      });
+      const got = await previewGate(SHAPES[shape]!, line);
       expect({ shape, line, gated: got.gated }).toEqual({
         shape,
         line,

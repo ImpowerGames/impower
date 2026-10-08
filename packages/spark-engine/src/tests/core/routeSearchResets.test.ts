@@ -29,12 +29,9 @@ end
 `;
 const TARGET_LINE = 9; // "Third line here.", counting from zero
 
-/** `currentEngine` compiles for the current engine, whose game runs it
- *  there (the one case below that names it says why). */
-function compileSrc(src: string, currentEngine = false) {
+function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    ...(currentEngine ? { programChunks: false } : {}),
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [
@@ -53,15 +50,12 @@ function compileSrc(src: string, currentEngine = false) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  return currentEngine
-    ? result.program
-    : requireChunks(result.program, "route-reset fixture");
+  return requireChunks(result.program, "route-reset fixture");
 }
 
-function newGame(program: unknown, currentEngine = false) {
+function newGame(program: unknown) {
   return new Game({
     program: program as any,
-    ...(currentEngine ? { programChunks: false } : {}),
     now: () => 0,
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
       fn(...a);
@@ -71,9 +65,8 @@ function newGame(program: unknown, currentEngine = false) {
 }
 
 /** Count the runs of the declarations on this one story (the program
- *  engine's `runDeclarations`, which every reset runs, as the current
- *  engine's `ResetGlobals` ran its `global decl`), and report the count so
- *  far. */
+ *  engine's `runDeclarations`, which every reset runs), and report the count
+ *  so far. */
 function countGlobalEvaluations(game: Game): () => number {
   const story = game.story as any;
   const method = game.programStory ? "runDeclarations" : "ResetGlobals";
@@ -147,21 +140,15 @@ describe("route search resets (#650)", () => {
     expect(evaluations()).toBeGreaterThanOrEqual(1);
   });
 
-  test.each([
-    ["the program engine", false],
-    ["the current engine", true],
-  ])(
-    "a global written from outside leaves the story not pristine on %s (#1692)",
-    (_engine, currentEngine) => {
-      const program = compileSrc(SRC, currentEngine);
-      const game = newGame(program, currentEngine);
-      expect(game.story.stateIsPristine).toBe(true);
+  test("a global written from outside leaves the story not pristine on the program engine (#1692)", () => {
+    const program = compileSrc(SRC);
+    const game = newGame(program);
+    expect(game.story.stateIsPristine).toBe(true);
 
-      (game.story.variablesState as any)["score"] = 999;
+    (game.story.variablesState as any)["score"] = 999;
 
-      expect(game.story.stateIsPristine).toBe(false);
-    },
-  );
+    expect(game.story.stateIsPristine).toBe(false);
+  });
 
   test("a found route leaves a story the caller can reset straight away", () => {
     const program = compileSrc(SRC);
