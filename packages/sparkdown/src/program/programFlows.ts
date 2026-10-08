@@ -160,6 +160,8 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   ): StatementSource[] => {
     const statements: StatementSource[] = [];
     const entries = new Set<StatementSource>();
+    // The flow the entry before the next one runs (`includeEntry`).
+    let previousEntry = "";
     let block: object | undefined;
     let objects: ParsedObject[] = [];
     const close = () => {
@@ -196,10 +198,12 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
               obj,
               isIncludeNewline(list[i + 1]) ? 1 : 0,
               flowLine,
+              previousEntry,
             );
             if (entry) {
               statements.push(entry);
               entries.add(entry);
+              previousEntry = (entry.objects[0] as IncludeEntry).flow;
             }
           } else if (isDeclaration(obj)) {
             // A declaration placed by no statement the compile recorded;
@@ -253,6 +257,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     weave: Weave,
     newlines: number,
     flowLine: number,
+    previous: string,
   ): StatementSource | undefined => {
     const at = input.includedAt?.(weave);
     const uri = at?.uri ?? scriptOf(weave.content, input);
@@ -275,7 +280,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       },
       newlines,
     });
-    return includeEntry(name, uri, at?.line ?? flowLine);
+    return includeEntry(name, uri, at?.line ?? flowLine, previous);
   };
 
   // A function declared at the top level is a flow of its own, whose one
@@ -679,11 +684,12 @@ export class IncludeExit extends ParsedObject {
 }
 
 // The key of each statement that runs or ends an included script's content,
-// by its syntax, so that the statement keeps its chunk with nothing read
-// again while it reads the same (`ChunkStore.keepCarried`). Its syntax names
-// the flow, which names the script, so there is one key per script a
-// session includes, and two programs that include one script share it, as
-// each store keeps its own chunk under it.
+// so that the statement keeps its chunk with nothing read again while it
+// reads the same and stands where it stood (`ChunkStore.keepCarried`): an
+// exit by its syntax, which names its flow, which names the script, and an
+// entry by its syntax and the flow the entry before it runs. So there are a
+// few keys per script a session includes, and two programs that include one
+// script share them, as each store keeps its own chunk under each.
 const includeKeys = new Map<string, object>();
 
 const includeStatement = (
@@ -691,11 +697,12 @@ const includeStatement = (
   source: string,
   firstLine: number,
   obj: ParsedObject,
+  key = syntax,
 ): StatementSource => {
-  let block = includeKeys.get(syntax);
+  let block = includeKeys.get(key);
   if (!block) {
     block = {};
-    includeKeys.set(syntax, block);
+    includeKeys.set(key, block);
   }
   return {
     block,
@@ -711,14 +718,28 @@ const includeStatement = (
 /** The statement of the including flow that runs the included script `uri`'s
  *  top-level content, the flow `flow` (`IncludeEntry`), on the line of the
  *  `include` statement (`statementsOf` keeps it above the statements after
- *  it). It has no line rows. */
-const includeEntry = (flow: string, uri: string, firstLine: number) =>
-  includeStatement(
-    `IncludeEntry\u0000${flow}`,
+ *  it). It has no line rows. It is known by its syntax and by the flow the
+ *  entry before it runs (`previous`, or the empty string for the first):
+ *  entries of includes written below content of the script's own all stand
+ *  on that content's line, so the lines of a reorder of them, which the
+ *  compile's changed blocks name, do not say which entries moved
+ *  (`ChunkStore.reuseOf`), and an entry whose predecessor changed is one the
+ *  build aligns anew, by its syntax, which keeps its chunk. */
+const includeEntry = (
+  flow: string,
+  uri: string,
+  firstLine: number,
+  previous: string,
+) => {
+  const syntax = `IncludeEntry\u0000${flow}`;
+  return includeStatement(
+    syntax,
     `include ${uri}`,
     firstLine,
     new IncludeEntry(flow),
+    `${syntax}\u0000after\u0000${previous}`,
   );
+};
 
 /** The last statement of the flow of an included script's top-level content
  *  (`IncludeExit`), on the line after the flow's last, which no line of the

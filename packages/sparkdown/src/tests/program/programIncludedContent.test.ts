@@ -415,8 +415,21 @@ function session(initial: Record<string, string>) {
         ],
       });
       texts[uri] = text.slice(0, offset) + replace + text.slice(offset + find.length);
-      const program = quiet(() => c.compile(MAIN).program);
+      const { warn, error, log } = console;
+      const said: string[] = [];
+      console.warn = console.error = console.log = (...args: unknown[]) => {
+        said.push(args.map(String).join(" "));
+      };
+      let program;
+      try {
+        program = c.compile(MAIN).program;
+      } finally {
+        console.warn = warn;
+        console.error = error;
+        console.log = log;
+      }
       expect(program.fallback).toBeUndefined();
+      expect(program.chunks, said.join("\n").slice(0, 3000)).toBeDefined();
       root = program.chunks!;
       return root;
     },
@@ -436,9 +449,11 @@ const chunkChanges = (before: ProgramRoot, after: ProgramRoot) => {
 
 /** `root` by content, beside a cold compile's of the same texts. */
 const matchesCold = (root: ProgramRoot, texts: Record<string, string>) => {
-  const cold = quiet(() =>
+  const program = quiet(() =>
     programCompiler(texts, { programChunks: true, seedBuiltinsIntoStory: true }).compile(MAIN),
-  ).program.chunks!;
+  ).program;
+  expect(program.fallback).toBeUndefined();
+  const cold = program.chunks!;
   expect(describeRoot(root)).toEqual(describeRoot(cold));
   expect(storyRun(new ProgramStory(root), [0]).beats).toEqual(
     storyRun(new ProgramStory(cold), [0]).beats,
@@ -578,6 +593,42 @@ describe("an edit inside an included script", () => {
       "Main.\n",
     ]);
   });
+
+  // The entries of includes written below content of the script's own stand
+  // on that content's line, since they run before it.
+  for (const nested of [false, true]) {
+    it(`runs included content in its new order after ${nested ? "an included" : "the starting"} script swaps two of four includes written below its own content`, () => {
+      const WRAPPER = "file://proj/includes/wrapper.sd";
+      const child = (name: string) => `file://proj/includes/${name}.sd`;
+      const at = nested ? "" : "includes/";
+      const includer = lines(
+        "Own first.",
+        `include ${at}a.sd`,
+        `include ${at}b.sd`,
+        `include ${at}c.sd`,
+        `include ${at}d.sd`,
+      );
+      const s = session({
+        ...(nested
+          ? { [MAIN]: lines("include includes/wrapper.sd", "Main."), [WRAPPER]: includer }
+          : { [MAIN]: includer }),
+        [child("a")]: lines("A."),
+        [child("b")]: lines("B."),
+        [child("c")]: lines("C."),
+        [child("d")]: lines("D."),
+      });
+      s.edit(nested ? WRAPPER : MAIN, `include ${at}b.sd\ninclude ${at}c.sd`, `include ${at}c.sd\ninclude ${at}b.sd`);
+      matchesCold(s.root, s.texts);
+      expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
+        "A.\n",
+        "C.\n",
+        "B.\n",
+        "D.\n",
+        "Own first.\n",
+        ...(nested ? ["Main.\n"] : []),
+      ]);
+    });
+  }
 
   it("matches a cold compile when the including script gains an include and loses it again", () => {
     const s = session({ ...PROJECT, [INNER]: lines("Inner top.") });
