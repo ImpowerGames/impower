@@ -1,22 +1,19 @@
-// The program engine (#694) against the story engine on the beats scene.
+// The program engine (#694) on the beats scene.
 //
 // Run through engine-bench.mjs, one candidate per process, with the
 // configuration as one JSON argument: { project, candidate, samples, warmup,
-// json }. A candidate is an engine (`engine`, the shipped Story, or `program`,
-// ProgramStory running the scene's statement chunks) and how it is driven
-// (`step`, one call per step as the route planner drives a story, or `line`,
-// one call per line as a game does). Every candidate runs scene MAIN from its
-// top to its end, timed from the first step, and reports a digest of every
-// line's text, tags and display tables; engine-bench.mjs fails the run unless
-// the digests are equal, and unless the program engine's steps are the
-// instructions of the scene's chunks and the one step that finds the scene
-// ended, so that every display beat ran once.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
+// json }. A candidate is how ProgramStory, running the scene's statement
+// chunks, is driven: `program-step`, one call per step as the route planner
+// drives a story, or `program-line`, one call per line as a game does. Every
+// candidate runs scene MAIN from its top to its end, timed from the first
+// step, and reports a digest of every line's text, tags and display tables;
+// engine-bench.mjs fails the run unless the digests are equal, and unless the
+// steps are the instructions of the scene's chunks and the one step that finds
+// the scene ended, so that every display beat ran once.
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { Story } from "../../packages/sparkdown/src/inkjs/engine/Story";
 import { ProgramStory } from "../../packages/sparkdown/src/program/ProgramStory";
 import type { ProgramRoot } from "../../packages/sparkdown/src/program/ProgramRoot";
 import { codeWords } from "../../packages/sparkdown/src/program/StatementChunk";
@@ -24,7 +21,7 @@ import { MAIN_URI, configurePlayerCompiler, loadProjectFiles, silenceConsole, st
 
 interface ProgramBenchConfig {
   project: string;
-  candidate: "engine-step" | "engine-line" | "program-step" | "program-line";
+  candidate: "program-step" | "program-line";
   samples: number;
   warmup: number;
   json?: string;
@@ -36,7 +33,7 @@ if (!config?.project) throw new Error("run through scripts/bench/engine-bench.mj
 const SCENE = "MAIN";
 const NOOP = () => {};
 
-// A line as plain data, the same from either engine.
+// A line as plain data, the same from either drive.
 type Line = [text: string, tags: string[], display: [string, unknown][][]];
 
 interface Run {
@@ -44,7 +41,7 @@ interface Run {
   lines: Line[];
 }
 
-// Either engine presents these members under the same names.
+// The members of ProgramStory a run reads.
 interface Engine {
   canContinue: boolean;
   asyncContinueComplete: boolean;
@@ -103,25 +100,14 @@ const instructionsOf = (root: ProgramRoot): number =>
 function main() {
   const realLog = silenceConsole();
   const startFrom = { file: MAIN_URI, line: 0 };
-  const [engine, drive] = config.candidate.split("-");
+  const drive = config.candidate.split("-")[1];
   const compiler = new SparkdownCompiler();
-  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom, {
-    programChunks: engine === "program",
-  });
+  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom);
   const cold: any = compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any);
   const program = cold.program;
-  let story: Engine;
-  let instructions: number | undefined;
-  if (engine === "program") {
-    if (!program.chunks) {
-      throw new Error(`the scene falls back for ${JSON.stringify(program.fallback)}`);
-    }
-    story = new ProgramStory(program.chunks) as unknown as Engine;
-    instructions = instructionsOf(program.chunks);
-  } else {
-    if (!program.compiled) throw new Error("the project did not compile");
-    story = new Story(program.compiled) as unknown as Engine;
-  }
+  if (!program.chunks) throw new Error("the project did not compile");
+  const story = new ProgramStory(program.chunks) as unknown as Engine;
+  const instructions = instructionsOf(program.chunks);
   const bench = candidate(story, drive === "step");
   const totals: number[] = [];
   let last: Run = { steps: 0, lines: [] };
@@ -154,7 +140,7 @@ function main() {
   const f = (n: number, d = 1) => n.toFixed(d).padStart(9);
   realLog(
     [
-      `candidate ${report.candidate}: scene ${SCENE}, ${report.lines} lines, ${report.displayTables} display tables, ${report.steps} steps${instructions ? ` over ${instructions} instructions` : ""}; ${report.samples} samples after ${report.warmup} warm-up`,
+      `candidate ${report.candidate}: scene ${SCENE}, ${report.lines} lines, ${report.displayTables} display tables, ${report.steps} steps over ${instructions} instructions; ${report.samples} samples after ${report.warmup} warm-up`,
       `  output digest ${report.outputDigest}`,
       `  ${"".padEnd(28)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
       `  ${"scene, top to end (ms)".padEnd(28)} ${f(report.totalMs.min, 2)} ${f(report.totalMs.median, 2)} ${f(report.totalMs.max, 2)}`,

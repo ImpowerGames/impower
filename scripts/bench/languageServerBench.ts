@@ -2,16 +2,13 @@
 // the language server's compiler worker does on a keystroke without a
 // browser: the document update, the compile with the configuration the
 // language server gives its compiler (validation on, no builtins seeded into
-// the story, no compiled story emitted, the start position the workspace
-// routes to) and the encoding of the program it answers the language server
-// with (`ProgramTransportEncoder`). It runs no game: the language server
-// runs none.
+// the story, the start position the workspace routes to) and the encoding of
+// the program it answers the language server with (`ProgramTransportEncoder`).
+// It runs no game: the language server runs none.
 //
 // Run through language-server-bench.mjs, which bundles this file with
-// esbuild and runs one configuration per process; it passes the
-// configuration as one JSON argument:
-// { project, line, word, options, samples, warmup, chunks, json, diagnostics }.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
+// esbuild and runs it in a process of its own; it passes the configuration as
+// one JSON argument: { project, line, word, options, samples, warmup, json }.
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -30,13 +27,7 @@ interface BenchConfig {
   options: string[];
   samples: number;
   warmup: number;
-  // Whether the compiler builds the binary program's statement chunks
-  // (`programChunks`), as the language server configures it since #704.
-  chunks?: boolean;
   json?: string;
-  // Where to write the diagnostics of the cold compile and of each sample's
-  // compile, in the order they were reported, for the launcher's comparison.
-  diagnostics?: string;
 }
 
 const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
@@ -100,7 +91,7 @@ async function main() {
   compiler.profilerId = PROFILER_ID;
   const startFrom = { file: mainUri, line: line0 };
   // What the language server's hosts send (`initializationOptions`), less
-  // what the workspace keeps for itself, with the switch of #704.
+  // what the workspace keeps for itself.
   compiler.configure({
     files,
     definitions: {
@@ -110,14 +101,13 @@ async function main() {
     },
     workspace: "file:///local",
     stripImageData: true,
-    emitCompiledProgram: false,
     startFrom,
-    programChunks: !!config.chunks,
   } as any);
   const transport = new ProgramTransportEncoder();
   const cold = compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any).program;
   transport.encode(cold);
-  const dump = { cold: diagnosticsOf(cold), samples: [] as string[][], fallback: cold.fallback?.construct ?? null };
+  const coldDiagnostics = diagnosticsOf(cold).length;
+  const fallback = compiler.lastProgramBuild?.unsupported?.construct ?? null;
   takeMeasures();
 
   const samples: any[] = [];
@@ -137,20 +127,15 @@ async function main() {
     const t2 = performance.now();
     const phases = takeMeasures();
     if (i < config.warmup) continue;
-    dump.samples.push(diagnosticsOf(program));
     samples.push({
       option,
       wall: { compile: t1 - t0, "transport encode": t2 - t1, together: t2 - t0 },
       phases,
-      ...(config.chunks
-        ? {
-            passes: {
-              initializerRuns: (compiler.chunkStore?.initializerRuns ?? 0) - runsBefore,
-              emitted: compiler.chunkStore?.emittedLastBuild,
-              fallback: compiler.lastProgramBuild?.fallback?.construct ?? null,
-            },
-          }
-        : {}),
+      passes: {
+        initializerRuns: (compiler.chunkStore?.initializerRuns ?? 0) - runsBefore,
+        emitted: compiler.chunkStore?.emittedLastBuild,
+        fallback: compiler.lastProgramBuild?.unsupported?.construct ?? null,
+      },
     });
   }
   const report = {
@@ -158,11 +143,10 @@ async function main() {
     line: config.line,
     lineText,
     token,
-    chunks: !!config.chunks,
-    fallback: dump.fallback,
+    fallback,
     warmup: config.warmup,
     samples: samples.length,
-    diagnostics: dump.cold.length,
+    diagnostics: coldDiagnostics,
     wall: Object.fromEntries(Object.keys(samples[0]?.wall ?? {}).map((k) => [k, stats(samples.map((s) => s.wall[k]))])),
     phases: Object.fromEntries(
       [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
@@ -170,7 +154,6 @@ async function main() {
     perSample: samples,
   };
   if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
-  if (config.diagnostics) fs.writeFileSync(config.diagnostics, JSON.stringify(dump));
   printReport(report);
 }
 
@@ -179,7 +162,7 @@ function printReport(report: any) {
     `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
   const out = [
     `language server compile: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
-    `${report.samples} samples after ${report.warmup} warm-up; statement chunks ${report.chunks ? "on" : "off"}${report.fallback ? ` (the program falls back for ${report.fallback})` : ""}; ${report.diagnostics} diagnostics`,
+    `${report.samples} samples after ${report.warmup} warm-up${report.fallback ? ` (the program was not built: ${report.fallback})` : ""}; ${report.diagnostics} diagnostics`,
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
     ...Object.entries(report.wall).map(([k, s]: any) => row(k, s)),

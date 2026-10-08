@@ -1,6 +1,5 @@
 // A throwaway stepping loop over the chunk layout of chunkProgram.ts (#693). It
-// exists to be measured against the story engine, and nothing that ships
-// imports it.
+// exists to be measured, and nothing that ships imports it.
 //
 // The position is a sequence, an entry in it and a word offset into that
 // entry's chunk. Values are the engine's own value classes and operators are

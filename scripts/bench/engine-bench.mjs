@@ -11,9 +11,8 @@
 //   --fixture         generate the fixture project (preview-fixture.mjs) into a
 //                     temporary directory and measure its target line
 //   --line <N>        the line of main.sd the route ends at, counting from one
-//   --mode <m,..>     any of kinds, step, proto, program, emit, ready, chunks,
-//                     symbols, order, images, search, or all (the default); see MODES
-//                     below
+//   --mode <m,..>     any of program, symbols, order, images, search, or all
+//                     (the default); see MODES below
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>      discarded samples first (default 4)
 //   --cpu-prof <dir>  also write a V8 CPU profile of each candidate's process
@@ -36,23 +35,15 @@ import { buildBeatsFixture, buildChunksFixture, writePreviewFixture } from "./pr
 
 // Each mode: the entry that implements it, the candidates it runs (each in a
 // process of its own) and the project it runs on. `route` is the project named
-// on the command line; `beats` is always the generated beats-only scene, the
-// one scene both engines of `proto` and of `program` can run, and `chunks` the
-// generated scene of mixed statements that both engines of `chunks` can run.
-// What each measures is in
+// on the command line; `beats` is always the generated beats-only scene, and
+// `chunks` the generated scene of mixed statements. What each measures is in
 // .agents/skills/drive-web-editor/references/performance.md.
 export const MODES = {
-  kinds: { entry: "engineBench.ts", project: "route" },
-  step: { entry: "engineBench.ts", project: "route", candidates: ["as-planner", "hooked"] },
-  proto: { entry: "bufferStepBench.ts", project: "beats", candidates: ["engine-step", "buffer-step", "engine-line", "buffer-line"] },
-  program: { entry: "programStepBench.ts", project: "beats", candidates: ["engine-step", "program-step", "engine-line", "program-line"] },
-  chunks: { entry: "chunkStepBench.ts", project: "chunks", candidates: ["engine-step", "chunk-step", "engine-line", "chunk-line"] },
+  program: { entry: "programStepBench.ts", project: "beats", candidates: ["program-step", "program-line"] },
   symbols: { entry: "chunkSymbolBench.ts", project: "route", candidates: ["symbol", "direct"] },
-  order: { entry: "chunkOrderBench.ts", project: "route", candidates: ["flat-copy", "flat-splice", "tree-copy", "records-splice"] },
-  emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"] },
-  ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"] },
+  order: { entry: "chunkOrderBench.ts", project: "route", candidates: ["flat-copy", "flat-splice", "tree-copy"] },
   images: { entry: "imageBench.ts", project: "chunks", candidates: ["json", "image"] },
-  search: { entry: "routeSearchBench.ts", project: "route", candidates: ["engine", "program"] },
+  search: { entry: "routeSearchBench.ts", project: "route" },
 };
 
 export function parseEngineBenchArgs(args) {
@@ -99,30 +90,20 @@ export function parseEngineBenchArgs(args) {
   return out;
 }
 
-// Why the candidates of `proto` did not do the same work, or undefined.
-export function protoMismatch(reports) {
-  const problem = outputMismatch(reports);
-  if (problem) return problem;
-  const counted = reports.filter((r) => r.steps != null);
-  if (new Set(counted.map((r) => r.steps)).size !== 1) return `step counts differ: ${counted.map((r) => `${r.candidate} ${r.steps}`).join(", ")}`;
-  return undefined;
-}
-
 // Why the candidates of `program` did not do the same work, or undefined: the
-// lines must be the same, and the program engine must have run each
-// instruction of the scene's chunks once, and the step that finds the scene
-// ended, so that every display beat ran once.
+// lines must be the same whichever way the engine was driven, and it must have
+// run each instruction of the scene's chunks once, and the step that finds the
+// scene ended, so that every display beat ran once.
 export function programMismatch(reports) {
   const problem = outputMismatch(reports);
   if (problem) return problem;
-  for (const report of reports.filter((r) => r.instructions != null)) {
+  for (const report of reports) {
     if (report.steps !== report.instructions + 1) return `${report.candidate} took ${report.steps} steps over ${report.instructions} instructions`;
   }
   return undefined;
 }
 
-// Why the candidates did not produce the same lines, or undefined. This is all
-// `chunks` asks: its two engines take different numbers of steps by design.
+// Why the candidates did not produce the same lines, or undefined.
 export function outputMismatch(reports) {
   const digests = new Set(reports.map((r) => r.outputDigest));
   if (digests.size !== 1) return `outputs differ: ${reports.map((r) => `${r.candidate} ${r.outputDigest.slice(0, 12)}`).join(", ")}`;
@@ -166,25 +147,14 @@ async function main(args) {
         else reports.push(JSON.parse(fs.readFileSync(json, "utf8")));
         console.log("");
       }
-      if (mode === "proto" && reports.length === candidates.length) {
-        const problem = protoMismatch(reports);
-        if (problem) {
-          console.error(`proto: ${problem}`);
-          failed = true;
-        } else {
-          console.log(`proto: the ${reports.length} candidates produced identical lines (${reports[0].displayTables} display tables), and both engines took ${reports[0].steps} steps`);
-          console.log("");
-        }
-      }
       if (mode === "program" && reports.length === candidates.length) {
         const problem = programMismatch(reports);
         if (problem) {
           console.error(`program: ${problem}`);
           failed = true;
         } else {
-          const report = (candidate) => reports.find((r) => r.candidate === candidate);
-          const program = report("program-step");
-          console.log(`program: the ${reports.length} candidates produced identical lines (${reports[0].lines} lines, ${reports[0].displayTables} display tables); the program engine ran each of the scene's ${program.instructions} instructions once (${program.steps} steps), and the engine took ${report("engine-step").steps}`);
+          const program = reports.find((r) => r.candidate === "program-step");
+          console.log(`program: the ${reports.length} candidates produced identical lines (${reports[0].lines} lines, ${reports[0].displayTables} display tables); the program engine ran each of the scene's ${program.instructions} instructions once (${program.steps} steps)`);
           console.log("");
         }
       }
@@ -206,25 +176,12 @@ async function main(args) {
         }
       }
       if (mode === "search" && reports.length === candidates.length) {
-        const report = (candidate) => reports.find((r) => r.candidate === candidate);
-        const [engine, program] = [report("engine"), report("program")];
-        if (!engine.found || !program.found) {
-          console.error(`search: ${engine.found ? "the program engine" : "the engine"} found no route`);
+        const [search] = reports;
+        if (!search.found) {
+          console.error("search: the program engine found no route");
           failed = true;
         } else {
-          const ratio = program.searchMs.median / engine.searchMs.median;
-          console.log(`search: a full route search to line ${engine.line} costs ${program.searchMs.median.toFixed(1)} ms on the program engine (${program.routeSteps} steps) against ${engine.searchMs.median.toFixed(1)} ms on the engine (${engine.routeSteps} steps), by the medians: ${(ratio * 100).toFixed(1)} percent`);
-          console.log("");
-        }
-      }
-      if (mode === "chunks" && reports.length === candidates.length) {
-        const problem = outputMismatch(reports);
-        if (problem) {
-          console.error(`chunks: ${problem}`);
-          failed = true;
-        } else {
-          const steps = (candidate) => reports.find((r) => r.candidate === candidate).steps;
-          console.log(`chunks: the ${reports.length} candidates produced identical lines and choices (${reports[0].lines} lines, ${reports[0].displayTables} display tables, ${reports[0].choiceStops} stops at choices); the engine took ${steps("engine-step")} steps and the prototype ${steps("chunk-step")}`);
+          console.log(`search: a full route search to line ${search.line} costs ${search.searchMs.median.toFixed(1)} ms on the program engine (${search.routeSteps} steps), by the median`);
           console.log("");
         }
       }

@@ -3,8 +3,9 @@
 // browser and times each phase of a highlighted suggestion (`preview`) or an
 // accepted edit (`edit`) at one line of a project.
 //
-// It models the player as it ships: the compiler emits no compiled story, the
-// game that searched the route loads its own checkpoint, connects to a sink
+// It models the player as it ships: the worker's game runs the program engine
+// on the compile's statement chunks, the game that searched the route loads
+// its own checkpoint, connects to a sink
 // and previews, and only the messages it emits are cloned, as they are on
 // their way to the page. The compiler certifies an edit's changes as confined
 // with its `ink/flowShapes` walk, so the route search resumes from its last
@@ -13,7 +14,6 @@
 // Run through preview-bench.mjs, which bundles this file with esbuild and runs
 // one configuration per process; it passes the configuration as one JSON
 // argument: { project, line, word, options, mode, samples, warmup, json, gaps }.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import * as v8 from "node:v8";
 import { performance } from "node:perf_hooks";
@@ -39,11 +39,6 @@ interface BenchConfig {
   // Where to write, for profile-shares.mjs --gaps, the stretches of each
   // measured sample's worker time that no phase covers.
   gaps?: string;
-  // Whether the compiler builds the binary program's statement chunks and
-  // the worker's game runs them on the program engine (`programChunks`,
-  // #694, #703), as the player's worker ships; without it, the compiler
-  // and the game run the current engine, which a measurement pairs with.
-  chunks?: boolean;
 }
 
 const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
@@ -216,12 +211,12 @@ async function main() {
   // Each update's stretch, which counts as covered: it has no phase of its own.
   let workerGameIntervals: Interval[] = [];
   let routeSteps = 0;
-  const updateWorkerGame = (program: any, story: any) => {
+  const updateWorkerGame = (program: any) => {
     const t0 = performance.now();
     if (!workerGame) {
-      workerGame = new Game({ program, story, ...system, incrementalCheckpoints: true, verifyCheckpoints: false, programChunks: !!config.chunks } as any);
+      workerGame = new Game({ program, ...system, incrementalCheckpoints: true, verifyCheckpoints: false } as any);
     } else {
-      workerGame.updateProgram(program, story);
+      workerGame.updateProgram(program);
     }
     const t1 = performance.now();
     workerGameMs += t1 - t0;
@@ -247,7 +242,7 @@ async function main() {
   const routeSearches = new RouteSearchLog();
   compiler.addEventListener("compiler/didCompile", (params: any) => {
     routeSearches.forget();
-    const game = updateWorkerGame(params.program, params.story);
+    const game = updateWorkerGame(params.program);
     if (params.program.startFrom) {
       setStartFrom(game, params.program.startFrom);
       const to = game.startAddress;
@@ -259,7 +254,7 @@ async function main() {
     }
   });
   compiler.addEventListener("compiler/didPreviewCompile", (params: any) => {
-    const game = updateWorkerGame(params.program, params.story);
+    const game = updateWorkerGame(params.program);
     setStartFrom(game, params.startFrom);
     const to = game.startAddress;
     if (to != null) {
@@ -270,7 +265,7 @@ async function main() {
   });
 
   const startFrom = { file: mainUri, line: line0 };
-  configurePlayerCompiler(compiler, files, startFrom, { emitCompiledProgram: false, ...(config.chunks ? { programChunks: true } : {}) });
+  configurePlayerCompiler(compiler, files, startFrom);
   compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
 
   // A preview's display, in the order the worker's display runs it
@@ -364,10 +359,8 @@ async function main() {
     // What each pass of the chunk store and of the program resolver visited
     // for this sample's compile.
     const store = compiler.chunkStore;
-    const passes = config.chunks
-      ? { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null }
-      : undefined;
-    const resolver = config.chunks ? compiler.programResolver?.passesLastResolve : undefined;
+    const passes = { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.unsupported?.construct ?? null };
+    const resolver = compiler.programResolver?.passesLastResolve;
     const game = workerGame!;
     const before = residueOf(game);
     lastCheckpoint = searched?.checkpoint ?? "";
@@ -393,8 +386,7 @@ async function main() {
       },
       phases,
       messages: sink.stats(),
-      engine: game.programStory ? "program" : "current",
-      ...(passes ? { passes } : {}),
+      passes,
       ...(resolver ? { resolver } : {}),
     });
     if (i === config.warmup) heapAfterFirst = heapNow();
@@ -414,10 +406,6 @@ async function main() {
     warmup: config.warmup,
     samples: samples.length,
     routeSteps,
-    // The engines the worker's game ran the samples on: the current engine
-    // for a program that falls back, even with `--chunks`.
-    engine: [...new Set(samples.map((s) => s.engine))].join(" and ") || "no",
-    fallback: (workerGame?.program as any)?.fallback?.construct ?? null,
     heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1048576),
     // After full collections, when the launcher exposes them.
     heapAfterFirstSampleMB: heapAfterFirst,
@@ -456,7 +444,7 @@ function printReport(report: any) {
     `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
   const out = [
     `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
-    `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB; the ${report.engine} engine${report.fallback ? ` (the program falls back for ${report.fallback})` : ""}`,
+    `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,

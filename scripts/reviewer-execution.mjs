@@ -39,7 +39,7 @@ export function validateExecutionShape(step) {
     } else if (op.kind === "vitest") {
       if (typeof op.package !== "string" || !Array.isArray(op.files) || !op.files.length || op.files.length > 30 || !op.files.every(file => typeof file === "string")) throw new Error("vitest needs a package and 1..30 test files");
     } else {
-      const modes = op.kind === "engine-bench" ? ["kinds", "step", "proto", "chunks", "symbols", "order", "emit", "ready", "all"] : op.kind === "preview-bench" ? ["preview", "edit", "both"] : [];
+      const modes = op.kind === "engine-bench" ? ["program", "symbols", "order", "images", "search", "all"] : op.kind === "preview-bench" ? ["preview", "edit", "both"] : [];
       if (!modes.includes(op.mode)) throw new Error("Unknown execution benchmark kind or mode");
       if (!integer(op.samples, 1, 100) || !integer(op.warmup, 0, 100)) throw new Error("benchmark needs samples 1..100 and warmup 0..100");
     }

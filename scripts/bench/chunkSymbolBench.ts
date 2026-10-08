@@ -18,7 +18,6 @@
 // compiler that resolved offsets at compile time would emit. Both count the
 // visit and enter the target's chunk, so the difference between them is the
 // lookup.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { silenceConsole, stats } from "./benchProject";

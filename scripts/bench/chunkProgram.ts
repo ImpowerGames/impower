@@ -10,23 +10,22 @@
 // k of the chunk's block table names by id. A sequence id stays with its body:
 // a root that rebuilt the body holds the new arrays under the same id, so
 // replacing a statement inside a block builds no new owner, and a body below
-// the edit finds its owner's new sequence through the root (`insertChunk`,
-// `position`).
+// the edit finds its owner's new sequence through the root (`position`).
 //
 // Lines are held so that an edit moves no stored line beside or below it. A
 // sequence's line starts are relative to its body's first line, the root's row
 // holds how many lines the body spans, and the owner's block row holds the
 // lines of the owner's own parts above the body, so where a body starts is
-// worked out from its owner and the bodies above it (`lineOf`). The JSON tree
-// carries no source lines, so the program is laid out on synthetic ones: a
-// plain statement takes one line, and a block statement one line for each of
-// its own parts (`if`, `else`, a choice, `then`, `end`) beside what its bodies
-// take.
+// worked out from its owner and the bodies above it. The JSON tree carries no
+// source lines, so the program is laid out on synthetic ones: a plain
+// statement takes one line, and a block statement one line for each of its own
+// parts (`if`, `else`, a choice, `then`, `end`) beside what its bodies take.
 //
-// The writer here does not lower source. It translates the JSON tree the
-// current compiler emits for the kinds the comparison scene holds (display
-// calls, reassignments, `if` blocks, diverts to a scene, one `choose`) and
-// throws, naming the construct, on anything else.
+// The writer here does not lower source. It translates a JSON tree of the
+// shape the object-hierarchy compiler emitted, for display calls,
+// reassignments, `if` blocks, diverts to a scene and one `choose`, and throws,
+// naming the construct, on anything else. Its one caller left,
+// chunkSymbolBench.ts, writes such a tree itself.
 import { NativeFunctionCall } from "../../packages/sparkdown/src/runtime/NativeFunctionCall";
 import { IntValue, StringValue } from "../../packages/sparkdown/src/runtime/Value";
 
@@ -59,7 +58,7 @@ export const enum Op {
 
 /** `CallStd`: the call's result is discarded, so none is pushed. */
 export const FLAG_DISCARD = 1;
-/** `Choice`: the flags the current engine's choice point carries. */
+/** `Choice`: the flags the JSON tree's choice point carries. */
 export const CHOICE_HAS_START_CONTENT = 2;
 export const CHOICE_HAS_CHOICE_ONLY_CONTENT = 4;
 
@@ -597,139 +596,4 @@ export function position(root: ProgramRoot, chunkId: number): { sequence: Sequen
   const sequence = root.sequences[id]!;
   const entry = sequence.ids.indexOf(chunkId);
   return entry < 0 ? undefined : { sequence, entry };
-}
-
-/** A copy of a chunk that owns no block, under the next chunk id of `root`. */
-export function copyChunk(root: ProgramRoot, chunk: Int32Array): Int32Array {
-  if (chunk[H_BLOCKS]! > 0) throw new Error("a copy of a block statement would share its blocks' sequences with the original");
-  const copy = chunk.slice();
-  copy[H_ID] = root.chunkCount;
-  return copy;
-}
-
-/** The first line of a body: a flow's own, or what follows from the owner's
- *  first line, the owner's parts above the body and the bodies above it. */
-function bodyFirstLine(root: ProgramRoot, body: Sequence): number {
-  if (body.owner < 0) return body.firstLine;
-  const owner = position(root, body.owner);
-  if (!owner) throw new Error(`the root holds no chunk ${body.owner}, which owns sequence ${body.id}`);
-  const chunk = owner.sequence.chunks[owner.entry]!;
-  const table = HEADER + chunk[H_CODE_WORDS]!;
-  let line = bodyFirstLine(root, owner.sequence) + owner.sequence.lineStarts[owner.entry]!;
-  for (let k = 0; k <= body.block; k++) {
-    line += chunk[table + k * BLOCK_ROW + B_GAP]!;
-    if (k < body.block) line += root.sequences[chunk[table + k * BLOCK_ROW + B_SEQUENCE]!]!.lines;
-  }
-  return line;
-}
-
-/** The line a statement starts on, through the root that is asked. */
-export function lineOf(root: ProgramRoot, chunkId: number): number {
-  const at = position(root, chunkId);
-  if (!at) throw new Error(`the root holds no chunk ${chunkId}`);
-  return bodyFirstLine(root, at.sequence) + at.sequence.lineStarts[at.entry]!;
-}
-
-/** Every chunk id of the program in the order the script holds the statements:
- *  the flows as they were declared, and under a block statement its bodies in
- *  turn. */
-export function documentOrder(root: ProgramRoot): number[] {
-  const order: number[] = [];
-  const walk = (body: Sequence) => {
-    body.chunks.forEach((chunk, entry) => {
-      order.push(body.ids[entry]!);
-      const table = HEADER + chunk[H_CODE_WORDS]!;
-      for (let k = 0; k < chunk[H_BLOCKS]!; k++) walk(root.sequences[chunk[table + k * BLOCK_ROW + B_SEQUENCE]!]!);
-    });
-  };
-  for (const row of root.sequences) if (row.owner < 0) walk(row);
-  return order;
-}
-
-/** The lines of every sequence laid out again from nothing but the chunks: what
- *  a root's line starts, spans and first lines have to equal however many edits
- *  built it. `plain` gives the lines of a statement that owns no block. */
-export function layoutFromScratch(root: ProgramRoot, plain: (chunkId: number) => number = () => PLAIN_LINES): Map<number, { lineStarts: number[]; lines: number; firstLine: number }> {
-  const layout = new Map<number, { lineStarts: number[]; lines: number; firstLine: number }>();
-  const measure = (body: Sequence): number => {
-    const lineStarts: number[] = [];
-    let lines = 0;
-    body.chunks.forEach((chunk, entry) => {
-      lineStarts.push(lines);
-      const blocks = chunk[H_BLOCKS]!;
-      const table = HEADER + chunk[H_CODE_WORDS]!;
-      if (blocks === 0) lines += plain(body.ids[entry]!);
-      else {
-        lines += TAIL_LINES;
-        for (let k = 0; k < blocks; k++) lines += chunk[table + k * BLOCK_ROW + B_GAP]! + measure(root.sequences[chunk[table + k * BLOCK_ROW + B_SEQUENCE]!]!);
-      }
-    });
-    layout.set(body.id, { lineStarts, lines, firstLine: -1 });
-    return lines;
-  };
-  let scriptLine = 0;
-  for (const row of root.sequences) {
-    if (row.owner >= 0) continue;
-    const lines = measure(row);
-    const firstLine = scriptLine + FLOW_HEAD_LINES;
-    layout.get(row.id)!.firstLine = firstLine;
-    scriptLine = firstLine + lines + TAIL_LINES;
-  }
-  return layout;
-}
-
-/** The root a compile that inserted `chunk` at `entry` of one sequence would
- *  build. The sequence keeps its id and gets new arrays, the chunk table gains
- *  the chunk's row, and a symbol defined later in the same sequence moves one
- *  entry on. The lines follow the insertion up the owners: each sequence that
- *  encloses the edit gets new line starts for the entries below the owner and a
- *  longer span, and each later flow a later first line. Every other row, every
- *  array that did not change, every chunk and `root` itself stay as they were.
- *  So a body below or beside the edit is reached through the new root with its
- *  own row untouched, and its lines come out right because they are worked out
- *  from its owner. */
-export function insertChunk(root: ProgramRoot, sequence: number, entry: number, chunk: Int32Array, lines = PLAIN_LINES): ProgramRoot {
-  if (root.direct.length > 0) throw new Error("diverts resolved at compile time hold their targets, which is what symbols are for");
-  const row = root.sequences[sequence]!;
-  const id = chunk[H_ID]!;
-  const chunks = row.chunks.slice();
-  chunks.splice(entry, 0, chunk);
-  const ids = row.ids.slice();
-  ids.splice(entry, 0, id);
-  const lineStarts = row.lineStarts.slice();
-  lineStarts.splice(entry, 0, entry < row.lineStarts.length ? row.lineStarts[entry]! : row.lines);
-  for (let i = entry + 1; i < lineStarts.length; i++) lineStarts[i]! += lines;
-  const sequences = root.sequences.slice();
-  sequences[sequence] = { ...row, chunks, ids, lineStarts, lines: row.lines + lines };
-  let flow = row;
-  for (let body = row; body.owner >= 0; ) {
-    const owner = position(root, body.owner);
-    if (!owner) throw new Error(`the root holds no chunk ${body.owner}, which owns sequence ${body.id}`);
-    const enclosing = owner.sequence;
-    // Nothing below the owner, nothing to shift: the array is shared too.
-    let starts = enclosing.lineStarts;
-    if (owner.entry + 1 < starts.length) {
-      starts = starts.slice();
-      for (let i = owner.entry + 1; i < starts.length; i++) starts[i]! += lines;
-    }
-    sequences[enclosing.id] = { ...enclosing, lineStarts: starts, lines: enclosing.lines + lines };
-    flow = body = enclosing;
-  }
-  for (const other of root.sequences) if (other.owner < 0 && other.firstLine > flow.firstLine) sequences[other.id] = { ...other, firstLine: other.firstLine + lines };
-  const chunkSeq = new Int32Array(Math.max(root.chunkSeq.length, id + 1)).fill(-1);
-  chunkSeq.set(root.chunkSeq);
-  chunkSeq[id] = sequence;
-  // A flow's own symbol names the start of its sequence, whichever chunk is
-  // there; a symbol a chunk exports moves with that chunk.
-  const symIndex = root.symIndex.slice();
-  for (let s = 0; s < symIndex.length; s++) if (root.symSeq[s] === sequence && symIndex[s]! >= entry && !(row.owner < 0 && row.flow === s)) symIndex[s]!++;
-  return {
-    ...root,
-    sequences,
-    chunkSeq,
-    symIndex,
-    chunkCount: Math.max(root.chunkCount, id + 1),
-    instructionCount: root.instructionCount + chunk[H_CODE_WORDS]! / 2,
-    words: root.words + chunk.length,
-  };
 }

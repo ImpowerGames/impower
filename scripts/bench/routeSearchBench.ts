@@ -1,18 +1,14 @@
-// A full route search to a line on each engine (#700): `Game.planRoute`, the
-// `game/planRoute` phase of the player's worker, from the top of the scene the
-// line stands in to the beat the line starts, on the current engine, whose
-// steps are runtime paths, and on the program engine, whose steps are
+// A full route search to a line (#700): `Game.planRoute`, the `game/planRoute`
+// phase of the player's worker, from the top of the scene the line stands in
+// to the beat the line starts, on the program engine, whose steps are
 // addresses.
 //
-// Run through engine-bench.mjs, one candidate per process, with the
-// configuration as one JSON argument: { project, line, candidate, samples,
-// warmup, json }. A candidate is the engine: `engine`, the current engine, or
-// `program`, the program engine with the compiler's `programChunks` on. Each
-// sample resets the story and searches the whole scene again, as a compile
-// that resumes nothing does; only the search is timed. Each reports the
+// Run through engine-bench.mjs, in a process of its own, with the
+// configuration as one JSON argument: { project, line, samples, warmup, json }.
+// Each sample resets the story and searches the whole scene again, as a
+// compile that resumes nothing does; only the search is timed. It reports the
 // route's length in steps and whether the search found it, and engine-bench.mjs
-// requires both candidates to find one.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
+// requires it to find one.
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -24,7 +20,6 @@ interface RouteSearchBenchConfig {
   project: string;
   /** The line of main.sd the route ends at, counting from one. */
   line: number;
-  candidate: "engine" | "program";
   samples: number;
   warmup: number;
   json?: string;
@@ -35,22 +30,12 @@ if (!config?.project) throw new Error("run through scripts/bench/engine-bench.mj
 
 function main() {
   const realLog = silenceConsole();
-  const programChunks = config.candidate === "program";
   const startFrom = { file: MAIN_URI, line: config.line - 1 };
   const compiler = new SparkdownCompiler();
-  let story: any;
-  compiler.addEventListener("compiler/didCompile", (params: any) => {
-    story = params.story;
-  });
-  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom, {
-    emitCompiledProgram: false,
-    programChunks,
-  });
+  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom);
   const program: any = compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any).program;
-  if (programChunks && !program.chunks) {
-    throw new Error(`the program falls back for ${JSON.stringify(program.fallback)}`);
-  }
-  const game = new Game({ program, story, ...benchSystem, programChunks } as any);
+  if (!program.chunks) throw new Error("the project did not compile");
+  const game = new Game({ program, ...benchSystem } as any);
   game.setStartFrom(startFrom, "last");
   const to = game.startAddress;
   if (to == null) throw new Error(`line ${config.line} of main.sd has no address`);
@@ -77,7 +62,6 @@ function main() {
     stepsUsed = lastSearchStats.stepsUsed;
   }
   const report = {
-    candidate: config.candidate,
     project: config.project,
     line: config.line,
     from,
@@ -93,7 +77,7 @@ function main() {
   const f = (n: number) => n.toFixed(1).padStart(9);
   realLog(
     [
-      `candidate ${report.candidate}: a full route search from the top of ${from} to main.sd line ${config.line} (${typeof to === "number" ? "address" : "path"} ${to}); ${report.samples} samples after ${report.warmup} warm-up`,
+      `mode search: a full route search from the top of ${from} to main.sd line ${config.line} (address ${to}); ${report.samples} samples after ${report.warmup} warm-up`,
       `  ${found ? "found" : "found no route"}: ${steps} route steps, ${stepsUsed} story advances`,
       `  ${"".padEnd(28)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
       `  ${"game/planRoute (ms)".padEnd(28)} ${f(report.searchMs.min)} ${f(report.searchMs.median)} ${f(report.searchMs.max)}`,
