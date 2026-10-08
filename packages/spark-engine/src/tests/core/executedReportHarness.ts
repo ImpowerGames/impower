@@ -6,6 +6,7 @@
 // so a test can derive from them what a host drew from a report that listed
 // every location.
 import type { File } from "@impower/sparkdown/src/compiler/types/File";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { documentRangeOf } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import { Game } from "../../game/core/classes/Game";
@@ -22,8 +23,8 @@ export { MAIN_URI };
 
 export interface ExecutedReport {
   params: GameExecutedParams;
-  /** The executed paths, in the order the game holds them. */
-  paths: string[];
+  /** The executed addresses, in the order the game holds them. */
+  paths: ProgramAddress[];
   /** The locations of those paths that have one, in the same order. */
   locations: DocumentLocation[];
 }
@@ -91,7 +92,7 @@ const routeCheckpoint = (s: Story, line: number): string => {
     setTimeout: syncTimeout,
   } as any);
   sim.setStartFrom({ file: MAIN_URI, line });
-  const to = sim.startAddress as string;
+  const to = sim.startAddress!;
   const route = Game.planRoute(
     sim.story,
     program as any,
@@ -111,7 +112,7 @@ const recordReports = (game: Game) => {
   const g = game as any;
   const take = g.executedParams.bind(game);
   g.executedParams = () => {
-    const paths: string[] = g._runtimeState.pathsExecutedThisFrame.toArray();
+    const paths: ProgramAddress[] = g._runtimeState.pathsExecutedThisFrame.toArray();
     const params = take();
     const locations = paths
       .map((p) => {
