@@ -172,16 +172,18 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
     expect(myAnim?.timing).toMatchObject({ fill: "both", direction: "normal" });
   });
 
-  test("cached prelude reuse: warm compiles are byte-identical to a fresh compile", () => {
+  test("cached prelude reuse: warm compiles build the program a fresh compile builds", () => {
     // Fresh compiler → cold compile (parses + caches the prelude).
     const fresh = compileUser(USER_SRC, true);
-    // The program's chunks by content (`programContent`), which a compile
-    // without chunks fails.
+    // The program's chunks by content (`programContent`: every chunk's
+    // instructions, tables and lines, without the chunk, sequence and
+    // anonymous symbol ids a compile numbers), which a compile without chunks
+    // fails.
     const freshJson = JSON.stringify(programContent(fresh.program.chunks));
     expect(freshJson).toBeTruthy();
 
     // One long-lived compiler, compiled repeatedly: the 2nd+ compiles reuse the
-    // cached prelude parse. The output must stay byte-identical to a fresh parse
+    // cached prelude parse. The program must stay the one a fresh parse builds
     // (proves resetParsedRuntime + re-splice is sound, no cross-compile bleed).
     const compiler = new SparkdownCompiler();
     compiler.configure({
