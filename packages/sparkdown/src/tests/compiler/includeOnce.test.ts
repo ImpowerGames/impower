@@ -5,7 +5,8 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { programContent } from "../programListing";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -49,7 +50,7 @@ function configure(compiler: SparkdownCompiler, project: Project, version: numbe
 
 function compileOnce(project: Project) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     configure(compiler, project, 1);
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
@@ -66,7 +67,7 @@ function errors(program: any): string[] {
 // Every line the story shows from its start, or from the scene `scene`,
 // choosing the first choice whenever it offers any.
 function play(program: any, scene?: string): string {
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.compiled as Record<string, any>);
   if (scene) {
     story.ChoosePathString(scene);
   }
@@ -121,7 +122,7 @@ describe("a script included from two places", () => {
     expect(errors(program)).toEqual([]);
     const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding_\w+/)?.[0];
     expect(id).toBeDefined();
-    expect(new RuntimeStory(program.compiled as Record<string, any>).EvaluateFunction(id!)).toBe(1);
+    expect(testStory(program.compiled as Record<string, any>).EvaluateFunction(id!)).toBe(1);
   });
 
   it("shows its display content once, where it is first included", () => {
@@ -149,7 +150,7 @@ describe("a script included from two places", () => {
     expect(offset).toBeGreaterThanOrEqual(0);
     const edited = { ...project, [name]: text.slice(0, offset) + replace + text.slice(offset + find.length) };
     const [incremental, cold] = quiet(() => {
-      const compiler = new SparkdownCompiler();
+      const compiler = testCompiler();
       configure(compiler, project, 1);
       compiler.compile({ textDocument: { uri: MAIN_URI } });
       compiler.updateDocument({
@@ -162,13 +163,13 @@ describe("a script included from two places", () => {
         ],
       });
       const incremental = compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
-      const fresh = new SparkdownCompiler();
+      const fresh = testCompiler();
       configure(fresh, edited, 2);
       return [incremental, fresh.compile({ textDocument: { uri: MAIN_URI } }).program];
     });
     expect(errors(incremental)).toEqual([]);
     expect(errors(cold)).toEqual([]);
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
     expect(play(incremental, "main_one")).toContain("Value 7");
   });
 });

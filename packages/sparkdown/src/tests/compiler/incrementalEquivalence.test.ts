@@ -32,6 +32,7 @@ import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { coupledScreenplay, includedChapter } from "./fixtures/coupledScreenplay";
 import { servedFlowNames } from "./servedFlows";
 
@@ -176,9 +177,19 @@ const carriedEdits: CarriedEdit[] = [
   },
 ];
 
-/** Counts the flows the last compile served from the serialized-flow cache. */
+/** Counts the flows the last compile served from the serialized-flow cache.
+ *  The cache, the compiled JSON and the path-location table this oracle
+ *  compares are the current engine's compile path, as is every compiler of
+ *  this file (`currentEngineCompiler`); the program path's oracle is
+ *  `programIncrementalOracles.test.ts`. #705's deletion removes this file's
+ *  subject with it, or moves it. */
 class Probe extends SparkdownCompiler {
   private previousCache?: Map<string, { value: unknown }>;
+
+  constructor() {
+    super();
+    this.configure({ programChunks: false });
+  }
 
   protected override computeFlowReuse(story: RuntimeStory) {
     this.previousCache = this._flowJsonCache;
@@ -268,7 +279,7 @@ function stable(value: unknown): string {
 const URI = "inmemory:///main.sd";
 
 function coldCompile(text: string) {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   });
@@ -371,7 +382,7 @@ describe("compiler incremental equivalence", () => {
       console.warn = () => {};
       console.error = () => {};
       try {
-        const incr = new SparkdownCompiler();
+        const incr = currentEngineCompiler();
         const base = warmed(incr, { [URI]: coupledScreenplay() })[URI]!;
         const offset = base.indexOf(edit.find);
         expect(offset, `find "${edit.find}" present`).toBeGreaterThanOrEqual(0);
@@ -470,7 +481,7 @@ describe("compiler incremental equivalence", () => {
     console.error = () => {};
     try {
       let text = coupledScreenplay();
-      const incr = new SparkdownCompiler();
+      const incr = currentEngineCompiler();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
       });
@@ -598,7 +609,7 @@ describe("compiler incremental equivalence", () => {
     try {
       for (const scenario of SCENARIOS) {
         let text = coupledScreenplay();
-        const incr = new SparkdownCompiler();
+        const incr = currentEngineCompiler();
         // Count demotions (a committed reuse invalidated mid-compile and
         // regenerated) so `expectsDemotion` can prove the path was covered.
         let demotions = 0;
@@ -672,7 +683,7 @@ describe("compiler incremental equivalence", () => {
       const end = posAt(base, offset + find.length);
       const replace = "scen scene_0"; // break the `scene` keyword
       const after = base.slice(0, offset) + replace + base.slice(offset + find.length);
-      const incr = new SparkdownCompiler();
+      const incr = currentEngineCompiler();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
       });
@@ -709,7 +720,7 @@ describe("compiler incremental equivalence", () => {
       const offset = base.indexOf(edit.find);
       expect(offset).toBeGreaterThanOrEqual(0);
       const after = base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length);
-      const incr = new SparkdownCompiler();
+      const incr = currentEngineCompiler();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
       });
@@ -850,7 +861,7 @@ describe("compiler incremental equivalence", () => {
       [SIDE_URI]: "include chapter.sd\n\nscene side_one\n  Side line.\nend\n",
     });
     const coldProject = (texts: Record<string, string>) => {
-      const c = new SparkdownCompiler();
+      const c = currentEngineCompiler();
       c.configure({ files: filesOf(texts) });
       return pick(c.compile({ textDocument: { uri: URI } }).program);
     };

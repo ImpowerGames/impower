@@ -56,7 +56,10 @@ export const scriptFiles = (texts: Record<string, string>) =>
   }));
 
 /** A compiler over `texts`, keyed by uri, with the story each compile
- *  produced in `stories` (the compile result leaves the story out). */
+ *  produced in `stories` (the compile result leaves the story out). It
+ *  compiles for the current engine unless `config` turns `programChunks` on,
+ *  so that a test compares the program engine with it (#705 deletes that
+ *  engine and these comparisons with it). */
 export function programCompiler(
   texts: Record<string, string>,
   config: SparkdownCompilerConfig = {},
@@ -66,7 +69,11 @@ export function programCompiler(
   compiler.addEventListener("compiler/didCompile", (params) => {
     compiled.story = params.story as Story | undefined;
   });
-  compiler.configure({ files: scriptFiles(texts) as never, ...config });
+  compiler.configure({
+    files: scriptFiles(texts) as never,
+    programChunks: false,
+    ...config,
+  });
   return {
     compiler,
     compile(uri = MAIN_URI): { program: SparkProgram; story: Story } {

@@ -2,7 +2,7 @@ import "../../inkjs/engine/Container";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import type { PathLocationTable } from "../../compiler/types/SparkProgram";
 import { locationAtRow } from "../../compiler/utils/pathLocationTable";
 import { generatePerfScreenplay } from "./perfFixture";
@@ -48,7 +48,7 @@ function stableStringify(value: unknown): string {
 
 function programSnapshot(source: string): string {
   const uri = "inmemory:///main.sd";
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   // Silence diagnostic logging noise.
   const realWarn = console.warn;
   const realError = console.error;

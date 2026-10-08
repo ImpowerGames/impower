@@ -5,6 +5,7 @@ import { officialSyntaxErrors } from "../compiler/officialSyntax";
 import { diagnosticMessage } from "./diagnosticTestHarness";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { functionSpans } from "../programListing";
 
 // An expression that is missing, or that cannot start with the token where
 // one must stand, is one syntax error wherever an expression can appear,
@@ -55,7 +56,21 @@ function compileDocument(text: string) {
     .filter((d) => d.severity === 1)
     .sort((a, b) => a.range!.start.line - b.range!.start.line || a.range!.start.character - b.range!.start.character)
     .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${diagnosticMessage(d)}`);
-  return { errors, functions: program.pathLocations?.functions };
+  return { errors, functions: program.chunks ? functionSpans(program) : currentEngineFunctions(text) };
+}
+
+/** The functions' spans the current engine's path-location table gives, for
+ *  a document whose compile builds no statement chunks: one whose loop test
+ *  is malformed, which the program writer has no form for (`a loop's
+ *  test`), and one whose resolution throws in a malformed `store`'s
+ *  initializer. #705's deletion decides these. */
+function currentEngineFunctions(text: string) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    programChunks: false,
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  });
+  return compiler.compile({ textDocument: { uri: URI } }).program.pathLocations?.functions;
 }
 
 // Every position an expression can appear, with `E` where the expression

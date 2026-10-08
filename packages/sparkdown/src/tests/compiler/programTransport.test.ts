@@ -7,6 +7,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import {
   ProgramTransportDecoder,
   ProgramTransportEncoder,
@@ -35,7 +36,7 @@ function quiet<T>(fn: () => T): T {
 }
 
 function compiler() {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     files: [
       { uri: MAIN, type: "script", name: "main", ext: "sd", text: script("Hello."), version: 1, languageId: "sparkdown" },

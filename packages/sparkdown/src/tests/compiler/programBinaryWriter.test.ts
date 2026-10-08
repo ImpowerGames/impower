@@ -6,7 +6,7 @@
 // which is exactly the failure the JSON fallback exists to bisect.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { materializeNode } from "../../binary/programBinary";
@@ -23,7 +23,7 @@ function compileToJson(text: string) {
   console.warn = () => {};
   console.error = () => {};
   try {
-    const c = new SparkdownCompiler();
+    const c = currentEngineCompiler();
     c.configure({
       files: [
         {

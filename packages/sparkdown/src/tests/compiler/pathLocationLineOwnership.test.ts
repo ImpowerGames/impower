@@ -19,7 +19,7 @@
 // line.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import {
   locationAtRow,
   pathLocation,
@@ -39,7 +39,7 @@ const fileOf = (text: string) => ({
 });
 
 function newCompiler() {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   return c;
 }
 

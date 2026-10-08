@@ -6,6 +6,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -18,7 +19,9 @@ function compiled(text: string) {
   return c;
 }
 
-/** The path locations of `text` after `insert` at `line`:`character`, incrementally and cold. */
+/** The program of `text` after `insert` at `line`:`character`, by content
+ *  (its chunks, their line tables and its flows' lines, in place of the
+ *  current engine's path locations), incrementally and cold. */
 function pathLocations(text: string, line: number, character: number, insert: string) {
   const lines = text.split("\n");
   const after = [
@@ -31,8 +34,8 @@ function pathLocations(text: string, line: number, character: number, insert: st
     textDocument: { uri: URI, version: 2 },
     contentChanges: [{ range: { start: { line, character }, end: { line, character } }, text: insert }],
   });
-  const incremental = (c.compile({ textDocument: { uri: URI } }).program as any).pathLocations;
-  const cold = (compiled(after).compile({ textDocument: { uri: URI } }).program as any).pathLocations;
+  const incremental = programContent(c.compile({ textDocument: { uri: URI } }).program.chunks);
+  const cold = programContent(compiled(after).compile({ textDocument: { uri: URI } }).program.chunks);
   return { incremental, cold };
 }
 
@@ -80,6 +83,10 @@ describe("an edit to a scene's lines after a function declared in it", () => {
     ].join("\n");
     const c = new SparkdownCompiler();
     c.configure({
+      // `changes.confined` is the current engine's change summary; a program
+      // of statement chunks answers with `changes.chunks` (#705's deletion
+      // decides this case).
+      programChunks: false,
       emitCompiledProgram: true,
       files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
     } as never);

@@ -23,11 +23,10 @@
 // longer aborts. See FlowBase.AddNewVariableDeclaration.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compile(src: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -115,7 +114,7 @@ end
     expect(r.errors).toBe(0);
     expect(r.compiled).toBeDefined();
 
-    const story = new RuntimeStory(r.compiled as Record<string, any>);
+    const story = testStory(r.compiled as Record<string, any>);
     const recorded: unknown[] = [];
     story.BindExternalFunction("host_record", (v: unknown) => {
       recorded.push(v);

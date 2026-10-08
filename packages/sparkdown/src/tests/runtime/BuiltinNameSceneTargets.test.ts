@@ -153,7 +153,7 @@ scene A
 
 end
 `);
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messagesOf(program).filter((m) => m.includes("Cannot find"))).toEqual([]);
   });
 
@@ -199,7 +199,7 @@ scene A
 
 end
 `);
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messagesOf(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
     expect(messagesOf(program).filter((m) => m.includes("Cannot find"))).toEqual([]);
   });
@@ -218,9 +218,11 @@ scene A
 
 end
 `);
-    const json = JSON.stringify(program.compiled);
-    expect(json).toContain('{"VAR=":"$color_red"}');
-    expect(json).not.toContain("$color_$color_red");
+    // The declaration chunk assigns the define under its scoped key, as the
+    // current engine's global declaration did (`{"VAR=":"$color_red"}`).
+    const listing = programListing(program.chunks);
+    expect(listing.some((line) => /^SetVar \$color_red\b/.test(line))).toBe(true);
+    expect(listing.join("\n")).not.toContain("$color_$color_red");
     expect(messagesOf(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
   });
 
@@ -252,7 +254,7 @@ scene a
 
 end
 `);
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messagesOf(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
   });
 });

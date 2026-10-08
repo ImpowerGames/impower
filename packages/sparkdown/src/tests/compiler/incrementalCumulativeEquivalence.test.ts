@@ -30,6 +30,7 @@ import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { servedFlowNames } from "./servedFlows";
 
@@ -139,7 +140,7 @@ function fieldSig(program: any): Record<string, string> {
 }
 
 function coldProgram(text: string) {
-  const c = new SparkdownCompiler();
+  const c = currentEngineCompiler();
   c.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   });
@@ -303,7 +304,7 @@ describe("compiler cumulative incremental equivalence", () => {
         return L.join("\n");
       };
       const before = makeDoc(true);
-      const incr = new SparkdownCompiler();
+      const incr = currentEngineCompiler();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: before, version: 1, languageId: "sparkdown" }],
       });

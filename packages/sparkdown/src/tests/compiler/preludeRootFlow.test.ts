@@ -17,7 +17,7 @@
 
 import { describe, expect, test } from "vitest";
 import BUILTINS_PRELUDE from "../../compiler/builtins/builtins.sd?raw";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 
 // The same synthetic URI and options SparkdownCompiler uses when it compiles
 // the prelude once, in isolation, to seed its builtins cache (getCompiledPrelude).
@@ -36,7 +36,7 @@ const file = (uri: string, name: string, text: string) =>
   } as any);
 
 const compilePrelude = (text: string) => {
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   compiler.configure({
     useBuiltinsPrelude: false,
     definitions: { builtins: {} as any },
@@ -46,7 +46,7 @@ const compilePrelude = (text: string) => {
 };
 
 const compileScript = (text: string, seedBuiltinsIntoStory: boolean) => {
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory,

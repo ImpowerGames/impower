@@ -23,12 +23,11 @@
 // (Game/InterpreterModule) side of the beat loop.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../inkjs/engine/Value";
 
 function compile(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -48,7 +47,7 @@ function compile(source: string) {
   if (!result.program.compiled) {
     throw new Error("spike fixture failed to compile");
   }
-  const story = new RuntimeStory(
+  const story = testStory(
     result.program.compiled as Record<string, any>,
   );
   const errors: string[] = [];

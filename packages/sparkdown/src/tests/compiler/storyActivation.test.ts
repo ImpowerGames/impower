@@ -14,7 +14,7 @@
 // It is the oracle here, beside running the story.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { StoryJournal } from "../../compiler/classes/StoryJournal";
 import { activation } from "../../inkjs/engine/StoryActivation";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -120,7 +120,7 @@ function change(text: string, find: string, replace: string) {
 
 /** A compiler over one script that hands back the story of each compile. */
 function compilerFor(text: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   } as never);

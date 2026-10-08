@@ -41,10 +41,11 @@ const URI = "inmemory:///main.sd";
 
 const SOURCE = ["$:", "  A ROOFTOP", "", "ALICE:", "  Hello.", ""].join("\n");
 
-const newCompiler = () => {
+const newCompiler = (programChunks?: boolean) => {
   const compiler = new SparkdownCompiler();
   compiler.profilerId = "test";
   compiler.configure({
+    ...(programChunks === undefined ? {} : { programChunks }),
     files: [
       {
         uri: URI,
@@ -114,7 +115,9 @@ describe("compiler profiler phases close on every exit path", () => {
   // (ExportRuntime) is the phase the catch was written for.
   it("emits a measure for a later phase when that phase throws", async () => {
     try {
-      const compiler = newCompiler();
+      // `populateLocations` runs only on the current engine's compile path,
+      // which #705's deletion removes with this test, or moves it.
+      const compiler = newCompiler(false);
       (compiler as unknown as Record<string, unknown>)["populateAllLocations"] =
         () => {
           throw new Error("boom");

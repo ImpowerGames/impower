@@ -12,15 +12,21 @@ import type { SparkdownCompilerConfig } from "../compiler/types/SparkdownCompile
 
 const configure = SparkdownCompiler.prototype.configure;
 
+// The compiler compiles the builtins prelude with a compiler of its own
+// (`getCompiledPrelude`), whose compiled story it reads; that compile is the
+// compiler's, not a test's, and is left as it is.
+const PRELUDE_URI = "file:///__builtins__.sd";
+
 SparkdownCompiler.prototype.configure = function (
   this: SparkdownCompiler,
   config: SparkdownCompilerConfig,
 ) {
   const told = (this as unknown as { _config?: SparkdownCompilerConfig })
     ._config?.programChunks;
+  const prelude = config.files?.some((file) => file.uri === PRELUDE_URI);
   return configure.call(
     this,
-    config.programChunks === undefined && told === undefined
+    config.programChunks === undefined && told === undefined && !prelude
       ? { ...config, programChunks: true }
       : config,
   );

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import type { PathLocationTable } from "../../compiler/types/SparkProgram";
 import { startLineAtRow } from "../../compiler/utils/pathLocationTable";
 import {
@@ -11,7 +11,7 @@ import { Story } from "../../inkjs/engine/Story";
 const URI = "inmemory:///main.sd";
 
 function compile(src: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   compiler.configure({
     files: [
       {

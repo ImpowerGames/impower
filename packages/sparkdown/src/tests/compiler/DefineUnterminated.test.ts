@@ -37,7 +37,7 @@ function compile(source: string): { diags: Diag[]; compiled: boolean } {
   const result = compiler.compile({ textDocument: { uri } });
   return {
     diags: readDiags(result.program),
-    compiled: !!result.program.compiled,
+    compiled: !!result.program.chunks,
   };
 }
 
