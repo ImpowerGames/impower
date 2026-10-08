@@ -1081,6 +1081,44 @@ describe("a save at a menu", () => {
       expect(play(loaded, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
     });
 
+    // A stop at a breakpoint or at the execution step ceiling part way
+    // through the chosen part's first line is still a save after the choice
+    // (#1693; round 1 of the review of #1696, report 6059804803).
+    it("taken while the chosen part's first line is in progress, is the menu's beat with the choice", () => {
+      const pausedAfterPear = () => {
+        const story = engine(rootOf(CHOSEN("kept")));
+        expect(advance(story, 1)).toEqual(["Before."]);
+        story.Continue();
+        story.ChooseChoiceIndex(1);
+        story.ContinueAsync();
+        expect(story.asyncContinueComplete).toBe(false);
+        return story;
+      };
+      const rest = (story: ProgramStory) => {
+        story.Continue();
+        return [shown(story), ...play(story).beats];
+      };
+      const story = pausedAfterPear();
+      const save = story.toSave();
+      expect(JSON.parse(save).chosen.a.ch[2]).toBe(1);
+      // The line finishes as it does when nothing saved.
+      expect(story.asyncContinueComplete).toBe(false);
+      const after = rest(story);
+      expect(after).toEqual(rest(pausedAfterPear()));
+      // The choice's entry ends an empty line before its body's.
+      expect(after).toEqual(["", "Ate pear.", "After."]);
+
+      const kept = engine(rootOf(CHOSEN("kept")));
+      kept.loadSave(save);
+      expect(kept.loadedSaveReport!.chosen).toBe("taken");
+      expect(play(kept).beats).toEqual(["Ate pear.", "After."]);
+
+      const hidden = engine(rootOf(CHOSEN("hidden")));
+      hidden.loadSave(save);
+      expect(hidden.loadedSaveReport!.chosen).toBe("unplaced");
+      expect(play(hidden, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
+    });
+
     it("and a jump elsewhere before the next beat is a save of the state as it stands, with no choice to take again", () => {
       const story = engine(rootOf(CHOSEN("kept")));
       advance(story, 1);

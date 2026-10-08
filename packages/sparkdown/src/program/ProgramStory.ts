@@ -454,6 +454,10 @@ export class ProgramStory implements StoryEngine {
   protected _chosenAt: BeatRecord | null = null;
   /** The address of the `Choice` taken there. */
   protected _chosenAddress = -1;
+  /** The menu's beat and the choice taken at it, when the line the story
+   *  last started began just after that choice, which a save taken while
+   *  the line is in progress writes (`toSave`). */
+  protected _lineChosenAt: { record: BeatRecord; address: number } | null = null;
   /** The record of the beat this engine's state is at, until the story
    *  moves on (a step, a jump, a reset, a load, a choice): after a restore,
    *  the restored beat (the history's newest record, or the record an image
@@ -754,8 +758,28 @@ export class ProgramStory implements StoryEngine {
    * that beat with the choice, which a load takes again.
    */
   toSave(gameVersion = ""): string {
-    this.IfAsyncWeCant("save");
     const held = this._state.beatImage;
+    if (held && this._asyncContinueActive) {
+      // A line in progress, which a stop at a breakpoint or at the execution
+      // step ceiling leaves, is no beat. With `keepBeatImages` set the line
+      // started from the image of the beat before it, which the save is, and
+      // the line is put back still in progress (`saveOf`); without it there
+      // is no beat to write, and the guard below refuses (#1693). A line that
+      // started just after a choice was taken is saved as a save before it
+      // would be: the menu's beat with the choice, which a load takes again
+      // only when the choice is still offered.
+      this.IfInsideContinueWeCant("save");
+      const chosen = this._lineChosenAt;
+      if (chosen) {
+        const records = this.history.upTo(chosen.record.image) ?? [chosen.record];
+        const save = this.saveOf(records, chosen.address < 0 ? undefined : chosen.address, gameVersion);
+        if (save) {
+          return save;
+        }
+      }
+      return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
+    }
+    this.IfAsyncWeCant("save");
     if (held) {
       return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
     }
@@ -810,7 +834,12 @@ export class ProgramStory implements StoryEngine {
    *  the state as it stands put back. Nothing, and nothing changed, when the
    *  image names a position this engine's root cannot place. */
   saveOfImage(image: ProgramImage, gameVersion = "", withHistory = false): string | null {
-    this.IfAsyncWeCant("save");
+    // The image is written, not the state, so a line in progress, which a
+    // stop at the execution step ceiling or at a breakpoint leaves, does not
+    // stand in the way: an image holds that line's positional state as a
+    // route search's does, and the line is put back still in progress
+    // (`saveOf`) (#1693).
+    this.IfInsideContinueWeCant("save");
     const after = image.afterChoice;
     const beat = after ? after.menu : image;
     const chosen = this.choiceHere(image);
@@ -1782,6 +1811,15 @@ export class ProgramStory implements StoryEngine {
     return dm;
   }
 
+  // Refuses what cannot run from inside a continue, such as a callback the
+  // continue is running, where the state is mid-instruction; between the
+  // steps of an asynchronous continue it can.
+  protected IfInsideContinueWeCant(activityStr: string): void {
+    if (this._recursiveContinueCount > 0) {
+      throw new Error("Can't " + activityStr + " from inside a Continue.");
+    }
+  }
+
   IfAsyncWeCant(activityStr: string): void {
     if (this._asyncContinueActive) {
       throw new Error(
@@ -1919,6 +1957,9 @@ export class ProgramStory implements StoryEngine {
         state.beatImage = still ?? this.capture();
         this.adoptBeat(state.beatImage, still);
         this.history.push(state.beatImage, 0);
+        this._lineChosenAt = this._chosenAt
+          ? { record: this._chosenAt, address: this._chosenAddress }
+          : null;
         this._chosenAt = null;
       }
       if (this._recursiveContinueCount == 1) {

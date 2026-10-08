@@ -213,17 +213,16 @@ describe("the ceiling is calibrated against what the editor compiles", () => {
 
 describe("a replay that runs away is still stopped", () => {
   test("a ceiling below what the scene needs stops it and says so", () => {
-    // On the current engine: on the program engine the stopped replay throws
-    // reading its last checkpoint, whose save refuses a line left open
-    // (#1693).
     const beats = 400;
-    const program = compileSrc(longScene(beats), true);
-    const generous = previewLastBeat(program, beats, undefined, true);
+    const program = compileSrc(longScene(beats));
+    const generous = previewLastBeat(program, beats);
     expect(generous.simulation).toBe("success");
     expect(generous.errors).toEqual([]);
 
-    // The same scene, with a ceiling deliberately below its cost.
-    const starved = previewLastBeat(program, beats, 50, true);
+    // The same scene, with a ceiling deliberately below its cost. The ceiling
+    // stops the replay part way through a line, and the replay still returns
+    // its last checkpoint (#1693).
+    const starved = previewLastBeat(program, beats, 50);
     expect(starved.simulation).not.toBe("success");
     expect(starved.errors.join("\n")).toContain("possible infinite loop");
     expect(starved.errors.join("\n")).toContain("50 steps");
