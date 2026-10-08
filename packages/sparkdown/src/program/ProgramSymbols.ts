@@ -5,7 +5,9 @@ import type { ProgramTable } from "../binary/ProgramBinaryWriter";
  *  A root records the kind its program defines each symbol as
  *  (`ProgramRoot.kindOf`, `SequenceRow.kind` for a flow). */
 export const SymbolKind = {
-  /** The flow of a script's top-level content, named by the empty string. */
+  /** The flow of a script's top-level content: the starting script's, named
+   *  by the empty string, or an included script's, named from its uri
+   *  (`INCLUDED_FLOW_PREFIX`), which the top level runs. */
   Root: 0,
   Scene: 1,
   Branch: 2,

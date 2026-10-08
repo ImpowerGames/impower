@@ -87,6 +87,12 @@ export interface ProgramFlowsInput {
   includedAt?(
     obj: ParsedObject,
   ): { uri: string; line: number; block?: object } | undefined;
+  /** The keys the caller keeps from one listing to the next for the
+   *  statements that end included scripts' content (`includeExit`), by
+   *  their syntax, so that those statements keep their chunks across
+   *  compiles for as long as the caller lives; without it, they are this
+   *  listing's own. */
+  includeKeys?: Map<string, object>;
   /** How many lines a script has. */
   lineCount(uri: string): number;
 }
@@ -135,6 +141,11 @@ export interface ProgramFlows {
  */
 export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   const flows: FlowSource[] = [];
+  // The keys of the statements that end included scripts' content, and of
+  // an entry whose `include` statement's block the caller cannot say, by
+  // their syntax: the compiler's own, so they live as long as it does, or
+  // this listing's alone.
+  const includeKeys = input.includeKeys ?? new Map<string, object>();
   const out: ProgramFlows = {
     flows,
     declarations: [],
@@ -278,7 +289,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       },
       newlines,
     });
-    return includeEntry(name, uri, at?.line ?? flowLine, at?.block);
+    return includeEntry(name, uri, at?.line ?? flowLine, at?.block, includeKeys);
   };
 
   // A function declared at the top level is a flow of its own, whose one
@@ -437,7 +448,13 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   // content maps to.
   for (const { flow, newlines } of includedFlows) {
     (flow.statements as StatementSource[]).push(
-      includeExit(flow.name, flow.uri, flow.firstLine + flow.span, newlines),
+      includeExit(
+        flow.name,
+        flow.uri,
+        flow.firstLine + flow.span,
+        newlines,
+        includeKeys,
+      ),
     );
   }
   flows.push(...functionFlows);
@@ -684,14 +701,6 @@ export class IncludeExit extends ParsedObject {
   }
 }
 
-// The key of each statement that ends an included script's content, by its
-// syntax, which names its flow, which names the script: the statement stands
-// last in that flow whatever else the flow holds, so it keeps its chunk with
-// nothing read again while it reads the same (`ChunkStore.keepCarried`).
-// There is one key per script a session includes, and two programs that
-// include one script share it, as each store keeps its own chunk under it.
-const includeKeys = new Map<string, object>();
-
 // The key of each statement that runs an included script's content
 // (`includeEntry`), by the compiled block of the `include` or `run`
 // statement it stands for and its syntax, so that it is carried exactly
@@ -703,7 +712,7 @@ const includeStatement = (
   source: string,
   firstLine: number,
   obj: ParsedObject,
-  keys: Map<string, object> = includeKeys,
+  keys: Map<string, object>,
 ): StatementSource => {
   let block = keys.get(syntax);
   if (!block) {
@@ -733,14 +742,15 @@ const includeStatement = (
  *  which entries moved (`ChunkStore.reuseOf`), and the entries of the edited
  *  statements are ones the build aligns anew, by their syntax, which keeps
  *  their chunks. Without the block (a caller that cannot say), the key is
- *  the syntax's alone. */
+ *  the syntax's alone, in `ownKeys`. */
 const includeEntry = (
   flow: string,
   uri: string,
   firstLine: number,
   includeBlock: object | undefined,
+  ownKeys: Map<string, object>,
 ) => {
-  let keys = includeKeys;
+  let keys = ownKeys;
   if (includeBlock) {
     keys = includeEntryKeys.get(includeBlock) ?? new Map();
     includeEntryKeys.set(includeBlock, keys);
@@ -757,18 +767,24 @@ const includeEntry = (
 /** The last statement of the flow of an included script's top-level content
  *  (`IncludeExit`), on the line after the flow's last, which no line of the
  *  flow maps to, as a flow entry stands on the line before (`flowEntry`). It
- *  has no line rows. */
+ *  has no line rows. It is known by its syntax, which names its flow, which
+ *  names the script, in `keys` (`ProgramFlowsInput.includeKeys`, which the
+ *  compiler owns): it stands last in that flow whatever else the flow
+ *  holds, so it keeps its chunk with nothing read again while it reads the
+ *  same (`ChunkStore.keepCarried`). */
 const includeExit = (
   flow: string,
   uri: string,
   firstLine: number,
   newlines: number,
+  keys: Map<string, object>,
 ) =>
   includeStatement(
     `IncludeExit\u0000${flow}\u0000${newlines}`,
     `end of include ${uri}\u0000${newlines}`,
     firstLine,
     new IncludeExit(flow, newlines),
+    keys,
   );
 
 /** The script whose top level the content of an included weave is: that of

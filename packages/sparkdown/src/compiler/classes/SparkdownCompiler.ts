@@ -785,6 +785,11 @@ export class SparkdownCompiler {
     ParsedObject,
     { uri: string; line: number; block: object }
   >();
+  // The keys the program listing gives the statements that end included
+  // scripts' content, by their syntax, so they keep their chunks from one
+  // compile to the next for as long as this compiler lives
+  // (`ProgramFlowsInput.includeKeys`).
+  protected _includeKeys = new Map<string, object>();
   // What this compile knows of each compiled block: its script and line, its
   // syntax and the lowering inputs it recorded.
   protected _statementRecords = new Map<object, StatementRecord>();
@@ -5062,6 +5067,7 @@ export class SparkdownCompiler {
         this._statementRecords.get(block) ??
         this._preludeStatementRecords.get(block),
       includedAt: (obj) => this._includedAt.get(obj),
+      includeKeys: this._includeKeys,
       lineCount,
     });
     // The store interns into the compiler's persistent table, which
