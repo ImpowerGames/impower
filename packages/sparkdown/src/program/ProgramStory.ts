@@ -802,8 +802,17 @@ export class ProgramStory {
    * that beat with the choice, which a load takes again.
    */
   toSave(gameVersion = ""): string {
-    this.IfAsyncWeCant("save");
     const held = this._state.beatImage;
+    // A line in progress, which a stop at a breakpoint or at the execution
+    // step ceiling leaves, is no beat. With `keepBeatImages` set the line
+    // started from the image of the beat before it, which the save is, and
+    // the line is put back still in progress (`saveOf`); without it there is
+    // no beat to write (#1693).
+    if (held) {
+      this.IfInsideContinueWeCant("save");
+    } else {
+      this.IfAsyncWeCant("save");
+    }
     if (held) {
       return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
     }
@@ -858,7 +867,12 @@ export class ProgramStory {
    *  the state as it stands put back. Nothing, and nothing changed, when the
    *  image names a position this engine's root cannot place. */
   saveOfImage(image: ProgramImage, gameVersion = "", withHistory = false): string | null {
-    this.IfAsyncWeCant("save");
+    // The image is written, not the state, so a line in progress, which a
+    // stop at the execution step ceiling or at a breakpoint leaves, does not
+    // stand in the way: an image holds that line's positional state as a
+    // route search's does, and the line is put back still in progress
+    // (`saveOf`) (#1693).
+    this.IfInsideContinueWeCant("save");
     const after = image.afterChoice;
     const beat = after ? after.menu : image;
     const chosen = this.choiceHere(image);
@@ -1810,6 +1824,15 @@ export class ProgramStory {
     dm.startLineNumber = where.startLine + 1;
     dm.endLineNumber = where.endLine + 1;
     return dm;
+  }
+
+  // Refuses what cannot run from inside a continue, such as a callback the
+  // continue is running, where the state is mid-instruction; between the
+  // steps of an asynchronous continue it can.
+  protected IfInsideContinueWeCant(activityStr: string): void {
+    if (this._recursiveContinueCount > 0) {
+      throw new Error("Can't " + activityStr + " from inside a Continue.");
+    }
   }
 
   IfAsyncWeCant(activityStr: string): void {
