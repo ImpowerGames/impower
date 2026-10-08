@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Statement chunks and the program engine unless a test says otherwise
+    // (#705; the file says why).
+    setupFiles: ["src/tests/programChunksByDefault.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "**/out/**"],
     // Threads rather than forks. Run time here is dominated by transforming
     // and evaluating a large module graph (`Game` reaches the inkjs engine),

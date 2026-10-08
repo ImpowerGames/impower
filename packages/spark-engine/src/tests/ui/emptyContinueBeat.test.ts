@@ -13,6 +13,7 @@ import {
 } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness } from "./harness/uiTestHarness";
+import { requireChunks } from "../harness/compileProgram";
 
 const DEFS = `define HERO as character with
   name = "HERO"
@@ -139,10 +140,7 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  return requireChunks(result.program);
 }
 
 const SCENE = `-> start
@@ -174,7 +172,7 @@ describe("a route replay", () => {
     } as any);
     const line = SCENE.split("\n").findIndex((l) => l.includes("Last line."));
     game.setStartFrom({ file: URI, line });
-    const toPath = game.startAddress as string;
+    const toPath = game.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,

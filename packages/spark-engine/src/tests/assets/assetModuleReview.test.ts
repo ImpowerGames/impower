@@ -160,9 +160,10 @@ describe("AssetModule, after review", () => {
         if (beat?.load) {
           assets.runLoad(beat.load);
         }
-        h.game.observeScene(
-          (h.game.story.state as any).previousPointer?.path?.toString(),
-        );
+        // The address of the step the story ran last (the program engine's
+        // `previousAddress`, for the current engine's previous pointer).
+        const previous = (h.game.story as any).previousAddress as number;
+        h.game.observeScene(previous >= 0 ? previous : undefined);
         const line = Object.values(beat?.text ?? {})
           .flat()
           .map((t: any) => t.text)

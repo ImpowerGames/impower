@@ -11,9 +11,9 @@
 // a preview from them, or from the function above them, still reaches them.
 
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { functionSpans } from "@impower/sparkdown/src/tests/programListing";
 import { describe, expect, test } from "vitest";
 import { Game } from "../../game/core/classes/Game";
-import { findClosestPathLocation } from "../../game/core/utils/findClosestPathLocation";
 import {
   compileUI,
   createHarness,
@@ -38,9 +38,16 @@ const writtenText = (harness: any): string =>
 const playFrom = async (
   source: string,
   line: number,
-  opts?: { file?: string; scripts?: Record<string, string> },
+  opts?: {
+    file?: string;
+    scripts?: Record<string, string>;
+    programChunks?: boolean;
+  },
 ) => {
-  const h = createHarness(source, line, { scripts: opts?.scripts });
+  const h = createHarness(source, line, {
+    scripts: opts?.scripts,
+    programChunks: opts?.programChunks,
+  });
   await h.ready;
   h.reset();
   const startFrom = h.game.setStartFrom(
@@ -236,7 +243,9 @@ describe("a function declared in an included script (#835)", () => {
   test("records the lines of its declaration in that script", () => {
     const { program } = compileUI(MAIN, { scripts: { [OTHER_URI]: OTHER } });
     const scripts = Object.keys(program.scripts);
-    expect(program.pathLocations?.functions).toContainEqual({
+    // The function's flow row (`functionSpans`), for the path-location
+    // table's `functions`.
+    expect(functionSpans(program as any)).toContainEqual({
       path: "less",
       lines: [scripts.indexOf(OTHER_URI), 2, 4],
     });
@@ -266,13 +275,10 @@ describe("the lines of a function body still resolve for the debugger (#835)", (
       ``,
     ].join("\n");
     const { program } = compileUI(SOURCE);
-    const scripts = Object.keys(program.scripts);
-    const found = findClosestPathLocation(
-      { file: MAIN_URI, line: 4 },
-      program.pathLocations,
-      scripts,
-    );
-    expect(found?.[0].split(".")[0]).toBe("less");
+    // The flow the line's address stands in, by the program's locator.
+    const locator = programLocator(program);
+    const found = locator.addressAt(MAIN_URI, 4, { functions: true });
+    expect(locator.sceneAt(found)).toBe("less");
     const [placed] = Game.getActualBreakpoints(programLocator(program), [
       { file: MAIN_URI, line: 4 },
     ]);

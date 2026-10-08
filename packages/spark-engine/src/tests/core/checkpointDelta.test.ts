@@ -4,6 +4,11 @@
 // EXERCISED (not silently falling back to full keyframes) and that EVERY stored
 // checkpoint — not just the last — reconstructs byte-identically to the
 // full-save baseline.
+//
+// Delta checkpoints are the current engine's checkpoint storage: the program
+// engine's checkpoints are its beat images, which neither the delta path nor
+// the verifier reaches. Every compile and game here is the current engine's
+// (`programChunks: false`), and #705's deletion removes this file with it.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -14,6 +19,7 @@ const URI = "inmemory:///main.sd";
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    programChunks: false,
     useBuiltinsPrelude: true,
     // The Game sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
@@ -32,6 +38,7 @@ function compileSrc(src: string) {
 function newGame(program: unknown, config: Record<string, unknown>) {
   return new Game({
     program: program as any,
+    programChunks: false,
     now: () => 0,
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
       fn(...a);

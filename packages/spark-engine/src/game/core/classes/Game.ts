@@ -530,8 +530,8 @@ export class Game<T extends M = {}> {
   }
 
   // Whether a program that carries statement chunks runs on the program
-  // engine (`GameConfiguration.programChunks`).
-  protected _programChunks = false;
+  // engine (`GameConfiguration.programChunks`), as every host's game does.
+  protected _programChunks = true;
 
   // The game's own version string (`GameConfiguration.version`).
   protected _version = "";
@@ -557,7 +557,7 @@ export class Game<T extends M = {}> {
         };
       },
   ) {
-    this._programChunks = options.programChunks ?? false;
+    this._programChunks = options.programChunks ?? true;
     this._version = options.version ?? "";
     this._saveHistory = options.saveHistory ?? 16;
     this._rewindBeats = options.rewindBeats ?? 128;

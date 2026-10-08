@@ -28,6 +28,8 @@ import {
   planRoute,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
 
@@ -52,10 +54,7 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  return requireChunks(result.program);
 }
 
 const newGame = (program: unknown) =>
@@ -80,10 +79,10 @@ function longScene(beats: number): string {
 }
 
 /** Resolve a source line to the runtime path the preview would target. */
-function targetPathForLine(program: unknown, line: number): string {
+function targetPathForLine(program: unknown, line: number): ProgramAddress {
   const game = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return game.startAddress as string;
+  return game.startAddress!;
 }
 
 describe("a long scene is not mistaken for an unreachable one", () => {
@@ -120,7 +119,7 @@ describe("the declared budget decides the verdict, and decides it the same way e
   // advances a scene costs changes for unrelated reasons.
   const SCENE = longScene(300);
 
-  const planWithBudget = (program: unknown, toPath: string, maxSteps: number) =>
+  const planWithBudget = (program: unknown, toPath: ProgramAddress, maxSteps: number) =>
     planRoute(newGame(program).story, "start", toPath, {
       stayWithinKnot: true,
       maxSteps,
@@ -359,7 +358,7 @@ end
     // The two sides really are different places in the story.
     expect(truePath).not.toBe(falsePath);
 
-    const planTo = (toPath: string) =>
+    const planTo = (toPath: ProgramAddress) =>
       Game.planRoute(
         newGame(program).story,
         program as any,

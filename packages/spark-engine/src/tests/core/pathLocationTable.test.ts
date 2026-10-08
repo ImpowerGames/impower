@@ -14,6 +14,10 @@
 //   - a script whose only located paths are `__binding_*` evaluators, which a
 //     preview must never divert into;
 //   - a function, whose rows a preview or a run never starts in (#835).
+//
+// The table is the current engine's, which only its compile path makes: the
+// fixture compiles there (`programChunks: false`), and #705's deletion
+// removes this file with the table.
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
@@ -108,6 +112,7 @@ const script = (uri: string, name: string, text: string) => ({
 const compile = () => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    programChunks: false,
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [

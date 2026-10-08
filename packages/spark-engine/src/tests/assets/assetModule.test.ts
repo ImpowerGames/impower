@@ -5,7 +5,11 @@ import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import { type Instructions } from "../../game/core/types/Instructions";
 import { BEAT_LEAD_MS } from "../../game/core/utils/sharedClock";
-import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";
+import {
+  createHarness,
+  flushMicrotasks,
+  MAIN_URI,
+} from "../ui/harness/uiTestHarness";
 
 // The asset module through the real engine: what it asks the page for, when it
 // waits, and what it lets go of (docs/engine/asset-preloading-spec.md).
@@ -105,7 +109,8 @@ describe("AssetModule", () => {
     const h = createHarness(STORY, 1, { assets: ASSETS });
     await h.ready;
     h.reset();
-    h.game.observeScene("A.0");
+    // Scene A's first line, by the program's locator, for its path `A.0`.
+    h.game.observeScene(h.game.locator.addressAt(MAIN_URI, 1));
     // The window around the cursor first, then the rest of the scene and
     // the scene it diverts to, all visuals and nothing timed.
     const prefetches = byMethod(h.messages, "assets/prefetch");
@@ -422,7 +427,8 @@ end
   it("emits nothing while a route is being simulated", async () => {
     const h = createHarness(STORY, 0, { assets: ASSETS, connect: false });
     h.game.context.system.simulating = "A";
-    h.game.observeScene("A.0");
+    // Scene A's first line, by the program's locator, for its path `A.0`.
+    h.game.observeScene(h.game.locator.addressAt(MAIN_URI, 1));
     expect(h.game.module.assets.prepareBeat({ image: { portrait: [{ control: "show", assets: ["bunny"] }] }, end: 0 })).toBeNull();
     const id = h.game.module.assets.runLoad([{ name: "B" }]);
     expect(h.game.module.assets.isReady(id)).toBe(true);

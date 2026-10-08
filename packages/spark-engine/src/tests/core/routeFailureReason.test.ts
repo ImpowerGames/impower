@@ -32,8 +32,10 @@ import {
   lastSearchStats,
   planRoute,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
-import { hasPathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
 
@@ -58,10 +60,7 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  return requireChunks(result.program);
 }
 
 const newGame = (program: unknown) =>
@@ -116,10 +115,10 @@ function plainScene(beats: number): string {
 }
 
 /** Resolve a source line the way a click in the editor would. */
-function startAddressForLine(program: unknown, line: number): string {
+function startAddressForLine(program: unknown, line: number): ProgramAddress {
   const game: any = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return game.startAddress as string;
+  return game.startAddress!;
 }
 
 describe("the planner says how its search ended", () => {
@@ -136,7 +135,7 @@ describe("the planner says how its search ended", () => {
     const program = compileSrc(UNREACHABLE_TAIL);
     const toPath = startAddressForLine(program, 5);
     // The line really is in the script — this is not a missing-target search.
-    expect(hasPathLocation(program.pathLocations, toPath)).toBe(true);
+    expect(programLocator(program).locationOf(toPath)).toBeDefined();
     const route = Game.planRoute(newGame(program).story, program, "start", toPath);
     expect(route).toBeNull();
     expect(lastSearchStats.endReason).toBe("exhausted");

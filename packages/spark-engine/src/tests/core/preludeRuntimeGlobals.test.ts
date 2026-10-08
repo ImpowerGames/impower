@@ -14,6 +14,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { programContent } from "@impower/sparkdown/src/tests/programListing";
+import { programStoryOf, requireChunks } from "../harness/compileProgram";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
 
 const BUILTINS_PRELUDE = readFileSync(
@@ -147,8 +149,8 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
     const off = compileUser(USER_SRC, false);
     const on = compileUser(USER_SRC, true);
 
-    expect(off.program.compiled).toBeTruthy();
-    expect(on.program.compiled).toBeTruthy();
+    requireChunks(off.program);
+    requireChunks(on.program);
 
     // Non-perturbation: program.context (the LSP-only superset the channels are
     // derived from) is byte-identical — the flag only adds builtin globals to
@@ -159,25 +161,29 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
 
     // Flag OFF (today's gap): the user story's `animation` type table is empty,
     // so the authored animation inherits NO timing.
-    const offCtx = buildDefinesContext(new Story(off.program.compiled as any));
+    const offCtx = buildDefinesContext(programStoryOf(off.program) as any);
     expect((offCtx["animation"]?.["my_anim"] as any)?.timing).toBeUndefined();
 
     // Flag ON: the builtin `animation` define now runs in the SAME story, so the
     // authored animation inherits its timing via the runtime __index chain.
-    const onCtx = buildDefinesContext(new Story(on.program.compiled as any));
+    const onCtx = buildDefinesContext(programStoryOf(on.program) as any);
     const myAnim = onCtx["animation"]?.["my_anim"] as any;
     expect(myAnim?.keyframes).toMatchObject({ background_position: "right" });
     expect(myAnim?.timing).toMatchObject({ fill: "both", direction: "normal" });
   });
 
-  test("cached prelude reuse: warm compiles are byte-identical to a fresh compile", () => {
+  test("cached prelude reuse: warm compiles build the program a fresh compile builds", () => {
     // Fresh compiler → cold compile (parses + caches the prelude).
     const fresh = compileUser(USER_SRC, true);
-    const freshJson = JSON.stringify(fresh.program.compiled);
+    // The program's chunks by content (`programContent`: every chunk's
+    // instructions, tables and lines, without the chunk, sequence and
+    // anonymous symbol ids a compile numbers), which a compile without chunks
+    // fails.
+    const freshJson = JSON.stringify(programContent(fresh.program.chunks));
     expect(freshJson).toBeTruthy();
 
     // One long-lived compiler, compiled repeatedly: the 2nd+ compiles reuse the
-    // cached prelude parse. The output must stay byte-identical to a fresh parse
+    // cached prelude parse. The program must stay the one a fresh parse builds
     // (proves resetParsedRuntime + re-splice is sound, no cross-compile bleed).
     const compiler = new SparkdownCompiler();
     compiler.configure({
@@ -197,13 +203,13 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
     });
     for (let i = 0; i < 3; i += 1) {
       const r = compiler.compile({ textDocument: { uri: USER_URI } });
-      expect(JSON.stringify(r.program.compiled)).toBe(freshJson);
+      expect(JSON.stringify(programContent(r.program.chunks))).toBe(freshJson);
     }
   });
 
   test("flag ON: builtin instances are present in the user story too", () => {
     const on = compileUser(USER_SRC, true);
-    const ctx = buildDefinesContext(new Story(on.program.compiled as any));
+    const ctx = buildDefinesContext(programStoryOf(on.program) as any);
     // A builtin instance authored in the prelude now lives in the user story.
     expect(ctx["color"]?.["red"]).toMatchObject({ value: "rgb(220,38,38)" });
     expect((ctx["config"]?.["ui"] as any)?.breakpoints).toMatchObject({

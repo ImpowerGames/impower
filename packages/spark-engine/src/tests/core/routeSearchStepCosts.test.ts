@@ -25,12 +25,17 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
 
-function compileSrc(src: string) {
+/** `currentEngine` compiles for the current engine, whose game runs it
+ *  there (the one test below that names it says why). */
+function compileSrc(src: string, currentEngine = false) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    ...(currentEngine ? { programChunks: false } : {}),
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [
@@ -49,15 +54,13 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  return currentEngine ? result.program : requireChunks(result.program);
 }
 
-const newGame = (program: unknown) =>
+const newGame = (program: unknown, currentEngine = false) =>
   new Game({
     program: program as any,
+    ...(currentEngine ? { programChunks: false } : {}),
     now: () => 0,
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
       fn(...a);
@@ -77,10 +80,14 @@ function longScene(beats: number): string {
 }
 
 /** Resolve a source line to the runtime path the preview would target. */
-function targetPathForLine(program: unknown, line: number): string {
-  const game = newGame(program);
+function targetPathForLine(
+  program: unknown,
+  line: number,
+  currentEngine = false,
+): ProgramAddress {
+  const game = newGame(program, currentEngine);
   game.setStartFrom({ file: URI, line });
-  return game.startAddress as string;
+  return game.startAddress!;
 }
 
 const BEATS = 50;
@@ -134,11 +141,16 @@ describe("a route search pays neither per-step cost", () => {
   // search constructs. What must not happen is a read on every story advance,
   // so the property here is that a search reads the clock fewer times than it
   // takes steps.
+  //
+  // On the current engine: the program engine's story builds two states for
+  // one, its own and the current engine's runtime story's, which #705's
+  // deletion removes, so each seeds from the clock; the read stays one per
+  // state built, not per step, on either engine.
   const clockReadsForScene = (beats: number) => {
-    const program = compileSrc(longScene(beats));
-    const toPath = targetPathForLine(program, beats + 2);
+    const program = compileSrc(longScene(beats), true);
+    const toPath = targetPathForLine(program, beats + 2, true);
     expect(toPath).not.toBe("0");
-    const game = newGame(program);
+    const game = newGame(program, true);
 
     const originalGetTime = Date.prototype.getTime;
     let reads = 0;

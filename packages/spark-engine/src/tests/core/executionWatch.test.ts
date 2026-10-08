@@ -62,13 +62,13 @@ const runtimeErrors = (messages: any[]) =>
     .map((m) => String(m.params.message));
 
 /** PLAY `source` from `line` (zero-based) with a lowered step budget, and
- *  every story the watch heard from, with the line each was running. With
- *  `programChunks`, the game runs the program engine if the program compiles
- *  to statement chunks. */
+ *  every story the watch heard from, with the line each was running. The
+ *  game runs the program engine, as every host's does, unless
+ *  `programChunks` is false. */
 const playWatched = async (
   source: string,
   line: number,
-  programChunks = false,
+  programChunks = true,
 ) => {
   const heard: { story: WatchedStory; line: number | null }[] = [];
   const h = createHarness(source, line, { programChunks });
@@ -105,6 +105,7 @@ afterEach(() => {
 describe("the execution watch (#679)", () => {
   test("hears a Luau loop inside one function call, on the loop's lines", async () => {
     const { game, heard, errors } = await playWatched(LUAU_LOOP, 9);
+    expect(game.story).toBeInstanceOf(ProgramStory);
     // The engine's own ceiling stopped it, which is what ends the test.
     expect(errors.join("\n")).toContain("possible infinite loop");
     // Called on the interval, from the story the game runs, throughout.
@@ -127,35 +128,13 @@ describe("the execution watch (#679)", () => {
   }, 120_000);
 
   test("is not called by a beat that ends", async () => {
-    const { heard, errors, steps } = await playWatched(
-      "BOB:\n  One.\n\nBOB:\n  Two.\n",
-      0,
-    );
-    expect(errors).toEqual([]);
-    // A beat is far shorter than the interval, so it is never heard.
-    expect(steps).toBeGreaterThan(0);
-    expect(steps).toBeLessThan(EXECUTION_WATCH_STEPS);
-    expect(heard).toEqual([]);
-  }, 120_000);
-
-  // The program engine has no runtime paths, so the story it passes names no
-  // line; that it is still running is what the worker needs to hear.
-  test("hears a Luau loop inside one function call on the program engine", async () => {
-    const { game, heard, errors } = await playWatched(LUAU_LOOP, 9, true);
-    expect(game.story).toBeInstanceOf(ProgramStory);
-    expect(errors.join("\n")).toContain("possible infinite loop");
-    expect(heard.length).toBeGreaterThanOrEqual(LEAST_CALLS);
-    expect(heard.every((h) => h.story === game.story)).toBe(true);
-  }, 120_000);
-
-  test("is not called by a beat that ends on the program engine", async () => {
     const { game, heard, errors, steps } = await playWatched(
       "BOB:\n  One.\n\nBOB:\n  Two.\n",
       0,
-      true,
     );
     expect(game.story).toBeInstanceOf(ProgramStory);
     expect(errors).toEqual([]);
+    // A beat is far shorter than the interval, so it is never heard.
     expect(steps).toBeGreaterThan(0);
     expect(steps).toBeLessThan(EXECUTION_WATCH_STEPS);
     expect(heard).toEqual([]);

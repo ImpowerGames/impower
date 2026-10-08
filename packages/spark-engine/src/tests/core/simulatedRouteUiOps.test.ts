@@ -159,7 +159,7 @@ end
       source.split("\n").findIndex((l) => l.includes(text));
     const planTo = (game: any, line: number) => {
       game.setStartFrom({ file: MAIN_URI, line });
-      const toPath = game.startAddress as string;
+      const toPath = game.startAddress!;
       return Game.planRoute(
         game.story,
         game.program,
@@ -172,11 +172,17 @@ end
 
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The first stop.")));
+    // A resume restores the checkpoint (`restoreCheckpoint`): the program
+    // engine puts its beat image back, where the current engine loaded the
+    // checkpoint's save. Counted when it restores.
     let loads = 0;
-    const realLoad = resumed.load.bind(resumed);
-    resumed.load = (...args: unknown[]) => {
-      loads += 1;
-      return realLoad(...args);
+    const realRestore = resumed.restoreCheckpoint.bind(resumed);
+    resumed.restoreCheckpoint = (...args: unknown[]) => {
+      const restored = realRestore(...args);
+      if (restored) {
+        loads += 1;
+      }
+      return restored;
     };
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The second stop.")));
     expect(loads).toBe(1);
@@ -219,7 +225,7 @@ end
       source.split("\n").findIndex((l) => l.includes(text));
     const planTo = (game: any, line: number) => {
       game.setStartFrom({ file: MAIN_URI, line });
-      const toPath = game.startAddress as string;
+      const toPath = game.startAddress!;
       return Game.planRoute(
         game.story,
         game.program,
@@ -231,11 +237,17 @@ end
 
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The later stop.")));
+    // A resume restores the checkpoint (`restoreCheckpoint`): the program
+    // engine puts its beat image back, where the current engine loaded the
+    // checkpoint's save. Counted when it restores.
     let loads = 0;
-    const realLoad = resumed.load.bind(resumed);
-    resumed.load = (...args: unknown[]) => {
-      loads += 1;
-      return realLoad(...args);
+    const realRestore = resumed.restoreCheckpoint.bind(resumed);
+    resumed.restoreCheckpoint = (...args: unknown[]) => {
+      const restored = realRestore(...args);
+      if (restored) {
+        loads += 1;
+      }
+      return restored;
     };
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The earlier stop.")));
     expect(loads).toBe(1);

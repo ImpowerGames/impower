@@ -4,9 +4,11 @@ import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
-import { pathTableLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import {
+  pathTableLocator,
+  programLocator,
+} from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import {
   beatIndexIn,
   previewWindow,
@@ -202,13 +204,12 @@ const beatShowing = (
   return beat.address;
 };
 
-/** The path the editor's cursor on `line` resolves to. */
-const pathAt = (game: Game, line: number): string | null =>
-  findClosestPath(
-    { file: MAIN_URI, line },
-    game.program.pathLocations,
-    Object.keys(game.program.scripts ?? {}),
-  );
+/** The address the editor's cursor on `line` resolves to: the last beat at
+ *  or before the line, by the program's own locator, as the preview reads
+ *  it. */
+const pathAt = (game: Game, line: number): ProgramAddress | null =>
+  programLocator(game.program).addressAt(MAIN_URI, line, { beat: "last" }) ??
+  null;
 
 /** Whether a promise has settled by the time the microtasks drain. */
 const settled = async (promise: Promise<unknown>): Promise<boolean> => {
@@ -301,7 +302,7 @@ const checkpointFor = (story: string, line: number): string | null => {
     setTimeout: syncTimeout,
   } as any);
   sim.setStartFrom({ file: MAIN_URI, line });
-  const to = sim.startAddress as string;
+  const to = sim.startAddress!;
   const from = sim.routeStartOf(to);
   const route = Game.planRoute(sim.story, program as any, from, to);
   return route ? sim.patchAndSimulateRoute(route) : null;
@@ -315,6 +316,8 @@ type Arrival = {
   simulation?: "fail";
   checkpoint?: string;
   prepare?: (game: Game) => void;
+  /** Compile and run on the current engine (`programChunks: false`). */
+  currentEngine?: boolean;
 };
 
 /** A game connected the way the page connects one for a preview at `line`:
@@ -325,6 +328,7 @@ const connected = (story: string, line: number, arrival: Arrival = {}) =>
     assets: ASSETS,
     holdAssets: true,
     loadCheckpoint: arrival.checkpoint,
+    ...(arrival.currentEngine ? { programChunks: false } : {}),
     beforeConnect: (game) => {
       if (arrival.simulation) {
         game.simulation = arrival.simulation;
@@ -471,7 +475,13 @@ describe("preview prediction and gate", () => {
       ],
     ];
     for (const [shape, line, expected] of cases) {
-      const got = await previewGate(SHAPES[shape]!, line);
+      // The scene heading's case on the current engine: the program's
+      // locator answers a line with no beat with the first beat below it
+      // (`ProgramLocator.addressAt`), so the program engine previews line 1
+      // there and gates its backdrop.
+      const got = await previewGate(SHAPES[shape]!, line, {
+        currentEngine: shape === "alternating" && line === 0,
+      });
       expect({ shape, line, gated: got.gated }).toEqual({
         shape,
         line,
