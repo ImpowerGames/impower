@@ -144,6 +144,18 @@ const raws = new WeakMap<object, LowerContext>();
  *  sequences). */
 export const rawContext = (ctx: LowerContext): LowerContext => raws.get(ctx) ?? ctx;
 
+// The value each recording proxy stands for. A value a lowering writes into
+// the context is written as itself, never as a proxy (`unwrap`): the
+// context outlives the recording, and code outside it compares what it reads
+// there with what it holds by identity.
+const targets = new WeakMap<object, object>();
+
+/** The value `value` stands for when it is a recording proxy, or itself. */
+const unwrap = <T>(value: T): T =>
+  value !== null && typeof value === "object"
+    ? ((targets.get(value as object) as T | undefined) ?? value)
+    : value;
+
 /**
  * The context for lowering the statement whose node spans `[from, to)`, and
  * `finish`, which returns what the lowering recorded once it has run.
@@ -179,11 +191,30 @@ export function recordLowering(
     }
   };
   const proxies = new WeakMap<object, object>();
+  // The objects the lowering itself wrote into the context, which a read
+  // returns as themselves, unrecorded: what the lowering wrote is no input
+  // of it, and a lowering compares what it reads back with what it wrote
+  // (`shadowSiblingSubFlow`'s `frame.get(name) === shadow`).
+  const own = new WeakSet<object>();
+  const owned = <T>(value: T): T => {
+    const raw = unwrap(value);
+    if (raw !== null && typeof raw === "object") {
+      own.add(raw as object);
+    }
+    return raw;
+  };
+  // Once the lowering is done, the proxies it was handed stand for the
+  // values themselves: a closure that holds one and runs later (a block's
+  // end) reads and writes the context as itself, and records nothing.
+  let finished = false;
   // Every value the lowering read whose members it then wrote, with its
   // entries as they were first read: a write that leaves them so is none.
   const written = new Map<object, { path: string; before: string | undefined }>();
 
   const wrap = (value: unknown, path: readonly ContextStep[]): unknown => {
+    if (finished || (value !== null && typeof value === "object" && own.has(value))) {
+      return value;
+    }
     record(path, value);
     if (value === null || typeof value !== "object") {
       if (typeof value === "function") {
@@ -208,6 +239,7 @@ export function recordLowering(
     if (!proxy) {
       proxy = follow(value, path);
       proxies.set(value, proxy);
+      targets.set(proxy, value);
     }
     return proxy;
   };
@@ -221,6 +253,12 @@ export function recordLowering(
   const follow = (target: object, path: readonly ContextStep[]): object =>
     new Proxy(target, {
       get(t, prop) {
+        if (finished) {
+          const value = Reflect.get(t, prop);
+          return typeof value === "function"
+            ? (...args: unknown[]) => (value as (...a: unknown[]) => unknown).apply(t, args.map(unwrap))
+            : value;
+        }
         if (typeof prop === "symbol") {
           if (prop === Symbol.iterator && (t instanceof Map || t instanceof Set)) {
             return whole(t, path, prop);
@@ -231,8 +269,10 @@ export function recordLowering(
           if (ARRAY_WRITES.has(prop)) {
             const method = (t as any)[prop] as (...a: unknown[]) => unknown;
             return (...args: unknown[]) => {
-              noteWrite(t, path);
-              return method.apply(t, args);
+              if (!finished) {
+                noteWrite(t, path);
+              }
+              return method.apply(t, args.map(owned));
             };
           }
           // value-level: a property name of an array of the context, read as its index
@@ -251,8 +291,10 @@ export function recordLowering(
           if (COLLECTION_WRITES.has(prop)) {
             const method = (t as any)[prop] as (...a: unknown[]) => unknown;
             return (...args: unknown[]) => {
-              noteWrite(t, path);
-              return method.apply(t, args);
+              if (!finished) {
+                noteWrite(t, path);
+              }
+              return method.apply(t, args.map(owned));
             };
           }
           if (COLLECTION_WHOLE.has(prop)) {
@@ -265,7 +307,7 @@ export function recordLowering(
           return (...args: unknown[]) => {
             if (!args.every(isPrimitive)) {
               refuse(`${describe(path)}.${prop} asked about an object`);
-              return method.apply(t, args);
+              return method.apply(t, args.map(unwrap));
             }
             const answer = method.apply(t, args);
             return wrap(answer, [...path, { call: prop, args: args as Primitive[] }]);
@@ -278,7 +320,7 @@ export function recordLowering(
           return (...args: unknown[]) => {
             if (!args.every(isPrimitive)) {
               refuse(`${describe(path)}.${prop} asked about an object`);
-              return value.apply(t, args);
+              return value.apply(t, args.map(unwrap));
             }
             const answer = value.apply(t, args);
             return wrap(answer, [...path, { call: prop, args: args as Primitive[] }]);
@@ -287,19 +329,23 @@ export function recordLowering(
         return wrap(value, [...path, prop]);
       },
       set(t, prop, value) {
-        noteWrite(t, path);
-        return Reflect.set(t, prop, value);
+        if (!finished) {
+          noteWrite(t, path);
+        }
+        return Reflect.set(t, prop, owned(value));
       },
       deleteProperty(t, prop) {
-        noteWrite(t, path);
+        if (!finished) {
+          noteWrite(t, path);
+        }
         return Reflect.deleteProperty(t, prop);
       },
       has(t, prop) {
-        refuse(`${describe(path)} was asked what it holds`);
+        if (!finished) refuse(`${describe(path)} was asked what it holds`);
         return Reflect.has(t, prop);
       },
       ownKeys(t) {
-        refuse(`${describe(path)} was enumerated`);
+        if (!finished) refuse(`${describe(path)} was enumerated`);
         return Reflect.ownKeys(t);
       },
     });
@@ -327,7 +373,7 @@ export function recordLowering(
   const rootWrites = new Map<PropertyKey, unknown>();
   const root = new Proxy(ctx, {
     get(t, prop) {
-      if (typeof prop === "symbol") {
+      if (finished || typeof prop === "symbol") {
         return Reflect.get(t, prop);
       }
       switch (prop) {
@@ -413,23 +459,23 @@ export function recordLowering(
       return wrap(value, [prop]);
     },
     set(t, prop, value) {
-      if (!rootWrites.has(prop)) {
+      if (!finished && !rootWrites.has(prop)) {
         rootWrites.set(prop, Reflect.get(t, prop));
       }
-      return Reflect.set(t, prop, value);
+      return Reflect.set(t, prop, owned(value));
     },
     deleteProperty(t, prop) {
-      if (!rootWrites.has(prop)) {
+      if (!finished && !rootWrites.has(prop)) {
         rootWrites.set(prop, Reflect.get(t, prop));
       }
       return Reflect.deleteProperty(t, prop);
     },
     has(t, prop) {
-      refuse(`the context was asked whether it holds ${String(prop)}`);
+      if (!finished) refuse(`the context was asked whether it holds ${String(prop)}`);
       return Reflect.has(t, prop);
     },
     ownKeys(t) {
-      refuse("the context was enumerated");
+      if (!finished) refuse("the context was enumerated");
       return Reflect.ownKeys(t);
     },
   });
@@ -438,6 +484,7 @@ export function recordLowering(
   return {
     ctx: root,
     finish: () => {
+      finished = true;
       for (const [prop, before] of rootWrites) {
         if (!Object.is(Reflect.get(ctx, prop), before)) {
           refuse(`the lowering left the context's ${String(prop)} changed`);

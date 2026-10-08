@@ -925,3 +925,36 @@ describe("local declarations, further shapes", () => {
     sameAsCold(s);
   });
 });
+
+// ---- The recording of the lowering context ----------------------------------
+
+describe("the recording of the lowering context", () => {
+  it("writes what a lowering writes as itself, and hands it back as itself, so a block's end puts back what it hid", async () => {
+    const { recordLowering } = await import("../../compiler/lower/recordingContext");
+    const { shadowSiblingSubFlow } = await import("../../compiler/lower/expression/bindings");
+    const hidden: { upvals: string[]; arity: number; knotName: string; rebound?: boolean } = {
+      upvals: ["base"],
+      arity: 1,
+      knotName: "foo",
+    };
+    const frame = new Map<string, typeof hidden>([["foo", hidden]]);
+    const ends: (() => void)[] = [];
+    const ctx = {
+      siblingSubFlowNamesStack: [frame],
+      blockEndStack: [ends],
+      read: () => "",
+      lineNumber: () => 0,
+      characterNumber: () => 0,
+    } as never;
+    // A `local foo` lowered under the recording hides the sibling function
+    // for the rest of its block, and the block's end, which runs after the
+    // statement's recording is done, puts it back.
+    const { ctx: recorded, finish } = recordLowering(ctx, 0, 0);
+    shadowSiblingSubFlow("foo", recorded);
+    expect(frame.get("foo")).not.toBe(hidden);
+    expect(frame.get("foo")?.rebound).toBe(true);
+    finish();
+    ends.forEach((end) => end());
+    expect(frame.get("foo")).toBe(hidden);
+  });
+});

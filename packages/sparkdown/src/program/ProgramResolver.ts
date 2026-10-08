@@ -1901,12 +1901,16 @@ export class ProgramResolver {
     }
   }
 
-  /** What a memo candidate's generation and resolution reported and read,
-   *  when its memo can repeat it: it reported only positions inside itself,
-   *  declared nothing, read no fact of another statement's that no name
-   *  stands for (a function value, the story's assignments), and no name of
-   *  a constant, a list or a struct, whose values the story decides from the
-   *  declarations together. */
+  /** What a memo candidate's generation and resolution reported, read and
+   *  declared, when its memo can repeat it: it reported only positions inside
+   *  itself; it declared nothing but the locals and auto-globals of the
+   *  assignments it is, which its stand-in declares and makes again
+   *  (`repeatMemo`); it read no fact of another statement's that no name
+   *  stands for (a function value, the story's assignments) and no name of a
+   *  list or a struct, whose values the story decides from the declarations
+   *  together. A constant's name it may read: a change of whether the story
+   *  can register the constant declares the name otherwise for its readers
+   *  (`notedChanged`), which makes the memo stale. */
   protected memoResolutionOf(tally: MemoTally): MemoResolution | undefined {
     if (tally.refused !== null || tally.context === null) {
       return undefined;
