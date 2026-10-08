@@ -59,10 +59,10 @@ export interface DOMHarness {
   snapshotDOM(): unknown;
 }
 
-/** A fixture's program. With `programChunks`, the program is compiled to
- *  statement chunks for the binary program's engine (#692), and a fixture
- *  that falls back to the current engine is refused. */
-export function compile(source: string, programChunks = false) {
+/** A fixture's program, compiled to statement chunks for the binary
+ *  program's engine (#692), where a fixture that falls back to the current
+ *  engine is refused; with `programChunks` false, the current engine's. */
+export function compile(source: string, programChunks = true) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     // Builtins come from the implicitly-imported builtins prelude (the compiler
@@ -296,11 +296,12 @@ export function createDOMHarness(
     /** Load a saved checkpoint before the connect, as the page does when it
      *  displays a preview from the worker's route. */
     loadCheckpoint?: string;
-    /** Run the game on the binary program's engine (`compile`). */
+    /** Run the game on the binary program's engine (`compile`); default on,
+     *  as every host's game. */
     programChunks?: boolean;
   },
 ): DOMHarness {
-  const programChunks = opts?.programChunks ?? false;
+  const programChunks = opts?.programChunks ?? true;
   const program = compile(source, programChunks);
   const { overlay } = installJSDOM();
 

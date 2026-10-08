@@ -121,7 +121,8 @@ export function compileUI(
      *  file (source offsets start again in every one) names them here and
      *  writes `include <uri>` in its main source. */
     scripts?: Record<string, string>;
-    /** Compile statement chunks too (`SparkdownCompilerConfig.programChunks`). */
+    /** Compile statement chunks (`SparkdownCompilerConfig.programChunks`):
+     *  the package's setup file turns them on unless this names it. */
     programChunks?: boolean;
   },
 ) {
@@ -132,7 +133,7 @@ export function compileUI(
     // Game-feeding compile must seed the builtins prelude into the story VM
     // (the production player does the same). Default on.
     seedBuiltinsIntoStory: opts?.seedBuiltinsIntoStory ?? true,
-    programChunks: opts?.programChunks ?? false,
+    programChunks: opts?.programChunks,
     files: [
       {
         uri: MAIN_URI,
@@ -235,8 +236,8 @@ export function createHarness(
     assets?: File[];
     /** Scripts `main.sd` includes, by URI (see `compileUI`). */
     scripts?: Record<string, string>;
-    /** Run the program on the program engine (`GameConfiguration.programChunks`)
-     *  when it compiles to statement chunks without falling back. */
+    /** Run the program on the program engine (`GameConfiguration.programChunks`,
+     *  default on) when it compiles to statement chunks without falling back. */
     programChunks?: boolean;
   },
 ): UIHarness {
@@ -261,7 +262,7 @@ export function createHarness(
   const game = new Game({
     program: program as any,
     previewFrom: { file: MAIN_URI, line: startLine },
-    programChunks: opts?.programChunks ?? false,
+    programChunks: opts?.programChunks,
     now: () => 0,
     setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
       if (ms != null && ms > 0) {
