@@ -124,6 +124,9 @@ class Probe extends SparkdownCompiler {
 function newCompiler(main: string, chapter: string) {
   const compiler = new Probe();
   compiler.configure({
+    // The per-flow reuse guard is the current engine's compile path (#705's
+    // deletion removes it with this test, or moves the test).
+    programChunks: false,
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [file(MAIN_URI, main, 1), file(CHAPTER_URI, chapter, 1)],

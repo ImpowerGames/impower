@@ -11,6 +11,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programListing, pushesString } from "../programListing";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 
@@ -141,7 +142,9 @@ describe("a carried choose chunk", () => {
         ],
       } as never);
       const program = compileOf(c);
-      expect(JSON.stringify(program.compiled)).toContain(replace.split("\n")[0]);
+      expect(
+        pushesString(programListing(program.chunks), replace.split("\n")[0]!.trim()),
+      ).toBe(true);
 
       expect(
         chunks(c).includes(choose),

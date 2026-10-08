@@ -8,12 +8,11 @@
 // ObjectValue save serialization.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../inkjs/engine/Value";
 
 function compile(source: string): Record<string, any> {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -47,7 +46,7 @@ describe("display() output-stream serialization", () => {
 done
 `);
 
-    const storyA = new RuntimeStory(compiled);
+    const storyA = testStory(compiled);
     const errorsA: string[] = [];
     storyA.onError = (m) => errorsA.push(m);
     storyA.Continue(); // completes the display beat — table is in the output stream
@@ -59,7 +58,7 @@ done
     const savedJson = storyA.state.ToJson() as string;
 
     // Restore into a fresh story.
-    const storyB = new RuntimeStory(compiled);
+    const storyB = testStory(compiled);
     const errorsB: string[] = [];
     storyB.onError = (m) => errorsB.push(m);
     storyB.state.LoadJson(savedJson);

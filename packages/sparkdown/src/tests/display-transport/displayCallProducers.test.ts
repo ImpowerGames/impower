@@ -5,9 +5,8 @@
 
 import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { testCompiler, testStory } from "../engineUnderTest";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { ObjectValue, StringValue } from "../../inkjs/engine/Value";
 
 interface Step {
@@ -19,7 +18,7 @@ interface Step {
 }
 
 function compile(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -39,7 +38,7 @@ function compile(source: string) {
   if (!result.program.compiled) {
     throw new Error("display-call producer fixture failed to compile");
   }
-  return new RuntimeStory(result.program.compiled as Record<string, any>);
+  return testStory(result.program.compiled as Record<string, any>);
 }
 
 // Runs the story to its end, picking the first choice whenever it stops on

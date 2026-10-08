@@ -4,7 +4,6 @@
 // when the block is lowered again, without being lowered, while every read
 // its lowering recorded through the lowering context reads the same, and it
 // keeps the program chunk the memo holds. The memo holds no parsed object.
-import "../../inkjs/engine/Container";
 import v8 from "node:v8";
 import vm from "node:vm";
 import { describe, expect, it, vi } from "vitest";
@@ -14,10 +13,7 @@ import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler
 import type { StatementShape } from "../../compiler/lower/utils/statementShape";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { parsedChildren, ProgramResolver } from "../../program/ProgramResolver";
 import type { ProgramRoot } from "../../program/ProgramRoot";
-import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
-import { programStatements } from "./programStatements";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
 
@@ -57,6 +53,16 @@ vi.mock("../../compiler/lower/lowerers/lowerAssetLine", async (importOriginal) =
     },
   };
 });
+
+// The package's setup file (`programChunksByDefault.ts`) has already loaded
+// the compiler, and `lower` and `lowerImageLine` with it, unmocked; the
+// modules are loaded again so that the compiler lowers through the mocks.
+vi.resetModules();
+
+await import("../../inkjs/engine/Container");
+const { parsedChildren, ProgramResolver } = await import("../../program/ProgramResolver");
+const { describeRoot, MAIN_URI, programCompiler, rootChunks } = await import("./programHarness");
+const { programStatements } = await import("./programStatements");
 
 function posAt(text: string, offset: number) {
   const before = text.slice(0, offset).split("\n");
@@ -275,7 +281,7 @@ const watchingStories = async <T>(
   run: () => Promise<T>,
 ): Promise<T> => {
   const resolve = ProgramResolver.prototype.resolve;
-  ProgramResolver.prototype.resolve = function (this: ProgramResolver, ...args) {
+  ProgramResolver.prototype.resolve = function (this: InstanceType<typeof ProgramResolver>, ...args) {
     seen(args[0] as unknown as ParsedObject);
     return resolve.apply(this, args);
   };

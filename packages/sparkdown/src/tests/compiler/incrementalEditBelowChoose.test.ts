@@ -11,6 +11,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent, programListing } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -116,10 +117,11 @@ function screenplay(block: string[]): string {
   return L.join("\n");
 }
 
+// The program's chunks by content, which hold its line tables, in place of
+// the current engine's compiled JSON and path-location table; a compile that
+// builds no chunks fails the comparison (`programContent` throws).
 const pick = (p: any) => ({
-  compiled: p.compiled,
-  pathLocations: p.pathLocations,
-  pathLocationsOrder: p.pathLocations?.paths ?? [],
+  chunks: programContent(p.chunks),
   dataLocations: p.dataLocations,
   functionLocations: p.functionLocations,
   sceneLocations: p.sceneLocations,
@@ -213,8 +215,8 @@ describe("an incremental compile of an edit in a scene", () => {
         const incremental = compileOf(c);
 
         expect(c.documents.get(URI)!.getText()).toBe(after);
-        expect(JSON.stringify(incremental.compiled)).toContain(
-          `^Beat 1 ${side}, changed.`,
+        expect(programListing(incremental.chunks)).toContain(
+          `Str ${JSON.stringify(`Beat 1 ${side}, changed.`)}`,
         );
         expect(stable(pick(incremental))).toBe(
           stable(pick(compileOf(compilerFor(after)))),

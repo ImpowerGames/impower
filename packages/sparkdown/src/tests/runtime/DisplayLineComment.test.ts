@@ -16,11 +16,10 @@
 //      text — it is not a comment.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const compile = (text: string) => {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -45,7 +44,7 @@ const compile = (text: string) => {
 };
 
 const run = (compiled: any): string => {
-  const story = new RuntimeStory(compiled);
+  const story = testStory(compiled);
   const rtErrors: string[] = [];
   story.onError = (m: string) => rtErrors.push(m);
   const out = story.ContinueMaximally();

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { diagnosticMessage } from "./diagnosticTestHarness";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { programListing, pushesString } from "../programListing";
 
 // An if statement's condition ends with its line unless the next line begins
 // with its `then` or continues the expression. A condition written without
@@ -80,9 +81,9 @@ describe("an if statement without `then`", () => {
   });
 
   test("in a story, keeps the branch's first line as story text", () => {
-    const compiled = JSON.stringify(compile(STORY).compiled);
-    expect(compiled).toContain('"^Went down the true side."');
-    expect(compiled).toContain('"^Went down the false side."');
+    const listing = programListing(compile(STORY).chunks);
+    expect(pushesString(listing, "Went down the true side.")).toBe(true);
+    expect(pushesString(listing, "Went down the false side.")).toBe(true);
   });
 
   // The second operand differs from the first: `flag and flag` repeats a
@@ -94,8 +95,8 @@ describe("an if statement without `then`", () => {
   ])("in a story, a condition %s keeps both branches", (_, header) => {
     const program = compile(STORY.replace("  if flag\n", header));
     expect(diagnosticsOf(program).map(describeLsp)).toEqual([]);
-    const compiled = JSON.stringify(program.compiled);
-    expect(compiled).toContain('"^Went down the true side."');
-    expect(compiled).toContain('"^Went down the false side."');
+    const listing = programListing(program.chunks);
+    expect(pushesString(listing, "Went down the true side.")).toBe(true);
+    expect(pushesString(listing, "Went down the false side.")).toBe(true);
   });
 });

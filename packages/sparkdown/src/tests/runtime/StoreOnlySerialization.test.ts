@@ -14,11 +14,10 @@
 // Run: npx vitest run .../StoreOnlySerialization.test.ts
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileStory(source: string): Record<string, any> {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -64,13 +63,13 @@ end
 function roundTrip(setupBody: string, checkBody: string, prelude = "") {
   const compiled = compileStory(storySource(setupBody, checkBody, prelude));
   const errors: string[] = [];
-  const storyA = new RuntimeStory(compiled);
+  const storyA = testStory(compiled);
   storyA.BindExternalFunction("host_record", (v: unknown) => v);
   storyA.onError = (m: string) => errors.push(`[setup] ${m}`);
   storyA.ContinueMaximally();
   const savedJson = storyA.state.ToJson() as string;
 
-  const storyB = new RuntimeStory(compiled);
+  const storyB = testStory(compiled);
   const recorded: unknown[] = [];
   storyB.BindExternalFunction(
     "host_record",

@@ -8,8 +8,7 @@
 // The failures ARE the to-build list.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 // Hint/Information diagnostics are stylistic (faded in VS Code), not
 // blockers — filter them so the inventory reflects only real issues.
@@ -30,7 +29,7 @@ function probe(source: string): {
   compiled: boolean;
   runtimeError: string | null;
 } {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -66,7 +65,7 @@ function probe(source: string): {
   let runtimeError: string | null = null;
   const compiled = result.program.compiled != null;
   if (compiled) {
-    const story = new RuntimeStory(
+    const story = testStory(
       result.program.compiled as Record<string, any>,
     );
     story.BindExternalFunction("host_record", (v: unknown) => {

@@ -12,15 +12,20 @@
 // completes with the choices unless the run shows something first.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import {
+  currentEngineCompiler,
+  testCompiler,
+  testStory,
+} from "../engineUnderTest";
+import { pathLocation } from "../../compiler/utils/pathLocationTable";
+import { Story as CurrentStory } from "../../inkjs/engine/Story";
 import {
   continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 import { programListing, stringCount } from "../programListing";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { pathLocation } from "../../compiler/utils/pathLocationTable";
+type RuntimeStory = CurrentStory;
 
 type Routing = { target?: string; character?: string };
 
@@ -68,7 +73,7 @@ const URI = `${BASE}main.sd`;
 
 // Compiles `main.sd` with the other scripts beside it that it includes.
 function compile(text: string, others: Record<string, string> = {}) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: Object.entries({ ...others, "main.sd": text }).map(
       ([path, source]) => ({
@@ -511,7 +516,7 @@ end
       { "api.sd": `external ring()\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    const story = testStory(program.compiled as Record<string, any>);
     let rings = 0;
     story.BindExternalFunction("ring", () => {
       rings++;
@@ -527,7 +532,7 @@ end
       { "api.sd": `function aside()\n  print("Aside.")\nend\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    const story = testStory(program.compiled as Record<string, any>);
     expect(story.Continue()).toBe("Pick.\n");
   });
 
@@ -668,11 +673,29 @@ end
   // What the preview credits a line to: the continue that shows it. The line
   // that shows after the caption ran in the caption's continue, and is
   // reported in the next one, which shows it.
+  //
+  // This runs on the current engine: the program engine reports the line's
+  // instructions in the caption's continue, where they run, and not in the
+  // continue that shows them (#705 records it; the deletion decides it).
   test("reports the lines the carried step ran in the continue that shows them", () => {
     const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
-    const program = compile(source) as any;
+    const compiler = currentEngineCompiler();
+    compiler.configure({
+      files: [
+        {
+          uri: URI,
+          type: "script" as const,
+          name: "main",
+          ext: "sd",
+          text: source,
+          version: 1,
+          languageId: "sparkdown",
+        },
+      ],
+    });
+    const program = compiler.compile({ textDocument: { uri: URI } }).program;
     expect(errorsIn(program)).toEqual([]);
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    const story = new CurrentStory(program.compiled as Record<string, any>);
     const line = source
       .split("\n")
       .findIndex((l) => l.includes("Something shows first."));

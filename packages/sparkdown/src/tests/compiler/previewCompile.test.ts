@@ -10,6 +10,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { invertContentChanges } from "../../compiler/utils/invertContentChanges";
+import { programContent } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -41,10 +42,10 @@ function screenplay(): string {
   return L.join("\n");
 }
 
+// The program's chunks by content (with their line tables), in place of the
+// current engine's compiled JSON and path-location table.
 const pick = (p: any) => ({
-  compiled: p.compiled,
-  pathLocations: p.pathLocations,
-  pathLocationsOrder: p.pathLocations?.paths ?? [],
+  chunks: programContent(p.chunks),
   dataLocations: p.dataLocations,
   functionLocations: p.functionLocations,
   sceneLocations: p.sceneLocations,

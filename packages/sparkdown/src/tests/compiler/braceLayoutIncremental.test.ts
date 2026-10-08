@@ -1,6 +1,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 // #1224: typing a `}` inside a layout or component brace body, and deleting it
 // again, changes which lines the blocks around it hold. An incremental compile
@@ -44,12 +45,11 @@ end
 
 function pick(p: any) {
   return {
-    compiled: p.compiled,
+    chunks: programContent(p.chunks),
     context: p.context,
     sparkle: p.sparkle,
     diagnostics: p.diagnostics,
     ui: p.ui,
-    pathLocations: p.pathLocations,
     dataLocations: p.dataLocations,
   };
 }

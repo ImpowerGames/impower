@@ -10,12 +10,12 @@
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { pathLocation } from "../../compiler/utils/pathLocationTable";
 import {
   continueShowedSomething,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { programContent, rootOf } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -286,10 +286,8 @@ describe("an edit inside the block before a line", () => {
     const cold = new SparkdownCompiler();
     configure(cold, after);
     const compiled = (compiler: SparkdownCompiler) =>
-      JSON.stringify(
-        compiler.compile({ textDocument: { uri: URI } }).program.compiled,
-      );
-    expect(compiled(incremental)).toBe(compiled(cold));
+      programContent(compiler.compile({ textDocument: { uri: URI } }).program.chunks);
+    expect(compiled(incremental)).toEqual(compiled(cold));
   });
 });
 
@@ -298,7 +296,7 @@ describe("the preview's lines", () => {
   // lines to the continuation's.
   test("each part's lines belong to its own step", () => {
     const source = `CHARACTER:\n  [[a]]\n  First .. >\n  .. [[b]]\n  second.\n`;
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     compiler.configure({
       files: [
         {
@@ -313,15 +311,18 @@ describe("the preview's lines", () => {
       ],
     });
     const program = compiler.compile({ textDocument: { uri: URI } }).program;
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
-    const pathLocations = program.pathLocations;
+    const story = testStory(program.compiled as Record<string, any>);
+    const root = rootOf(program.compiled);
     const lines: number[][] = [];
     let ran = new Set<number>();
-    story.onExecute = (path) => {
-      if (!path) return;
-      const location = pathLocation(pathLocations, path);
+    // The program engine names each instruction it runs by its address, which
+    // the root places at the lines of the line table row that covers it, as
+    // the current engine named a path the path-location table placed.
+    story.onExecute = (address: unknown) => {
+      if (typeof address !== "number") return;
+      const location = root.locationOf(address);
       if (location) {
-        for (let line = location[1]!; line <= location[3]!; line++) {
+        for (let line = location.startLine; line <= location.endLine; line++) {
           ran.add(line);
         }
       }

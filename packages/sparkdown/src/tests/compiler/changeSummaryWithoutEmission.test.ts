@@ -8,6 +8,7 @@
 import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
 
 const URI = "inmemory:///main.sd";
@@ -43,7 +44,7 @@ const TARGET = SOURCE.split("\n").indexOf("  Beat 12 of the first act.");
 /** A compiler configured the way a host with emission off configures it, and
  *  a way to type into its one document. */
 function host(emitCompiledProgram = false) {
-  const compiler = new SparkdownCompiler();
+  const compiler = currentEngineCompiler();
   let text = SOURCE;
   let version = 1;
   quiet(() =>

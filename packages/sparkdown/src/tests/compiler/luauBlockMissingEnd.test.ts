@@ -7,8 +7,7 @@
 // of those lines. See issue #1059.
 import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 interface Diag {
   message: string;
@@ -21,7 +20,7 @@ interface Diag {
 
 function compile(source: string): { diags: Diag[]; output: string } {
   const uri = "inmemory:///main.sd";
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -39,7 +38,7 @@ function compile(source: string): { diags: Diag[]; output: string } {
   const diags = readDiags(result.program);
   let output = "";
   if (result.program.compiled) {
-    const story = new Story(result.program.compiled as any);
+    const story = testStory(result.program.compiled as any);
     output = story.ContinueMaximally();
   }
   return { diags, output };
@@ -304,7 +303,7 @@ describe("Luau block without `end`", () => {
     // The function's chunk is unchanged by both edits, so only a check over
     // the whole document sees the `end` arrive and leave.
     const uri = "inmemory:///main.sd";
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     compiler.configure({
       files: [
         {

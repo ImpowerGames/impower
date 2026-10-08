@@ -8,6 +8,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programListing, stringCount } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -46,8 +47,7 @@ describe("line-end > break split on CRLF documents", () => {
     // per beat, each naming its target, so a collapsed (unsplit) compile
     // carries one fewer.
     const countTables = (program: any) =>
-      (JSON.stringify(program.compiled ?? {}).match(/"\^target"/g) ?? [])
-        .length;
+      stringCount(programListing(program.chunks), "target");
     expect(countTables(lf)).toBe(2);
     expect(countTables(crlf)).toBe(countTables(lf));
   });

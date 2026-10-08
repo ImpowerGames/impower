@@ -4,7 +4,7 @@
 // program, and an incremental compile equals a cold compile of its text.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { currentEngineCompiler } from "../engineUnderTest";
 import { File } from "../../compiler/types/File";
 
 const MAIN_URI = "file://proj/main.sd";
@@ -34,7 +34,7 @@ function quiet<T>(fn: () => T): T {
 
 function coldCompile(text: string) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = currentEngineCompiler();
     compiler.configure({ files: [file(text, 1)] });
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
@@ -44,7 +44,7 @@ function coldCompile(text: string) {
 // incremental compile of the edited text.
 function incrementalCompile(text: string, line: number, insert: string) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = currentEngineCompiler();
     compiler.configure({ files: [file(text, 1)] });
     compiler.compile({ textDocument: { uri: MAIN_URI } });
     const at = { line, character: 0 };

@@ -11,6 +11,7 @@
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -117,12 +118,16 @@ describe("canonicalization with appended content", () => {
         } as never);
         text = text.slice(0, off) + s.replace + text.slice(off + s.find.length);
         const a = stable(
-          (incr.compile({ textDocument: { uri: URI } } as never) as any).program
-            .compiled,
+          programContent(
+            (incr.compile({ textDocument: { uri: URI } } as never) as any).program
+              .chunks,
+          ),
         );
         const b = stable(
-          (conf(text).compile({ textDocument: { uri: URI } } as never) as any)
-            .program.compiled,
+          programContent(
+            (conf(text).compile({ textDocument: { uri: URI } } as never) as any)
+              .program.chunks,
+          ),
         );
         log.push(`step${i + 1} ${a === b ? "ok" : "DIVERGED"}`);
       }

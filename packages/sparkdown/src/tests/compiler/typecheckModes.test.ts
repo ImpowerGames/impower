@@ -14,6 +14,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { programContent } from "../programListing";
 
 const MAIN = "inmemory:///main.sd";
 const HELPER = "inmemory:///helper.luau";
@@ -100,11 +101,11 @@ describe("type checking modes", () => {
         files: [{ uri: MAIN, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }],
       });
       const program = compiler.compile({ textDocument: { uri: MAIN } }).program;
-      return { program, compiled: JSON.stringify(program.compiled) };
+      return { program, compiled: programContent(program.chunks) };
     };
     const checked = compiled(false);
     expect(typeWarnings(checked.program, MAIN).length).toBeGreaterThan(0);
-    expect(checked.compiled).toBe(compiled(true).compiled);
+    expect(checked.compiled).toEqual(compiled(true).compiled);
   });
 
   test("the project's config selects strict and no-check", () => {
