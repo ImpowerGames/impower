@@ -289,12 +289,6 @@ export default class WorkspaceLanguageServer {
         // the inlined SVG source that dominated its payload. LS previews
         // re-source it lazily from watched files.
         stripImageData: true,
-        // Nothing on this path reads the bytecode: the relay above is slim
-        // (uri/scripts/files/version) and the player runs its own compiler.
-        // Serializing it cost ~25-30ms per keystroke on a large project purely
-        // to be discarded (#345). ExportRuntime still runs, so diagnostics and
-        // the program's locations are unaffected.
-        emitCompiledProgram: false,
       },
       workspaceFolders: [
         {

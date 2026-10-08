@@ -122,14 +122,14 @@ const locators = new WeakMap<object, ProgramLocator>();
 
 /**
  * The accessor for a program: the root's when the compile built statement
- * chunks (`SparkdownCompilerConfig.programChunks`) and did not fall back, and
- * the path-location table's otherwise. Made once per program.
+ * chunks, and the path-location table's otherwise (a program a host was
+ * given with no root). Made once per program.
  */
 export const programLocator = (program: SparkProgram): ProgramLocator => {
   let locator = locators.get(program);
   if (!locator) {
     locator =
-      program.chunks && !program.fallback
+      program.chunks
         ? rootLocator(program.chunks)
         : pathTableLocator(
             program.pathLocations,
@@ -330,7 +330,7 @@ export const beatAt = (
   query?: AddressQuery,
 ): LineBeat | undefined => {
   const locator = programLocator(program);
-  const root = program.chunks && !program.fallback ? program.chunks : undefined;
+  const root = program.chunks;
   let from = line;
   for (;;) {
     const address = locator.addressAt(uri, from, query);

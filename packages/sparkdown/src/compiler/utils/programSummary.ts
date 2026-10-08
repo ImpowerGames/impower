@@ -1,4 +1,3 @@
-import { hasCompiledProgram } from "../../binary/programBinary";
 import type { SparkProgram } from "../types/SparkProgram";
 
 /** What a host that leaves a program where it was compiled still reads of it:
@@ -21,12 +20,9 @@ export const programSummary = (
   runnable,
 });
 
-/** Whether a program, whole or summarized, is one that runs: its statement
- *  chunks, which a compile that does not fall back builds, or its compiled
- *  story. */
+/** Whether a program, whole or summarized, is one that runs: whether its
+ *  compile built its statement chunks. */
 export const isRunnableProgram = (
   program: SparkProgram | undefined | null,
 ): boolean =>
-  program?.summary
-    ? program.runnable === true
-    : !!program?.chunks || hasCompiledProgram(program);
+  program?.summary ? program.runnable === true : !!program?.chunks;

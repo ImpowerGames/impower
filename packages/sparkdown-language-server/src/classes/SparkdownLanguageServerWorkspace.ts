@@ -32,9 +32,6 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver";
 
-/** Whether the language server's compiler builds statement chunks (#704). */
-export const LANGUAGE_SERVER_PROGRAM_CHUNKS = true;
-
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _documents: SparkdownDocumentRegistry;
 
@@ -195,23 +192,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return this._connection?.sendRequest(ExecuteCommandRequest.type, {
       command: "sparkdown.getFileLanguageId",
       arguments: [uri],
-    });
-  }
-
-  /**
-   * The language server's compiler builds the binary program's statement
-   * chunks (`programChunks`, #704) whatever its host sends: it compiles for
-   * diagnostics, locations and the program it relays, and runs no game. Its
-   * program is located by the chunks' root, which stays in the compiler's
-   * worker (`locatorOf`), and a program that falls back is compiled by the
-   * current engine (docs/engine/binary-program.md, section 9).
-   */
-  override async loadCompiler(
-    config: Parameters<SparkdownWorkspace["loadCompiler"]>[0],
-  ) {
-    return super.loadCompiler({
-      ...config,
-      programChunks: LANGUAGE_SERVER_PROGRAM_CHUNKS,
     });
   }
 

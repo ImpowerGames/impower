@@ -33,12 +33,4 @@ export interface GameConfiguration {
   verifyCheckpoints?: boolean;
   /** Beats between full keyframes in incremental mode. Default 50. */
   checkpointBaseInterval?: number;
-  /** Run a program that carries statement chunks (`SparkProgram.chunks`,
-   *  compiled with `SparkdownCompilerConfig.programChunks`) on the program
-   *  engine (`ProgramStory`, #692) instead of the current engine. A program
-   *  that fell back (`SparkProgram.fallback`) runs on the current engine
-   *  either way. Default on, as every host's game passes it (#703); off
-   *  runs every program on the current engine, which #705 deletes with this
-   *  field. No editor setting. */
-  programChunks?: boolean;
 }

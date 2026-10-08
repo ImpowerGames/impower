@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { CHOICE_OUTSIDE_CHOOSE_MESSAGE } from "../../utils/unsupportedConstructMessage";
 import { identifierAt } from "../utils/debugMetadata";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -260,7 +261,7 @@ export function lowerChoice(
   if (!isInsideChoose(nodeRef.node)) {
     diagnostics.push({
       message:
-        "Choice mark (`*` / `+`) must appear inside a `choose ... end` block. Wrap the choices in `choose` or remove the mark.",
+        CHOICE_OUTSIDE_CHOOSE_MESSAGE,
       severity: ErrorType.Error,
       source: statementSource(nodeRef.node, ctx),
     });

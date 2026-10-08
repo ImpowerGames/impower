@@ -7,7 +7,6 @@ import type {
   ProgramLocator,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
@@ -529,10 +528,6 @@ export class Game<T extends M = {}> {
     return this._checkpoints;
   }
 
-  // Whether a program that carries statement chunks runs on the program
-  // engine (`GameConfiguration.programChunks`), as every host's game does.
-  protected _programChunks = true;
-
   // The game's own version string (`GameConfiguration.version`).
   protected _version = "";
   // How many beats a save on the program engine holds, and how many the
@@ -550,18 +545,17 @@ export class Game<T extends M = {}> {
   }
 
   constructor(
-    options: { program: SparkProgram; story?: Story } & GameConfiguration &
+    options: { program: SparkProgram } & GameConfiguration &
       SystemConfiguration & {
         modules?: {
           [name in keyof T]: abstract new (...args: any) => T[name];
         };
       },
   ) {
-    this._programChunks = options.programChunks ?? true;
     this._version = options.version ?? "";
     this._saveHistory = options.saveHistory ?? 16;
     this._rewindBeats = options.rewindBeats ?? 128;
-    this._program = this.updateProgram(options.program, options.story);
+    this._program = this.updateProgram(options.program);
 
     // Create connection for sending and receiving messages
     this._connection = new Connection({
@@ -710,60 +704,39 @@ export class Game<T extends M = {}> {
     }
   }
 
-  updateProgram(program: SparkProgram, story?: Story) {
+  updateProgram(program: SparkProgram) {
     // A preview waiting for its pictures would display a beat of the old
     // program.
     this.cancelPreview();
     this._program = program;
-    const chunks =
-      this._programChunks && !program.fallback ? program.chunks : undefined;
-    // Resolved ONCE: with the binary path (#314) this materializes the buffer,
-    // so testing it repeatedly would re-walk the whole program.
-    const compiled =
-      story || chunks ? undefined : resolveCompiledProgram(program);
-    if (!story && !compiled && !chunks) {
+    const chunks = program.chunks;
+    if (!chunks) {
       throw new Error(
         "Program must be successfully compiled before it can be run",
       );
     }
     this._scripts = Object.keys(this._program.scripts);
-    // Which engine ran the program before, when one did: a compile that
-    // falls back, or one that comes back to its chunks, switches the game
-    // from one engine to the other (#1663).
-    const ranProgramEngine = this._story ? this.programStory !== null : null;
-
-    if (chunks) {
-      // The program engine presents the members of `Story` this game reads
-      // on the paths it runs (see `ProgramStory`). It shares the pristine
-      // copies its images read with the engine of the program before, so a
-      // checkpoint taken there restores here for every statement this
-      // program kept (`restoreCheckpoint`), and it keeps the image of each
-      // beat, which a checkpoint and a save at a menu hold.
-      const previous = this.programStory;
-      const engine = new ProgramStory(chunks, {
-        images: previous?.images,
-        history: previous?.history,
-        saveHistory: this._saveHistory,
-        rewindBeats: this._rewindBeats,
-      });
-      engine.keepBeatImages = true;
-      this._story = engine as unknown as Story;
-    } else if (story) {
-      this._story = story;
-    } else if (compiled) {
-      this._story = new Story(compiled);
-    }
+    // The program engine presents the members of `Story` this game reads on
+    // the paths it runs (see `ProgramStory`). It shares the pristine copies
+    // its images read with the engine of the program before, so a checkpoint
+    // taken there restores here for every statement this program kept
+    // (`restoreCheckpoint`), and it keeps the image of each beat, which a
+    // checkpoint and a save at a menu hold.
+    const previous = this.programStory;
+    const engine = new ProgramStory(chunks, {
+      images: previous?.images,
+      history: previous?.history,
+      saveHistory: this._saveHistory,
+      rewindBeats: this._rewindBeats,
+    });
+    engine.keepBeatImages = true;
+    this._story = engine as unknown as Story;
     this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
     this.restoreReactiveTracking();
-    // The breakpoints set last resolve against this program: on the program
-    // engine a statement the compile emitted again has new addresses, and a
-    // compile that falls back to the current engine, or comes back from it,
-    // needs the other engine's form of them.
+    // The breakpoints set last resolve against this program: a statement
+    // the compile emitted again has new addresses.
     this.resolveBreakpoints();
-    if (ranProgramEngine !== null && ranProgramEngine !== !!this.programStory) {
-      this.forgetOtherEngine();
-    }
     // Live edit → recompile reuses this Game: refresh the context channels from
     // the new program and let modules re-derive any state cached from context
     // (e.g. InterpreterModule's character-name map). Guarded on modules already

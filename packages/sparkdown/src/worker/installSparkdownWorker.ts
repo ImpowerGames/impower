@@ -19,8 +19,7 @@ import { ProgramTransportEncoder } from "../workspace/utils/programTransport";
 export interface SparkdownWorkerOptions {
   /** Answer compiles, preview compiles and selections as a host that leaves
    *  each program in this worker expects: the program's summary
-   *  (`programSummary`) and no checkpoint. A compile that asks for its
-   *  program to be emitted is answered in full. */
+   *  (`programSummary`) and no checkpoint. */
   summarize?: boolean;
 }
 
@@ -57,12 +56,11 @@ export function installSparkdownWorker(
   state.compiler.addEventListener("compiler/didPreviewCompile", noteStory);
   const answer = <R extends { program?: SparkProgram; checkpoint?: string }>(
     result: R,
-    emit: boolean | undefined,
   ): R => {
     if (!result.program) {
       return result;
     }
-    if (options.summarize && !emit) {
+    if (options.summarize) {
       const { checkpoint: _checkpoint, ...rest } = result;
       return {
         ...rest,
@@ -128,7 +126,7 @@ export function installSparkdownWorker(
           if (result.program?.uri) {
             compiledPrograms.set(result.program.uri, result.program);
           }
-          return answer(result, message.params.emitCompiledProgram);
+          return answer(result);
         });
         return;
       }
@@ -136,7 +134,7 @@ export function installSparkdownWorker(
         connection.sendResponse(message, () => {
           producedStory = false;
           const result = state.compiler.previewCompile(message.params);
-          return answer(result, false);
+          return answer(result);
         });
         return;
       }

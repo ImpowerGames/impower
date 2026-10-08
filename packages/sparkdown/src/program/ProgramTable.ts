@@ -1,7 +1,6 @@
 // The string, number and symbol tables every program a compiler builds reads,
-// kept across its compiles. They began as #314's encoding's
-// (`binary/ProgramBinaryWriter.ts`), whose writer still interns into them
-// until #705 deletes it.
+// kept across its compiles. They began as #314's encoding's, which #705
+// deleted.
 /**
  * String, number and symbol tables shared across compiles.
  *
