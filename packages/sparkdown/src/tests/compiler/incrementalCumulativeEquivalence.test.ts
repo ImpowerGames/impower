@@ -40,6 +40,13 @@ const URI = "inmemory:///main.sd";
 class Probe extends SparkdownCompiler {
   private previousCache?: Map<string, { value: unknown }>;
 
+  // The flow cache is the current engine's compile path, which #705's
+  // deletion removes with this test, or moves it.
+  constructor() {
+    super();
+    this.configure({ programChunks: false });
+  }
+
   protected override computeFlowReuse(story: RuntimeStory) {
     this.previousCache = this._flowJsonCache;
     return super.computeFlowReuse(story);

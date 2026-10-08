@@ -60,6 +60,13 @@ class Probe extends SparkdownCompiler {
   lastBytecodeReuse?: { reusable: Set<string>; ok: boolean };
   private previousFlowCache?: Map<string, { value: unknown }>;
 
+  // The caches are the current engine's compile path, which #705's deletion
+  // removes with this test, or moves it.
+  constructor() {
+    super();
+    this.configure({ programChunks: false });
+  }
+
   captures(): Map<string, unknown> {
     return new Map(this._flowAssetAccum ?? []);
   }
