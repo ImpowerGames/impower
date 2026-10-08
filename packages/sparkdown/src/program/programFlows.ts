@@ -627,11 +627,14 @@ const includeEndName = (flow: string): string => `${flow}$end`;
  * story places it, at the include (`Story.PreProcessTopLevelObjects`): a
  * `JumpSym` to the flow of that content (`includedFlowName`), then the
  * `Visit` of a label of its own, which the chunk exports, for that flow to
- * jump back to when its content has run (`IncludeExit`). The current engine runs the
- * content in place, in the including flow's frame, so the jumps keep the
- * frame, its temporaries and its call stack as they are, and a jump to a
- * label of the content runs on through the rest of it and back, as it does
- * there. Neither jump reads a fact of its target.
+ * jump back to when its content has run (`IncludeExit`). The current engine
+ * runs the content in place, in the including flow's frame, so the jumps
+ * keep the frame, its temporaries and its call stack as they are. A jump to
+ * a label of the content runs on through the rest of it and back, as the
+ * content of an include runs everywhere else; the current engine instead
+ * ends the story where the content of an included script that holds a label
+ * ends, which the program engine does not copy (docs/engine/binary-program.md,
+ * What is built). Neither jump reads a fact of its target.
  */
 export class IncludeEntry extends ParsedObject {
   constructor(readonly flow: string) {
