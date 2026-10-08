@@ -13,6 +13,7 @@ import type { Story } from "../../inkjs/engine/Story";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { SymbolKind } from "../../program/ProgramSymbols";
+import { chunkId } from "../../program/StatementChunk";
 import {
   describeRoot,
   programCompiler,
@@ -223,6 +224,23 @@ describe("an included script's top-level content", () => {
     ).toEqual(["Main 7.\n"]);
   });
 
+  it("runs the content before the including script's own content written above the include, and keeps doing so through an edit there", () => {
+    const texts = {
+      [MAIN]: lines("Main first.", "include includes/first.sd", "Main after."),
+      [FIRST]: lines("Included."),
+    };
+    expect(shows(texts).beats).toEqual(["Included.\n", "Main first.\n", "Main after.\n"]);
+    const s = session(texts);
+    s.edit(MAIN, "Main first.", "Main first.\nMain inserted.");
+    matchesCold(s.root, s.texts);
+    expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
+      "Included.\n",
+      "Main first.\n",
+      "Main inserted.\n",
+      "Main after.\n",
+    ]);
+  });
+
   it("stops the story at a `done` of the content, as the top level's own `done` does", () => {
     const shown = shows({
       [MAIN]: lines("include includes/first.sd", "Never shown."),
@@ -278,11 +296,21 @@ describe("an included script's top-level content", () => {
       uri: FIRST,
       startLine: 1,
     });
-    // The including script's lines are its own.
+    // The including script's lines are its own, and each statement that runs
+    // an included script's content stands on its `include` line, which no
+    // line of a beat maps to.
     expect(root.locationOf(root.addressAt(MAIN, 0)!)).toMatchObject({
       uri: MAIN,
       startLine: 2,
     });
+    const top = root.flowNamed("")!;
+    expect(
+      top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
+    ).toMatchObject([
+      { uri: MAIN, startLine: 0 },
+      { uri: MAIN, startLine: 1 },
+      { uri: MAIN, startLine: 2 },
+    ]);
     // A story started at a line of the content runs the rest of it and the
     // content after it.
     const story = new ProgramStory(root);
@@ -440,6 +468,61 @@ describe("an edit inside an included script", () => {
     s.edit(SECOND, "Second top.\n\n", "");
     matchesCold(s.root, s.texts);
     expect(s.root.flowNamed(includedFlowName(SECOND))).toBeUndefined();
+  });
+
+  it("runs the content of nested includes in their new order after the script that includes them swaps two in the middle", () => {
+    const WRAPPER = "file://proj/includes/wrapper.sd";
+    const child = (name: string) => `file://proj/includes/${name}.sd`;
+    const s = session({
+      [MAIN]: lines("include includes/wrapper.sd", "Main."),
+      [WRAPPER]: lines(
+        "include a.sd",
+        "include b.sd",
+        "include c.sd",
+        "include d.sd",
+        "Wrapper.",
+      ),
+      [child("a")]: lines("A."),
+      [child("b")]: lines("B."),
+      [child("c")]: lines("C."),
+      [child("d")]: lines("D."),
+    });
+    s.edit(WRAPPER, "include b.sd\ninclude c.sd", "include c.sd\ninclude b.sd");
+    matchesCold(s.root, s.texts);
+    expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
+      "A.\n",
+      "C.\n",
+      "B.\n",
+      "D.\n",
+      "Wrapper.\n",
+      "Main.\n",
+    ]);
+  });
+
+  it("runs included content in its new order after the starting script swaps two includes in the middle", () => {
+    const child = (name: string) => `file://proj/includes/${name}.sd`;
+    const s = session({
+      [MAIN]: lines(
+        "include includes/a.sd",
+        "include includes/b.sd",
+        "include includes/c.sd",
+        "include includes/d.sd",
+        "Main.",
+      ),
+      [child("a")]: lines("A."),
+      [child("b")]: lines("B."),
+      [child("c")]: lines("C."),
+      [child("d")]: lines("D."),
+    });
+    s.edit(MAIN, "include includes/b.sd\ninclude includes/c.sd", "include includes/c.sd\ninclude includes/b.sd");
+    matchesCold(s.root, s.texts);
+    expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
+      "A.\n",
+      "C.\n",
+      "B.\n",
+      "D.\n",
+      "Main.\n",
+    ]);
   });
 
   it("matches a cold compile when the including script gains an include and loses it again", () => {

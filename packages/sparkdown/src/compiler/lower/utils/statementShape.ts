@@ -529,7 +529,8 @@ export const inlineChoiceBranches = (
 const heldInBodies = (statement: StatementShape, obj: ParsedObject): boolean =>
   statement.bodies.some((body) =>
     body.statements.some(
-      (inner) => inner.objects.includes(obj) || heldInBodies(inner, obj),
+      (inner) =>
+        inner.objects.some((part) => part === obj) || heldInBodies(inner, obj),
     ),
   );
 

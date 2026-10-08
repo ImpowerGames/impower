@@ -75,6 +75,11 @@ export interface ProgramFlowsInput {
   /** The compiled block each placed object came from. */
   blockOf(obj: ParsedObject): object | undefined;
   record(block: object): StatementRecord | undefined;
+  /** For an object of an included script's top level (its weave), which the
+   *  story places where the script is included: the included script, and
+   *  the line of the `include` or `run` statement in the script that
+   *  includes it. */
+  includedAt?(obj: ParsedObject): { uri: string; line: number } | undefined;
   /** How many lines a script has. */
   lineCount(uri: string): number;
 }
@@ -137,21 +142,20 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   // The flows of the functions declared at the top level, which span their
   // own definitions.
   const functionFlows: FlowSource[] = [];
-  // The flows of the included scripts' top-level content, in the order the
-  // content runs, each with the newlines the story writes where it ends.
+  // The flows of the included scripts' top-level content, each with the
+  // newlines the story writes where it ends.
   const includedFlows: { flow: FlowSource; newlines: number }[] = [];
 
   /** The statements of `content`, a flow's weave, written in the script
-   *  `uri`. The statements that run an included script's top-level content
-   *  go to `entries`: the including flow's statements, which an included
-   *  script's own top level passes on to the scripts it includes. */
+   *  `uri`, with a statement that runs the content of each script the flow
+   *  includes (`include`). */
   const statementsOf = (
     content: readonly ParsedObject[],
     uri: string,
     flowLine: number,
-    entries?: StatementSource[],
   ): StatementSource[] => {
     const statements: StatementSource[] = [];
+    const entries = new Set<StatementSource>();
     let block: object | undefined;
     let objects: ParsedObject[] = [];
     const close = () => {
@@ -184,12 +188,15 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
             // An included script's top level, which the story places where
             // the script is included, followed by the newline it writes
             // where the script's content ends.
-            include(
+            const entry = include(
               obj,
               isIncludeNewline(list[i + 1]) ? 1 : 0,
-              entries ?? statements,
               flowLine,
             );
+            if (entry) {
+              statements.push(entry);
+              entries.add(entry);
+            }
           } else if (isDeclaration(obj)) {
             // A declaration placed by no statement the compile recorded;
             // the declarations below name it if it declares a global.
@@ -216,33 +223,43 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     };
     visit(content);
     close();
+    // The story places the content of the scripts a script includes before
+    // its own content, wherever the `include` statements stand, so an entry
+    // runs before the statements after it and stands no lower than the
+    // first of them, as the line starts of a sequence go.
+    for (let i = statements.length - 2; i >= 0; i -= 1) {
+      const entry = statements[i]!;
+      if (entries.has(entry)) {
+        entry.firstLine = Math.min(entry.firstLine, statements[i + 1]!.firstLine);
+      }
+    }
     return statements;
   };
 
-  /** An included script's top level, `weave`: the content of the scripts it
-   *  includes, which the story places first, then its own statements, which
-   *  are a flow of its own in its script (`includedFlowName`) that
-   *  `entries`, the statements of the flow that includes it, runs where the
-   *  story places it (`IncludeEntry`). A script whose top level holds declarations alone
-   *  runs nothing there and has no flow, and the newlines its end writes are
-   *  written where the content of the last script it includes ends. */
+  /** An included script's top level, `weave`, as the statement of the
+   *  including flow that runs it (`IncludeEntry`), on the line of the
+   *  `include` statement there, or nothing when it runs nothing. Its
+   *  statements are a flow of its own in its script (`includedFlowName`): the
+   *  entries of the scripts it includes, whose content the story places
+   *  first, and then its own. A script whose top level holds declarations
+   *  alone, and includes no script whose top level runs anything, has no
+   *  flow, and the newline its end writes, after nothing it showed, is left
+   *  out. */
   const include = (
     weave: Weave,
     newlines: number,
-    entries: StatementSource[],
-    line: number,
-  ) => {
-    const before = includedFlows.length;
-    const uri = scriptOf(weave.content, input);
-    const statements = statementsOf(weave.content, uri ?? "", 0, entries);
-    if (uri === undefined || statements.length === 0) {
-      if (includedFlows.length > before) {
-        includedFlows[includedFlows.length - 1]!.newlines += newlines;
-      }
-      return;
+    flowLine: number,
+  ): StatementSource | undefined => {
+    const at = input.includedAt?.(weave);
+    const uri = at?.uri ?? scriptOf(weave.content, input);
+    if (uri === undefined) {
+      return undefined;
+    }
+    const statements = statementsOf(weave.content, uri, 0);
+    if (statements.length === 0) {
+      return undefined;
     }
     const name = includedFlowName(uri);
-    entries.push(includeEntry(name, uri, line));
     includedFlows.push({
       flow: {
         name,
@@ -254,6 +271,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       },
       newlines,
     });
+    return includeEntry(name, uri, at?.line ?? flowLine);
   };
 
   // A function declared at the top level is a flow of its own, whose one
@@ -687,10 +705,9 @@ const includeStatement = (
 };
 
 /** The statement of the including flow that runs the included script `uri`'s
- *  top-level content, the flow `flow` (`IncludeEntry`). The story places the
- *  content of every script a script includes before its own, so it stands
- *  on the including flow's first line, with the other scripts it includes,
- *  in the order their content runs. It has no line rows. */
+ *  top-level content, the flow `flow` (`IncludeEntry`), on the line of the
+ *  `include` statement (`statementsOf` keeps it above the statements after
+ *  it). It has no line rows. */
 const includeEntry = (flow: string, uri: string, firstLine: number) =>
   includeStatement(
     `IncludeEntry\u0000${flow}`,
