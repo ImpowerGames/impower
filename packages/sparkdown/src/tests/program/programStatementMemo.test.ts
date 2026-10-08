@@ -953,8 +953,37 @@ describe("the recording of the lowering context", () => {
     shadowSiblingSubFlow("foo", recorded);
     expect(frame.get("foo")).not.toBe(hidden);
     expect(frame.get("foo")?.rebound).toBe(true);
-    finish();
+    const recording = finish();
+    const reads = recording.reads.length;
     ends.forEach((end) => end());
     expect(frame.get("foo")).toBe(hidden);
+    // What the block's end read and wrote after the recording was done is
+    // none of the statement's reads.
+    expect(recording.reads.length).toBe(reads);
+  });
+
+  it("still records what a lowering reads through an object it wrote back as it found it", async () => {
+    const { recordLowering, readsHold } = await import("../../compiler/lower/recordingContext");
+    const ctx = {
+      probe: { value: "one" },
+      read: () => "",
+      lineNumber: () => 0,
+      characterNumber: () => 0,
+    };
+    const object = ctx.probe;
+    const { ctx: recorded, finish } = recordLowering(ctx as never, 0, 0);
+    const lowering = recorded as unknown as typeof ctx;
+    // The save and restore a lowerer writes around a block of its own
+    // (`lowerLuauUI`), then a read of what it put back: the object is the
+    // context's, not the lowering's, so its members are inputs.
+    const saved = lowering.probe;
+    lowering.probe = saved;
+    expect(lowering.probe.value).toBe("one");
+    const recording = finish();
+    expect(recording.unkeyable).toBeNull();
+    expect(ctx.probe).toBe(object);
+    expect(readsHold(ctx as never, 0, recording.reads)).toBe(true);
+    ctx.probe.value = "two";
+    expect(readsHold(ctx as never, 0, recording.reads)).toBe(false);
   });
 });

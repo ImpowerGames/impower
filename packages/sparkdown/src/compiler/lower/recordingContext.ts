@@ -191,14 +191,17 @@ export function recordLowering(
     }
   };
   const proxies = new WeakMap<object, object>();
-  // The objects the lowering itself wrote into the context, which a read
-  // returns as themselves, unrecorded: what the lowering wrote is no input
-  // of it, and a lowering compares what it reads back with what it wrote
-  // (`shadowSiblingSubFlow`'s `frame.get(name) === shadow`).
+  // The objects the lowering itself made and wrote into the context, which a
+  // read returns as themselves, unrecorded: what the lowering made is no
+  // input of it, and a lowering compares what it reads back with what it
+  // wrote (`shadowSiblingSubFlow`'s `frame.get(name) === shadow`). An
+  // object of the context the lowering writes back (a save and restore
+  // around a block) is written as itself but stays an input: a read of it
+  // returns the proxy it was read as, recording its members as before.
   const own = new WeakSet<object>();
   const owned = <T>(value: T): T => {
     const raw = unwrap(value);
-    if (raw !== null && typeof raw === "object") {
+    if (raw === value && raw !== null && typeof raw === "object") {
       own.add(raw as object);
     }
     return raw;
