@@ -1125,7 +1125,7 @@ export class ProgramStory {
     // the declarations run, whose own writes are part of the reset; the
     // `_stateIsPristine = true` below comes later still. Each reset gets a
     // fresh `VariablesState`, so the callbacks do not accumulate.
-    variablesState.variableChangedEventCallbacks.push(() => {
+    variablesState.ObserveVariableChange(() => {
       this._stateIsPristine = false;
     });
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
