@@ -169,7 +169,7 @@ export function compileUI(
       }
     }
   }
-  if (!result.program.compiled && !result.program.chunks) {
+  if (!result.program.chunks && !result.program.compiled) {
     throw new Error(
       "UI fixture failed to compile:\n  " + (errors.join("\n  ") || "(none)"),
     );

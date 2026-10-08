@@ -3,8 +3,8 @@
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 
-/** `programChunks` compiles the script to statement chunks, which a game
- *  given the same option runs on the program engine. */
+/** The script compiled to statement chunks, which a game runs on the
+ *  program engine; with `programChunks` false, for the current engine. */
 export const compileProgram = (
   source: string,
   options: { programChunks?: boolean } = {},
@@ -23,7 +23,9 @@ export const compileProgram = (
         languageId: "sparkdown",
       },
     ],
-    ...(options.programChunks ? { programChunks: true } : {}),
+    ...(options.programChunks === undefined
+      ? {}
+      : { programChunks: options.programChunks }),
   } as never);
   return compiler.compile({ textDocument: { uri } } as never).program;
 };
