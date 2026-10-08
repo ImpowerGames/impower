@@ -776,6 +776,20 @@ export class SparkdownCompiler {
   // whose objects this compile's assembly does not place again, still
   // answers.
   protected _placedBy = new WeakMap<ParsedObject, object>();
+  // Where each top-level object of an included script (its top level's
+  // weave), which the story places where the script is included, came from:
+  // the included script, and the line and compiled block of the `include` or
+  // `run` statement in the script that includes it (`programFlows`,
+  // `includedAt`).
+  protected _includedAt = new WeakMap<
+    ParsedObject,
+    { uri: string; line: number; block: object }
+  >();
+  // The keys the program listing gives the statements that end included
+  // scripts' content, by their syntax, so they keep their chunks from one
+  // compile to the next for as long as this compiler lives
+  // (`ProgramFlowsInput.includeKeys`).
+  protected _includeKeys = new Map<string, object>();
   // What this compile knows of each compiled block: its script and line, its
   // syntax and the lowering inputs it recorded.
   protected _statementRecords = new Map<object, StatementRecord>();
@@ -3604,6 +3618,12 @@ export class SparkdownCompiler {
               program,
               onDiagnostic,
             );
+            this.recordIncludedAt(
+              includedStory,
+              resolvedFilePath,
+              lineNumberOffset,
+              compiledBlock,
+            );
             topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
           }
           if (state.fileResolutionState) {
@@ -3710,6 +3730,14 @@ export class SparkdownCompiler {
             if (state.fileResolutionState?.runStack) {
               state.fileResolutionState.runStack.pop();
             }
+          }
+          if (runStory) {
+            this.recordIncludedAt(
+              runStory,
+              virtualUri,
+              lineNumberOffset,
+              compiledBlock,
+            );
           }
           topLevelIncludedFileObjs.push(new IncludedFile(runStory));
         }
@@ -4863,6 +4891,24 @@ export class SparkdownCompiler {
     return record;
   }
 
+  /** Records where an included script's top level came from: each object of
+   *  `story`'s content that the including story places where the script is
+   *  included (all but its flows, `Story.PreProcessTopLevelObjects`), with
+   *  the script `uri`, and the `line` and compiled `block` of the statement
+   *  that includes it. */
+  protected recordIncludedAt(
+    story: Story,
+    uri: string,
+    line: number,
+    block: object,
+  ): void {
+    for (const obj of story.content ?? []) {
+      if (!(obj instanceof FlowBase)) {
+        this._includedAt.set(obj, { uri, line, block });
+      }
+    }
+  }
+
   /** Notes what the compile in progress has to do with the statement memos
    *  of `block` (`_memoBlocks`, `_memoCandidates`): a block lowered anew
    *  since the last compile holds the statements whose memos the compile
@@ -5020,6 +5066,8 @@ export class SparkdownCompiler {
       record: (block) =>
         this._statementRecords.get(block) ??
         this._preludeStatementRecords.get(block),
+      includedAt: (obj) => this._includedAt.get(obj),
+      includeKeys: this._includeKeys,
       lineCount,
     });
     // The store interns into the compiler's persistent table, which

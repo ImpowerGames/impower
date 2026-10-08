@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { blockCount } from "../../program/StatementChunk";
+import { SymbolKind } from "../../program/ProgramSymbols";
 import {
   lines,
   SHIFT_CASES,
@@ -51,7 +52,9 @@ const content = (root: ProgramRoot): string[] =>
 
 /** Where each statement of a root stands: its script and first line, every
  *  flow's statements with each block statement before its bodies, and the
- *  first line of each body and of each flow but the top level's. */
+ *  first line of each body and of each flow but a script's top level's,
+ *  which is the script's first line whatever is written there (the starting
+ *  script's, and an included script's, #1681). */
 const positions = (root: ProgramRoot): [string, number][] => {
   const out: [string, number][] = [];
   const visit = (sequence: SequenceRow) => {
@@ -68,8 +71,12 @@ const positions = (root: ProgramRoot): [string, number][] => {
     .flowSequences()
     .sort((a, b) => root.table.symbols[a.flow]!.localeCompare(root.table.symbols[b.flow]!));
   for (const flow of flows) {
-    if (root.table.symbols[flow.flow] !== "") {
+    if (flow.kind !== SymbolKind.Root) {
       out.push([flow.uri, root.firstLineOf(flow)]);
+    } else {
+      // A top level starts at its script's first line, and moves with no
+      // shift; its statements move as any flow's do.
+      expect(root.firstLineOf(flow)).toBe(0);
     }
     visit(flow);
   }

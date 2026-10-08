@@ -6,10 +6,9 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-// The fixture's `shared.sd` holds top-level content two scripts include,
-// which the program writer does not emit yet (#1681), and the tests read the
-// group names of the current engine's compiled JSON: they compile on that
-// engine's path until #705's deletion moves or removes them.
+// The fixture's `shared.sd` holds top-level content two scripts include, and
+// the tests read the group names of the current engine's compiled JSON: they
+// compile on that engine's path until #705's deletion moves or removes them.
 import { currentEngineCompiler } from "../engineUnderTest";
 
 const MAIN_URI = "file://proj/main.sd";

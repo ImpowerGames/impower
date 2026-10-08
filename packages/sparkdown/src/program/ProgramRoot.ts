@@ -980,7 +980,9 @@ export class ProgramRoot {
   }
 
   /** The name of the top-level flow a sequence of this root stands in, as
-   *  `sceneAt` names it. */
+   *  `sceneAt` names it. An included script's top-level content, a flow of
+   *  the top-level kind that the top level runs (`IncludeEntry`), stands in
+   *  the top level. */
   sceneOf(sequence: SequenceRow): string | undefined {
     let row: SequenceRow | undefined = sequence;
     while (row && row.owner >= 0) {
@@ -988,6 +990,9 @@ export class ProgramRoot {
     }
     if (!row || row.flow < 0) {
       return undefined;
+    }
+    if (row.kind === SymbolKind.Root) {
+      return "0";
     }
     let symbol = row.flow;
     if (row.kind === SymbolKind.Branch) {

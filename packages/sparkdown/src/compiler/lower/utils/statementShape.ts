@@ -426,7 +426,13 @@ export const inlineChoiceBranches = (
     const statements = body.statements;
     let choiceBody: BodyShape | undefined;
     statements.forEach((statement, i) => {
-      const choice = statement.objects.find(isChoice);
+      // A block statement's objects hold those of its bodies, so a choice
+      // written in a `do` block or a loop that this body holds is no choice
+      // of this statement's: the block is the statement's own code, and its
+      // body, which `visit` makes the statement's code in turn, raises it.
+      const choice = statement.objects.find(
+        (obj) => isChoice(obj) && !heldInBodies(statement, obj),
+      );
       if (choice) {
         let next = i + 1;
         while (
@@ -446,10 +452,13 @@ export const inlineChoiceBranches = (
         own(statement);
         return;
       }
-      if (choiceBody) {
+      if (choiceBody && !statement.objects.some(isChoice)) {
         choiceBody.statements.push(statement);
         return;
       }
+      // A block that holds a choice ends the body of the choice before it,
+      // as the next choice does.
+      choiceBody = undefined;
       own(statement);
       owner.bodies.push(...statement.bodies);
     });
@@ -524,6 +533,16 @@ export const inlineChoiceBranches = (
   };
   objects.forEach(visit);
 };
+
+/** Whether `obj` is an object of a statement of one of `statement`'s bodies,
+ *  at any depth. */
+const heldInBodies = (statement: StatementShape, obj: ParsedObject): boolean =>
+  statement.bodies.some((body) =>
+    body.statements.some(
+      (inner) =>
+        inner.objects.some((part) => part === obj) || heldInBodies(inner, obj),
+    ),
+  );
 
 /** The label a `break` or `continue` diverts to. */
 const exitTargetName = (divert: ParsedObject): string | undefined =>

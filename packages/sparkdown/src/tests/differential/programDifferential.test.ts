@@ -637,6 +637,119 @@ describe("the differential run", () => {
     expect(turned).toBeGreaterThan(0);
   });
 
+  // The fixtures above compile one script at a time, so an `include` finds
+  // nothing there. Each fixture directory whose `main.sd` includes scripts
+  // is compiled here with every script under it, and so is a project whose
+  // included scripts' top levels hold beats, logic, a local, a `choose`
+  // block, a tunnel and a thread, nested includes among them (#1681): every
+  // run, its globals, counts and turns, as the current engine shows them.
+  it("shows the fixtures that include scripts, and included scripts' top-level content, as the current engine does", () => {
+    const projects: { name: string; texts: Record<string, string> }[] = [];
+    const scripts = (dir: string): Record<string, string> => {
+      const texts: Record<string, string> = {};
+      for (const file of fixtureFiles(dir)) {
+        texts[`inmemory:///${relative(dir, file).split(sep).join("/")}`] = readFileSync(file, "utf8");
+      }
+      return texts;
+    };
+    for (const file of fixtureFiles(FIXTURES)) {
+      if (file.endsWith(`${sep}main.sd`) && /^include /m.test(readFileSync(file, "utf8"))) {
+        const dir = dirname(file);
+        projects.push({ name: relative(FIXTURES, dir).split(sep).join("/"), texts: scripts(dir) });
+      }
+    }
+    projects.push({
+      name: "included top-level content",
+      texts: {
+        [MAIN_URI]: [
+          "include scripts/first.sd",
+          "include scripts/second.sd",
+          "Main sees {seen} and {x}.",
+          "-> ending",
+          "",
+          "scene ending",
+          "  The end, {count.visits(-> side)}.",
+          "end",
+          "",
+        ].join("\n"),
+        "inmemory:///scripts/first.sd": [
+          "include inner.sd",
+          "store seen = 0",
+          "local x = 2",
+          "First at the top, {x}.",
+          "& seen = seen + 1",
+          "-> side ->",
+          "Back from the side.",
+          "<- aside",
+          "choose",
+          "  * Left",
+          "    Went left.",
+          "  * Right",
+          "    Went right.",
+          "    & seen = seen + 10",
+          "end",
+          "",
+          "scene side",
+          "  The side scene.",
+          "  ->->",
+          "end",
+          "",
+          "scene aside",
+          "  An aside.",
+          "end",
+          "",
+        ].join("\n"),
+        "inmemory:///scripts/inner.sd": ["Inner first, deepest of all.", ""].join("\n"),
+        "inmemory:///scripts/second.sd": [
+          "store loops = 0",
+          "Second, {loops}.",
+          "& loops = loops + 1",
+          "",
+        ].join("\n"),
+      },
+    });
+    const compared: string[] = [];
+    let included = 0;
+    for (const { name, texts } of projects) {
+      const quiet = silence();
+      try {
+        const program = programCompiler(texts, { programChunks: true }).compile().program;
+        expect(program.fallback, name).toBeUndefined();
+        included += program.chunks!
+          .flowSequences()
+          .filter((row) => program.chunks!.table.symbols[row.flow]!.startsWith("$include:")).length;
+        const current = programCompiler(texts).compile().story;
+        for (const picks of [[], [1]]) {
+          injectDraws();
+          current.ResetState();
+          const expected = storyRun(current, picks);
+          const expectedState = stateOf(current);
+          injectDraws();
+          const story = new ProgramStory(program.chunks!);
+          const actual = storyRun(story, picks);
+          expect(actual, `${name}, picks ${picks.join(",")}`).toEqual(expected);
+          // A once-only choice the current engine counts under its
+          // container's path (`0.73.c-0`), which no name reaches; the
+          // program engine counts it under the choice's anonymous symbol.
+          const state = stateDifferences(expectedState, stateOf(story));
+          expect(
+            { ...state, counts: state.counts.filter((key) => !/(^|\.)c-\d+$/.test(key)) },
+            `${name}, picks ${picks.join(",")}`,
+          ).toEqual({ globals: [], counts: [], turns: [] });
+          expect(expected.beats.length, name).toBeGreaterThan(0);
+        }
+        compared.push(name);
+      } finally {
+        shuffleDraws.next = null;
+        quiet();
+      }
+    }
+    console.log(`differential: ${compared.length} projects that include scripts compared, ${included} included flows`);
+    expect(compared).toContain("misc/include");
+    expect(compared).toContain("misc/nested-include");
+    expect(included).toBeGreaterThanOrEqual(5);
+  });
+
   const PROJECT = process.env["SPARKDOWN_PROJECT"];
   it.skipIf(!PROJECT)("shows every scene of the whole project as the current engine does", () => {
     const quiet = silence();

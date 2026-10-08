@@ -37,9 +37,8 @@ function quiet<T>(fn: () => T): T {
 }
 
 // These tests read the current engine's compiled JSON for the synthetic names
-// it holds, and several include a script with top-level content, which the
-// program writer does not emit yet (#1681): they compile for the current
-// engine until #705's deletion decides each one.
+// it holds: they compile for the current engine until #705's deletion
+// decides each one.
 function configure(compiler: SparkdownCompiler, project: Project, version: number) {
   compiler.configure({
     programChunks: false,
