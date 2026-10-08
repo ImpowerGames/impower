@@ -41,13 +41,9 @@ const playFrom = async (
   opts?: {
     file?: string;
     scripts?: Record<string, string>;
-    programChunks?: boolean;
   },
 ) => {
-  const h = createHarness(source, line, {
-    scripts: opts?.scripts,
-    programChunks: opts?.programChunks,
-  });
+  const h = createHarness(source, line, { scripts: opts?.scripts });
   await h.ready;
   h.reset();
   const startFrom = h.game.setStartFrom(
@@ -243,8 +239,7 @@ describe("a function declared in an included script (#835)", () => {
   test("records the lines of its declaration in that script", () => {
     const { program } = compileUI(MAIN, { scripts: { [OTHER_URI]: OTHER } });
     const scripts = Object.keys(program.scripts);
-    // The function's flow row (`functionSpans`), for the path-location
-    // table's `functions`.
+    // The function's flow row (`functionSpans`).
     expect(functionSpans(program as any)).toContainEqual({
       path: "less",
       lines: [scripts.indexOf(OTHER_URI), 2, 4],

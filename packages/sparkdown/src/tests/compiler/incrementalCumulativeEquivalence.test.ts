@@ -3,59 +3,31 @@
 // The existing `incrementalEquivalence` oracle applies each edit from a FRESHLY
 // configured compiler (single-edit reuse). This one drives many edits through
 // ONE persistent compiler — the real editor HMR pattern — and after each edit
-// compares the FULL emitted program (compiled bytecode + every *Locations map +
-// diagnostics + context + ui) to a cold compile of the same text.
+// compares the FULL emitted program (the statement chunks by content, every
+// *Locations map, diagnostics, context and ui) to a cold compile of the same
+// text.
 //
-// It pins two cumulative-only drift classes that single-edit reuse never hit:
-//   1. compiled (bytecode): compiler-synthesized identifiers (`__anon_fn_<from>`,
-//      `__define_fn_<from>`, `__mcall_<from>`, loop vars/labels) were minted from
-//      ABSOLUTE source offsets and frozen into per-chunk lowered IR the pipeline
-//      reuses-and-shifts without re-lowering — so a carried chunk kept a stale
-//      offset while a cold compile re-derived the current one. Fixed by
-//      `SparkdownCompiler.canonicalizeSyntheticFlowNames` (renumber by document
-//      order). Was ~25/400 edits divergent.
-//   2. diagnostics: `ExportRuntime` sets `_alreadyHad{Error,Warning}` dedup flags
-//      on parsed nodes; reused nodes kept them set, so an incremental compile
-//      SKIPPED warnings a cold compile emits (e.g. the DivertTarget "Can't use a
-//      divert target like that" hint). Fixed by `resetParsedRuntimeState`. Was
-//      ~185/400 edits divergent.
+// It pins two cumulative-only drift classes that single-edit compiles never hit:
+//   1. compiler-synthesized identifiers (anonymous functions, define methods,
+//      method-call temps, loop vars/labels) minted from ABSOLUTE source
+//      offsets and frozen into a carried chunk, while a cold compile derives
+//      the current one.
+//   2. diagnostics: dedup flags left set on carried parsed nodes, so an
+//      incremental compile SKIPPED warnings a cold compile emits (e.g. the
+//      DivertTarget "Can't use a divert target like that" hint).
 //
 // The fixture ends with the constructs of `constructs()`. A fifth of the edits
 // are whole edit shapes rather than random keystrokes, and the test counts,
 // by chunk identity, the shaped edits that left each construct's chunk
-// carried, and the compiles that served flows from the reuse cache, so that
-// it cannot pass over constructs the compile always lowered again, or while
-// a guard has turned reuse off.
+// carried, so that it cannot pass over constructs the compile always lowered
+// again.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { currentEngineCompiler } from "../engineUnderTest";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { servedFlowNames } from "./servedFlows";
+import { describeRoot } from "../program/describeRoot";
 
 const URI = "inmemory:///main.sd";
-
-/** Tells whether the last compile served any flow from the serialized-flow cache. */
-class Probe extends SparkdownCompiler {
-  private previousCache?: Map<string, { value: unknown }>;
-
-  // The flow cache is the current engine's compile path, which #705's
-  // deletion removes with this test, or moves it.
-  constructor() {
-    super();
-    this.configure({ programChunks: false });
-  }
-
-  protected override computeFlowReuse(story: RuntimeStory) {
-    this.previousCache = this._flowJsonCache;
-    return super.computeFlowReuse(story);
-  }
-
-  get reused(): boolean {
-    return servedFlowNames(this._flowJsonCache, this.previousCache).length > 0;
-  }
-}
 
 // A string that starts each construct of the fixture's `constructs()`.
 const CONSTRUCT_MARKERS: Record<string, string> = {
@@ -103,13 +75,9 @@ const SHAPED_EDITS: [string, string][] = [
 // Per-field stable stringify (sorted keys; arrays kept in order). Each program
 // field is compared independently so a failure names the diverging field.
 const FIELDS = [
-  "compiled",
-  "pathLocations",
-  "dataLocations",
   "functionLocations",
   "sceneLocations",
   "knotLocations",
-  "stitchLocations",
   "branchLocations",
   "labelLocations",
   "context",
@@ -135,19 +103,13 @@ function stable(value: unknown): string {
 
 function fieldSig(program: any): Record<string, string> {
   const sig: Record<string, string> = {};
+  sig["chunks"] = JSON.stringify(program.chunks ? describeRoot(program.chunks) : null);
   for (const f of FIELDS) sig[f] = stable(program[f]);
-  // Emission ORDER of pathLocations/dataLocations matters (a line is resolved
-  // by binary search over the table's rows) and stable() sorts keys, so
-  // capture order explicitly.
-  sig["pathLocationsOrder"] = JSON.stringify(
-    program.pathLocations?.paths ?? [],
-  );
-  sig["dataLocationsOrder"] = JSON.stringify(Object.keys(program.dataLocations ?? {}));
   return sig;
 }
 
 function coldProgram(text: string) {
-  const c = currentEngineCompiler();
+  const c = new SparkdownCompiler();
   c.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   });
@@ -174,7 +136,7 @@ describe("compiler cumulative incremental equivalence", () => {
     console.error = () => {};
     try {
       let text = cumulativeScreenplay();
-      const incr = new Probe();
+      const incr = new SparkdownCompiler();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
       });
@@ -186,10 +148,8 @@ describe("compiler cumulative incremental equivalence", () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         return seed / 0x7fffffff;
       };
-      // "& f = function() ... end" mints an anonymous-function knot (a
-      // synthetic `__synth_<n>` top-level flow), so the fuzz exercises
-      // synthetic-name renumbering + the name-keyed flow caches — without it,
-      // no edit ever creates or destroys a synthetic name and drift class 1
+      // "& f = function() ... end" makes an anonymous function, so the fuzz
+      // creates and destroys generated names — without it, drift class 1
       // goes untested.
       //
       // The last six write pieces of the fixture's constructs: a `then`, a
@@ -202,10 +162,8 @@ describe("compiler cumulative incremental equivalence", () => {
 
       let version = 1;
       const failures: string[] = [];
-      // How many shaped edits left each construct's chunk carried, and how
-      // many compiles served flows from the reuse cache.
+      // How many shaped edits left each construct's chunk carried.
       const carried = new Map<string, number>();
-      let reusing = 0;
       const EDITS = 200;
       for (let n = 0; n < EDITS; n++) {
         let insert = inserts[Math.floor(rand() * inserts.length)]!;
@@ -233,7 +191,6 @@ describe("compiler cumulative incremental equivalence", () => {
         });
         text = text.slice(0, offset) + insert + text.slice(offset + delLen);
         const incrSig = fieldSig(incr.compile({ textDocument: { uri: URI } }).program);
-        if (incr.reused) reusing += 1;
         if (before) {
           const now = constructChunks(incr, text).all;
           for (const [construct, chunk] of before.out) {
@@ -250,31 +207,17 @@ describe("compiler cumulative incremental equivalence", () => {
       // Each construct was carried through at least one shaped edit, so the
       // comparisons above covered it outside the reparse window.
       expect(Object.keys(CONSTRUCT_MARKERS).filter((c) => !carried.get(c))).toEqual([]);
-      // A guard that refused reuse on every compile would pass the
-      // comparisons without testing it, and so would a cache that a refusing
-      // compile dropped instead of reseeding. With this seed 158 of 200
-      // compiles serve flows: a random edit that declares a name correctly
-      // refuses reuse, so that compile serves nothing, though it reseeds the
-      // cache for the compile after it. The floor sits below that count, but
-      // above what a refusing compile that dropped the cache leaves (57).
-      expect(reusing, "compiles that served flows from the cache").toBeGreaterThan(EDITS / 2);
     } finally {
       console.warn = realWarn;
       console.error = realError;
     }
   });
 
-  // Pins the synthetic-name REBINDING drift: `canonicalizeSyntheticFlowNames`
-  // renumbers synthetics by document order and mutates the parsed IR in place,
-  // so a carried-forward node's name is already `__synth_k` on the next compile.
-  // Deleting a synthetic EARLIER in the document must (a) renumber the carried
-  // ordinal (the canonical form must itself match the pass's SYNTH regex, else
-  // the stale `__synth_1` survives while cold derives `__synth_0`), and (b) not
-  // let a name-keyed flow cache (incremental ToJson / location cache) splice the
-  // DELETED flow's cached entry into the flow that inherited its name — the two
-  // function knots here are same-shaped, so the cross-flow fingerprint cannot
-  // tell them apart; only excluding positional names from reuse is sound.
-  it("renumbers carried synthetic flows and never splices a stale flow-cache entry", () => {
+  // Deleting a generated name EARLIER in the document must leave the carried
+  // function after it compiled as a cold compile compiles it: the two
+  // functions here are same-shaped, so the deleted one's code must not stand
+  // in for the one that comes after it.
+  it("a function after a deleted one compiles as a cold compile does", () => {
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
@@ -311,15 +254,15 @@ describe("compiler cumulative incremental equivalence", () => {
         return L.join("\n");
       };
       const before = makeDoc(true);
-      const incr = currentEngineCompiler();
+      const incr = new SparkdownCompiler();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: before, version: 1, languageId: "sparkdown" }],
       });
       incr.compile({ textDocument: { uri: URI } });
 
       // Delete the "& f1 = ..." line + its trailing blank line: a single edit
-      // after the first flow's start (so the flow-reuse global guard stays ok)
-      // and more than one line away from f2's flow (so f2's chunk is reusable).
+      // after the first flow's start, and more than one line away from f2's
+      // (so f2's chunk is carried).
       const f1Line = before.split("\n").findIndex((l) => l.startsWith("& f1"));
       incr.updateDocument({
         textDocument: { uri: URI, version: 2 },

@@ -1,9 +1,9 @@
 // A program of statement chunks builds no path-location table (#700). Its root
 // locates every address from the chunks' own line tables
-// (docs/engine/binary-program.md, section 8), so a compile with
-// `programChunks` on walks no runtime tree for locations and sorts none: the
-// two phases that build the current engine's table, `populateLocations` and
-// `sortPathLocations`, are absent from its profile, as is the table. The scene
+// (docs/engine/binary-program.md, section 8), so a compile walks no runtime
+// tree for locations and sorts none: the two phases that built the current
+// engine's table, `populateLocations` and `sortPathLocations`, are absent from
+// its profile, as is the table. The scene
 // assets it carries are read from its chunks, and each beat is known by the
 // address of its `LineStart`.
 import "../../inkjs/engine/Container";
@@ -44,9 +44,8 @@ const quiet = <T>(run: () => T): T => {
 
 /** A compile, an edit inside one beat and a compile again, with the phases
  *  each compile measured. */
-function editInsideOneBeat(programChunks: boolean) {
+function editInsideOneBeat() {
   const c = programCompiler({ [MAIN_URI]: TEXT }, {
-    programChunks,
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
   } as never);
@@ -86,9 +85,8 @@ afterEach(() => {
 
 describe("a compile with statement chunks", () => {
   it("runs neither populateLocations nor sortPathLocations for an edit inside one beat, and builds no path-location table", () => {
-    const { first, edited, phases } = editInsideOneBeat(true);
+    const { first, edited, phases } = editInsideOneBeat();
     expect(first.chunks).toBeDefined();
-    expect(edited.chunks).toBeDefined();
     expect(edited.chunks).toBeDefined();
     // The compile was measured, and built its chunks.
     expect(phases.some((name) => name.includes("program/chunks"))).toBe(true);
@@ -99,13 +97,6 @@ describe("a compile with statement chunks", () => {
     const locator = programLocator(edited);
     const address = locator.addressAt(MAIN_URI, 3)!;
     expect(locator.locationOf(address)).toMatchObject({ uri: MAIN_URI, startLine: 3 });
-  });
-
-  it("is told apart from a compile without them, which runs both and builds the table", () => {
-    const { edited, phases } = editInsideOneBeat(false);
-    expect(phases.some((name) => name.includes("populateLocations"))).toBe(true);
-    expect(phases.some((name) => name.includes("sortPathLocations"))).toBe(true);
-    expect(edited.pathLocations?.paths.length).toBeGreaterThan(0);
   });
 
   it("reads its scene assets from its chunks, each beat at its LineStart's address", () => {
@@ -148,20 +139,14 @@ describe("a compile with statement chunks", () => {
       "end",
       "",
     ].join("\n");
-    const images = (programChunks: boolean) => {
-      const c = programCompiler({ [MAIN_URI]: text }, {
-        programChunks,
-        useBuiltinsPrelude: true,
-        seedBuiltinsIntoStory: true,
-      } as never);
-      const program = quiet(() => c.compile()).program;
-      expect(!!program.chunks).toBe(programChunks);
-      return program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
-    };
-    expect(images(true)).toEqual(["intro", "option_a", "body_a", "option_b", "body_b", "outro"]);
-    // The current engine's walk reads the choices' content after the rest of
-    // the scene, as its runtime tree holds it; its order is unchanged here.
-    expect(images(false)).toEqual(["intro", "outro", "option_a", "body_a", "option_b", "body_b"]);
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    expect(program.chunks).toBeDefined();
+    const images = program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
+    expect(images).toEqual(["intro", "option_a", "body_a", "option_b", "body_b", "outro"]);
   });
 
   // Round 3 of the review of #1618 (report 6028384794): a choose block in

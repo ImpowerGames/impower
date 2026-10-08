@@ -19,12 +19,9 @@ import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
-/** `currentEngine` compiles for the current engine, whose game runs it
- *  there (the one test below that names it says why). */
-function compileSrc(src: string, currentEngine = false) {
+function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    ...(currentEngine ? { programChunks: false } : {}),
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [
@@ -43,7 +40,7 @@ function compileSrc(src: string, currentEngine = false) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  return currentEngine ? result.program : requireChunks(result.program);
+  return requireChunks(result.program);
 }
 
 function longScene(beats: number): string {
@@ -61,14 +58,9 @@ function longScene(beats: number): string {
  *  disables every wall-clock guard in the engine. A replay measured under it
  *  reports success where the editor reports failure, so a test that means to
  *  say anything about timing has to supply a real one. */
-const newGame = (
-  program: unknown,
-  executionStepLimit?: number,
-  currentEngine = false,
-) =>
+const newGame = (program: unknown, executionStepLimit?: number) =>
   new Game({
     program: program as any,
-    ...(currentEngine ? { programChunks: false } : {}),
     incrementalCheckpoints: true,
     verifyCheckpoints: false,
     now: () => performance.now(),
@@ -79,13 +71,8 @@ const newGame = (
     }) as any,
   } as any);
 
-const previewLastBeat = (
-  program: unknown,
-  beats: number,
-  limit?: number,
-  currentEngine = false,
-) => {
-  const game = newGame(program, limit, currentEngine);
+const previewLastBeat = (program: unknown, beats: number, limit?: number) => {
+  const game = newGame(program, limit);
   const anyGame = game as any;
   const errors: string[] = [];
   const realError = anyGame.Error.bind(anyGame);

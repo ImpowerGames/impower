@@ -121,9 +121,6 @@ export function compileUI(
      *  file (source offsets start again in every one) names them here and
      *  writes `include <uri>` in its main source. */
     scripts?: Record<string, string>;
-    /** Compile statement chunks (`SparkdownCompilerConfig.programChunks`):
-     *  the package's setup file turns them on unless this names it. */
-    programChunks?: boolean;
   },
 ) {
   const compiler = new SparkdownCompiler();
@@ -133,7 +130,6 @@ export function compileUI(
     // Game-feeding compile must seed the builtins prelude into the story VM
     // (the production player does the same). Default on.
     seedBuiltinsIntoStory: opts?.seedBuiltinsIntoStory ?? true,
-    programChunks: opts?.programChunks,
     files: [
       {
         uri: MAIN_URI,
@@ -169,7 +165,7 @@ export function compileUI(
       }
     }
   }
-  if (!result.program.chunks && !result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error(
       "UI fixture failed to compile:\n  " + (errors.join("\n  ") || "(none)"),
     );
@@ -236,9 +232,6 @@ export function createHarness(
     assets?: File[];
     /** Scripts `main.sd` includes, by URI (see `compileUI`). */
     scripts?: Record<string, string>;
-    /** Run the program on the program engine (`GameConfiguration.programChunks`,
-     *  default on) when it compiles to statement chunks without falling back. */
-    programChunks?: boolean;
   },
 ): UIHarness {
   const { program } = compileUI(source, {
@@ -246,7 +239,6 @@ export function createHarness(
     // defines from the live runtime __def tables).
     assets: opts?.assets,
     scripts: opts?.scripts,
-    programChunks: opts?.programChunks,
   });
   if (opts?.staticFallback) {
     delete (program as any).sparkle;
@@ -262,7 +254,6 @@ export function createHarness(
   const game = new Game({
     program: program as any,
     previewFrom: { file: MAIN_URI, line: startLine },
-    programChunks: opts?.programChunks,
     now: () => 0,
     setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
       if (ms != null && ms > 0) {

@@ -12,7 +12,8 @@
 // (`setup()` is what attaches listeners), so it can be driven directly with a
 // stand-in for its link to the worker.
 
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { afterEach, describe, expect, test } from "vitest";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
 import { displayPreviewFrom } from "../main/workers/displayPreviewFrom";
@@ -20,23 +21,33 @@ import { displayPreviewFrom } from "../main/workers/displayPreviewFrom";
 const PROGRAM = {
   uri: "file://proj/main.sd",
   version: 2,
-  pathLocations: pathLocationTableOf({}),
   scripts: { "file://proj/main.sd": {} },
 } as any;
+
+/** The program a compile of `text` as the script `uri` makes, at `version`. */
+function compiledProgram(uri: string, text: string, version: number) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri, type: "script", name: "main", ext: "sd", text, version, languageId: "sparkdown" }],
+  } as never);
+  const program = compiler.compile({ textDocument: { uri } }).program;
+  expect(program.chunks).toBeTruthy();
+  return { ...program, version } as any;
+}
 
 /** A game that records the order it is called in, and nothing else. */
 function recordingGame(calls: string[], state = "previewing") {
   return {
     state,
     program: { uri: PROGRAM.uri, version: 1 },
-    // No address resolves from the empty `pathLocations`, so the controller
-    // falls back to the game's remembered preview point — which is what a
-    // real one does between edits.
+    // No address resolves in `PROGRAM`, which holds no statement, so the
+    // controller falls back to the game's remembered preview point — which
+    // is what a real one does between edits.
     previewAddress: "0.0",
     previewFrom: { file: PROGRAM.uri, line: 4 },
     previewedAddress: undefined as string | undefined,
-    // The flow a route to an address starts from: on the current engine, the
-    // address's top-level flow.
+    // The flow a route to an address starts from: here, the address's first
+    // segment.
     routeStartOf: (address: string) => address.split(".")[0] || "0",
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
@@ -163,13 +174,20 @@ describe("preview session ordering", () => {
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.markPreviewing = (address: string) => calls.push(`markPreviewing:${address}`);
-    const program = {
-      ...PROGRAM,
-      pathLocations: pathLocationTableOf({ "1.0": [0, 4, 0, 4, 5] }),
-    };
+    const program = compiledProgram(
+      PROGRAM.uri,
+      ["Line zero.", "Line one.", "Line two.", "Line three.", "Line four.", ""].join("\n"),
+      PROGRAM.version,
+    );
+    const locator = programLocator(program);
+    const now = locator.addressAt(PROGRAM.uri, 4, { beat: "last" });
+    // The address the point had before the program changed: another beat's.
+    const before = locator.addressAt(PROGRAM.uri, 1, { beat: "last" });
+    expect(now != null && before != null && now !== before).toBe(true);
+    game.previewAddress = before;
     await displayIn(game, stubApp(calls)).display(program, "file://proj/other.sd", 1);
-    expect(calls).toContain("markPreviewing:1.0");
-    expect(calls).not.toContain("markPreviewing:0.0");
+    expect(calls).toContain(`markPreviewing:${now}`);
+    expect(calls).not.toContain(`markPreviewing:${before}`);
   });
 
   test("marks nothing for a remembered point that no longer resolves, and still previews", async () => {
@@ -181,11 +199,12 @@ describe("preview session ordering", () => {
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.markPreviewing = (address: string) => calls.push(`markPreviewing:${address}`);
-    const program = {
-      ...PROGRAM,
-      pathLocations: pathLocationTableOf({ "0.0": [0, 4, 0, 4, 5] }),
-      scripts: { "file://proj/other.sd": {} },
-    };
+    const program = compiledProgram(
+      "file://proj/other.sd",
+      ["Line zero.", "Line one.", "Line two.", "Line three.", "Line four.", ""].join("\n"),
+      PROGRAM.version,
+    );
+    expect(Object.keys(program.scripts)).toEqual(["file://proj/other.sd"]);
     await displayIn(game, stubApp(calls)).display(program, "file://proj/third.sd", 1);
     expect(calls).toContain("markPreviewing:undefined");
     expect(calls).not.toContain("markPreviewing:0.0");
@@ -379,7 +398,7 @@ describe("the controller's preview updates", () => {
         },
       },
     } as any);
-    const program = { ...PROGRAM, pathLocations: undefined, files: {}, summary: true, runnable: true };
+    const program = { ...PROGRAM, files: {}, summary: true, runnable: true };
     const controller: any = controllerWith(stubApp(calls));
     controller._program = program;
     controller._workerGame = { program };

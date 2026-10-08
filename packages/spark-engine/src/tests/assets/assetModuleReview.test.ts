@@ -161,7 +161,7 @@ describe("AssetModule, after review", () => {
           assets.runLoad(beat.load);
         }
         // The address of the step the story ran last (the program engine's
-        // `previousAddress`, for the current engine's previous pointer).
+        // `previousAddress`).
         const previous = (h.game.story as any).previousAddress as number;
         h.game.observeScene(previous >= 0 ? previous : undefined);
         const line = Object.values(beat?.text ?? {})

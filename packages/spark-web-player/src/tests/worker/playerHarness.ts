@@ -141,8 +141,6 @@ export interface PlayerHarnessOptions {
   /** Games the worker builds read the time from `tick` and get a frame only
    *  when it runs, so a run is the same run every time. */
   manualClock?: boolean;
-  /** The worker's `programChunks`; the worker's own default when not given. */
-  programChunks?: boolean;
 }
 
 export async function createPlayerHarness(options: PlayerHarnessOptions) {
@@ -184,10 +182,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     });
     page.peer = worker;
     worker.peer = page;
-    const workerState = installPlayerWorker(
-      worker,
-      options.programChunks === undefined ? {} : { programChunks: options.programChunks },
-    );
+    const workerState = installPlayerWorker(worker);
     if (options.manualClock) {
       workerState.gameState.systemConfiguration.now = () => clock.now;
       workerState.gameState.systemConfiguration.requestFrame = (callback) => {

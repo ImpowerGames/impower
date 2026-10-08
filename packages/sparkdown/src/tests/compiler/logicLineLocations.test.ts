@@ -1,27 +1,22 @@
-// A logic line (`& …`) owns the path locations of the instructions it compiles
-// to.
+// A logic line (`& …`) owns the addresses of the instructions it compiles to.
 //
-// `program.pathLocations` is how a host turns a bytecode path back into a
-// source line: a runtime error is reported at the line of the path that raised
-// it, and preview clicks and breakpoints resolve a line to the paths that
-// start on it. A logic line whose instructions have no rows cannot be found
-// either way, so its error lands on whatever line the host last recorded.
+// A program's root is how a host turns an address back into a source line
+// (`ProgramRoot.locationOf`): a runtime error is reported at the line of the
+// address that raised it, and preview clicks and breakpoints resolve a line to
+// the address that stands on it (`ProgramRoot.addressAt`). A logic line whose
+// instructions stand on no line of their own cannot be found either way, so
+// its error lands on whatever line the host last recorded.
 //
 // Compiled the way the player compiles, with the builtins prelude.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { currentEngineCompiler } from "../engineUnderTest";
-import {
-  locationAtRow,
-  pathLocation,
-} from "../../compiler/utils/pathLocationTable";
-import { Story } from "../../inkjs/engine/Story";
+import type { RaisedError } from "../../runtime/Error";
+import { testCompiler, testRoot, testStory } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
-const MAIN_SCRIPT = 0;
 
 function compile(text: string) {
-  const c = currentEngineCompiler();
+  const c = testCompiler();
   c.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
@@ -39,7 +34,7 @@ function compile(text: string) {
   } as never);
   const program = (c.compile({ textDocument: { uri: URI } } as never) as any)
     .program;
-  if (!program.compiled) {
+  if (!program.chunks) {
     throw new Error(
       "fixture failed to compile: " + JSON.stringify(program.diagnostics),
     );
@@ -47,12 +42,13 @@ function compile(text: string) {
   return program;
 }
 
-/** The paths of main.sd whose recorded range starts on `line`. */
-const pathsStartingOn = (program: any, line: number): string[] =>
-  ((program.pathLocations?.paths ?? []) as string[]).filter((_path, row) => {
-    const location = locationAtRow(program.pathLocations, row)!;
-    return location[0] === MAIN_SCRIPT && location[1] === line;
-  });
+/** The address of main.sd's `line`, when one stands on that line. */
+const addressesOn = (program: any, line: number): number[] => {
+  const root = testRoot(program.compiled)!;
+  const address = root.addressAt(URI, line);
+  const location = address === undefined ? undefined : root.locationOf(address);
+  return location?.uri === URI && location.startLine === line ? [address!] : [];
+};
 
 /** The main.sd diagnostics whose message matches `pattern`. */
 const matching = (program: any, pattern: RegExp): any[] =>
@@ -74,7 +70,7 @@ const diagnosticsMatching = (program: any, pattern: RegExp) =>
 
 /** Everything the story writes when run to its end with no choices. */
 function runText(program: any): string {
-  const story = new Story(program.compiled as Record<string, any>);
+  const story = testStory(program.compiled as Record<string, any>);
   let text = "";
   for (let step = 0; step < 100 && story.canContinue; step++) {
     text += story.Continue();
@@ -82,16 +78,14 @@ function runText(program: any): string {
   return text;
 }
 
-/** Run the story until it raises, and return the path the error was raised at. */
-function raisedPath(program: any): string | undefined {
-  const story = new Story(program.compiled as Record<string, any>);
-  let raised: string | undefined;
-  const addError = story.AddError.bind(story);
-  story.AddError = ((...args: Parameters<typeof story.AddError>) => {
-    raised ??= story.state.currentPointer.path?.toString();
-    return addError(...args);
-  }) as typeof story.AddError;
-  story.onError = () => {};
+/** Run the story until it raises, and return the address the error was
+ *  raised at. */
+function raisedAddress(program: any): number | undefined {
+  const story = testStory(program.compiled as Record<string, any>);
+  let raised: RaisedError | null | undefined;
+  story.onError = (_message, _type, _source, record) => {
+    raised ??= record;
+  };
   for (let step = 0; step < 100 && raised === undefined; step++) {
     if (story.canContinue) {
       story.Continue();
@@ -101,62 +95,49 @@ function raisedPath(program: any): string | undefined {
       break;
     }
   }
-  return raised;
+  return raised?.address ?? undefined;
 }
 
-/** The 0-based line the error raised by running `source` is located on. */
+/** The 0-based line of main.sd the error raised by running `source` is
+ *  located on. */
 function raisedLine(source: string): number | undefined {
   const program = compile(source);
-  const path = raisedPath(program);
-  expect(path, "the story did not raise").toBeDefined();
-  const location = pathLocation(program.pathLocations, path!);
-  expect(location, `no location for raised path ${path}`).toBeDefined();
-  expect(location![0]).toBe(MAIN_SCRIPT);
-  return location![1];
+  const address = raisedAddress(program);
+  expect(address, "the story did not raise").toBeDefined();
+  const location = testRoot(program.compiled)!.locationOf(address!);
+  expect(location, `no location for raised address ${address}`).toBeDefined();
+  expect(location!.uri).toBe(URI);
+  return location!.startLine;
 }
 
-describe("logic lines own their instructions' path locations (#824)", () => {
+describe("logic lines own their instructions' addresses (#824)", () => {
   it("an error raised by a logic line resolves to that line", () => {
-    const program = compile(`A\n& error("boom")\nC\n`);
-    const path = raisedPath(program);
-    expect(path, "the story did not raise").toBeDefined();
-    const location = pathLocation(program.pathLocations, path!);
-    expect(location, `no location for raised path ${path}`).toBeDefined();
-    expect(location![0]).toBe(MAIN_SCRIPT);
-    expect(location![1]).toBe(1);
+    expect(raisedLine(`A\n& error("boom")\nC\n`)).toBe(1);
   });
 
-  it("a reassignment logic line has paths starting on it", () => {
+  it("a reassignment logic line has an address on it", () => {
     const program = compile(`store x = 0\nA\n& x = 1\n.. B\n`);
-    expect(pathsStartingOn(program, 2)).not.toEqual([]);
+    expect(addressesOn(program, 2)).not.toEqual([]);
   });
 
-  it("a function-call logic line has paths starting on it", () => {
+  it("a function-call logic line has an address on it", () => {
     const program = compile(`A\n& print("hi")\nC\n`);
-    expect(pathsStartingOn(program, 1)).not.toEqual([]);
+    expect(addressesOn(program, 1)).not.toEqual([]);
   });
 
   it("an error raised by a logic line in a scene body resolves to that line", () => {
-    // A scene body's lines are re-parented under the scene's root weave, whose
-    // range is the scene header's.
-    const program = compile(
-      `-> start\n\nscene start\n  A\n  & error("boom")\n  C\nend\n`,
-    );
-    const path = raisedPath(program);
-    expect(path, "the story did not raise").toBeDefined();
-    const location = pathLocation(program.pathLocations, path!);
-    expect(location, `no location for raised path ${path}`).toBeDefined();
-    expect(location![0]).toBe(MAIN_SCRIPT);
-    expect(location![1]).toBe(4);
+    expect(
+      raisedLine(`-> start\n\nscene start\n  A\n  & error("boom")\n  C\nend\n`),
+    ).toBe(4);
   });
 
   it("an error raised by a property assignment logic line resolves to that line", () => {
     expect(raisedLine(`store t = {}\nA\n& t.x = error("boom")\nC\n`)).toBe(2);
   });
 
-  it("a property assignment logic line has paths starting on it", () => {
+  it("a property assignment logic line has an address on it", () => {
     const program = compile(`store t = {}\nA\n& t.x = 1\nC\n`);
-    expect(pathsStartingOn(program, 2)).not.toEqual([]);
+    expect(addressesOn(program, 2)).not.toEqual([]);
   });
 
   it("an error raised by a logic line in a choice body resolves to that line", () => {
@@ -215,9 +196,12 @@ describe("logic lines own their instructions' path locations (#824)", () => {
     expect(runText(program)).toBe("Value 2.\n");
   });
 
-  it("a definition's assignments get no paths", () => {
+  it("a definition's assignments get no address", () => {
     // A `define` body is not a logic line and not a place PLAY can start.
-    const program = compile(`define config.thing:\n  value = 1\n`);
-    expect(pathsStartingOn(program, 1)).toEqual([]);
+    // (The header is written as a define header reads now: `define NAME
+    // with`, closed by `end`. The `define config.thing:` it was written as
+    // is an error that leaves `value = 1` a top-level assignment.)
+    const program = compile(`define thing with\n  value = 1\nend\n`);
+    expect(addressesOn(program, 1)).toEqual([]);
   });
 });

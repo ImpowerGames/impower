@@ -9,20 +9,16 @@
 // name outside the reparse window, while a shift moves every chunk of the file
 // at once.
 //
-// Compared: `program.compiled` byte for byte; `context`, the engine UI
-// channels and `sparkle` equal, with the `span` of each Sparkle binding in the
-// shifted file moved down; the diagnostics equal with the shifted file's
-// ranges moved down; and every location table equal with the shifted file's
-// rows moved down. A leading blank line moves no column, so columns are
-// compared as they are.
+// Compared: `context`, the engine UI channels and `sparkle` equal, with the
+// `span` of each Sparkle binding in the shifted file moved down; the
+// diagnostics equal with the shifted file's ranges moved down; and every
+// location table equal with the shifted file's rows moved down. A leading
+// blank line moves no column, so columns are compared as they are. The
+// statement chunks' shift oracle is `programShift.test.ts`.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-// This oracle compares the current engine's compiled JSON and its shifted
-// path-location table, and one fixture (#848) includes a script's top-level
-// content (#1681): it compiles on that engine's path. The program's shift
-// oracle is `programShift.test.ts`; #705's deletion removes or moves this one.
-import { currentEngineCompiler } from "../engineUnderTest";
 import { SparkProgram, ScriptLocation } from "../../compiler/types/SparkProgram";
 import { SHIFT_CASES, type Project } from "./fixtures/shiftCases";
 
@@ -48,7 +44,7 @@ function coldCompile(project: Project): SparkProgram {
   console.warn = () => {};
   console.error = () => {};
   try {
-    const compiler = currentEngineCompiler();
+    const compiler = new SparkdownCompiler();
     compiler.configure({ files: Object.entries(project).map(([name, text]) => file(name, text)) });
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   } finally {
@@ -85,28 +81,6 @@ function shiftTable(
 ): Record<string, ScriptLocation> | undefined {
   if (!table) return table;
   return Object.fromEntries(Object.entries(table).map(([name, at]) => [name, shiftLocation(at, script, lines)]));
-}
-
-// A copy of the path-location table with the rows and function spans of
-// `script` moved down.
-function shiftPathLocations(table: SparkProgram["pathLocations"], script: number, lines: number) {
-  if (!table) return table;
-  const values = Array.from(table.values);
-  for (let i = 0; i < values.length; i += 5) {
-    if (values[i] === script) {
-      values[i + 1]! += lines;
-      values[i + 3]! += lines;
-    }
-  }
-  return {
-    ...table,
-    values,
-    functions: table.functions?.map((span) =>
-      span.lines?.[0] === script
-        ? { ...span, lines: [script, span.lines[1] + lines, span.lines[2] + lines] }
-        : span,
-    ),
-  };
 }
 
 // A copy of `value` with every `{ start, end }` position range moved down.
@@ -147,7 +121,6 @@ function surface(program: SparkProgram, uri: string, lines: number) {
     Object.entries(program.diagnostics ?? {}).map(([at, list]) => [at, at === uri ? shiftRanges(list, lines) : list]),
   );
   return {
-    compiled: JSON.stringify(program.compiled),
     context: stable(program.context),
     ui: stable({
       layouts: program.layouts,
@@ -157,14 +130,9 @@ function surface(program: SparkProgram, uri: string, lines: number) {
     }),
     sparkle: stable(shiftSparkle(program.sparkle, uri, lines)),
     diagnostics: stable(diagnostics),
-    pathLocations: stable(shiftPathLocations(program.pathLocations, s, lines)),
-    pathLocationsOrder: JSON.stringify(program.pathLocations?.paths ?? []),
-    dataLocations: stable(shiftTable(program.dataLocations, s, lines)),
-    dataLocationsOrder: JSON.stringify(Object.keys(program.dataLocations ?? {})),
     functionLocations: stable(shiftTable(program.functionLocations, s, lines)),
     sceneLocations: stable(shiftTable(program.sceneLocations, s, lines)),
     knotLocations: stable(shiftTable(program.knotLocations, s, lines)),
-    stitchLocations: stable(shiftTable(program.stitchLocations, s, lines)),
     branchLocations: stable(shiftTable(program.branchLocations, s, lines)),
     labelLocations: stable(shiftTable(program.labelLocations, s, lines)),
   };

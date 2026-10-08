@@ -3823,12 +3823,17 @@ export class SparkdownCompiler {
     const message = unsupportedConstructMessage(unsupported.construct);
     const line = unsupported.line;
     // A statement the compile already reported an error at is in error for
-    // that reason, which keeps it from being built (a malformed loop test,
-    // a stray choice mark): its error is the one to read.
+    // that reason, which keeps it from being built (a malformed loop test):
+    // its error is the one to read. So is one whose construct the compile
+    // already reported in the same words on a line of its own, as lowering
+    // reports a stray choice mark on the choice's line inside the statement
+    // that holds it.
     const reported = program.diagnostics?.[unsupported.uri]?.some(
       (d) =>
-        d.range.start.line === line &&
-        d.severity === DiagnosticSeverity.Error,
+        d.severity === DiagnosticSeverity.Error &&
+        (d.range.start.line === line ||
+          (typeof d.message === "string" ? d.message : d.message.value) ===
+            message),
     );
     if (reported) {
       return;

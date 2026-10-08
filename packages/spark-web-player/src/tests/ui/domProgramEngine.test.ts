@@ -2,7 +2,7 @@
 // consumer: an event handler reaches its function through `EvaluateFunction`
 // (a named function, the evaluator of a call and the evaluator of an inline
 // closure), and a reactive binding re-evaluates when a handler changes the
-// global it reads, as on the current engine.
+// global it reads.
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -23,18 +23,13 @@ function add_by(n)
 end
 `;
 
-describe.each([
-  ["the current engine", false],
-  ["the program engine", true],
-])("a layout on %s", (_engine, programChunks) => {
+describe("a layout on the program engine", () => {
   test("runs a clicked button's handler through EvaluateFunction and re-evaluates the binding it changed", async () => {
-    const h = createDOMHarness(SOURCE, 0, { programChunks });
+    const h = createDOMHarness(SOURCE, 0);
     await h.ready;
     await flushMicrotasks(10);
     const story = h.game.story as any;
-    expect(story.constructor.name).toBe(
-      programChunks ? "ProgramStory" : "Story",
-    );
+    expect(story.constructor.name).toBe("ProgramStory");
     // Every function the game evaluates, by name.
     const evaluated: string[] = [];
     const evaluate = story.EvaluateFunction.bind(story);

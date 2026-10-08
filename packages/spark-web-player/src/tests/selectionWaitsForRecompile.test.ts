@@ -1,6 +1,6 @@
 // A click on a script line is answered by resolving that line against the
-// compiled program's path locations, which describe the script as it was when
-// the program was compiled. The compile that follows an edit is debounced, so
+// compiled program, which describes the script as it was when the program was
+// compiled. The compile that follows an edit is debounced, so
 // every click made in the first fraction of a second after typing lands while
 // the player still holds the pre-edit program — and resolving there names
 // whatever used to stand at that line number. In #489 two lines were typed
@@ -13,7 +13,6 @@
 // starts from this very selection — answer it when it lands.
 
 import { describe, expect, test } from "vitest";
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
 
 const URI = "file://proj/main.sd";
@@ -21,8 +20,9 @@ const URI = "file://proj/main.sd";
 const PROGRAM = {
   uri: URI,
   version: 3,
-  compiled: {},
-  pathLocations: pathLocationTableOf({}),
+  // The summary of a program that runs, as the page is sent one.
+  summary: true,
+  runnable: true,
   scripts: { [URI]: 3 },
 } as any;
 
@@ -80,7 +80,7 @@ describe("a click made before the edit it follows has been compiled (#489)", () 
     // beat until the author clicked again — the symptom the ticket describes.
     expect(controller._options.startFrom).toEqual({ file: URI, line: 8 });
 
-    await controller.loadProgram(PROGRAM, undefined);
+    await controller.loadProgram(PROGRAM);
 
     expect(controller.previews).toEqual([{ file: URI, line: 8 }]);
   });
