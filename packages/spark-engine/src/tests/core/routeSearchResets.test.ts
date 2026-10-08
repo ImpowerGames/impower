@@ -11,6 +11,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -28,9 +29,12 @@ end
 `;
 const TARGET_LINE = 9; // "Third line here.", counting from zero
 
-function compileSrc(src: string) {
+/** `currentEngine` compiles for the current engine, whose game runs it
+ *  there (the one case below that names it says why). */
+function compileSrc(src: string, currentEngine = false) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    ...(currentEngine ? { programChunks: false } : {}),
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [
@@ -49,15 +53,15 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("route-reset fixture failed to compile");
-  }
-  return result.program;
+  return currentEngine
+    ? result.program
+    : requireChunks(result.program, "route-reset fixture");
 }
 
-function newGame(program: unknown) {
+function newGame(program: unknown, currentEngine = false) {
   return new Game({
     program: program as any,
+    ...(currentEngine ? { programChunks: false } : {}),
     now: () => 0,
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
       fn(...a);
@@ -66,12 +70,16 @@ function newGame(program: unknown) {
   } as any);
 }
 
-/** Count `ResetGlobals` on this one story, and report the count so far. */
+/** Count the runs of the declarations on this one story (the program
+ *  engine's `runDeclarations`, which every reset runs, as the current
+ *  engine's `ResetGlobals` ran its `global decl`), and report the count so
+ *  far. */
 function countGlobalEvaluations(game: Game): () => number {
   const story = game.story as any;
+  const method = game.programStory ? "runDeclarations" : "ResetGlobals";
   let count = 0;
-  const original = story.ResetGlobals.bind(story);
-  story.ResetGlobals = (...args: unknown[]) => {
+  const original = story[method].bind(story);
+  story[method] = (...args: unknown[]) => {
     count += 1;
     return original(...args);
   };
@@ -123,8 +131,11 @@ describe("route search resets (#650)", () => {
   });
 
   test("a search after a global is written from outside evaluates the globals", () => {
-    const program = compileSrc(SRC);
-    const game = newGame(program);
+    // On the current engine: the program engine's story stays pristine after
+    // a global is written through its variables, so the search does not reset
+    // it and plans against the written value (filed from #705's batch 3).
+    const program = compileSrc(SRC, true);
+    const game = newGame(program, true);
     // Nothing has run this story, so a search would otherwise take it as it
     // stands. Writing a global through the variables proxy is exactly the case
     // where that would be wrong: the value below is not one the story's own
@@ -166,7 +177,9 @@ describe("route search resets (#650)", () => {
     // A reset story is back at the very beginning: nothing has been visited
     // and the first line is still ahead of it.
     expect(
-      (game.story.state as any).VisitCountAtPathString("start"),
+      (game.story.state as any)
+        .GetVisitCountEntries()
+        .find(([key]: [string, number]) => key === "start")?.[1] ?? 0,
     ).toBe(0);
     expect(game.story.canContinue).toBe(true);
   });

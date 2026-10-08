@@ -8,6 +8,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -23,10 +24,7 @@ function compileSrc(src: string) {
     ],
   });
   const result = compiler.compile({ textDocument: { uri: URI }, countAllVisits: true });
-  if (!result.program.compiled) {
-    throw new Error("delta fixture failed to compile");
-  }
-  return result.program;
+  return requireChunks(result.program, "delta fixture");
 }
 
 function newGame(program: unknown, config: Record<string, unknown>) {

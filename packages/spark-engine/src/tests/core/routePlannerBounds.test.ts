@@ -28,6 +28,7 @@ import {
   planRoute,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -52,10 +53,7 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  return requireChunks(result.program);
 }
 
 const newGame = (program: unknown) =>

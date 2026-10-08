@@ -18,6 +18,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { extendSeq } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -42,10 +43,7 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  return requireChunks(result.program);
 }
 
 /** A scene with `beats` display lines, so a route to the end has many steps. */
@@ -180,11 +178,17 @@ end
     const game = newGame(program);
     const anyGame = game as any;
 
+    // A resume restores the checkpoint (`restoreCheckpoint`): the program
+    // engine puts its beat image back, where the current engine loaded the
+    // checkpoint's save. Counted when it restores.
     let loads = 0;
-    const realLoad = anyGame.load.bind(anyGame);
-    anyGame.load = (...args: unknown[]) => {
-      loads += 1;
-      return realLoad(...args);
+    const realRestore = anyGame.restoreCheckpoint.bind(anyGame);
+    anyGame.restoreCheckpoint = (...args: unknown[]) => {
+      const restored = realRestore(...args);
+      if (restored) {
+        loads += 1;
+      }
+      return restored;
     };
 
     // First preview: nothing to resume from.

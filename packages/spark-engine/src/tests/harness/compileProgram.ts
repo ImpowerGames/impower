@@ -29,3 +29,28 @@ export const compileProgram = (
   } as never);
   return compiler.compile({ textDocument: { uri } } as never).program;
 };
+
+/** A fixture's program, which a game runs on the program engine: one that
+ *  built statement chunks without falling back. Any other throws, naming the
+ *  construct a fallback names, so a fixture never runs on the current engine
+ *  without saying so. */
+export const requireChunks = <
+  P extends {
+    chunks?: unknown;
+    fallback?: { construct: string; uri: string; line: number };
+  },
+>(
+  program: P,
+  what = "fixture",
+): P => {
+  if (program.fallback) {
+    const { construct, uri, line } = program.fallback;
+    throw new Error(
+      `${what} falls back to the current engine for ${construct} at ${uri} line ${line + 1}`,
+    );
+  }
+  if (!program.chunks) {
+    throw new Error(`${what} failed to compile`);
+  }
+  return program;
+};

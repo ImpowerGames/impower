@@ -15,12 +15,16 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
-function compileSrc(src: string) {
+/** `currentEngine` compiles for the current engine, whose game runs it
+ *  there (the one test below that names it says why). */
+function compileSrc(src: string, currentEngine = false) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    ...(currentEngine ? { programChunks: false } : {}),
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [
@@ -39,10 +43,7 @@ function compileSrc(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  return currentEngine ? result.program : requireChunks(result.program);
 }
 
 function longScene(beats: number): string {
@@ -60,9 +61,14 @@ function longScene(beats: number): string {
  *  disables every wall-clock guard in the engine. A replay measured under it
  *  reports success where the editor reports failure, so a test that means to
  *  say anything about timing has to supply a real one. */
-const newGame = (program: unknown, executionStepLimit?: number) =>
+const newGame = (
+  program: unknown,
+  executionStepLimit?: number,
+  currentEngine = false,
+) =>
   new Game({
     program: program as any,
+    ...(currentEngine ? { programChunks: false } : {}),
     incrementalCheckpoints: true,
     verifyCheckpoints: false,
     now: () => performance.now(),
@@ -73,8 +79,13 @@ const newGame = (program: unknown, executionStepLimit?: number) =>
     }) as any,
   } as any);
 
-const previewLastBeat = (program: unknown, beats: number, limit?: number) => {
-  const game = newGame(program, limit);
+const previewLastBeat = (
+  program: unknown,
+  beats: number,
+  limit?: number,
+  currentEngine = false,
+) => {
+  const game = newGame(program, limit, currentEngine);
   const anyGame = game as any;
   const errors: string[] = [];
   const realError = anyGame.Error.bind(anyGame);
@@ -110,9 +121,11 @@ describe("a long scene replays to its end", () => {
   // machine abandons it partway and reports a possible infinite loop, on a
   // scene that contains no loop at all.
   test("a 10,000 line scene previews its last beat instead of reporting a loop", () => {
+    // On the current engine: the program engine's simulation of this scene
+    // runs out of the test's heap (filed from #705's batch 3).
     const beats = 10_000;
-    const program = compileSrc(longScene(beats));
-    const result = previewLastBeat(program, beats);
+    const program = compileSrc(longScene(beats), true);
+    const result = previewLastBeat(program, beats, undefined, true);
 
     expect(result.route).toBeTruthy();
     expect(result.simulation).toBe("success");
@@ -201,14 +214,17 @@ describe("the ceiling is calibrated against what the editor compiles", () => {
 
 describe("a replay that runs away is still stopped", () => {
   test("a ceiling below what the scene needs stops it and says so", () => {
+    // On the current engine: on the program engine the stopped replay throws
+    // reading its last checkpoint, whose save refuses a line left open
+    // (filed from #705's batch 3).
     const beats = 400;
-    const program = compileSrc(longScene(beats));
-    const generous = previewLastBeat(program, beats);
+    const program = compileSrc(longScene(beats), true);
+    const generous = previewLastBeat(program, beats, undefined, true);
     expect(generous.simulation).toBe("success");
     expect(generous.errors).toEqual([]);
 
     // The same scene, with a ceiling deliberately below its cost.
-    const starved = previewLastBeat(program, beats, 50);
+    const starved = previewLastBeat(program, beats, 50, true);
     expect(starved.simulation).not.toBe("success");
     expect(starved.errors.join("\n")).toContain("possible infinite loop");
     expect(starved.errors.join("\n")).toContain("50 steps");

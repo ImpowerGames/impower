@@ -15,6 +15,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -50,10 +51,7 @@ function compileSrc(src: string) {
     ],
   });
   const result = compiler.compile({ textDocument: { uri: URI }, countAllVisits: true });
-  if (!result.program.compiled) {
-    throw new Error("checkpoint fixture failed to compile");
-  }
-  return result.program;
+  return requireChunks(result.program, "checkpoint fixture");
 }
 
 function newGame(program: unknown) {
@@ -73,7 +71,11 @@ function fp(game: Game, vars: string[]) {
   const vs: any = game.story.variablesState;
   const o: Record<string, unknown> = {
     text: (game.story.currentText ?? "").trim(),
-    startVisits: (game.story.state as any).VisitCountAtPathString("start"),
+    // The program engine's state counts visits by flow name.
+    startVisits:
+      (game.story.state as any)
+        .GetVisitCountEntries()
+        .find(([key]: [string, number]) => key === "start")?.[1] ?? 0,
   };
   for (const n of vars) o[n] = vs.$(n);
   return JSON.stringify(o);
