@@ -116,8 +116,8 @@ export interface CompilationConfig {
     };
   };
   // Whether a chunk's lowering keeps the reads it makes outside its own
-  // syntax (`CompiledBlock.reads`), which only the binary program's chunk
-  // store needs (`SparkdownCompilerConfig.programChunks`).
+  // syntax (`CompiledBlock.reads`), which the binary program's chunk store
+  // needs; the compiler always sets it.
   recordLoweringReads?: boolean;
   // The statement memo's host, which the compiler gives when statement
   // chunks are on: statements of blocks' bodies are remembered and served

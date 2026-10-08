@@ -36,8 +36,8 @@ export interface AddressQuery {
 
 /**
  * The one accessor through which everything outside the engine and the
- * compiler goes from a source line to an execution position and back. It
- * answers from either engine until the current one is deleted.
+ * compiler goes from a source line to an execution position and back. The
+ * program's root answers it (`ProgramRoot.addressAt`, `locationOf`).
  */
 export interface ProgramLocator {
   /** The address of the beat or statement on a line of a script, or of the

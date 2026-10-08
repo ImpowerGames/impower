@@ -471,7 +471,7 @@ export class SparkdownCompiler {
   // splice. Per-instance (mutated/reset per compile), so never shared.
   protected _cachedPreludeParsedStory?: Story;
   // The compiled blocks of the compile that built the chunk store's current
-  // root (`programChunks`), against which a compile finds the blocks it
+  // root, against which a compile finds the blocks it
   // lowered anew since then: a preview's compile in between moves
   // `_prevCompilationIds` but not the store's root.
   protected _chunkStoreBlocks?: Set<object>;
@@ -599,10 +599,9 @@ export class SparkdownCompiler {
   // regrowing geometrically. The program is nearly the same size every edit.
   protected _binarySlotHint = 0;
 
-  // ---- Statement chunks (`programChunks`, #694) ---------------------------
+  // ---- Statement chunks (#694) --------------------------------------------
   // What the compilation annotator is configured with, kept as one object so
-  // that a later `configure` reaches it: whether a chunk's lowering keeps its
-  // reads follows `programChunks`.
+  // that a later `configure` reaches it.
   // The compilation annotator records each statement's lowering reads and
   // serves statement memos (`_memoHost`, given when the registry is made in
   // `configure`), which the chunk store needs.
@@ -653,7 +652,7 @@ export class SparkdownCompiler {
   /** The construct this compile's build met and had no emit path for, which
    *  the compile reports once its validators have run. */
   protected _unsupported?: UnsupportedConstructSite;
-  // The resolver of a compiler that compiles with `programChunks` on, kept for
+  // The program path's resolver, kept for
   // the compiler's lifetime so that a statement's resolution is kept across
   // compiles (#1607).
   protected _programResolver?: ProgramResolver;
@@ -3835,7 +3834,7 @@ export class SparkdownCompiler {
     return this._chunkStore;
   }
 
-  /** The resolver of a compiler that compiles with `programChunks` on. */
+  /** The program path's resolver. */
   get programResolver(): ProgramResolver | undefined {
     return this._programResolver;
   }

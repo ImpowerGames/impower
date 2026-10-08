@@ -759,49 +759,6 @@ export class Game<T extends M = {}> {
     return this._program;
   }
 
-  /**
-   * Drop what the game holds in the form of the engine it ran before
-   * `updateProgram` gave it a program for the other one (#1663). The program
-   * engine names a position by a number and keeps its checkpoints as images,
-   * and the current engine names one by a runtime path and keeps saves, so
-   * neither engine can read the other's start address, checkpoints, planned
-   * route or record of executed positions. The new story stands at its
-   * start, so the game is put where a fresh game given the program is: its
-   * start point resolved again on this engine, and no route replayed.
-   */
-  protected forgetOtherEngine() {
-    this._checkpoints.truncate(0);
-    this._checkpointStepCursors.length = 0;
-    this._plannedRoute = null;
-    this._plannedRouteChangeId = undefined;
-    this._plannedRouteRoot = undefined;
-    this._plannedRouteStepMap = {};
-    this._plannedRouteStepCursor = 0;
-    this._routeErrors = [];
-    this._searchErrors = undefined;
-    this._simulation = undefined;
-    this._simulationFailure = undefined;
-    this._simulateFlow = undefined;
-    this._runtimeState = new RuntimeState();
-    this._executingAddress = null;
-    this._executingLocation = null;
-    this._previewAddress = undefined;
-    this._previewedAddress = undefined;
-    // What a route replayed on the other engine left in the modules (a beat
-    // still queued, the state its checkpoints saved) belongs to a run the
-    // new story never made: they go back to what a game that has never run
-    // holds, as a route replayed from its start puts them (`replayRoute`).
-    if (this._moduleNames && this._moduleNames.length > 0) {
-      this.module.interpreter.clearQueuedBeats();
-      for (const k of this._moduleNames) {
-        this._modules[k]?.load({});
-      }
-    }
-    if (this._startFrom) {
-      this.setStartFrom(this._startFrom, this._startBeat);
-    }
-  }
-
   /** Assign the program's channels (defines → character/image/…, assets,
    *  layout/component/style) onto the runtime context. Defines are sourced from
    *  the live runtime `__def` tables (assignRuntimeDefines); the rest come from
@@ -2373,7 +2330,7 @@ export class Game<T extends M = {}> {
    * `save` writes them, and a runtime record of the shape `toJSON` writes
    * (`RuntimeState.read`), and the story must place it
    * (`ProgramStory.checkSave`). What a module's state holds is the
-   * module's to read, on either engine. Then the story loads, which puts
+   * module's to read. Then the story loads, which puts
    * itself back, line in progress included, when it fails past the
    * placement, and ends the line in progress when it succeeds; only then
    * does a waiting preview go, and the modules and the runtime record load,
@@ -3287,9 +3244,7 @@ export class Game<T extends M = {}> {
         ? thread.callstack.length - 1
         : callStack.currentElementIndex);
     const contextElement = thread?.callstack[frameIndex];
-    // On the program engine a temporary's scope is the name of the frame it
-    // is a temporary of; on the current engine, the runtime path the game
-    // last ran, without its indices.
+    // A temporary's scope is the name of the frame it is a temporary of.
     const program = this.programStory;
     const programScope = program
       ? program.debugFrames(thread?.threadIndex ?? 0)?.[frameIndex]?.name

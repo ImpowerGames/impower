@@ -41,8 +41,8 @@ export interface ProgramChangeSummary {
    */
   confined: boolean;
   /**
-   * What a compile that built statement chunks (`SparkdownCompilerConfig.
-   * programChunks`) changed, derived from the compile itself: the chunks of
+   * What a compile that built statement chunks changed, derived from the
+   * compile itself: the chunks of
    * the root it is measured against that its root no longer holds, the
    * chunks it emitted, the symbols whose definition row moved, and whether a
    * declaration or function chunk was among the chunks emitted or dropped, a

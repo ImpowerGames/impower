@@ -441,16 +441,14 @@ describe("a constant", () => {
 });
 
 describe("a scene named `kind`", () => {
-  it("is no branch of itself, on either engine", () => {
+  it("is no branch of itself", () => {
     // The story's tables are maps that record the names a resolution reads;
     // `kind`, the name of a table's kind, is no entry of one.
     const text = "scene kind\n  Hello.\nend\n";
-    for (const programChunks of [true, false]) {
-      const collisions = diagnostics(cold({ [MAIN_URI]: text }, { programChunks })).filter((d) =>
-        d.includes("Duplicate identifier"),
-      );
-      expect(collisions, `programChunks ${programChunks}`).toEqual([]);
-    }
+    const collisions = diagnostics(cold({ [MAIN_URI]: text })).filter((d) =>
+      d.includes("Duplicate identifier"),
+    );
+    expect(collisions).toEqual([]);
   });
 });
 

@@ -38,9 +38,8 @@ export class ControlCommand extends InkObject {
   // evaluation. `_shortCircuitOp` is "and" or "or"; `_shortCircuitSkipCount`
   // is how many content elements (the RHS operand's ops) to jump over
   // when the LHS alone decides the result. Populated by
-  // `ShortCircuit(op, n)` (the count is patched in by
-  // the binary expression's code generation (deleted in #705) after the RHS was
-  // generated) and encoded as `"sc:<op>:<n>"` in JSON.
+  // `ShortCircuit(op, n)` and encoded as `"sc:<op>:<n>"` in JSON. The program
+  // writer emits a short circuit as a jump of its own instead.
   public _shortCircuitOp: string = "";
   public _shortCircuitSkipCount: number = 0;
 

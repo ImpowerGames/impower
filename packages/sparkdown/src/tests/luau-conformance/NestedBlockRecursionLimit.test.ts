@@ -1,6 +1,6 @@
 // A run file nesting more blocks than Luau's block recursion limit compiles
-// to Luau's `CodeTooComplex` diagnostic, with statement chunks or without,
-// instead of overflowing the stack in the lowering (#1688). The source is
+// to Luau's `CodeTooComplex` diagnostic instead of overflowing the stack in
+// the lowering (#1688). The source is
 // Luau's `check_block_recursion_limit` (TypeInfer.test.cpp).
 
 import { describe, expect, it } from "vitest";
@@ -9,10 +9,9 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 const SNIPPET_URI = "inmemory:///snip.luau";
 const source = "do ".repeat(595) + "local a = 1" + " end".repeat(595);
 
-function compile(programChunks: boolean) {
+function compile() {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    programChunks,
     files: [
       {
         uri: "inmemory:///main.sd",
@@ -33,21 +32,19 @@ function compile(programChunks: boolean) {
         languageId: "sparkdown",
       },
     ],
-  } as any);
+  } as never);
   return compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } })
     .program;
 }
 
 describe("595 nested do blocks (#1688)", () => {
-  for (const programChunks of [false, true]) {
-    it(`report CodeTooComplex with programChunks ${programChunks}`, () => {
-      const program = compile(programChunks);
-      const messages = (program.diagnostics?.[SNIPPET_URI] ?? []).map((d) =>
-        typeof d.message === "string" ? d.message : d.message.value,
-      );
-      expect(messages).toEqual([
-        "Code is too complex to typecheck! Consider simplifying the code around this area",
-      ]);
-    });
-  }
+  it("report CodeTooComplex", () => {
+    const program = compile();
+    const messages = (program.diagnostics?.[SNIPPET_URI] ?? []).map((d) =>
+      typeof d.message === "string" ? d.message : d.message.value,
+    );
+    expect(messages).toEqual([
+      "Code is too complex to typecheck! Consider simplifying the code around this area",
+    ]);
+  });
 });

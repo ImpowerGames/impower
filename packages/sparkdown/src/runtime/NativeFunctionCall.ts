@@ -167,8 +167,8 @@ export class NativeFunctionCall extends InkObject {
 
   // Whether this native (call-site or prototype) is variadic. Variadic
   // natives validate arity at runtime inside the method impl rather
-  // than at compile time, so the call's code generation (deleted in #705) skipped
-  // its arity assertion when this returns true.
+  // than at compile time, so the call's compile-time arity check
+  // (`FunctionCall.CheckNativeArity`) skips them when this returns true.
   get isVariadic(): boolean {
     const arity = this._prototype
       ? this._prototype._numberOfParameters

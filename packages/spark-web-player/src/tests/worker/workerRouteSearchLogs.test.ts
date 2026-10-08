@@ -75,9 +75,7 @@ describe("route searches for a selection", () => {
           text: "angry",
         },
       ]);
-      // The parse throws, which any compile runs, on either engine (the
-      // program path, which the worker runs by default since #703, no longer
-      // walks the runtime story's flow shapes after #1607).
+      // The parse throws, which any compile runs.
       const compiler: any = h.workerState.compilerState.compiler;
       const parseIncrementally = compiler.parseIncrementally;
       compiler.parseIncrementally = () => {

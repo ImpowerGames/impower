@@ -57,12 +57,10 @@ if (!Number.isInteger) {
 }
 
 /**
- * A function a call enters, as the call handlers the two engines share read
- * it: the container of a path on the current engine, and the entry of a
- * symbol on the binary program's (`ProgramStory`). A story that runs the
- * shared handlers gives the function a function value names
- * (`FunctionTargetOf`), and enters one in a new function frame
- * (`EnterFunction`).
+ * A function a call enters, as the call handlers read it: the entry of a
+ * symbol on the binary program's engine (`ProgramStory`). The story gives the
+ * function a function value names (`FunctionTargetOf`), and enters one in a
+ * new function frame (`EnterFunction`).
  */
 export interface FunctionTarget {
   /** Whether the function binds a `...` slot after its fixed parameters. */
@@ -753,7 +751,7 @@ export function spreadLastMultiIfNonVariadic(
 
 // `spreadCallArgs` and `oneValue` (`CallArgs.ts`): a builtin's or a
 // handler's arguments as a call passes them, and a value where Luau takes
-// one, exported here for both engines.
+// one, exported here for the program engine.
 export { oneValue, spreadCallArgs };
 
 // Pushes what a builtin or a function a call ran returned. A JS array is a
@@ -915,7 +913,7 @@ export const shuffleDraws: { next: (() => number) | null } = { next: null };
 
 /**
  * The index a shuffling sequence picks on its `seqCount`th pass over
- * `numElements` arms, as both engines pick it: the arms are drawn without
+ * `numElements` arms, as the program engine picks it: the arms are drawn without
  * replacement from a generator seeded by `seedText`, the loop over the
  * sequence and the story seed, or from `shuffleDraws` when one is injected.
  */
@@ -957,7 +955,7 @@ export function sequenceShuffleIndex(
 
 /**
  * A call through what the variable `varName` holds, as a divert whose target
- * is a variable runs it on either engine: a builtin iterator steps, a builtin
+ * is a variable runs it: a builtin iterator steps, a builtin
  * runs, and a table whose metatable has `__call` calls its handler, each
  * pushing what the call returns; a closure or a function value gives the
  * function to enter, with its arguments arranged for its entry
@@ -1075,7 +1073,7 @@ export function callVariableTarget(
 
 /**
  * Calls the value on top of the evaluation stack with the arguments below it,
- * as `CallValueAsFunction` does on either engine: a closure, a function value
+ * as `CallValue` does: a closure, a function value
  * or a variadic function is entered in a new function frame, with its
  * arguments padded, cut, spread or packed for its entry; a builtin iterator
  * steps and a builtin runs; a table calls its `__call` handler, and a nil
@@ -1326,9 +1324,9 @@ function newindexThroughMetatable(
   return false;
 }
 
-// The value operations below are the story's own handlers, shared with the
-// binary program's engine (`ProgramStory`), which runs the same values
-// through them. `story` is either engine: what they read of it is its
+// The value operations below are the handlers the binary program's engine
+// (`ProgramStory`) runs its values through. `story` is that engine: what they
+// read of it is its
 // `state` (the globals, the evaluation stack, the output), `Error`,
 // `CallLuauFunction` and `FlowValueNamed`, and the call handlers above read
 // `FunctionTargetOf` and `EnterFunction` besides.
@@ -2002,7 +2000,7 @@ export function popLuauCondition(story: any): boolean {
 /** Ends a tag written inside a capture, as `EndTag` does there: the text
  *  written since its `BeginTag` leaves the output and becomes a tag on the
  *  evaluation stack, which the next choice takes with its text. `clean`
- *  cleans the tag's whitespace. Shared by both engines. */
+ *  cleans the tag's whitespace. */
 export function captureTag(
   story: { state: any; Error(message: string): void },
   clean: (text: string) => string,
