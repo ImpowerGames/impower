@@ -432,24 +432,7 @@ export class Divert extends ParsedObject {
         argExpected = targetArguments[ii]!;
       }
       if (argExpected && argExpected.isByReference) {
-        const varRef = asOrNull(argToPass, VariableReference);
-        if (!varRef) {
-          this.Error(
-            `Expected variable name to pass by reference to 'ref ${argExpected.identifier}' but saw ${argToPass}`,
-          );
-          break;
-        }
-        const targetPath = new Path(varRef.pathIdentifiers);
-        const targetForCount: ParsedObject | null =
-          targetPath.ResolveFromContext(this);
-        if (targetForCount) {
-          this.Error(
-            `can't pass a read count by reference. \`${
-              targetPath.dotSeparatedComponents
-            }\` is a knot/stitch/label, but \`${
-              this.target!.dotSeparatedComponents
-            }\` requires the name of a variable to be passed.`,
-          );
+        if (!this.CheckByReferenceArgument(argToPass, argExpected)) {
           break;
         }
       } else {
@@ -457,6 +440,39 @@ export class Divert extends ParsedObject {
       }
     }
     return true;
+  }
+
+  /** The checks generation and preparation both make of an argument passed
+   *  to a by-reference parameter: it names a variable, and not a flow whose
+   *  read count it would pass. The first that fails is reported and the
+   *  result is null, which stops the arguments; otherwise the result is the
+   *  variable's reference. */
+  protected CheckByReferenceArgument(
+    argToPass: Expression,
+    argExpected: Argument,
+  ): VariableReference | null {
+    const varRef = asOrNull(argToPass, VariableReference);
+    if (!varRef) {
+      this.Error(
+        `Expected variable name to pass by reference to 'ref ${argExpected.identifier}' but saw ${argToPass}`,
+      );
+      return null;
+    }
+    // Check that we're not attempting to pass a read count by reference
+    const targetPath = new Path(varRef.pathIdentifiers);
+    const targetForCount: ParsedObject | null =
+      targetPath.ResolveFromContext(this);
+    if (targetForCount) {
+      this.Error(
+        `can't pass a read count by reference. \`${
+          targetPath.dotSeparatedComponents
+        }\` is a knot/stitch/label, but \`${
+          this.target!.dotSeparatedComponents
+        }\` requires the name of a variable to be passed.`,
+      );
+      return null;
+    }
+    return varRef;
   }
 
   public readonly GenerateRuntimeObject = () => {
@@ -569,28 +585,11 @@ export class Divert extends ParsedObject {
 
           // Pass by reference: argument needs to be a variable reference
           if (argExpected && argExpected.isByReference) {
-            const varRef = asOrNull(argToPass, VariableReference);
+            const varRef = this.CheckByReferenceArgument(
+              argToPass,
+              argExpected,
+            );
             if (!varRef) {
-              this.Error(
-                `Expected variable name to pass by reference to 'ref ${argExpected.identifier}' but saw ${argToPass}`,
-              );
-
-              break;
-            }
-
-            // Check that we're not attempting to pass a read count by reference
-            const targetPath = new Path(varRef.pathIdentifiers);
-            const targetForCount: ParsedObject | null =
-              targetPath.ResolveFromContext(this);
-            if (targetForCount) {
-              this.Error(
-                `can't pass a read count by reference. \`${
-                  targetPath.dotSeparatedComponents
-                }\` is a knot/stitch/label, but \`${
-                  this.target!.dotSeparatedComponents
-                }\` requires the name of a variable to be passed.`,
-              );
-
               break;
             }
 

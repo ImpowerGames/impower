@@ -82,9 +82,22 @@ export class ConditionalSingleBranch extends ParsedObject {
    *  `else:` written as content reported, the branch's test prepared, and
    *  the branch's weave. */
   protected override Prepare(): boolean {
+    this.CheckElseWrittenAsContent();
+    if (!this.isTrueBranch && !this.isElse && this.ownExpression) {
+      this.ownExpression.PrepareIntoContainer();
+    }
+    this._innerWeave?.prepareRoot();
+    return true;
+  }
+
+  /** The check generation and preparation both make first: the common
+   *  mistake of writing "else:" instead of "- else:", which the branch's
+   *  weave holds as content. */
+  protected CheckElseWrittenAsContent(): void {
     if (this._innerWeave) {
       for (const c of this._innerWeave.content) {
         const text = asOrNull(c, Text);
+        // Don't need to trim at the start since the parser handles that already
         if (text && text.text.startsWith("else:")) {
           this.Warning(
             "Saw the text 'else:' which is being treated as content. Did you mean '- else:'?",
@@ -93,29 +106,10 @@ export class ConditionalSingleBranch extends ParsedObject {
         }
       }
     }
-    if (!this.isTrueBranch && !this.isElse && this.ownExpression) {
-      this.ownExpression.PrepareIntoContainer();
-    }
-    this._innerWeave?.prepareRoot();
-    return true;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    // Check for common mistake, of putting "else:" instead of "- else:"
-    if (this._innerWeave) {
-      for (const c of this._innerWeave.content) {
-        const text = asOrNull(c, Text);
-        if (text) {
-          // Don't need to trim at the start since the parser handles that already
-          if (text.text.startsWith("else:")) {
-            this.Warning(
-              "Saw the text 'else:' which is being treated as content. Did you mean '- else:'?",
-              text,
-            );
-          }
-        }
-      }
-    }
+    this.CheckElseWrittenAsContent();
 
     const container = new RuntimeContainer();
 
