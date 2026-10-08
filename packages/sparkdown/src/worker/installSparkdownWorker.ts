@@ -41,7 +41,8 @@ export function installSparkdownWorker(
     compiler: new SparkdownCompiler(),
     encodeProgram: (program: SparkProgram) => transport.encode(program),
   };
-  // Whether the compile being answered produced a story, which a summary
+  // Whether the compile being answered produced a program that runs (its
+  // statement chunks, or the current engine's story), which a summary
   // reports in place of the compiled program.
   let producedStory = false;
   // The last program compiled for each uri, which a host holding the
@@ -49,8 +50,8 @@ export function installSparkdownWorker(
   // leaves the statement chunks' root behind, by which a program compiled
   // with them is located. A preview compile's program is not kept.
   const compiledPrograms = new Map<string, SparkProgram>();
-  const noteStory = (params: { story?: unknown }) => {
-    producedStory = params.story != null;
+  const noteStory = (params: { produced: boolean }) => {
+    producedStory = params.produced;
   };
   state.compiler.addEventListener("compiler/didCompile", noteStory);
   state.compiler.addEventListener("compiler/didPreviewCompile", noteStory);

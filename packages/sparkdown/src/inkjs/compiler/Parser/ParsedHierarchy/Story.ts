@@ -518,16 +518,25 @@ export class Story extends FlowBase {
 
     // Publish the constant names so the runtime can keep them read-only and
     // out of save data while still exposing them as inspectable globals.
-    // Only the ones actually registered: a constant that failed validation
-    // has no initializer in `global decl`, so it is not a global at all.
-    for (const [name] of this.constants) {
-      if (this.variableDeclarations.get(name)?.isConstantDeclaration) {
-        runtimeStory.constantNames.add(name);
-      }
+    for (const name of this.RegisteredConstantNames()) {
+      runtimeStory.constantNames.add(name);
     }
 
     this.runtimeObject = runtimeStory;
     return runtimeStory;
+  }
+
+  /** The names of the constants the story registered as globals: a
+   *  constant that failed validation has no initializer among the globals,
+   *  so it is not a global at all. */
+  public RegisteredConstantNames(): Set<string> {
+    const names = new Set<string>();
+    for (const [name] of this.constants) {
+      if (this.variableDeclarations.get(name)?.isConstantDeclaration) {
+        names.add(name);
+      }
+    }
+    return names;
   }
 
   /** Declares what the story declares outside its flows' generation: its

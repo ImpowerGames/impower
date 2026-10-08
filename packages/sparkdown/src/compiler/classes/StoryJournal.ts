@@ -242,22 +242,22 @@ export class StoryJournal {
     }
   }
 
-  /** The compile produced `story`, which is now the newest and the active one,
-   *  and whose values are the base. */
+  /** The compile produced a program, whose values are now the base: its
+   *  `story`, which is the newest and the active one, or for a program of
+   *  statement chunks, which has no story, a stand-in for it, so that a
+   *  story kept from before still gets its values back when activated. */
   endCompile(story: object | undefined): void {
     this._recording = null;
     const generation = activation.generation;
     activation.generation += 1;
-    if (!story) {
-      return;
-    }
+    const newest = story ?? {};
     const previous = this._latest;
     if (previous && !this._kept.has(previous)) {
       this._tables.delete(previous);
     }
-    this._tables.set(story, { generation, entries: new Map() });
-    this._latest = story;
-    this._active = story;
+    this._tables.set(newest, { generation, entries: new Map() });
+    this._latest = newest;
+    this._active = newest;
   }
 
   /** The compile produced no story, and the newest story stays the newest.

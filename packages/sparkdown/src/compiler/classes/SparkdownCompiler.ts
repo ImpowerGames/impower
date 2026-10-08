@@ -156,6 +156,7 @@ import {
   resetSubtreeRuntime,
   type MemoCandidate,
 } from "../../program/ProgramResolver";
+import type { ProgramStoryTables } from "../../program/ProgramRoot";
 import { MemoizedStatementNeeded, memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import {
   memosOf,
@@ -166,6 +167,14 @@ import {
   type StatementMemoHost,
 } from "../lower/statementMemo";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import {
+  flagsOf,
+  Op,
+  opOf,
+  SET_DECLARE,
+  SET_GLOBAL,
+} from "../../program/ProgramInstructions";
+import { H_CODE_WORDS, HEADER_WORDS } from "../../program/StatementChunk";
 import { rootChanges } from "../../program/rootChanges";
 import { captureProgramAssets } from "../../program/programSceneAssets";
 import {
@@ -209,20 +218,20 @@ const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
 //   - `context`  is merged into each program as the builtins base layer (the
 //     role the legacy JS `populateBuiltins` played), so authored defines that
 //     reuse a builtin name override it in place.
-//   - `compiled` is the prelude's runtime story JSON, kept for the engine to
-//     instantiate the builtin __def tables once (rather than baking them into
-//     every program.compiled, which would also bloat unrelated compiled output).
+//   - `root` is the root of the prelude's statement chunks, whose
+//     declarations name the globals a seeded story initializes
+//     (`getPreludeGlobalNames`).
 // The prelude is NOT included in any program's parsed story — keeping the cache
 // the single point where it is compiled and keeping program.compiled clean.
 let _cachedPrelude: {
   context: Record<string, any>;
-  compiled: unknown;
+  root: ProgramRoot | undefined;
   sparkle: Record<string, any>;
 } | null = null;
 
 function getCompiledPrelude(): {
   context: Record<string, any>;
-  compiled: unknown;
+  root: ProgramRoot | undefined;
   sparkle: Record<string, any>;
 } {
   if (_cachedPrelude) {
@@ -238,6 +247,10 @@ function getCompiledPrelude(): {
   compiler.configure({
     useBuiltinsPrelude: false,
     definitions: { builtins: {} as any },
+    // Its statement chunks are its runtime form; nothing reads a serialized
+    // story of it.
+    programChunks: true,
+    emitCompiledProgram: false,
     files: [
       {
         uri: BUILTINS_PRELUDE_URI,
@@ -255,7 +268,7 @@ function getCompiledPrelude(): {
   });
   _cachedPrelude = {
     context: result.program.context ?? {},
-    compiled: result.program.compiled,
+    root: result.program.chunks,
     sparkle: result.program.sparkle ?? {},
   };
   // Publish the builtin type/namespace ROOT names (the context's top-level
@@ -274,19 +287,21 @@ let _preludeGlobalNames: Set<string> | undefined;
  *  exactly these so references such as `game.loading.percent` resolve
  *  (Story.DeclareBuiltinGlobals).
  *
- *  The names come from the cached prelude's compiled "global decl" container,
- *  the list of globals a seeded story initializes, rather than from the
- *  prelude's `context`. The context also holds names that are never runtime
- *  globals — every layout and style, and each instance's bare name (`main`
- *  is a layout, a style, and a mixer; `red` a color; `title` a typewriter).
- *  Declaring one of those makes an authored scene of the same name
- *  unreachable: `-> main` binds to the declared variable instead of the
- *  scene, and the runtime then fails to find a variable that never existed
- *  (#437). A bare instance name is not a runtime global either: `assets` is
- *  reached as `config.assets`, and a seeded story fails at runtime on a bare
- *  `assets.predict_distance`, so the unseeded compile is right to warn on it.
+ *  The names are the globals the cached prelude's declaration chunks
+ *  declare (`ProgramRoot.initialization`, each global's `SetVar` with
+ *  `SET_DECLARE | SET_GLOBAL`), the globals a seeded story initializes,
+ *  rather than the prelude's `context`. The context also holds names that
+ *  are never runtime globals — every layout and style, and each instance's
+ *  bare name (`main` is a layout, a style, and a mixer; `red` a color;
+ *  `title` a typewriter). Declaring one of those makes an authored scene of
+ *  the same name unreachable: `-> main` binds to the declared variable
+ *  instead of the scene, and the runtime then fails to find a variable that
+ *  never existed (#437). A bare instance name is not a runtime global
+ *  either: `assets` is reached as `config.assets`, and a seeded story fails
+ *  at runtime on a bare `assets.predict_distance`, so the unseeded compile
+ *  is right to warn on it.
  *
- *  The initializer also lists each leaf instance under its scoped
+ *  The declarations also declare each leaf instance under its scoped
  *  `$<type>_<name>` key (`$config_assets`; see `scopeDefineInstances`). Those
  *  are left out: no authored source can spell a `$` name, so no reference
  *  needs them, and declaring them would occupy the very keys an authored
@@ -296,46 +311,36 @@ function getPreludeGlobalNames(): Set<string> {
   if (_preludeGlobalNames) {
     return _preludeGlobalNames;
   }
+  const root = getCompiledPrelude().root;
+  if (!root) {
+    // The prelude is a constant, which a test compiles with statement
+    // chunks (`preludeGlobalNames.test.ts`).
+    throw new Error("The builtins prelude built no statement chunks");
+  }
+  _preludeGlobalNames = declaredGlobalNames(root);
+  return _preludeGlobalNames;
+}
+
+/** The names of the globals `root`'s declaration chunks declare, without the
+ *  scoped `$` names. */
+export function declaredGlobalNames(root: ProgramRoot): Set<string> {
   const names = new Set<string>();
-  const compiled = getCompiledPrelude().compiled as
-    | { root?: unknown }
-    | undefined;
-  const root = compiled?.root;
-  // A serialized container is an array whose final element carries the named
-  // sub-containers; the global initializer is the one named "global decl".
-  const terminal = Array.isArray(root) ? root[root.length - 1] : undefined;
-  const globalDecl =
-    terminal && typeof terminal === "object"
-      ? (terminal as Record<string, unknown>)["global decl"]
-      : undefined;
-  const visit = (node: unknown): void => {
-    if (Array.isArray(node)) {
-      for (const child of node) {
-        visit(child);
-      }
-      return;
-    }
-    if (node && typeof node === "object") {
-      const entry = node as Record<string, unknown>;
-      // `{"VAR=": name}` declares a global; `re: true` marks a reassignment
-      // of one declared elsewhere, so it adds no name.
-      const declared = entry["VAR="];
+  const declares = SET_DECLARE | SET_GLOBAL;
+  for (const chunk of root.initialization) {
+    const end = HEADER_WORDS + chunk[H_CODE_WORDS]!;
+    for (let at = HEADER_WORDS; at < end; at += 2) {
+      const word0 = chunk[at]!;
       if (
-        typeof declared === "string" &&
-        !declared.startsWith("$") &&
-        !entry["re"]
+        opOf(word0) === Op.SetVar &&
+        (flagsOf(word0) & declares) === declares
       ) {
-        names.add(declared);
-      }
-      for (const value of Object.values(entry)) {
-        if (Array.isArray(value)) {
-          visit(value);
+        const name = root.table.strings[chunk[at + 1]!]!;
+        if (!name.startsWith("$")) {
+          names.add(name);
         }
       }
     }
-  };
-  visit(globalDecl);
-  _preludeGlobalNames = names;
+  }
   return names;
 }
 
@@ -418,8 +423,11 @@ const cloneSharingVocabularies = <T>(value: T): T => {
 };
 
 export type SparkdownCompilerEvents = {
+  /** A compile finished. `produced` says whether it made a program that
+   *  runs (statement chunks, or the current engine's `story` when the
+   *  program falls back); a compile that threw made none. */
   "compiler/didCompile": (
-    params: CompiledProgramParams & { story?: RuntimeStory },
+    params: CompiledProgramParams & { story?: RuntimeStory; produced: boolean },
   ) => void;
   "compiler/didSelect": (params: SelectedCompilerDocumentParams) => void;
   "compiler/didRemove": (params: RemovedCompilerFileParams) => void;
@@ -429,6 +437,7 @@ export type SparkdownCompilerEvents = {
     params: PreviewCompileProgramParams & {
       program: SparkProgram;
       story?: RuntimeStory;
+      produced: boolean;
     },
   ) => void;
 };
@@ -1038,6 +1047,7 @@ export class SparkdownCompiler {
     countAllVisits: boolean;
     program: SparkProgram;
     story?: RuntimeStory;
+    produced: boolean;
   };
   // The last compile of the real documents: the root it compiled and the
   // script versions it read. `_lastCompileResult` can describe a preview
@@ -1441,7 +1451,15 @@ export class SparkdownCompiler {
    * copy of its program, and the caches, which describe the newest story, are
    * left alone. Leaves `story` the active one.
    */
-  emitCompiledProgramOf(story: RuntimeStory, program: SparkProgram): SparkProgram {
+  emitCompiledProgramOf(
+    story: RuntimeStory | undefined,
+    program: SparkProgram,
+  ): SparkProgram {
+    if (!story) {
+      // A program with statement chunks runs from them (`program.chunks`),
+      // and its compile made no story to write out.
+      return program;
+    }
     this._storyJournal.activate(story);
     if (program.compiled || program.compiledBuffer) {
       return program;
@@ -1906,7 +1924,13 @@ export class SparkdownCompiler {
       textDocument: { uri: string; version: number };
       program: SparkProgram;
       story?: RuntimeStory;
+      produced?: boolean;
     } = this.compileStory(params);
+    // The listeners get the result itself, with `produced`, and what they
+    // write into it (the route search's report, `RouteSearchLog.report`) is
+    // what the compile answers with.
+    result.produced = !!result.produced;
+    const event = result as typeof result & { produced: boolean };
     // Only a compile of the real documents can answer for them.
     this._canonical = this._lastCompileResult
       ? {
@@ -1916,10 +1940,11 @@ export class SparkdownCompiler {
       : undefined;
     this._previewedSinceCanonical = false;
     this._events[CompiledProgramMessage.method].forEach((l) => {
-      l?.(result);
+      l?.(event);
     });
     // Story is not serializable so must be deleted before sending result
     delete result.story;
+    delete result.produced;
     return result;
   }
 
@@ -1989,7 +2014,12 @@ export class SparkdownCompiler {
         this._previewedSinceCanonical = true;
       }
     }
-    const event = { ...params, program: compiled.program, story: compiled.story };
+    const event = {
+      ...params,
+      program: compiled.program,
+      story: compiled.story,
+      produced: compiled.produced,
+    };
     this._events["compiler/didPreviewCompile"].forEach((l) => {
       l?.(event);
     });
@@ -2030,6 +2060,7 @@ export class SparkdownCompiler {
     textDocument: { uri: string; version: number };
     program: SparkProgram;
     story?: RuntimeStory;
+    produced: boolean;
     memoRetry?: StatementMemoRetry;
   } {
     const uri = params.textDocument.uri;
@@ -2105,6 +2136,7 @@ export class SparkdownCompiler {
         textDocument: { uri: string; version: number };
         program: SparkProgram;
         story?: RuntimeStory;
+        produced: boolean;
       } = {
         textDocument: {
           uri,
@@ -2112,6 +2144,7 @@ export class SparkdownCompiler {
         },
         program: cached.program,
         story: cached.story,
+        produced: cached.produced,
       };
       return result;
     }
@@ -2600,7 +2633,12 @@ export class SparkdownCompiler {
       const declaredBefore = programPath
         ? FlowBase.declarationTable(parsedStory.variableDeclarations)
         : undefined;
-      let story: RuntimeStory;
+      // The current engine's story, made by a compile without statement
+      // chunks and by one whose program falls back; and what the program's
+      // engine reads of the story besides its chunks, which the program
+      // path's resolver records.
+      let story: RuntimeStory | undefined;
+      let tables: ProgramStoryTables | undefined;
       if (programPath) {
         // A program that runs from statement chunks resolves its references
         // with the program path's resolver, which resolves only the
@@ -2610,7 +2648,7 @@ export class SparkdownCompiler {
         // the program falls back (below).
         profile("start", this._profilerId, "program/resolve", uri);
         this._programResolver ??= new ProgramResolver();
-        story = this._programResolver.resolve(
+        tables = this._programResolver.resolve(
           parsedStory,
           {
             blockOf: (obj) => this._placedBy.get(obj),
@@ -2647,12 +2685,12 @@ export class SparkdownCompiler {
           uri,
         );
       }
-      if (story) {
+      if (story || tables) {
         // A program whose statements all have chunks runs from them, and its
         // runtime story is not serialized.
         const chunked =
           programPath &&
-          this.buildProgramChunks(parsedStory, story, program, uri);
+          this.buildProgramChunks(parsedStory, tables!, program, uri);
         if (programPath) {
           // The current engine's export needs every statement's objects, so
           // no memo is served while the program falls back.
@@ -2695,7 +2733,7 @@ export class SparkdownCompiler {
         // this block still runs — `state.story`, and `populateAllLocations`
         // below, which walks the runtime tree for `pathLocations`.
         if (emitCompiledProgram && !chunked) {
-          this.serializeCompiledProgram(story, program, uri);
+          this.serializeCompiledProgram(story!, program, uri);
           flowShapesNoted = true;
         } else {
           // Neither per-flow cache is maintained by a compile that skips
@@ -2713,13 +2751,17 @@ export class SparkdownCompiler {
           // shapes a route could be compared by: its change summary says
           // what changed in its chunks (`rootChanges`).
           if (!chunked && (startFrom ?? this._config.startFrom)) {
-            this.noteFlowShapesWithoutEmitting(story, uri);
+            this.noteFlowShapesWithoutEmitting(story!, uri);
             flowShapesNoted = true;
           } else {
             this.forgetFlowShapes();
           }
         }
         state.story = story;
+        state.produced = true;
+        state.structDefinitions = chunked
+          ? (program.chunks!.tables?.structDefinitions ?? {})
+          : (story!.structDefinitions ?? undefined);
         if (chunked) {
           // A program that runs from statement chunks is located by its root
           // (`ProgramRoot.addressAt`, `locationOf`), which holds each chunk's
@@ -2743,7 +2785,7 @@ export class SparkdownCompiler {
           this._scriptIndices = new Map(
             Object.keys(program.scripts).map((u, i) => [u, i]),
           );
-          this.populateAllLocations(program, story);
+          this.populateAllLocations(program, story!);
           this._functionSpans = this.collectFunctionSpans(program, parsedStory);
           profile("end", this._profilerId, "populateLocations", uri);
         }
@@ -2808,6 +2850,7 @@ export class SparkdownCompiler {
         return {
           textDocument: { uri, version: this.documents.get(uri)?.version ?? -1 },
           program,
+          produced: false,
           memoRetry,
         };
       }
@@ -2867,7 +2910,7 @@ export class SparkdownCompiler {
     this._memoBlocks = new Set();
     carriedRuntime.record = null;
     activation.reparent = null;
-    if (producedStory && !compileThrew) {
+    if (state.produced && !compileThrew) {
       this._storyJournal.endCompile(producedStory);
     } else {
       this._storyJournal.abortCompile();
@@ -2904,7 +2947,7 @@ export class SparkdownCompiler {
     program.changes = this.stampChangeSummary(
       hadPreviousCompile &&
         !compileThrew &&
-        !!state.story &&
+        !!state.produced &&
         flowShapesNoted &&
         !this._changeHazard &&
         !this._unchangedFlowShapeAtRisk,
@@ -2921,6 +2964,7 @@ export class SparkdownCompiler {
           countAllVisits: !!params.countAllVisits,
           program,
           story: state.story,
+          produced: !!state.produced,
         };
     return {
       textDocument: {
@@ -2929,6 +2973,7 @@ export class SparkdownCompiler {
       },
       program,
       story: state.story as RuntimeStory | undefined,
+      produced: !compileThrew && !!state.produced,
     };
   }
 
@@ -5044,7 +5089,7 @@ export class SparkdownCompiler {
    */
   protected buildProgramChunks(
     parsedStory: Story,
-    story: RuntimeStory,
+    tables: ProgramStoryTables,
     program: SparkProgram,
     uri: string,
   ): boolean {
@@ -5082,7 +5127,7 @@ export class SparkdownCompiler {
         changed,
       },
       !this._previewing && !flows.fallback,
-      story,
+      tables,
     );
     if (build.root && this._chunkStore.current === build.root) {
       this._chunkStoreBlocks = this._compilationIds;
@@ -6646,7 +6691,7 @@ export class SparkdownCompiler {
         const rasterFile = isRasterLayerFile(file);
         const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
         const rasterFolder = rasterPath.split("/").at(-2) ?? "";
-        const explicitRaster = rasterFile && state.story?.structDefinitions?.["layered_image"]?.[rasterFolder] !== undefined;
+        const explicitRaster = rasterFile && state.structDefinitions?.["layered_image"]?.[rasterFolder] !== undefined;
         // Preserve existing numbered image names when unambiguous. Repeated
         // layer names across portraits stay private to their folder instead
         // of flooding the project with irrelevant flat-name collisions.
@@ -6680,7 +6725,7 @@ export class SparkdownCompiler {
         }
         program.context[type] ??= {};
         program.context[type][name] ??= { $type: type, $name: name };
-        const definedFile = state.story?.structDefinitions?.[type]?.[name];
+        const definedFile = state.structDefinitions?.[type]?.[name];
         const contextFile = program.context[type][name] || {};
         // Set $type and $name
         if (contextFile["$type"] === undefined) {
@@ -6769,7 +6814,7 @@ export class SparkdownCompiler {
     const raster = createRasterImageDefinitions([...this.files.all()]);
     Object.assign(program.context["image"] ??= {}, raster.images);
     for (const diagnostic of raster.diagnostics) {
-      if (state.story?.structDefinitions?.["layered_image"]?.[diagnostic.folder]) continue;
+      if (state.structDefinitions?.["layered_image"]?.[diagnostic.folder]) continue;
       const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
       ((program.diagnostics ??= {})[diagnostic.uri] ??= []).push({
         range, severity: DiagnosticSeverity.Warning,
@@ -6777,13 +6822,13 @@ export class SparkdownCompiler {
       });
     }
     for (const { name, firstUri, otherUri } of raster.collisions) {
-      if (state.story?.structDefinitions?.["layered_image"]?.[name]) continue;
+      if (state.structDefinitions?.["layered_image"]?.[name]) continue;
       this.pushAssetCollisionDiagnostic(program, firstUri, otherUri, "layered_image", name);
       this.pushAssetCollisionDiagnostic(program, otherUri, firstUri, "layered_image", name);
     }
     for (const [name, image] of Object.entries(raster.layeredImages)) {
       const ordinary = program.context["image"]?.[name];
-      if (ordinary && !state.story?.structDefinitions?.["layered_image"]?.[name]) {
+      if (ordinary && !state.structDefinitions?.["layered_image"]?.[name]) {
         const firstUri = raster.origins[name]!;
         const otherUri = ordinary.uri ?? program.uri;
         this.pushAssetCollisionDiagnostic(program, firstUri, otherUri, "image", name);

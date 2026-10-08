@@ -1,6 +1,6 @@
 import type { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -70,7 +70,9 @@ export interface PlayerWorkerOptions {
 interface DisplayableProgram {
   id: string;
   program: SparkProgram;
-  story: RuntimeStory;
+  /** The current engine's story of a program that falls back; a program
+   *  with statement chunks has none, its game running the chunks. */
+  story?: RuntimeStory;
   /** Its own: a search run in one program says nothing about another. The
    *  newest real program's is `routeSearches`, whose searches the compiler
    *  remembers the choices of; no other program's are remembered. */
@@ -92,6 +94,9 @@ export function installPlayerWorker(
   const player = {
     /** How PLAY's game is put at its start point. */
     putAtStartPoint,
+    /** The identities of the programs the worker keeps to display, which
+     *  stay bounded however long the author browses and edits. */
+    keptPrograms: (): string[] => [...displayable.keys()],
   };
   // The warm-up is planned before the compiler handles the selection, which
   // can recompile the real documents first, so the fetches start as soon as
@@ -199,10 +204,12 @@ export function installPlayerWorker(
 
   const retain = (entry: DisplayableProgram) => {
     const previous = displayable.get(entry.id);
-    if (previous && previous.story !== entry.story) {
+    if (previous?.story && previous.story !== entry.story) {
       compiler.releaseStory(previous.story);
     }
-    compiler.keepStory(entry.story);
+    if (entry.story) {
+      compiler.keepStory(entry.story);
+    }
     displayable.set(entry.id, entry);
   };
   const releaseUnneeded = () => {
@@ -217,7 +224,9 @@ export function installPlayerWorker(
         id !== requestedId &&
         entry.program !== held
       ) {
-        compiler.releaseStory(entry.story);
+        if (entry.story) {
+          compiler.releaseStory(entry.story);
+        }
         displayable.delete(id);
       }
     }
@@ -232,7 +241,7 @@ export function installPlayerWorker(
   const updateGameProgram = (
     game: Game,
     program: SparkProgram,
-    story: RuntimeStory,
+    story: RuntimeStory | undefined,
   ) => {
     gameTouches += 1;
     profile("start", compiler.profilerId + " " + "game/update");
@@ -240,7 +249,10 @@ export function installPlayerWorker(
     profile("end", compiler.profilerId + " " + "game/update");
   };
 
-  const createOrUpdateGame = (program: SparkProgram, story: RuntimeStory) => {
+  const createOrUpdateGame = (
+    program: SparkProgram,
+    story: RuntimeStory | undefined,
+  ) => {
     const profilerId = compiler.profilerId;
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
@@ -278,13 +290,13 @@ export function installPlayerWorker(
 
   compiler.addEventListener("compiler/didCompile", (params) => {
     routingTo = params.program.startFrom ?? null;
-    const story = params.story;
-    if (!story) {
-      // A compile that produced no story, which is one that threw, leaves the
-      // game and the page with the program before it, whose searches still
-      // describe it.
+    if (!params.produced) {
+      // A compile that produced no program that runs, which is one that
+      // threw, leaves the game and the page with the program before it,
+      // whose searches still describe it.
       return;
     }
+    const story = params.story;
     // Whatever the last search established was established against the OLD
     // program and the story it was compiled from, so nothing from before this
     // compile may be reported for the new one. The old log stays with the old
@@ -331,10 +343,10 @@ export function installPlayerWorker(
   compiler.addEventListener("compiler/didPreviewCompile", (params) => {
     routingTo = params.startFrom;
     const profilerId = compiler.profilerId;
-    const story = params.story;
-    if (!story) {
+    if (!params.produced) {
       return;
     }
+    const story = params.story;
     // The route below is replayed on the game.
     gameTouches += 1;
     const game = createOrUpdateGame(params.program, story);
@@ -388,7 +400,9 @@ export function installPlayerWorker(
       // compile since to give it the real one back.
       const kept = canonicalId ? displayable.get(canonicalId) : undefined;
       if (kept && gameState.game && gameState.game.program !== kept.program) {
-        compiler.activateStory(kept.story);
+        if (kept.story) {
+          compiler.activateStory(kept.story);
+        }
         createOrUpdateGame(kept.program, kept.story);
         releaseUnneeded();
       }
@@ -540,7 +554,9 @@ export function installPlayerWorker(
       if (!entry || !game) {
         return { displayed: false, missing: true };
       }
-      compiler.activateStory(entry.story);
+      if (entry.story) {
+        compiler.activateStory(entry.story);
+      }
       const programChanged =
         fresh || displayedId !== entry.id || game.program !== entry.program;
       if (game.program !== entry.program) {
@@ -692,7 +708,7 @@ export function installPlayerWorker(
     current = { run: ++runs, game: running, stopped, stop };
     return {
       built: true,
-      compiled: hasCompiledProgram(program),
+      compiled: isRunnableProgram(program),
       run: current.run,
       errors,
     };

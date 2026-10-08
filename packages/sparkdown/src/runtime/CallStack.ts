@@ -59,10 +59,21 @@ export class CallStack {
     return this.callStack.length > 1;
   }
 
-  constructor(storyContext: Story);
+  /** A call stack of one thread that stands at the start of the story,
+   *  with no story to point into: the binary program's engine keeps where
+   *  each frame stands itself (`ProgramStoryState`), so its frames' pointers
+   *  are null (#705). */
+  static ForProgram(): CallStack {
+    return new CallStack(null);
+  }
+
+  constructor(storyContext: Story | null);
   constructor(toCopy: CallStack);
   constructor() {
-    if (arguments[0] instanceof Story) {
+    if (arguments[0] === null) {
+      this._startOfRoot = Pointer.Null;
+      this.Reset();
+    } else if (arguments[0] instanceof Story) {
       let storyContext = arguments[0] as Story;
 
       this._startOfRoot = Pointer.StartOf(storyContext.rootContentContainer);

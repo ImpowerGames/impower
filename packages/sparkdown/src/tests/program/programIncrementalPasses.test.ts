@@ -251,9 +251,9 @@ describe("an edit inside one beat", () => {
     // A read count of a label and a once-only choice: the current engine's
     // resolution sets their containers' count flags, and flattening inlines
     // every unnamed container. A program that runs from its chunks needs
-    // neither, and its compile exports no runtime story (#1607): the story it
-    // hands over holds the program's lists, structs and constants and no
-    // content.
+    // neither, and its compile builds no runtime story (#1607, #705): its
+    // root holds what the engine reads of the story besides its chunks, the
+    // lists, structs and constants (`ProgramRoot.tables`).
     const text = [
       "scene MAIN",
       "  label knock",
@@ -287,17 +287,16 @@ describe("an edit inside one beat", () => {
     const s = session({ [MAIN_URI]: text });
     s.edit("Knocked", "Knocked, again,");
     expect(s.program.fallback).toBeUndefined();
-    const chunked = containers(s.story);
     const current = containers(
       quietly(() => programCompiler({ [MAIN_URI]: text.replace("Knocked", "Knocked, again,") }).compile())
         .story,
     );
     expect(current.knock?.visitsShouldBeCounted).toBe(true);
-    expect(chunked.knock).toBeUndefined();
-    expect(s.story.mainContentContainer.content).toEqual([]);
-    expect(chunked.unnamed).toBe(1);
-    // It is the story the program's engines copy their state from.
-    expect(s.compiler.chunkStore!.current!.runtimeStory).toBe(s.story);
+    expect(s.story).toBeUndefined();
+    const tables = s.compiler.chunkStore!.current!.tables;
+    expect(tables).not.toBeNull();
+    expect(tables!.structDefinitions).toBeTypeOf("object");
+    expect(tables!.constantNames).toBeInstanceOf(Set);
   });
 });
 
@@ -1230,7 +1229,8 @@ describe("a program that falls back after compiles that did not", () => {
     );
     expect(program.compiled).toEqual(current.program.compiled);
     const beatTexts = (s: Story) => storyBeats(s).beats.map((b) => b.text.trim());
-    const ran = beatTexts(story);
+    // The program falls back, so its compile made the current engine's story.
+    const ran = beatTexts(story!);
     expect(ran).toEqual(["Count 1."]);
     expect(ran).toEqual(beatTexts(current.story));
   });

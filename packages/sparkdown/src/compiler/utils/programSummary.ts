@@ -21,8 +21,12 @@ export const programSummary = (
   runnable,
 });
 
-/** Whether a program, whole or summarized, produced a story that runs. */
+/** Whether a program, whole or summarized, is one that runs: its statement
+ *  chunks, which a compile that does not fall back builds, or its compiled
+ *  story. */
 export const isRunnableProgram = (
   program: SparkProgram | undefined | null,
 ): boolean =>
-  program?.summary ? program.runnable === true : hasCompiledProgram(program);
+  program?.summary
+    ? program.runnable === true
+    : !!program?.chunks || hasCompiledProgram(program);

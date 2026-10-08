@@ -3,7 +3,8 @@ import type {
   AddressQuery,
   SourceLocation,
 } from "../compiler/types/ProgramAddress";
-import type { Story } from "../inkjs/engine/Story";
+import type { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
+import type { StructDefinitionTable } from "../runtime/StructDefinition";
 import {
   SymbolKind,
   UNDEFINED_KIND,
@@ -205,6 +206,17 @@ export const holdsChunkIn = (
   return !!at && at.sequence.arrays.chunks[at.entry] === chunk;
 };
 
+/** What the engine of a root reads of the story besides its chunks, which
+ *  the program path's resolver records (`ProgramResolver.resolve`): the
+ *  story's list definitions, its struct definitions by type and name, and
+ *  the names of the constants it registered, which the engine keeps
+ *  read-only and out of its saves. */
+export interface ProgramStoryTables {
+  readonly listDefinitions: ListDefinitionsOrigin | null;
+  readonly structDefinitions: StructDefinitionTable;
+  readonly constantNames: ReadonlySet<string>;
+}
+
 /**
  * One version of the whole program (docs/engine/binary-program.md, sections 1
  * and 9): what each sequence id holds, the flows by symbol, each script's
@@ -231,11 +243,10 @@ export class ProgramRoot {
     protected _chunks: ChunkTable,
     /** The table generation the chunks were minted in. */
     readonly generation: number,
-    /** The current engine's story of the compile that built this root. Each
-     *  engine built from the root runs its own copy of it
-     *  (`Story.CopyWithOwnState`), whose globals and call stack hold the
-     *  engine's variables (see `ProgramStory`). */
-    readonly runtimeStory: Story | null = null,
+    /** What an engine built from the root reads of the story besides its
+     *  chunks: its lists, its structs and the names of its constants
+     *  (`ProgramStoryTables`), from the compile that built the root. */
+    readonly tables: ProgramStoryTables | null = null,
     protected _declarations: ReadonlyMap<string, number> = new Map(),
     /** The declaration chunks in the order `ResetState` runs them, which is
      *  the order the current engine's `global decl` container initializes

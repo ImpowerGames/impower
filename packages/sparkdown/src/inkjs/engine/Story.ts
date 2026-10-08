@@ -39,7 +39,10 @@ import { DebugMetadata } from "../../runtime/DebugMetadata";
 import { throwNullException } from "../../runtime/NullException";
 import { SimpleJson } from "../../runtime/SimpleJson";
 import { ErrorType, type RaisedError, type RuntimeErrorHandler } from "../../runtime/Error";
-import { StructDefinition } from "../../runtime/StructDefinition";
+import {
+  StructDefinition,
+  structDefinitionTable,
+} from "../../runtime/StructDefinition";
 import type { Simulator } from "../../runtime/Simulator";
 
 export { InkList } from "../../runtime/InkList";
@@ -295,17 +298,7 @@ export class Story extends InkObject {
     }
 
     if (structs != null) {
-      this._structDefinitions = {};
-      for (const struct of structs) {
-        const type = struct.type;
-        const name = struct.name;
-        if (type) {
-          this._structDefinitions[type] ??= {};
-          if (name) {
-            this._structDefinitions[type][name] = struct.value;
-          }
-        }
-      }
+      this._structDefinitions = structDefinitionTable(structs);
     }
 
     this._externals = new Map();
@@ -3337,17 +3330,6 @@ export class Story extends InkObject {
     return this._constantNames;
   }
 
-  /** A story over this one's compiled content, list and struct definitions
-   *  and constant names, with no state until its `ResetState`. Stories over
-   *  one content run apart: each has its own globals, call stack and
-   *  handlers. */
-  CopyWithOwnState(): Story {
-    const copy = new Story(this._mainContentContainer, null, null);
-    copy._listDefinitions = this._listDefinitions;
-    copy._structDefinitions = this._structDefinitions;
-    copy._constantNames = this._constantNames;
-    return copy;
-  }
   private _structDefinitions: Record<string, any> | null = null;
 
   private _externals: Map<string, Story.ExternalFunctionDef>;

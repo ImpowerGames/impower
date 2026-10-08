@@ -1,4 +1,4 @@
-import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
@@ -282,7 +282,7 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         state.game.start();
-        return { success: hasCompiledProgram(state.game.program) };
+        return { success: isRunnableProgram(state.game.program) };
       });
       return;
     }
