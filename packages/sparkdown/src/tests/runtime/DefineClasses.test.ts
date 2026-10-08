@@ -35,10 +35,10 @@ function compileAndCapture(source: string): {
     textDocument: { uri: "inmemory:///main.sd" },
   });
   const errors: string[] = [];
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     return { errors: ["NO_COMPILED"], recorded: [] };
   }
-  const story = testStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.chunks);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);

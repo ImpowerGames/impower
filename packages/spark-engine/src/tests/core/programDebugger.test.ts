@@ -6,7 +6,6 @@
 // the lines a breakpoint can sit on come from the chunks' line tables, which
 // put a statement of logic in a scene (an assignment, a tunnel, a call) on its
 // own line.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";

@@ -5,7 +5,6 @@
 // a restored beat draws again what it drew and re-presents its line, the
 // story keeps the last `rewindBeats` beats, a save's listings stay small,
 // and a save of format 1 loads through its migration.
-import "../../inkjs/engine/Container";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";

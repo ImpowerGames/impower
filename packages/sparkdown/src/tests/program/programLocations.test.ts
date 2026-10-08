@@ -6,7 +6,6 @@
 // its profile, as is the table. The scene
 // assets it carries are read from its chunks, and each beat is known by the
 // address of its `LineStart`.
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { programLocator } from "../../compiler/utils/programLocator";
 import { MAIN_URI, programCompiler } from "./programHarness";
@@ -84,15 +83,13 @@ afterEach(() => {
 });
 
 describe("a compile with statement chunks", () => {
-  it("runs neither populateLocations nor sortPathLocations for an edit inside one beat, and builds no path-location table", () => {
+  it("runs neither populateLocations nor sortPathLocations for an edit inside one beat", () => {
     const { first, edited, phases } = editInsideOneBeat();
     expect(first.chunks).toBeDefined();
     expect(edited.chunks).toBeDefined();
     // The compile was measured, and built its chunks.
     expect(phases.some((name) => name.includes("program/chunks"))).toBe(true);
     expect(phases.filter((name) => /populateLocations|sortPathLocations/.test(name))).toEqual([]);
-    expect(first.pathLocations).toBeUndefined();
-    expect(edited.pathLocations).toBeUndefined();
     // The edit is in the program: its beat is at its line.
     const locator = programLocator(edited);
     const address = locator.addressAt(MAIN_URI, 3)!;

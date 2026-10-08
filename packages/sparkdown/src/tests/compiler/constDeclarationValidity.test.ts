@@ -10,7 +10,6 @@
 // uninitialized global, and the resulting nil arithmetic throws out of
 // `ResetState`, so `program.compiled` came back undefined and the author got
 // NO diagnostic at all — the game simply didn't run.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";

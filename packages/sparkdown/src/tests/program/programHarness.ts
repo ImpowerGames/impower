@@ -4,12 +4,12 @@
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../runtime/Value";
 import { ChunkStore } from "../../program/ChunkStore";
+import type { ProgramStory } from "../../program/ProgramStory";
 import { ProgramResolver } from "../../program/ProgramResolver";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { blockCount } from "../../program/StatementChunk";
+import { blockCount } from "../../program/ProgramChunk";
 import { describeRoot, flowRows } from "./describeRoot";
 
 export { describeRoot };
@@ -168,11 +168,10 @@ const tableEntries = (table: ObjectValue): unknown[] =>
 /** A story's beats from its start, or from `from`, until it can no longer
  *  continue: each continue that showed something, with its text, tags and
  *  display tables, the errors and warnings it reported with their type, and
- *  how many continues it took, those that showed nothing included. `story`
- *  is either engine. */
+ *  how many continues it took, those that showed nothing included. */
 export function storyBeats(
   story: Pick<
-    Story,
+    ProgramStory,
     | "canContinue"
     | "Continue"
     | "ChoosePathString"
@@ -224,10 +223,10 @@ export interface Menu {
 /** A story's beats, as `storyBeats` gives them, through its menus: at each
  *  menu the choice `picks` names in turn is taken, wrapped to the number of
  *  choices shown, and past the end of `picks` the first one, until
- *  `maxChoices` choices were taken. `story` is either engine. */
+ *  `maxChoices` choices were taken. */
 export function storyRun(
   story: Pick<
-    Story,
+    ProgramStory,
     | "canContinue"
     | "Continue"
     | "ChoosePathString"

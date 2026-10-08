@@ -28,8 +28,8 @@ import {
   B_SEQUENCE,
   blockCount,
   blockField,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   coupledScreenplay,
   cumulativeScreenplay,
@@ -1157,7 +1157,7 @@ function snapshot(root: ProgramRoot) {
     lineStarts: row.arrays.lineStarts,
     chunkCopy: [...row.arrays.chunks],
     startsCopy: [...row.arrays.lineStarts],
-    words: row.arrays.chunks.map((chunk: StatementChunk) => chunk.join(",")),
+    words: row.arrays.chunks.map((chunk: ProgramChunk) => chunk.join(",")),
   }));
 }
 

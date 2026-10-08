@@ -17,7 +17,6 @@
 //    of the same text produces, for edits that add, remove and rename an
 //    `as`-parent and a `new X()` target deep inside a function body, and a name
 //    entering or leaving the set changes how chunks far from the edit lower.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";

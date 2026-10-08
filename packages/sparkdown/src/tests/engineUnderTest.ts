@@ -2,11 +2,9 @@
 // engine (docs/engine/binary-program.md). A test compiles through
 // `testCompiler` and makes its story with `testStory`, which runs the
 // program's statement chunks.
-import "../inkjs/engine/Container";
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../compiler/types/SparkdownCompilerConfig";
 import { STDLIB, type StdLibEntry } from "../runtime/StdLib";
-import type { Story as RuntimeStory } from "../inkjs/engine/Story";
 import type { ProgramRoot } from "../program/ProgramRoot";
 import { ProgramStory } from "../program/ProgramStory";
 
@@ -14,9 +12,6 @@ import { ProgramStory } from "../program/ProgramStory";
 // engine, which runs no external function (docs/engine/binary-program.md,
 // section 3).
 const TEST_EXTERNAL = "__test_external";
-
-// The root a compile's `program.compiled` stands for on the program engine.
-const roots = new WeakMap<object, ProgramRoot>();
 
 // `external NAME(PARAMS)` on a line of its own.
 const EXTERNAL = /^external[ \t]+([A-Za-z_]\w*)[ \t]*\(([^)]*)\)[ \t]*$/gm;
@@ -45,7 +40,7 @@ export const withTestExternals = (text: string): string => {
 };
 
 /** The program engine's story, with the external functions a test binds. */
-class TestProgramStory extends ProgramStory {
+export class TestProgramStory extends ProgramStory {
   readonly externals = new Map<string, (...args: any[]) => unknown>();
 
   BindExternalFunction(name: string, fn: (...args: any[]) => unknown): void {
@@ -74,8 +69,7 @@ if (!STDLIB[TEST_EXTERNAL]) {
 }
 
 /** A compiler that compiles scripts for the program engine
- *  (`withTestExternals`). A compile's `program.compiled` stands for its
- *  root. */
+ *  (`withTestExternals`). */
 class ProgramEngineCompiler extends SparkdownCompiler {
   override configure(config: SparkdownCompilerConfig) {
     return super.configure({
@@ -87,34 +81,6 @@ class ProgramEngineCompiler extends SparkdownCompiler {
       ),
     });
   }
-
-  override compile(params: Parameters<SparkdownCompiler["compile"]>[0]) {
-    const result = super.compile(params);
-    const program = result.program;
-    if (program.chunks) {
-      // A handle for the root, which `testStory` and `testRoot` read. It holds
-      // no program: comparing it as JSON would compare nothing, so that
-      // throws (compare `programContent` instead).
-      const handle = {
-        toJSON(): never {
-          throw new Error(
-            "A test compile's `program.compiled` stands for its root and holds no program: compare programContent(program.compiled) (programListing.ts).",
-          );
-        },
-      };
-      roots.set(handle, program.chunks);
-      program.compiled = handle;
-    }
-    return result;
-  }
-}
-
-/** The root a compile's `program.compiled` stands for, or nothing for a
- *  compile that made no program. */
-export function testRoot(compiled: unknown): ProgramRoot | undefined {
-  return compiled && typeof compiled === "object"
-    ? roots.get(compiled)
-    : undefined;
 }
 
 /** The compiler a story-running test compiles with. */
@@ -122,13 +88,16 @@ export function testCompiler(): SparkdownCompiler {
   return new ProgramEngineCompiler();
 }
 
-/** The story of a compile's `program.compiled`: the program engine over its
- *  root. A compile that built no statement chunks made no program, and is
+/** The story a test runs: the program engine's, with the external functions
+ *  a test binds. */
+export type TestStory = TestProgramStory;
+
+/** The story of a compile's root (`program.chunks`): the program engine over
+ *  it. A compile that built no statement chunks made no program, and is
  *  refused. */
-export function testStory(compiled: Record<string, any>): RuntimeStory {
-  const root = compiled && typeof compiled === "object" ? roots.get(compiled) : undefined;
+export function testStory(root: ProgramRoot | undefined): TestStory {
   if (!root) {
     throw new Error("The compile built no statement chunks, so there is no story to run.");
   }
-  return new TestProgramStory(root) as unknown as RuntimeStory;
+  return new TestProgramStory(root);
 }

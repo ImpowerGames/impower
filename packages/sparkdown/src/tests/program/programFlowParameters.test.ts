@@ -4,7 +4,6 @@
 // middle of such a flow binds none; and a
 // change to a flow's parameter list emits again exactly the chunks that pass
 // it arguments.
-import "../../inkjs/engine/Container";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,7 +14,7 @@ import { FACT_PARAMS, PARAM_REFERENCE, PARAM_VALUE } from "../../program/Program
 import { Op } from "../../program/ProgramInstructions";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import type { StatementChunk } from "../../program/StatementChunk";
+import type { ProgramChunk } from "../../program/ProgramChunk";
 import { flowScreenplay } from "./flowScreenplay";
 import {
   compileScript,
@@ -65,7 +64,7 @@ const texts = (run: { beats: { text: string }[] }) =>
   run.beats.map((beat) => beat.text.trim());
 
 /** The chunks of a root whose code holds instruction `op`. */
-const chunksWith = (root: ProgramRoot, op: number): StatementChunk[] => {
+const chunksWith = (root: ProgramRoot, op: number): ProgramChunk[] => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).filter((chunk) =>
     [...reader.instructions(chunk)].some((i) => i.op === op),
@@ -406,7 +405,7 @@ describe("a flow's parameter list", () => {
       expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold(s.text).chunks!));
       const emitted = rootChunks(edited.chunks!).filter((chunk) => !before.has(chunk));
       const reader = new BinaryProgramReader(edited.chunks!);
-      const ops = (chunk: StatementChunk) =>
+      const ops = (chunk: ProgramChunk) =>
         [...reader.instructions(chunk)].map((i) => i.op);
       // The two tunnels that pass arguments, and the entry, which binds the
       // parameters and holds nothing else.

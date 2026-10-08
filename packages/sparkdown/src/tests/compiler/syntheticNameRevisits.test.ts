@@ -2,7 +2,6 @@
 // incremental compile as a cold compile of the same text names it, including
 // in a script included from two places and in a Sparkle layout, whose binding
 // evaluators are named by offset.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -62,7 +61,7 @@ function compiled(compiler: SparkdownCompiler): Compiled {
   const spans: Compiled["spans"] = [];
   const text = JSON.stringify(
     {
-      compiled: programContent(program.compiled),
+      compiled: programContent(program.chunks),
       sparkle: program.sparkle,
     },
     function (this: any, key, value) {
@@ -115,7 +114,7 @@ function diagnostics(program: any): string[] {
 function firstBindingValue(program: any, layout: string): unknown {
   const id = JSON.stringify(program.sparkle?.layouts?.[layout]).match(/__binding_\w+/)?.[0];
   expect(id).toBeDefined();
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   return story.EvaluateFunction(id!);
 }
 

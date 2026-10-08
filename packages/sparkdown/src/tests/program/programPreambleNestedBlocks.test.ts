@@ -7,7 +7,6 @@
 // blocks, `if` branches and loops in the preamble (#1503): each nested body
 // that offers a choice is the `choose` statement's own code, so the chunk
 // that raises the choice holds its entry.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";

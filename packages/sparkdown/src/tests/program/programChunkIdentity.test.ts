@@ -4,7 +4,6 @@
 // reads the same, and every fact its reference table records is unchanged.
 // These tests count the chunks a compile emits and compare every other chunk
 // by identity (#694).
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
@@ -346,7 +345,6 @@ class RefersTo extends ParsedObject {
   constructor(public symbol: number) {
     super();
   }
-  public readonly GenerateRuntimeObject = () => null;
   public override EmitProgram(emitter: ProgramEmitter): void {
     emitter.reference(this.symbol);
     emitter.emit(Op.Done);

@@ -60,7 +60,7 @@ describe("choose…then…end tag body", () => {
       for (const d of ds as any[]) if (d?.severity === 1) errors++;
     }
     expect(errors).toBe(0);
-    expect((result.program as any).compiled).toBeDefined();
+    expect(result.program.chunks).toBeDefined();
 
     // The `##` line is recognized as a Tag (not left unparsed).
     const docs: any = (compiler as any).documents;
@@ -71,7 +71,7 @@ describe("choose…then…end tag body", () => {
     expect(tree).toContain("Tag");
 
     // And picking a choice runs the then-body to the divert (no dead-end).
-    const story = testStory((result.program as any).compiled);
+    const story = testStory(result.program.chunks);
     const rtErrors: string[] = [];
     story.onError = (m: string) => rtErrors.push(m);
     story.ContinueMaximally();

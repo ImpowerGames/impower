@@ -5,7 +5,6 @@
 // the engine's durable save of its image, which loads into a fresh game and
 // saves again as it was; a checkpoint restores in place within the session,
 // across a compile for every statement the compile kept.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildChunksFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";

@@ -63,11 +63,9 @@ function probe(source: string): {
   const recorded: unknown[] = [];
   let output = "";
   let runtimeError: string | null = null;
-  const compiled = result.program.compiled != null;
+  const compiled = result.program.chunks != null;
   if (compiled) {
-    const story = testStory(
-      result.program.compiled as Record<string, any>,
-    );
+    const story = testStory(result.program.chunks);
     story.BindExternalFunction("host_record", (v: unknown) => {
       recorded.push(v);
       return v;

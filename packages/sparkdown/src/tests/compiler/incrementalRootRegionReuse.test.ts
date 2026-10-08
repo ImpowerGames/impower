@@ -3,7 +3,6 @@
 // applied after a warm-up edit far from the top, and the incremental compile
 // has to build the chunks and report the diagnostics a cold compile of the
 // same text does.
-import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { describeRoot } from "../program/describeRoot";

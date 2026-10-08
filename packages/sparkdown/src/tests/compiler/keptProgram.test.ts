@@ -11,7 +11,6 @@
 //
 // The root described by content (`describeRoot`) is the oracle here, beside
 // running the program.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { ProgramRoot } from "../../program/ProgramRoot";

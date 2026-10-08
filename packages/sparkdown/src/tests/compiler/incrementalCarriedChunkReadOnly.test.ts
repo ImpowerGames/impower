@@ -8,7 +8,6 @@
 // compile starts from whatever this one assembled. The assembly does set the
 // `parent` of those children, which this test does not check. The edits leave a line between themselves
 // and the block, because the chunk just above an edit is lowered again.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programListing, pushesString } from "../programListing";

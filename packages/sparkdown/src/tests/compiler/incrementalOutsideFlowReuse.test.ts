@@ -9,7 +9,6 @@
 // position it is about, and after a warm-up edit inside a scene, the
 // incremental compile has to build the chunks and report the diagnostics a
 // cold compile of the same text does.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";

@@ -103,7 +103,6 @@ describe("the program PLAY runs", () => {
       expect(played[0].summary).toBeUndefined();
       // The game runs the program's statement chunks.
       expect(played[0].chunks).toBeTruthy();
-      expect(played[0].compiled).toBeUndefined();
       expect(isRunnableProgram(played[0])).toBe(true);
       await h.controller.destroyGameAndApp();
     } finally {

@@ -1,7 +1,6 @@
 // Synthetic names minted from a source offset are unique across files. An
 // offset is a position within one file, so two files each holding a
 // synthetic at the same offset must still get names no other file shares.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -91,7 +90,7 @@ function reservedAt(program: any, source: string): string[] {
 }
 
 function globalAfterRun(program: any, name: string): unknown {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   quiet(() => story.ContinueMaximally());
   return story.variablesState.$(name);
 }
@@ -129,7 +128,7 @@ function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => str
   const [incremental, cold] = incrementalAndCold(project, "pre", body("pf"));
   expect(errors(incremental)).toEqual([]);
   expect(errors(cold)).toEqual([]);
-  expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
+  expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
 }
 
 describe("synthetic names in two files", () => {
@@ -215,7 +214,7 @@ function editMain(text: string, line: number, insert: string): [any, any] {
 }
 
 function evaluate(program: any, fn: string): unknown {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   return quiet(() => story.EvaluateFunction(fn));
 }
 
@@ -238,7 +237,7 @@ describe("assignment temps in a carried chunk", () => {
     const [incremental, cold] = editMain(text, 4, "  An added line.\n");
     expect(errors(incremental)).toEqual([]);
     expect(errors(cold)).toEqual([]);
-    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
   });
 
   // An anonymous function added above `f` comes ahead of every generated
@@ -270,7 +269,7 @@ describe("assignment temps in a carried chunk", () => {
     ].join("\n");
     const [incremental, cold] = editMain(text, 6, "& h = function() return 9 end\n\n");
     expect(errors(incremental)).toEqual([]);
-    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
     expect(evaluate(incremental, "g")).toBe(3);
   });
 });
@@ -290,7 +289,7 @@ describe("authored names shaped like synthetic ones", () => {
       ].join("\n"),
     });
     expect(errors(program)).toEqual([]);
-    const story = testStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     expect(story.HasFunction("f__redef_x__1")).toBe(true);
     expect(quiet(() => story.EvaluateFunction("f__redef_x__1"))).toBe(7);
     // Each store keeps its name, and is read under it.

@@ -68,7 +68,7 @@ end
 `;
     const { result, errors } = compile(SRC);
     expect(errors).toBe(0);
-    const out = run((result.program as any).compiled);
+    const out = run(result.program.chunks);
     expect(out).not.toContain("whole-line");
     expect(out).not.toContain("//");
     expect(out).toContain("Action line one.");
@@ -89,7 +89,7 @@ end
 `;
     const { result, errors } = compile(SRC);
     expect(errors).toBe(0);
-    const out = run((result.program as any).compiled);
+    const out = run(result.program.chunks);
     expect(out).not.toContain("trailing note");
     expect(out).toContain("Action before.");
     expect(out).toContain("Action after.");
@@ -108,7 +108,7 @@ end
 `;
     const { result, errors } = compile(SRC);
     expect(errors).toBe(0);
-    const out = run((result.program as any).compiled);
+    const out = run(result.program.chunks);
     // The whole URL survives — `//` inside it is not a comment.
     expect(out).toContain("http://example.com");
     expect(out).toContain("Visit http://example.com today.");

@@ -1,4 +1,3 @@
-import "../../inkjs/engine/Container";
 import { beforeAll, describe, expect, test } from "vitest";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";

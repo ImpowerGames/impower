@@ -24,8 +24,8 @@ import {
   blockField,
   exportCount,
   exportSymbol,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   describeRoot,
   errorsOf,
@@ -135,7 +135,7 @@ const lostChunks = (before: ProgramRoot, after: ProgramRoot) => {
 
 /** The innermost statement chunk that line `line` (counting from 0) of the
  *  main script falls in. */
-const chunkAtLine = (root: ProgramRoot, line: number): StatementChunk => {
+const chunkAtLine = (root: ProgramRoot, line: number): ProgramChunk => {
   const at = root.statementAt(MAIN_URI, line);
   expect(at, `a statement holds line ${line}`).toBeDefined();
   return at!.sequence.arrays.chunks[at!.entry]!;
@@ -151,7 +151,7 @@ const chunkAt = (root: ProgramRoot, text: string, needle: string) => {
 
 /** How many statements a chunk's subtree holds: the chunk and the
  *  statements of its bodies, at any depth. */
-const subtreeSize = (root: ProgramRoot, chunk: StatementChunk): number => {
+const subtreeSize = (root: ProgramRoot, chunk: ProgramChunk): number => {
   let size = 1;
   for (let k = 0; k < blockCount(chunk); k += 1) {
     for (const inner of root.body(chunk, k)?.arrays.chunks ?? []) {
@@ -262,7 +262,6 @@ describe("an edit inside one beat", () => {
     const s = session({ [MAIN_URI]: text });
     s.edit("Knocked", "Knocked, again,");
     expect(s.program.chunks).toBeDefined();
-    expect(s.program.compiled).toBeUndefined();
     const tables = s.compiler.chunkStore!.current!.tables;
     expect(tables).not.toBeNull();
     expect(tables!.structDefinitions).toBeTypeOf("object");
@@ -1199,7 +1198,7 @@ function messages(program: SparkProgram): string[] {
 }
 
 /** The symbols a chunk exports, in its export table's order. */
-const exportedSymbols = (chunk: StatementChunk): number[] =>
+const exportedSymbols = (chunk: ProgramChunk): number[] =>
   Array.from({ length: exportCount(chunk) }, (_, r) => exportSymbol(chunk, r));
 
 /** A diagnostic's message as text. */

@@ -7,9 +7,8 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // (the LSP) leave the formatter unset since they surface source/line
 // through their own diagnostic UI; the conformance test harness
 // installs a formatter that:
-//   1. Looks up the current pointer's path in
-//      `program.pathLocations` (since debug metadata is stripped
-//      by JSON serialization).
+//   1. Reads the line of the instruction running from its chunk's
+//      line table (`story.currentDebugMetadata`).
 //   2. Subtracts the preamble line count to translate
 //      wrapped-source lines back to user-fixture lines.
 //   3. Prepends `<fixtureName>:<userLine>: ` to the raw message.

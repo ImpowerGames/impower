@@ -3,7 +3,6 @@
 // saved form, which loads into a fresh game of the same program, in another
 // process, after the table was reseeded, and which is refused, naming the
 // flow, when a statement it names differs.
-import "../../inkjs/engine/Container";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";

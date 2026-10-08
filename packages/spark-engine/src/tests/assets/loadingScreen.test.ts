@@ -1,7 +1,3 @@
-// Side-effect import FIRST: the inkjs engine has a Container/Value/Object
-// module cycle, and importing UIModule cold lets Object.ts load first, which
-// makes `Container extends InkObject` see undefined.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, it } from "vitest";
 import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";

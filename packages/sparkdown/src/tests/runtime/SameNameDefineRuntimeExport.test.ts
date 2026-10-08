@@ -48,7 +48,7 @@ function compile(src: string) {
     for (const d of ds as any[]) if (d?.severity === 1) errors++;
   }
   return {
-    compiled: (result.program as any).compiled,
+    chunks: result.program.chunks,
     errors,
     program: result.program,
   };
@@ -84,7 +84,7 @@ end
 `,
     );
     expect(r.errors).toBe(0);
-    expect(r.compiled).toBeDefined();
+    expect(r.chunks).toBeDefined();
     // Both structs reach the engine, type-namespaced.
     expect(r.program.context?.["character"]?.["raffles"]).toBeDefined();
     expect(r.program.context?.["synth"]?.["raffles"]).toBeDefined();
@@ -112,9 +112,9 @@ end
 `,
     );
     expect(r.errors).toBe(0);
-    expect(r.compiled).toBeDefined();
+    expect(r.chunks).toBeDefined();
 
-    const story = testStory(r.compiled as Record<string, any>);
+    const story = testStory(r.chunks);
     const recorded: unknown[] = [];
     story.BindExternalFunction("host_record", (v: unknown) => {
       recorded.push(v);

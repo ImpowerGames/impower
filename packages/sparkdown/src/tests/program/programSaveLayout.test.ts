@@ -9,7 +9,6 @@
 // layout hash and not its fingerprint. The tests make that change by
 // writing another layout hash into the save where the save names one, which
 // is all the loader reads of the code a frame was saved in.
-import "../../inkjs/engine/Container";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";

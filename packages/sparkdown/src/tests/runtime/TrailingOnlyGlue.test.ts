@@ -12,15 +12,14 @@
 // completes with the choices unless the run shows something first.
 
 import { describe, expect, test } from "vitest";
-import { testCompiler, testStory } from "../engineUnderTest";
-import type { Story as CurrentStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory, type TestStory } from "../engineUnderTest";
 import {
   continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 import { programListing, stringCount } from "../programListing";
-type RuntimeStory = CurrentStory;
+type RuntimeStory = TestStory;
 
 type Routing = { target?: string; character?: string };
 
@@ -107,7 +106,7 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
-  const all = programListing(ctx.compiledJson);
+  const all = programListing(ctx.root);
   return {
     display: all.filter((t) => /^CallStd display\/1\b/.test(t)).length,
     open: stringCount(all, "open"),
@@ -511,7 +510,7 @@ end
       { "api.sd": `external ring()\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = testStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     let rings = 0;
     story.BindExternalFunction("ring", () => {
       rings++;
@@ -527,7 +526,7 @@ end
       { "api.sd": `function aside()\n  print("Aside.")\nend\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = testStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     expect(story.Continue()).toBe("Pick.\n");
   });
 

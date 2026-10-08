@@ -59,7 +59,7 @@ function compileScene(beats: number) {
     ],
   } as never);
   return requireChunks(
-    compiler.compile({ textDocument: { uri: URI }, countAllVisits: true } as never)
+    compiler.compile({ textDocument: { uri: URI } } as never)
       .program,
   );
 }

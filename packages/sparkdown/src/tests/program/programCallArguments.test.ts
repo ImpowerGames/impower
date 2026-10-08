@@ -21,7 +21,6 @@
 // notes the line
 // Luau shows, but a builtin through a value that raises is compared with the
 // direct call of its builtin.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";

@@ -2,7 +2,6 @@
 // document order. In a script included from two places every continuation
 // keeps a name of its own, and an incremental compile still matches a cold
 // one.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";

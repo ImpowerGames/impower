@@ -15,7 +15,6 @@
 // whose divergence is filed separately are left out: a `(` line after a
 // callable line, which Luau calls ambiguous (#1288); `repeat` blocks (#1195,
 // #1209); and `...` in a function that takes none (#1289).
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
@@ -74,7 +73,7 @@ function diagnostics(program: any): string[] {
 }
 
 function played(program: any): string[] {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   const lines: string[] = [];
   while (story.canContinue) {
     const text = story.Continue();

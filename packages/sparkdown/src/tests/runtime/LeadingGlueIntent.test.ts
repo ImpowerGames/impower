@@ -14,13 +14,13 @@ import {
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 import { programListing, stringCount } from "../programListing";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import type { TestStory } from "../engineUnderTest";
 
 const NOT_JOINED =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
 // Each step's text, and every runtime error and warning the run raised.
-function run(story: RuntimeStory): { texts: string[]; warnings: string[] } {
+function run(story: TestStory): { texts: string[]; warnings: string[] } {
   const warnings: string[] = [];
   story.onError = (message) => {
     warnings.push(message.replace(/^RUNTIME WARNING: .*?: /, ""));
@@ -72,7 +72,7 @@ function diagnosticsOf(source: string) {
 function programShape(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
-  const all = programListing(ctx.compiledJson);
+  const all = programListing(ctx.root);
   return {
     continues: stringCount(all, "continues"),
   };
@@ -219,7 +219,7 @@ describe("a line that ends with `..` before a line that does not begin with `..`
 // part of the story's state: a click falls between the two steps of `.. >`.
 describe("the offer to join", () => {
   const CLICK = `A .. >\n.. B\n\nscene elsewhere\n  .. C\nend\n\nfunction aside()\n  print("Aside.")\nend\n`;
-  const continuesOf = (story: RuntimeStory) =>
+  const continuesOf = (story: TestStory) =>
     story.currentDisplayInstructions.map(
       (table) =>
         (table.value?.get("continues") as { value?: unknown } | undefined)

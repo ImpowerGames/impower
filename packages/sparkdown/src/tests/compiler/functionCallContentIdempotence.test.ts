@@ -1,8 +1,10 @@
-// `FunctionCall.GenerateIntoContainer` must leave `this.content` holding
-// exactly what the rest of the compiler expects, on the first generation pass
+// `FunctionCall.PrepareIntoContainer` must leave `this.content` holding
+// exactly what the rest of the compiler expects, on the first preparation pass
 // and on every subsequent one — the incremental pipeline carries parsed chunks
-// forward by identity, so a carried-forward `FunctionCall` generates more than
-// once (measured: deleting a divert target regenerates its caller's node).
+// forward by identity, so a carried-forward `FunctionCall` is prepared more
+// than once (measured: deleting a divert target prepares its caller's node
+// again). The call's code generation (deleted in #705) had the same two
+// halves, which is where they were first found.
 //
 // Two halves of that method write to `content`, and they used to be coupled by
 // accident (issue #323):
@@ -31,9 +33,7 @@
 // which exhausts the worker heap and reports as "Worker exited unexpectedly"
 // instead of as the assertion that failed. Every node comparison here is
 // reduced to a boolean BEFORE it reaches `expect`.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { Container as RuntimeContainer } from "../../inkjs/engine/Container";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -231,9 +231,9 @@ const COUNTED_FORMS = [
   },
 ];
 
-describe("FunctionCall generation leaves `content` intact", () => {
+describe("FunctionCall preparation leaves `content` intact", () => {
   for (const form of COUNTED_FORMS) {
-    it(`repeated generation keeps exactly the counted argument: ${form.label}`, () => {
+    it(`repeated preparation keeps exactly the counted argument: ${form.label}`, () => {
       const callerLine = form.line ?? `  Caller action {${form.label}}.`;
       const compiler = compiledOnce(doc(callerLine, form.preamble));
 
@@ -244,29 +244,10 @@ describe("FunctionCall generation leaves `content` intact", () => {
       // function call) and the counted argument has taken its place.
       expectContentIsCountedArgOnly(call, "after first compile");
 
-      const emitted: number[] = [];
-      for (let i = 0; i < 5; i++) {
-        const container = new RuntimeContainer();
-        quiet(() => call.GenerateIntoContainer(container));
-        emitted.push(container.content.length);
-
-        // Guarding only the splice grows this by one entry per pass; guarding
-        // only the `AddContent` empties it.
-        expectContentIsCountedArgOnly(call, `after extra pass ${i + 1}`);
-      }
-
-      // Weak sanity check only, and deliberately so: it catches a guard that
-      // stopped generation emitting altogether, not a change in WHAT is
-      // emitted. The emitted-object-level oracle is the incremental-vs-cold
-      // comparison in `incrementalStaleTargetPaths.test.ts`, which covers this
-      // same fixture.
-      expect(new Set(emitted).size).toBe(1);
-      expect(emitted[0]).toBeGreaterThan(0);
-
-      // The program path prepares the call instead (`PrepareIntoContainer`,
-      // #705), which changes `content` as generation does.
       for (let i = 0; i < 5; i++) {
         quiet(() => call.PrepareIntoContainer());
+        // Guarding only the splice grows this by one entry per pass; guarding
+        // only the `AddContent` empties it.
         expectContentIsCountedArgOnly(call, `after extra preparation ${i + 1}`);
       }
     });
@@ -289,16 +270,7 @@ describe("FunctionCall generation leaves `content` intact", () => {
     const sentinel = new Text("sentinel");
     call.content.push(sentinel);
 
-    const container = new RuntimeContainer();
-    quiet(() => call.GenerateIntoContainer(container));
-
     // The sentinel is not the proxy divert, so the splice must not touch it.
-    expect({
-      length: call.content.length,
-      survived: call.content[0] === sentinel,
-    }).toEqual({ length: 1, survived: true });
-
-    // Nor does the program path's preparation of the call (#705).
     quiet(() => call.PrepareIntoContainer());
     expect({
       prepared: true,

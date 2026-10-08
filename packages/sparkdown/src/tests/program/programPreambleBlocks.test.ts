@@ -9,7 +9,6 @@
 // after the block's `end` is the preamble's, run before the choices are
 // presented.
 import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { shuffleDraws } from "../../runtime/evaluation";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";

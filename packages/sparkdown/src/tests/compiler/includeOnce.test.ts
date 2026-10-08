@@ -1,7 +1,6 @@
 // A script is included once per compile. The first `include` that reaches it
 // places its content; a later `include` of the same script, from any file,
 // adds nothing, so the flows it declares are declared once.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -67,7 +66,7 @@ function errors(program: any): string[] {
 // Every line the story shows from its start, or from the scene `scene`,
 // choosing the first choice whenever it offers any.
 function play(program: any, scene?: string): string {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   if (scene) {
     story.ChoosePathString(scene);
   }
@@ -98,7 +97,7 @@ describe("a script included from two places", () => {
   it("declares its scene once", () => {
     const program = compileOnce(twice(["scene shared_scene", "  Shared.", "end", ""].join("\n")));
     expect(errors(program)).toEqual([]);
-    expect(program.compiled).toBeDefined();
+    expect(program.chunks).toBeDefined();
   });
 
   it("declares its function once", () => {
@@ -122,7 +121,7 @@ describe("a script included from two places", () => {
     expect(errors(program)).toEqual([]);
     const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding_\w+/)?.[0];
     expect(id).toBeDefined();
-    expect(testStory(program.compiled as Record<string, any>).EvaluateFunction(id!)).toBe(1);
+    expect(testStory(program.chunks).EvaluateFunction(id!)).toBe(1);
   });
 
   it("shows its display content once, where it is first included", () => {
@@ -169,7 +168,7 @@ describe("a script included from two places", () => {
     });
     expect(errors(incremental)).toEqual([]);
     expect(errors(cold)).toEqual([]);
-    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
     expect(play(incremental, "main_one")).toContain("Value 7");
   });
 });

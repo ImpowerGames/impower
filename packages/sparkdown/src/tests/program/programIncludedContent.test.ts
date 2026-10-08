@@ -7,12 +7,11 @@
 // line tables and addresses in that script, an edit inside it re-emits one
 // chunk and keeps every other, and a save taken before the edit loads after
 // it.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { SymbolKind } from "../../program/ProgramSymbols";
-import { chunkId } from "../../program/StatementChunk";
+import { chunkId } from "../../program/ProgramChunk";
 import {
   describeRoot,
   programCompiler,

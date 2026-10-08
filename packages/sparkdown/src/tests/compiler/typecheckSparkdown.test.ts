@@ -3,7 +3,6 @@
 // declares in scope. None of Sparkdown's own syntax may come out as a type
 // warning, and the Luau around it is still checked.
 
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";

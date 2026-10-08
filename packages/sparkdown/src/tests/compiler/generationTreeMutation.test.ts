@@ -1,23 +1,24 @@
-// Generation must not mutate the parsed hierarchy.
+// Preparing a statement for the program must not mutate the parsed hierarchy.
 //
 // The incremental pipeline carries parsed chunks forward across compiles by
 // identity — that is the whole point of the design. So any node that MUTATES
-// itself while generating runtime objects accumulates one lowered generation
-// per compile and never releases the previous one.
+// itself while it is prepared accumulates one lowered generation per compile
+// and never releases the previous one.
 //
-// `ObjectExpression.GenerateIntoContainer` did exactly that: it built a fresh
+// The object expression's code generation (deleted in #705) did exactly
+// that: it built a fresh
 // `StringExpression`/`Text` per static key and `AddContent`-ed it to itself on
 // every generation pass. Each accumulated `Text` then pinned a whole runtime
 // container subtree through its cached `_runtimeObject`'s parent chain, so a
 // real editing session retained ~5.5MB per keystroke and eventually exhausted
 // the language-server worker heap (issue #312).
 //
-// These tests pin the invariant structurally rather than by measuring heap
-// bytes, so they are deterministic and cheap: generation is idempotent with
-// respect to the parsed tree, and repeated incremental compiles do not grow it.
-import "../../inkjs/engine/Container";
+// Its preparation (`PrepareIntoContainer`) builds the same key expressions
+// and keeps none of them. These tests pin the invariant structurally rather
+// than by measuring heap bytes, so they are deterministic and cheap:
+// preparation is idempotent with respect to the parsed tree, and repeated
+// incremental compiles do not grow it.
 import { describe, expect, it } from "vitest";
-import { Container as RuntimeContainer } from "../../inkjs/engine/Container";
 import {
   ObjectExpression,
   ObjectExpressionEntry,
@@ -42,7 +43,7 @@ const quiet = <T,>(fn: () => T): T => {
 
 /**
  * Sum of `content.length` over every `ObjectExpression` reachable from the
- * compiler. Stays constant across compiles unless generation is appending to
+ * compiler. Stays constant across compiles unless preparation is appending to
  * carried-forward parsed nodes.
  */
 function objectExpressionContentTotal(root: object): {
@@ -121,8 +122,8 @@ const EDIT_LINE = SOURCE.split("\n").indexOf(
   "  Action line in scene two.",
 );
 
-describe("generation does not mutate the parsed hierarchy", () => {
-  it("ObjectExpression.GenerateIntoContainer is idempotent on `content`", () => {
+describe("preparation does not mutate the parsed hierarchy", () => {
+  it("ObjectExpression.PrepareIntoContainer is idempotent on `content`", () => {
     const expr = new ObjectExpression([
       new ObjectExpressionEntry("alpha", new NumberExpression(1, "int")),
       new ObjectExpressionEntry("beta", new NumberExpression(2, "int")),
@@ -130,19 +131,11 @@ describe("generation does not mutate the parsed hierarchy", () => {
     ]);
     const initial = expr.content.length;
 
-    const emitted: number[] = [];
     for (let i = 0; i < 5; i++) {
-      const container = new RuntimeContainer();
-      expr.GenerateIntoContainer(container);
-      emitted.push(container.content.length);
-      // The parsed node must look exactly as it did before generating.
+      expr.PrepareIntoContainer();
+      // The parsed node must look exactly as it did before preparing.
       expect(expr.content.length).toBe(initial);
     }
-
-    // ...and every pass must still emit the same runtime shape, so the
-    // idempotency did not come at the cost of dropping the key expressions.
-    expect(new Set(emitted).size).toBe(1);
-    expect(emitted[0]).toBeGreaterThan(0);
   });
 
   it("repeated incremental compiles do not grow the parsed tree", () => {

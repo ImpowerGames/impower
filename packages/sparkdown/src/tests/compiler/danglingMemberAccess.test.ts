@@ -4,7 +4,6 @@
 // enclosing function and the story after it parse as if the name were there:
 // the function still ends at its own `end`, and the story below it stays in the
 // root flow.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";

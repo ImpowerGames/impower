@@ -4,7 +4,6 @@
 // top-level function changes the answer, so the incremental compile has to
 // lower the closure's chunk again even when the edit's reparse window does not
 // reach it.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { File } from "../../compiler/types/File";
 import { testCompiler, testStory } from "../engineUnderTest";
@@ -66,7 +65,7 @@ function incrementalAfterEdit(base: string, from: number, to: number, insert: st
 }
 
 function run(program: any) {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   const errors: string[] = [];
   story.onError = (message: string) => {
     errors.push(message);
@@ -114,7 +113,7 @@ describe("a carried closure follows the document's top-level functions", () => {
     expect(run(cold)).toEqual({ output: "Result 7.\n", errors: [] });
     expect(run(incremental)).toEqual(run(cold));
     expect(diagnostics(incremental)).toEqual(diagnostics(cold));
-    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
   });
 
   it("calls a top-level function an edit declares at the end of the document", () => {
@@ -127,13 +126,13 @@ describe("a carried closure follows the document's top-level functions", () => {
     expect(run(cold)).toEqual({ output: "Result 7.\n", errors: [] });
     expect(run(incremental)).toEqual(run(cold));
     expect(diagnostics(incremental)).toEqual(diagnostics(cold));
-    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
   });
 
   it("stops calling a top-level function an edit removes", () => {
     const incremental = incrementalAfterEdit(HELPER + BODY, 0, HELPER.length, "");
     const cold = coldCompile(BODY);
     expect(diagnostics(incremental)).toEqual(diagnostics(cold));
-    expect(programContent(incremental.compiled)).toEqual(programContent(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
   });
 });

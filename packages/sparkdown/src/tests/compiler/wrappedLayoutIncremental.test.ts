@@ -1,4 +1,3 @@
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -55,7 +54,6 @@ function pick(p: any) {
     sparkle: p.sparkle,
     diagnostics: p.diagnostics,
     ui: p.ui,
-    dataLocations: p.dataLocations,
   };
 }
 

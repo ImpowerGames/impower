@@ -24,14 +24,14 @@ function restored(source: string): {
   errors: string[];
   savedJson: string;
 } {
-  const { story, errorMessages, compiledJson } =
+  const { story, errorMessages, root } =
     makeRuntimeStoryFromSource(source);
   const errors = errorMessages.map((m) => `[compile] ${m}`);
   story.onError = (m: string) => errors.push(`[before save] ${m}`);
   const first = story.Continue();
   const savedJson = story.state.ToJson();
 
-  const again = testStory(compiledJson as Record<string, any>);
+  const again = testStory(root);
   again.onError = (m: string) => errors.push(`[after load] ${m}`);
   again.state.LoadJson(savedJson);
   let rest = "";
@@ -265,7 +265,7 @@ scene s
   fin
 end
 `;
-    const { story, errorMessages, compiledJson } =
+    const { story, errorMessages, root } =
       makeRuntimeStoryFromSource(source);
     const errors = [...errorMessages];
     story.onError = (m: string) => errors.push(`[straight] ${m}`);
@@ -275,7 +275,7 @@ end
     story.ChooseChoiceIndex(0);
     expect(story.ContinueMaximally()).toBe("Pick\nResult changed.\n");
 
-    const again = testStory(compiledJson as Record<string, any>);
+    const again = testStory(root);
     again.onError = (m: string) => errors.push(`[after load] ${m}`);
     again.state.LoadJson(savedJson);
     again.ChooseChoiceIndex(0);
@@ -407,7 +407,7 @@ scene s
   fin
 end
 `;
-    const { story, compiledJson } = makeRuntimeStoryFromSource(source);
+    const { story, root } = makeRuntimeStoryFromSource(source);
     story.Continue();
     const saved = JSON.parse(story.state.ToJson());
     const stripCells = (node: unknown): unknown => {
@@ -422,7 +422,7 @@ end
       }
       return node;
     };
-    const again = testStory(compiledJson as Record<string, any>);
+    const again = testStory(root);
     const errors: string[] = [];
     again.onError = (m: string) => errors.push(m);
     again.state.LoadJson(JSON.stringify(stripCells(saved)));

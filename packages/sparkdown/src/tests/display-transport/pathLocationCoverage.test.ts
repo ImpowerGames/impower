@@ -8,7 +8,7 @@
 // function's body, which no story starts at.
 
 import { describe, expect, test, vi } from "vitest";
-import { testCompiler, testRoot } from "../engineUnderTest";
+import { testCompiler } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -31,7 +31,7 @@ function compile(source: string) {
 }
 
 function coveredLines(source: string): number[] {
-  const root = testRoot(compile(source).compiled);
+  const root = compile(source).chunks;
   expect(root, "the compile built statement chunks").toBeDefined();
   return source.split("\n").flatMap((_text, line) => {
     const address = root!.addressAt(URI, line);

@@ -2,7 +2,6 @@
 // tables the program's declaration chunks build, with the functions each
 // define writes as its methods. For the builtins prelude, which the player
 // seeds into every story it compiles.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import {
   MAIN_URI,

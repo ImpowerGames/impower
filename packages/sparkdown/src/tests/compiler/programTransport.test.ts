@@ -4,7 +4,6 @@
 // bytes are the portraits' attribute vocabularies, which do not change from one
 // compile to the next. These tests pin that what arrives is the program that
 // was compiled, and that an unchanged vocabulary is not sent again.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {

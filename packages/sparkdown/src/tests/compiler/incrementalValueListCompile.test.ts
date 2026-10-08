@@ -6,7 +6,6 @@
 // A chunk is lowered again whole, so this holds with or without the editor's
 // widened annotation window (`incrementalValueListParity.test.ts` pins that);
 // it guards the compile path itself.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -26,7 +25,6 @@ const file = (text: string) => ({
 function pick(p: any) {
   return {
     chunks: programContent(p.chunks),
-    dataLocations: p.dataLocations,
     functionLocations: p.functionLocations,
     context: p.context,
     diagnostics: p.diagnostics,

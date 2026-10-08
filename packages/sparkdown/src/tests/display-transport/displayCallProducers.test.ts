@@ -35,10 +35,10 @@ function compile(source: string) {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("display-call producer fixture failed to compile");
   }
-  return testStory(result.program.compiled as Record<string, any>);
+  return testStory(result.program.chunks);
 }
 
 // Runs the story to its end, picking the first choice whenever it stops on

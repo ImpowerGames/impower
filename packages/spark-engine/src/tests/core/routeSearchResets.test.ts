@@ -46,10 +46,7 @@ function compileSrc(src: string) {
       },
     ],
   });
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
+  const result = compiler.compile({ textDocument: { uri: URI } });
   return requireChunks(result.program, "route-reset fixture");
 }
 

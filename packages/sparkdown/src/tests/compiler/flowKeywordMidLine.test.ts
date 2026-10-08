@@ -2,7 +2,6 @@
 // or branch. Only a line that starts with `scene` or `branch` declares one, so
 // a table key, a parameter or a variable with that name leaves the block open
 // and keeps every value where it was written.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -131,7 +130,7 @@ describe("scene and branch as names inside a function", () => {
 });
 
 function run(program: any) {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   const errors: string[] = [];
   story.onError = (message: string) => {
     errors.push(message);

@@ -7,7 +7,6 @@
 // (`ProgramStory`), which runs a program compiled to statement chunks, calls
 // the watch on the same steps.
 
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { afterEach, describe, expect, test } from "vitest";
 import {
   EXECUTION_WATCH_STEPS,

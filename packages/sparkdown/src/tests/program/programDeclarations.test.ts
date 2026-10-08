@@ -4,13 +4,12 @@
 // compile that re-emitted a declaration chunk, or changed a function, runs
 // every declaration again; one that re-emitted only statements of flows runs
 // none.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { chunkId } from "../../program/StatementChunk";
+import { chunkId } from "../../program/ProgramChunk";
 import { compileScript, describeRoot, MAIN_URI, programCompiler } from "./programHarness";
 
 function posAt(text: string, offset: number) {
@@ -417,7 +416,6 @@ describe("a bad initializer", () => {
     };
     const result = compiled();
     expect(result.program.chunks).toBeUndefined();
-    expect(result.program.compiled).toBeUndefined();
     expect(result.logged).toEqual([
       "StoryException: Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: RUNTIME ERROR: 'main' line 2: attempt to perform arithmetic (+) on a string value",
     ]);

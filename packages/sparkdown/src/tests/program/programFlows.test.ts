@@ -18,8 +18,8 @@ import {
   HEADER_WORDS,
   blockCount,
   chunkId,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import { flowScreenplay } from "./flowScreenplay";
 import {
   compileScript,
@@ -81,7 +81,7 @@ const opsOf = (root: ProgramRoot): Set<string> => {
 
 /** The chunks of a root whose code holds instruction `op` with operand
  *  `arg`, when one is given. */
-const chunksWith = (root: ProgramRoot, op: number, arg?: number): StatementChunk[] => {
+const chunksWith = (root: ProgramRoot, op: number, arg?: number): ProgramChunk[] => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).filter((chunk) =>
     [...reader.instructions(chunk)].some(
@@ -490,8 +490,8 @@ describe("flows on the program engine", () => {
       const saved = game.state.toJson();
       const flowChunks = (root: ProgramRoot) => {
         const flow = root.flowNamed("main")!;
-        const out: StatementChunk[] = [];
-        const walk = (chunks: readonly StatementChunk[]) => {
+        const out: ProgramChunk[] = [];
+        const walk = (chunks: readonly ProgramChunk[]) => {
           for (const chunk of chunks) {
             out.push(chunk);
             for (let k = 0; k < blockCount(chunk); k += 1) {

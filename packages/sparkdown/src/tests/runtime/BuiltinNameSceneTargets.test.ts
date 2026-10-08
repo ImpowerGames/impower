@@ -93,7 +93,7 @@ describe("targets named after prelude entries that are not runtime globals", () 
     // A direct divert jumps to the scene's symbol (`JumpSym`); a variable
     // divert would read the variable of that name (`JumpVar`).
     const ctx = makeRuntimeStoryFromSource(storyOpeningWith("main"));
-    const listing = programListing(ctx.compiledJson);
+    const listing = programListing(ctx.root);
     expect(listing).toContain('JumpSym "main"');
     expect(listing.filter((line) => line.startsWith("JumpVar"))).toEqual([]);
   });

@@ -3,11 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
-import {
-  pathTableLocator,
-  programLocator,
-} from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
 import {
   beatIndexIn,
@@ -1779,27 +1775,39 @@ Line one.
     });
   });
 
-  it("finds the beat at or before a path", () => {
-    const beats = [{ address: "A.0" }, { address: "A.3" }, { address: "A.7" }];
-    const locations = pathTableLocator(
-      pathLocationTableOf({
-        "A.0": [0, 1, 0, 1, 9],
-        "A.2": [0, 2, 0, 2, 9],
-        "A.3": [0, 3, 0, 3, 9],
-        "A.5": [0, 5, 2, 5, 9],
-        "A.7": [0, 7, 0, 7, 9],
-        "A.9": [0, 9, 0, 9, 9],
-        "B.0": [1, 0, 0, 0, 9],
-      }),
-      ["file:///main.sd", "file:///other.sd"],
-    );
-    expect(beatIndexIn(beats, locations, "A.3")).toBe(1);
-    expect(beatIndexIn(beats, locations, "A.5")).toBe(1);
-    expect(beatIndexIn(beats, locations, "A.2")).toBe(0);
-    expect(beatIndexIn(beats, locations, "A.9")).toBe(2);
+  it("finds the beat at or before an address", () => {
+    const OTHER_URI = "inmemory:///other.sd";
+    const main = [
+      "include other.sd",
+      "scene A",
+      "  Line one.",
+      "  Line two.",
+      "  Line three.",
+      "  Line four.",
+      "  Line five.",
+      "  Line six.",
+      "  Line seven.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    const { program } = compileUI(main, { scripts: { [OTHER_URI]: "Other line.\n" } });
+    const locator = programLocator(program);
+    const at = (line: number, uri = MAIN_URI): ProgramAddress => {
+      const address = locator.addressAt(uri, line);
+      if (address === undefined) {
+        throw new Error(`no address stands on line ${line} of ${uri}`);
+      }
+      return address;
+    };
+    const beats = [2, 4, 7].map((line) => ({ address: at(line) }));
+    expect(beatIndexIn(beats, locator, at(4))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(6))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(3))).toBe(0);
+    expect(beatIndexIn(beats, locator, at(8))).toBe(2);
     // Only the beats in the address's own script precede it.
-    expect(beatIndexIn(beats, locations, "B.0")).toBe(-1);
-    expect(beatIndexIn(beats, locations, "nowhere")).toBe(-1);
-    expect(beatIndexIn(beats, locations, null)).toBe(-1);
+    expect(beatIndexIn(beats, locator, at(0, OTHER_URI))).toBe(-1);
+    expect(beatIndexIn(beats, locator, "nowhere")).toBe(-1);
+    expect(beatIndexIn(beats, locator, null)).toBe(-1);
   });
 });

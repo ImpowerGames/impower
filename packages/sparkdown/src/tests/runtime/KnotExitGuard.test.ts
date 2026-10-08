@@ -1,10 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { testCompiler, testRoot, testStory } from "../engineUnderTest";
+import { testCompiler, testStory, type TestStory } from "../engineUnderTest";
 import {
   planRoute,
   lastSearchStats,
 } from "../../compiler/utils/planRoute";
-import type { Story } from "../../inkjs/engine/Story";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 
 const URI = "inmemory:///main.sd";
@@ -24,10 +23,7 @@ function compile(src: string) {
       },
     ],
   });
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
+  const result = compiler.compile({ textDocument: { uri: URI } });
   if (!result.program.chunks) {
     throw new Error(
       "fixture failed to compile: " +
@@ -35,8 +31,8 @@ function compile(src: string) {
     );
   }
   return {
-    story: testStory(result.program.compiled as Record<string, any>),
-    root: testRoot(result.program.compiled)!,
+    story: testStory(result.program.chunks),
+    root: result.program.chunks!,
     program: result.program,
   };
 }
@@ -51,7 +47,7 @@ function addressesForLine(root: ProgramRoot, line: number): number[] {
 }
 
 function plan(
-  story: Story,
+  story: TestStory,
   fromPath: string,
   to: number,
   functions: string[],

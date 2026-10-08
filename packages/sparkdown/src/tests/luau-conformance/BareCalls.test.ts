@@ -50,9 +50,7 @@ end
 `;
     const { result, errs } = compileAndRun(src);
     expect(errs).toEqual([]);
-    const story = testStory(
-      result.program.compiled as Record<string, any>,
-    );
+    const story = testStory(result.program.chunks);
     const recorded: unknown[] = [];
     story.BindExternalFunction("host_record", (v: unknown) => {
       recorded.push(v);
@@ -74,9 +72,7 @@ end
 `;
     const { result, errs } = compileAndRun(src);
     expect(errs).toEqual([]);
-    const story = testStory(
-      result.program.compiled as Record<string, any>,
-    );
+    const story = testStory(result.program.chunks);
     const recorded: unknown[] = [];
     story.BindExternalFunction("host_record", (v: unknown) => {
       recorded.push(v);
@@ -110,9 +106,7 @@ end
 `;
     const { result, errs } = compileAndRun(src);
     expect(errs).toEqual([]);
-    const story = testStory(
-      result.program.compiled as Record<string, any>,
-    );
+    const story = testStory(result.program.chunks);
     const recorded: unknown[] = [];
     story.BindExternalFunction("host_record", (v: unknown) => {
       recorded.push(v);

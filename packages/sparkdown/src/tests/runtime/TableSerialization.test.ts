@@ -19,8 +19,9 @@
 
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 
-function compileStory(source: string): Record<string, any> {
+function compileStory(source: string): ProgramRoot {
   const compiler = testCompiler();
   compiler.configure({
     files: [
@@ -38,10 +39,10 @@ function compileStory(source: string): Record<string, any> {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("story failed to compile");
   }
-  return result.program.compiled as Record<string, any>;
+  return result.program.chunks;
 }
 
 function storySource(

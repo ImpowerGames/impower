@@ -6,7 +6,6 @@
 // outside the engine and the compiler for the names a reader of story paths
 // uses, with each reader the issue lists going through the accessor; and the
 // game's execution report, which carries no path on the program engine.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -109,7 +108,6 @@ describe("a search of the sources outside the engine and the compiler", () => {
         "packages/sparkdown-language-server/src/sparkdown-language-server.ts",
         "packages/sparkdown-language-server/src/utils/providers/getOffsetSourceLocation.ts",
         "vscode-sparkdown/src/managers/SparkProgramManager.ts",
-        "vscode-sparkdown/src/utils/activateCompilationView.ts",
         "packages/spark-engine/src/worker/installGameWorker.ts",
         "packages/spark-web-player/src/main/workers/installPlayerWorker.ts",
         "impower-dev/src/modules/spark-editor/components/preview-game/PreviewGame.tsx",
@@ -166,12 +164,8 @@ describe("a search of the sources outside the engine and the compiler", () => {
         '"sparkdown/addressAt"',
         '"sparkdown/locationOf"',
       ),
-      compilationView: uses(
-        "vscode-sparkdown/src/utils/activateCompilationView.ts",
-        ".addressAt(",
-        ".locationOf(",
-        "lastExecutedAddress",
-      ),
+      // The extension's compilation view, which showed the object engine's
+      // compiled JSON, was deleted with that engine (#705).
       // The page holds no program: it shows the locations the game sends.
       playerPage: uses(
         "packages/spark-web-player/src/GamePlayerController.ts",
@@ -184,7 +178,6 @@ describe("a search of the sources outside the engine and the compiler", () => {
       languageServer: [],
       compilerWorker: [],
       programManager: [],
-      compilationView: [],
       playerPage: [],
     });
   });

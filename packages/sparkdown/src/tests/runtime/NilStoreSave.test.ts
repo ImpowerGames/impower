@@ -26,10 +26,10 @@ describe("a story state holding a nil store", () => {
 
   test("a nil store reloads as nil", () => {
     const src = "store trust\n\nHello there.\ndone\n";
-    const { story, compiledJson } = makeRuntimeStoryFromSource(src);
+    const { story, root } = makeRuntimeStoryFromSource(src);
     const saved = story.state.toJson();
 
-    const loaded = testStory(compiledJson as Record<string, any>);
+    const loaded = testStory(root);
     loaded.state.LoadJson(saved);
     const trust = loaded.state.variablesState.GetVariableWithName("trust");
     expect(trust).not.toBeNull();
@@ -39,12 +39,12 @@ describe("a story state holding a nil store", () => {
 
   test("a nil written over a non-nil default saves and loads as nil", () => {
     const src = "store trust = 1\n\ntrust = nil\nHello there.\ndone\n";
-    const { story, compiledJson } = makeRuntimeStoryFromSource(src);
+    const { story, root } = makeRuntimeStoryFromSource(src);
     story.ContinueMaximally();
     const saved = story.state.toJson();
     expect(JSON.parse(saved).variablesState.trust).toBe("nil");
 
-    const loaded = testStory(compiledJson as Record<string, any>);
+    const loaded = testStory(root);
     loaded.state.LoadJson(saved);
     expect(loaded.state.variablesState.GetVariableWithName("trust")).toBeInstanceOf(NullValue);
   });

@@ -6,7 +6,6 @@
 // the body they stand below, and where a body starts is the root's to derive,
 // so an edit above a statement changes neither its chunk nor its line table
 // and `locationOf` of its address moves with the lines inserted.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { programLocator } from "../../compiler/utils/programLocator";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -18,8 +17,8 @@ import {
   chunkId,
   chunkOfAddress,
   offsetOfAddress,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   MAIN_URI,
   compileScript,
@@ -70,8 +69,8 @@ const at = (root: ProgramRoot, address: number) => {
 };
 
 /** Every chunk a root holds, flow after flow, bodies after their owner. */
-const chunksOf = (root: ProgramRoot): StatementChunk[] => {
-  const out: StatementChunk[] = [];
+const chunksOf = (root: ProgramRoot): ProgramChunk[] => {
+  const out: ProgramChunk[] = [];
   const walk = (row: SequenceRow | undefined) => {
     for (const chunk of row?.arrays.chunks ?? []) {
       out.push(chunk);

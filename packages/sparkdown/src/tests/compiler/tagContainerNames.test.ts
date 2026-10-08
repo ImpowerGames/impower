@@ -2,7 +2,6 @@
 // depends only on the script's text: two compiles of the same script produce
 // the same chunks, and an incremental compile's chunks equal a cold compile's
 // of its text (`describeRoot`).
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";

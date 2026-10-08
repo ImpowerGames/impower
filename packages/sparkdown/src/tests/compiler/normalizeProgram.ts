@@ -1,16 +1,13 @@
 
-// Tables of source positions, a per-compiler revision counter, and the forms
-// of the program derived from the same data as `compiled` (the binary buffer
-// and its chunks), which is compared itself.
+// Tables of source positions, a per-compiler revision counter, and the
+// program's code (the binary buffer and its chunks), which a test compares
+// through its listings (`flowListings`, programListing.ts).
 const IGNORED = new Set([
-  "pathLocations",
   "functionLocations",
   "sceneLocations",
   "branchLocations",
   "knotLocations",
-  "stitchLocations",
   "labelLocations",
-  "dataLocations",
   "colorAnnotations",
   "files",
   "compiledBuffer",

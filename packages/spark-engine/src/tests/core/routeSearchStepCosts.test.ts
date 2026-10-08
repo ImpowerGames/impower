@@ -47,10 +47,7 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
+  const result = compiler.compile({ textDocument: { uri: URI } });
   return requireChunks(result.program);
 }
 

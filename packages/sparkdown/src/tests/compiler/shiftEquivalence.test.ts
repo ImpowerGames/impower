@@ -15,7 +15,6 @@
 // location table equal with the shifted file's rows moved down. A leading
 // blank line moves no column, so columns are compared as they are. The
 // statement chunks' shift oracle is `programShift.test.ts`.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";

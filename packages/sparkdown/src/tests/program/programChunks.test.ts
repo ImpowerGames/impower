@@ -9,7 +9,7 @@ import { ProgramStory } from "../../program/ProgramStory";
 import {
   H_FINGERPRINT,
   H_LAYOUT_HASH,
-} from "../../program/StatementChunk";
+} from "../../program/ProgramChunk";
 import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { compileScript, errorsOf, storyBeats } from "./programHarness";
 
@@ -294,12 +294,4 @@ describe("a construct the program cannot build", () => {
     expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage(PREAMBLE_THEN_CONSTRUCT)]);
   });
 
-});
-
-describe("a compile", () => {
-  it("emits no compiled story for a program that has its chunks", () => {
-    const { program } = compileScript("One.\nTwo.\n");
-    expect(program.chunks).toBeDefined();
-    expect(program.compiled).toBeUndefined();
-  });
 });

@@ -7,7 +7,6 @@
 // reported. These tests count what it visited (`ProgramResolver.passesLastResolve`,
 // `visitedLastResolve`), spy on the passes it replaces, and compare its
 // diagnostics with a cold compile's.
-import "../../inkjs/engine/Container";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -248,25 +247,20 @@ const resolvedOnlyLoweredAnew = (resolver: ProgramResolver, most: number) => {
 };
 
 describe("a compile with statement chunks on", () => {
-  it("calls neither ExportRuntime nor ResolveReferences, a program it cannot compile included", () => {
-    // The builtins prelude's context is compiled once per process, by a
-    // compiler of its own with statement chunks off.
-    cold({ [MAIN_URI]: "Line.\n" });
-    const exportRuntime = vi.spyOn(Story.prototype, "ExportRuntime");
-    const resolve = vi.spyOn(ParsedObject.prototype, "ResolveReferences");
+  it("has neither ExportRuntime nor ResolveReferences to call, a program it cannot compile included", () => {
+    // Both were deleted with code generation (#705): no parsed story exports
+    // a runtime story, and no parsed object resolves references for one.
+    expect("ExportRuntime" in Story.prototype).toBe(false);
+    expect("ResolveReferences" in ParsedObject.prototype).toBe(false);
     const s = session(flatScene());
     expect(s.program.chunks).toBeDefined();
     s.edit("The clause runs on, line 27.", "The clause runs on, line 27, slowly.");
     expect(s.program.chunks).toBeDefined();
-    expect(exportRuntime).not.toHaveBeenCalled();
-    expect(resolve).not.toHaveBeenCalled();
     // An external function is reported at its line, and the compile makes no
-    // program and exports no story.
+    // program.
     const external = cold({ [MAIN_URI]: "external ext(a)\nscene MAIN\n  ~ ext(1)\n  Line.\nend\n" });
     expect(external.chunks).toBeUndefined();
     expect(errorsOf(external)).toContainEqual([0, unsupportedConstructMessage("external")]);
-    expect(exportRuntime).not.toHaveBeenCalled();
-    expect(resolve).not.toHaveBeenCalled();
   });
 });
 

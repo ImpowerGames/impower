@@ -1,7 +1,6 @@
 // Functions, closures, builtin calls and define tables compiled to statement
 // chunks and run by the program engine (#698, docs/engine/binary-program.md,
 // sections 2, 3, 7 and 10).
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CallStack } from "../../runtime/CallStack";
 import type { InkObject } from "../../runtime/Object";
@@ -16,7 +15,7 @@ import {
 } from "../../runtime/Value";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { exportCount, exportSymbol } from "../../program/StatementChunk";
+import { exportCount, exportSymbol } from "../../program/ProgramChunk";
 import {
   compileScript,
   describeRoot,

@@ -4,12 +4,11 @@
 // against the frame after every step of a play-through. It lives beside
 // `programHarness.ts`, which the engine package's tests import too, so that
 // the harness stays free of the test runner.
-import "../../inkjs/engine/Container";
 import { expect } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
-import { blockScopes } from "../../program/StatementChunk";
+import { blockScopes } from "../../program/ProgramChunk";
 import { compileScript } from "./programHarness";
 
 /** Runs `run` with the console's warnings and errors left out. */

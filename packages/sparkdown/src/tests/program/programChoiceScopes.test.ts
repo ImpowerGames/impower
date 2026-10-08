@@ -8,7 +8,6 @@
 // scopes at every offset of the chunk is exact, so a position restored or
 // landed on inside a choice's entry or body derives it from the block stack
 // and the chunk's code.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import {
   expectExactDepth,

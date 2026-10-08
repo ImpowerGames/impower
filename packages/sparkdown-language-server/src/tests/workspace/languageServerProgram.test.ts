@@ -10,7 +10,6 @@
 // (`installSparkdownWorker`) in this process behind a connection that
 // delivers every message as a structured clone, one task later, in order,
 // as a worker's port does.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";

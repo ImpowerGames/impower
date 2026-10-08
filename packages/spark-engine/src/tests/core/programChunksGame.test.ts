@@ -2,7 +2,6 @@
 // as the player's worker builds one (#694): the compiler configured as the
 // worker configures it, and a game given the compile's program with the
 // worker's checkpoint settings, which runs it on the program engine.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";

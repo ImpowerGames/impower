@@ -13,10 +13,9 @@
 //
 // Compiled the way the player compiles, with the builtins prelude. Each line
 // lowers to a `display()` call.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { SourceLocation } from "../../compiler/types/ProgramAddress";
-import { testCompiler, testRoot } from "../engineUnderTest";
+import { testCompiler } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -88,7 +87,7 @@ BUNNY:
 /** The range of each address a line of main.sd resolves to, once each, as
  *  `[address, location]`. */
 const rangesOf = (program: any, source: string): [number, SourceLocation][] => {
-  const root = testRoot(program.compiled);
+  const root = program.chunks;
   expect(root, "the compile built statement chunks").toBeDefined();
   const out = new Map<number, SourceLocation>();
   source.split("\n").forEach((_text, line) => {

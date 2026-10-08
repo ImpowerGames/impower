@@ -7,7 +7,6 @@
 //
 // The scenes under test sit above a run of filler scenes: an edit re-lowers
 // the chunks near it, and the incremental compile carries the others.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { flowListings, pushesString } from "../programListing";

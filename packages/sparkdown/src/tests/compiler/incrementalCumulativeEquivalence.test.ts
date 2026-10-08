@@ -21,7 +21,6 @@
 // by chunk identity, the shaped edits that left each construct's chunk
 // carried, so that it cannot pass over constructs the compile always lowered
 // again.
-import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

@@ -33,7 +33,7 @@ function compileSrc(src: string) {
       { uri: URI, type: "script", name: "main", ext: "sd", text: src, version: 1, languageId: "sparkdown" },
     ],
   });
-  const result = compiler.compile({ textDocument: { uri: URI }, countAllVisits: true });
+  const result = compiler.compile({ textDocument: { uri: URI } });
   return requireChunks(result.program, "checkpoint fixture");
 }
 

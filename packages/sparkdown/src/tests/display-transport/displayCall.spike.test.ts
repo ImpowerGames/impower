@@ -44,12 +44,10 @@ function compile(source: string) {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("spike fixture failed to compile");
   }
-  const story = testStory(
-    result.program.compiled as Record<string, any>,
-  );
+  const story = testStory(result.program.chunks);
   const errors: string[] = [];
   story.onError = (m: string) => errors.push(m);
   return { story, errors };

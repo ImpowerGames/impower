@@ -4,7 +4,6 @@
 // anonymous symbol the statement owns that goes with the choice when the
 // statement is emitted again, and the engine raises, presents and takes
 // choices. Each run is held to the beats and menus its script and picks give.
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -28,8 +27,8 @@ import {
   blockFlags,
   chunkId,
   codeWords,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   compileScript,
   MAIN_URI,
@@ -129,7 +128,7 @@ const session = (text: string) => {
 };
 
 /** The chunks of a root whose code holds a `Choice`: its `choose` blocks. */
-const chooseChunks = (root: ProgramRoot): StatementChunk[] => {
+const chooseChunks = (root: ProgramRoot): ProgramChunk[] => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).filter((chunk) =>
     [...reader.instructions(chunk)].some((i) => i.op === Op.Choice),
@@ -137,7 +136,7 @@ const chooseChunks = (root: ProgramRoot): StatementChunk[] => {
 };
 
 /** The instructions of a chunk's code. */
-const instructionsOf = (chunk: StatementChunk) => {
+const instructionsOf = (chunk: ProgramChunk) => {
   const out = [];
   for (let offset = 0; offset < codeWords(chunk); offset += 2) {
     out.push(BinaryProgramReader.instructionAt(chunk, offset));
@@ -147,7 +146,7 @@ const instructionsOf = (chunk: StatementChunk) => {
 
 /** The `Choice` instructions of a chunk, each with the count symbol its
  *  entry's `Visit` names. */
-const choicesOf = (chunk: StatementChunk) =>
+const choicesOf = (chunk: ProgramChunk) =>
   instructionsOf(chunk)
     .filter((i) => i.op === Op.Choice)
     .map((i) => {
@@ -157,7 +156,7 @@ const choicesOf = (chunk: StatementChunk) =>
     });
 
 /** The sequence of block `k` of `chunk` in `root`. */
-const bodyOf = (root: ProgramRoot, chunk: StatementChunk, k: number): SequenceRow =>
+const bodyOf = (root: ProgramRoot, chunk: ProgramChunk, k: number): SequenceRow =>
   root.body(chunk, k)!;
 
 describe("choose blocks on the program engine", () => {

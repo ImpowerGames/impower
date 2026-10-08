@@ -8,7 +8,6 @@
 // another block's preamble, or inside those nested blocks. It also sits above,
 // below or inside a loop written in the scene: `while`, numeric `for`,
 // `repeat`, `do`, a loop nested in a loop, and a loop whose body displays.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent, programListing } from "../programListing";
@@ -122,7 +121,6 @@ function screenplay(block: string[]): string {
 // builds no chunks fails the comparison (`programContent` throws).
 const pick = (p: any) => ({
   chunks: programContent(p.chunks),
-  dataLocations: p.dataLocations,
   functionLocations: p.functionLocations,
   sceneLocations: p.sceneLocations,
   diagnostics: p.diagnostics,

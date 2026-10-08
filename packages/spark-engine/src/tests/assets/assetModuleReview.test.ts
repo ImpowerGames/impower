@@ -6,7 +6,6 @@
 // nothing; the font heuristic sees child classes, component bodies, and
 // inline props; the loading layout never mounts after its load ended.
 
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";

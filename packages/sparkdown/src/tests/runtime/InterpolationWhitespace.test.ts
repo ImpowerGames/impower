@@ -192,7 +192,7 @@ ALICE:
       ],
     });
     const cold = compiler.compile({ textDocument: { uri } }).program;
-    expect(cold.compiled).toBeTruthy();
+    expect(cold.chunks).toBeTruthy();
 
     // Insert one character into `tonight`, on the line holding the
     // interpolation: line index 3, just before the final ".".
@@ -211,9 +211,9 @@ ALICE:
       ],
     });
     const warm = compiler.compile({ textDocument: { uri } }).program;
-    expect(warm.compiled).toBeTruthy();
+    expect(warm.chunks).toBeTruthy();
 
-    const story = testStory(warm.compiled as Record<string, any>);
+    const story = testStory(warm.chunks);
     story.collapseWhitespace = false;
     expect(runToEnd(story)).toBe("The limit is 5 tonight!.\n");
   });

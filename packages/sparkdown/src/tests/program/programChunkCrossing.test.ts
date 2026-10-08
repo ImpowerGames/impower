@@ -28,7 +28,7 @@ import {
   exportSymbol,
   HEADER_WORDS,
   H_BLOCK_ROWS,
-} from "../../program/StatementChunk";
+} from "../../program/ProgramChunk";
 import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 import { programStatements, uniqueKeys, untouchedChunks } from "./programStatements";
 
@@ -139,7 +139,6 @@ describe("statements whose recorded facts an edit invalidates", () => {
     constructor(readonly symbol: number) {
       super();
     }
-    public readonly GenerateRuntimeObject = () => null;
     public override EmitProgram(emitter: ProgramEmitter): void {
       emitter.reference(this.symbol);
       emitter.emit(Op.Done);

@@ -3,7 +3,6 @@
 // after the function as its own. An edit to those lines changes the scene, so
 // an incremental compile must give the scene the chunks and line tables a
 // cold compile gives it, not the ones from before the edit.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";

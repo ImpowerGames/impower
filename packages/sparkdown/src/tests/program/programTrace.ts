@@ -1,7 +1,6 @@
 // The program engine one instruction at a time (#695): what each instruction
 // left on the eval stack, in the output and on the frame, for the tests of
 // single instructions.
-import "../../inkjs/engine/Container";
 import { ControlCommand } from "../../runtime/ControlCommand";
 import type { InkObject } from "../../runtime/Object";
 import {
@@ -26,7 +25,6 @@ class HandWritten extends ParsedObject {
   constructor(protected _emit: (emitter: ProgramEmitter) => void) {
     super();
   }
-  override readonly GenerateRuntimeObject = () => null;
   override EmitProgram(emitter: ProgramEmitter): void {
     this._emit(emitter);
   }

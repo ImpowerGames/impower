@@ -7,7 +7,6 @@
 // keystroke on raffles-and-bunny). The compiler bounds it by reseeding it
 // (`maybeReseedBinaryTable`), which the chunk store's roots cross
 // (`ChunkStore.reseed`).
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";

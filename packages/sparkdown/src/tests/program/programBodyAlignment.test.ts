@@ -3,7 +3,6 @@
 // docs/engine/binary-program.md, section 2): a branch's condition or its
 // `else`, a loop's header, a choice's line, a `then` clause, a function's own
 // source. Never by position.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -12,7 +11,7 @@ import {
   B_SEQUENCE,
   blockCount,
   blockField,
-} from "../../program/StatementChunk";
+} from "../../program/ProgramChunk";
 import { MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 
 const silence = <T>(run: () => T): T => {

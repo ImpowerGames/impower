@@ -7,7 +7,6 @@
 // engine's beats of each script, recorded before #705 deleted it
 // (`__snapshots__/programLogic.test.ts.snap`), and the constructs a compile
 // builds or reports.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildRouteSimulator } from "../../compiler/utils/planRoute";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -34,8 +33,8 @@ import {
   blockField,
   blockFlags,
   blockScopes,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { compileScript, errorsOf, MAIN_URI, storyBeats } from "./programHarness";
 import {
@@ -51,7 +50,7 @@ const chunked = (text: string): ProgramRoot => {
   return program.chunks!;
 };
 
-const instructionsOf = (root: ProgramRoot, chunk: StatementChunk): string[] =>
+const instructionsOf = (root: ProgramRoot, chunk: ProgramChunk): string[] =>
   [...new BinaryProgramReader(root).instructions(chunk)].map(({ offset }) =>
     describeInstruction(chunk, offset, root.table),
   );

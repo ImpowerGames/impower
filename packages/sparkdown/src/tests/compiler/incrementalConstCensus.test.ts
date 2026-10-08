@@ -12,7 +12,6 @@
 // it is initialized once as an ordinary global — so editing a constant's
 // value no longer has to invalidate anything. The last test pins that
 // distinction, which is the whole point of that change.
-import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";

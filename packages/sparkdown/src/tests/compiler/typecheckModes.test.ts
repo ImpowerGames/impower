@@ -9,7 +9,6 @@
 // in both non-strict and strict mode, an annotation mismatch only in strict
 // mode, and nothing in no-check mode.
 
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";

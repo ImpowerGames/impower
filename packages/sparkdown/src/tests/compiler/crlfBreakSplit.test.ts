@@ -5,7 +5,6 @@
 // became unreachable by the preview. `.gitattributes` protects the repo's
 // fixtures, not a user's Windows-authored script.
 
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programListing, stringCount } from "../programListing";

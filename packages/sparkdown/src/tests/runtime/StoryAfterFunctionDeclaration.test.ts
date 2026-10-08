@@ -30,7 +30,7 @@ function linesFromTop(source: string): string[] {
 function namedContainers(source: string): Record<string, string[]> {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
-  return Object.fromEntries(flowListings(ctx.compiledJson));
+  return Object.fromEntries(flowListings(ctx.root));
 }
 
 // Luau's parser's error for a line of words in a function body.
@@ -95,7 +95,7 @@ describe("story lines after a function declaration", () => {
       }
     }
     expect(lines).toEqual(["After it.\n"]);
-    const named = flowListings(ctx.compiledJson);
+    const named = flowListings(ctx.root);
     expect(holds(named.get("greet"), "After it.")).toBe(false);
   });
 

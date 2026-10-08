@@ -8,10 +8,9 @@
 // its error lands on whatever line the host last recorded.
 //
 // Compiled the way the player compiles, with the builtins prelude.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { RaisedError } from "../../runtime/Error";
-import { testCompiler, testRoot, testStory } from "../engineUnderTest";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -44,7 +43,7 @@ function compile(text: string) {
 
 /** The address of main.sd's `line`, when one stands on that line. */
 const addressesOn = (program: any, line: number): number[] => {
-  const root = testRoot(program.compiled)!;
+  const root = program.chunks!;
   const address = root.addressAt(URI, line);
   const location = address === undefined ? undefined : root.locationOf(address);
   return location?.uri === URI && location.startLine === line ? [address!] : [];
@@ -70,7 +69,7 @@ const diagnosticsMatching = (program: any, pattern: RegExp) =>
 
 /** Everything the story writes when run to its end with no choices. */
 function runText(program: any): string {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   let text = "";
   for (let step = 0; step < 100 && story.canContinue; step++) {
     text += story.Continue();
@@ -81,7 +80,7 @@ function runText(program: any): string {
 /** Run the story until it raises, and return the address the error was
  *  raised at. */
 function raisedAddress(program: any): number | undefined {
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   let raised: RaisedError | null | undefined;
   story.onError = (_message, _type, _source, record) => {
     raised ??= record;
@@ -104,7 +103,7 @@ function raisedLine(source: string): number | undefined {
   const program = compile(source);
   const address = raisedAddress(program);
   expect(address, "the story did not raise").toBeDefined();
-  const location = testRoot(program.compiled)!.locationOf(address!);
+  const location = program.chunks!.locationOf(address!);
   expect(location, `no location for raised address ${address}`).toBeDefined();
   expect(location!.uri).toBe(URI);
   return location!.startLine;

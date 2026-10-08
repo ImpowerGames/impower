@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { blockCount } from "../../program/StatementChunk";
+import { blockCount } from "../../program/ProgramChunk";
 import { SymbolKind } from "../../program/ProgramSymbols";
 import {
   lines,

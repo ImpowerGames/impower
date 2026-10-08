@@ -1,7 +1,6 @@
 // A colon method call keeps its receiver in a compiler-generated temp and
 // reads the method from that temp. The author never wrote the temp, so the
 // call compiles with no diagnostic naming it, wherever the call sits.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";

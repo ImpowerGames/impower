@@ -55,7 +55,7 @@ function run(files: Array<{ uri: string; text: string }>) {
       else if ((d as any).severity === 2) warnings.push(message);
     }
   }
-  const story = testStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.chunks);
   const recorded: unknown[] = [];
   story.BindExternalFunction("harness_record", (v: unknown) => {
     recorded.push(v);

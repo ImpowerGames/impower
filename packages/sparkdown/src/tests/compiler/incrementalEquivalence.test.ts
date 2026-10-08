@@ -27,7 +27,6 @@
 // sits in an included script. The seeded edits check by chunk identity that
 // each construct's chunk was carried rather than lowered again, so that a
 // comparison cannot pass over a construct the compile lowered again.
-import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programListing } from "../programListing";

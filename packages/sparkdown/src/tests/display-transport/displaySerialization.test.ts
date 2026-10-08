@@ -10,8 +10,9 @@
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../runtime/Value";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 
-function compile(source: string): Record<string, any> {
+function compile(source: string): ProgramRoot {
   const compiler = testCompiler();
   compiler.configure({
     files: [
@@ -29,10 +30,10 @@ function compile(source: string): Record<string, any> {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("display serialization fixture failed to compile");
   }
-  return result.program.compiled as Record<string, any>;
+  return result.program.chunks;
 }
 
 function field(obj: ObjectValue, key: string): unknown {

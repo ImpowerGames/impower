@@ -19,7 +19,6 @@
 // removes the entry. Integer limitations remain after #1309 closes and require
 // Luau to accept the input while Sparkdown reports its unsupported diagnostic.
 
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
