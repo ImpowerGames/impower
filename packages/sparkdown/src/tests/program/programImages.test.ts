@@ -6,7 +6,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { lastSearchStats, planRoute } from "../../compiler/utils/planRoute";
 import type { Story } from "../../inkjs/engine/Story";
-import { MultiValue, ObjectValue, StringValue } from "../../inkjs/engine/Value";
+import { MultiValue, ObjectValue, StringValue } from "../../runtime/Value";
 import {
   MAX_DELTA_DEPTH,
   ProgramImages,

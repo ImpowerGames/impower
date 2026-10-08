@@ -1,6 +1,6 @@
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";

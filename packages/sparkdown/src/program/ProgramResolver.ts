@@ -43,10 +43,10 @@ import { memoGatherOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Me
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Container as RuntimeContainer } from "../inkjs/engine/Container";
-import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
-import type { SourceMetadata } from "../inkjs/engine/Error";
+import { DebugMetadata } from "../runtime/DebugMetadata";
+import type { SourceMetadata } from "../runtime/Error";
 import type { Story as RuntimeStory } from "../inkjs/engine/Story";
-import type { StructDefinition as RuntimeStructDefinition } from "../inkjs/engine/StructDefinition";
+import type { StructDefinition as RuntimeStructDefinition } from "../runtime/StructDefinition";
 import type {
   MemoReported,
   MemoResolution,

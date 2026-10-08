@@ -8,12 +8,10 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { currentEngineCompiler } from "../engineUnderTest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { SimpleJson } from "../../inkjs/engine/SimpleJson";
+import { SimpleJson } from "../../runtime/SimpleJson";
 import { materializeNode } from "../../binary/programBinary";
-import {
-  ProgramBinaryWriter,
-  createProgramTable,
-} from "../../binary/ProgramBinaryWriter";
+import { ProgramBinaryWriter } from "../../binary/ProgramBinaryWriter";
+import { createProgramTable } from "../../program/ProgramTable";
 
 const URI = "inmemory:///main.sd";
 

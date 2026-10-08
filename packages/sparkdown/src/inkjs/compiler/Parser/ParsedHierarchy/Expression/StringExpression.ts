@@ -3,7 +3,7 @@ import { ControlCommand as RuntimeControlCommand } from "../../../../engine/Cont
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import { Text } from "../Text";
-import { asOrNull } from "../../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 

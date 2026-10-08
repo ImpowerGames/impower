@@ -1,6 +1,6 @@
 import { ParsedObject } from "./Object";
 import { ControlCommand } from "../../../engine/ControlCommand";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { Op } from "../../../../program/ProgramInstructions";
 
@@ -37,7 +37,7 @@ export class Tag extends ParsedObject {
   };
 }
 
-import { Tag as RuntimeTag } from "../../../engine/Tag";
+import { Tag as RuntimeTag } from "../../../../runtime/Tag";
 import { Wrap } from "./Wrap";
 export class LegacyTag extends Wrap<RuntimeTag> {
   constructor(tag: RuntimeTag) {

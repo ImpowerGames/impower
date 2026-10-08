@@ -6,7 +6,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { Story } from "../../inkjs/engine/Story";
-import { ObjectValue } from "../../inkjs/engine/Value";
+import { ObjectValue } from "../../runtime/Value";
 import { ChunkStore } from "../../program/ChunkStore";
 import { ProgramResolver } from "../../program/ProgramResolver";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";

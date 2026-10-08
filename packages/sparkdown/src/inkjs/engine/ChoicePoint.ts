@@ -1,7 +1,7 @@
-import { InkObject } from "./Object";
-import { Path } from "./Path";
+import { InkObject } from "../../runtime/Object";
+import { Path } from "../../runtime/Path";
 import { Container } from "./Container";
-import { throwNullException } from "./NullException";
+import { throwNullException } from "../../runtime/NullException";
 
 export class ChoicePoint extends InkObject {
   public _pathOnChoice: Path | null = null;

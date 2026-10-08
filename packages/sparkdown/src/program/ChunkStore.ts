@@ -1,11 +1,7 @@
 // Loads the engine's modules in the order that settles their import cycle
 // (see `CompilationAnnotator`).
 import "../inkjs/engine/Container";
-import {
-  createProgramTable,
-  reseedProgramTable,
-  type ProgramTable,
-} from "../binary/ProgramBinaryWriter";
+import { createProgramTable, reseedProgramTable, type ProgramTable } from "./ProgramTable";
 import {
   alternatorSourceOf,
   functionShapeOf,
@@ -14,7 +10,7 @@ import {
   partOfBody,
   type BodyShape,
 } from "../compiler/lower/utils/statementShape";
-import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
+import type { DebugMetadata } from "../runtime/DebugMetadata";
 import type { Story } from "../inkjs/engine/Story";
 import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -44,7 +40,7 @@ import {
   parameterKinds,
   UNDEFINED_FACT,
 } from "./ProgramFacts";
-import { StoryException } from "../inkjs/engine/StoryException";
+import { StoryException } from "../runtime/StoryException";
 import {
   StatementMemoRetry,
   type StatementMemoEntry,

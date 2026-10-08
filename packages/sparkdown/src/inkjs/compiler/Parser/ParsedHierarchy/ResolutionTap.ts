@@ -1,4 +1,4 @@
-import type { DebugMetadata } from "../../../engine/DebugMetadata";
+import type { DebugMetadata } from "../../../../runtime/DebugMetadata";
 import type { ParsedObject } from "./Object";
 
 /**

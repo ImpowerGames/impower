@@ -1,6 +1,6 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "./Expression";
-import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
+import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 

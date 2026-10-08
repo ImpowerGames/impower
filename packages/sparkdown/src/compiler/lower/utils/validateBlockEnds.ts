@@ -1,7 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";

@@ -1,7 +1,7 @@
 // Loads the engine's modules in the order that settles their import cycle
 // (see `CompilationAnnotator`).
 import "../inkjs/engine/Container";
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
+import type { ProgramTable } from "./ProgramTable";
 import {
   bodyOfBlock,
   choiceBodyOf,
@@ -12,7 +12,7 @@ import {
   loopOf,
   type LoopShape,
 } from "../compiler/lower/utils/statementShape";
-import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
+import type { DebugMetadata } from "../runtime/DebugMetadata";
 import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { Conditional } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";

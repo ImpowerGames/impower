@@ -21,7 +21,7 @@ import { performance } from "node:perf_hooks";
 import { NODE_WIDTH, buildProgramBuffer } from "../../packages/sparkdown/src/binary/programBinary";
 import { ProgramBinaryWriter } from "../../packages/sparkdown/src/binary/ProgramBinaryWriter";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { SimpleJson } from "../../packages/sparkdown/src/inkjs/engine/SimpleJson";
+import { SimpleJson } from "../../packages/sparkdown/src/runtime/SimpleJson";
 import type { Story } from "../../packages/sparkdown/src/inkjs/engine/Story";
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";

@@ -12,13 +12,13 @@ import { Gather } from "./Gather/Gather";
 import { GatherPointToResolve } from "./Gather/GatherPointToResolve";
 import type { IWeavePoint } from "./IWeavePoint";
 import { ParsedObject } from "./Object";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Sequence } from "./Sequence/Sequence";
 import { Story } from "./Story";
 import { Text } from "./Text";
 import { TunnelOnwards } from "./TunnelOnwards";
 import { VariableAssignment } from "./Variable/VariableAssignment";
-import { asOrNull } from "../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { RecordingMap } from "./ResolutionTap";
 

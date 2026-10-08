@@ -1,4 +1,4 @@
-import { Choice } from "@impower/sparkdown/src/inkjs/engine/Choice";
+import { Choice } from "@impower/sparkdown/src/runtime/Choice";
 import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
 

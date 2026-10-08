@@ -224,5 +224,5 @@ for the Luau-stdlib `s:upper()` cases).
 
 Runtime: each `__method_*` registers in a new `METHOD_DISPATCH` table
 parallel to `STDLIB` in
-[`src/inkjs/engine/StdLib.ts`](src/inkjs/engine/StdLib.ts). Receiver
+[`src/runtime/StdLib.ts`](src/runtime/StdLib.ts). Receiver
 type-check is the helper's first line.

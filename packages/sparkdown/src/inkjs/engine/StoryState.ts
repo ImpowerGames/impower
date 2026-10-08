@@ -1,32 +1,32 @@
-import { VariablesState } from "./VariablesState";
-import { ValueType, Value, StringValue, ListValue, ObjectValue } from "./Value";
-import { PushPopType } from "./PushPop";
-import { Tag } from "./Tag";
-import { Path } from "./Path";
+import { VariablesState } from "../../runtime/VariablesState";
+import { ValueType, Value, StringValue, ListValue, ObjectValue } from "../../runtime/Value";
+import { PushPopType } from "../../runtime/PushPop";
+import { Tag } from "../../runtime/Tag";
+import { Path } from "../../runtime/Path";
 import { ControlCommand } from "./ControlCommand";
-import { StringBuilder } from "./StringBuilder";
-import { JsonSerialisation } from "./JsonSerialisation";
-import { PRNG } from "./PRNG";
-import { Void } from "./Void";
-import { Pointer } from "./Pointer";
-import { tryGetValueFromMap } from "./TryGetResult";
-import { Choice } from "./Choice";
-import { asOrNull, asOrThrows, nullIfUndefined } from "./TypeAssertion";
-import { Debug } from "./Debug";
+import { StringBuilder } from "../../runtime/StringBuilder";
+import { JsonSerialisation } from "../../runtime/JsonSerialisation";
+import { PRNG } from "../../runtime/PRNG";
+import { Void } from "../../runtime/Void";
+import { Pointer } from "../../runtime/Pointer";
+import { tryGetValueFromMap } from "../../runtime/TryGetResult";
+import { Choice } from "../../runtime/Choice";
+import { asOrNull, asOrThrows, nullIfUndefined } from "../../runtime/TypeAssertion";
+import { Debug } from "../../runtime/Debug";
 import { Container } from "./Container";
-import { InkObject } from "./Object";
-import { throwNullException } from "./NullException";
+import { InkObject } from "../../runtime/Object";
+import { throwNullException } from "../../runtime/NullException";
 import { Story } from "./Story";
-import { SimpleJson } from "./SimpleJson";
+import { SimpleJson } from "../../runtime/SimpleJson";
 import { type CarriedStep, Flow } from "./Flow";
-import { InkList } from "./InkList";
-import type { RaisedError } from "./Error";
+import { InkList } from "../../runtime/InkList";
+import type { RaisedError } from "../../runtime/Error";
 import {
   cleanOutputWhitespace,
   findOpenString,
   isBeginString,
   splitHeadTailWhitespace,
-} from "./outputWhitespace";
+} from "../../runtime/outputWhitespace";
 
 export class StoryState {
   // Backward compatible changes since v8:

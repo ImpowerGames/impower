@@ -1,6 +1,6 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { DebugMetadata } from "../../../engine/DebugMetadata";
-import type { InkObject as RuntimeObject } from "../../../engine/Object";
+import { DebugMetadata } from "../../../../runtime/DebugMetadata";
+import type { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { ParsedObject } from "./Object";
 import { resolutionTap } from "./ResolutionTap";

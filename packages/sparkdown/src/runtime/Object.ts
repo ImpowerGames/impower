@@ -1,9 +1,9 @@
 import { Path } from "./Path";
-import { Container } from "./Container";
+import { Container } from "../inkjs/engine/Container";
 import { Debug } from "./Debug";
 import { asOrNull, asINamedContentOrNull } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
-import { SearchResult } from "./SearchResult";
+import { SearchResult } from "../inkjs/engine/SearchResult";
 import { DebugMetadata } from "./DebugMetadata";
 import { activation } from "./StoryActivation";
 

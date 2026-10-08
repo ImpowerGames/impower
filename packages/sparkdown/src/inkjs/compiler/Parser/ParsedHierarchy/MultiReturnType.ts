@@ -1,6 +1,6 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Expression } from "./Expression/Expression";
 import { ParsedObject } from "./Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";

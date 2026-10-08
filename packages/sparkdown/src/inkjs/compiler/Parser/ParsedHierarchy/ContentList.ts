@@ -1,8 +1,8 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ParsedObject } from "./Object";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Text } from "./Text";
-import { asOrNull } from "../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 
 export class ContentList extends ParsedObject {

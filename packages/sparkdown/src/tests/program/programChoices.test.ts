@@ -8,7 +8,7 @@ import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import { shuffleDraws } from "../../inkjs/engine/Story";
+import { shuffleDraws } from "../../runtime/evaluation";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import {
   CHOICE_ONCE,

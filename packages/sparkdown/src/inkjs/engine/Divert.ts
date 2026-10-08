@@ -1,11 +1,11 @@
-import { Path } from "./Path";
-import { PushPopType } from "./PushPop";
-import { StringBuilder } from "./StringBuilder";
-import { InkObject } from "./Object";
-import { Pointer } from "./Pointer";
+import { Path } from "../../runtime/Path";
+import { PushPopType } from "../../runtime/PushPop";
+import { StringBuilder } from "../../runtime/StringBuilder";
+import { InkObject } from "../../runtime/Object";
+import { Pointer } from "../../runtime/Pointer";
 import { Container } from "./Container";
-import { throwNullException } from "./NullException";
-import { activation } from "./StoryActivation";
+import { throwNullException } from "../../runtime/NullException";
+import { activation } from "../../runtime/StoryActivation";
 
 export class Divert extends InkObject {
   get targetPath() {

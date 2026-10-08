@@ -10,9 +10,9 @@
 import { Container } from "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import type { InkObject } from "../../inkjs/engine/Object";
+import type { InkObject } from "../../runtime/Object";
 import { Story } from "../../inkjs/engine/Story";
-import { StringValue } from "../../inkjs/engine/Value";
+import { StringValue } from "../../runtime/Value";
 import { ProgramStoryState } from "../../program/ProgramStoryState";
 
 const newState = () => {

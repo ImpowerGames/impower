@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
-import { ObjectValue } from "../../inkjs/engine/Value";
+import { ObjectValue } from "../../runtime/Value";
 
 function run(source: string) {
   const compiler = testCompiler();

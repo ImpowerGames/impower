@@ -1,10 +1,10 @@
 import { ChoicePoint } from "../../inkjs/engine/ChoicePoint";
 import { Container } from "../../inkjs/engine/Container";
-import type { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
+import type { DebugMetadata } from "../../runtime/DebugMetadata";
 import { Divert } from "../../inkjs/engine/Divert";
-import { activation } from "../../inkjs/engine/StoryActivation";
-import { DivertTargetValue } from "../../inkjs/engine/Value";
-import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
+import { activation } from "../../runtime/StoryActivation";
+import { DivertTargetValue } from "../../runtime/Value";
+import { VariableAssignment } from "../../runtime/VariableAssignment";
 import { VariableReference } from "../../inkjs/engine/VariableReference";
 
 type Fields = Record<string, unknown>;

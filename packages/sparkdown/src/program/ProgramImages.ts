@@ -1,11 +1,11 @@
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
-import type { InkObject } from "../inkjs/engine/Object";
+import type { ProgramTable } from "./ProgramTable";
+import type { InkObject } from "../runtime/Object";
 import {
   type AbstractValue,
   ObjectValue,
   VariablePointerValue,
-} from "../inkjs/engine/Value";
-import type { ImageBarrier } from "../inkjs/engine/VariablesState";
+} from "../runtime/Value";
+import type { ImageBarrier } from "../runtime/VariablesState";
 import type { ProgramRoot } from "./ProgramRoot";
 import { countIdOf } from "./ProgramSymbols";
 import type {

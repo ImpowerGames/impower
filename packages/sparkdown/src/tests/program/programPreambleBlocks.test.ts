@@ -12,7 +12,7 @@
 // fixtures as intended differences.
 import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
-import { shuffleDraws } from "../../inkjs/engine/Story";
+import { shuffleDraws } from "../../runtime/evaluation";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";

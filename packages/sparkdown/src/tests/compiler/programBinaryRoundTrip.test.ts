@@ -9,7 +9,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { currentEngineCompiler } from "../engineUnderTest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { SimpleJson } from "../../inkjs/engine/SimpleJson";
+import { SimpleJson } from "../../runtime/SimpleJson";
 import {
   NODE_WIDTH,
   ProgramNodeTag,

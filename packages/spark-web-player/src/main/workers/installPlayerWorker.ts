@@ -21,7 +21,7 @@ import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import {
   executionWatch,
   type WatchedStory,
-} from "@impower/sparkdown/src/inkjs/engine/ExecutionWatch";
+} from "@impower/sparkdown/src/runtime/ExecutionWatch";
 import type { Story as RuntimeStory } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";

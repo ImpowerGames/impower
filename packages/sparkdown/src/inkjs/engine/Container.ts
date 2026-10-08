@@ -1,14 +1,14 @@
-import { StringValue } from "./Value";
-import { throwNullException } from "./NullException";
-import { StringBuilder } from "./StringBuilder";
-import type { INamedContent } from "./INamedContent";
-import { InkObject } from "./Object";
+import { StringValue } from "../../runtime/Value";
+import { throwNullException } from "../../runtime/NullException";
+import { StringBuilder } from "../../runtime/StringBuilder";
+import type { INamedContent } from "../../runtime/INamedContent";
+import { InkObject } from "../../runtime/Object";
 import { SearchResult } from "./SearchResult";
-import { Path } from "./Path";
-import { Debug } from "./Debug";
-import { tryGetValueFromMap } from "./TryGetResult";
-import { asINamedContentOrNull, asOrNull, asOrThrows } from "./TypeAssertion";
-import { activation } from "./StoryActivation";
+import { Path } from "../../runtime/Path";
+import { Debug } from "../../runtime/Debug";
+import { tryGetValueFromMap } from "../../runtime/TryGetResult";
+import { asINamedContentOrNull, asOrNull, asOrThrows } from "../../runtime/TypeAssertion";
+import { activation } from "../../runtime/StoryActivation";
 
 export class Container extends InkObject implements INamedContent {
   public name: string | null = null;

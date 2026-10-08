@@ -1,4 +1,4 @@
-import type { SourceMetadata } from "../../../inkjs/engine/Error";
+import type { SourceMetadata } from "../../../runtime/Error";
 import type { LowerContext } from "../context";
 
 // The source of a diagnostic reported on a whole statement. A statement's

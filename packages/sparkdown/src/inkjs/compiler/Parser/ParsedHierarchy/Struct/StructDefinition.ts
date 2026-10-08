@@ -1,4 +1,4 @@
-import { StructDefinition as RuntimeStructDefinition } from "../../../../engine/StructDefinition";
+import { StructDefinition as RuntimeStructDefinition } from "../../../../../runtime/StructDefinition";
 import { StructPropertyDefinition } from "./StructPropertyDefinition";
 import { ParsedObject } from "../Object";
 import { Story } from "../Story";

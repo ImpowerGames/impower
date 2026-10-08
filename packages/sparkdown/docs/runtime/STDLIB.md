@@ -5,7 +5,7 @@ authors can use the same functions they're familiar with from Luau /
 Roblox / Lua 5.1. This document tracks what's implemented today and what
 still needs to land.
 
-**Source of truth**: [`src/inkjs/engine/StdLib.ts`](src/inkjs/engine/StdLib.ts).
+**Source of truth**: [`src/runtime/StdLib.ts`](src/runtime/StdLib.ts).
 The unified `STDLIB` table holds every Luau stdlib function keyed by its
 dotted full name (`"math.abs"`, `"plural.category"`, `"assert"`, ...).
 Each entry is `{arity, pure?, fn(story, args)}`. Pure entries
@@ -450,7 +450,7 @@ can land in `STDLIB`:
   function replacement forms) cover the full Lua-pattern surface
   including `%f[]` frontier, `()` position capture, and `%b{xy}`
   balanced match. Patterns translate via `luaPatternToJs` →
-  `executeLuaPattern` (`inkjs/engine/LuaPatterns.ts`). Function-form
+  `executeLuaPattern` (`runtime/LuaPatterns.ts`). Function-form
   `gsub` calls the user fn via `story.CallLuauFunction` per match.
 
 - **Protected call (LANDED)** — `pcall` / `xpcall` use
@@ -499,7 +499,7 @@ can land in `STDLIB`:
 ## How to add a new entry
 
 The single source of truth is the `STDLIB` table in
-[`src/inkjs/engine/StdLib.ts`](src/inkjs/engine/StdLib.ts). Every
+[`src/runtime/StdLib.ts`](src/runtime/StdLib.ts). Every
 entry has `{arity, pure?, fn(story, args)}`.
 
 ### Pure (auto-mounted on `NativeFunctionCall`)

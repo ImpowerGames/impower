@@ -18,7 +18,7 @@ import { tryGetValueFromMap } from "./TryGetResult";
 import { throwNullException } from "./NullException";
 import { CallStack } from "./CallStack";
 import { SimpleJson } from "./SimpleJson";
-import { InkList } from "./Story";
+import { InkList } from "./InkList";
 import { Path } from "./Path";
 
 // Fake class wrapper around VariableState to have correct typing

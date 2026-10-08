@@ -13,7 +13,7 @@
 // explicit imports rather than relying on globals.
 
 import { describe, expect, it } from "vitest";
-import { Path } from "../../inkjs/engine/Path";
+import { Path } from "../../runtime/Path";
 
 describe("Path", () => {
   it("equates by component list, distinguishing absolute from relative", () => {

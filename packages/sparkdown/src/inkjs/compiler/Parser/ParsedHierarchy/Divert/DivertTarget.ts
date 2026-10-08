@@ -6,14 +6,14 @@ import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ParsedObject } from "../Object";
 import { Divert } from "./Divert";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { DivertTargetValue } from "../../../../engine/Value";
+import { DivertTargetValue } from "../../../../../runtime/Value";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
 import { MultipleConditionExpression } from "../Expression/MultipleConditionExpression";
 import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
-import { asOrNull } from "../../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 

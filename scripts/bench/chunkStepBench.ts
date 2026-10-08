@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
-import type { InkObject } from "../../packages/sparkdown/src/inkjs/engine/Object";
+import type { InkObject } from "../../packages/sparkdown/src/runtime/Object";
 import { Story } from "../../packages/sparkdown/src/inkjs/engine/Story";
 import { MAIN_URI, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
 import { B_SEQUENCE, BLOCK_ROW, H_BLOCKS, H_CODE_WORDS, H_ID, HEADER, Op, PLAIN_LINES, copyChunk, documentOrder, insertChunk, layoutFromScratch, lineOf, position, writeChunkProgram, type ProgramRoot } from "./chunkProgram";

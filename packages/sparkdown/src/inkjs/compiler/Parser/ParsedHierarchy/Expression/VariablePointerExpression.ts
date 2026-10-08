@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { VariablePointerValue } from "../../../../engine/Value";
+import { VariablePointerValue } from "../../../../../runtime/Value";
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";

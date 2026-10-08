@@ -1,6 +1,6 @@
-import type { INamedContent } from "../../../../engine/INamedContent";
+import type { INamedContent } from "../../../../../runtime/INamedContent";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Identifier } from "../Identifier";
 import { resolutionTap } from "../ResolutionTap";
 

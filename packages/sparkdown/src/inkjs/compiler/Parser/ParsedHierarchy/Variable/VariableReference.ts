@@ -6,12 +6,12 @@ import { Path } from "../Path";
 import { Story } from "../Story";
 import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Identifier } from "../Identifier";
-import { asOrNull, filterUndef } from "../../../../engine/TypeAssertion";
+import { asOrNull, filterUndef } from "../../../../../runtime/TypeAssertion";
 import {
   isStdLibFunctionName,
   isStdLibNamespaceName,
   lookupStdLibConstant,
-} from "../../../../engine/StdLib";
+} from "../../../../../runtime/StdLib";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 

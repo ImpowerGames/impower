@@ -8,7 +8,7 @@ import "../inkjs/engine/Container";
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../compiler/types/SparkdownCompilerConfig";
 import type { SparkProgram } from "../compiler/types/SparkProgram";
-import { STDLIB, type StdLibEntry } from "../inkjs/engine/StdLib";
+import { STDLIB, type StdLibEntry } from "../runtime/StdLib";
 import { Story as RuntimeStory } from "../inkjs/engine/Story";
 import type { ProgramRoot } from "../program/ProgramRoot";
 import { ProgramStory } from "../program/ProgramStory";

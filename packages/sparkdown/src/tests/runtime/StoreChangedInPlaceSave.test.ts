@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
-import { VariablesState } from "../../inkjs/engine/VariablesState";
+import { VariablesState } from "../../runtime/VariablesState";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function saveAfterFirstLine(source: string): {

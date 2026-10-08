@@ -13,8 +13,8 @@
 // handed to it, as one would), loops, glue, tags, every builtin but `display`,
 // choice conditions, once-only and fallback choices, errors and warnings, the
 // save format.
-import type { InkObject } from "../../packages/sparkdown/src/inkjs/engine/Object";
-import { NullValue, ObjectValue, StringValue, type AbstractValue } from "../../packages/sparkdown/src/inkjs/engine/Value";
+import type { InkObject } from "../../packages/sparkdown/src/runtime/Object";
+import { NullValue, ObjectValue, StringValue, type AbstractValue } from "../../packages/sparkdown/src/runtime/Value";
 import { B_RESUME, B_SEQUENCE, BLOCK_ROW, CHOICE_HAS_CHOICE_ONLY_CONTENT, CHOICE_HAS_START_CONTENT, FLAG_DISCARD, H_BLOCKS, H_CODE_WORDS, H_ID, HEADER, Op, position, type ProgramRoot, type Sequence } from "./chunkProgram";
 
 export interface ChunkLine {

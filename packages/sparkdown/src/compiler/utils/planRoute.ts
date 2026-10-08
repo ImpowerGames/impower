@@ -1,7 +1,7 @@
-import type { Simulator,SimulatorSnapshot } from "../../inkjs/engine/Simulator";
-import { ErrorType } from "../../inkjs/engine/Error";
+import type { Simulator,SimulatorSnapshot } from "../../runtime/Simulator";
+import { ErrorType } from "../../runtime/Error";
 import { Story } from "../../inkjs/engine/Story";
-import { StepLimitExceeded } from "../../inkjs/engine/StoryException";
+import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { chunkOfAddress } from "../../program/StatementChunk";

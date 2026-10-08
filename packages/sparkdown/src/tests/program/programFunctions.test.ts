@@ -3,17 +3,17 @@
 // sections 2, 3, 7 and 10).
 import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CallStack } from "../../inkjs/engine/CallStack";
-import type { InkObject } from "../../inkjs/engine/Object";
-import { Path } from "../../inkjs/engine/Path";
-import { VariablesState } from "../../inkjs/engine/VariablesState";
+import { CallStack } from "../../runtime/CallStack";
+import type { InkObject } from "../../runtime/Object";
+import { Path } from "../../runtime/Path";
+import { VariablesState } from "../../runtime/VariablesState";
 import {
   DivertTargetValue,
   MultiValue,
   ObjectValue,
   SymbolValue,
   VariablePointerValue,
-} from "../../inkjs/engine/Value";
+} from "../../runtime/Value";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { exportCount, exportSymbol } from "../../program/StatementChunk";

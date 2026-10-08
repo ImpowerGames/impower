@@ -1,6 +1,6 @@
 import { ParsedObject } from "./Object";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
-import { StringValue } from "../../../engine/Value";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
+import { StringValue } from "../../../../runtime/Value";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { Op } from "../../../../program/ProgramInstructions";
 

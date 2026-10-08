@@ -7,8 +7,8 @@
 
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
-import { NullValue } from "../../inkjs/engine/Value";
-import { VariablesState } from "../../inkjs/engine/VariablesState";
+import { NullValue } from "../../runtime/Value";
+import { VariablesState } from "../../runtime/VariablesState";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const NIL_STORES = [

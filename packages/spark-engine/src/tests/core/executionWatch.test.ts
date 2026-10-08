@@ -13,7 +13,7 @@ import {
   EXECUTION_WATCH_STEPS,
   executionWatch,
   type WatchedStory,
-} from "@impower/sparkdown/src/inkjs/engine/ExecutionWatch";
+} from "@impower/sparkdown/src/runtime/ExecutionWatch";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";

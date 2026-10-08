@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import type { InkObject as RuntimeObject } from "../../../../engine/Object";
+import type { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Identifier } from "../Identifier";
 import {

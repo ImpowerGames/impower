@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
-import type { ObjectValue } from "../../inkjs/engine/Value";
+import type { ObjectValue } from "../../runtime/Value";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import {
   BEAT_DECISIONS_FIXED,

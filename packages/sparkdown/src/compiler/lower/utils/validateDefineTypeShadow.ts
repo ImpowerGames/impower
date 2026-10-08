@@ -1,4 +1,4 @@
-import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import { getBuiltinTypeNames } from "../../utils/builtinTypeNames";
 import type { LowerContext } from "../context";
 

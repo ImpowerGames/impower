@@ -1,6 +1,6 @@
 // Phase 1 of Lua-pattern support: `string.find` and `string.match`.
 // Patterns are translated to JS regex via `luaPatternToJs` in
-// `inkjs/engine/LuaPatterns.ts`. Phase 1 omits `%b{}` balanced
+// `runtime/LuaPatterns.ts`. Phase 1 omits `%b{}` balanced
 // match, `%f[]` frontier, and `()` position captures — those
 // throw a runtime story.Error pointing at the unsupported feature.
 

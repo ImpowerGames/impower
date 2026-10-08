@@ -1,7 +1,7 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
-import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
+import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { KEEP_OR, Op } from "../../../../../program/ProgramInstructions";
 

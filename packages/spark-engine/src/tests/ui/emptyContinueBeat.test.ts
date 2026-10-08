@@ -10,7 +10,7 @@ import {
   ObjectValue,
   StringValue,
   type AbstractValue,
-} from "@impower/sparkdown/src/inkjs/engine/Value";
+} from "@impower/sparkdown/src/runtime/Value";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness } from "./harness/uiTestHarness";
 import { requireChunks } from "../harness/compileProgram";

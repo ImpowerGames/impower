@@ -3,7 +3,7 @@
 // single instructions.
 import "../../inkjs/engine/Container";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import type { InkObject } from "../../inkjs/engine/Object";
+import type { InkObject } from "../../runtime/Object";
 import {
   FloatValue,
   MultiValue,
@@ -11,8 +11,8 @@ import {
   ObjectValue,
   StringValue,
   Value,
-} from "../../inkjs/engine/Value";
-import { Void } from "../../inkjs/engine/Void";
+} from "../../runtime/Value";
+import { Void } from "../../runtime/Void";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import { ChunkStore } from "../../program/ChunkStore";

@@ -3,13 +3,13 @@ import { ControlCommand as RuntimeControlCommand } from "../../../../engine/Cont
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
-import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
-import { StringValue } from "../../../../engine/Value";
+import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
+import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
+import { StringValue } from "../../../../../runtime/Value";
 import { Story } from "../Story";
 import { Text } from "../Text";
 import { Weave } from "../Weave";
-import { asOrNull } from "../../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import type {
   ProgramEmitter,
   ProgramLabel,
