@@ -1,17 +1,16 @@
 import { describe, expect, test } from "vitest";
-import { currentEngineCompiler } from "../engineUnderTest";
-import type { PathLocationTable } from "../../compiler/types/SparkProgram";
-import { startLineAtRow } from "../../compiler/utils/pathLocationTable";
+import { testCompiler, testRoot, testStory } from "../engineUnderTest";
 import {
   planRoute,
   lastSearchStats,
 } from "../../compiler/utils/planRoute";
-import { Story } from "../../inkjs/engine/Story";
+import type { Story } from "../../inkjs/engine/Story";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 
 const URI = "inmemory:///main.sd";
 
 function compile(src: string) {
-  const compiler = currentEngineCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -29,34 +28,35 @@ function compile(src: string) {
     textDocument: { uri: URI },
     countAllVisits: true,
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error(
       "fixture failed to compile: " +
         JSON.stringify(result.program.diagnostics),
     );
   }
   return {
-    story: new Story(result.program.compiled as Record<string, any>),
+    story: testStory(result.program.compiled as Record<string, any>),
+    root: testRoot(result.program.compiled)!,
     program: result.program,
   };
 }
 
-function pathsForLine(
-  pathLocations: PathLocationTable | undefined,
-  line: number,
-): string[] {
-  return (pathLocations?.paths ?? []).filter(
-    (_path, row) => startLineAtRow(pathLocations!, row) === line,
-  );
+/** The addresses that stand on `line`: the one the line resolves to, when
+ *  it starts there. */
+function addressesForLine(root: ProgramRoot, line: number): number[] {
+  const address = root.addressAt(URI, line);
+  return address !== undefined && root.locationOf(address)?.startLine === line
+    ? [address]
+    : [];
 }
 
 function plan(
   story: Story,
   fromPath: string,
-  toPath: string,
+  to: number,
   functions: string[],
 ) {
-  return planRoute(story, fromPath, toPath, {
+  return planRoute(story, fromPath, to, {
     stayWithinKnot: true,
     functions,
   });
@@ -108,62 +108,47 @@ end
 `;
 
   test("route to a line after a tunnel return is found", () => {
-    const { story, program } = compile(FIXTURE);
+    const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
-    const paths = pathsForLine(locs, 5);
-    expect(paths.length).toBeGreaterThan(0);
-    const toPath = paths[0]!;
-    const fromPath = "A";
-    const result = plan(story, fromPath, toPath, functions);
+    const addresses = addressesForLine(root, 5);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
     expect(result).not.toBeNull();
   });
 
   test("route to a line after a thread is found", () => {
-    const { story, program } = compile(FIXTURE);
+    const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
-    const paths = pathsForLine(locs, 7);
-    expect(paths.length).toBeGreaterThan(0);
-    const toPath = paths[0]!;
-    const fromPath = "A";
-    const result = plan(story, fromPath, toPath, functions);
+    const addresses = addressesForLine(root, 7);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
     expect(result).not.toBeNull();
   });
 
   test("route to the last line of the scene is found", () => {
-    const { story, program } = compile(FIXTURE);
+    const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
-    const paths = pathsForLine(locs, 8);
-    expect(paths.length).toBeGreaterThan(0);
-    const toPath = paths[0]!;
-    const fromPath = "A";
-    const result = plan(story, fromPath, toPath, functions);
+    const addresses = addressesForLine(root, 8);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
     expect(result).not.toBeNull();
   });
 
   test("route inside a tunnel callee is planned from the callee scene", () => {
-    const { story, program } = compile(FIXTURE);
+    const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
-    const paths = pathsForLine(locs, 12);
-    expect(paths.length).toBeGreaterThan(0);
-    const toPath = paths[0]!;
-    const fromPath = "B";
-    const result = plan(story, fromPath, toPath, functions);
+    const addresses = addressesForLine(root, 12);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "B", addresses[0]!, functions);
     expect(result).not.toBeNull();
   });
 
   test("route inside a thread callee is planned from the callee scene", () => {
-    const { story, program } = compile(FIXTURE);
+    const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
-    const paths = pathsForLine(locs, 17);
-    expect(paths.length).toBeGreaterThan(0);
-    const toPath = paths[0]!;
-    const fromPath = "C";
-    const result = plan(story, fromPath, toPath, functions);
+    const addresses = addressesForLine(root, 17);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "C", addresses[0]!, functions);
     expect(result).not.toBeNull();
   });
 });
@@ -205,30 +190,26 @@ end
 `;
 
   test("unreachable target in a scene with a one-way exit reports exhausted quickly", () => {
-    const { story, program } = compile(FIXTURE_ONEWAY);
+    const { story, root, program } = compile(FIXTURE_ONEWAY);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
 
-    const fromPath = "A";
-    const bPaths = (locs?.paths ?? []).filter((p) => p.startsWith("B."));
-    expect(bPaths.length).toBeGreaterThan(0);
-    const toPath = bPaths[bPaths.length - 1]!;
+    // The last line of B.
+    const addresses = addressesForLine(root, 17);
+    expect(addresses.length).toBeGreaterThan(0);
+    expect(root.sceneAt(addresses[0]!)).toBe("B");
 
-    const result = plan(story, fromPath, toPath, functions);
+    const result = plan(story, "A", addresses[0]!, functions);
     expect(result).toBeNull();
     expect(lastSearchStats.endReason).toBe("exhausted");
     expect(lastSearchStats.stepsUsed).toBeLessThan(30);
   });
 
   test("reachable target before the one-way exit is found", () => {
-    const { story, program } = compile(FIXTURE_ONEWAY);
+    const { story, root, program } = compile(FIXTURE_ONEWAY);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
-    const paths = pathsForLine(locs, 3);
-    expect(paths.length).toBeGreaterThan(0);
-    const toPath = paths[0]!;
-    const fromPath = "A";
-    const result = plan(story, fromPath, toPath, functions);
+    const addresses = addressesForLine(root, 3);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
     expect(result).not.toBeNull();
   });
 });
@@ -247,16 +228,15 @@ scene Y
   Line in Y.
 end
 `;
-    const { story, program } = compile(FIXTURE);
+    const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
 
-    const fromPath = "X";
-    const yPaths = (locs?.paths ?? []).filter((p) => p.startsWith("Y."));
-    expect(yPaths.length).toBeGreaterThan(0);
-    const toPath = yPaths[0]!;
+    // The first line of Y.
+    const addresses = addressesForLine(root, 8);
+    expect(addresses.length).toBeGreaterThan(0);
+    expect(root.sceneAt(addresses[0]!)).toBe("Y");
 
-    const result = plan(story, fromPath, toPath, functions);
+    const result = plan(story, "X", addresses[0]!, functions);
     expect(result).toBeNull();
     expect(lastSearchStats.endReason).toBe("exhausted");
     expect(lastSearchStats.stepsUsed).toBeLessThan(30);
@@ -277,15 +257,11 @@ scene helper
   ->->
 end
 `;
-    const { story, program } = compile(FIXTURE);
+    const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations;
-    const paths = pathsForLine(locs, 5);
-    expect(paths.length).toBeGreaterThan(0);
-    const toPath = paths[0]!;
-    const fromPath = "main";
-    const result = plan(story, fromPath, toPath, functions);
+    const addresses = addressesForLine(root, 5);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "main", addresses[0]!, functions);
     expect(result).not.toBeNull();
   });
 });
-

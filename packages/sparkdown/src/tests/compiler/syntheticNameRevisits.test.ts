@@ -6,7 +6,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { currentEngineCompiler, testCompiler, testStory } from "../engineUnderTest";
+import { testCompiler, testStory } from "../engineUnderTest";
 import { programContent } from "../programListing";
 
 const MAIN_URI = "file://proj/main.sd";
@@ -43,12 +43,6 @@ type Project = Record<string, string>;
 
 const uriOf = (name: string) => `file://proj/${name}.sd`;
 
-// A project whose script holds top-level content an include splices in
-// compiles on the current engine's compile path (`currentEngine`, with
-// `currentEngineCompiler`): the program writer does not emit that content
-// yet (#1681).
-let currentEngine = false;
-
 function configure(compiler: SparkdownCompiler, project: Project, version: number) {
   compiler.configure({
     files: Object.entries(project).map(([name, text]) => file(uriOf(name), text, version)),
@@ -68,7 +62,7 @@ function compiled(compiler: SparkdownCompiler): Compiled {
   const spans: Compiled["spans"] = [];
   const text = JSON.stringify(
     {
-      compiled: currentEngine ? program.compiled : programContent(program.compiled),
+      compiled: programContent(program.compiled),
       sparkle: program.sparkle,
     },
     function (this: any, key, value) {
@@ -85,9 +79,8 @@ function compiled(compiler: SparkdownCompiler): Compiled {
 // returns the compile before the edit, the incremental compile of the edited
 // project and a cold compile of it.
 function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [Compiled, Compiled, Compiled] {
-  const newCompiler = currentEngine ? currentEngineCompiler : testCompiler;
   return quiet(() => {
-    const compiler = newCompiler();
+    const compiler = testCompiler();
     configure(compiler, project, 1);
     const before = compiled(compiler);
     const text = project[name]!;
@@ -98,7 +91,7 @@ function incrementalAndCold(project: Project, name: string, offset: number, inse
     });
     const incremental = compiled(compiler);
     const edited = { ...project, [name]: text.slice(0, offset) + insert + text.slice(offset) };
-    const fresh = newCompiler();
+    const fresh = testCompiler();
     configure(fresh, edited, 2);
     return [before, incremental, compiled(fresh)];
   });
@@ -147,18 +140,12 @@ describe("synthetic names after an edit", () => {
       pre: ["  Before the shared script.", ""].join("\n"),
       shared: ["& r = a:add(1):add(2)", ""].join("\n"),
     };
-    // A temp in the script included first numbers ahead of the shared temps,
-    // so every carried canonical name moves up. It goes after the line already
-    // there, so its offsets differ from the shared temps' offsets.
+    // A temp in the script included first comes ahead of the shared temps. It
+    // goes after the line already there, so its offsets differ from the
+    // shared temps' offsets.
     const pre = project["pre"]!;
-    currentEngine = true;
-    try {
-      const [, incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
-      expect(incremental.text).toContain("__synth_");
-      expect(incremental.text).toBe(cold.text);
-    } finally {
-      currentEngine = false;
-    }
+    const [, incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
+    expect(incremental.text).toBe(cold.text);
   });
 
   it("a layout binding moved by an edit above it keeps the cold name", () => {

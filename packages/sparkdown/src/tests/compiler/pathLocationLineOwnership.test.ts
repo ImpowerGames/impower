@@ -1,32 +1,24 @@
 // A statement's recorded source range must not claim the line after it.
 //
-// `program.pathLocations` maps every bytecode path to a source range, and the
-// editor resolves a preview point, a breakpoint and a stack frame by asking
-// which range holds a line. The lowerer ends a display beat's range where the
-// next statement begins, which is column 0 of the following content line, so a
-// range left as recorded reaches onto a line it does not own and a line-keyed
-// lookup hands back the previous statement. The compiler pulls such a range
-// back to the end of the previous line, which is what these assertions pin.
+// A program's root maps every address to a source range
+// (`ProgramRoot.locationOf`), and the editor resolves a preview point, a
+// breakpoint and a stack frame by asking which address stands on a line
+// (`ProgramRoot.addressAt`) and where it stands. A display beat's range that
+// reached column 0 of the following content line would claim a line it does
+// not own, and a line-keyed lookup would hand back the previous statement.
 //
 // A range that reaches only the start of `endLine` records an end column of
-// either 0 or -1, depending on which of the two stamping conventions produced
-// the metadata: the diagnostics pipeline's 1-based character numbers give 0,
-// and the lowerer's own 0-based stamps give -1. Both mean the range stops at or
-// before `endLine`'s first column, so both are pulled back.
+// 0 or below. Such a range stops at or before `endLine`'s first column, and
+// these assertions refuse it when that line carries a statement.
 //
 // Compiled the way the player compiles, with the builtins prelude. Each line
-// lowers to a `display()` call, and its call's range is what touches the next
-// line.
+// lowers to a `display()` call.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { currentEngineCompiler } from "../engineUnderTest";
-import {
-  locationAtRow,
-  pathLocation,
-} from "../../compiler/utils/pathLocationTable";
+import type { SourceLocation } from "../../compiler/types/ProgramAddress";
+import { testCompiler, testRoot } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
-const MAIN_SCRIPT = 0;
 
 const fileOf = (text: string) => ({
   uri: URI,
@@ -38,13 +30,8 @@ const fileOf = (text: string) => ({
   languageId: "sparkdown",
 });
 
-function newCompiler() {
-  const c = currentEngineCompiler();
-  return c;
-}
-
 function compile(text: string) {
-  const c = newCompiler();
+  const c = testCompiler();
   c.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
@@ -98,23 +85,28 @@ BUNNY:
   Wait!
 `;
 
-/** Every range recorded against main.sd, as `[path, location]`. */
-const rangesOf = (program: any): [string, number[]][] =>
-  ((program.pathLocations?.paths ?? []) as string[])
-    .map(
-      (path, row): [string, number[]] => [
-        path,
-        locationAtRow(program.pathLocations, row)!,
-      ],
-    )
-    .filter(([, location]) => location[0] === MAIN_SCRIPT);
+/** The range of each address a line of main.sd resolves to, once each, as
+ *  `[address, location]`. */
+const rangesOf = (program: any, source: string): [number, SourceLocation][] => {
+  const root = testRoot(program.compiled);
+  expect(root, "the compile built statement chunks").toBeDefined();
+  const out = new Map<number, SourceLocation>();
+  source.split("\n").forEach((_text, line) => {
+    const address = root!.addressAt(URI, line);
+    const location = address === undefined ? undefined : root!.locationOf(address);
+    if (location?.uri === URI) {
+      out.set(address!, location);
+    }
+  });
+  return [...out];
+};
 
-/** The paths whose range holds `line`, by the line-only test the editor's
- *  lookup applies (`findClosestPathLocation`). */
-const claiming = (program: any, line: number): string[] =>
-  rangesOf(program)
-    .filter(([, [, startLine, , endLine]]) => line >= startLine! && line <= endLine!)
-    .map(([path]) => path);
+/** The addresses whose range holds `line`, by the line-only test an editor's
+ *  lookup applies. */
+const claiming = (program: any, source: string, line: number): [number, SourceLocation][] =>
+  rangesOf(program, source).filter(
+    ([, { startLine, endLine }]) => line >= startLine && line <= endLine,
+  );
 
 /** 0-based index of the fixture line containing `needle`. */
 const lineOf = (source: string, needle: string): number => {
@@ -126,32 +118,30 @@ const lineOf = (source: string, needle: string): number => {
 };
 
 /** Ranges that stop at the start of a later line carrying a statement of its
- *  own — the defect, in general form. A range pulled back correctly can still
- *  end at a blank line's column 0, which owns nothing and is nobody's preview
- *  point. */
+ *  own — the defect, in general form. A range can still end at a blank
+ *  line's column 0, which owns nothing and is nobody's preview point. */
 const overreaching = (program: any, source: string): string[] => {
   const lines = source.split("\n");
-  return rangesOf(program)
+  return rangesOf(program, source)
     .filter(
-      ([, [, startLine, , endLine, endColumn]]) =>
-        endLine! > startLine! &&
-        endColumn! <= 0 &&
-        (lines[endLine!] ?? "").trim() !== "",
+      ([, { startLine, endLine, endColumn }]) =>
+        endLine > startLine &&
+        endColumn <= 0 &&
+        (lines[endLine] ?? "").trim() !== "",
     )
-    .map(([path, location]) => `${path} @ ${location.join(",")}`);
+    .map(([address, location]) => `${address} @ ${JSON.stringify(location)}`);
 };
 
-/** Assert every path claiming each named content line starts on it. */
+/** Assert every address claiming each named content line starts on it. */
 function expectLinesOwned(program: any, source: string, needles: string[]) {
   for (const needle of needles) {
     const line = lineOf(source, needle);
-    const paths = claiming(program, line);
-    expect(paths.length, `no path claims ${JSON.stringify(needle)}`).toBeGreaterThan(0);
-    for (const path of paths) {
-      const [, startLine] = pathLocation(program.pathLocations, path)!;
+    const ranges = claiming(program, source, line);
+    expect(ranges.length, `no address claims ${JSON.stringify(needle)}`).toBeGreaterThan(0);
+    for (const [address, { startLine }] of ranges) {
       expect(
         startLine,
-        `${path} claims ${JSON.stringify(needle)} (line ${line}) but starts on line ${startLine}`,
+        `${address} claims ${JSON.stringify(needle)} (line ${line}) but starts on line ${startLine}`,
       ).toBe(line);
     }
   }
@@ -182,32 +172,28 @@ const FIXTURES: { label: string; source: string; content: string[] }[] = [
   },
 ];
 
-describe("path locations own only their own lines (#490)", () => {
+describe("addresses own only their own lines (#490)", () => {
   for (const { label, source, content } of FIXTURES) {
     describe(label, () => {
       it("no range stops at the start of a later line that carries a statement", () => {
         const program = compile(source);
-        expect(rangesOf(program).length).toBeGreaterThan(0);
+        expect(rangesOf(program, source).length).toBeGreaterThan(0);
         expect(overreaching(program, source)).toEqual([]);
       });
 
-      it("every path claiming a content line starts on that line", () => {
+      it("every address claiming a content line starts on that line", () => {
         expectLinesOwned(compile(source), source, content);
       });
     });
   }
 
   it("a dialogue block still owns the line its spoken text sits on", () => {
-    // The pull-back must not shrink a range off its own content.
+    // The range must not shrink off its own content.
     const program = compile(FLAT);
-    expect(claiming(program, lineOf(FLAT, "Okay, okay!")).length).toBeGreaterThan(0);
+    expect(claiming(program, FLAT, lineOf(FLAT, "Okay, okay!")).length).toBeGreaterThan(0);
   });
 
   it("an incremental compile records the same ranges as a cold one", () => {
-    // The pull-back runs before the tuple is stored and before it is captured
-    // into the per-flow location cache, and `spliceCachedFlowLocations` shifts a
-    // cached tuple's lines without touching its columns. So a reused flow has to
-    // come back with the pulled-back range, not the raw one.
     const before = FLAT;
     const find = "With an indignant pivot, Raffles glides briskly ahead.";
     const replace = "With an indignant pivot, Raffles glides briskly away.\n\nHe does not look back.";
@@ -228,7 +214,7 @@ describe("path locations own only their own lines (#490)", () => {
     const end = posAt(before, offset + find.length);
     const after = before.slice(0, offset) + replace + before.slice(offset + find.length);
 
-    const incremental = newCompiler();
+    const incremental = testCompiler();
     incremental.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
@@ -244,9 +230,10 @@ describe("path locations own only their own lines (#490)", () => {
     ).program;
 
     const coldProgram = compile(after);
-    expect(JSON.stringify(incrementalProgram.pathLocations)).toBe(
-      JSON.stringify(coldProgram.pathLocations),
-    );
+    // An address counts the chunks a compiler has made, so the ranges are
+    // compared without them.
+    const ranges = (program: any) => rangesOf(program, after).map(([, location]) => location);
+    expect(ranges(incrementalProgram)).toEqual(ranges(coldProgram));
     expect(overreaching(incrementalProgram, after)).toEqual([]);
     expectLinesOwned(incrementalProgram, after, [
       "With an indignant pivot",
