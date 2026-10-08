@@ -18,7 +18,11 @@ import {
   blockFlags,
   chunkOfAddress,
   codeWords,
+  H_LINE_ROWS,
   HEADER_WORDS,
+  LINE_ROW_WORDS,
+  lineRowAt,
+  lineTableStart,
   offsetOfAddress,
 } from "../../program/StatementChunk";
 import type {
@@ -216,13 +220,16 @@ const NOT_A_CONDITION =
  *  - a divert, a `done` or a `fin` at its flow's own level (`leavesFlowOnly`);
  *  - a taken choice's own beat, on the choice's line: the choice's stop is
  *    the first beat of its body;
- *  - a later part of a statement than its start: an `elseif`, a choice
- *    without a beat of its own;
+ *  - an `elseif`, which only the jump ending the branch above passes, and a
+ *    choice's line without a beat of its own;
  *  - a tunnel call (`-> T ->`), a tunnel return (`->->`), a thread (`<-`)
  *    and a `label`, which mark or move the flow and show nothing;
  *  - the header of a block that is no `if`: a loop's, a `do` block's.
- *  This is the set the current engine's path locations stopped at for these
- *  constructs, which the language server's navigation keeps. */
+ *  A part past a statement's start (a `choose` preamble's assignment or
+ *  `if`, which the writer puts in the `choose` statement's own code) is read
+ *  by the code of its line table row, as a statement of its own. This is the
+ *  set the current engine's path locations stopped at for these constructs,
+ *  which the language server's navigation keeps. */
 const isStop = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
   if (!position) {
@@ -247,32 +254,57 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
     }
     return true;
   }
-  if (offset !== 0 || opOf(word(0)) === Op.Visit) {
+  if (opOf(word(offset)) === Op.Visit) {
     return false;
   }
-  let decides = false;
-  for (let at = 0; at < words; at += 2) {
+  if (offset > 0 && opOf(word(offset - 2)) === Op.Jump) {
+    // Reached only past the jump that ends the branch above: an `elseif`.
+    return false;
+  }
+  if (offset === 0) {
+    // A statement's start: the header of a block statement that is no
+    // `if` (a loop, a function, a `do` block) is no stop. A `choose`'s
+    // start is its preamble's first part or its first choice, read below.
+    let plain = false;
+    let decides = false;
+    for (let k = 0; k < blockCount(chunk); k += 1) {
+      const flags = blockFlags(chunk, k);
+      if (flags & (BLOCK_LOOP | BLOCK_FUNCTION)) {
+        return false;
+      }
+      plain ||= (flags & NOT_A_CONDITION) === 0;
+    }
+    for (let at = 0; at < words && !decides; at += 2) {
+      decides = opOf(word(at)) === Op.JumpIfFalse;
+    }
+    if (plain && !decides) {
+      return false;
+    }
+  }
+  // The part the address starts: the code of its line table row. A part of
+  // a `choose` preamble (an assignment, an `if` gating choices) is read as
+  // a statement of its own.
+  const row = lineRowAt(chunk, offset);
+  const rows = chunk[H_LINE_ROWS]!;
+  const end =
+    row >= 0 && row + 1 < rows
+      ? chunk[lineTableStart(chunk) + (row + 1) * LINE_ROW_WORDS]!
+      : words;
+  for (let at = offset; at < end; at += 2) {
     const op = opOf(word(at));
     if (
+      op === Op.Choice ||
       op === Op.TunnelReturn ||
       op === Op.Thread ||
       ((op === Op.Call || op === Op.CallVar) &&
-        (flagsOf(word(at)) & CALL_TUNNEL) !== 0)
+        (flagsOf(word(at)) & CALL_TUNNEL) !== 0) ||
+      (op === Op.EnterBlock &&
+        blockFlags(chunk, word(at + 1)) & NOT_A_CONDITION)
     ) {
       return false;
     }
-    decides ||= op === Op.JumpIfFalse;
   }
-  const blocks = blockCount(chunk);
-  if (blocks === 0) {
-    return true;
-  }
-  for (let k = 0; k < blocks; k += 1) {
-    if (blockFlags(chunk, k) & NOT_A_CONDITION) {
-      return false;
-    }
-  }
-  return decides;
+  return true;
 };
 
 /**
@@ -306,7 +338,10 @@ export const beatAt = (
       location.endLine >= from &&
       !isStop(root, address)
     ) {
-      from = location.endLine + 1;
+      // The next line down: a part written below can stand at a lower
+      // address (a `store` in a `choose` preamble), so its range says
+      // nothing about where the next stop is.
+      from = Math.max(from, location.startLine) + 1;
       continue;
     }
     return location ? { address, location } : { address };

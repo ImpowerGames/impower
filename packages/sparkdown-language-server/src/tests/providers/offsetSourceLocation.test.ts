@@ -406,6 +406,59 @@ describe("previous and next beat navigation", () => {
     }
   });
 
+  // A `choose` preamble's logic is written into the `choose` statement's own
+  // code, so it stands at addresses past the statement's start; an
+  // assignment and an `if` there are stops as they are elsewhere, and a
+  // `store` there is none on either engine (round 1 of PR #1680).
+  test("stops on an assignment and an if inside a choose preamble", async () => {
+    const PREAMBLE = [
+      "store gate = true",
+      "scene start",
+      "  Start.",
+      "  choose",
+      "    & gate = true",
+      "    if gate then",
+      "      + Continue",
+      "        Body.",
+      "    end",
+      "    + Other",
+      "      Other body.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ].join(NEWLINE);
+    const STORED = [
+      "scene start",
+      "  Start.",
+      "  choose",
+      "    store gate = true",
+      "    if gate then",
+      "      + Continue",
+      "        Body.",
+      "    end",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ].join(NEWLINE);
+    for (const engine of [false, true]) {
+      const preamble = compile(engine, PREAMBLE, "");
+      const stored = compile(engine, STORED, "");
+      const next = async (program: SparkProgram, line: number) =>
+        (await getOffsetSourceLocation(program, ownBeats(program), MAIN, line, 1))?.line;
+      const previous = async (program: SparkProgram, line: number) =>
+        (await getOffsetSourceLocation(program, ownBeats(program), MAIN, line, -1))?.line;
+      const label = `chunks ${engine}`;
+      expect(await next(preamble, lineOf(PREAMBLE, "Start.")), label).toBe(lineOf(PREAMBLE, "& gate"));
+      expect(await next(preamble, lineOf(PREAMBLE, "& gate")), label).toBe(lineOf(PREAMBLE, "if gate"));
+      expect(await previous(preamble, lineOf(PREAMBLE, "if gate")), label).toBe(lineOf(PREAMBLE, "& gate"));
+      expect(await next(preamble, lineOf(PREAMBLE, "Body.")), label).toBe(lineOf(PREAMBLE, "Other body."));
+      expect(await next(stored, lineOf(STORED, "Start.")), label).toBe(lineOf(STORED, "if gate"));
+      expect(await next(stored, lineOf(STORED, "choose")), label).toBe(lineOf(STORED, "if gate"));
+    }
+  });
+
   test("lands where it lands on the current engine around diverts that pass arguments", async () => {
     expect(await differences(["include chapter.sd", ""].join(NEWLINE), ARGS)).toEqual([]);
     const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), ARGS);
