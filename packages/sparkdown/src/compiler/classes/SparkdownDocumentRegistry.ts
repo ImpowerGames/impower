@@ -212,6 +212,26 @@ export class SparkdownDocumentRegistry {
     return state.annotators.get();
   }
 
+  /** How many statements of blocks' bodies the last update of `uri` lowered,
+   *  and how many it served from their memos (`statementMemo.ts`). */
+  memoStats(uri: string) {
+    return this._documentStates.get(uri)?.annotators.current.compilations.memoStats;
+  }
+
+  /** Lowers again the top-level nodes of `uri` over each of `ranges`, for
+   *  the compilation annotator only
+   *  (`SparkdownCombinedAnnotator.relowerCompilations`). */
+  relowerCompilations(
+    uri: string,
+    ranges: readonly { from: number; to: number }[],
+  ) {
+    this.ensureParsed(uri);
+    const state = this.getDocumentState(uri);
+    if (state.tree && ranges.length > 0) {
+      state.annotators.relowerCompilations(state.tree, ranges);
+    }
+  }
+
   /**
    * The names this document uses as a define TYPE (`define D as X`, `new X()`).
    * The compiler's whole-program scoping pass unions these across a program's

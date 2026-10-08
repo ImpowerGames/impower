@@ -68,6 +68,13 @@ export class Divert extends ParsedObject {
     this._targetContent = value;
     this._targetContentEpoch = value === null ? -1 : currentResolutionEpoch();
   }
+  /** The target the divert holds, whatever epoch resolved it: the program
+   *  path's resolver moves a target it kept from an earlier compile onto the
+   *  object that stands for it now (`ProgramResolver.retarget`), so that the
+   *  earlier compile's objects are not kept through it (#656). */
+  get heldTargetContent(): ParsedObject | null {
+    return this._targetContent;
+  }
 
   private _runtimeDivert: RuntimeDivert | null = null;
   get runtimeDivert(): RuntimeDivert {
