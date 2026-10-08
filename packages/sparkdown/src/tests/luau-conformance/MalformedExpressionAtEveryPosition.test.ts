@@ -56,29 +56,27 @@ function compileDocument(text: string) {
     .filter((d) => d.severity === 1)
     .sort((a, b) => a.range!.start.line - b.range!.start.line || a.range!.start.character - b.range!.start.character)
     .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${diagnosticMessage(d)}`);
-  return { errors, functions: program.chunks ? functionSpans(program) : currentEngineFunctions(text, program) };
+  return { errors, functions: program.chunks ? functionSpans(program) : withoutChunks(text, errors) };
 }
 
-/** The functions' spans the current engine's path-location table gives, for
- *  the two documents whose compile builds no statement chunks: one whose loop
- *  test is malformed, which the program writer has no form for (it falls back
- *  naming `a loop's test`), and one with a malformed `store`, whose
- *  resolution throws in its initializer or whose declarations raise an error
- *  when the compile runs them (it falls back naming `initializer error`).
- *  Any other compile
- *  that builds no chunks fails the test. #705's deletion decides these. */
-function currentEngineFunctions(text: string, program: { fallback?: { construct: string } }) {
-  const loopTest = program.fallback?.construct === "a loop's test";
-  const malformedStore =
-    (!program.fallback || program.fallback.construct === "initializer error") &&
-    /(^|\n) *store /.test(text);
+/** Two kinds of document build no statement chunks: one whose loop test is
+ *  malformed, which the program writer has no form for, and one with a
+ *  malformed `store`, whose declarations cannot run. Each reports its syntax
+ *  error, and the compile makes no program (#705), so there are no function
+ *  spans to read: the test holds such a document to its errors alone. Any
+ *  other compile that builds no chunks fails the test. */
+function withoutChunks(text: string, errors: readonly string[]): null {
+  const loopTest = /(^|\n) *(while|until|repeat)\b|\buntil\b/.test(text);
+  const malformedStore = /(^|\n) *store /.test(text);
   expect(loopTest || malformedStore, `the compile builds no chunks: ${JSON.stringify(text)}`).toBe(true);
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    programChunks: false,
-    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
-  });
-  return compiler.compile({ textDocument: { uri: URI } }).program.pathLocations?.functions;
+  expect(errors.length, `no error for ${JSON.stringify(text)}`).toBeGreaterThan(0);
+  return null;
+}
+
+/** Holds a document's function spans to `expected`, when its compile built
+ *  the chunks they are read from (`withoutChunks`). */
+function expectSpans(functions: ReturnType<typeof functionSpans> | null, expected: unknown) {
+  if (functions !== null) expect(functions).toEqual(expected);
 }
 
 // Every position an expression can appear, with `E` where the expression
@@ -150,7 +148,7 @@ describe("a malformed expression at every position", () => {
       const text = lines.join("\n");
       const { errors, functions } = compileDocument(text);
       expect(errors).toEqual(luauFirstError(text));
-      expect(functions).toEqual([{ path: "f", lines: [0, 0, lines.length - 2] }]);
+      expectSpans(functions, [{ path: "f", lines: [0, 0, lines.length - 2] }]);
     },
   );
 
@@ -185,7 +183,7 @@ describe("the reported layouts", () => {
     const { errors, functions } = compileDocument(text);
     expect(errors).toEqual(messages);
     expect(errors).toEqual(luauFirstError(text));
-    expect(functions).toEqual([{ path: "f", lines: [0, 0, text.split("\n").length - 2] }]);
+    expectSpans(functions, [{ path: "f", lines: [0, 0, text.split("\n").length - 2] }]);
   });
 
   // #1156: a dangling member access after a receiver that is not a plain
@@ -208,7 +206,7 @@ describe("the reported layouts", () => {
     const { errors, functions } = compileDocument(text);
     expect(errors).toHaveLength(1);
     expect(errors).toEqual(luauFirstError(text));
-    expect(functions).toEqual([{ path: "f", lines: [0, 0, endLine] }]);
+    expectSpans(functions, [{ path: "f", lines: [0, 0, endLine] }]);
   });
 
   test.each([
@@ -358,7 +356,7 @@ describe("the reported layouts", () => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
     if (source.startsWith("function")) {
-      expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
+      expectSpans(functions, [{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
       expectLuauReports(source, messages);
     }
   });
@@ -398,7 +396,7 @@ describe("the reported layouts", () => {
   ] as [string, string[], boolean?][])("interim: %j reports %j", (source, messages, keepsEnd = true) => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
-    if (keepsEnd) expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
+    if (keepsEnd) expectSpans(functions, [{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
     expectLuauReports(source, messages);
   });
 

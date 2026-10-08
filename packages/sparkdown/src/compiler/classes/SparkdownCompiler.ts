@@ -756,6 +756,10 @@ export class SparkdownCompiler {
   /** What the last compile with `programChunks` on built: its root or the
    *  construct it fell back for, and how many statements it emitted. */
   lastProgramBuild?: ProgramBuild & { declarations: number; functions: number };
+
+  /** The construct this compile's build met and had no emit path for, which
+   *  the compile reports once its validators have run. */
+  protected _unsupported?: ProgramFallback;
   // The resolver of a compiler that compiles with `programChunks` on, kept for
   // the compiler's lifetime so that a statement's resolution is kept across
   // compiles (#1607).
@@ -1529,6 +1533,7 @@ export class SparkdownCompiler {
   } {
     const uri = params.textDocument.uri;
     const startFrom = params.startFrom;
+    this._unsupported = undefined;
     // The diverts the program path's resolver kept resolved hold their
     // targets in its epoch, which another compiler's resolve can have left.
     this._programResolver?.enterEpoch();
@@ -2060,13 +2065,7 @@ export class SparkdownCompiler {
       // A program runs from its statement chunks. A statement that holds a
       // construct the program has no emit path for is a compile error at its
       // line, and such a compile makes no program (`buildProgramChunks`).
-      const chunked = this.buildProgramChunks(
-        parsedStory,
-        tables,
-        program,
-        uri,
-        onDiagnostic,
-      );
+      const chunked = this.buildProgramChunks(parsedStory, tables, program, uri);
       // Bar flows that raised diagnostics while their statements were
       // prepared from future reuse — reuse skips their assembly, which would
       // silently drop them next compile.
@@ -2191,6 +2190,14 @@ export class SparkdownCompiler {
       this.validateMorphs(program);
       this.validateLints(program);
       this.validateTypes(program);
+    }
+    // A construct the program has no emit path for, reported after the
+    // validators: a statement they report an error at (a malformed loop
+    // test's syntax error, which the type checker reports) is in error for
+    // that reason, and that error is the one to read.
+    if (this._unsupported) {
+      this.reportUnsupportedConstruct(this._unsupported, program, onDiagnostic);
+      this._unsupported = undefined;
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -4057,7 +4064,8 @@ export class SparkdownCompiler {
    * Builds the program's statement chunks from the assembled parsed story,
    * and records the root on `program`. A statement that holds a construct the
    * program has no emit path for is reported as an error at its line
-   * (`unsupportedConstructMessage`), and the compile then makes no program.
+   * (`unsupportedConstructMessage`) once the validators have run, and the
+   * compile then makes no program.
    * A preview compile's root is not made the store's current one. Returns
    * whether the program has its chunks.
    */
@@ -4066,11 +4074,6 @@ export class SparkdownCompiler {
     tables: ProgramStoryTables,
     program: SparkProgram,
     uri: string,
-    onDiagnostic: (
-      message: string,
-      type: ErrorType,
-      source: SourceMetadata | null,
-    ) => void,
   ): boolean {
     profile("start", this._profilerId, "program/chunks", uri);
     const lineCount = (scriptUri: string) => {
@@ -4124,9 +4127,10 @@ export class SparkdownCompiler {
       declarations: flows.declarations.length,
       functions: flows.functions,
     };
-    if (fallback) {
-      this.reportUnsupportedConstruct(fallback, program, onDiagnostic);
-    } else {
+    // Reported after the validators (`compileStoryOnce`), which may report
+    // the error that keeps the statement from being built.
+    this._unsupported = fallback;
+    if (!fallback) {
       program.chunks = build.root;
       // After the build: a reseed installs fresh arrays on the table, and
       // the root just built keeps reading the ones it was built with.

@@ -5,7 +5,6 @@
 import "../inkjs/engine/Container";
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../compiler/types/SparkdownCompilerConfig";
-import type { SparkProgram } from "../compiler/types/SparkProgram";
 import { STDLIB, type StdLibEntry } from "../runtime/StdLib";
 import type { Story as RuntimeStory } from "../inkjs/engine/Story";
 import type { ProgramRoot } from "../program/ProgramRoot";
