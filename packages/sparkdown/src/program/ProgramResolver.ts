@@ -52,7 +52,10 @@ import type {
   MemoResolution,
   StatementMemoEntry,
 } from "../compiler/lower/statementMemo";
-import { memoOf } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import {
+  MemoizedStatement,
+  memoOf,
+} from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 
 /** The parsed objects under `node` that a walk over its subtree visits: its
  *  `content`, and for a call that generated as a builtin, native or stdlib
@@ -222,8 +225,20 @@ interface UnitRecord {
 
 /** Whether `obj` is a stand-in of a statement served from its memo, or a
  *  target of one. */
-const standsIn = (obj: ParsedObject): boolean =>
-  !!memoOf(obj) || (obj.parent instanceof MultiVariableAssignment && !!memoOf(obj.parent));
+const standsIn = (obj: ParsedObject): boolean => {
+  for (let at: ParsedObject | null = obj, depth = 0; at && depth < 3; at = at.parent, depth += 1) {
+    if (memoOf(at)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/** Whether `obj` is an assignment a statement's memo can stand for: a plain
+ *  one or a local declaration, of one name or several. */
+const standsAsAssignment = (obj: ParsedObject): boolean =>
+  (obj instanceof VariableAssignment && memoAssignmentOf(obj) !== null) ||
+  (obj instanceof MultiVariableAssignment && memoMultiOf(obj) !== null);
 
 /** The assignments a stand-in, or a block statement's stand-in, holds that
  *  made auto-globals or declared locals, each with what its memo recorded
@@ -240,14 +255,18 @@ const assignmentsOf = (
     if (!made || (made.declares.length === 0 && made.autoGlobals.length === 0)) {
       continue;
     }
-    const targets =
-      held instanceof VariableAssignment
-        ? [held]
-        : held instanceof MultiVariableAssignment
-          ? held.targetAssignments
-          : [];
-    for (const assignment of targets) {
-      out.push({ assignment, made });
+    // A stand-in of several assignments holds them.
+    const parts = held instanceof MemoizedStatement ? held.content : [held];
+    for (const part of parts) {
+      const targets =
+        part instanceof VariableAssignment
+          ? [part]
+          : part instanceof MultiVariableAssignment
+            ? part.targetAssignments
+            : [];
+      for (const assignment of targets) {
+        out.push({ assignment, made });
+      }
     }
   }
   return out;
@@ -1899,19 +1918,21 @@ export class ProgramResolver {
     // A label stands as a label of its name (`MemoizedGather`), as a plain
     // assignment as an assignment of its name.
     const only = objects.length === 1 ? objects[0]! : undefined;
-    const multi = only instanceof MultiVariableAssignment && memoMultiOf(only) !== null ? only : undefined;
+    // A statement of several assignments (`& local a = 1; local b = 2`)
+    // stands as a group of them, as one stands as one.
+    const assignments = objects.length > 0 && objects.every(standsAsAssignment);
     const assignment =
-      !!multi ||
-      (only instanceof VariableAssignment && memoAssignmentOf(only) !== null) ||
-      (only instanceof Gather && memoGatherOf(only) !== null);
+      assignments || (only instanceof Gather && memoGatherOf(only) !== null);
     // A block statement holds the objects of the statements of its bodies,
     // which their own memos judge, and stand-ins of them when it is served.
     const nested = tally.candidate.nested;
     const walks = (obj: ParsedObject): boolean =>
       nested?.has(obj) ? false : holdsWhatTheStoryWalks(obj, nested);
     if (
-      (multi
-        ? multi.expressions.some(walks)
+      (assignments
+        ? objects.some((obj) =>
+            (obj instanceof MultiVariableAssignment ? obj.expressions : parsedChildren(obj)).some(walks),
+          )
         : assignment
           ? parsedChildren(objects[0]!).some(walks)
           : objects.some(walks)) ||
@@ -1919,20 +1940,19 @@ export class ProgramResolver {
     ) {
       return undefined;
     }
-    // Read without reporting the read (`RecordingMap`).
+    // Read without reporting the read (`RecordingMap`). A constant's
+    // reader reads it as a global (`GetVar`), and a change of whether the
+    // story can register it declares its name otherwise for its readers
+    // (`notedChanged`), which makes the memo stale; a list's or a struct's
+    // values the story decides from the declarations together.
     const tables = this._story as unknown as {
-      constants?: Map<string, unknown>;
       _listDefs?: Map<string, unknown>;
       _structDefs?: Map<string, unknown>;
     };
     const has = (table: Map<string, unknown> | undefined, name: string) =>
       !!table && Map.prototype.has.call(table, name);
     for (const name of tally.reads) {
-      if (
-        has(tables.constants, name) ||
-        has(tables._listDefs, name) ||
-        has(tables._structDefs, name)
-      ) {
+      if (has(tables._listDefs, name) || has(tables._structDefs, name)) {
         return undefined;
       }
     }
@@ -2242,9 +2262,9 @@ export class ProgramResolver {
       const objects = frame?.tally.candidate.objects;
       return (
         !!objects &&
-        objects.length === 1 &&
-        (objects[0] === obj ||
-          (objects[0] instanceof MultiVariableAssignment && obj.parent === objects[0]))
+        objects.every(standsAsAssignment) &&
+        (objects.includes(obj) ||
+          (obj.parent instanceof MultiVariableAssignment && objects.includes(obj.parent)))
       );
     };
     if (event.kind === "autoGlobal" && own(event.assignment)) {

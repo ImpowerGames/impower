@@ -28,6 +28,7 @@ import {
   type MemoMultiAssignment,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
 import { MultiVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
+import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
@@ -136,7 +137,13 @@ export class StatementMemoEntry {
      *  what it stands as when it is served: a divert (`MemoizedDivert`), a
      *  plain assignment (`MemoizedAssignment`). Null for one that stands as
      *  a `MemoizedStatement`. */
-    readonly stand: MemoDivert | MemoAssignment | MemoMultiAssignment | MemoGather | null = null,
+    readonly stand:
+      | MemoDivert
+      | MemoAssignment
+      | MemoMultiAssignment
+      | MemoGather
+      | MemoAssignmentGroup
+      | null = null,
     /** For a block statement, its bodies and the memos of the statements in
      *  them, with what their lowerings read of the context outside the
      *  block statement (`MemoOwner`). */
@@ -183,6 +190,13 @@ export interface MemoOwner {
   readonly reads: readonly { readonly at: number; readonly reads: readonly ContextRead[] }[];
   /** The memos of the statements at any depth inside it, in order. */
   readonly descendants: readonly StatementMemoEntry[];
+}
+
+/** What a statement's memo records of a statement of several assignments
+ *  (`& local a = 1; local b = 2`): each, as one is recorded. */
+export interface MemoAssignmentGroup {
+  readonly kind: "group";
+  readonly parts: readonly (MemoAssignment | MemoMultiAssignment)[];
 }
 
 export interface MemoLoweringRead {
@@ -588,13 +602,10 @@ export class StatementMemoSession {
   }
 
   /**
-   * The memo the statement is served from, or nothing when it is lowered.
-   * The memos of one syntax are taken in the order the node's previous
-   * lowering held them, each by one statement, so that statements that read
-   * alike (the same line written twice) each find the memo of the one at
-   * their place: a statement takes the first memo of its syntax no statement
-   * took, and is served from it when the parse did not rebuild it, the memo
-   * is complete and every read it recorded reads the same.
+   * The memo the statement is served from, or nothing when it is lowered:
+   * the memo of its syntax that stood where it stood before the update
+   * (`memoKey`), when the parse did not rebuild it, the memo is complete
+   * and usable, and every read it recorded reads the same.
    */
   protected find(
     syntax: string,
@@ -686,11 +697,31 @@ export class StatementMemoSession {
     const range = statementBounds(from, to, ctx);
     statement.debugMetadata = buildDebugMetadata(range.from, range.to, ctx);
     if (statement instanceof MultiVariableAssignment && entry.stand?.kind === "multi") {
-      const at = entry.stand.at;
-      statement.targetAssignments.forEach((target, i) => {
-        target.debugMetadata = statement.ownDebugMetadata;
-        placeIdentifier(target, at[i] ?? null);
-      });
+      placeTargets(statement, entry.stand);
+    } else if (entry.stand?.kind === "group") {
+      // A statement of several assignments stands as a group that holds an
+      // assignment of each, placed as the statement, whose generation and
+      // resolution go through the group's memo.
+      for (const part of entry.stand.parts) {
+        const assignment =
+          part.kind === "multi"
+            ? new MultiVariableAssignment(
+                part.names.map((name) => new Identifier(name)),
+                [],
+                part.local,
+              )
+            : new VariableAssignment({
+                variableIdentifier: new Identifier(part.name),
+                isTemporaryNewDeclaration: part.local,
+              });
+        statement.AddContent(assignment);
+        assignment.debugMetadata = statement.ownDebugMetadata;
+        if (assignment instanceof MultiVariableAssignment && part.kind === "multi") {
+          placeTargets(assignment, part);
+        } else if (part.kind === "assignment") {
+          placeIdentifier(assignment, part.at);
+        }
+      }
     } else if (entry.stand && entry.stand.kind !== "divert" && entry.stand.kind !== "multi") {
       placeIdentifier(statement, entry.stand.at);
     }
@@ -859,7 +890,9 @@ const remember = (
           ? memoMultiOf(only)
         : only instanceof Gather
           ? memoGatherOf(only)
-          : null;
+          : shape.objects.length > 1
+            ? memoGroupOf(shape.objects)
+            : null;
   if (
     recording.unkeyable !== null ||
     !inBodies.has(shape) ||
@@ -945,7 +978,8 @@ const ownerOf = (pending: Pending): MemoOwner | null => {
   // bodies' statements served inside it.
   const declaresLocal = descendants.some(
     (entry) =>
-      (entry.stand?.kind === "assignment" || entry.stand?.kind === "multi") && entry.stand.local,
+      ((entry.stand?.kind === "assignment" || entry.stand?.kind === "multi") && entry.stand.local) ||
+      (entry.stand?.kind === "group" && entry.stand.parts.some((part) => part.local)),
   );
   if (
     !remembered ||
@@ -970,6 +1004,34 @@ const ownerOf = (pending: Pending): MemoOwner | null => {
     reads: pending.nested,
     descendants,
   };
+};
+
+/** What a statement's memo records of a statement of several assignments, or
+ *  null when one of its objects is no assignment a memo can stand for. */
+const memoGroupOf = (objects: readonly ParsedObject[]): MemoAssignmentGroup | null => {
+  const parts: (MemoAssignment | MemoMultiAssignment)[] = [];
+  for (const obj of objects) {
+    const part =
+      obj instanceof VariableAssignment
+        ? memoAssignmentOf(obj)
+        : obj instanceof MultiVariableAssignment
+          ? memoMultiOf(obj)
+          : null;
+    if (!part) {
+      return null;
+    }
+    parts.push(part);
+  }
+  return { kind: "group", parts };
+};
+
+/** Places the targets' names of an assignment of several names where they
+ *  stood (`MemoMultiAssignment.at`). */
+const placeTargets = (assignment: MultiVariableAssignment, recorded: MemoMultiAssignment) => {
+  assignment.targetAssignments.forEach((target, i) => {
+    target.debugMetadata = assignment.ownDebugMetadata;
+    placeIdentifier(target, recorded.at[i] ?? null);
+  });
 };
 
 /** `ownerReads` of a block statement's own objects, leaving out the objects

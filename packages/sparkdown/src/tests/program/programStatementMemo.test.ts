@@ -875,3 +875,53 @@ describe("a local declared inside an `if` block's body", () => {
     sameAsCold(s);
   });
 });
+
+describe("local declarations, further shapes", () => {
+  it("one that reads a constant is served, and its program is a cold compile's while the constant's initializer breaks, it becomes a variable and it goes", () => {
+    const s = warmed(
+      clauseScript(
+        ["Line one.", ...FILLER, "local here = BASE", ...FILLER, "Here {here}.", ...FILLER, "Line last."],
+        ["const BASE = 1", ""],
+      ),
+    );
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    s.edit("Here {here}.", "Here {here}!");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    // A constant whose initializer reads a name no statement declares, which
+    // the story then reads as it reads it in a cold compile: the
+    // declaration's reader reads the global as it did.
+    s.edit("const BASE = 1", "const BASE = missing");
+    s.edit("Line last, edited.", "Line last, edited again.");
+    sameAsCold(s);
+    // A variable of the constant's name in its place declares the name
+    // otherwise for its readers.
+    // The compile of that edit finds the memo stale and lowers its block
+    // again, so the next edit of the block lowers nothing it did not rebuild.
+    s.edit("const BASE = missing", "store BASE = 1");
+    sameAsCold(s);
+    s.edit("Line last, edited again.", "Line last, edited once more.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    // No declaration of the name at all: what the declaration's resolution
+    // reported and read is no longer what it was.
+    s.edit("store BASE = 1", "store OTHER = 1");
+    sameAsCold(s);
+    s.edit("Line last, edited once more.", "Line last, edited at last.");
+    sameAsCold(s);
+  });
+
+  it("several on one line are served, and declare their locals again for the statements after them", () => {
+    const s = warmed(
+      clauseScript(["Line one.", ...FILLER, "& local a = 1; local b = 2", ...FILLER, "Values {a}, {b}.", ...FILLER, "Line last."]),
+    );
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    s.edit("Values {a}, {b}.", "Values {a}, {b}!");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+});
