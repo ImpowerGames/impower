@@ -168,26 +168,17 @@ const warmSession = (scenes = 2) => {
 };
 
 describe("an edit to one line inside a long `then` clause", () => {
-  it("lowers the statements the parse rebuilt and those no memo stands for, and keeps every other statement's chunk", () => {
+  it("lowers only the statements the parse rebuilt, and keeps every other statement's chunk", () => {
     const s = warmSession();
     const before = new Set(rootChunks(s.root));
     const { line, from } = clauseLine(s.text, 120);
     s.edit(line, `${line} Still.`, from);
-    // The edited statement and the neighbours the parse rebuilt with it, and
-    // the statements no memo stands for (#656 keeps them out of the memo, and
-    // #1676 takes them in): the clause's `if` blocks,
-    // whose bodies' statements are served, and its assignments, which the
-    // story's passes over the whole program read. Every other statement
-    // outside the rebuilt range is served.
-    const rebuilt = s.stats.rebuilt!;
-    const lowered = s.stats.loweredAt.filter(
-      // A statement that starts before the rebuilt range and runs into it
-      // (a dialogue block, whose paragraph ends at a blank line) is rebuilt.
-      (at) => !(at <= rebuilt.to && s.text.indexOf("\n\n", at) >= rebuilt.from),
-    );
-    const lineAt = (at: number) => s.text.slice(at, s.text.indexOf("\n", at)).trim();
-    expect(lowered.map(lineAt).filter((text) => !/^(& \w+ = |if )/.test(text))).toEqual([]);
-    expect(s.stats.lowered).toBeGreaterThan(lowered.length);
+    // The edited statement and the statements around it the parse rebuilt
+    // with it: the clause's assignments and `if` blocks, with the
+    // statements of their bodies, are served as its lines of dialogue and
+    // action are (#1676).
+    expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.lowered).toBeGreaterThan(0);
     expect(s.stats.served).toBeGreaterThan(80);
     const after = rootChunks(s.root);
     const changed = after.filter((chunk) => !before.has(chunk));
@@ -403,6 +394,35 @@ const loweredBeyondRebuilt = (s: ReturnType<typeof session>) => {
   return [...lines].sort((a, b) => a - b).map((line) => s.text.split("\n")[line]!.trim());
 };
 
+/** Where the statement starting at `at` ends: before the first line after
+ *  it, other than a blank one, indented no deeper than its first line, or
+ *  past that line when it closes the statement (`end`, `else`). */
+const statementEnd = (text: string, at: number): number => {
+  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+  const indent = (line: string) => line.length - line.trimStart().length;
+  const depth = indent(text.slice(lineStart, text.indexOf("\n", at)));
+  let next = text.indexOf("\n", at) + 1;
+  while (next > 0 && next < text.length) {
+    const end = text.indexOf("\n", next);
+    const line = text.slice(next, end < 0 ? text.length : end);
+    if (line.trim() && indent(line) <= depth) {
+      return /^(end|else|elseif|until)\b/.test(line.trim()) ? (end < 0 ? text.length : end) : next;
+    }
+    next = end + 1;
+  }
+  return text.length;
+};
+
+/** The first lines of the statements the last update lowered that the
+ *  incremental parse rebuilt none of. */
+const loweredOutside = (s: ReturnType<typeof session>) => {
+  const rebuilt = s.stats.rebuilt;
+  const lineAt = (at: number) => s.text.slice(at, s.text.indexOf("\n", at)).trim();
+  return s.stats.loweredAt
+    .filter((at) => !rebuilt || at > rebuilt.to || statementEnd(s.text, at) <= rebuilt.from)
+    .map(lineAt);
+};
+
 /** That `s`'s program is what a cold compile of its text makes. */
 const sameAsCold = (s: ReturnType<typeof session>, texts: Record<string, string> = {}) => {
   const coldProgram = cold({ ...texts, [MAIN_URI]: s.text });
@@ -588,6 +608,168 @@ describe("a compile that meets a memo it cannot compile from", () => {
     expect(after()?.chunk === before!.chunk, "the statement after the block kept its chunk").toBe(
       false,
     );
+    sameAsCold(s);
+  });
+});
+
+// ---- Statements whose objects other passes read (#1676) --------------------
+
+/** A clause with each kind of statement whose objects the weave, the flow's
+ *  checks or the story's passes over the whole program read: an assignment,
+ *  an `if` block with a body, a label and a divert, among lines of
+ *  dialogue, after `top` and before a scene the divert goes to. */
+const kindsScript = (clause: readonly string[] = [], top: readonly string[] = []) =>
+  [
+    clauseScript(
+      [
+        "Line one.",
+        ...clause,
+        ...FILLER,
+        "& trust = trust + 1",
+        "if trust > 2 then",
+        "  Big trust {trust}.",
+        "end",
+        "label later",
+        ...FILLER,
+        "-> OTHER",
+      ],
+      ["store trust = 0", "", ...top],
+    ),
+    "scene OTHER",
+    "  Other.",
+    "end",
+    "",
+  ].join("\n");
+
+/** What the story's passes over the whole program found of the last
+ *  compile's story: the names plain assignments write, and the globals,
+ *  auto-globals included. */
+const coldFacts = (text: string) => {
+  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  quietly(() => c.compile());
+  return storyFacts(c.compiler as SparkdownCompiler);
+};
+
+/** The chunk the main script's statement `name` assigns holds now, served
+ *  or lowered. */
+const assignmentChunk = (s: ReturnType<typeof session>, name: string) => {
+  let found: object | undefined;
+  const visit = (shape: StatementShape) => {
+    const obj = shape.objects[0] as { variableName?: string } | undefined;
+    if (obj?.variableName === name) {
+      found = s.compiler.chunkStore!.chunkOf(shape.memo ?? shape);
+    }
+    for (const body of shape.bodies) {
+      body.statements.forEach(visit);
+    }
+  };
+  for (const block of compiledBlocks(s, "LuauSparkdownChooseBlock")) {
+    if (block.statement) {
+      visit(block.statement);
+    }
+  }
+  return found;
+};
+
+const storyFacts = (compiler: SparkdownCompiler) => {
+  const story = (compiler as any)._programResolver._story;
+  return {
+    assigned: [...story.globalAssignmentNames()].sort(),
+    globals: [...story.variableDeclarations.keys()].sort(),
+  };
+};
+
+describe("a statement whose objects another pass reads", () => {
+  it("is served when an edit elsewhere in its block lowers the block again, with the statements of an `if` block's body, and keeps its chunk", () => {
+    const s = warmed(kindsScript());
+    const before = new Set(rootChunks(s.root));
+    s.edit("Line one.", "Line one, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    // The assignment, the `if` block and its body's line, the label, the
+    // divert and the lines of dialogue.
+    expect(s.stats.served).toBeGreaterThanOrEqual(2 * FILLER.length + 5);
+    // The edited line's chunk, and no other.
+    expect(rootChunks(s.root).filter((chunk) => !before.has(chunk)).length).toBe(1);
+    sameAsCold(s);
+    expect(storyFacts(s.compiler)).toEqual(
+      coldFacts(s.text),
+    );
+  });
+
+  it("an assignment is lowered again when a local declared earlier changes what it assigns, and no other statement is", () => {
+    const s = warmed(kindsScript());
+    s.edit("    Line one.\n", "    Line one.\n    local trust = 5\n");
+    // The assignment, and the `if` block, whose condition reads the name
+    // too. The line of its body reads the name only as its resolution does,
+    // which its memo repeats.
+    expect(loweredOutside(s)).toEqual(["& trust = trust + 1", "if trust > 2 then"]);
+    sameAsCold(s);
+  });
+
+  it("an `if` block is lowered again with the statement of its body whose lowering reads otherwise, or when its own lowering does, and no other statement is", () => {
+    try {
+      // A field of the context only the image line in the `if` block's body
+      // reads (`probe`, above): the block is lowered again for it, as the
+      // line is, and every other statement is served.
+      probe.value = "one";
+      const s = warmed(
+        kindsScript().replace("  Big trust {trust}.", "  [[show backdrop alley]]"),
+      );
+      probe.value = "two";
+      s.edit("Line one.", "Line one, edited.");
+      // The line first, as the block lowers it before it is done itself.
+      expect(loweredOutside(s)).toEqual(["[[show backdrop alley]]", "if trust > 2 then"]);
+      sameAsCold(s);
+    } finally {
+      probe.value = undefined;
+    }
+    const t = warmed(
+      kindsScript([], ["store x = 1", ""]).replace("  Big trust {trust}.", "  Big trust {x}."),
+    );
+    t.edit("    Line one.\n", "    Line one.\n    local x = 2\n");
+    // The `if` block's own lowering reads the locals declared around it; the
+    // line of its body reads the name only as its resolution does, which its
+    // memo repeats.
+    expect(loweredOutside(t)).toEqual(["if trust > 2 then"]);
+    sameAsCold(t);
+  });
+
+  it("a label is lowered again when a flow of its name is written, and no other statement is", () => {
+    const s = warmed(kindsScript());
+    s.edit("scene OTHER\n", "scene later\n  Later.\nend\n\nscene OTHER\n");
+    s.edit("Line one.", "Line one, edited.");
+    // The divert too: its resolution read the scenes whole, which a scene
+    // written changes.
+    expect(loweredOutside(s)).toEqual(["label later", "-> OTHER"]);
+    sameAsCold(s);
+  });
+
+  it("a divert is lowered again when a label of its target's name is written in its block, and no other statement is", () => {
+    const s = warmed(kindsScript());
+    s.edit("    Line one.\n", "    Line one.\n    label OTHER\n");
+    // And the `if` block, whose condition's resolution read the labels
+    // whole, which a label written changes.
+    expect(loweredOutside(s)).toEqual(["if trust > 2 then", "-> OTHER"]);
+    sameAsCold(s);
+  });
+
+  it("an assignment that made an auto-global is lowered again when a local of its name is declared before it, while an unrelated one keeps its chunk", () => {
+    const s = warmed(kindsScript([...FILLER, "& fresh = 5", ...FILLER, "Count {fresh}."]));
+    s.edit("Line one.", "Line one, edited.");
+    // Served, with the auto-global it made made again.
+    expect(loweredOutside(s)).toEqual([]);
+    expect(storyFacts(s.compiler).globals).toContain("fresh");
+    expect(storyFacts(s.compiler)).toEqual(coldFacts(s.text));
+    const trust = assignmentChunk(s, "trust");
+    expect(trust).toBeDefined();
+    // A local of the name declared before it, which its lowering reads: the
+    // assignment writes the local, and makes no auto-global.
+    s.edit("    Line one, edited.\n", "    Line one, edited.\n    local fresh = 1\n");
+    expect(loweredOutside(s)).toContain("& fresh = 5");
+    expect(loweredOutside(s)).not.toContain("& trust = trust + 1");
+    expect(assignmentChunk(s, "trust")).toBe(trust);
+    expect(storyFacts(s.compiler).globals).not.toContain("fresh");
+    expect(storyFacts(s.compiler)).toEqual(coldFacts(s.text));
     sameAsCold(s);
   });
 });

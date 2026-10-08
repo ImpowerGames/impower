@@ -2381,7 +2381,9 @@ export class ChunkStore {
       // A block statement's bodies are blocks its heads head (a branch's, a
       // loop's), which its served shape holds again; no other block.
       blockCount(chunk) !== info.heads.length ||
-      exportCount(chunk) > 0
+      // A label's chunk exports its symbol, which its stand-in names; a
+      // statement exports nothing else a memo stands for.
+      exportCount(chunk) > 1
     ) {
       return undefined;
     }

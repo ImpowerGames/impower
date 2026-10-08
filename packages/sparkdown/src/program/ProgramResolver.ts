@@ -35,6 +35,7 @@ import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { StructDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { memoAssignmentOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
+import { memoGatherOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Container as RuntimeContainer } from "../inkjs/engine/Container";
@@ -1855,10 +1856,12 @@ export class ProgramResolver {
     // A plain assignment stands as an assignment of its name
     // (`MemoizedAssignment`), which the passes over the whole story read as
     // they read it; what it holds they read no more of.
+    // A label stands as a label of its name (`MemoizedGather`), as a plain
+    // assignment as an assignment of its name.
     const assignment =
       objects.length === 1 &&
-      objects[0] instanceof VariableAssignment &&
-      memoAssignmentOf(objects[0]) !== null;
+      ((objects[0] instanceof VariableAssignment && memoAssignmentOf(objects[0]) !== null) ||
+        (objects[0] instanceof Gather && memoGatherOf(objects[0]) !== null));
     // A block statement holds the objects of the statements of its bodies,
     // which their own memos judge, and stand-ins of them when it is served.
     const nested = tally.candidate.nested;

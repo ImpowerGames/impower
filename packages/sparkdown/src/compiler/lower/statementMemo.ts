@@ -11,6 +11,11 @@ import {
   type MemoDivert,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/MemoizedDivert";
 import {
+  MemoizedGather,
+  memoGatherOf,
+  type MemoGather,
+} from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
+import {
   MemoizedStatement,
   memoOf,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
@@ -114,7 +119,7 @@ export class StatementMemoEntry {
      *  what it stands as when it is served: a divert (`MemoizedDivert`), a
      *  plain assignment (`MemoizedAssignment`). Null for one that stands as
      *  a `MemoizedStatement`. */
-    readonly stand: MemoDivert | MemoAssignment | null = null,
+    readonly stand: MemoDivert | MemoAssignment | MemoGather | null = null,
     /** For a block statement, its bodies and the memos of the statements in
      *  them, with what their lowerings read of the context outside the
      *  block statement (`MemoOwner`). */
@@ -646,7 +651,9 @@ export class StatementMemoSession {
         ? new MemoizedDivert(entry, entry.stand)
         : entry.stand?.kind === "assignment"
           ? new MemoizedAssignment(entry, entry.stand)
-          : new MemoizedStatement(entry);
+          : entry.stand?.kind === "gather"
+            ? new MemoizedGather(entry, entry.stand)
+            : new MemoizedStatement(entry);
     const range = statementBounds(from, to, ctx);
     statement.debugMetadata = buildDebugMetadata(range.from, range.to, ctx);
     return statement;
@@ -810,7 +817,9 @@ const remember = (
       ? memoDivertOf(only)
       : only instanceof VariableAssignment
         ? memoAssignmentOf(only)
-        : null;
+        : only instanceof Gather
+          ? memoGatherOf(only)
+          : null;
   if (
     recording.unkeyable !== null ||
     !inBodies.has(shape) ||
