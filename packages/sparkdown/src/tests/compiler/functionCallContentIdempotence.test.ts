@@ -160,9 +160,19 @@ function configured(text: string): SparkdownCompiler {
   return c;
 }
 
+/** Compiles, and requires the compile to have finished building its chunks:
+ *  a compile that threw answers with none, having prepared nothing past the
+ *  throw. */
+function compileBuilt(compiler: SparkdownCompiler): void {
+  const { program } = quiet(() =>
+    compiler.compile({ textDocument: { uri: URI } } as never),
+  );
+  expect(!!program.chunks, "the compile built its statement chunks").toBe(true);
+}
+
 function compiledOnce(text: string): SparkdownCompiler {
   const compiler = configured(text);
-  quiet(() => compiler.compile({ textDocument: { uri: URI } } as never));
+  compileBuilt(compiler);
   return compiler;
 }
 
@@ -347,8 +357,8 @@ describe("FunctionCall generation leaves `content` intact", () => {
             },
           ],
         } as never);
-        compiler.compile({ textDocument: { uri: URI } } as never);
       });
+      compileBuilt(compiler);
       text =
         text.slice(0, offset) +
         step.replace +

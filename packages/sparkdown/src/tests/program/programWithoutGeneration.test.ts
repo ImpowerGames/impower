@@ -46,6 +46,10 @@ afterEach(() => {
 describe("a compile with statement chunks", () => {
   it("generates nothing for any fixture of the differential run that does not fall back", () => {
     const generating: string[] = [];
+    // A compile that threw answers with neither chunks nor a fallback, and
+    // generated nothing only because it stopped: each must have built its
+    // chunks.
+    const unbuilt: string[] = [];
     let compiled = 0;
     for (const [name, text] of fixtures()) {
       const compiler = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
@@ -55,11 +59,16 @@ describe("a compile with statement chunks", () => {
       if (program.fallback) {
         continue;
       }
+      if (!program.chunks) {
+        unbuilt.push(name);
+        continue;
+      }
       compiled += 1;
       if (generated > 0) {
         generating.push(`${name}: ${generated}`);
       }
     }
+    expect(unbuilt).toEqual([]);
     expect(generating).toEqual([]);
     // Most fixtures compile without falling back, so the check covers them.
     expect(compiled).toBeGreaterThan(100);
@@ -70,6 +79,7 @@ describe("a compile with statement chunks", () => {
     const compiler = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
     const cold = quietly(() => compiler.compile().program);
     expect(cold.fallback).toBeUndefined();
+    expect(cold.chunks).toBeTruthy();
     const lines = text.split("\n");
     const at = lines.findIndex((line) => line.trim().length > 0 && !line.trim().startsWith("-"));
     compiler.compiler.updateDocument({

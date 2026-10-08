@@ -51,12 +51,15 @@ const recorded = (program: SparkProgram): Recorded => ({
 });
 
 /** A cold compile of `text` with the language server's configuration and
- *  statement chunks on. */
-const compiled = (text: string): Recorded => {
+ *  statement chunks on: its record, and whether it finished, building its
+ *  chunks or falling back (a compile that threw answers with neither, and
+ *  with the diagnostics it reached before it stopped). */
+const compiled = (text: string): { record: Recorded; finished: boolean } => {
   const { warn, error } = console;
   console.warn = console.error = () => {};
   try {
-    return recorded(programCompiler({ [MAIN_URI]: text }, { programChunks: true }).compile().program);
+    const program = programCompiler({ [MAIN_URI]: text }, { programChunks: true }).compile().program;
+    return { record: recorded(program), finished: !!program.chunks || !!program.fallback };
   } finally {
     console.warn = warn;
     console.error = error;
@@ -66,9 +69,15 @@ const compiled = (text: string): Recorded => {
 describe("the resolver's diagnostics", () => {
   it("are the ones ExportRuntime reported for every fixture of the differential run", () => {
     const actual: Record<string, Recorded> = {};
+    const unfinished: string[] = [];
     for (const [name, text] of fixtures()) {
-      actual[name] = compiled(text);
+      const { record, finished } = compiled(text);
+      actual[name] = record;
+      if (!finished) {
+        unfinished.push(name);
+      }
     }
+    expect(unfinished).toEqual([]);
     if (process.env["SPARKDOWN_RECORD_DIAGNOSTICS"] === "1") {
       writeFileSync(RECORD, `${JSON.stringify(actual, null, 1)}\n`);
       return;
