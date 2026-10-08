@@ -2,6 +2,8 @@
 // suites that need to drive a `Game` through an actual program.
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
+import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
 
 /** The script compiled to statement chunks, which a game runs on the
  *  program engine; with `programChunks` false, for the current engine. */
@@ -54,3 +56,11 @@ export const requireChunks = <
   }
   return program;
 };
+
+/** The program engine's story of a fixture's program (`requireChunks`), as a
+ *  game builds it: its declarations run, its globals set. */
+export const programStoryOf = (
+  program: Parameters<typeof requireChunks>[0],
+  what = "fixture",
+): ProgramStory =>
+  new ProgramStory(requireChunks(program, what).chunks as ProgramRoot);

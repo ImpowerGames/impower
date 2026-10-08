@@ -60,9 +60,11 @@ describe("a game the worker creates", () => {
     const game = state.game as any;
     expect(game).toBeDefined();
     expect(game.context.system.debugging).toBe(true);
-    const stops = Object.values(
-      game._breakpointMap as Record<number, Map<number, unknown>>,
-    ).flatMap((m) => [...m.keys()]);
+    // The lines the game stops on: the program engine holds a line's
+    // breakpoint as the address it stops at, placed by its locator.
+    const stops = [...(game._lineBreakAddresses as Set<number>)].map(
+      (address) => game.locator.locationOf(address)?.startLine,
+    );
     expect(stops).toContain(line);
   });
 });

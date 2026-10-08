@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import {
   compileUI,
   createHarness,
@@ -129,13 +129,11 @@ describe("spaced `>` break", () => {
     const line = source
       .split("\n")
       .findIndex((l) => l.includes("villain joined"));
-    const path = findClosestPath(
-      { file: MAIN_URI, line },
-      program.pathLocations,
-      Object.keys(program.scripts),
-      "last",
-    );
-    expect(path).toBeTruthy();
+    // The line's last beat, by the program's locator.
+    const path = programLocator(program).addressAt(MAIN_URI, line, {
+      beat: "last",
+    });
+    expect(path).toBeDefined();
     harness.jumpTo(path!);
     const beat = harness.nextBeat();
     expect(typed(beat)).toBe("Villain after.");
@@ -215,12 +213,9 @@ describe("spaced `>` break", () => {
       return harness;
     };
     const lastBeatOf = (harness: any) =>
-      findClosestPath(
-        { file: MAIN_URI, line },
-        harness.game.program.pathLocations,
-        Object.keys(harness.game.program.scripts),
-        "last",
-      )!;
+      programLocator(harness.game.program).addressAt(MAIN_URI, line, {
+        beat: "last",
+      })!;
 
     // The run is abandoned, which is what every abandoning path does.
     const abandoned = await primed();
@@ -259,13 +254,10 @@ describe("spaced `>` break", () => {
     expect(cue(harness.nextBeat())).toBe("HERO");
 
     const line = evil.split("\n").findIndex((l) => l.includes("joined"));
-    const path = findClosestPath(
-      { file: INCLUDE, line },
-      harness.game.program.pathLocations,
-      Object.keys(harness.game.program.scripts),
-      "last",
-    );
-    expect(path).toBeTruthy();
+    const path = programLocator(harness.game.program).addressAt(INCLUDE, line, {
+      beat: "last",
+    });
+    expect(path).toBeDefined();
     harness.jumpTo(path!);
     const beat = harness.nextBeat();
     expect(typed(beat)).toBe("After.");

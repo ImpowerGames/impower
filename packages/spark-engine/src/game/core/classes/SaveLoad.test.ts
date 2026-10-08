@@ -73,7 +73,8 @@ describe("Game save/load", () => {
   it("compiles the fixture without diagnostics", () => {
     // If this fails, every other expectation here is meaningless.
     expect(program.diagnostics ?? {}).toEqual({});
-    expect(program.compiled).toBeTruthy();
+    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeTruthy();
   });
 
   describe("round-tripping", () => {

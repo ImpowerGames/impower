@@ -172,11 +172,17 @@ end
 
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The first stop.")));
+    // A resume restores the checkpoint (`restoreCheckpoint`): the program
+    // engine puts its beat image back, where the current engine loaded the
+    // checkpoint's save. Counted when it restores.
     let loads = 0;
-    const realLoad = resumed.load.bind(resumed);
-    resumed.load = (...args: unknown[]) => {
-      loads += 1;
-      return realLoad(...args);
+    const realRestore = resumed.restoreCheckpoint.bind(resumed);
+    resumed.restoreCheckpoint = (...args: unknown[]) => {
+      const restored = realRestore(...args);
+      if (restored) {
+        loads += 1;
+      }
+      return restored;
     };
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The second stop.")));
     expect(loads).toBe(1);
@@ -231,11 +237,17 @@ end
 
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The later stop.")));
+    // A resume restores the checkpoint (`restoreCheckpoint`): the program
+    // engine puts its beat image back, where the current engine loaded the
+    // checkpoint's save. Counted when it restores.
     let loads = 0;
-    const realLoad = resumed.load.bind(resumed);
-    resumed.load = (...args: unknown[]) => {
-      loads += 1;
-      return realLoad(...args);
+    const realRestore = resumed.restoreCheckpoint.bind(resumed);
+    resumed.restoreCheckpoint = (...args: unknown[]) => {
+      const restored = realRestore(...args);
+      if (restored) {
+        loads += 1;
+      }
+      return restored;
     };
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The earlier stop.")));
     expect(loads).toBe(1);

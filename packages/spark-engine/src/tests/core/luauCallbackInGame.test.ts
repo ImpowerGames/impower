@@ -10,6 +10,7 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness } from "../ui/harness/uiTestHarness";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -34,8 +35,7 @@ const compileProgram = (source: string) => {
     textDocument: { uri: URI },
     countAllVisits: true,
   }).program;
-  expect(program.compiled).toBeTruthy();
-  return program;
+  return requireChunks(program);
 };
 
 const runtimeErrors = (messages: any[]) =>

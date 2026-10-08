@@ -9,8 +9,7 @@
 // CONNECTED game that previews the point (what the player does).
 
 import { describe, expect, test } from "vitest";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
-import { pathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
 // The builtin `main` layout, whose backdrop is a persistent picture slot.
@@ -100,22 +99,19 @@ async function playFrom(line: number, count: number) {
 describe("a line that `>` breaks", () => {
   test("holds its beats on the same line, the first for PLAY and the last for the preview", () => {
     const { game } = createHarness(SOURCE, THREE, { connect: false });
-    const program = game.program;
-    const scripts = Object.keys(program.scripts);
+    // The program's own locator (`programLocator`), whose addresses are the
+    // beats' (a first beat's address can be 0, so they are compared to
+    // undefined rather than for truth).
+    const locator = programLocator(game.program);
     const at = (beat: "first" | "last") =>
-      findClosestPath(
-        { file: MAIN_URI, line: THREE },
-        program.pathLocations,
-        scripts,
-        beat,
-      );
+      locator.addressAt(MAIN_URI, THREE, { beat });
     const first = at("first");
     const last = at("last");
-    expect(first).toBeTruthy();
-    expect(last).toBeTruthy();
+    expect(first).toBeDefined();
+    expect(last).toBeDefined();
     expect(last).not.toBe(first);
-    expect(pathLocation(program.pathLocations, first)?.[1]).toBe(THREE);
-    expect(pathLocation(program.pathLocations, last)?.[1]).toBe(THREE);
+    expect(locator.locationOf(first)?.startLine).toBe(THREE);
+    expect(locator.locationOf(last)?.startLine).toBe(THREE);
   });
 
   test("the preview of the line shows its last beat, with what the earlier beats did", async () => {
@@ -140,14 +136,9 @@ describe("a line that `>` breaks", () => {
     // text of its own; it still belongs where it stands on the line.
     const line = lineOf("Before > -> later");
     const { game } = createHarness(SOURCE, line, { connect: false });
-    const scripts = Object.keys(game.program.scripts);
+    const locator = programLocator(game.program);
     const at = (beat: "first" | "last") =>
-      findClosestPath(
-        { file: MAIN_URI, line },
-        game.program.pathLocations,
-        scripts,
-        beat,
-      );
+      locator.addressAt(MAIN_URI, line, { beat });
     expect(at("first")).not.toBe(at("last"));
     expect(await playFrom(line, 2)).toEqual(["Before", "Later."]);
   });

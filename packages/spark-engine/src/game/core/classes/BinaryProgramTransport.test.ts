@@ -11,6 +11,10 @@ import { Game } from "./Game";
  * tests clone the program before using it — a test that skipped the clone
  * would pass even if the buffer were something structured clone cannot carry,
  * which is the whole risk of changing what crosses that boundary.
+ *
+ * #314's encoding is the current engine's compiled JSON, which only its
+ * compile path makes: every compile and game here is the current engine's
+ * (`programChunks: false`), and #705's deletion removes this file with it.
  */
 
 const SOURCE = [
@@ -36,6 +40,7 @@ const compile = (source: string, binaryProgram: boolean) => {
   const uri = "inmemory:///main.sd";
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    programChunks: false,
     binaryProgram,
     files: [
       {
@@ -56,6 +61,7 @@ const compile = (source: string, binaryProgram: boolean) => {
 const makeGame = (program: unknown) =>
   new Game({
     program,
+    programChunks: false,
     now: () => 0,
     setTimeout: (handler: Function) => {
       handler();

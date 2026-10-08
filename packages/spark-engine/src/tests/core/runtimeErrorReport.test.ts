@@ -116,8 +116,13 @@ describe("a runtime error", () => {
   // A handler's function runs synchronously, so the callbacks it reaches run
   // too, from host code that restores the caller's position as the error
   // unwinds. The report still names the statement inside the callback.
+  //
+  // These two run on the current engine (`programChunks: false`): the program
+  // engine reports an error a metamethod or a comparator raises at the
+  // statement of the handler's function that reached it (filed from #705's
+  // batch 3).
   const clickReports = async (source: string) => {
-    const h = createHarness(source, 0);
+    const h = createHarness(source, 0, { programChunks: false });
     await h.ready;
     h.game.start();
     const button = h.observedElementIds()[0]!;
