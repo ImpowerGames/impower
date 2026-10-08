@@ -330,6 +330,42 @@ describe.each(ENGINES)("the debugger on %s", (_name, programChunks) => {
 });
 
 describe("the debugger on the program engine", () => {
+  // A breakpoint stops the game part way through a line, which the game
+  // keeps in progress to finish when continued. A save taken there is of the
+  // beat the line started from, and leaves the line to finish as it would
+  // have (#1693).
+  it("saves while a breakpoint holds a line in progress, and finishes the line after", () => {
+    const h = debugGame(NESTED, true);
+    h.game.setBreakpoints([{ file: MAIN, line: 14 }]);
+    h.game.start();
+    expect(h.game.story.currentText).toBe("Main here.\n");
+    h.game.continue();
+    expect(h.stoppedAt()).toBe(14);
+    expect(h.game.story.asyncContinueComplete).toBe(false);
+
+    const save = h.game.save();
+    const errors = h.emitted.filter((m) => /error/i.test(m.method));
+    expect(errors.map((m) => m.params?.message)).toEqual([]);
+    expect(JSON.parse(save).story).toBeTruthy();
+
+    // The line still finishes, as it does when nothing saved.
+    expect(h.game.story.asyncContinueComplete).toBe(false);
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.game.story.currentText).toBe("Sub here.\n");
+    const health = (g: Game) =>
+      g.getVarVariables().find((v) => v.name === "health")?.value;
+    expect(health(h.game)).toBe("75");
+
+    // The save is the beat before the line, which continues to that line.
+    const loaded = debugGame(NESTED, true);
+    expect(loaded.game.load(save)).toBe(true);
+    expect(health(loaded.game)).toBe("100");
+    loaded.game.continue();
+    expect(loaded.game.story.currentText).toBe("Sub here.\n");
+    expect(health(loaded.game)).toBe("75");
+  });
+
   it("steps in to a function from the line that calls it", () => {
     const h = debugGame(NESTED, true);
     h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
