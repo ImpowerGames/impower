@@ -1,6 +1,6 @@
 import { ChoicePoint } from "../../../engine/ChoicePoint";
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import type { INamedContent } from "../../../../runtime/INamedContent";
 import { InkObject as RuntimeObject } from "../../../../runtime/Object";

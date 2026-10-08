@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import { Text } from "../Text";

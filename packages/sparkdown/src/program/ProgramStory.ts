@@ -1,6 +1,6 @@
 import { Container } from "../inkjs/engine/Container";
 import { debugFileName } from "../compiler/utils/debugFileName";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../runtime/ControlCommand";
 import { DebugMetadata } from "../runtime/DebugMetadata";
 import { ErrorType, type RaisedError } from "../runtime/Error";
 import {

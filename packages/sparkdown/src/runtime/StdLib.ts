@@ -1,5 +1,5 @@
 import { oneValue } from "./CallArgs";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "./ControlCommand";
 import { getPluralCategory } from "./PluralRules";
 import { StepLimitExceeded, StoryException } from "./StoryException";
 import { drawStoryRandom } from "./StoryRandom";

@@ -14,7 +14,7 @@ import {
 } from "../compiler/lower/utils/statementShape";
 import type { DebugMetadata } from "../runtime/DebugMetadata";
 import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../runtime/ControlCommand";
 import { Conditional } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import type { ConditionalSingleBranch } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";

@@ -2,7 +2,7 @@
 // left on the eval stack, in the output and on the frame, for the tests of
 // single instructions.
 import "../../inkjs/engine/Container";
-import { ControlCommand } from "../../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../../runtime/ControlCommand";
 import type { InkObject } from "../../runtime/Object";
 import {
   FloatValue,

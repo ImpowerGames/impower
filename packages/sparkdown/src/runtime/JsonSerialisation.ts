@@ -15,7 +15,7 @@ import {
   SymbolRef,
   SymbolValue,
 } from "./Value";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "./ControlCommand";
 import { PushPopType } from "./PushPop";
 import { Divert } from "../inkjs/engine/Divert";
 import { ChoicePoint } from "../inkjs/engine/ChoicePoint";

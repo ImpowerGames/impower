@@ -61,7 +61,7 @@ import { Tag } from "../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { ControlCommand } from "../../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../../runtime/ControlCommand";
 import { DebugMetadata } from "../../runtime/DebugMetadata";
 import type { SourceMetadata } from "../../runtime/Error";
 import {

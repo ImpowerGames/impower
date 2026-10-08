@@ -3,7 +3,7 @@ import { Choice } from "./Choice";
 import { Conditional } from "./Conditional/Conditional";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";

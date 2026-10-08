@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { DebugMetadata } from "../../../../../runtime/DebugMetadata";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Path as RuntimePath } from "../../../../../runtime/Path";

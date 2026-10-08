@@ -27,7 +27,7 @@
 import "../../inkjs/engine/Container"; // primes class load order (see compileSnapshot)
 import { describe, expect, test } from "vitest";
 import { Container } from "../../inkjs/engine/Container";
-import { ControlCommand } from "../../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../../runtime/ControlCommand";
 import { DivertTargetValue, IntValue, StringValue } from "../../runtime/Value";
 import { NativeFunctionCall } from "../../runtime/NativeFunctionCall";
 import { Path } from "../../runtime/Path";

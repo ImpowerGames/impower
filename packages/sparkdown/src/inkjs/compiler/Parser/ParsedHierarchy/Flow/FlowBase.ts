@@ -21,7 +21,7 @@ import { ClosestFlowBase } from "./ClosestFlowBase";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import { DebugMetadata } from "../../../../../runtime/DebugMetadata";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
 import { RecordingMap, recordRead, resolutionTap } from "../ResolutionTap";

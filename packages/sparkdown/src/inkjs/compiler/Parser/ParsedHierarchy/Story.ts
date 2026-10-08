@@ -11,7 +11,7 @@ import { carriedRuntime } from "./CarriedRuntime";
 import { activation } from "../../../../runtime/StoryActivation";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import type { ErrorHandler } from "../../../../runtime/Error";
 import { ErrorType } from "../ErrorType";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";

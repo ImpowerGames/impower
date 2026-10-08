@@ -1,5 +1,5 @@
 import { ParsedObject } from "./Object";
-import { ControlCommand } from "../../../engine/ControlCommand";
+import { ControlCommand } from "../../../../runtime/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Tag as RuntimeTag } from "../../../../runtime/Tag";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";

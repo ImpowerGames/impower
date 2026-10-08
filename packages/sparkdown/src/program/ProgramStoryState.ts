@@ -1,7 +1,7 @@
 // Loads the engine's modules in the order that settles their import cycle
 // (see `CompilationAnnotator`).
 import "../inkjs/engine/Container";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../runtime/ControlCommand";
 import type { RaisedError } from "../runtime/Error";
 import { JsonSerialisation } from "../runtime/JsonSerialisation";
 import type { InkObject } from "../runtime/Object";

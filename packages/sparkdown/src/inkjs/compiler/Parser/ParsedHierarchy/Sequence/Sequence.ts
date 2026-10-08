@@ -1,6 +1,6 @@
 import { ContentList } from "../ContentList";
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { IntValue } from "../../../../../runtime/Value";
 import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
