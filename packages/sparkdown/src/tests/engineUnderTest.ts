@@ -138,16 +138,12 @@ export function testCompiler(): SparkdownCompiler {
  * holds only beside a compile error, and a label between two choices an `if`
  * of a block's preamble gates and a choice inside a block of a presentation
  * that the writer does not make the presentation's own code, which it
- * leaves to the current engine (#697, #1503); an
- * included script's top-level content, a `run`
- * statement's call among it, which the design leaves to the current engine
- * (docs/engine/binary-program.md, What is built).
+ * leaves to the current engine (#697, #1503).
  */
 const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
   "Choice",
   "a label between choices an if gates",
   "a choice inside a block of a presentation",
-  "IncludedFile",
 ]);
 
 /** The story of a compile's `program.compiled`: on the program engine, the
