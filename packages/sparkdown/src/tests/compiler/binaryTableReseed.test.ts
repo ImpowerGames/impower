@@ -14,11 +14,8 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { currentEngineCompiler } from "../engineUnderTest";
 import { materializeNode } from "../../binary/programBinary";
-import {
-  ProgramBinaryWriter,
-  createProgramTable,
-  reseedProgramTable,
-} from "../../binary/ProgramBinaryWriter";
+import { ProgramBinaryWriter } from "../../binary/ProgramBinaryWriter";
+import { createProgramTable, reseedProgramTable } from "../../program/ProgramTable";
 
 const URI = "inmemory:///main.sd";
 

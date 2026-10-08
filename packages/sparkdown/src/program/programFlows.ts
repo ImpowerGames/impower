@@ -25,7 +25,7 @@ import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { Text } from "../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
+import type { DebugMetadata } from "../runtime/DebugMetadata";
 import type {
   BodySource,
   DeclarationSource,

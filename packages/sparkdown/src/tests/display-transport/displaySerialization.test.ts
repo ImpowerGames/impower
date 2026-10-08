@@ -9,7 +9,7 @@
 
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
-import { ObjectValue } from "../../inkjs/engine/Value";
+import { ObjectValue } from "../../runtime/Value";
 
 function compile(source: string): Record<string, any> {
   const compiler = testCompiler();

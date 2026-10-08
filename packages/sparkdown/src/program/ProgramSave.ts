@@ -1,6 +1,6 @@
-import { JsonSerialisation } from "../inkjs/engine/JsonSerialisation";
-import type { InkObject } from "../inkjs/engine/Object";
-import { SimpleJson } from "../inkjs/engine/SimpleJson";
+import { JsonSerialisation } from "../runtime/JsonSerialisation";
+import type { InkObject } from "../runtime/Object";
+import { SimpleJson } from "../runtime/SimpleJson";
 import {
   BoolValue,
   FloatValue,
@@ -10,7 +10,7 @@ import {
   SymbolRef,
   SymbolValue,
   VariablePointerValue,
-} from "../inkjs/engine/Value";
+} from "../runtime/Value";
 import {
   alignParts,
   chunkPartsOf,

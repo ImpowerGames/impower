@@ -22,7 +22,7 @@ import { modeFromName } from "../typecheck/LuauDocumentChecker";
 import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
-import { STDLIB } from "../../inkjs/engine/StdLib";
+import { STDLIB } from "../../runtime/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -62,8 +62,8 @@ import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
-import type { SourceMetadata } from "../../inkjs/engine/Error";
+import { DebugMetadata } from "../../runtime/DebugMetadata";
+import type { SourceMetadata } from "../../runtime/Error";
 import {
   validateScene,
   validateBranch,
@@ -71,28 +71,23 @@ import {
 import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
-import { InkObject } from "../../inkjs/engine/Object";
-import { SimpleJson } from "../../inkjs/engine/SimpleJson";
-import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
-import {
-  ProgramBinaryWriter,
-  createProgramTable,
-  reseedProgramTable,
-  type CachedFlowChunk,
-  type ProgramTable,
-} from "../../binary/ProgramBinaryWriter";
+import { InkObject } from "../../runtime/Object";
+import { SimpleJson } from "../../runtime/SimpleJson";
+import { JsonSerialisation } from "../../runtime/JsonSerialisation";
+import { ProgramBinaryWriter, type CachedFlowChunk } from "../../binary/ProgramBinaryWriter";
+import { createProgramTable, reseedProgramTable, type ProgramTable } from "../../program/ProgramTable";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { carriedRuntime } from "../../inkjs/compiler/Parser/ParsedHierarchy/CarriedRuntime";
-import { activation } from "../../inkjs/engine/StoryActivation";
+import { activation } from "../../runtime/StoryActivation";
 import { StoryJournal } from "./StoryJournal";
 import {
   asINamedContentOrNull,
   asOrNull,
-} from "../../inkjs/engine/TypeAssertion";
+} from "../../runtime/TypeAssertion";
 import { Container } from "../../inkjs/engine/Container";
-import { StringValue } from "../../inkjs/engine/Value";
+import { StringValue } from "../../runtime/Value";
 import { Divert as RuntimeDivert } from "../../inkjs/engine/Divert";
-import { PushPopType } from "../../inkjs/engine/PushPop";
+import { PushPopType } from "../../runtime/PushPop";
 import {
   createSceneAssetCapture,
   type SceneAssetCapture,
@@ -100,7 +95,7 @@ import {
 } from "../types/SceneAssets";
 import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
-import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
+import { VariableAssignment } from "../../runtime/VariableAssignment";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";

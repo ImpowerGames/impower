@@ -1,4 +1,4 @@
-import { DebugMetadata } from "../../../inkjs/engine/DebugMetadata";
+import { DebugMetadata } from "../../../runtime/DebugMetadata";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { LowerContext } from "../context";

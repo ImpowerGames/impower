@@ -1,4 +1,4 @@
-import { DebugMetadata } from "../../../engine/DebugMetadata";
+import { DebugMetadata } from "../../../../runtime/DebugMetadata";
 import { currentCompileEpoch } from "./CompileEpoch";
 
 export class Identifier {

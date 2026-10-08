@@ -1,5 +1,5 @@
-import { InkObject } from "./Object";
-import { Path } from "./Path";
+import { InkObject } from "../../runtime/Object";
+import { Path } from "../../runtime/Path";
 
 export class VariableReference extends InkObject {
   public name: string | null;

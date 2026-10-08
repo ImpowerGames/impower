@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { FlowBase } from "./Flow/FlowBase";
 import { ParsedObject } from "./Object";
 

@@ -1,5 +1,5 @@
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 
 export class GatherPointToResolve {
   constructor(

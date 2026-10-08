@@ -1,7 +1,7 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "./Expression";
-import { BoolValue, FloatValue, IntValue } from "../../../../engine/Value";
-import { asOrNull } from "../../../../engine/TypeAssertion";
+import { BoolValue, FloatValue, IntValue } from "../../../../../runtime/Value";
+import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import {

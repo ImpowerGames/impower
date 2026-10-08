@@ -1,17 +1,17 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
-import { lookupStateAwareStdLib } from "../../../engine/StdLib";
+import { lookupStateAwareStdLib } from "../../../../runtime/StdLib";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
 import { Expression } from "./Expression/Expression";
-import { NativeFunctionCall } from "../../../engine/NativeFunctionCall";
+import { NativeFunctionCall } from "../../../../runtime/NativeFunctionCall";
 import { Path } from "./Path";
 import { Story } from "./Story";
-import { Void as RuntimeVoid } from "../../../engine/Void";
+import { Void as RuntimeVoid } from "../../../../runtime/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
-import { asOrNull } from "../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import {
   CALL_DISCARD,

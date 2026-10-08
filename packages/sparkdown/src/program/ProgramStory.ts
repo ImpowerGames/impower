@@ -1,55 +1,28 @@
 import { Container } from "../inkjs/engine/Container";
-import type { CallStack } from "../inkjs/engine/CallStack";
 import { debugFileName } from "../compiler/utils/debugFileName";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
-import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
-import { ErrorType, type RaisedError } from "../inkjs/engine/Error";
+import { DebugMetadata } from "../runtime/DebugMetadata";
+import { ErrorType, type RaisedError } from "../runtime/Error";
 import {
   EXECUTION_WATCH_STEPS,
   executionWatch,
-} from "../inkjs/engine/ExecutionWatch";
-import { InkList } from "../inkjs/engine/InkList";
-import { NativeFunctionCall } from "../inkjs/engine/NativeFunctionCall";
-import { InkObject } from "../inkjs/engine/Object";
-import { cleanOutputWhitespace } from "../inkjs/engine/outputWhitespace";
-import { PushPopType } from "../inkjs/engine/PushPop";
-import type { Simulator } from "../inkjs/engine/Simulator";
-import { lookupStateAwareStdLib } from "../inkjs/engine/StdLib";
-import {
-  Story,
-  arrangeArgsFor,
-  callNativeFunction,
-  callValueAsFunction,
-  callVariableTarget,
-  captureString,
-  captureTag,
-  extractClosureTarget,
-  indexValue,
-  isFunctionReference,
-  lookupMetamethod,
-  normalizeLuauCallArgs,
-  oneValue,
-  openVariablePointer,
-  packTuple,
-  popLuauCondition,
-  pushStdLibResult,
-  readVariable,
-  sequenceShuffleIndex,
-  shortCircuitDecides,
-  spreadCallArgs,
-  storeIndex,
-  tableFromPairs,
-  tryInvokeStdLibMarkerValue,
-  unpackTuple,
-  type FunctionTarget,
-} from "../inkjs/engine/Story";
+} from "../runtime/ExecutionWatch";
+import { InkList } from "../runtime/InkList";
+import { NativeFunctionCall } from "../runtime/NativeFunctionCall";
+import { InkObject } from "../runtime/Object";
+import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
+import { PushPopType } from "../runtime/PushPop";
+import type { Simulator } from "../runtime/Simulator";
+import { lookupStateAwareStdLib } from "../runtime/StdLib";
+import { Story } from "../inkjs/engine/Story";
+import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
-} from "../inkjs/engine/StoryException";
-import { StringBuilder } from "../inkjs/engine/StringBuilder";
-import { Tag } from "../inkjs/engine/Tag";
-import { asOrThrows } from "../inkjs/engine/TypeAssertion";
+} from "../runtime/StoryException";
+import { StringBuilder } from "../runtime/StringBuilder";
+import { Tag } from "../runtime/Tag";
+import { asOrThrows } from "../runtime/TypeAssertion";
 import {
   AbstractValue,
   BoolValue,
@@ -64,10 +37,10 @@ import {
   Value,
   ValueType,
   VariablePointerValue,
-} from "../inkjs/engine/Value";
-import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
-import type { VariablesState } from "../inkjs/engine/VariablesState";
-import { Void } from "../inkjs/engine/Void";
+} from "../runtime/Value";
+import { VariableAssignment } from "../runtime/VariableAssignment";
+import type { VariablesState } from "../runtime/VariablesState";
+import { Void } from "../runtime/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
   BEAT_WAITED,
@@ -154,13 +127,7 @@ import {
   lineRowField,
   type StatementChunk,
 } from "./StatementChunk";
-
-type ErrorHandler = (
-  message: string,
-  type: ErrorType,
-  source?: unknown,
-  raised?: RaisedError | null,
-) => void;
+import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
 
 /** The function a symbol names, as the call handlers the two engines share
  *  read it (`FunctionTarget`): where its entry code starts, and what its
@@ -374,25 +341,10 @@ interface SuspendedStep {
   running: RunningInstruction | null;
 }
 
-/** One call frame as the debugger reads it (`ProgramStory.debugFrames`). */
-export interface DebugFrame {
-  /** Whether the frame runs a function or a tunnel; the flow's own frame
-   *  is a tunnel's, as on the current engine. */
-  readonly type: PushPopType;
-  /** The symbol of the function or tunnel the frame runs, or of the flow
-   *  the flow's own frame stands in (-1 for a declaration). */
-  readonly symbol: number;
-  readonly name: string;
-  /** The address the frame stands at, or -1 when it stands nowhere. */
-  readonly address: number;
-  /** The call stack element whose scopes hold the frame's temporaries. */
-  readonly element: CallStack.Element;
-}
-
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
  * (docs/engine/binary-program.md, sections 3, 5, 6, 9 and 10): an eval stack,
- * the value operations of the current engine (`Story`'s shared handlers),
+ * the value operations the two engines share (`runtime/evaluation.ts`),
  * native functions and operators through `NativeFunctionCall`, variables
  * through `VariablesState`, block statements whose bodies it enters and
  * leaves through a block stack, calls of functions in frames that return to
@@ -420,11 +372,11 @@ export interface DebugFrame {
  * program's declaration sequences against those globals. Engines built from
  * one root share its chunks and nothing they write.
  */
-export class ProgramStory {
+export class ProgramStory implements StoryEngine {
   collapseWhitespace = true;
   processEscapes = true;
 
-  onError: ErrorHandler | null = null;
+  onError: StoryErrorHandler | null = null;
   onDidContinue: (() => void) | null = null;
   onMakeChoice: ((choice: unknown) => void) | null = null;
   onEvaluateCondition: ((value: boolean) => void) | null = null;

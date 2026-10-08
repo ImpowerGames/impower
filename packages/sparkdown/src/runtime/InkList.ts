@@ -1,7 +1,7 @@
 import { throwNullException } from "./NullException";
 import { StringBuilder } from "./StringBuilder";
 import { ListDefinition } from "./ListDefinition";
-import { Story } from "./Story";
+import { Story } from "../inkjs/engine/Story";
 
 export class InkListItem implements IInkListItem {
   // InkListItem is a struct

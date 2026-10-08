@@ -1,10 +1,10 @@
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { noteResolved } from "../../../../program/StatementWatch";
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { DebugMetadata } from "../../../engine/DebugMetadata";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
-import { Path as RuntimePath } from "../../../engine/Path";
-import { asOrNull } from "../../../engine/TypeAssertion";
+import { DebugMetadata } from "../../../../runtime/DebugMetadata";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
+import { Path as RuntimePath } from "../../../../runtime/Path";
+import { asOrNull } from "../../../../runtime/TypeAssertion";
 import { currentCompileEpoch } from "./CompileEpoch";
 import type { FindQueryFunc } from "./FindQueryFunc";
 import { Identifier } from "./Identifier";

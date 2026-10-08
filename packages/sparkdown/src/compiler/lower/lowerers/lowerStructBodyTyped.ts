@@ -8,7 +8,7 @@ import {
   type StructEntry,
 } from "../utils/structBodyEntries";
 import { unescapeString } from "../utils/unescapeString";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 
 

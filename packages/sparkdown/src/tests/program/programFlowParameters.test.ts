@@ -8,7 +8,7 @@ import "../../inkjs/engine/Container";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { shuffleDraws } from "../../inkjs/engine/Story";
+import { shuffleDraws } from "../../runtime/evaluation";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { ChunkStore, type FlowSource } from "../../program/ChunkStore";
 import { FACT_PARAMS, PARAM_REFERENCE, PARAM_VALUE } from "../../program/ProgramFacts";

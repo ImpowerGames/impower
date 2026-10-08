@@ -1,4 +1,4 @@
-import { InkObject } from "./Object";
+import { InkObject } from "../../runtime/Object";
 import { Container } from "./Container";
 
 export class SearchResult {

@@ -1,5 +1,5 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
-import { ObjectValue } from "@impower/sparkdown/src/inkjs/engine/Value";
+import { ObjectValue } from "@impower/sparkdown/src/runtime/Value";
 import { Module } from "../../../core/classes/Module";
 import type {
 AudioInstruction,

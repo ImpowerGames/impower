@@ -12,7 +12,7 @@ import {
   tryGetValueFromMap,
   tryParseFloat,
   tryParseInt,
-} from "../../inkjs/engine/TryGetResult";
+} from "../../runtime/TryGetResult";
 
 describe("TryGetResult", () => {
   describe("tryGetValueFromMap", () => {

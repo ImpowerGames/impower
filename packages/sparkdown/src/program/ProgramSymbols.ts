@@ -1,4 +1,4 @@
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
+import type { ProgramTable } from "./ProgramTable";
 
 /** What a symbol names (docs/engine/binary-program.md, section 2). The build
  *  out defines the kinds it has reached; the others follow with their slices.

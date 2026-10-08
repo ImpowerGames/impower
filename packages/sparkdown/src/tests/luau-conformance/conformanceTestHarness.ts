@@ -188,7 +188,7 @@ export function runConformanceSource(
       return dm ? Math.max(1, dm.startLineNumber - PREAMBLE_LINE_COUNT) : null;
     }
     const ptr = story.state.currentPointer;
-    const candidates: import("../../inkjs/engine/Object").InkObject[] = [];
+    const candidates: import("../../runtime/Object").InkObject[] = [];
     if (ptr && !ptr.isNull) {
       const resolved = ptr.Resolve();
       if (resolved) candidates.push(resolved);

@@ -1,8 +1,8 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import type { INamedContent } from "../../../../engine/INamedContent";
+import type { INamedContent } from "../../../../../runtime/INamedContent";
 import type { IWeavePoint } from "../IWeavePoint";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";

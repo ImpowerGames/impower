@@ -48,12 +48,12 @@ import {
   MAIN_URI as PROJECT_MAIN_URI,
 } from "../../../../../scripts/bench/benchProject";
 import type { Story } from "../../inkjs/engine/Story";
-import { DivertTargetValue, ObjectValue, SymbolValue } from "../../inkjs/engine/Value";
+import { DivertTargetValue, ObjectValue, SymbolValue } from "../../runtime/Value";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
-import { shuffleDraws } from "../../inkjs/engine/Story";
+import { shuffleDraws } from "../../runtime/evaluation";
 import { FLOW_INSERTS, flowScreenplay } from "../program/flowScreenplay";
 import { CHOOSE_INSERTS, chooseScreenplay } from "../program/chooseScreenplay";
 import type { ProgramEmitter } from "../../program/ProgramEmitter";

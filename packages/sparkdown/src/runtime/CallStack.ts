@@ -1,6 +1,6 @@
 import { PushPopType } from "./PushPop";
 import { Path } from "./Path";
-import { Story } from "./Story";
+import { Story } from "../inkjs/engine/Story";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { ListValue, VariablePointerValue } from "./Value";
 import { StringBuilder } from "./StringBuilder";

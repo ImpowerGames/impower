@@ -8,8 +8,8 @@
 import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
-import type { Simulator } from "../../inkjs/engine/Simulator";
-import { ObjectValue } from "../../inkjs/engine/Value";
+import type { Simulator } from "../../runtime/Simulator";
+import { ObjectValue } from "../../runtime/Value";
 
 interface Step {
   text: string;

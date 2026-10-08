@@ -9,7 +9,7 @@ import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { currentEngineCompiler } from "../engineUnderTest";
-import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
+import { JsonSerialisation } from "../../runtime/JsonSerialisation";
 
 const URI = "inmemory:///main.sd";
 

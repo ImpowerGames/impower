@@ -1,4 +1,4 @@
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Expression } from "../Expression/Expression";
 import { NumberExpression } from "../Expression/NumberExpression";
 import { StringExpression } from "../Expression/StringExpression";

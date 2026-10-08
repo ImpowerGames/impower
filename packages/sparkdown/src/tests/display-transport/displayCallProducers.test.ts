@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import { ObjectValue, StringValue } from "../../inkjs/engine/Value";
+import { ObjectValue, StringValue } from "../../runtime/Value";
 
 interface Step {
   text: string;

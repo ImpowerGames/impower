@@ -2,28 +2,28 @@
 // (see `CompilationAnnotator`).
 import "../inkjs/engine/Container";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
-import type { RaisedError } from "../inkjs/engine/Error";
-import { JsonSerialisation } from "../inkjs/engine/JsonSerialisation";
-import type { InkObject } from "../inkjs/engine/Object";
-import { PRNG } from "../inkjs/engine/PRNG";
-import { PushPopType } from "../inkjs/engine/PushPop";
-import { SimpleJson } from "../inkjs/engine/SimpleJson";
-import { StringBuilder } from "../inkjs/engine/StringBuilder";
-import { Tag } from "../inkjs/engine/Tag";
+import type { RaisedError } from "../runtime/Error";
+import { JsonSerialisation } from "../runtime/JsonSerialisation";
+import type { InkObject } from "../runtime/Object";
+import { PRNG } from "../runtime/PRNG";
+import { PushPopType } from "../runtime/PushPop";
+import { SimpleJson } from "../runtime/SimpleJson";
+import { StringBuilder } from "../runtime/StringBuilder";
+import { Tag } from "../runtime/Tag";
 import {
   ObjectValue,
   StringValue,
   type VariablePointerValue,
-} from "../inkjs/engine/Value";
-import { Pointer } from "../inkjs/engine/Pointer";
+} from "../runtime/Value";
+import { Pointer } from "../runtime/Pointer";
 import type { ImageTracker, ProgramImage } from "./ProgramImages";
-import type { VariablesState } from "../inkjs/engine/VariablesState";
-import { CallStack } from "../inkjs/engine/CallStack";
+import type { VariablesState } from "../runtime/VariablesState";
+import { CallStack } from "../runtime/CallStack";
 import {
   findOpenString,
   isBeginString,
   splitHeadTailWhitespace,
-} from "../inkjs/engine/outputWhitespace";
+} from "../runtime/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { UNDEFINED_KIND, countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
 import {
@@ -37,7 +37,7 @@ import {
   type StatementChunk,
 } from "./StatementChunk";
 import { Op, opOf } from "./ProgramInstructions";
-import { Choice } from "../inkjs/engine/Choice";
+import { Choice } from "../runtime/Choice";
 
 /** Where the engine stands: an entry of a sequence and an offset into that
  *  entry's code. An offset past the end of a chunk's code is the start of the

@@ -1,5 +1,5 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../engine/VariableAssignment";
+import { VariableAssignment as RuntimeVariableAssignment } from "../../../../../runtime/VariableAssignment";
 import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";

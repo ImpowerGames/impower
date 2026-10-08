@@ -27,8 +27,8 @@
 // current compiler emits for the kinds the comparison scene holds (display
 // calls, reassignments, `if` blocks, diverts to a scene, one `choose`) and
 // throws, naming the construct, on anything else.
-import { NativeFunctionCall } from "../../packages/sparkdown/src/inkjs/engine/NativeFunctionCall";
-import { IntValue, StringValue } from "../../packages/sparkdown/src/inkjs/engine/Value";
+import { NativeFunctionCall } from "../../packages/sparkdown/src/runtime/NativeFunctionCall";
+import { IntValue, StringValue } from "../../packages/sparkdown/src/runtime/Value";
 
 export const enum Op {
   Text = 1,

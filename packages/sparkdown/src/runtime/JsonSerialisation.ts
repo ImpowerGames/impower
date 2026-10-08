@@ -1,4 +1,4 @@
-import { Container } from "./Container";
+import { Container } from "../inkjs/engine/Container";
 import {
   Value,
   IntValue,
@@ -15,11 +15,11 @@ import {
   SymbolRef,
   SymbolValue,
 } from "./Value";
-import { ControlCommand } from "./ControlCommand";
+import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { PushPopType } from "./PushPop";
-import { Divert } from "./Divert";
-import { ChoicePoint } from "./ChoicePoint";
-import { VariableReference } from "./VariableReference";
+import { Divert } from "../inkjs/engine/Divert";
+import { ChoicePoint } from "../inkjs/engine/ChoicePoint";
+import { VariableReference } from "../inkjs/engine/VariableReference";
 import { VariableAssignment } from "./VariableAssignment";
 import { NativeFunctionCall } from "./NativeFunctionCall";
 import { Void } from "./Void";

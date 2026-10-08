@@ -1,5 +1,5 @@
 import { ParsedObject } from "./Object";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
+import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import { Story } from "./Story";
 
 export class IncludedFile extends ParsedObject {

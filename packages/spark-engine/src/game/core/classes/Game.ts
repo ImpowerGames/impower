@@ -26,12 +26,12 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
-import { ErrorType as InkErrorType } from "@impower/sparkdown/src/inkjs/engine/Error";
-import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
-import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
+import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
+import { InkObject } from "@impower/sparkdown/src/runtime/Object";
+import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
-import { StepLimitExceeded } from "@impower/sparkdown/src/inkjs/engine/StoryException";
-import { VariablePointerValue } from "@impower/sparkdown/src/inkjs/engine/Value";
+import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
+import { VariablePointerValue } from "@impower/sparkdown/src/runtime/Value";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";

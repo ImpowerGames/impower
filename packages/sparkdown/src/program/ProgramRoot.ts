@@ -1,4 +1,4 @@
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
+import type { ProgramTable } from "./ProgramTable";
 import type {
   AddressQuery,
   SourceLocation,

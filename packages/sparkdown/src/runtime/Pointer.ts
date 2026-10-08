@@ -1,5 +1,5 @@
 import { Path } from "./Path";
-import { Container } from "./Container";
+import { Container } from "../inkjs/engine/Container";
 import { InkObject } from "./Object";
 import { asINamedContentOrNull } from "./TypeAssertion";
 

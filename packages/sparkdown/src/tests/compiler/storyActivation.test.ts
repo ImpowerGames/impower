@@ -16,7 +16,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { currentEngineCompiler } from "../engineUnderTest";
 import { StoryJournal } from "../../compiler/classes/StoryJournal";
-import { activation } from "../../inkjs/engine/StoryActivation";
+import { activation } from "../../runtime/StoryActivation";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const URI = "inmemory:///main.sd";

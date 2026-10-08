@@ -28,11 +28,11 @@ import "../../inkjs/engine/Container"; // primes class load order (see compileSn
 import { describe, expect, test } from "vitest";
 import { Container } from "../../inkjs/engine/Container";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import { DivertTargetValue, IntValue, StringValue } from "../../inkjs/engine/Value";
-import { NativeFunctionCall } from "../../inkjs/engine/NativeFunctionCall";
-import { Path } from "../../inkjs/engine/Path";
+import { DivertTargetValue, IntValue, StringValue } from "../../runtime/Value";
+import { NativeFunctionCall } from "../../runtime/NativeFunctionCall";
+import { Path } from "../../runtime/Path";
 import { Story } from "../../inkjs/engine/Story";
-import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
+import { VariableAssignment } from "../../runtime/VariableAssignment";
 import { VariableReference } from "../../inkjs/engine/VariableReference";
 
 describe("CallValueAsFunction control command", () => {

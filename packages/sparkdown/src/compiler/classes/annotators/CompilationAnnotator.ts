@@ -20,7 +20,7 @@ import {
 } from "../../lower/statementMemo";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import type { SourceMetadata } from "../../../inkjs/engine/Error";
+import type { SourceMetadata } from "../../../runtime/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
 import type {
   LowerContext,

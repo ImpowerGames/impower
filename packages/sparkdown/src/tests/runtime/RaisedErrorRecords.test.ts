@@ -7,7 +7,7 @@
 // slot; the second test pins that on the state directly.
 
 import { describe, expect, test } from "vitest";
-import type { RaisedError } from "../../inkjs/engine/Error";
+import type { RaisedError } from "../../runtime/Error";
 import { rootOf } from "../programListing";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

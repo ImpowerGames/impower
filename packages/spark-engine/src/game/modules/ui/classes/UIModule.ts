@@ -30,7 +30,7 @@ import {
   IntValue,
   ObjectValue,
   StringValue,
-} from "@impower/sparkdown/src/inkjs/engine/Value";
+} from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Module } from "../../../core/classes/Module";
