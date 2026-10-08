@@ -113,15 +113,16 @@ describe("a runtime error", () => {
     );
   });
 
-  // A handler's function runs synchronously, so the callbacks it reaches run
-  // too, from host code that restores the caller's position as the error
-  // unwinds. The report still names the statement inside the callback.
-  //
-  // These two run on the current engine (`programChunks: false`): the program
-  // engine reports an error a metamethod or a comparator raises at the
-  // statement of the handler's function that reached it (#1691).
+  // A metamethod and a comparator are called from host code (a builtin, or
+  // the runtime's index lookup), which restores its caller's position as the
+  // error unwinds through it. The report still names the statement inside the
+  // callback, whether a click handler's function or a display line's step
+  // reached it (#1691).
+  const METAMETHOD = `store obj = setmetatable({}, { __index = function(t, k)\n  error("bad index")\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n`;
+  const COMPARATOR = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nfunction sort_items()\n  table.sort(items, compare)\nend\n`;
+
   const clickReports = async (source: string) => {
-    const h = createHarness(source, 0, { programChunks: false });
+    const h = createHarness(source, 0);
     await h.ready;
     h.game.start();
     const button = h.observedElementIds()[0]!;
@@ -132,18 +133,55 @@ describe("a runtime error", () => {
       e.message,
     ]);
   };
+  const stepReports = async (source: string) => {
+    const h = await play(source);
+    h.game.continue();
+    return runtimeErrors(h.messages).map((e) => [
+      e.location.range.start.line,
+      e.message,
+    ]);
+  };
   const lineOf = (source: string, text: string) =>
     source.split("\n").findIndex((line) => line.includes(text));
 
   test("raised inside a metamethod a click handler reaches is reported where the metamethod raised it", async () => {
-    const source = `A\nB\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  error("bad index")\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n`;
+    const source = `A\nB\n\n${METAMETHOD}\nlayout hud with\n  button "Read" @click=read_item\nend\n`;
     expect(await clickReports(source)).toEqual([
       [lineOf(source, `error("bad index")`), "bad index"],
     ]);
   });
 
   test("raised inside a comparator a click handler's sort calls is reported where the comparator raised it", async () => {
-    const source = `A\nB\n\nstore items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nfunction sort_items()\n  table.sort(items, compare)\nend\n\nlayout hud with\n  button "Sort" @click=sort_items\nend\n`;
+    const source = `A\nB\n\n${COMPARATOR}\nlayout hud with\n  button "Sort" @click=sort_items\nend\n`;
+    expect(await clickReports(source)).toEqual([
+      [
+        lineOf(source, `error("bad compare")`),
+        expect.stringMatching(/bad compare$/),
+      ],
+    ]);
+  });
+
+  test("raised inside a metamethod a display line reaches is reported where the metamethod raised it", async () => {
+    const source = `${METAMETHOD}\nA\nB {read_item()}\nC\n`;
+    expect(await stepReports(source)).toEqual([
+      [lineOf(source, `error("bad index")`), "bad index"],
+    ]);
+  });
+
+  test("raised inside a comparator a display line's sort calls is reported where the comparator raised it", async () => {
+    const source = `${COMPARATOR}\nA\nB {sort_items()}\nC\n`;
+    expect(await stepReports(source)).toEqual([
+      [
+        lineOf(source, `error("bad compare")`),
+        expect.stringMatching(/bad compare$/),
+      ],
+    ]);
+  });
+
+  // The comparator runs inside the metamethod's call, so two callbacks unwind:
+  // the report names the innermost statement, not the metamethod's sort.
+  test("raised inside a comparator a metamethod's sort calls is reported where the comparator raised it", async () => {
+    const source = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  table.sort(items, compare)\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n\nA\nB\n`;
     expect(await clickReports(source)).toEqual([
       [
         lineOf(source, `error("bad compare")`),

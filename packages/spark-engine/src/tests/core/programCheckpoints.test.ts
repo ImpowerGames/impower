@@ -366,10 +366,12 @@ describe("the checkpoints of a game on the program engine", () => {
     engine.ChoosePathString("MAIN");
     engine.ContinueAsync();
     expect(engine.asyncContinueComplete).toBe(false);
-    // The story cannot save with a line in progress, so the game's save
-    // holds an empty story.
-    const storyless = game.save();
-    expect(JSON.parse(storyless).story).toBe("");
+    // A save the game wrote while its story could not save (asked from
+    // inside a continue, or with a line in progress on a story that keeps no
+    // beat images) holds an empty story. A line in progress on the game's
+    // story saves (#1693), so that save is written here as the game writes
+    // it.
+    const storyless = JSON.stringify({ ...JSON.parse(valid), story: "" });
     const unreadableRuntime = { ...JSON.parse(valid), runtime: "{not json" };
     const noModules = JSON.parse(valid);
     delete noModules.modules;

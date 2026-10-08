@@ -6,6 +6,12 @@ export class StoryException extends Error {
    *  error unwinds through it. Null while the pointer still names that
    *  content. */
   public raisedPath: string | null = null;
+  /** On the program engine, the address of the instruction that raised the
+   *  error, kept for the same reason: a callback run from host code
+   *  (`ProgramStory.CallLuauFunction`) restores its caller's running
+   *  instruction as the error unwinds through it. Null while the running
+   *  instruction is still the one that raised it. */
+  public raisedAddress: number | null = null;
   public override message: string;
   public override name: string;
 
