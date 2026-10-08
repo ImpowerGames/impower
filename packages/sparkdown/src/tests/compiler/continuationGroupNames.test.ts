@@ -6,6 +6,11 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
+// The fixture's `shared.sd` holds top-level content two scripts include,
+// which the program writer does not emit yet (#1681), and the tests read the
+// group names of the current engine's compiled JSON: they compile on that
+// engine's path until #705's deletion moves or removes them.
+import { currentEngineCompiler } from "../engineUnderTest";
 
 const MAIN_URI = "file://proj/main.sd";
 const CHAPTER_URI = "file://proj/chapter.sd";
@@ -79,7 +84,7 @@ const project: Project = {
 describe("continuation group names", () => {
   it("a script included twice keeps a name for each continuation", () => {
     const json = quiet(() => {
-      const compiler = new SparkdownCompiler();
+      const compiler = currentEngineCompiler();
       configure(compiler, project, 1);
       return compiled(compiler);
     });
@@ -96,7 +101,7 @@ describe("continuation group names", () => {
     const offset = project.main.indexOf(find);
     const edited = { ...project, main: project.main.slice(0, offset) + replace + project.main.slice(offset + find.length) };
     const [incremental, cold] = quiet(() => {
-      const compiler = new SparkdownCompiler();
+      const compiler = currentEngineCompiler();
       configure(compiler, project, 1);
       compiled(compiler);
       compiler.updateDocument({
@@ -109,7 +114,7 @@ describe("continuation group names", () => {
         ],
       });
       const incremental = compiled(compiler);
-      const fresh = new SparkdownCompiler();
+      const fresh = currentEngineCompiler();
       configure(fresh, edited, 2);
       return [incremental, compiled(fresh)];
     });

@@ -9,6 +9,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -24,8 +25,7 @@ const file = (text: string) => ({
 
 function pick(p: any) {
   return {
-    compiled: p.compiled,
-    pathLocations: p.pathLocations,
+    chunks: programContent(p.chunks),
     dataLocations: p.dataLocations,
     functionLocations: p.functionLocations,
     context: p.context,

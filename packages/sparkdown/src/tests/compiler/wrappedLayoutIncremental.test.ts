@@ -1,6 +1,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 // #1225: a line that continues an element joins the element above it, so
 // adding or removing one changes that element, and typing or deleting the
@@ -49,12 +50,11 @@ end
 
 function pick(p: any) {
   return {
-    compiled: p.compiled,
+    chunks: programContent(p.chunks),
     context: p.context,
     sparkle: p.sparkle,
     diagnostics: p.diagnostics,
     ui: p.ui,
-    pathLocations: p.pathLocations,
     dataLocations: p.dataLocations,
   };
 }

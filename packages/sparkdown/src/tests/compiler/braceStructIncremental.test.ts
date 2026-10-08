@@ -1,6 +1,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 // #1223: typing a `}` inside a brace body, and deleting it again, changes
 // which lines the blocks around it hold, as far as the declaration's `end`.
@@ -48,11 +49,10 @@ end
 
 function pick(p: any) {
   return {
-    compiled: p.compiled,
+    chunks: programContent(p.chunks),
     context: p.context,
     diagnostics: p.diagnostics,
     ui: p.ui,
-    pathLocations: p.pathLocations,
     dataLocations: p.dataLocations,
   };
 }
