@@ -13,7 +13,13 @@ import { shuffleDraws } from "../../inkjs/engine/Story";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compileScript, rootChunks, storyRun } from "./programHarness";
+import {
+  compileScript,
+  describeRoot,
+  programSession,
+  rootChunks,
+  storyRun,
+} from "./programHarness";
 import { run, silence } from "./programScopes";
 
 const injectDraws = () => {
@@ -185,6 +191,26 @@ describe("a choice in a block nested inside another block of a choose block's pr
       beats: ["Deep 2", "Chose deep 2.", "After."],
       menus: [["Deep 2", "Outer"]],
     });
+  });
+
+  it("emits the chunks of a cold compile after edits inside the nested do block, its loop and the lines around them", () => {
+    const text = scene([
+      ...LOOPS["while"]!,
+      ...IF_AROUND_DO,
+      ...Array.from({ length: 40 }, (_, i) => `    & n${i} = ${i}`),
+    ]);
+    const s = programSession(text);
+    for (const [find, replace] of [
+      ["& n20 = 20", "& n20 = 21"],
+      ["Chose inner {x}.", "Chose inner {x}, again."],
+      ["i = i + 1", "i = i + 1 -- counted"],
+      ["& n30 = 30", "& n30 = 31"],
+    ] as const) {
+      const root = s.edit(find, replace);
+      const { program } = silence(() => compileScript(s.text, { programChunks: true }));
+      expect(describeRoot(root), find).toEqual(describeRoot(program.chunks!));
+      expect(run(s.text, [1]).menus).toEqual([["Inner 1", "Inner 2", "Inner 1", "Outer"]]);
+    }
   });
 
   it("raises every choice from the choose block's chunk, which holds their entries", () => {

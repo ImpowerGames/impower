@@ -399,6 +399,7 @@ function session(initial: Record<string, string>) {
     get store() {
       return c.compiler.chunkStore!;
     },
+    compiler: c.compiler,
     /** Replaces the first `find` in `uri` with `replace` as one edit. */
     edit(uri: string, find: string, replace: string): ProgramRoot {
       const text = texts[uri]!;
@@ -503,6 +504,39 @@ describe("an edit inside an included script", () => {
       expect(rootChunks(after)).toHaveLength(rootChunks(before).length);
       matchesCold(after, s.texts);
     }
+  });
+
+  // The statements of a block's bodies that an edit leaves as they were are
+  // served from their memos (#656) in an included script as in any other.
+  it("serves the unedited statements of a long `then` clause from their memos, and re-emits only the edited one", () => {
+    const block = lines(
+      "Pick.",
+      "choose",
+      "  * Go",
+      "    Went.",
+      "then",
+      ...Array.from({ length: 300 }, (_, i) => `  Clause line ${i}.`),
+      "end",
+    );
+    const s = session({
+      [MAIN]: lines("include includes/first.sd", "Main."),
+      [FIRST]: block,
+    });
+    const alone = session({ [MAIN]: block });
+    // The first incremental parse after a cold one reparses the whole block
+    // (`programStatementMemo.test.ts`, `warmSession`).
+    s.edit(FIRST, "Clause line 50.", "Clause line 50, warm.");
+    alone.edit(MAIN, "Clause line 50.", "Clause line 50, warm.");
+    const before = s.root;
+    const after = s.edit(FIRST, "Clause line 150.", "Clause line 150, edited.");
+    alone.edit(MAIN, "Clause line 150.", "Clause line 150, edited.");
+    // As many as the same block serves in the starting script.
+    const served = s.compiler.memoStats(FIRST)!.served;
+    expect(served).toBeGreaterThan(100);
+    expect(served).toBe(alone.compiler.memoStats(MAIN)!.served);
+    expect(s.store.emittedLastBuild).toBe(1);
+    expect(chunkChanges(before, after).added).toHaveLength(1);
+    matchesCold(after, s.texts);
   });
 
   it("emits only the inserted statement when a line is inserted, and moves the lines below it", () => {
