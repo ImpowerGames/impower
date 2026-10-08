@@ -18,6 +18,7 @@ import {
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
+import { programListing, stringCount } from "../programListing";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { pathLocation } from "../../compiler/utils/pathLocationTable";
 
@@ -99,39 +100,22 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
     }));
 }
 
-// The compiled program's tokens, flattened, with every nested container
-// visited.
-function tokens(json: unknown): unknown[] {
-  const out: unknown[] = [];
-  const visit = (value: unknown): void => {
-    if (Array.isArray(value)) {
-      for (const item of value) visit(item);
-    } else if (value && typeof value === "object") {
-      out.push(value);
-      for (const item of Object.values(value)) visit(item);
-    } else {
-      out.push(value);
-    }
-  };
-  visit(json);
-  return out;
-}
-
-// What the compiled program holds: its `Glue` objects, its `line` markers,
-// its `display` calls, and how many of those tables carry `open`, `glue`,
-// `extend` or `caption`.
+// What the compiled program holds: any instruction of ink's glue (the
+// program's instruction set has none) or `line` call, its `display` calls,
+// and how many of those tables carry `open`, `glue`, `extend` or `caption`,
+// read from the keys its chunks push (`programListing`).
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
-  const all = tokens(ctx.compiledJson);
+  const all = programListing(ctx.compiledJson);
   return {
-    inkGlue: all.filter((t) => t === "<>").length,
-    line: all.filter((t) => t === "line").length,
-    display: all.filter((t) => t === "stdlib:display:1").length,
-    open: all.filter((t) => t === "^open").length,
-    glue: all.filter((t) => t === "^glue").length,
-    extend: all.filter((t) => t === "^extend").length,
-    caption: all.filter((t) => t === "^caption").length,
+    inkGlue: all.filter((t) => /^Glue\b/.test(t)).length,
+    line: all.filter((t) => /^CallStd line\//.test(t)).length,
+    display: all.filter((t) => /^CallStd display\/1\b/.test(t)).length,
+    open: stringCount(all, "open"),
+    glue: stringCount(all, "glue"),
+    extend: stringCount(all, "extend"),
+    caption: stringCount(all, "caption"),
   };
 }
 

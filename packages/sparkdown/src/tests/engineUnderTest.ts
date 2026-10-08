@@ -119,6 +119,14 @@ class ProgramEngineCompiler extends SparkdownCompiler {
   }
 }
 
+/** The root a chunked compile's `program.compiled` stands for, or nothing
+ *  for a compile that fell back or made no program. */
+export function testRoot(compiled: unknown): ProgramRoot | undefined {
+  return compiled && typeof compiled === "object"
+    ? roots.get(compiled)
+    : undefined;
+}
+
 /** The compiler a story-running test compiles with. */
 export function testCompiler(): SparkdownCompiler {
   return new ProgramEngineCompiler();

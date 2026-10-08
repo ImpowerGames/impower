@@ -13,6 +13,7 @@ import {
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
+import { programListing, stringCount } from "../programListing";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const NOT_JOINED =
@@ -64,31 +65,16 @@ function diagnosticsOf(source: string) {
     .filter((message) => !message.startsWith("Cannot find character"));
 }
 
-// The compiled program's tokens, flattened, with every nested container
-// visited.
-function tokens(json: unknown): unknown[] {
-  const out: unknown[] = [];
-  const visit = (value: unknown): void => {
-    if (Array.isArray(value)) {
-      for (const item of value) visit(item);
-    } else if (value && typeof value === "object") {
-      out.push(value);
-      for (const item of Object.values(value)) visit(item);
-    } else {
-      out.push(value);
-    }
-  };
-  visit(json);
-  return out;
-}
-
+// What the compiled program holds: any instruction of ink's glue (the
+// program's instruction set has none), and how many display tables carry
+// `continues`, read from the keys its chunks push (`programListing`).
 function programShape(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
-  const all = tokens(ctx.compiledJson);
+  const all = programListing(ctx.compiledJson);
   return {
-    glue: all.filter((t) => t === "<>").length,
-    continues: all.filter((t) => t === "^continues").length,
+    glue: all.filter((t) => /^Glue\b/.test(t)).length,
+    continues: stringCount(all, "continues"),
   };
 }
 

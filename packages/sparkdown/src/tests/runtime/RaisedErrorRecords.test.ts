@@ -8,6 +8,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { RaisedError } from "../../inkjs/engine/Error";
+import { rootOf } from "../programListing";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function run(source: string) {
@@ -33,7 +34,11 @@ end
     expect(ctx.errorMessages).toEqual([]);
     expect(reports.map((r) => r.raised?.message)).toEqual(["after"]);
     expect(reports[0]!.message).toMatch(/after$/);
-    expect(reports[0]!.raised?.path).toMatch(/^run\./);
+    // The record names the instruction that raised it by its address, in
+    // the code of `run`, as the current engine's named a path inside it.
+    expect(
+      rootOf(ctx.compiledJson).sceneAt(reports[0]!.raised!.address!),
+    ).toBe("run");
   });
 
   test("the error added after a trim takes the trimmed one's record slot", () => {
