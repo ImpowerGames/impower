@@ -99,7 +99,14 @@ function imageStore() {
   const store = new CheckpointStore(
     {
       captureImage: (keyframe: boolean) => ({ keyframe }),
-      saveWithoutStory: () => JSON.stringify({ modules: {}, runtime: "" }),
+      // As `Game.buildSave` writes it: the collections emptied when asked.
+      saveWithoutStory: (omitDeltaState: boolean) =>
+        JSON.stringify({
+          modules: {},
+          runtime: omitDeltaState
+            ? live.state.toJSONWithoutCollections()
+            : live.state.toJSON(),
+        }),
       save: () => "",
       saveDeltaBody: () => "",
       snapshotCounts: () => ({ vc: [], ti: [] }),
