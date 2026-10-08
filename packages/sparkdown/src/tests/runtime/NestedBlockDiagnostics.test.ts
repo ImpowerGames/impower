@@ -67,8 +67,7 @@ describe("diagnostics from statements inside nested blocks", () => {
     ],
     ["inside an if block, written with +", "  if n == 0 then\n    + [Pick]\n      Picked.\n  end"],
   ])("a choice without choose %s reports the choice-mark error once", (_, body) => {
-    const ctx = makeRuntimeStoryFromSource(scene(body));
-    expect(count(ctx.errorMessages, CHOICE_MARK)).toBe(1);
+    expect(diagnosticLines(scene(body), CHOICE_MARK)).toHaveLength(1);
   });
 
   test("the nested choice-mark error sits on the choice's own line", () => {
