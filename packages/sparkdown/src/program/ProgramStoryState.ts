@@ -359,8 +359,8 @@ export const NO_POINTER = Object.freeze({
  * its call frames, the eval stack and output, the errors of the continue in
  * progress, the globals, and the temporaries of each frame, which are the
  * scopes of the elements of the call stack its globals were made with (the
- * current engine's story copy, see `ProgramStory`), as `VariablesState` reads
- * and writes them. A call pushes an element and the program frame beside it
+ * engine's own, `CallStack.ForProgram`, see `ProgramStory.ResetState`), as
+ * `VariablesState` reads and writes them. A call pushes an element and the program frame beside it
  * (`frameOf`), and a return pops them.
  *
  * The output is the current engine's, member for member, so that the builtins

@@ -1229,7 +1229,8 @@ describe("a program that falls back after compiles that did not", () => {
     );
     expect(program.compiled).toEqual(current.program.compiled);
     const beatTexts = (s: Story) => storyBeats(s).beats.map((b) => b.text.trim());
-    const ran = beatTexts(story);
+    // The program falls back, so its compile made the current engine's story.
+    const ran = beatTexts(story!);
     expect(ran).toEqual(["Count 1."]);
     expect(ran).toEqual(beatTexts(current.story));
   });

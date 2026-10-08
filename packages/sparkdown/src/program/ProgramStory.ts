@@ -1067,9 +1067,10 @@ export class ProgramStory implements StoryEngine {
     return this._stateIsPristine;
   }
 
-  /** A fresh state: the story copy's, with no global initialized, then the
-   *  program's declaration chunks run in the order the current engine's
-   *  `global decl` container initializes the globals in. */
+  /** A fresh state: a call stack of the engine's own and its variables
+   *  (`CallStack.ForProgram`, `ProgramRoot.tables`), with no global
+   *  initialized, then the program's declaration chunks run in the order the
+   *  current engine's `global decl` container initializes the globals in. */
   /** Resets the story to its initial state, a fresh playthrough, whose
    *  history of beats starts empty. */
   ResetState(): void {

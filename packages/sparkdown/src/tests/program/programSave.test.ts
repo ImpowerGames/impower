@@ -277,6 +277,34 @@ describe("a save holds the values of its state", () => {
     expect(nextBeat(loaded)).toBe("Then 12 3 true bird 3.");
     expect(nextBeat(loaded)).toBe("There.");
   });
+
+  // The engine keeps the program's constants (`ProgramRoot.tables`) as the
+  // variables state's `constantNames`, which a save leaves out and a load
+  // takes from the program rather than from the save.
+  it("leaves a constant out, and a load takes the constant the program compiled", () => {
+    const script = (limit: number) =>
+      [
+        `const LIMIT = ${limit}`,
+        "store count = 1",
+        "",
+        "-> start",
+        "",
+        "scene start",
+        "  First {count} of {LIMIT}.",
+        "  & count = count + 1",
+        "  Then {count} of {LIMIT}.",
+        "end",
+        "",
+      ].join("\n");
+    const story = engine(rootOf(script(3))!);
+    expect(nextBeat(story)).toBe("First 1 of 3.");
+    const save = story.toSave();
+    const saved = newestBeat(save).variablesState;
+    expect(saved).not.toHaveProperty("LIMIT");
+    const loaded = engine(rootOf(script(4))!);
+    loaded.loadSave(save);
+    expect(nextBeat(loaded)).toBe("Then 2 of 4.");
+  });
 });
 
 // A menu whose condition calls an author function that assigns a global,
