@@ -12,7 +12,8 @@ import {
   H_FINGERPRINT,
   H_LAYOUT_HASH,
 } from "../../program/StatementChunk";
-import { compileScript, MAIN_URI, storyBeats } from "./programHarness";
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
+import { compileScript, errorsOf, storyBeats } from "./programHarness";
 
 // An `if` written in a `choose` block's preamble that gates two choices with
 // a label between them, which the writer does not emit: the current engine
@@ -130,14 +131,11 @@ describe("the engine", () => {
   for (const [name, text] of Object.entries(PARITY)) {
     it(`shows ${name} as the current engine does`, () => {
       const from = text.startsWith("scene MAIN") ? "MAIN" : undefined;
-      const current = compileScript(text);
-      current.story.ResetState();
-      const expected = storyBeats(current.story, from);
       const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
       const actual = storyBeats(new ProgramStory(program.chunks!), from);
-      expect(actual).toEqual(expected);
-      expect(expected.beats.length).toBeGreaterThan(0);
+      expect(actual).toMatchSnapshot();
+      expect(actual.beats.length).toBeGreaterThan(0);
     });
   }
 
@@ -209,80 +207,53 @@ describe("the engine", () => {
   });
 });
 
-describe("the fallback", () => {
+// A construct the program has no emit path for is an error at the line of
+// the statement that holds it, and the compile makes no program (#705).
+describe("a construct the program cannot build", () => {
   // An external function is not carried, and its declaration names it.
-  it("names a construct at the top level, and emits the current program", () => {
+  it("is reported at the top level, and makes no program", () => {
     const { program } = compileScript(
       "One.\nTwo.\nexternal message(x)\n\n& message(1)\nThree.\n",
       {},
     );
     expect(program.chunks).toBeUndefined();
-    expect(program.compiled).toBeTruthy();
-    expect(program.fallback).toEqual({
-      construct: "external",
-      uri: MAIN_URI,
-      line: 2,
-    });
+    expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage("external")]);
   });
 
   // A label between two choices an `if` of a `choose` block's preamble gates
   // is not emitted.
-  it("names a block statement at the top level", () => {
+  it("is reported at a block statement at the top level", () => {
     const { program } = compileScript(
       `One.\nchoose\n${PREAMBLE_THEN}  + [A]\n    Took A.\nend\n`,
       {},
     );
     expect(program.chunks).toBeUndefined();
-    expect(program.fallback).toEqual({
-      construct: PREAMBLE_THEN_CONSTRUCT,
-      uri: MAIN_URI,
-      line: 1,
-    });
+    expect(errorsOf(program)).toContainEqual([1, unsupportedConstructMessage(PREAMBLE_THEN_CONSTRUCT)]);
   });
 
   // The list builtin stands in the text of the table the display call is
   // given, in a statement of a scene's body.
-  it("names a construct nested in a block, with the line of its statement", () => {
+  it("is reported nested in a block, at the line of its statement", () => {
     const { program } = compileScript(
       "scene MAIN\n  One.\n  BOB: You were here {LIST_RANDOM(MAIN)} times.\nend\n",
       {},
     );
     expect(program.chunks).toBeUndefined();
-    expect(program.fallback).toEqual({
-      construct: "list",
-      uri: MAIN_URI,
-      line: 2,
-    });
+    expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage("list")]);
   });
 
-  it("names a construct in a scene with the line of its statement", () => {
+  it("is reported in a scene at the line of its statement", () => {
     const { program } = compileScript(
       `scene MAIN\n  One.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`,
       {},
     );
-    expect(program.fallback).toEqual({
-      construct: PREAMBLE_THEN_CONSTRUCT,
-      uri: MAIN_URI,
-      line: 2,
-    });
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage(PREAMBLE_THEN_CONSTRUCT)]);
   });
 
-  it("runs a program that fell back on the current engine", () => {
-    const text = `One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`;
-    const { program } = compileScript(text);
-    const current = compileScript(text);
-    expect(program.compiled).toEqual(current.program.compiled);
-  });
 });
 
-describe("the switch", () => {
-  it("is off by default and then leaves the program as it was", () => {
-    const { program } = compileScript("One.\nTwo.\n");
-    expect(program.chunks).toBeUndefined();
-    expect(program.chunks).toBeDefined();
-    expect(program.compiled).toBeTruthy();
-  });
-
+describe("a compile", () => {
   it("emits no compiled story for a program that has its chunks", () => {
     const { program } = compileScript("One.\nTwo.\n");
     expect(program.chunks).toBeDefined();

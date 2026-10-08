@@ -1,0 +1,905 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the engine > shows a continuation's beats after a break as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "HERO",
+          ],
+          [
+            "text",
+            "Wait ",
+          ],
+          [
+            "glue",
+            true,
+          ],
+        ],
+        [
+          [
+            "text",
+            "right there.",
+          ],
+          [
+            "pause",
+            true,
+          ],
+          [
+            "continues",
+            true,
+          ],
+          [
+            "group",
+            "__group_0",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Wait right there.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "HERO",
+          ],
+          [
+            "text",
+            "And then more.",
+          ],
+          [
+            "inherit",
+            true,
+          ],
+          [
+            "group",
+            "__group_0",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "And then more.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After.
+",
+    },
+  ],
+  "continues": 4,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows a glued line before a plain one as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "You see a ",
+          ],
+          [
+            "glue",
+            true,
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "You see a
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "It is locked.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "It is locked.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After.
+",
+    },
+  ],
+  "continues": 4,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows a leading glue that joins nothing as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Second.",
+          ],
+          [
+            "group",
+            "__group_0",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Second.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Third.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Third.
+",
+    },
+  ],
+  "continues": 4,
+  "errors": [
+    "2: RUNTIME WARNING: 'main' line 3: This line begins with \`..\`, but the line shown before it does not end with \`..\`, so it does not join it.",
+  ],
+}
+`;
+
+exports[`the engine > shows a line with a comment as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "A line",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "A line
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "B line",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "B line
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows a load line as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "load",
+            "hero villain",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After the load.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After the load.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows a lone leading glue in a block body as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "HERO",
+          ],
+          [
+            "text",
+            "First.
+second.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First.
+second.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [
+    "2: RUNTIME WARNING: 'main' line 3: This line begins with \`..\`, but the line shown before it does not end with \`..\`, so it does not join it.",
+  ],
+}
+`;
+
+exports[`the engine > shows a scene with a block dialogue as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "In the scene.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "In the scene.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "BOB",
+          ],
+          [
+            "text",
+            "(quietly)
+Hello.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "(quietly)
+Hello.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows a store beside the lines as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "A plain line.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "A plain line.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows a trailing glue before a break as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First ",
+          ],
+          [
+            "pause",
+            true,
+          ],
+          [
+            "extend",
+            true,
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "second.",
+          ],
+          [
+            "continues",
+            true,
+          ],
+          [
+            "group",
+            "__group_0",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "second.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Last.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Last.
+",
+    },
+  ],
+  "continues": 4,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows a trailing-glue chain as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Some ",
+          ],
+          [
+            "glue",
+            true,
+          ],
+        ],
+        [
+          [
+            "text",
+            "content ",
+          ],
+          [
+            "glue",
+            true,
+          ],
+          [
+            "continues",
+            true,
+          ],
+          [
+            "group",
+            "__group_0",
+          ],
+        ],
+        [
+          [
+            "text",
+            "with glue.",
+          ],
+          [
+            "continues",
+            true,
+          ],
+          [
+            "group",
+            "__group_1",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Some content with glue.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows action and dialogue as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Hello there.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Hello there.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "BOB",
+          ],
+          [
+            "text",
+            "Hi.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Hi.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "The end.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "The end.
+",
+    },
+  ],
+  "continues": 4,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows breaks as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "First",
+          ],
+          [
+            "pause",
+            true,
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Last.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Last.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows content after a scene's end as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Inside.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Inside.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "After end.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "After end.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows fin as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "One.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows glue inside a block body as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "HERO",
+          ],
+          [
+            "text",
+            "First second.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "First second.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows glued dialogue as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "HERO",
+          ],
+          [
+            "text",
+            "One ",
+          ],
+          [
+            "glue",
+            true,
+          ],
+        ],
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "HERO",
+          ],
+          [
+            "text",
+            "two ",
+          ],
+          [
+            "glue",
+            true,
+          ],
+          [
+            "continues",
+            true,
+          ],
+        ],
+        [
+          [
+            "target",
+            "dialogue",
+          ],
+          [
+            "character",
+            "HERO",
+          ],
+          [
+            "text",
+            "three.",
+          ],
+          [
+            "continues",
+            true,
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One two three.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`the engine > shows tags as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "A line.",
+          ],
+          [
+            "tags",
+            [
+              [
+                "1",
+                "mood",
+              ],
+            ],
+          ],
+        ],
+      ],
+      "tags": [
+        "chapter one",
+        "mood",
+      ],
+      "text": "A line.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "B line",
+          ],
+          [
+            "tags",
+            [
+              [
+                "1",
+                "a",
+              ],
+              [
+                "2",
+                "b",
+              ],
+            ],
+          ],
+        ],
+      ],
+      "tags": [
+        "a",
+        "b",
+      ],
+      "text": "B line
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;

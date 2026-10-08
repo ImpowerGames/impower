@@ -25,15 +25,14 @@ import {
   storyBeats,
 } from "./programHarness";
 
-/** A script's beats on both engines, after checking that its program has
- *  its chunks. */
-const bothEngines = (text: string) => {
+/** A script's beats, after checking that its program has its chunks. A
+ *  test holds them to the current engine's beats of the same script,
+ *  recorded before #705 deleted it
+ *  (`__snapshots__/programFunctions.test.ts.snap`). */
+const programBeats = (text: string) => {
   const { program } = compileScript(text);
   expect(program.chunks).toBeDefined();
-  const current = compileScript(text);
-  current.story.ResetState();
   return {
-    expected: storyBeats(current.story),
     actual: storyBeats(new ProgramStory(program.chunks!)),
   };
 };
@@ -126,7 +125,7 @@ const functionOf = (root: ProgramRoot, entry: number) => {
 
 describe("functions on the program engine", () => {
   it("runs a script that calls a function, a closure, a builtin and a define's method as the current engine does", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "define counter with",
         "  count = 0",
@@ -152,12 +151,12 @@ describe("functions on the program engine", () => {
         "end",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
-    expect(texts(expected.beats)).toEqual(["The result is 6/6.\n"]);
+    expect(actual).toMatchSnapshot();
+    expect(texts(actual.beats)).toEqual(["The result is 6/6.\n"]);
   });
 
   it("returns several values, spreads them into a variadic function and packs its extras", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "store s = \"\"",
         "s = run()",
@@ -179,8 +178,8 @@ describe("functions on the program engine", () => {
         "end",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
-    expect(texts(expected.beats)).toEqual(["Got 1,2,2,3,2.\n"]);
+    expect(actual).toMatchSnapshot();
+    expect(texts(actual.beats)).toEqual(["Got 1,2,2,3,2.\n"]);
   });
 
   // The story takes a function written at the top level inside a `do` block
@@ -239,10 +238,10 @@ describe("functions on the program engine", () => {
       },
     ];
     for (const { text, beats, errors, defined } of cases) {
-      const { expected, actual } = bothEngines(text);
-      expect(actual).toEqual(expected);
-      expect(texts(expected.beats)).toEqual(beats);
-      expect(expected.errors).toEqual(errors);
+      const { actual } = programBeats(text);
+      expect(actual).toMatchSnapshot();
+      expect(texts(actual.beats)).toEqual(beats);
+      expect(actual.errors).toEqual(errors);
       const { program } = compileScript(text);
       expect(new ProgramStory(program.chunks!).HasFunction("run")).toBe(defined);
     }
@@ -296,11 +295,9 @@ describe("functions on the program engine", () => {
     ];
     const { program } = compileScript(text);
     expect(program.chunks).toBeDefined();
-    const current = compileScript(text);
-    current.story.ResetState();
-    const expected = evaluate(current.story);
-    expect(evaluate(new ProgramStory(program.chunks!))).toEqual(expected);
-    expect(expected).toEqual([
+    const actual = evaluate(new ProgramStory(program.chunks!));
+    expect(actual).toMatchSnapshot();
+    expect(actual).toEqual([
       "Start.\n",
       { name: "intro", has: true, result: { returned: null, output: "Hello.\n" } },
       { name: "counted", has: true, result: { returned: null, output: "Visit 1 of 2.\n" } },
@@ -392,9 +389,9 @@ describe("a function value", () => {
   ].join("\n");
 
   it("is a symbol value wherever the current engine holds a divert target, and no value holds a path", () => {
-    const { expected, actual } = bothEngines(text);
-    expect(actual).toEqual(expected);
-    expect(texts(expected.beats)).toEqual(["Values 4 4 3,2,1 hi! false:no 5.\n"]);
+    const { actual } = programBeats(text);
+    expect(actual).toMatchSnapshot();
+    expect(texts(actual.beats)).toEqual(["Values 4 4 3,2,1 hi! false:no 5.\n"]);
 
     const { program } = compileScript(text);
     const story = new ProgramStory(program.chunks!);
@@ -552,9 +549,9 @@ describe("the write barrier", () => {
   ];
 
   it("marks each table these builtins change in place, and the closed cell a closure writes, once the statement that changes it runs", () => {
-    const { expected, actual } = bothEngines(text);
-    expect(actual).toEqual(expected);
-    expect(texts(expected.beats)).toEqual(["One.\n", "Two 3 1 3.\n"]);
+    const { actual } = programBeats(text);
+    expect(actual).toMatchSnapshot();
+    expect(texts(actual.beats)).toEqual(["One.\n", "Two 3 1 3.\n"]);
 
     const { program } = compileScript(text);
     const story = new ProgramStory(program.chunks!);
@@ -653,9 +650,9 @@ describe("the write barrier", () => {
       "Two.",
       "done",
     ].join("\n");
-    const { expected, actual } = bothEngines(text);
-    expect(actual).toEqual(expected);
-    expect(texts(expected.beats)).toEqual([
+    const { actual } = programBeats(text);
+    expect(actual).toMatchSnapshot();
+    expect(texts(actual.beats)).toEqual([
       "One.\n",
       "Hello there\n",
       "Again\n",
@@ -788,8 +785,8 @@ describe("upvalues", () => {
   });
 
   it("are shared by sibling closures, and each pass of a loop closes its own", () => {
-    const { expected, actual } = bothEngines(text);
-    expect(actual).toEqual(expected);
+    const { actual } = programBeats(text);
+    expect(actual).toMatchSnapshot();
     expect(shown()).toEqual(["Shared 2, looped 123.\n"]);
   });
 
@@ -832,7 +829,7 @@ describe("upvalues", () => {
 
 describe("a stack trace", () => {
   it("names each frame by its function's symbol as the current engine names it", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "store trace = \"\"",
         "store names = \"\"",
@@ -858,8 +855,8 @@ describe("a stack trace", () => {
         "end",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
-    const shown = texts(expected.beats).join("");
+    expect(actual).toMatchSnapshot();
+    const shown = texts(actual.beats).join("");
     expect(shown).toContain("<SOMEWHERE IN 0>");
     expect(shown).toContain("<SOMEWHERE IN outer>");
     expect(shown).toContain("<SOMEWHERE IN inner>");

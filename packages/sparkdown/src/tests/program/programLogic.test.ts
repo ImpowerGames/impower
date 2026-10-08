@@ -3,8 +3,10 @@
 // the writer emits for each class of the parsed hierarchy, what each
 // instruction does to the eval stack, the output and the frame, a block
 // statement's bodies and the scopes around them, a continue that returns
-// between two lines, a decision the route simulator forces, parity with the
-// current engine, and the fallback, which none of these constructs causes.
+// between two lines, a decision the route simulator forces, the current
+// engine's beats of each script, recorded before #705 deleted it
+// (`__snapshots__/programLogic.test.ts.snap`), and the constructs a compile
+// builds or reports.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildRouteSimulator } from "../../compiler/utils/planRoute";
@@ -34,7 +36,8 @@ import {
   blockScopes,
   type StatementChunk,
 } from "../../program/StatementChunk";
-import { compileScript, MAIN_URI, storyBeats } from "./programHarness";
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
+import { compileScript, errorsOf, MAIN_URI, storyBeats } from "./programHarness";
 import {
   handWrittenProgram,
   traceHandWritten,
@@ -956,12 +959,9 @@ describe("the engine", () => {
   for (const [name, text] of Object.entries(PARITY)) {
     it(`shows ${name} as the current engine does`, () => {
       const from = text.includes("scene MAIN") ? "MAIN" : undefined;
-      const current = compileScript(text);
-      current.story.ResetState();
-      const expected = storyBeats(current.story, from);
       const actual = storyBeats(new ProgramStory(chunked(text)), from);
-      expect(actual).toEqual(expected);
-      expect(expected.beats.length).toBeGreaterThan(0);
+      expect(actual).toMatchSnapshot();
+      expect(actual.beats.length).toBeGreaterThan(0);
     });
   }
 
@@ -976,21 +976,15 @@ describe("the engine", () => {
     ]);
   });
 
-  // The current engine's story of a compile has no debug metadata for an
-  // operator, so it names the error's place by its runtime path; the program
-  // engine names the line of its line table row.
+  // The program engine names the line of its line table row, where the
+  // current engine's story, with no debug metadata for an operator, named the
+  // error's place by its runtime path.
   it("raises a runtime error in an expression as the current engine does, with its line", () => {
     const text = "local z = nil\nBefore.\nlocal w = z + 1\nAfter.\n";
-    const current = compileScript(text);
-    current.story.ResetState();
-    const expected = storyBeats(current.story);
     const actual = storyBeats(new ProgramStory(chunked(text)));
-    expect(actual.beats).toEqual(expected.beats);
+    expect(actual.beats).toMatchSnapshot();
     expect(actual.errors).toEqual([
       "1: RUNTIME ERROR: 'main' line 3: Attempting to perform + on a nil value.",
-    ]);
-    expect(expected.errors.map((e) => e.replace(/\(Ink Pointer[^)]*\): /, ""))).toEqual([
-      "1: RUNTIME ERROR: Attempting to perform + on a nil value.",
     ]);
   });
 });
@@ -1023,11 +1017,10 @@ const CONSTRUCTS: Record<string, string> = {
   "a `do` block": "do\n  local a = 1\nend\n",
 };
 
-describe("the fallback", () => {
+describe("the constructs a compile builds", () => {
   for (const [name, text] of Object.entries(CONSTRUCTS)) {
     it(`names no construct for ${name}`, () => {
       const { program } = compileScript(text);
-      expect(program.chunks).toBeDefined();
       expect(program.chunks).toBeDefined();
     });
   }
@@ -1042,7 +1035,6 @@ describe("the fallback", () => {
       "while false do\n  function run()\n    return 1\n  end\nend\nHello.\n",
     ]) {
       const { program } = compileScript(text);
-      expect(program.chunks).toBeDefined();
       expect(program.chunks).toBeDefined();
     }
   });
@@ -1094,12 +1086,15 @@ describe("the fallback", () => {
     ).not.toThrow();
   }, 60_000);
 
-  // A builtin's argument count is a 16-bit operand.
-  it("names an operand wider than its field", () => {
+  // A builtin's argument count is a 16-bit operand: a call of more is an
+  // error at its statement, and the compile makes no program (#705).
+  it("reports an operand wider than its field", () => {
     const args = Array.from({ length: 70_000 }, () => "1").join(", ");
-    const { program } = compileScript(`local n = tonumber(${args})\n`, {
-    });
+    const { program } = compileScript(`local n = tonumber(${args})\n`);
     expect(program.chunks).toBeUndefined();
-    expect(program.fallback?.construct).toBe("an operand of CallStd");
+    expect(errorsOf(program)).toContainEqual([
+      0,
+      unsupportedConstructMessage("an operand of CallStd"),
+    ]);
   }, 60_000);
 });

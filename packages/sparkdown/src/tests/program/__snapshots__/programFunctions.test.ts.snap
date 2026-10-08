@@ -1,0 +1,467 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a function value > is a symbol value wherever the current engine holds a divert target, and no value holds a path 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Values 4 4 3,2,1 hi! false:no 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Values 4 4 3,2,1 hi! false:no 5.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`a stack trace > names each frame by its function's symbol as the current engine names it 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "here
+stack traceback:
+=== THREAD 1/1 (current) ===
+  [TUNNEL] <SOMEWHERE IN 0>
+  [FUNCTION] <SOMEWHERE IN outer>
+  [FUNCTION] <SOMEWHERE IN inner>
+",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "here
+stack traceback:
+=== THREAD 1/1 (current) ===
+[TUNNEL] <SOMEWHERE IN 0>
+[FUNCTION] <SOMEWHERE IN outer>
+[FUNCTION] <SOMEWHERE IN inner>
+
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Names __synth_0/frames/0.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Names __synth_0/frames/0.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`functions on the program engine > returns several values, spreads them into a variadic function and packs its extras 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Got 1,2,2,3,2.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Got 1,2,2,3,2.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`functions on the program engine > runs a function defined inside a block where the story places it, as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Hello 6 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Hello 6 3.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`functions on the program engine > runs a function defined inside a block where the story places it, as the current engine does 2`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Hello 4.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Hello 4.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`functions on the program engine > runs a function defined inside a block where the story places it, as the current engine does 3`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Hello 5.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Hello 5.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`functions on the program engine > runs a function defined inside a block where the story places it, as the current engine does 4`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Hello 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Hello 3.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`functions on the program engine > runs a function defined inside a block where the story places it, as the current engine does 5`] = `
+{
+  "beats": [],
+  "continues": 1,
+  "errors": [
+    "1: RUNTIME ERROR: 'main' line 3: Found function return statement (return), when expected end of flow (-> END or choice)",
+  ],
+}
+`;
+
+exports[`functions on the program engine > runs a scene a host evaluates as a function, as the current engine does 1`] = `
+[
+  "Start.
+",
+  {
+    "has": true,
+    "name": "intro",
+    "result": {
+      "output": "Hello.
+",
+      "returned": null,
+    },
+  },
+  {
+    "has": true,
+    "name": "counted",
+    "result": {
+      "output": "Visit 1 of 2.
+",
+      "returned": null,
+    },
+  },
+  {
+    "has": true,
+    "name": "counted",
+    "result": {
+      "output": "Visit 2 of 4.
+",
+      "returned": null,
+    },
+  },
+  {
+    "has": true,
+    "name": "quiet",
+    "result": {
+      "output": "",
+      "returned": null,
+    },
+  },
+  {
+    "has": true,
+    "name": "double",
+    "result": {
+      "output": "",
+      "returned": 8,
+    },
+  },
+]
+`;
+
+exports[`functions on the program engine > runs a script that calls a function, a closure, a builtin and a define's method as the current engine does 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "The result is 6/6.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "The result is 6/6.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;
+
+exports[`the write barrier > marks each table these builtins change in place, and the closed cell a closure writes, once the statement that changes it runs 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "One.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Two 3 1 3.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two 3 1 3.
+",
+    },
+  ],
+  "continues": 3,
+  "errors": [],
+}
+`;
+
+exports[`the write barrier > marks the table display joins the parts of, and the one whose unjoined \`continues\` it drops 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "One.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "One.
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "parts",
+            [
+              [
+                "1",
+                "Hello ",
+              ],
+              [
+                "2",
+                [
+                  [
+                    "tag",
+                    "wave",
+                  ],
+                ],
+              ],
+              [
+                "3",
+                "there",
+              ],
+            ],
+          ],
+          [
+            "text",
+            "Hello there",
+          ],
+          [
+            "tags",
+            [
+              [
+                "1",
+                "wave",
+              ],
+            ],
+          ],
+        ],
+      ],
+      "tags": [
+        "wave",
+      ],
+      "text": "Hello there
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "text",
+            "Again",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Again
+",
+    },
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Two.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Two.
+",
+    },
+  ],
+  "continues": 5,
+  "errors": [
+    "2: RUNTIME WARNING: 'main' line 5: This line begins with \`..\`, but the line shown before it does not end with \`..\`, so it does not join it.",
+  ],
+}
+`;
+
+exports[`upvalues > are shared by sibling closures, and each pass of a loop closes its own 1`] = `
+{
+  "beats": [
+    {
+      "tables": [
+        [
+          [
+            "target",
+            "action",
+          ],
+          [
+            "text",
+            "Shared 2, looped 123.",
+          ],
+        ],
+      ],
+      "tags": [],
+      "text": "Shared 2, looped 123.
+",
+    },
+  ],
+  "continues": 2,
+  "errors": [],
+}
+`;

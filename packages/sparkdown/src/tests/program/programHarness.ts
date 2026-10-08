@@ -64,6 +64,18 @@ export function programCompiler(
   };
 }
 
+/** The errors a compile reported, each as the line it starts on and its
+ *  message, in the order reported. */
+export function errorsOf(program: SparkProgram): [number, string][] {
+  return Object.values(program.diagnostics ?? {})
+    .flat()
+    .filter((d) => d.severity === 1)
+    .map((d) => [
+      d.range.start.line,
+      typeof d.message === "string" ? d.message : d.message.value,
+    ]);
+}
+
 /** `programCompiler` over one script, compiled once: its program and the
  *  compiler. */
 export function compileScript(
