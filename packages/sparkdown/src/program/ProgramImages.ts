@@ -618,7 +618,6 @@ export const restoreImage = (
     // costs the changes along that path.
     restoreKeys(state, images, image, keys);
     state.installPositional(placed);
-    state.ResetCountDeltaTracking();
     tracker.reset(image);
     return true;
   }
@@ -652,7 +651,6 @@ export const restoreImage = (
     state.turns = counts.turns;
   }
   state.installPositional(placed);
-  state.ResetCountDeltaTracking();
   // An image of this engine and generation is the state's base. One of
   // another engine (whose compiled constants the restore replaced) or of an
   // older table generation (whose count ids it remapped) holds keyed state

@@ -123,25 +123,6 @@ export interface RouteStep {
   decision: number;
   /** The index of the latest checkpoint made so far */
   checkpoint?: number;
-  /** On the object engine, where this step's path pointed in the program
-   *  it was REPLAYED in: the script, and the location the compiler recorded
-   *  for the path (`Game`'s replay stamps both). A step on the program engine
-   *  needs neither: its address names its statement's chunk, which a later
-   *  root holds exactly when the statement was not emitted again.
-   *
-   *  This is what lets a later compile decide whether the step still means what
-   *  it meant. Two different things can go wrong and both are read from here:
-   *  the author can have edited the text the step came from, and an edit
-   *  elsewhere can have renumbered the path so that it now points at other
-   *  content entirely.
-   *
-   *  `stamped` says the step was reached and looked up, which is what separates
-   *  "the compiler recorded no location for this path" from "nobody has asked".
-   *  An object with no location of its own is ordinary — a beat's control
-   *  objects have none — and a step that acquires one has still moved. */
-  stamped?: boolean;
-  uri?: string;
-  location?: readonly number[];
 }
 
 /**

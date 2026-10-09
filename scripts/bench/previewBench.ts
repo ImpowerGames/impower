@@ -214,7 +214,7 @@ async function main() {
   const updateWorkerGame = (program: any) => {
     const t0 = performance.now();
     if (!workerGame) {
-      workerGame = new Game({ program, ...system, incrementalCheckpoints: true, verifyCheckpoints: false } as any);
+      workerGame = new Game({ program, ...system } as any);
     } else {
       workerGame.updateProgram(program);
     }
@@ -310,7 +310,6 @@ async function main() {
     simulation: game._simulation,
     "system.simulating": game._context.system.simulating ?? null,
     "system.previewing": game._context.system.previewing ?? null,
-    incrementalCheckpoints: game._checkpoints?._incremental ?? game._checkpoints?.options?.incremental ?? null,
     previewedAddress: game.previewedAddress ?? null,
   });
 

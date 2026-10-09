@@ -411,11 +411,6 @@ export class ProgramStoryState {
   /** The turn of each counted symbol's last visit, by count id, or
    *  `NEVER_VISITED`. */
   turns: Int32Array = new Int32Array(0);
-  /** The count ids whose visits, and whose turns, changed since each was
-   *  last drained; a checkpoint drains the two apart, as the deleted object
-   *  engine's state keeps them. */
-  protected _changedVisits = new Set<number>();
-  protected _changedTurns = new Set<number>();
 
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
@@ -543,8 +538,6 @@ export class ProgramStoryState {
     this.growCounts(id);
     this.visits[id] = this.visits[id]! + 1;
     this.turns[id] = this.currentTurnIndex;
-    this._changedVisits.add(id);
-    this._changedTurns.add(id);
     this.images?.count(id);
   }
 
@@ -1112,8 +1105,7 @@ export class ProgramStoryState {
   // ------------------------------------------------------------------- saving
 
   // The counts are keyed outside the engine by their symbol's qualified name,
-  // or `#<id>` for an anonymous symbol of this root's table generation, as
-  // the object engine keyed them by path (the checkpoint store's readers).
+  // or `#<id>` for an anonymous symbol of this root's table generation.
 
   /** Each counted symbol that was visited, by its key, with its visits. */
   GetVisitCountEntries(): [string, number][] {
@@ -1124,23 +1116,6 @@ export class ProgramStoryState {
    *  last visit. */
   GetTurnIndexEntries(): [string, number][] {
     return this.countEntries(this.turns, (t) => t !== NEVER_VISITED);
-  }
-
-  DrainVisitCountDeltas(): [string, number][] {
-    const out = this.changedEntries(this.visits, this._changedVisits);
-    this._changedVisits.clear();
-    return out;
-  }
-
-  DrainTurnIndexDeltas(): [string, number][] {
-    const out = this.changedEntries(this.turns, this._changedTurns);
-    this._changedTurns.clear();
-    return out;
-  }
-
-  ResetCountDeltaTracking(): void {
-    this._changedVisits.clear();
-    this._changedTurns.clear();
   }
 
   // The key of each count id of the root's table.
@@ -1176,16 +1151,6 @@ export class ProgramStoryState {
     return out;
   }
 
-  protected changedEntries(
-    values: Uint32Array | Int32Array,
-    changed: ReadonlySet<number>,
-  ): [string, number][] {
-    const keys = this.countKeys();
-    return [...changed]
-      .filter((id) => keys[id] !== undefined)
-      .map((id) => [keys[id]!, values[id]!]);
-  }
-
   /** The count id a saved key names in this root, or -1: a qualified name,
    *  or an anonymous symbol of `generation`, taken through the reseeds since
    *  it (`ProgramRoot.symbolFrom`). A symbol this root does not define has
@@ -1217,8 +1182,8 @@ export class ProgramStoryState {
    *  upvalue cells still open on it and, for a frame a call pushed, the
    *  position its caller resumes at and the symbol of its function; the
    *  threads a fork suspended, each with where it resumes and its frames; and
-   *  unless `withCounts` is false, the visits and turns of the counted
-   *  symbols, keyed by their names (`GetVisitCountEntries`). A position past
+   *  the visits and turns of the counted symbols, keyed by their names
+   *  (`GetVisitCountEntries`). A position past
    *  the last statement of its sequence, where a flow rests after its last
    *  beat, has no chunk: it is written with chunk id -1 and named by its
    *  sequence alone. The blocks a position is inside are not written: they
@@ -1230,8 +1195,8 @@ export class ProgramStoryState {
     return this.toJson();
   }
 
-  toJson(withCounts = true): string {
-    return this.writeState(new SessionCodec(this, withCounts));
+  toJson(): string {
+    return this.writeState(new SessionCodec(this));
   }
 
   /** The state as JSON, with its positions, its frames' functions, its
@@ -1376,12 +1341,6 @@ export class ProgramStoryState {
     return typeof name === "string"
       ? (this._root.table.symbolIds.get(name) ?? -1)
       : -1;
-  }
-
-  /** The state with both count slots empty, which a checkpoint fills with
-   *  the entries it keeps apart (`GetVisitCountEntries`). */
-  ToJsonWithoutCounts(): string {
-    return this.toJson(false);
   }
 
   // Each element of a thread's call stack: its type, where its function
@@ -1799,7 +1758,7 @@ export class ProgramStoryState {
     if (obj["engine"] !== "program") {
       throw new Error("The save was not written by the program engine.");
     }
-    this.readState(obj, new SessionCodec(this, true));
+    this.readState(obj, new SessionCodec(this));
     const previous = obj["previousAddress"];
     this.previousAddress = typeof previous === "number" ? previous : -1;
   }
@@ -1817,7 +1776,6 @@ export class ProgramStoryState {
       this.readTail(obj, codec);
       this.visits = new Uint32Array(0);
       this.turns = new Int32Array(0);
-      this.ResetCountDeltaTracking();
       codec.readCounts(obj);
       this.endLoad();
     } finally {
@@ -2082,10 +2040,7 @@ export interface StateCodec {
  *  `#<id>` for an anonymous symbol of the root's table generation, and a
  *  choice by the address of its `Choice`. */
 class SessionCodec implements StateCodec {
-  constructor(
-    protected _state: ProgramStoryState,
-    protected _withCounts: boolean,
-  ) {}
+  constructor(protected _state: ProgramStoryState) {}
 
   position(writer: SimpleJson.Writer, position: ProgramPosition | null): void {
     writePosition(writer, position);
@@ -2099,17 +2054,14 @@ class SessionCodec implements StateCodec {
     writer.WriteProperty("sourcePath", choice.sourcePath);
   }
 
-  // Without its counts, the state keeps both slots empty, which a
-  // checkpoint fills with the entries it keeps apart
-  // (`CheckpointStore.injectCounts`).
   counts(writer: SimpleJson.Writer): void {
     const state = this._state;
     writer.WriteIntProperty("countGeneration", state.root.generation);
     writer.WriteProperty("visitCounts", (w) =>
-      writeCounts(w, this._withCounts ? state.GetVisitCountEntries() : []),
+      writeCounts(w, state.GetVisitCountEntries()),
     );
     writer.WriteProperty("turnIndices", (w) =>
-      writeCounts(w, this._withCounts ? state.GetTurnIndexEntries() : []),
+      writeCounts(w, state.GetTurnIndexEntries()),
     );
   }
 

@@ -216,20 +216,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       profile("start", profilerId + " " + "game/create");
       // Built with what the editor has asked of the preview's debugger so
       // far.
-      gameState.game = gameState.createGame({
-        program,
-        // This is the live-preview / HMR route-simulation game: it saves a
-        // checkpoint at every beat while replaying to the edited line, which
-        // is the O(n^2) cost incremental checkpoints exist to remove. Deltas
-        // store periodic full keyframes + per-beat deltas; `verifyCheckpoints:
-        // false` drops the per-beat full-save self-check so capture is bounded
-        // per beat (the full time win). The delta reconstruction is covered by
-        // the byte-identical round-trip tests (incl. the pure-delta path);
-        // flip verify back on if a regression ever needs the self-check's
-        // fall-back-to-full.
-        incrementalCheckpoints: true,
-        verifyCheckpoints: false,
-      });
+      gameState.game = gameState.createGame({ program });
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       // A compile that changed nothing serves the program the game already

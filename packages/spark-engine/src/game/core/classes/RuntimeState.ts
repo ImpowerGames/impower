@@ -13,7 +13,7 @@ export interface SerializableRuntimeState {
   }[];
 }
 
-/** Per-beat delta of the runtime collections (incremental checkpoints). */
+/** Per-beat delta of the runtime collections (the checkpoints' images). */
 export interface RuntimeDelta {
   // Paths executed this beat, in recency order (delete-then-add semantics).
   pe: RecencyEntry[];

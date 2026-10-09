@@ -2054,7 +2054,6 @@ class SaveReader {
         tail();
         state.visits = new Uint32Array(0);
         state.turns = new Int32Array(0);
-        state.ResetCountDeltaTracking();
         this.readCounts(beat, false);
       } else {
         const tracker = state.images;

@@ -903,11 +903,9 @@ function callThroughHandler(
 }
 
 /**
- * The draws a shuffle takes in place of its seeded generator, when set: the
- * differential run of the binary program injects one stream into both
- * engines, which seed their shuffles from different names (a container's path
- * here, an alternator's symbol there), so that both pick the same arms
- * (docs/engine/binary-program.md, section 3).
+ * The draws a shuffle takes in place of its seeded generator, when set: a
+ * test injects one stream so that a shuffle picks the arms the test expects
+ * (`ShuffleIndex`, docs/engine/binary-program.md, section 3).
  */
 export const shuffleDraws: { next: (() => number) | null } = { next: null };
 
