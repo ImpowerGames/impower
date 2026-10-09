@@ -12,7 +12,11 @@ import { StructDefinition } from "../Struct/StructDefinition";
 import { currentCompileEpoch } from "../CompileEpoch";
 import { resolutionTap } from "../ResolutionTap";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
+import {
+  Op,
+  SET_DECLARE,
+  SET_INITIALIZE,
+} from "../../../../../program/ProgramInstructions";
 
 export class VariableAssignment extends ParsedObject {
   // Whether preparation made the assignment a statement that runs (not a
@@ -29,6 +33,11 @@ export class VariableAssignment extends ParsedObject {
   public readonly isGlobalDeclaration: boolean;
   public readonly isNewTemporaryDeclaration: boolean;
   public readonly isPropertyDeclaration: boolean;
+  /** The assignment initializes the temporary the declaration just before
+   *  it bound, as the second half of one declaration: a self-recursive
+   *  `local function`'s closure, assigned after its name is declared nil so
+   *  the body can call it (#1720). Its `SetVar` carries `SET_INITIALIZE`. */
+  public readonly isDeclarationInitializer: boolean;
   // True for a `define`'s VariableAssignment (a runtime type/instance
   // table). Lets ParsedHierarchy/Story identify the full set of
   // defined type names when computing IMPLICIT parent types
@@ -95,6 +104,7 @@ export class VariableAssignment extends ParsedObject {
     isGlobalDeclaration,
     isPropertyDeclaration,
     isTemporaryNewDeclaration,
+    isDeclarationInitializer,
     isDefineDeclaration,
     listDef,
     structDef,
@@ -109,6 +119,7 @@ export class VariableAssignment extends ParsedObject {
     readonly isGlobalDeclaration?: boolean;
     readonly isPropertyDeclaration?: boolean;
     readonly isTemporaryNewDeclaration?: boolean;
+    readonly isDeclarationInitializer?: boolean;
     readonly isDefineDeclaration?: boolean;
     readonly listDef?: ListDefinition;
     readonly structDef?: StructDefinition;
@@ -121,6 +132,7 @@ export class VariableAssignment extends ParsedObject {
     this.isGlobalDeclaration = Boolean(isGlobalDeclaration);
     this.isPropertyDeclaration = Boolean(isPropertyDeclaration);
     this.isNewTemporaryDeclaration = Boolean(isTemporaryNewDeclaration);
+    this.isDeclarationInitializer = Boolean(isDeclarationInitializer);
 
     // Defensive programming in case parsing of assignedExpression failed
     if (listDef instanceof ListDefinition) {
@@ -165,7 +177,8 @@ export class VariableAssignment extends ParsedObject {
   // is a chunk of its script's declaration sequence, which the story runs
   // when its state is reset. Any other
   // assignment is its expression, then `SetVar`, which declares a temporary
-  // for a `local` and otherwise assigns as `VariablesState.Assign` does.
+  // for a `local` and otherwise assigns as `VariablesState.Assign` does; a
+  // declaration's initializer is marked as one (`SET_INITIALIZE`).
   public override EmitProgram(emitter: ProgramEmitter): void {
     if (this.isGlobalDeclaration) {
       return;
@@ -180,7 +193,8 @@ export class VariableAssignment extends ParsedObject {
       Op.SetVar,
       emitter.variable(this.variableName),
       0,
-      this.isNewTemporaryDeclaration ? SET_DECLARE : 0,
+      (this.isNewTemporaryDeclaration ? SET_DECLARE : 0) |
+        (this.isDeclarationInitializer ? SET_INITIALIZE : 0),
     );
   }
 

@@ -83,6 +83,7 @@ import {
   Op,
   SET_DECLARE,
   SET_GLOBAL,
+  SET_INITIALIZE,
   SET_VARARGS,
   auxOf,
   flagsOf,
@@ -2942,14 +2943,15 @@ export class ProgramStory implements StoryEngine {
 
   /** The runtime assignment `SetVar`'s operands describe, made once. */
   protected assignment(name: number, flags: number): VariableAssignment {
-    const mask = SET_DECLARE | SET_GLOBAL | SET_VARARGS;
-    const key = name * 8 + (flags & mask);
+    const mask = SET_DECLARE | SET_GLOBAL | SET_VARARGS | SET_INITIALIZE;
+    const key = name * 16 + (flags & mask);
     let assignment = this._assignments.get(key);
     if (!assignment) {
       assignment = new VariableAssignment(
         this.root.table.strings[name]!,
         (flags & SET_DECLARE) !== 0,
         (flags & SET_VARARGS) !== 0,
+        (flags & SET_INITIALIZE) !== 0,
       );
       assignment.isGlobal = (flags & SET_GLOBAL) !== 0;
       this._assignments.set(key, assignment);

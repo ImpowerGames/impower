@@ -60,7 +60,10 @@
 // lowerer family.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
+import {
+  makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
+} from "./runtimeTestHarness";
 
 describe("Sequences — inline `{...}` form (expression arms)", () => {
   test("queue plays through arms once, then emits nothing", () => {
@@ -141,6 +144,36 @@ describe("Sequences — inline-glued form (`..keyword|a|b|c..`)", () => {
       line.replace(/^Got /, "").replace(/ ?!$/, "").trim(),
     );
     expect([...arms].sort()).toEqual(["A", "B", "C"]);
+  });
+
+  test("inline-glued plain shuffle shows one arm per pass, never its source text (#1706)", () => {
+    // Plain `shuffle` (no `queue`, `cycle` or `chain` after it) is an
+    // alternator in the glued form as it is braced, on one line and as a
+    // block. Each of the five passes shows one arm, never the line's own
+    // `..`, keyword and `|` separators.
+    const ctx = makeRuntimeStoryFromFile("sequences", "inline-glued-plain-shuffle");
+    expect(ctx.errorMessages).toEqual([]);
+    const lines = ctx.story
+      .ContinueMaximally()
+      .split("\n")
+      .filter((line) => line.length > 0);
+    expect(lines).toHaveLength(5);
+    for (const line of lines) {
+      expect(line).toMatch(/^Before [ABC] After\.$/);
+    }
+  });
+
+  test("a glued keyword with no `|` separator stays text instead of opening an alternator (#1706)", () => {
+    // `shuffle,A,B,C` written with commas once opened a shuffle over no
+    // arms, which the engine cannot run; `queue,A` emitted nothing. With
+    // no arm separator after the keyword, the line is shown as written.
+    for (const head of ["shuffle,A,B,C", "queue,A,B"]) {
+      const ctx = makeRuntimeStoryFromSource(
+        ["-> main", "scene main", `  Before .. ${head} .. After.`, "  done", "end", ""].join("\n"),
+      );
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.Continue()).toBe(`Before .. ${head} .. After.\n`);
+    }
   });
 
   test("plural.category(n) is directly callable as a stdlib function", () => {
