@@ -19,7 +19,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { totalLength, uncovered, within } from "./phaseGaps.mjs";
 import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
@@ -178,7 +178,11 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
   assert.equal(repositoryPath("../../node_modules/@lezer/common/dist/index.js"), "node_modules/@lezer/common/dist/index.js");
   const bypassOf = (name) => BYPASS.find(([, re]) => re.test(name))?.[0];
   const parsed = "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy/";
-  assert.match(bypassOf(`${parsed}MemoizedDivert.ts:Prepare`), /statement memo/);
+  // The stand-ins where they live (#1683, #1676).
+  for (const file of ["MemoizedStatement.ts", "Divert/MemoizedDivert.ts", "Gather/MemoizedGather.ts", "Variable/MemoizedAssignment.ts"]) {
+    assert.ok(fs.existsSync(path.join(HERE, "..", "..", "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy", file)), file);
+    assert.match(bypassOf(`${parsed}${file}:Prepare`), /statement memo/, file);
+  }
   assert.match(bypassOf(`${parsed}Weave.ts:prepareRoot`), /the weave/);
   assert.match(bypassOf(`${parsed}Divert/Divert.ts:ResolveWith`), /every other class/);
   assert.match(bypassOf("packages/sparkdown/src/compiler/lower/lowerers/lowerChoice.ts:lowerChoice"), /lowering/);
@@ -220,6 +224,36 @@ await check("profile-shares --gaps says no sample landed only when none did, bef
     const empty = shares(write("a", [[100, 200]]), write("b", [[100, 200]]), "--under", "(root)");
     assert.match(empty, /no profiler sample landed in them/);
     assert.doesNotMatch(empty, /profiles, shares|first profile|garbage collector/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// heap-retained.mjs on a heap whose shape is known (#1712): a WeakMap value
+// whose key only a parsed object holds is held only through it, as long as
+// the map lives; a key held elsewhere keeps it.
+await check("heap-retained counts a WeakMap value whose key only a parsed object holds", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-heap-retained-test-"));
+  try {
+    const script = [
+      `import v8 from "node:v8";`,
+      `import { readSnapshot, retainedBy } from ${JSON.stringify(pathToFileURL(path.join(HERE, "heap-retained.mjs")).href)};`,
+      `class ProbeParsed { constructor(k) { this.key = k; } }`,
+      `class Payload { constructor() { this.values = new Array(300000).fill(1.5); } }`,
+      `const build = (keyElsewhere) => { const map = new WeakMap(); const k = {}; map.set(k, new Payload()); globalThis.holder = { map, parsed: new ProbeParsed(k), key: keyElsewhere ? k : null }; };`,
+      `const out = [];`,
+      `for (const keyElsewhere of [false, true]) {`,
+      `  build(keyElsewhere); globalThis.gc(); globalThis.gc();`,
+      `  out.push(retainedBy(readSnapshot(v8.writeHeapSnapshot(${JSON.stringify(path.join(dir, "h.heapsnapshot"))})), (n) => n === "ProbeParsed").retainedBytes);`,
+      `}`,
+      `console.log(JSON.stringify(out));`,
+    ].join("\n");
+    fs.writeFileSync(path.join(dir, "probe.mjs"), script);
+    const run = spawnSync(process.execPath, ["--expose-gc", path.join(dir, "probe.mjs")], { encoding: "utf8", windowsHide: true, timeout: 120_000 });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    const [onlyThrough, keptElsewhere] = JSON.parse(run.stdout.trim().split("\n").at(-1));
+    assert.ok(onlyThrough > 2_400_000, `held only through the parsed object: ${onlyThrough} bytes`);
+    assert.ok(keptElsewhere < 10_000, `with the key held elsewhere: ${keptElsewhere} bytes`);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

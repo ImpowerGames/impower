@@ -10,7 +10,8 @@
 //   node scripts/bench/heap-retained.mjs <file>.edit
 //
 // reads <file>.edit.heapsnapshot and <file>.edit.parsed.json. Weak edges
-// keep nothing alive and are not followed.
+// keep nothing alive and are not followed; a WeakMap's value is reached only
+// through its key while its map is reached.
 
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -95,21 +96,58 @@ export function retainedBy(snapshot, isParsedName) {
     c.count += 1;
     c.selfBytes += nodes[i * N + SIZE];
   }
+  // A WeakMap's entry: V8 writes the edge to its value twice, from the key
+  // and from the map's table, both named `part of key (… @<key id>) ->
+  // value (… @<value id>) pair in WeakMap (table @<table id>)`. The value is
+  // kept only while both the key and the table are, so neither edge alone
+  // reaches it: the key's edge is followed once the table is reached, and
+  // the table's never.
+  const ID = nf.indexOf("id");
+  const indexOfId = new Map();
+  for (let i = 0; i < count; i++) indexOfId.set(nodes[i * N + ID], i);
+  // The name may start with the entry's index (`3 / part of key …`).
+  const EPHEMERON = /(?:^|\/ )part of key \(.* @(\d+)\) -> value \(.* @(\d+)\) pair in WeakMap \(table @(\d+)\)$/;
+  const ephemeronOf = new Map();
+  const ephemeron = (nameIndex) => {
+    if (!ephemeronOf.has(nameIndex)) {
+      const m = typeof strings[nameIndex] === "string" ? EPHEMERON.exec(strings[nameIndex]) : null;
+      ephemeronOf.set(nameIndex, m ? { key: Number(m[1]), table: indexOfId.get(Number(m[3])) } : null);
+    }
+    return ephemeronOf.get(nameIndex);
+  };
+  const NAME_OR_INDEX = ef.indexOf("name_or_index");
+  const named = new Set(["context", "property", "internal", "shortcut", "weak"].map((t) => edgeTypes.indexOf(t)));
   const reach = (skipParsed) => {
     const seen = new Uint8Array(count);
+    // Values waiting on their table, by the table's index.
+    const waiting = new Map();
     const stack = [0];
     seen[0] = 1;
     let bytes = 0;
+    const visit = (to) => {
+      if (seen[to] || (skipParsed && parsed[to])) return;
+      seen[to] = 1;
+      stack.push(to);
+    };
     while (stack.length) {
       const i = stack.pop();
       bytes += nodes[i * N + SIZE];
+      for (const value of waiting.get(i) ?? []) visit(value);
+      waiting.delete(i);
       for (let e = firstEdge[i]; e < firstEdge[i + 1]; e += E) {
         const t = edges[e + ETYPE];
         if (t === weak || t === shortcut) continue;
         const to = edges[e + TO] / N;
-        if (seen[to] || (skipParsed && parsed[to])) continue;
-        seen[to] = 1;
-        stack.push(to);
+        const pair = named.has(t) ? ephemeron(edges[e + NAME_OR_INDEX]) : null;
+        if (pair) {
+          if (pair.key !== nodes[i * N + ID] || pair.table === undefined) continue;
+          if (!seen[pair.table]) {
+            if (!waiting.has(pair.table)) waiting.set(pair.table, []);
+            waiting.get(pair.table).push(to);
+            continue;
+          }
+        }
+        visit(to);
       }
     }
     return bytes;

@@ -1076,13 +1076,13 @@ node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --mod
 node scripts/bench/heap-retained.mjs <file>.edit
 ```
 
-`--heap-probe` counts the parsed objects alive after the last sample (`v8.queryObjects` of `ParsedObject`, by class) and writes a heap snapshot; `heap-retained.mjs` finds the same objects in the snapshot by class name and measures what is reachable from the root only through one of them (weak edges followed by nothing), which is the heap a compile with no parsed objects would not hold.
+`--heap-probe` counts the parsed objects alive after the last sample (`v8.queryObjects` of `ParsedObject`, by class) and writes a heap snapshot; `heap-retained.mjs` finds the same objects in the snapshot by class name and measures what is reachable from the root only through one of them (weak edges followed by nothing, and a WeakMap's value reached only through its key while the map is reached, as `ProgramResolver` and `SparkdownCompiler` key WeakMaps by parsed objects), which is the heap a compile with no parsed objects would not hold.
 
 | After the last sample | Line 3515, 12 edits | Cold | Fixture, 12 edits | Fixture, cold |
 | --- | --- | --- | --- | --- |
 | Parsed objects alive | 33,718 | 36,395 | 11,749 | 14,209 |
 | Their own size | 5.7 MB | 6.2 MB | 2.0 MB | 2.4 MB |
-| Held only through them | 33.0 MB | 36.9 MB | 11.5 MB | 14.8 MB |
+| Held only through them | 33.2 MB | 37.1 MB | 11.7 MB | 14.9 MB |
 | Reachable in the snapshot | 246.5 MB | 213.7 MB | 128.1 MB | 105.4 MB |
 
 The edits hold fewer than a cold compile, partly because a statement served from its memo stands as one object (304 `MemoizedStatement` at line 3515). The carry is bounded: over 200 edits at line 3515 (`--samples 200`), the heap after full collections read 166.1 MB after the first, 169.3, 169.9, 170.0 and 170.6 MB after every 50th and 170.3 MB after the last.

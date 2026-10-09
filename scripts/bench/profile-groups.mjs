@@ -31,7 +31,7 @@ export const BYPASS = [
   ["parse: the grammar's tokenizer and the Lezer tree", /^(packages\/textmate-grammar-tree\/|node_modules\/@lezer\/)/],
   ["reading Luau source (compiler/typecheck)", under(`${SPARKDOWN}compiler/typecheck/`)],
   ["text slicing and regular expressions (@codemirror/state, RegExp)", /^(node_modules\/@codemirror\/state\/|\(vm\):RegExp)/],
-  ["the statement memo, its recording and its stand-ins", /^packages\/sparkdown\/src\/(compiler\/lower\/(statementMemo|recordingContext)[.]ts|inkjs\/compiler\/Parser\/ParsedHierarchy\/Memoized\w*[.]ts):/],
+  ["the statement memo, its recording and its stand-ins", /^packages\/sparkdown\/src\/(compiler\/lower\/(statementMemo|recordingContext)[.]ts|inkjs\/compiler\/Parser\/ParsedHierarchy\/(\w+\/)?Memoized\w*[.]ts):/],
   ["lowering: the lowerers and their helpers", under(`${SPARKDOWN}compiler/lower/`)],
   ["parsed hierarchy: the weave (Weave.ts)", under(PARSED, "Weave.ts:")],
   ["parsed hierarchy: every other class (construction, Prepare, resolution, naming)", under(PARSED)],
