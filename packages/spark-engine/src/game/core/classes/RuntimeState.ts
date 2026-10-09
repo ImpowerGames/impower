@@ -1,3 +1,4 @@
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { ProgramChoice } from "@impower/sparkdown/src/program/ProgramStoryState";
 import type { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
@@ -53,19 +54,14 @@ export class RuntimeState {
   // drains do not extend the record the last checkpoint held (#1701).
   protected _drained = false;
 
-  /** Records the address of a position the story ran. A string beginning
-   *  `global ` was the deleted object engine's path of its global
-   *  declarations, which are none of a beat's; no producer makes one now
-   *  (#1709). */
-  recordExecution(address: RecencyEntry) {
-    if (typeof address !== "string" || !address.startsWith("global ")) {
-      // Both collections keep the most recently executed address last.
-      // `RecencySet.add` moves an existing entry itself; the plain Set still
-      // needs the delete-then-add spelling.
-      this.pathsExecutedThisFrame.add(address);
-      this.executedSinceCheckpoint.delete(address);
-      this.executedSinceCheckpoint.add(address);
-    }
+  /** Records the address of a position the story ran. */
+  recordExecution(address: ProgramAddress) {
+    // Both collections keep the most recently executed address last.
+    // `RecencySet.add` moves an existing entry itself; the plain Set still
+    // needs the delete-then-add spelling.
+    this.pathsExecutedThisFrame.add(address);
+    this.executedSinceCheckpoint.delete(address);
+    this.executedSinceCheckpoint.add(address);
   }
 
   recordChoice(story: ProgramStory, choice: ProgramChoice) {

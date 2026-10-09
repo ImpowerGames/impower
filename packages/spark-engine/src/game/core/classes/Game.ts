@@ -2,9 +2,10 @@ import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
-import type {
-  ProgramAddress,
-  ProgramLocator,
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+  type ProgramLocator,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
@@ -111,7 +112,7 @@ const restsAfter = (
   const position = (state as Partial<ProgramImage> | undefined)?.positional
     ?.position;
   return (
-    typeof address === "number" &&
+    address !== undefined &&
     position != null &&
     position.offset === 0 &&
     position.after === chunkOfAddress(address)
@@ -928,7 +929,7 @@ export class Game<T extends M = {}> {
    *
    * Checking whether the target is a real address first is not
    * belt-and-braces: a line that is not part of the story flow (front matter,
-   * a `define` block, the gap between scenes) resolves to the `"0"` fallback,
+   * a `define` block, the gap between scenes) resolves to `TOP_LEVEL_START`,
    * and the search that
    * then runs is searching for a target that was never in the story. Whatever
    * ceiling it stops on, the honest answer is that there was nothing to route
@@ -979,7 +980,7 @@ export class Game<T extends M = {}> {
    *  scene's, a function's, or `"0"` for the top-level content
    *  (`ProgramLocator.sceneAt`). Null for no address. */
   sceneOf(address: ProgramAddress | null | undefined): string | null {
-    return address == null || address === ""
+    return address == null
       ? null
       : (this._positions.locator.sceneAt(address) ?? null);
   }
@@ -1055,9 +1056,7 @@ export class Game<T extends M = {}> {
     // the restore gate waits on the ones already on screen.
     const previewing = this._context.system.previewing;
     this.observeScene(
-      typeof previewing === "string" || typeof previewing === "number"
-        ? previewing
-        : this._positions.current(),
+      typeof previewing === "number" ? previewing : this._positions.current(),
     );
     await Promise.all(
       this._moduleNames.map((moduleName) =>
@@ -1074,11 +1073,11 @@ export class Game<T extends M = {}> {
   }
 
   /** Where a run from `startFrom` begins: the address of the beat on the
-   *  line (`ProgramLocator.addressAt`), or the top-level content's flow when
-   *  the line has none. A line that `>` breaks holds several beats: PLAY
-   *  from the line starts at its first, and the route a preview of the line
-   *  replays ends at its last (`beat`), so the beats before it run, and
-   *  apply what they do, as any beat on the route does. */
+   *  line (`ProgramLocator.addressAt`), or `TOP_LEVEL_START`, the top of the
+   *  top-level content, when the line has none. A line that `>` breaks holds
+   *  several beats: PLAY from the line starts at its first, and the route a
+   *  preview of the line replays ends at its last (`beat`), so the beats
+   *  before it run, and apply what they do, as any beat on the route does. */
   setStartFrom(
     startFrom: { file: string; line: number },
     beat: "first" | "last" = "first",
@@ -1086,7 +1085,8 @@ export class Game<T extends M = {}> {
     this._startFrom = startFrom;
     this._startBeat = beat;
     this._startAddress =
-      this.locator.addressAt(startFrom.file, startFrom.line, { beat }) ?? "0";
+      this.locator.addressAt(startFrom.file, startFrom.line, { beat }) ??
+      TOP_LEVEL_START;
     const trueLocation = this.locator.locationOf(this._startAddress);
     if (trueLocation) {
       this._startFrom = { file: trueLocation.uri, line: trueLocation.startLine };
@@ -1625,7 +1625,7 @@ export class Game<T extends M = {}> {
         this._modules[k]?.load({});
       }
       this._runtimeState = new RuntimeState();
-      this.jumpTo(route.from);
+      this.jumpToFlow(route.from);
     }
 
     this._simulation = "simulating";
@@ -1795,7 +1795,7 @@ export class Game<T extends M = {}> {
     }
     state = image;
     standingOn = this._positions.previous();
-    if (standingOn == null || standingOn === "") {
+    if (standingOn == null) {
       return null;
     }
     // The step that position belongs to, looked for from the checkpoint's own
@@ -2561,7 +2561,7 @@ export class Game<T extends M = {}> {
       this._executionStepsRemaining -= 1;
 
       const address = this._positions.previous();
-      if (address != null && address !== "") {
+      if (address != null) {
         if (address !== this._executingAddress) {
           this._executingAddress = address;
           this.observeScene(address);
@@ -2870,12 +2870,20 @@ export class Game<T extends M = {}> {
     this._shownChoices = [...(instructions?.choices ?? [])];
   }
 
-  /** Resets the story and moves it to an address, or to the top of a flow
-   *  named by its qualified name. */
-  jumpTo(target: ProgramAddress) {
+  /** Resets the story and moves it to an address; `TOP_LEVEL_START` is the
+   *  top of the top-level content. */
+  jumpTo(address: ProgramAddress) {
     this.discardOpenStoryLine();
     this._story.ResetState();
-    this._positions.jumpTo(target);
+    this._positions.jumpTo(address);
+  }
+
+  /** Resets the story and moves it to the top of a flow named by its
+   *  qualified name (a route's start). */
+  jumpToFlow(flow: string) {
+    this.discardOpenStoryLine();
+    this._story.ResetState();
+    this._positions.jumpToFlow(flow);
   }
 
   protected notifyHitBreakpoint() {
@@ -2962,6 +2970,12 @@ export class Game<T extends M = {}> {
     const lines = new Map<string, Set<number>>();
     const lastLines = new Map<string, number>();
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
+      // The record holds addresses while the game runs; a string is a saved
+      // position's durable form, which a load places or drops
+      // (`placedExecuted`), and names no position here.
+      if (typeof p !== "number") {
+        return;
+      }
       lastAddress = p;
       const l = this.scriptLocationOf(p);
       if (!l) {
@@ -3004,7 +3018,7 @@ export class Game<T extends M = {}> {
       // labels the failure with.
       simulateLocation:
         failed && this._simulateFlow != null
-          ? (this.documentLocationOf(this._simulateFlow) ?? undefined)
+          ? (this.flowDocumentLocationOf(this._simulateFlow) ?? undefined)
           : undefined,
       startLocation:
         failed && this._startAddress != null
@@ -3591,7 +3605,7 @@ export class Game<T extends M = {}> {
    *  `previewedAddress`. */
   markPreviewing(previewAddress?: ProgramAddress): void {
     this._context.system.previewing =
-      previewAddress != null && previewAddress !== "" ? previewAddress : true;
+      previewAddress != null ? previewAddress : true;
   }
 
   /** Run the story to the preview point's beat: from the loaded checkpoint
@@ -3860,20 +3874,22 @@ export class Game<T extends M = {}> {
   protected lastExecutedScriptLocation(): ScriptLocation | null {
     const lastExecuted = this._runtimeState.pathsExecutedThisFrame
       .toArray()
-      .findLast((address) => this.scriptLocationOf(address) !== undefined);
+      .findLast(
+        (entry): entry is ProgramAddress =>
+          typeof entry === "number" &&
+          this.scriptLocationOf(entry) !== undefined,
+      );
     return lastExecuted != null
       ? (this.scriptLocationOf(lastExecuted) ?? null)
       : null;
   }
 
-  /** Where an address stands, as a script index and a range, or, for a
-   *  flow named by its qualified name (a route's start), where the flow is
-   *  declared; nothing for an address the program does not hold. */
+  /** Where an address stands, as a script index and a range; nothing for an
+   *  address the program does not hold. */
   scriptLocationOf(
     address: ProgramAddress | null | undefined,
   ): ScriptLocation | undefined {
     return Game.scriptLocationIn(
-      this._program,
       this._scripts,
       this._positions.locator,
       address,
@@ -3900,12 +3916,11 @@ export class Game<T extends M = {}> {
   }
 
   protected static scriptLocationIn(
-    program: SparkProgram,
     scripts: readonly string[],
     locator: ProgramLocator,
     address: ProgramAddress | null | undefined,
   ): ScriptLocation | undefined {
-    if (address == null || address === "") {
+    if (address == null) {
       return undefined;
     }
     const location = locator.locationOf(address);
@@ -3919,16 +3934,20 @@ export class Game<T extends M = {}> {
         location.endColumn,
       ];
     }
-    if (typeof address !== "string") {
-      return undefined;
-    }
-    return (
-      program.knotLocations?.[address] ||
-      program.functionLocations?.[address] ||
-      program.sceneLocations?.[address] ||
-      program.branchLocations?.[address] ||
-      undefined
-    );
+    return undefined;
+  }
+
+  /** Where a flow named by its qualified name (a route's start) is declared,
+   *  as an editor takes a location; nothing for a flow the program does not
+   *  declare. */
+  flowDocumentLocationOf(flow: string): DocumentLocation | null {
+    const program = this._program;
+    const location =
+      program.knotLocations?.[flow] ||
+      program.functionLocations?.[flow] ||
+      program.sceneLocations?.[flow] ||
+      program.branchLocations?.[flow];
+    return location ? this.getDocumentLocation(location) : null;
   }
 
   /** Where the story that runs `program` stands: the position its last step
@@ -3942,7 +3961,6 @@ export class Game<T extends M = {}> {
     // The position its last step ran, or, after an image was restored and
     // before a step has run, where it stands.
     const location = Game.scriptLocationIn(
-      program,
       scripts,
       positions.locator,
       positions.previous() ?? positions.current(),

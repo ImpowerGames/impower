@@ -46,7 +46,7 @@ const playback = (h: { messages: any[] }) =>
 async function checkpointWithMusicPlaying() {
   const h = createHarness(SOURCE);
   await h.ready;
-  h.jumpTo("start");
+  h.jumpToFlow("start");
   const beat = h.nextBeat();
   await h.display(beat!, /* instant */ false);
   await flushMicrotasks();
@@ -84,7 +84,8 @@ describe("previewing does not resume the scene's audio", () => {
         // A game built for a real run, now being previewed — exactly what the
         // editor has after PLAY or after any recompile.
         game.context.system.previewing = undefined;
-        game.markPreviewing("start");
+        // An address no chunk of the program holds.
+        game.markPreviewing(2 ** 40);
       },
     });
     await h.ready;

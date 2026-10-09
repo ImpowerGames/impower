@@ -55,34 +55,34 @@ function longScene(beats: number): string {
 
 describe("step identity is a fixed-width hash of the history", () => {
   test("the same history yields the same identity", () => {
-    const a = extendSeq(extendSeq(extendSeq("", "0.1"), "0.2"), "0.3");
-    const b = extendSeq(extendSeq(extendSeq("", "0.1"), "0.2"), "0.3");
+    const a = extendSeq(extendSeq(extendSeq("", 1), 2), 3);
+    const b = extendSeq(extendSeq(extendSeq("", 1), 2), 3);
     expect(a).toBe(b);
   });
 
   test("a different history yields a different identity", () => {
-    const base = extendSeq(extendSeq("", "0.1"), "0.2");
-    expect(extendSeq(base, "0.3")).not.toBe(extendSeq(base, "0.4"));
+    const base = extendSeq(extendSeq("", 1), 2);
+    expect(extendSeq(base, 3)).not.toBe(extendSeq(base, 4));
     // Order matters: the same paths in a different sequence are a different
     // position in the story.
-    const forward = extendSeq(extendSeq("", "0.1"), "0.2");
-    const reversed = extendSeq(extendSeq("", "0.2"), "0.1");
+    const forward = extendSeq(extendSeq("", 1), 2);
+    const reversed = extendSeq(extendSeq("", 2), 1);
     expect(forward).not.toBe(reversed);
   });
 
   test("a revisit is distinguished from a first visit", () => {
     // A loop that comes back to the same path must not look like the first
     // time it was there, or a re-plan would resume from the wrong checkpoint.
-    const first = extendSeq(extendSeq("", "loop.0"), "loop.1");
-    const second = extendSeq(extendSeq(first, "loop.0"), "loop.1");
+    const first = extendSeq(extendSeq("", 10), 11);
+    const second = extendSeq(extendSeq(first, 10), 11);
     expect(second).not.toBe(first);
   });
 
   test("identity stays a fixed width however deep the history goes", () => {
-    let shallow = extendSeq("", "path.0");
+    let shallow = extendSeq("", 0);
     let deep = "";
     for (let i = 0; i < 5_000; i += 1) {
-      deep = extendSeq(deep, `some.long.container.path.${i}`);
+      deep = extendSeq(deep, 2 ** 40 + i);
     }
     expect(deep.length).toBeLessThanOrEqual(shallow.length + 4);
     expect(deep.length).toBeLessThan(20);

@@ -52,7 +52,8 @@ export interface DOMHarness {
   /** Re-render a (possibly edited) source into the same overlay via the same
    *  reconciling UIManager — models a live-preview edit. */
   rerender(newSource: string, line?: number): Promise<void>;
-  jumpTo(path: string): void;
+  /** Reset the story to the top of a flow named by its qualified name. */
+  jumpTo(flow: string): void;
   nextBeat(): Instructions | undefined;
   display(instructions: Instructions, instant: boolean): Promise<void>;
   /** Serialize the overlay DOM into a stable, id-normalized tree snapshot. */
@@ -414,8 +415,8 @@ export function createDOMHarness(
       game.module.ui.sweepReconcile();
       await flushMicrotasks(10);
     },
-    jumpTo(path: string) {
-      game.jumpTo(path);
+    jumpTo(flow: string) {
+      game.jumpToFlow(flow);
     },
     nextBeat() {
       const interpreter: any = game.module.interpreter;
