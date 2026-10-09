@@ -1944,9 +1944,8 @@ await check("desktop stamp preserves deleted sources until all affected bundles 
 
 await check("visible F5 parent cannot verify a missing or crashed development host", async () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-lifecycle-'));
-  const hide = { windowsHide: true };
-  assert.equal(spawnSync('git', ['init', '--quiet', repo], hide).status, 0);
-  assert.equal(spawnSync('git', ['-C', repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=NUL', 'commit', '--allow-empty', '--quiet', '-m', 'fixture'], hide).status, 0);
+  assert.equal(spawnSync('git', ['init', '--quiet', repo], { windowsHide: true }).status, 0);
+  assert.equal(spawnSync('git', ['-C', repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=NUL', 'commit', '--allow-empty', '--quiet', '-m', 'fixture'], { windowsHide: true }).status, 0);
   const project = path.join(repo, '.agents/skills/drive-vscode-web/fixtures/desktop-project/project');
   fs.mkdirSync(project, { recursive: true }); fs.writeFileSync(path.join(project, 'main.sd'), 'Verification first beat.');
   const code = path.join(repo, 'code-fixture'); fs.writeFileSync(code, 'owned executable fixture');
