@@ -1052,17 +1052,21 @@ export class ProgramStory implements StoryEngine {
 
   /**
    * Whether `image` holds a table a save writes only part of, which a load
-   * of the save holds otherwise than the image: an instance a `new` made
-   * holding a property its class does not mark `store`. A save writes an
-   * instance's `store` properties alone, and a load makes an instance the
-   * story made after its declarations again with those alone, so that the
-   * rest read the class's defaults (`JsonSerialisation.WriteRuntimeObject`),
-   * where the image keeps what was written (#1758). An instance holds such
-   * a property only once something wrote it, which the write barrier marks,
-   * so every one is a table on the image's chain: the keyframe copies every
-   * table ever written, and each delta those written since. Instances the
-   * declarations made, which a load gives the saved properties in place,
-   * are counted too, so the answer errs towards the save.
+   * of the save can hold otherwise than the image (#1758). A save writes a
+   * define's `store` properties alone (`JsonSerialisation.WriteRuntimeObject`):
+   * - an instance a `new` made, holding a property its class does not mark
+   *   `store`, which a load makes again with its `store` properties alone,
+   *   so that the rest read the class's defaults;
+   * - a named define holding a property other than a `store` one that is no
+   *   longer what the declarations gave it (its pristine copy), whose saved
+   *   `store` properties a load merges into the table it finds, leaving the
+   *   rest as they stand there.
+   * The image keeps what was written. Such a property exists only once
+   * something wrote it, which the write barrier marks, so every one is a
+   * table on the image's chain: the keyframe copies every table ever
+   * written, and each delta those written since. Instances the declarations
+   * made, which a load fills in place, are counted too, so the answer errs
+   * towards the save.
    */
   static holdsUnsavedFields(image: ProgramImage): boolean {
     const seen = new Set<ObjectValue>();
@@ -1074,12 +1078,35 @@ export class ProgramStory implements StoryEngine {
         // The newest copy on the chain is the table as the image holds it.
         seen.add(table);
         const entries = copy.entries;
-        if (!entries || entries.size === 0 || !ProgramStory.isInstance(copy.metatable)) {
+        if (!entries || entries.size === 0) {
+          continue;
+        }
+        const instance = ProgramStory.isInstance(copy.metatable);
+        if (!instance && !ProgramStory.isNamedDefine(copy.metatable)) {
           continue;
         }
         const stored = JsonSerialisation.collectDefineStoreNames(table);
-        for (const key of entries.keys()) {
-          if (key !== "__iter_key_snapshot" && !stored.has(key)) {
+        if (instance) {
+          for (const key of entries.keys()) {
+            if (key !== "__iter_key_snapshot" && !stored.has(key)) {
+              return true;
+            }
+          }
+          continue;
+        }
+        // A named define: a load of the save merges its `store` properties
+        // into the table it finds, whose other properties stay as they
+        // stand, where the image puts them back as they were. The two agree
+        // while those properties hold what the declarations gave them,
+        // which the table's pristine copy holds.
+        const pristine = image.images.pristineTable(table)?.entries;
+        const keys = new Set([...entries.keys(), ...(pristine?.keys() ?? [])]);
+        for (const key of keys) {
+          if (
+            key !== "__iter_key_snapshot" &&
+            !stored.has(key) &&
+            (!pristine || entries.get(key) !== pristine.get(key))
+          ) {
             return true;
           }
         }
@@ -1089,6 +1116,18 @@ export class ProgramStory implements StoryEngine {
       }
     }
     return false;
+  }
+
+  // Whether a table with `metatable` is a named define, as a save
+  // classifies one (`JsonSerialisation.defineSerializationInfo`): its
+  // metatable names a define of its own.
+  protected static isNamedDefine(metatable: ObjectValue | null): boolean {
+    return (
+      metatable instanceof ObjectValue &&
+      (metatable.value as Map<string, unknown> | null)?.get(
+        JsonSerialisation.DEFINE_MARKER,
+      ) instanceof StringValue
+    );
   }
 
   // Whether a table with `metatable` is an instance a `new` made, as a save

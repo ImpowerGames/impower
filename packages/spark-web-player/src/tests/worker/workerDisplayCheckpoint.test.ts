@@ -58,6 +58,18 @@ const SOURCE_UNSAVED = SOURCE.replace(
   "  & hero.hp = hero.hp + 2\n  & hero.title = \"captain\"\n",
 );
 
+// The same story, with a named define whose property other than a `store`
+// one the route writes: a load of the save merges the define's `store`
+// properties into the table it finds and leaves that property as it stands
+// there.
+const SOURCE_NAMED = SOURCE.replace(
+  "store trust = 0\n",
+  "define guide with\n  store mood = 1\n  title = \"calm\"\nend\n\nstore trust = 0\n",
+).replace(
+  "  & hero.hp = hero.hp + 2\n",
+  "  & hero.hp = hero.hp + 2\n  & guide.title = \"stern\"\n",
+);
+
 const lineOf = (text: string) =>
   SOURCE.split("\n").findIndex((l) => l.includes(text));
 const unsavedLineOf = (text: string) =>
@@ -80,6 +92,10 @@ const held = (game: Game) => {
   } | null;
   const own = hero?.value instanceof Map ? hero.value : null;
   const ownTitle = own?.get("title")?.value;
+  const guide = story.variablesState.GetVariableWithName("guide") as {
+    value?: Map<string, { value?: unknown }>;
+  } | null;
+  const guideMap = guide?.value instanceof Map ? guide.value : null;
   const classTitle = hero?.metatable?.value?.get("__index")?.value?.get("title")?.value;
   const save = JSON.parse(game.save());
   const saved = JSON.parse(save.story);
@@ -96,6 +112,7 @@ const held = (game: Game) => {
     heroOwn: own ? [...own.keys()].filter((k) => !k.startsWith("__")).sort() : null,
     heroTitle: ownTitle ?? classTitle ?? null,
     heroHp: own?.get("hp")?.value ?? null,
+    guideTitle: guideMap?.get("title")?.value ?? null,
   };
 };
 
@@ -144,6 +161,38 @@ async function walk(
     return { loads, savesRead: read.mock.calls.length };
   } finally {
     read.mockRestore();
+    h.dispose();
+  }
+}
+
+/** Compiles `text` with the cursor at its last beat, keeps that beat's
+ *  checkpoint, puts the story back at the first checkpoint in place, with
+ *  the tables of the same run of the declarations, and loads the kept
+ *  checkpoint, in place or through its full save. */
+async function loadedBack(text: string, throughSave: boolean) {
+  const h = await createPlayerHarness({
+    files: [{ uri: MAIN_URI, text }],
+    startFrom: {
+      file: MAIN_URI,
+      line: text.split("\n").findIndex((l) => l.includes("The last beat")),
+    },
+  });
+  try {
+    await h.compile();
+    const game = h.workerState.gameState.game! as CheckpointGame;
+    const checkpoint = game.newestCheckpoint();
+    expect(game.restoreCheckpoint(0)).toBe(true);
+    expect(held(game).heroHp).toBe(10);
+    const json = game.checkpointJson(checkpoint)!;
+    const read = vi.spyOn(ProgramStory.prototype, "loadSave");
+    expect(
+      throughSave ? game.load(json) : game.loadCheckpoint(checkpoint),
+    ).toBe(true);
+    const savesRead = read.mock.calls.length;
+    read.mockRestore();
+    expect(game.programStory.state.storySeed).toBe(seedOf(json));
+    return { state: held(game), savesRead };
+  } finally {
     h.dispose();
   }
 }
@@ -260,35 +309,21 @@ describe("the route's checkpoint, handed to the display", () => {
     // The last beat's checkpoint, loaded once the story has been put back
     // at the first checkpoint in place, with the tables of the same run of
     // the declarations: the load in place is what moves the story.
-    const back = async (throughSave: boolean) => {
-      const h = await createPlayerHarness({
-        files: [{ uri: MAIN_URI, text: SOURCE }],
-        startFrom: { file: MAIN_URI, line: lineOf("The last beat") },
-      });
-      try {
-        await h.compile();
-        const game = h.workerState.gameState.game! as CheckpointGame;
-        const checkpoint = game.newestCheckpoint();
-        expect(game.restoreCheckpoint(0)).toBe(true);
-        expect(held(game).heroHp).toBe(10);
-        const json = game.checkpointJson(checkpoint)!;
-        const read = vi.spyOn(ProgramStory.prototype, "loadSave");
-        expect(
-          throughSave ? game.load(json) : game.loadCheckpoint(checkpoint),
-        ).toBe(true);
-        const savesRead = read.mock.calls.length;
-        read.mockRestore();
-        expect(game.programStory.state.storySeed).toBe(seedOf(json));
-        return { state: held(game), savesRead };
-      } finally {
-        h.dispose();
-      }
-    };
-    const inPlace = await back(false);
-    const throughSave = await back(true);
+    const inPlace = await loadedBack(SOURCE, false);
+    const throughSave = await loadedBack(SOURCE, true);
     expect(inPlace.savesRead).toBe(0);
     // The last beat's state.
     expect(inPlace.state.heroHp).toBe(12);
+    expect(inPlace.state).toEqual(throughSave.state);
+  }, 120_000);
+
+  it("holding a named define's property its declarations no longer give, loads as its full save does", async () => {
+    // The image holds the title the route wrote; a load of the save keeps
+    // the title the table holds where the story stands, the first beat's.
+    const inPlace = await loadedBack(SOURCE_NAMED, false);
+    const throughSave = await loadedBack(SOURCE_NAMED, true);
+    expect(inPlace.savesRead).toBe(1);
+    expect(throughSave.state.guideTitle).toBe("calm");
     expect(inPlace.state).toEqual(throughSave.state);
   }, 120_000);
 
