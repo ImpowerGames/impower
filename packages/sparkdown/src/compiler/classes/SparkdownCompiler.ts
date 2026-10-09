@@ -4679,8 +4679,20 @@ export class SparkdownCompiler {
           }
         }
         program.context[type] ??= {};
-        program.context[type][name] ??= { $type: type, $name: name };
-        const definedFile = state.structDefinitions?.[type]?.[name];
+        // File names are dictionary keys, including names such as toString
+        // and __proto__. Never reuse or mutate an inherited native object.
+        if (!Object.hasOwn(program.context[type], name)) {
+          Object.defineProperty(program.context[type], name, {
+            value: { $type: type, $name: name },
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          });
+        }
+        const definitions = state.structDefinitions?.[type];
+        const definedFile = definitions && Object.hasOwn(definitions, name)
+          ? definitions[name]
+          : undefined;
         const contextFile = program.context[type][name] || {};
         // Set $type and $name
         if (contextFile["$type"] === undefined) {
