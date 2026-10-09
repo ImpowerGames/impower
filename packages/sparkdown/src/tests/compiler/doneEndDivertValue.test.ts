@@ -9,7 +9,7 @@ const URI = "file:///main.sd";
 
 const MESSAGE = "Can't use '-> DONE' or '-> END' as variable divert targets";
 
-function compile(text: string) {
+function compilerFor(text: string) {
   const compiler = testCompiler();
   compiler.configure({
     files: [
@@ -24,8 +24,16 @@ function compile(text: string) {
       },
     ],
   } as never);
+  return compiler;
+}
+
+function compileWith(compiler: ReturnType<typeof testCompiler>) {
   return compiler.compile({ textDocument: { uri: URI } } as never)
     .program as any;
+}
+
+function compile(text: string) {
+  return compileWith(compilerFor(text));
 }
 
 interface Found {
@@ -77,6 +85,33 @@ describe("a divert target to DONE or END used as a value", () => {
       const program = compile(text);
       expect(diagnostics(program)).toEqual([
         { message: MESSAGE, ...rangeOf(text, line, target) },
+      ]);
+      expect(program.chunks).toBeDefined();
+    },
+  );
+
+  // The next keystroke: an edit elsewhere in the script compiles again with
+  // the error still reported, and on the line the target moved to.
+  it.each([
+    ["below the target", "  Hello.", "  Hello again."],
+    ["above the target", "-> main", "-> main\n"],
+  ])(
+    "an edit %s keeps the error on the target",
+    (_name, before, after) => {
+      const text = "-> main\n\nscene main\n  local r = -> DONE\n  Hello.\nend\n";
+      const compiler = compilerFor(text);
+      expect(diagnostics(compileWith(compiler))).toEqual([
+        { message: MESSAGE, ...rangeOf(text, 3, "DONE") },
+      ]);
+      const edited = text.replace(before, after);
+      compiler.updateDocument({
+        textDocument: { uri: URI, version: 2 },
+        contentChanges: [{ text: edited }],
+      } as never);
+      const line = edited.split("\n").findIndex((l) => l.includes("-> DONE"));
+      const program = compileWith(compiler);
+      expect(diagnostics(program)).toEqual([
+        { message: MESSAGE, ...rangeOf(edited, line, "DONE") },
       ]);
       expect(program.chunks).toBeDefined();
     },
