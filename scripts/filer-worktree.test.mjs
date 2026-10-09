@@ -61,6 +61,48 @@ for (const command of [colonCommand, `Set-Location -LiteralPath:'${reproduction}
 }
 const escapedExternal = external.replaceAll(path.sep, "/").replaceAll(" ", "\\ ");
 assert.ok(cleanup(`rm -rf ${escapedExternal}`, "bash", main), "Bash escaped-space literal checkout must refuse"); preserved();
+const bashTarget = `${reproduction.replaceAll(path.sep, "/")}/node_modules/tracked.txt`;
+const bashOperands = [
+  `'${bashTarget.replace("borrowed-repro", "borrowed-''repro")}'`,
+  bashTarget.replace("borrowed-repro", "borrowed-\\repro").replaceAll(" ", "\\ "),
+  `'${bashTarget.slice(0, bashTarget.indexOf("borrowed-repro"))}borrowed-'"repro/node_modules/tracked.txt"`,
+];
+for (const operand of bashOperands) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; printf '%s\n' ${operand}; test -f ${operand}`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); assert.ok(actual.stdout.includes(bashTarget)); preserved();
+  for (const command of [`rm -f ${operand}`, `rm -f ${operand}; Set-Location .`]) {
+    assert.ok(cleanup(command, "bash", main), "raw Bash literal spelling must not invent a harmless target");
+    assert.ok(cleanup(command, undefined, main), "a cmdlet elsewhere cannot launder an ambiguous Bash operand"); preserved();
+    for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+      const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd: main, tool_input: { command } });
+      const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+      assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+    }
+  }
+}
+for (const program of ["r''m", "'r''m'", "r\\m"]) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; ${program} --version`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); assert.match(actual.stdout, /rm \(GNU coreutils\)/); preserved();
+  const command = `${program} -f '${bashTarget}'`;
+  assert.ok(cleanup(command, "bash", main), "literal command-position spelling must not hide cleanup");
+  assert.ok(cleanup(command, undefined, main)); preserved();
+  for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd: main, tool_input: { command } });
+    const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+  }
+}
+for (const command of [`bash -c 'r''m -f ${bashTarget}'`, `'bash' -c "rm -f '${bashTarget}'"`]) {
+  assert.ok(cleanup(command, "bash", main), "literal child invocation cannot invent an unrelated command");
+  assert.ok(cleanup(command, undefined, main)); preserved();
+  for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd: main, tool_input: { command } });
+    const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+  }
+}
 for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
   for (const command of [colonCommand, ...additionalLiterals]) {
     const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command } });
@@ -84,6 +126,33 @@ fs.mkdirSync(sibling);
 fs.writeFileSync(path.join(sibling, "plain.txt"), "safe sibling\n");
 fs.mkdirSync(path.join(sibling, "node_modules"));
 fs.writeFileSync(path.join(sibling, "node_modules", "tracked.txt"), "safe local file\n");
+const safeBashTarget = `${sibling.replaceAll(path.sep, "/")}/plain.txt`;
+for (const operand of [`'${safeBashTarget}'`, `"${safeBashTarget}"`, safeBashTarget.replaceAll(" ", "\\ ")]) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; printf '%s\n' ${operand}; test -f ${operand}`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); assert.ok(actual.stdout.includes(safeBashTarget)); preserved();
+  for (const command of [`rm -f ${operand}`, `'bash' -c "rm -f '${safeBashTarget}'"`]) {
+    assert.equal(cleanup(command, "bash", main), null, "verified genuine Bash quoting remains permitted");
+    for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+      const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd: main, tool_input: { command } });
+      const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+      assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout, "", "safe Bash form remains permitted through full adapter"); preserved();
+    }
+  }
+}
+const apostropheTarget = path.join(sibling, "literal's.txt");
+fs.writeFileSync(apostropheTarget, "literal quote control\n");
+const genuinePowerShell = `Remove-Item -LiteralPath '${apostropheTarget.replaceAll("'", "''")}' -Force`;
+if (process.platform === "win32") {
+  const actual = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `${genuinePowerShell} -WhatIf`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); assert.match(actual.stdout, /literal's\.txt/); preserved();
+}
+for (const shell of ["powershell", undefined]) assert.equal(cleanup(genuinePowerShell, shell, main), null, "canonical cmdlet retains genuine PowerShell literal grammar");
+for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+  const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command: genuinePowerShell } });
+  const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout, ""); preserved();
+}
 const nestedLocations = [
   `$dest = '${reproduction}'; Set-Location -LiteralPath $dest; powershell.exe -NoProfile -NonInteractive -Command "Remove-Item -LiteralPath node_modules/tracked.txt -Force"`,
   `$dest = '${reproduction}'; Set-Location -LiteralPath $dest; Write-Output "$(Remove-Item -LiteralPath node_modules/tracked.txt -Force)"`,
@@ -119,7 +188,8 @@ for (const command of [deepCleanup, deepSubstitution(`Remove-Item -LiteralPath '
   for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
     const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command } });
     const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
-    assert.equal(r.status, 0, r.stderr); assert.match(JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason, /nesting exceeded/); preserved();
+    assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny");
+    assert.match(JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason, /nesting exceeded|literal cannot be verified/); preserved();
   }
 }
 assert.ok(cleanup(nestShell(`Remove-Item -LiteralPath '${reproduction}/node_modules/tracked.txt'`, 3), "powershell", main), "supported boundary still checks the actual target");

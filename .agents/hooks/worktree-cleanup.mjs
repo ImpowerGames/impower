@@ -42,6 +42,10 @@ function links(p, budget = { deadline: Date.now() + 500, count: 0 }) {
 }
 const gitValueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--attr-source"]);
 const singlePowerShellLiteral = /^(?:'(?:[^']|'')*'|"[^"$`]*")$/;
+const singleBashLiteral = /^(?:'[^']*'|"(?:[^"$`\\]|\\[^\r\n])*")$/;
+const canonicalCmdlets = new Set(["remove-item", "set-location", "push-location", "pop-location", "new-item"]);
+const shellPrograms = new Set(["bash", "sh", "zsh", "fish", "pwsh", "powershell", "cmd", "env", "eval"]);
+const supportedPrograms = new Set([...shellPrograms, ...canonicalCmdlets, "rm", "rmdir", "rd", "del", "erase", "cd", "pushd", "popd", "git", "npm", "ln", "mklink"]);
 function literalArguments(tokens, shell, command) {
   const values = [];
   for (const token of tokens) {
@@ -67,8 +71,11 @@ function literalArguments(tokens, shell, command) {
       } else if (/^[\w.\\]+::/.test(text) || (/^[A-Za-z][\w]*:/.test(text) && !/^[A-Za-z]:[\/\\]/.test(text))) {
         values.error = "Cleanup/setup drive or provider identity cannot be verified";
       }
-    } else if (!token.quoted && /^~|[{}]/.test(text)) {
-      values.error = "Shell-expanded cleanup/setup target cannot be verified";
+    } else {
+      const raw = command.slice(token.start, token.end);
+      if (token.quoted && !singleBashLiteral.test(raw)) values.error = "Combined or escaped Bash cleanup/setup literal cannot be verified";
+      if (!token.quoted && /\\[^ "'\\$`]/.test(raw)) values.error = "Bash cleanup/setup escape cannot be verified";
+      if (!token.quoted && /^~|[{}]/.test(text)) values.error = "Shell-expanded cleanup/setup target cannot be verified";
     }
     values.push(text);
   }
@@ -95,10 +102,15 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
   }
   const locationStack = [];
   for (const { tokens, positions } of segments) {
+    // The shared recognizer deliberately skips quoted wrapper names. Locally
+    // admit only a verified single Bash literal naming a supported wrapper.
+    const recognitionTokens = tokens.map((token, i) => shell === "bash" && positions.has(i) && token.quoted && shellPrograms.has(baseName(token)) && !literalArguments([token], shell, command).error ? { ...token, quoted: false } : token);
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i], name = baseName(token);
-      if (token.quoted && isShellCommandString(tokens, i, positions)) {
-        const before = programBefore(tokens, i - 1);
+      if (token.quoted && isShellCommandString(recognitionTokens, i, positions)) {
+        const literal = literalArguments([token], shell, command);
+        if (literal.error) { emit({ kind: "analysis-limit", targets: literal }); continue; }
+        const before = programBefore(recognitionTokens, i - 1);
         const innerShell = before >= 0 && /^(pwsh|powershell)$/.test(baseName(tokens[before])) ? "powershell" : "bash";
         found.push(...operations(token.text, innerShell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError }));
       }
@@ -110,8 +122,20 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         emit({ kind: "delete", targets });
       }
       if (!positions.has(i)) continue;
+      if (shell === "bash") {
+        const literal = literalArguments([token], shell, command);
+        // This candidate is only a refusal trigger, never a trusted decoded
+        // command or pathname. Unsupported computed commands remain excluded.
+        const raw = command.slice(token.start, token.end);
+        const candidate = baseName({ text: raw.replace(/["']/g, "").replace(/\\(.)/g, "$1") });
+        if (literal.error && supportedPrograms.has(candidate)) {
+          emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Cleanup/setup command literal cannot be verified" }) });
+          continue;
+        }
+      }
       const args = tokens.slice(i + 1);
-      const targets = literalArguments(args, shell, command);
+      const argumentShell = canonicalCmdlets.has(name) ? "powershell" : shell;
+      const targets = literalArguments(args, argumentShell, command);
       if (["popd", "pop-location"].includes(name)) {
         hasLocation = true;
         if (locationStack.length) for (const previous of locationStack.pop()) addCwd(previous);
@@ -125,7 +149,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         const operands = targets.filter(text => !text.startsWith("-")), target = operands[0];
         if (operands.length !== 1) locationError = "Location argument cardinality cannot be verified";
         if (targets.error || args.some(t => /^-stackname(?::|$)/i.test(t.text))) locationError = targets.error ?? "Named location stack cannot be verified";
-        const allowedFlag = shell === "powershell" ? /^-(?:path|literalpath)(?::|$)|^-passthru$/i : name === "cd" ? /^(?:--|-L|-P)$/ : /$^/;
+        const allowedFlag = argumentShell === "powershell" ? /^-(?:path|literalpath)(?::|$)|^-passthru$/i : name === "cd" ? /^(?:--|-L|-P)$/ : /$^/;
         if (args.some(t => t.text.startsWith("-") && !allowedFlag.test(t.text))) locationError = "Location options cannot be verified";
         if (!target || /[`$*?\[]/.test(target)) locationError = "Effective location cannot be verified";
         if (target && !locationError) {
@@ -200,9 +224,6 @@ function inspect(op) {
 export function decide(command, shell, cwd = process.cwd()) {
   if (typeof command !== "string") return null;
   if (!["bash", "powershell"].includes(shell)) {
-    const { segments } = readCommand(command, "powershell");
-    const cmdlets = new Set(["remove-item", "set-location", "push-location", "pop-location", "new-item"]);
-    if (segments.some(({ tokens, positions }) => tokens.some((token, i) => positions.has(i) && cmdlets.has(baseName(token))))) return decide(command, "powershell", cwd);
     return decide(command, "bash", cwd) ?? decide(command, "powershell", cwd);
   }
   const ops = operations(command, shell, cwd);
