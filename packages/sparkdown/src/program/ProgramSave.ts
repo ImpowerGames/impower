@@ -1561,6 +1561,18 @@ class SaveWriter implements StateCodec {
     }
   }
 
+  // The addresses a carried step ran, each in its durable form, as a game
+  // writes its executed record (#1686); one the root does not hold is left
+  // out.
+  addresses(writer: SimpleJson.Writer, addresses: readonly number[]): void {
+    const forms: string[] = [];
+    for (const address of addresses) {
+      const form = durableAddress(this.root, address);
+      if (form !== undefined) forms.push(form);
+    }
+    writer.WriteInjected(forms);
+  }
+
   // Every count, by its symbol's saved form, with its visits and the turn
   // of its last visit.
   counts(writer: SimpleJson.Writer): void {
@@ -1613,6 +1625,10 @@ class SaveWriter implements StateCodec {
   }
 
   readChoiceSource(): string {
+    throw new Error("A save writer reads nothing.");
+  }
+
+  readAddresses(): number[] {
     throw new Error("A save writer reads nothing.");
   }
 
@@ -2168,9 +2184,24 @@ class SaveReader {
       choiceSource() {
         throw new Error("A save reader writes nothing.");
       },
+      addresses() {
+        throw new Error("A save reader writes nothing.");
+      },
       counts() {
         throw new Error("A save reader writes nothing.");
       },
+      // Each durable address placed in this program; one it cannot place
+      // is dropped, as a game drops one of its executed record.
+      readAddresses: (saved) =>
+        Array.isArray(saved)
+          ? saved.flatMap((form) => {
+              const address =
+                typeof form === "string"
+                  ? placeDurableAddress(reader.root, form)
+                  : undefined;
+              return address === undefined ? [] : [address];
+            })
+          : [],
       place: (saved) => (saved ? (plan.positions.get(saved) ?? null) : null),
       readFrameSymbol: (saved) => reader._placer.decodeSymbol(saved["fn"]) ?? -1,
       readChoiceSource: (saved) => {

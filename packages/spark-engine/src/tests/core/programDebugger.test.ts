@@ -1684,3 +1684,152 @@ describe("the variables of a selected frame", () => {
     expect(names(h.game.getTempVariables())).toEqual(["health=10"]);
   });
 });
+
+// A `choose` block's caption runs on until something shows; when the line
+// after it shows first, the caption's continue ends at the cut and carries
+// that step to the next continue (docs/engine/binary-program.md, section 6).
+// The step's lines are reported with the beat that shows them, so the line
+// an editor follows stays on the caption while the preview shows it alone
+// (#1686); a breakpoint on the carried line still stops before the caption's
+// beat displays.
+const CAPTION = [
+  "choose", //                       0
+  "  Pick.", //                      1
+  "  if true then", //               2
+  "    Something shows first.", //   3
+  "  end", //                        4
+  "  * One", //                      5
+  "end", //                          6
+  "",
+].join("\n");
+
+describe("a choose block's caption on the program engine", () => {
+  it("reports the lines of the step it carries with the beat that shows them", () => {
+    const h = debugGame(CAPTION);
+    const reports: { text: string | null; lines: unknown; follow: unknown }[] =
+      [];
+    h.game.connection.outgoing.addListener("*", (message) => {
+      const m = message as unknown as Recorded;
+      if (m.method === "game/executed") {
+        reports.push({
+          text: h.game.story.currentText,
+          lines: m.params.executedLines?.[MAIN],
+          follow: m.params.lastLocation?.range?.start?.line,
+        });
+      }
+    });
+    h.game.start();
+    expect(reports).toEqual([
+      { text: "Pick.\n", lines: { ranges: [1, 1], last: 1 }, follow: 1 },
+    ]);
+    h.game.continue();
+    expect(reports.slice(1)).toEqual([
+      {
+        text: "Something shows first.\n",
+        lines: { ranges: [2, 3], last: 3 },
+        follow: 3,
+      },
+    ]);
+    h.game.continue();
+    expect(h.game.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+  });
+
+  // PLAY from a line loads the route's checkpoint, a durable save taken at
+  // the caption's beat, which carries the step's addresses in their durable
+  // form.
+  it("reports the carried step's lines after a start from the route's checkpoint at the caption", () => {
+    const sim = debugGame(CAPTION);
+    sim.game.setStartFrom({ file: MAIN, line: 1 });
+    const to = sim.game.startAddress!;
+    const route = Game.planRoute(
+      sim.game.story,
+      sim.program as never,
+      sim.game.routeStartOf(to),
+      to,
+    );
+    expect(route == null).toBe(false);
+    const checkpoint = sim.game.patchAndSimulateRoute(route!);
+    expect(typeof checkpoint).toBe("string");
+    const h = debugGame(CAPTION);
+    h.game.load(checkpoint!);
+    const reports: { text: string | null; lines: unknown; follow: unknown }[] =
+      [];
+    h.game.connection.outgoing.addListener("*", (message) => {
+      const m = message as unknown as Recorded;
+      if (m.method === "game/executed") {
+        reports.push({
+          text: h.game.story.currentText,
+          lines: m.params.executedLines?.[MAIN],
+          follow: m.params.lastLocation?.range?.start?.line,
+        });
+      }
+    });
+    h.game.start();
+    h.game.continue();
+    expect(reports.at(-1)).toEqual({
+      text: "Something shows first.\n",
+      lines: { ranges: [2, 3], last: 3 },
+      follow: 3,
+    });
+  });
+
+  // A route to the carried line ends when that line is reported, with the
+  // beat that shows it, so a preview of the line shows the line and not the
+  // caption.
+  it("ends a route to the carried line on the beat that shows it", () => {
+    const sim = debugGame(CAPTION);
+    sim.game.setStartFrom({ file: MAIN, line: 3 });
+    const to = sim.game.startAddress!;
+    const route = Game.planRoute(
+      sim.game.story,
+      sim.program as never,
+      sim.game.routeStartOf(to),
+      to,
+    );
+    expect(route == null).toBe(false);
+    expect(typeof sim.game.patchAndSimulateRoute(route!)).toBe("string");
+    expect(sim.game.story.currentText).toBe("Something shows first.\n");
+  });
+
+  // A save at that breakpoint writes the beat before the line and puts the
+  // line in progress back, with what it holds for the next beat.
+  it("reports the carried step's lines after a save at a breakpoint on the carried line", () => {
+    const h = debugGame(CAPTION);
+    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.start();
+    expect(h.stoppedAt()).toBe(3);
+    expect(typeof h.game.save()).toBe("string");
+    const reports: { text: string | null; lines: unknown; follow: unknown }[] =
+      [];
+    h.game.connection.outgoing.addListener("*", (message) => {
+      const m = message as unknown as Recorded;
+      if (m.method === "game/executed") {
+        reports.push({
+          text: h.game.story.currentText,
+          lines: m.params.executedLines?.[MAIN],
+          follow: m.params.lastLocation?.range?.start?.line,
+        });
+      }
+    });
+    h.game.continue();
+    h.game.continue();
+    expect(reports.map((r) => r.text)).toEqual([
+      "Pick.\n",
+      "Something shows first.\n",
+    ]);
+    expect(reports[1]).toEqual({
+      text: "Something shows first.\n",
+      lines: { ranges: [2, 3], last: 3 },
+      follow: 3,
+    });
+  });
+
+  it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
+    const h = debugGame(CAPTION);
+    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.start();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(3);
+    expect(h.of("game/awaitingInteraction")).toHaveLength(0);
+  });
+});

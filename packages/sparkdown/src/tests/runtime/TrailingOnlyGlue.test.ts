@@ -628,6 +628,125 @@ end
     expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
+  // What the preview credits a line to: the continue that shows it (#1686).
+  // The step that shows after the caption runs in the caption's continue,
+  // where a breakpoint on its line stops (`executedLog`), and its addresses
+  // are logged for the beat by the next continue, which shows it
+  // (`beatLog`), through a session's state and a durable save.
+  test("reports the lines the carried step ran in the continue that shows them", () => {
+    const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    const lines = (addresses: number[]) => [
+      ...new Set(addresses.map((a) => ctx.root.locationOf(a)?.startLine)),
+    ];
+    const run = (story: RuntimeStory) => {
+      const executed: number[] = [];
+      const beat: number[] = [];
+      story.executedLog = executed;
+      story.beatLog = beat;
+      const text = story.Continue();
+      story.executedLog = null;
+      story.beatLog = null;
+      return { text, ran: lines(executed), beat: lines(beat) };
+    };
+    expect(run(ctx.story)).toEqual({
+      text: "Pick.\n",
+      ran: [1, 2, 3],
+      beat: [1],
+    });
+    const saved = ctx.story.state.ToJson();
+    const durable = ctx.story.toSave();
+    expect(run(ctx.story)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+    const again = testStory(ctx.root);
+    again.state.LoadJson(saved);
+    expect(run(again)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+    const loaded = testStory(ctx.root);
+    loaded.loadSave(durable);
+    expect(run(loaded)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+  });
+
+  // A line that begins with `..` takes up the line end the line before it
+  // left waiting, so what ran while it waited is logged with the beat they
+  // share, even when the joining line ends with `..` and leaves a line end
+  // waiting of its own.
+  test("logs a joined line with the beat it joins", () => {
+    const beats = (source: string) => {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      const out: [string | null, (number | undefined)[]][] = [];
+      while (ctx.story.canContinue) {
+        const beat: number[] = [];
+        ctx.story.beatLog = beat;
+        const text = ctx.story.Continue();
+        ctx.story.beatLog = null;
+        out.push([
+          text,
+          [...new Set(beat.map((a) => ctx.root.locationOf(a)?.startLine))],
+        ]);
+      }
+      return out;
+    };
+    expect(beats(`A ..\n.. B..\nC.\n`)).toEqual([
+      ["A B\n", [0, 1]],
+      ["C.\n", [2]],
+      ["", []],
+    ]);
+    expect(beats(`A ..\n.. B..\n.. C.\nD.\n`)).toEqual([
+      ["A BC.\n", [0, 1, 2]],
+      ["D.\n", [3]],
+      ["", []],
+    ]);
+    expect(
+      beats(
+        `choose\n  Pick ..\n  .. more.\n  if true then\n    Shown.\n  end\n  * One\nend\n`,
+      ).slice(0, 2),
+    ).toEqual([
+      ["Pick more.\n", [1, 2]],
+      ["Shown.\n", [3, 4]],
+    ]);
+  });
+
+  // Every instruction a run executes is logged for exactly one beat, whatever
+  // waited or was carried on the way.
+  test("logs each instruction a run executes for exactly one beat", () => {
+    for (const source of [
+      `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`,
+      `choose\n  Outer.\n  if true then\n    choose\n      Inner.\n      & print("Aside.")\n      * Inner choice\n    end\n  end\n  * Outer choice\nend\n`,
+      `choose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  print("Aside.")\n  print("More.")\nend\n`,
+      `store x = 0\nchoose\n  Pick.\n  if true then\n    & x = 1\n  end\n  * One\nend\n`,
+      `A ..\nif true then\n  .. B\nend\nC.\n`,
+      `Line one. #mood\nLine two.\n`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      const executed: number[] = [];
+      const beat: number[] = [];
+      ctx.story.executedLog = executed;
+      ctx.story.beatLog = beat;
+      for (let turn = 0; turn < 3; turn += 1) {
+        while (ctx.story.canContinue) ctx.story.Continue();
+        if (ctx.story.currentChoices.length === 0) break;
+        ctx.story.ChooseChoiceIndex(0);
+      }
+      const sorted = (a: number[]) => [...a].sort((x, y) => x - y);
+      expect(executed.length).toBeGreaterThan(0);
+      expect(sorted(beat)).toEqual(sorted(executed));
+    }
+  });
+
   // A caption the carried step shows keeps its own newline waiting, through a
   // save too.
   test("carries a caption's own waiting line end", () => {

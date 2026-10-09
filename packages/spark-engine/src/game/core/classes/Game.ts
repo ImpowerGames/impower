@@ -377,6 +377,9 @@ export class Game<T extends M = {}> {
   /** The addresses of the instructions the story's current step ran
    *  (`ProgramStory.executedLog`), reused from step to step. */
   protected _executedLog: number[] = [];
+  /** The addresses the story's current step logged for the beat that shows
+   *  what they ran (`ProgramStory.beatLog`), reused from step to step. */
+  protected _beatLog: number[] = [];
 
   /** The variables the data breakpoints watch: a global by its name, or a
    *  temporary of the frame named `scope`. Between steps the game notes
@@ -2663,13 +2666,17 @@ export class Game<T extends M = {}> {
         const stepsBefore = this._story.stepCount;
         // The step appends the address of each instruction it runs, a Luau
         // callback's among them, to the log, which the game reads once the step
-        // returns: it records them as the addresses this beat ran, and a
-        // breakpoint stops the game when its set holds one of them. No call and
-        // no string per step.
+        // returns: a breakpoint stops the game when its set holds one of them.
+        // It appends them to the beat log too, in the continue whose beat shows
+        // what they ran, which the game records as the addresses that beat ran
+        // (#1686). No call and no string per step.
         const program = this.programStory;
         const log = this._executedLog;
         log.length = 0;
         program.executedLog = log;
+        const beatLog = this._beatLog;
+        beatLog.length = 0;
+        program.beatLog = beatLog;
         // While a data breakpoint is set, the engine reports each write to
         // a bound variable during the step, so the watch hears which
         // binding a write reached. With none it calls nothing.
@@ -2693,15 +2700,17 @@ export class Game<T extends M = {}> {
             this._story.stepCount - stepsBefore - 1,
           );
           program.executedLog = null;
+          program.beatLog = null;
           variablesState.writeWatch = null;
         }
         let hit = false;
         for (let i = 0; i < log.length; i += 1) {
-          const address = log[i]!;
-          this._runtimeState.recordExecution(address);
-          if (this._breakAddresses.has(address)) {
+          if (this._breakAddresses.has(log[i]!)) {
             hit = true;
           }
+        }
+        for (let i = 0; i < beatLog.length; i += 1) {
+          this._runtimeState.recordExecution(beatLog[i]!);
         }
         if (stopped) {
           // The budget ran out part way through the step. The story cannot

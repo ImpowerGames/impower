@@ -250,7 +250,10 @@ export interface PositionalCopy {
   readonly carried: {
     output: readonly InkObject[];
     lineEndPending: boolean;
+    addresses: readonly number[];
   } | null;
+  /** The held addresses of a continue in progress (`heldAddresses`). */
+  readonly heldAddresses: readonly number[];
   readonly didSafeExit: boolean;
   readonly turn: number;
   readonly seed: number;
@@ -368,11 +371,14 @@ const copyFrame = (frame: ProgramFrame): ProgramFrame => ({
   ...(frame.dropResult ? { dropResult: true } : {}),
 });
 
-/** The output a cut carried to the next continue, and whether its own line
- *  waits for its newline (`StoryState.CarryOutputPastCut`). */
+/** The output a cut carried to the next continue, whether its own line
+ *  waits for its newline (`StoryState.CarryOutputPastCut`), and the
+ *  addresses of the instructions that ran it, which the continue that shows
+ *  it logs (`ProgramStory.beatLog`, #1686). */
 interface CarriedStep {
   output: InkObject[];
   lineEndPending: boolean;
+  addresses: number[];
 }
 
 /** A line end a call from a host suspended (`SuspendLineEnd`). */
@@ -381,6 +387,8 @@ export interface SuspendedLineEnd {
   joinable: boolean;
   cut: number | null;
   carried: CarriedStep | null;
+  holdsInherited: boolean;
+  joined: boolean;
 }
 
 /**
@@ -414,6 +422,18 @@ export class ProgramStoryState {
   lineJoinable = false;
   outputCut: number | null = null;
   carried: CarriedStep | null = null;
+  /** The addresses run in this continue since its line end began to wait,
+   *  whose beat is not known yet: the next continue's, when something shows
+   *  and the cut carries the step there, or this one's, when the line ends
+   *  here (`ProgramStory.beatLog`). Held only within a continue. */
+  heldAddresses: number[] = [];
+  /** Whether the instruction running joined a waiting line end
+   *  (`JoinLineEnd`); `ProgramStory.Step` clears it before each instruction
+   *  and reads it after. */
+  lineEndJoined = false;
+  /** Whether a callback's step runs inside a step that holds its addresses,
+   *  whose own are held with them (`SuspendLineEnd`). */
+  protected _holdsInherited = false;
   didSafeExit = false;
   currentTurnIndex = -1;
   storySeed: number;
@@ -981,7 +1001,9 @@ export class ProgramStoryState {
     this.carried = {
       output: this.outputStream.splice(cut),
       lineEndPending: this.lineEndPending,
+      addresses: this.heldAddresses,
     };
+    this.heldAddresses = [];
     this.lineEndPending = false;
     this.outputStream.push(new StringValue("\n"));
     this.ForgetOpenStrings();
@@ -1014,6 +1036,37 @@ export class ProgramStoryState {
     return carried;
   }
 
+  /** Whether the instruction about to run is held (`heldAddresses`): while
+   *  the line end waits, once a cut has ended the line, and inside a
+   *  callback a held step calls. */
+  get holdsAddresses(): boolean {
+    return (
+      this.lineEndPending || this.outputCut !== null || this._holdsInherited
+    );
+  }
+
+  /** Whether a callback's step runs inside a held step (`SuspendLineEnd`). */
+  get holdsInherited(): boolean {
+    return this._holdsInherited;
+  }
+
+  /** A line that begins with `..` takes the offer of the line before it:
+   *  the waiting line end is dropped and the line continues, so what the
+   *  wait held belongs to this beat, even when the joining line leaves a
+   *  line end waiting of its own (`lineEndJoined`, #1686). */
+  JoinLineEnd(): void {
+    if (this.lineEndPending) this.lineEndJoined = true;
+    this.lineJoinable = false;
+    this.lineEndPending = false;
+  }
+
+  /** Hands over the held addresses, and holds none. */
+  TakeHeldAddresses(): number[] {
+    const held = this.heldAddresses;
+    this.heldAddresses = [];
+    return held;
+  }
+
   DiscardLineEnd(): void {
     this.lineEndPending = false;
     this.lineJoinable = false;
@@ -1024,14 +1077,18 @@ export class ProgramStoryState {
   // A call that runs against an output stream of its own, whose output never
   // reaches the story's steps, neither writes a pending newline, cuts a step
   // nor starts from a carried step: it suspends them and resumes them with
-  // the stream it restores (`StoryState.SuspendLineEnd`).
-  SuspendLineEnd(): SuspendedLineEnd {
+  // the stream it restores (`StoryState.SuspendLineEnd`). A callback that a
+  // held step calls (`inStep`) has its addresses held with the step's.
+  SuspendLineEnd(inStep = false): SuspendedLineEnd {
     const suspended = {
       pending: this.lineEndPending,
       joinable: this.lineJoinable,
       cut: this.outputCut,
       carried: this.carried,
+      holdsInherited: this._holdsInherited,
+      joined: this.lineEndJoined,
     };
+    this._holdsInherited = inStep && this.holdsAddresses;
     this.lineEndPending = false;
     this.lineJoinable = false;
     this.outputCut = null;
@@ -1044,6 +1101,8 @@ export class ProgramStoryState {
     this.lineJoinable = suspended.joinable;
     this.outputCut = suspended.cut;
     this.carried = suspended.carried;
+    this._holdsInherited = suspended.holdsInherited;
+    this.lineEndJoined = suspended.joined;
   }
 
   /** Ends the flow, with a fresh frame for the next, as the object engine's
@@ -1308,6 +1367,11 @@ export class ProgramStoryState {
         JsonSerialisation.WriteListRuntimeObjs(w, carried.output),
       );
       writer.WriteProperty("carriedLineEndPending", carried.lineEndPending);
+      if (carried.addresses.length > 0) {
+        writer.WritePropertyStart("carriedAddresses");
+        codec.addresses(writer, carried.addresses);
+        writer.WritePropertyEnd();
+      }
     }
     writer.WriteProperty("lineEndPending", this.lineEndPending);
     writer.WriteProperty("lineJoinable", this.lineJoinable);
@@ -1548,8 +1612,10 @@ export class ProgramStoryState {
         ? {
             output: this.carried.output.slice(),
             lineEndPending: this.carried.lineEndPending,
+            addresses: this.carried.addresses.slice(),
           }
         : null,
+      heldAddresses: this.heldAddresses.slice(),
       didSafeExit: this.didSafeExit,
       turn: this.currentTurnIndex,
       seed: this.storySeed,
@@ -1714,12 +1780,18 @@ export class ProgramStoryState {
     this.lineEndPending = copy.lineEndPending;
     this.lineJoinable = copy.lineJoinable;
     this.outputCut = copy.outputCut;
+    // A carried step's addresses, and those a line in progress holds (an
+    // image taken mid-continue, at a breakpoint or by a save that puts the
+    // live state back), name the program the image was taken in, as
+    // `previousAddress` does, and go where it goes.
     this.carried = copy.carried
       ? {
           output: copy.carried.output.slice(),
           lineEndPending: copy.carried.lineEndPending,
+          addresses: placed.remap ? [] : copy.carried.addresses.slice(),
         }
       : null;
+    this.heldAddresses = placed.remap ? [] : copy.heldAddresses.slice();
     this.didSafeExit = copy.didSafeExit;
     this.currentTurnIndex = copy.turn;
     this.storySeed = copy.seed;
@@ -1984,8 +2056,10 @@ export class ProgramStoryState {
       ? {
           output: JsonSerialisation.JArrayToRuntimeObjList(obj["carried"]),
           lineEndPending: obj["carriedLineEndPending"] === true,
+          addresses: codec.readAddresses(obj["carriedAddresses"]),
         }
       : null;
+    this.heldAddresses = [];
     this.lineEndPending = obj["lineEndPending"] === true;
     this.lineJoinable = obj["lineJoinable"] === true;
     this.outputCut = null;
@@ -2154,6 +2228,8 @@ export interface StateCodec {
   position(writer: SimpleJson.Writer, position: ProgramPosition | null): void;
   frameSymbol(writer: SimpleJson.Writer, symbol: number): void;
   choiceSource(writer: SimpleJson.Writer, choice: ProgramChoice): void;
+  /** Writes the addresses a carried step ran (`CarriedStep.addresses`). */
+  addresses(writer: SimpleJson.Writer, addresses: readonly number[]): void;
   counts(writer: SimpleJson.Writer): void;
   /** Places every position of a saved state, and throws when one cannot
    *  be, before the load changes anything. */
@@ -2171,6 +2247,9 @@ export interface StateCodec {
   place(saved: unknown): ProgramPosition | null;
   readFrameSymbol(saved: Record<string, any>): number;
   readChoiceSource(saved: Record<string, any>, target: ProgramPosition): string;
+  /** The addresses `addresses` wrote, each placed; one that cannot be
+   *  placed is dropped. */
+  readAddresses(saved: unknown): number[];
   readCounts(obj: Record<string, any>): void;
 }
 
@@ -2191,6 +2270,17 @@ class SessionCodec implements StateCodec {
 
   choiceSource(writer: SimpleJson.Writer, choice: ProgramChoice): void {
     writer.WriteProperty("sourcePath", choice.sourcePath);
+  }
+
+  // Addresses as they hold within a session, as `previousAddress` is kept.
+  addresses(writer: SimpleJson.Writer, addresses: readonly number[]): void {
+    writer.WriteInjected(addresses.slice());
+  }
+
+  readAddresses(saved: unknown): number[] {
+    return Array.isArray(saved)
+      ? saved.filter((a): a is number => Number.isInteger(a) && a >= 0)
+      : [];
   }
 
   counts(writer: SimpleJson.Writer): void {

@@ -123,6 +123,7 @@ export interface StoryEngine {
   // What a game hears as the story runs.
   onExecute: ((address: number) => void) | null;
   executedLog: number[] | null;
+  beatLog: number[] | null;
   onMakeChoice: ((choice: ProgramChoice) => void) | null;
   onEvaluateCondition: ((value: boolean) => void) | null;
 
