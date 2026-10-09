@@ -143,6 +143,15 @@ export async function command(page, title, id) {
   await page.locator(".quick-input-widget").waitFor({ state: "hidden", timeout: 10000 });
 }
 
+export async function ensurePreviewVisible(page, reveal = () => command(page, "Sparkdown: Preview Game", "sparkdown.previewGame")) {
+  const frame = page.locator("iframe.webview");
+  const tab = page.getByRole("tab", { name: /^Game Preview/ }).first();
+  // Debugger navigation into an included script can cover the preview tab.
+  // Revealing the existing panel preserves its running game and context.
+  if (await tab.getAttribute("aria-selected") !== "true" || !await frame.isVisible()) await reveal();
+  return await tab.getAttribute("aria-selected") === "true" && await frame.isVisible();
+}
+
 // Runs in the webview's outer document. Its active frame owns the actual
 // extension content; never count hidden text or a mounted empty panel as ready.
 export function previewRead(step) {
@@ -287,6 +296,7 @@ export async function desktop(args) {
     if (report.diagnostics.unexpected.length || report.diagnostics.missing.length) report.failed.push("Diagnostics differ from scenario expectations");
     const target = await wait(async () => { await observe(); return [...targets.values()].find(t => t.type === "iframe" && t.url.includes("extensionId=impowergames.sparkdown")); }, "Game Preview webview never opened");
     const readPreview = async step => {
+      if (!await ensurePreviewVisible(page)) return null;
       const result = await wire.send("Runtime.evaluate", { expression: `(${previewRead.toString()})(${JSON.stringify(step ?? null)})`, returnByValue: true }, target.sessionId, timeout);
       if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
       return result.result.value;

@@ -109,8 +109,15 @@ async function debug() {
       return next.stackFrames?.length && location(next.stackFrames) !== location(report.stack) ? next : null;
     }, "Step did not change the stack location");
     await session.customRequest("continue", { threadId });
+    // A successful DAP response only acknowledges the command. Observe the
+    // engine reaching another location before recording successful execution.
+    report.afterContinue = await until(async () => {
+      const next = await session.customRequest("stackTrace", { threadId });
+      return next.stackFrames?.length && location(next.stackFrames) !== location(report.stepped.stackFrames) ? next : null;
+    }, "Continue did not advance beyond the stepped stack location");
     report.continued = true;
-    await vscode.debug.stopDebugging(session);
+    // The owned desktop host shuts the session down after evidence collection.
+    // Stopping here can race VS Code's stack reads for the new stopped event.
   } catch (e) { report.failed.push(String(e.stack ?? e)); }
   save("debug-report.json", report);
 }

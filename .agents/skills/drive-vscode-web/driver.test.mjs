@@ -31,8 +31,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import vm from "node:vm";
 import { pathToFileURL } from "node:url";
-import { diagnosticFailures, lspHealth, validateScenario, previewRead, classifyRuntimeErrors, hostCrashes, pollUntil, scriptProvenance, stopDesktop } from "./desktop.mjs";
+import { diagnosticFailures, lspHealth, validateScenario, previewRead, classifyRuntimeErrors, hostCrashes, pollUntil, scriptProvenance, stopDesktop, ensurePreviewVisible } from "./desktop.mjs";
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
@@ -1901,6 +1902,86 @@ await check("desktop shutdown requires owned identity, a successful tree stop an
   await assert.rejects(stopDesktop(owner, { ...deps, stopWindows: () => {} }), /did not exit/);
   await assert.rejects(stopDesktop(owner, { ...deps, stopWindows: () => { throw new Error("denied"); } }), /denied/);
   await stopDesktop(owner, { ...deps, platform: "linux", stopLinux: async () => { alive = false; } });
+});
+
+await check("desktop preview reveals a covered panel and refuses to read one that remains hidden", async () => {
+  let visible = true, active = false, reveals = 0;
+  const page = {
+    locator: () => ({ isVisible: async () => visible }),
+    getByRole: () => ({ first: () => ({ getAttribute: async () => String(active) }) }),
+  };
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; active = true; }), true, "retained off-screen webviews still need their tab revealed");
+  assert.equal(reveals, 1);
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; }), true);
+  assert.equal(reveals, 1, "an already visible preview is left active");
+  visible = false;
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; }), false);
+});
+
+async function desktopDebugReport(advances) {
+  const commands = new Map();
+  let frameLine = 10, clock = 0, report, ended = false;
+  const session = {
+    id: "scenario-game",
+    type: "game",
+    async customRequest(method) {
+      if (method === "threads") return { threads: [{ id: 1 }] };
+      if (method === "stackTrace") {
+        if (ended) throw new Error("No debugger available");
+        return { stackFrames: [{ id: 1, source: { path: "main.sd" }, line: frameLine, column: 1 }] };
+      }
+      if (method === "scopes") return { scopes: [{ name: "Vars", variablesReference: 1 }] };
+      if (method === "variables") return { variables: [{ name: "driver_score", value: "42" }] };
+      if (method === "evaluate") return { result: "42" };
+      if (method === "next") frameLine = 20;
+      if (method === "continue") {
+        if (advances === "ended") ended = true;
+        else if (advances) frameLine = 30;
+      }
+      return {};
+    },
+  };
+  const vscode = {
+    debug: {
+      activeDebugSession: session, registerDebugConfigurationProvider: () => ({}), stopDebugging: async () => true,
+    },
+    commands: { registerCommand: (id, command) => { commands.set(id, command); return {}; } },
+  };
+  const api = {};
+  vm.runInNewContext(fs.readFileSync(new URL("./desktop-harness/extension.cjs", import.meta.url), "utf8"), {
+    exports: api, process: { env: { IMPOWER_DESKTOP_SCENARIO: "scenario.json" } },
+    Date: { now: () => clock += 1000 }, setTimeout: callback => queueMicrotask(callback),
+    require: name => {
+      if (name === "vscode") return vscode;
+      if (name === "node:path") return path;
+      if (name === "node:fs") return {
+        readFileSync: () => JSON.stringify({ evidence: FIXTURE_ROOT, debug: { expression: "driver_score", result: "42" } }),
+        writeFileSync: (_file, contents) => { report = JSON.parse(contents); },
+      };
+      throw new Error(`Unexpected harness import: ${name}`);
+    },
+  });
+  api.activate({ subscriptions: [] });
+  await commands.get("impower.driver.debug")();
+  return report;
+}
+
+await check("desktop Continue rejects an acknowledged request that leaves execution at the same frame", async () => {
+  const report = await desktopDebugReport(false);
+  assert.ok(report.failed.some(message => /Continue did not advance/.test(message)), "an acknowledgment without execution progress must fail");
+  assert.notEqual(report.continued, true);
+});
+
+await check("desktop Continue accepts execution advancing to another frame", async () => {
+  const report = await desktopDebugReport(true);
+  assert.deepEqual(report.failed, []);
+  assert.equal(report.continued, true);
+});
+
+await check("desktop Continue does not equate a vanished adapter with verified progress", async () => {
+  const failed = await desktopDebugReport("ended");
+  assert.ok(failed.failed.some(message => /No debugger available/.test(message)));
+  assert.notEqual(failed.continued, true);
 });
 
 await check("F5 waits for all runtime producers before starting the worker copier", async () => {
