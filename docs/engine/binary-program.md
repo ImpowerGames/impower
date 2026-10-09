@@ -1003,7 +1003,7 @@ node scripts/bench/preview-bench.mjs --fixture --mode edit --samples 12 [--no-fl
 node scripts/bench/preview-bench.mjs --fixture --mode cold --samples 10 --warmup 2
 ```
 
-Each configuration ran once per round, in that order, in three rounds in one sitting on 2026-10-09 (an Intel i9-13900HX, Windows 10, Node 24.18.0), 4 warm-up samples before the edits' 12; the figures are the medians of the three rounds' medians, in milliseconds. `--mode cold` compiles the project on a compiler of its own for each sample, with no game; `--no-flow-reuse` sets `_disableFlowReuseNextCompile` before every compile. The fixture is the one `scripts/bench/preview-fixture.mjs` writes, edited at its own target line.
+Each configuration ran once per round, in that order, in three rounds in one sitting on 2026-10-09 (an Intel i9-13900HX, Windows 10, Node 24.18.0), 4 warm-up samples before the edits' 12; the figures are the medians of the three rounds' medians, in milliseconds. `--mode cold` compiles the project on a compiler of its own for each sample, with no game (the builtins prelude's context is cached by the module, as in a worker, so only the warm-up builds it); `--no-flow-reuse` sets `_disableFlowReuseNextCompile` before every compile. The fixture is the one `scripts/bench/preview-fixture.mjs` writes, edited at its own target line.
 
 The attribution comes from the same commands with `--samples 30` (cold: `--samples 6 --warmup 2`) and `--cpu-prof <dir>`, read with
 
@@ -1011,7 +1011,14 @@ The attribution comes from the same commands with `--samples 30` (cold: `--sampl
 node scripts/bench/profile-shares.mjs <dir>/<mode>.cpuprofile --under <function> --windows --by-path --groups scripts/bench/profile-groups.mjs:BYPASS
 ```
 
-for `updateSyntaxTree` (`incrementalParse`, `fullParse`), `lowerTopLevel` (the lowering inside it), `parseIncrementally` (`ink/parse`), `canonicalizeSyntheticFlowNames`, `resolve` (`program/resolve`) and `buildProgramChunks` (`program/chunks`). `--windows` counts only the profiler samples taken during the benchmark's measured samples, and `--by-path` names each function by its source path, which the `BYPASS` groups match by directory: the parsed hierarchy (`inkjs/compiler/Parser/ParsedHierarchy`, the weave apart and the memo's `Memoized*` stand-ins counted with the memo), the lowerers (`compiler/lower`), `SparkdownCompiler.ts`, `ProgramResolver.ts`, the rest of `program/` (the writer, emitter, chunk store and root), the grammar and Lezer, and the rest. A profiled bundle keeps names and runs slower, so each group's share of a phase is applied to that phase's unprofiled median. Self time only: "assemble" is `SparkdownCompiler.ts` and the parsed classes under `parseIncrementally` outside the parse, which holds the flow reuse's scan and the statement records as well as the assembly, so it bounds the assembly from above.
+for `updateSyntaxTree` (`incrementalParse`, `fullParse`), `lowerTopLevel` (the lowering inside it), `parseIncrementally` (`ink/parse`), `canonicalizeSyntheticFlowNames`, `resolve` (`program/resolve`) and `buildProgramChunks` (`program/chunks`). `--windows` counts only the profiler samples taken during the benchmark's measured samples, and `--by-path` names each function by its source path, which the `BYPASS` groups match by directory: the parsed hierarchy (`inkjs/compiler/Parser/ParsedHierarchy`, the weave apart and the memo's `Memoized*` stand-ins counted with the memo), the lowerers (`compiler/lower`), `SparkdownCompiler.ts`, `ProgramResolver.ts`, the rest of `program/` (the writer, emitter, chunk store and root), the grammar and Lezer, and the rest. A profiled bundle keeps names and runs slower, so each group's share of a phase is applied to that phase's unprofiled median. Self time only: "assemble" is `SparkdownCompiler.ts` and the parsed classes under `parseIncrementally` outside the parse, which holds the flow reuse's scan and the statement records as well as the assembly, so it bounds the assembly from above. `--under` matches a bare function name; within the measured samples, `resolve` is `ProgramResolver.resolve` (3.5 profiled ms per sample at line 3515, against the phase's 3.0).
+
+Each row of the tables below is a group's profiled milliseconds per sample (`underMsPerSample` times the group's share, from `--json`) scaled by the phase's unprofiled median over its profiled total:
+
+- construct: the two parsed-hierarchy groups under `lowerTopLevel`, scaled by `incrementalParse` (cold: `fullParse`) over the time under `updateSyntaxTree`;
+- assemble: `SparkdownCompiler.ts` and the two parsed-hierarchy groups under `parseIncrementally`, scaled by `ink/parse` over the time under it (cold: less what each of them, and the phases, take under `updateSyntaxTree`);
+- prepare and resolve: the parsed-hierarchy groups under `resolve`, by `program/resolve`; writing: those under `buildProgramChunks`, by `program/chunks`; numbering: the `ink/canonicalizeSyntheticNames` median itself;
+- the lowerers' own code and the statement memo: their groups under `lowerTopLevel` (on an edit, the memo under `updateSyntaxTree`), by the parse; the resolver and the writer: their groups under `resolve` and `buildProgramChunks`, by their phases.
 
 ### Where the compile spends its time
 
@@ -1022,7 +1029,7 @@ for `updateSyntaxTree` (`incrementalParse`, `fullParse`), `lowerTopLevel` (the l
 | `ink/canonicalizeSyntheticNames` | 1.0 | 0.5 | 25.3 | 0.4 | 11.4 |
 | `program/resolve` | 3.0 | 2.5 | 94.9 | 2.1 | 43.7 |
 | `program/chunks` | 6.1 | 5.1 | 121.2 | 3.9 | 52.4 |
-| The phases above, together | 48.5 | 44.7 | 2,237.9 | 23.3 | 1,044.7 |
+| The phases above, together (cold: `ink/parse` and the three after it; summed before rounding) | 48.5 | 44.7 | 2,237.9 | 23.3 | 1,044.7 |
 | Worker compile, game and route (cold: the compile), wall clock | 98.1 | 73.9 | 2,288.3 | 58.1 | 1,070.2 |
 
 Round by round, `incrementalParse` read 28.1 / 28.5 / 28.7 at line 3515 and 25.4 / 26.1 / 22.9 at line 1159, and the cold compile 2,285.0 / 2,352.2 / 2,288.3. Every edit sample at line 3515 replayed 2,085 of the resolver's 2,086 units, generated 319 objects, served 305 statements from their memos and emitted one chunk, as #1683 recorded; at line 1159 it generated 7 to 12 and served none.
@@ -1059,7 +1066,7 @@ The largest part of every phase is neither: the grammar's tokenizer and the Leze
 | Worker compile, game and route | 98.1 against 102.8 | 73.9 against 81.8 | 58.1 against 60.1 |
 | Objects resolved outside statements (`outside`) | 29 against 34 | 29 against 34 | 12 against 12 |
 
-The reuse still saves 6 to 8 ms of `ink/parse` on the project, assembling each untouched scene again without it (`SparkdownCompiler.ts`'s own time under `parseIncrementally` doubles, 5.5 to 11.1 profiled ms at line 3515); the other phases and every counter but `outside` are the same either way. The fixture is one scene, which every edit touches, so it reuses nothing.
+The reuse still saves 6 to 8 ms of `ink/parse` on the project, assembling each untouched scene again without it (`SparkdownCompiler.ts`'s own time under `parseIncrementally` doubles, 5.5 to 11.1 profiled ms at line 3515); the other phases are within their rounds' spread and every counter but `outside` is the same either way. The fixture is one scene, which every edit touches, so it reuses nothing.
 
 ### What the parsed objects hold
 
