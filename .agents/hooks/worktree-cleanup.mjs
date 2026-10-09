@@ -41,6 +41,9 @@ function links(p, budget = { deadline: Date.now() + 500, count: 0 }) {
   return null;
 }
 const gitValueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--attr-source"]);
+function literalArguments(tokens, shell) {
+  return tokens.map(token => shell === "powershell" ? token.text.replace(/^-[A-Za-z][\w-]*:/, "") : token.text);
+}
 // Reuse the established tokenizer; quoted prose/comments are not commands.
 // Indirect runtimes and variable paths outside owned contexts remain outside
 // coverage. Literal location changes and shell command strings are recognized.
@@ -58,25 +61,29 @@ function operations(command, shell, cwd, depth = 0) {
         found.push(...operations(token.text, innerShell, location, depth + 1));
       }
       const method = !token.quoted && /(?:\.|::)Delete$/i.test(token.text) && command.slice(token.end).trimStart().startsWith("(");
-      if (method) found.push({ kind: "delete", cwd: location, text: command, locationError });
+      if (method) {
+        const methodTokens = segments.flatMap(segment => segment.tokens).map(t => command.slice(t.start, t.end).endsWith(",") ? { ...t, text: t.text.replace(/,$/, "") } : t);
+        found.push({ kind: "delete", cwd: location, targets: literalArguments(methodTokens, shell), locationError });
+      }
       if (!positions.has(i)) continue;
       const args = tokens.slice(i + 1);
+      const targets = literalArguments(args, shell);
       if (["cd", "set-location", "pushd"].includes(name)) {
-        const target = args.find(t => !t.text.startsWith("-"));
-        if (target && !/[`$]/.test(target.text)) {
-          const next = path.resolve(location, target.text);
+        const target = targets.find(text => !text.startsWith("-"));
+        if (target && !/[`$]/.test(target)) {
+          const next = path.resolve(location, target);
           try { if (!fs.statSync(next).isDirectory()) throw new Error("not a directory"); location = next; }
           catch { locationError = `Literal location cannot be verified: ${next}`; }
         }
         continue;
       }
-      if (["rm", "rmdir", "rd", "remove-item", "del", "erase"].includes(name)) found.push({ kind: "delete", cwd: location, text: command.slice(token.start), locationError });
+      if (["rm", "rmdir", "rd", "remove-item", "del", "erase"].includes(name)) found.push({ kind: "delete", cwd: location, targets, locationError });
       if (name === "git") {
         let k = 0;
         while (args[k]?.text.startsWith("-")) { const value = args[k].text; k += gitValueOptions.has(value) ? 2 : 1; }
-        if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) found.push({ kind: args[k + 1].text.toLowerCase() === "remove" ? "remove" : "setup", cwd: location, text: command.slice(token.start), locationError });
+        if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) found.push({ kind: args[k + 1].text.toLowerCase() === "remove" ? "remove" : "setup", cwd: location, targets, locationError });
       }
-      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && args.some(t => /^(junction|symboliclink)$/i.test(t.text))) || (name === "npm" && args.some(t => /^(install|ci)$/i.test(t.text)))) found.push({ kind: "setup", cwd: location, text: command.slice(token.start), locationError });
+      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text))) || (name === "npm" && targets.some(text => /^(install|ci)$/i.test(text)))) found.push({ kind: "setup", cwd: location, targets, locationError });
     }
   }
   return found;
@@ -96,7 +103,7 @@ function inspect(op) {
     // arbitrary repositories or treat unreadable identity as unrelated.
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
-  const candidates = [...op.text.matchAll(/"([^"\n]+)"|'([^'\n]+)'|([^\s;|&()]+)/g)].map(m => m[1] ?? m[2] ?? m[3]).filter(s => !s.startsWith("-") && !/[`$]/.test(s));
+  const candidates = op.targets.filter(s => !s.startsWith("-") && !/[`$]/.test(s));
   for (const candidate of candidates) {
     const target = path.resolve(op.cwd, candidate);
     try {

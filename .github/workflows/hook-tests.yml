@@ -47,10 +47,14 @@ jobs:
   # SKILL.md files, everything under scripts/, the reviewer prompt template
   # the prompt builder tests, the generated reviewer definitions, and the
   # package manifests and ignore file the link and test-suite checks read.
+  # The filing preservation check also reads the hooks and their adapter wiring.
   driver-changes:
     uses: ./.github/workflows/changed-paths.yml
     with:
       patterns: |
+        .agents/hooks/**
+        .claude/hooks/**
+        .claude/settings.json
         .agents/skills/clean-worktrees/**
         .agents/skills/drive-vscode-web/**
         .agents/skills/drive-web-editor/**
@@ -88,6 +92,7 @@ jobs:
             /scripts/
             /.github/scripts/
             /.github/workflows/test-suite.yml
+            /.github/workflows/hook-tests.yml
             /.github/PULL_REQUEST_TEMPLATE.md
             /AGENTS.md
             /CLAUDE.md
@@ -127,6 +132,7 @@ jobs:
             /scripts/
             /.github/scripts/
             /.github/workflows/test-suite.yml
+            /.github/workflows/hook-tests.yml
             /.github/PULL_REQUEST_TEMPLATE.md
             /AGENTS.md
             /CLAUDE.md

@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { decide } from "../.agents/hooks/policy.mjs";
+import { relevantFiles } from "../.github/scripts/changed-paths.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "filer-1766-"));
@@ -25,7 +26,7 @@ git(["add", "."]);
 git(["commit", "-m", "fixture"]);
 git(["update-ref", "refs/remotes/origin/main", "HEAD"]);
 git(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
-const external = path.join(scratch, "repo.worktrees", "external");
+const external = path.join(scratch, "repo.worktrees", "external checkout");
 git(["worktree", "add", "-b", "external", external]);
 fs.writeFileSync(path.join(external, "untracked.txt"), "untracked sentinel\n");
 fs.writeFileSync(path.join(external, "ignored.txt"), "ignored sentinel\n");
@@ -42,6 +43,18 @@ console.log("PASS: direct cleanup refusal preserves external tracked, untracked 
 
 const { create, install, checkLinks, remove, markerName } = await import("./filer-worktree.mjs");
 const { decide: cleanup } = await import("../.agents/hooks/worktree-cleanup.mjs");
+const colonCommand = `Remove-Item -LiteralPath:'${reproduction}/node_modules/untracked.txt' -Force`;
+for (const command of [colonCommand, `Set-Location -LiteralPath:'${reproduction}'; Remove-Item -LiteralPath 'node_modules/untracked.txt' -Force`]) {
+  assert.ok(cleanup(command, "powershell", main), "colon-bound literal parameter must refuse"); preserved();
+}
+const escapedExternal = external.replaceAll(path.sep, "/").replaceAll(" ", "\\ ");
+assert.ok(cleanup(`rm -rf ${escapedExternal}`, "bash", main), "Bash escaped-space literal checkout must refuse"); preserved();
+for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+  const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command: colonCommand } });
+  const result = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+}
 for (const command of [`Remove-Item -Recurse '${reproduction}/node_modules'`, `rm -rf '${reproduction}'`, `[IO.Directory]::Delete('${reproduction}', $true)`, `(Get-Item '${reproduction}/node_modules').Delete()`]) {
   assert.ok(cleanup(command, "powershell", main), command); preserved();
 }
@@ -52,13 +65,15 @@ for (const target of [alias, `${alias}/node_modules/tracked.txt`]) {
 }
 fs.unlinkSync(alias);
 for (const [command, shell] of [["Write-Output 'git worktree remove is unsafe'", "powershell"], ["echo 'rm -rf and .Delete() are unsafe'", "bash"], ["# git worktree remove x\ngit status", "bash"], ["Write-Output '[IO.Directory]::Delete(x)'", "powershell"]]) assert.equal(cleanup(command, shell, main), null, command);
-const sibling = path.join(scratch, "repo.worktrees", "external-sibling");
+const sibling = `${external}-sibling`;
 fs.mkdirSync(sibling);
 fs.writeFileSync(path.join(sibling, "plain.txt"), "safe sibling\n");
 for (const target of [path.dirname(external), external, `${reproduction}/node_modules/tracked.txt`]) {
   assert.ok(cleanup(`Remove-Item -LiteralPath '${target}' -Recurse`, "powershell", main), target); preserved();
 }
 assert.equal(cleanup(`Remove-Item -LiteralPath '${sibling}' -Recurse`, "powershell", main), null);
+assert.equal(cleanup(`Remove-Item -LiteralPath:'${sibling}' -Recurse`, "powershell", main), null, "colon-bound harmless sibling remains permitted");
+assert.equal(cleanup(`rm -rf ${sibling.replaceAll(path.sep, "/").replaceAll(" ", "\\ ")}`, "bash", main), null, "escaped-space harmless sibling remains permitted");
 assert.equal(cleanup(`rm -f '${external}/untracked.txt'`, "bash", main), null, "plain descendant without traversal remains supported");
 if (process.platform === "win32") {
   const short = spawnSync("cmd.exe", ["/d", "/c", `for %I in ("${reproduction}") do @echo %~sI`], { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true }).stdout.trim();
@@ -96,6 +111,7 @@ fs.unlinkSync(`${owned.record}.lock`);
 const gitdir = git(["rev-parse", "--absolute-git-dir"], owned.tree);
 assert.ok(cleanup(`Remove-Item -Recurse '${owned.tree}'`, "powershell", main));
 assert.ok(cleanup(`New-Item -ItemType Junction -Path '${owned.tree}/node_modules' -Target '${external}'`, "powershell", main));
+assert.ok(cleanup(`New-Item -ItemType:Junction -Path borrowed -Target '${external}'`, "powershell", owned.tree), "colon-bound setup type must refuse"); preserved();
 const ownedAlias = path.join(scratch, "owned-alias");
 fs.symlinkSync(owned.tree, ownedAlias, process.platform === "win32" ? "junction" : "dir");
 fs.symlinkSync(external, path.join(owned.tree, "node_modules"), process.platform === "win32" ? "junction" : "dir");
@@ -151,5 +167,14 @@ assert.equal(JSON.parse(fs.readFileSync(owned.record)).state, "removed");
 await assert.rejects(remove(owned.record, owner), /inactive/); preserved();
 const config = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json")));
 assert.ok(config.hooks.PreToolUse.some(group => group.matcher.includes("PowerShell") && group.hooks.some(hook => hook.command.includes("worktree-cleanup.mjs"))));
+const workflow = fs.readFileSync(path.join(root, ".github/workflows/hook-tests.yml"), "utf8");
+const driverPatterns = workflow.match(/  driver-changes:[\s\S]*?patterns: \|\r?\n([\s\S]*?)(?=\r?\n  \w)/)?.[1].trim().split(/\r?\n/).map(line => line.trim());
+assert.ok(driverPatterns, "driver selection must be readable");
+for (const dependency of [".agents/hooks/worktree-cleanup.mjs", ".agents/hooks/typed-issue-hook.mjs", ".agents/hooks/policy.mjs", ".agents/hooks/pre-tool-use.mjs", ".claude/hooks/worktree-cleanup.mjs", ".claude/settings.json"]) {
+  assert.deepEqual(relevantFiles([dependency], driverPatterns), [dependency], `hook-only change must select preservation fixture: ${dependency}`);
+}
+assert.deepEqual(relevantFiles(["README.md"], driverPatterns), [], "unrelated documentation does not select drivers");
+const missingHooks = driverPatterns.filter(pattern => !pattern.includes("hooks") && pattern !== ".claude/settings.json");
+assert.deepEqual(relevantFiles([".agents/hooks/worktree-cleanup.mjs"], missingHooks), [], "restoring missing dependency patterns reproduces selection gap");
 for (const file of [".agents/skills/references/runner-filing.md", ".claude/agents/filer-sonnet-5-5-low.md", ".agents/skills/file-bug/references/diagnosis.md"]) assert.match(fs.readFileSync(path.join(root, file), "utf8"), /checked.*lifecycle|filer-worktree\.mjs/i);
 console.log(`PASS: ${process.platform === "win32" ? "Windows junction" : "POSIX symlink"} preservation, ownership/live/dirty refusals, permitted guarded cleanup and both hook/route wiring`);
