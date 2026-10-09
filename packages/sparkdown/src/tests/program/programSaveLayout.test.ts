@@ -760,6 +760,98 @@ describe("a save inside a scene entered by a divert", () => {
     expect(bindings(loaded)).toEqual({ a: 10, c: null });
     expect(play(loaded)).toEqual(["First 10 30.", "Second 10 30."]);
   });
+
+  // A scene whose content starts with a branch, entered by a divert.
+  const STARTS = (header: string, divert: string) =>
+    [
+      `-> ${divert}`,
+      "",
+      `scene ${header}`,
+      "  branch inner",
+      "    First.",
+      "    Second.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 1): the
+  // scene with no parameters left has no entry and no content of its own,
+  // and is entered at its first branch.
+  it("inside the first branch of a scene that lost its last parameter restarts the scene at that branch", () => {
+    const save = saveAt(STARTS("outer(a)", "outer(10)"), "First.");
+    const loaded = engine(rootOf(STARTS("outer", "outer(10)").replace("-> outer(10)", "-> outer")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'outer' resumes at its start/);
+    expect(bindings(loaded)).toEqual({});
+    expect(play(loaded)).toEqual(["First.", "Second."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 2, rejected):
+  // an entry that bound nothing left nothing in the frame to be stale, and a
+  // frame that ran it cannot be told from one that jumped past it, so the
+  // save loads where it was.
+  it("inside a scene that gained its first parameter loads in place, since its entry bound nothing", () => {
+    const save = saveAt(STARTS("outer", "outer"), "First.");
+    const loaded = engine(rootOf(STARTS("outer(a)", "outer(10)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 3): the
+  // entry's jump to the scene's first branch is no part of its parameters.
+  it("inside a branch of a scene whose parameters did not change loads in place when its branches were reordered", () => {
+    const BRANCHES = (first: string, second: string) =>
+      ["-> outer(10)", "", "scene outer(a)", first, second, "end", ""].join("\n");
+    const ONE = ["  branch one", "    One {a}.", "    -> two", "  end"].join("\n");
+    const TWO = ["  branch two", "    First {a}.", "    Second {a}.", "  end"].join("\n");
+    const save = saveAt(BRANCHES(ONE, TWO), "First 10.");
+    const loaded = engine(rootOf(BRANCHES(TWO, ONE)));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second 10."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 4): a jump
+  // to a label of a scene that bound nothing, which gains a parameter.
+  it("at a label a frame jumped to loads in place when the scene, which took no parameters, gains one", () => {
+    const LABEL = (header: string) =>
+      [
+        "-> start",
+        "",
+        "scene start",
+        "  -> s.middle",
+        "end",
+        "",
+        `scene ${header}`,
+        "  Skipped.",
+        "  label middle",
+        "  Middle.",
+        "  After.",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(LABEL("s"), "Middle.");
+    const loaded = engine(rootOf(LABEL("s(a)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["After."]);
+  });
+
+  it("inside a variadic scene keeps the saved varargs under the same name when a parameter before them is removed", () => {
+    const VARIADIC = (params: string, line: string) =>
+      ["-> s(10, 20, 30)", "", `scene s(${params})`, `  First ${line}.`, `  Second ${line}.`, "end", ""].join(
+        "\n",
+      );
+    const save = saveAt(VARIADIC("a, ...", '{a} {select("#", ...)}'), "First 10 2.");
+    const loaded = engine(rootOf(VARIADIC("...", '{select("#", ...)}')));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(play(loaded)).toEqual(["First 2.", "Second 2."]);
+  });
 });
 
 // #1728: a scene entered by a thread binds its parameters in the forked

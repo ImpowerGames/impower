@@ -216,17 +216,11 @@ const partPrints = (chunk: ProgramChunk, kind: ChunkPartKind): string[] =>
  *  the save's part listings, with the part's kind `k` and ordinal `i`), with
  *  the owner's layout hash when the owner is a loop. Format 1 named the body
  *  by its block alone (`block`). The first level of a position in a scene or
- *  a branch also carries the layout of the flow's entry (`bound`, as
- *  `bindingLayout` gives it) and, when the entry binds anything, the names
- *  of the parameters it bound in the order the header writes them
- *  (`params`), since a flow entered by a divert or a thread binds them as
- *  temporaries of a frame that names no symbol of the flow (#1728); a
- *  position in a branch carries its scene's the same way (`scene`). */
-interface SavedBinding {
-  bound: string;
-  params?: string[];
-}
-
+ *  a branch also carries the names of the parameters the flow's entry binds,
+ *  in the order the header writes them, empty for an entry that binds
+ *  nothing (`params`), since a flow entered by a divert or a thread binds
+ *  them as temporaries of a frame that names no symbol of the flow (#1728);
+ *  a position in a branch carries its scene's the same way (`scene`). */
 interface SavedLevel {
   s: number;
   at: number;
@@ -237,9 +231,8 @@ interface SavedLevel {
   i?: number;
   block?: number;
   loop?: string;
-  bound?: string;
   params?: string[];
-  scene?: SavedBinding;
+  scene?: string[];
 }
 
 interface SavedStatement {
@@ -403,16 +396,13 @@ const entryParameters = (
 
 type FlowRestart = NonNullable<ThreadCuts["restart"]>;
 
-/** The binding of the entry of scene or branch `symbol`, as a saved level
- *  carries it (`bound`, `params`), or nothing for a symbol that is neither. */
-const entryBinding = (root: ProgramRoot, symbol: number): SavedBinding | undefined => {
-  const bound = bindingLayout(root, symbol);
-  const flow = bound !== undefined ? root.flow(symbol) : undefined;
-  if (bound === undefined || !flow) {
-    return undefined;
-  }
-  const params = entryParameters(root, flow).map((param) => param.name);
-  return params.length > 0 ? { bound, params } : { bound };
+/** The names of the parameters the entry of scene or branch `symbol` binds,
+ *  as a saved level carries them, or nothing for a symbol that is neither. */
+const entryBinding = (root: ProgramRoot, symbol: number): string[] | undefined => {
+  const kind = root.kindOf(symbol);
+  const flow =
+    kind === SymbolKind.Scene || kind === SymbolKind.Branch ? root.flow(symbol) : undefined;
+  return flow ? entryParameters(root, flow).map((param) => param.name) : undefined;
 };
 
 /** The scene a branch `symbol` belongs to, or -1. */
@@ -431,7 +421,7 @@ const sceneOfBranch = (root: ProgramRoot, symbol: number): number => {
 const positionBindings = (
   root: ProgramRoot,
   sequence: SequenceRow,
-): { bound?: string; params?: string[]; scene?: SavedBinding } => {
+): { params?: string[]; scene?: string[] } => {
   const symbol = bindingFlowOf(root, sequence);
   const own = symbol !== undefined ? entryBinding(root, symbol) : undefined;
   if (symbol === undefined || !own) {
@@ -439,59 +429,82 @@ const positionBindings = (
   }
   const scene = sceneOfBranch(root, symbol);
   const outer = scene >= 0 ? entryBinding(root, scene) : undefined;
-  return outer ? { ...own, scene: outer } : own;
+  return outer ? { params: own, scene: outer } : { params: own };
 };
 
-/** The restart of flow `symbol` when its entry's layout differs from
- *  `saved`'s; nothing when the save carries none (a format 2 save written
- *  before #1728), the layout is the same, or the entry did not bind the
- *  frame's temporaries: a frame whose outermost scope (`names`, when the
- *  caller has them) lacks a parameter the saved entry bound jumped past it,
- *  to a label, and a scene around a branch whose saved entry bound nothing
- *  cannot be told from one the frame jumped past and leaves nothing to
- *  rebind (`outer`). */
+/** Where a restart of `flow` (the sequence of `symbol`) resumes: past its
+ *  entry's `SetVar`s, which the restart does in their place, at the entry's
+ *  jump to the scene's first branch when it has one or else the flow's first
+ *  statement; or, for a scene with no entry and no content of its own, at
+ *  its first branch, as entering it lands (`ProgramStory.enterStart`). */
+const restartPosition = (
+  root: ProgramRoot,
+  symbol: number,
+  flow: SequenceRow,
+  bindings: number,
+): ProgramPosition => {
+  const chunks = flow.arrays.chunks;
+  if (chunks.length === 0) {
+    const start = root.startOf(symbol);
+    const branch = start >= 0 ? root.place(start) : undefined;
+    return branch ?? { sequence: flow, entry: 0, offset: 0 };
+  }
+  const entry = chunks[0]!;
+  return bindings > 0 && bindings * 2 >= codeWords(entry)
+    ? { sequence: flow, entry: 1, offset: 0 }
+    : { sequence: flow, entry: 0, offset: bindings * 2 };
+};
+
+/** The restart of flow `symbol` when the parameters its entry binds now,
+ *  by name and in order, differ from those the saved entry bound
+ *  (`saved`). Nothing when the save carries none (a format 2 save written
+ *  before #1728), when the list is the same (a change to the entry's jump to
+ *  a scene's first branch binds nothing differently), or when the saved
+ *  entry did not bind the frame's temporaries: a frame whose outermost scope
+ *  (`names`, when the caller has them) lacks a parameter the saved entry
+ *  bound jumped past it, to a label, and an entry that bound nothing left
+ *  nothing in the frame to be stale and cannot be told from one the frame
+ *  jumped past, so the frame resumes where it was. */
 const restartOf = (
   root: ProgramRoot,
   symbol: number,
-  saved: Partial<SavedBinding> | undefined,
+  saved: unknown,
   names: ReadonlySet<string> | undefined,
-  outer: boolean,
 ): FlowRestart | undefined => {
-  const bound = saved?.bound;
-  if (typeof bound !== "string") {
+  if (!Array.isArray(saved) || saved.length === 0) {
     return undefined;
   }
-  const savedNames = Array.isArray(saved?.params) ? saved.params.map(String) : [];
-  if (outer && savedNames.length === 0) {
-    return undefined;
-  }
+  const savedNames = saved.map(String);
   if (names && savedNames.some((name) => !names.has(name))) {
     return undefined;
   }
-  const now = bindingLayout(root, symbol);
   const flow = root.flow(symbol);
-  if (now === undefined || now === bound || !flow) {
+  if (!flow) {
     return undefined;
   }
   const params = entryParameters(root, flow);
-  // Past the entry's `SetVar`s: its jump to the scene's first branch, when it
-  // has one, or the flow's first statement.
-  const entry = flow.arrays.chunks[0];
-  let position: ProgramPosition = { sequence: flow, entry: 0, offset: params.length * 2 };
-  if (params.length > 0 && entry && position.offset >= codeWords(entry)) {
-    position = { sequence: flow, entry: 1, offset: 0 };
+  if (
+    params.length === savedNames.length &&
+    params.every((param, i) => param.name === savedNames[i])
+  ) {
+    return undefined;
   }
-  return { flow: root.table.symbols[symbol]!, position, params, saved: savedNames };
+  return {
+    flow: root.table.symbols[symbol]!,
+    position: restartPosition(root, symbol, flow, params.length),
+    params,
+    saved: savedNames,
+  };
 };
 
 /** The restart of a position whose first saved level is `level` and which
  *  was placed in `sequence`, in a frame whose outermost scope binds `names`:
- *  of the branch's scene when its entry differs, since restarting the scene
- *  enters the branch again, or else of the scene or branch the position is
- *  in when its own entry differs. */
+ *  of the branch's scene when its parameters changed, since restarting the
+ *  scene enters the branch again, or else of the scene or branch the
+ *  position is in when its own parameters changed. */
 const flowRestart = (
   root: ProgramRoot,
-  level: Pick<SavedLevel, "bound" | "params" | "scene"> | undefined,
+  level: Pick<SavedLevel, "params" | "scene"> | undefined,
   sequence: SequenceRow,
   names?: ReadonlySet<string>,
 ): FlowRestart | undefined => {
@@ -501,8 +514,8 @@ const flowRestart = (
   }
   const scene = sceneOfBranch(root, symbol);
   return (
-    (scene >= 0 ? restartOf(root, scene, level?.scene, names, true) : undefined) ??
-    restartOf(root, symbol, level, names, false)
+    (scene >= 0 ? restartOf(root, scene, level?.scene, names) : undefined) ??
+    restartOf(root, symbol, level?.params, names)
   );
 };
 
