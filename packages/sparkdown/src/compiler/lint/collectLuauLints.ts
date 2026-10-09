@@ -93,6 +93,7 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "ImplicitReturn",
   "SameLineStatement",
   "MultiLineStatement",
 ] as const;
@@ -444,6 +445,71 @@ function lintUnreachable(fn: AstExprFunction, offsets: Offsets, out: LuauLint[])
   visitAst(fn, {
     visit(node) {
       if (node instanceof AstExprFunction) travel(node.body);
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// ImplicitReturn
+
+/** A break belonging to this loop, rather than a nested loop or function. */
+function hasLoopBreak(stat: AstStat): boolean {
+  if (stat instanceof AstStatBreak) return true;
+  if (stat instanceof AstStatBlock) return stat.body.some(hasLoopBreak);
+  if (stat instanceof AstStatIf) return hasLoopBreak(stat.thenbody) || (!!stat.elsebody && hasLoopBreak(stat.elsebody));
+  return false;
+}
+
+/** Luau's getFallthrough: the statement through which a body can reach its end. */
+function fallthrough(stat: AstStat): AstStat | undefined {
+  if (stat instanceof AstStatBlock) {
+    if (!stat.body.length) return stat;
+    for (let i = 0; i < stat.body.length - 1; i++) if (!fallthrough(stat.body[i]!)) return undefined;
+    return fallthrough(stat.body[stat.body.length - 1]!);
+  }
+  if (stat instanceof AstStatIf) {
+    const then = fallthrough(stat.thenbody);
+    if (then) return then;
+    return stat.elsebody ? fallthrough(stat.elsebody) : stat;
+  }
+  if (stat instanceof AstStatReturn) return undefined;
+  if (stat instanceof AstStatExpr && stat.expr instanceof AstExprCall && doesCallError(stat.expr)) return undefined;
+  if (stat instanceof AstStatWhile && ((stat.condition instanceof AstExprConstantBool && stat.condition.value) || stat.condition instanceof AstExprConstantNumber || stat.condition instanceof AstExprConstantString) && !hasLoopBreak(stat.body)) return undefined;
+  if (stat instanceof AstStatRepeat) {
+    if (stat.condition instanceof AstExprConstantBool && !stat.condition.value && !hasLoopBreak(stat.body)) return undefined;
+    if (!fallthrough(stat.body)) return undefined;
+  }
+  return stat;
+}
+
+/** Luau's LintImplicitReturn, excluding another function's returns. */
+function lintImplicitReturns(root: AstExprFunction, offsets: Offsets, out: LuauLint[]): void {
+  visitAst(root, {
+    visit(node) {
+      if (!(node instanceof AstExprFunction)) return true;
+      let valueReturn: AstStatReturn | undefined;
+      let malformed = false;
+      visitAst(node.body, {
+        visit(child) {
+          if (child instanceof AstExprFunction) return false;
+          if (child instanceof AstStatError || child instanceof AstExprError) malformed = true;
+          if (child instanceof AstStatReturn && child.list.length && !valueReturn) valueReturn = child;
+          return true;
+        },
+      });
+      const end = valueReturn && !malformed ? fallthrough(node.body) : undefined;
+      if (end && valueReturn) {
+        const location = end.location;
+        const range = offsets.range(location);
+        // Luau highlights an ordinary final statement whole, or the closing
+        // `end` of a multiline block, loop or conditional.
+        if (!(end instanceof AstStatExpr || end instanceof AstStatAssign || end instanceof AstStatLocal) && location.begin.line !== location.end.line) {
+          range.from = range.to - Math.min(3, location.end.column);
+        }
+        const name = node.debugname ? ` '${node.debugname}'` : "";
+        out.push({ code: "ImplicitReturn", ...range, message: `Function${name} can implicitly return no values even though there's an explicit return at line ${offsets.line(valueReturn.location.begin) + 1}; add explicit return to silence` });
+      }
       return true;
     },
   });
@@ -894,6 +960,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintUnusedLocals(fn, tree, text, offsets, out);
       lintPlaceholderReads(fn, offsets, out);
       lintUnreachable(fn, offsets, out);
+      lintImplicitReturns(fn, offsets, out);
     }
   };
   for (const unit of [units.prelude, ...units.flows]) {
