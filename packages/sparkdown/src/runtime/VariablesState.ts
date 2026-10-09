@@ -39,6 +39,23 @@ export interface ImageBarrier {
   global(name: string): void;
 }
 
+/** A binding the story can write: the block scope that holds a temporary
+ *  (a map of a call stack element's `temporaryScopes`), the closed upvalue
+ *  cell of a captured variable whose frame is gone, or `null` for a global.
+ *  With the variable's name it says which variable a write reached. */
+export type VariableBinding =
+  | Map<string, InkObject>
+  | VariablePointerValue
+  | null;
+
+/** Hears each write the story makes to a variable that is already bound,
+ *  with the binding it reached and the variable's name there: an
+ *  assignment to a temporary, to a closed upvalue cell, or to a global
+ *  (docs/engine/binary-program.md, section 9: a data breakpoint). A
+ *  temporary's declaration binds a new variable, so it is not a write to
+ *  one; a global's writes the one global of its name. */
+export type WriteWatch = (binding: VariableBinding, name: string) => void;
+
 export class VariablesState extends VariablesStateAccessor<
   Record<string, any>
 >() {
@@ -499,6 +516,7 @@ export class VariablesState extends VariablesStateAccessor<
           if (existingPointer.isClosed) {
             this.CellWriteBarrier(existingPointer);
             existingPointer.closedValue = value;
+            this.writeWatch?.(existingPointer, existingPointer.variableName);
             return;
           }
           name = existingPointer.variableName;
@@ -531,13 +549,57 @@ export class VariablesState extends VariablesStateAccessor<
       this.SetGlobal(name, value);
       return;
     }
-    this._callStack.SetTemporaryVariable(
+    const scope = this._callStack.SetTemporaryVariable(
       name,
       value,
       varAss.isNewDeclaration,
       contextIndex,
       scopeIndex,
     );
+    if (this.writeWatch !== null && !varAss.isNewDeclaration) {
+      this.writeWatch(scope, name);
+    }
+  }
+
+  /** Hears each write to a bound variable (`WriteWatch`), or nothing: a
+   *  data breakpoint's game installs it for the length of a step while a
+   *  breakpoint watches a variable, and with none the assignment paths test
+   *  this field and call nothing. */
+  public writeWatch: WriteWatch | null = null;
+
+  /** The binding a write to `name` reaches from the block scope `scope`,
+   *  and the variable's name there, as `Assign` reaches it: a temporary
+   *  bound to a pointer (a variable passed by reference, or one a closure
+   *  captured) is written through it, to the binding it points at, which
+   *  is a closed upvalue cell once the frame that bound it is gone, or a
+   *  global. */
+  public BindingOf(
+    scope: Map<string, InkObject>,
+    name: string,
+  ): { binding: VariableBinding; name: string } {
+    let binding: VariableBinding = scope;
+    let value = scope.get(name);
+    while (value instanceof VariablePointerValue) {
+      if (value.isClosed) {
+        return { binding: value, name: value.variableName };
+      }
+      name = value.variableName;
+      if (value.contextIndex === 0) {
+        return { binding: null, name };
+      }
+      const found = this._callStack.TemporaryScopeOf(
+        name,
+        value.contextIndex,
+        value.scopeIndex,
+      );
+      if (found === null) {
+        // `Assign` takes a name no temporary holds for a global.
+        return { binding: null, name };
+      }
+      binding = found;
+      value = found.get(name);
+    }
+    return { binding, name };
   }
 
   /** The globals as they stand, by name, which an image copies
@@ -753,6 +815,7 @@ export class VariablesState extends VariablesStateAccessor<
 
     this._globalVariables.set(variableName, value);
     this.imageBarrier?.global(variableName);
+    this.writeWatch?.(null, variableName);
 
     // Reactive dep tracking: a global write is a coarse-grained change keyed by
     // name (a binding that read this global re-runs). Cheap no-op when disabled.

@@ -31,6 +31,10 @@ import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
 import { InkList } from "@impower/sparkdown/src/runtime/InkList";
 import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
 import { VariablePointerValue } from "@impower/sparkdown/src/runtime/Value";
+import type {
+  VariableBinding,
+  WriteWatch,
+} from "@impower/sparkdown/src/runtime/VariablesState";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
@@ -54,7 +58,6 @@ import { lineRanges } from "../utils/executedLineRanges";
 import {
   programAssignmentAddresses,
   programBreakpointLines,
-  declaresName,
   programFunctionAddress,
   runsAfterReset,
 } from "../utils/programBreakpoints";
@@ -365,19 +368,34 @@ export class Game<T extends M = {}> {
   protected _executedLog: number[] = [];
 
   /** The variables the data breakpoints watch: a global by its name, or a
-   *  temporary of the frame named `scope`, with the value object each held
-   *  when the game last looked and, for a
-   *  temporary, the block scope it was found in (`readWatch`). */
+   *  temporary of the frame named `scope`. Between steps the game notes
+   *  where each is bound now (`locateWatch`) and the value object it holds;
+   *  during a step the engine reports each write to a bound variable
+   *  (`VariablesState.writeWatch`), and a write to the binding noted marks
+   *  the watch `written`. */
   protected _dataWatches: {
     scope?: string;
     name: string;
+    /** The block scope a temporary was found in, which the watch keeps
+     *  while a frame named by its scope holds it. */
+    blockScope: Map<string, InkObject> | null;
+    /** Where a write to the variable lands (`VariablesState.BindingOf`),
+     *  and its name there; `undefined` when no such variable is in scope. */
+    binding: VariableBinding | undefined;
+    bindingName: string;
     last: unknown;
-    binding: Map<string, InkObject> | null;
-    /** The addresses of the declarations of a temporary's name in the code
-     *  its frame runs, apart from those that bind a function's parameters:
-     *  where it is declared again rather than written. */
-    redeclarations: ReadonlySet<number>;
+    written: boolean;
   }[] = [];
+
+  /** The engine's write watch while a data breakpoint is set: marks each
+   *  watch whose binding a write reached. */
+  protected _noteWrite: WriteWatch = (binding, name) => {
+    for (const watch of this._dataWatches) {
+      if (watch.binding === binding && watch.bindingName === name) {
+        watch.written = true;
+      }
+    }
+  };
 
   protected _simulation?: "none" | "simulating" | "success" | "fail";
   get simulation() {
@@ -1087,91 +1105,110 @@ export class Game<T extends M = {}> {
   }
 
   /**
-   * The value object a data breakpoint's variable holds now, and whether it
-   * was read from the binding the watch read last. A global is read by its
-   * name. A temporary is read from the block scope that held it when the
-   * watch last found it, while a frame named by the watch's scope still
-   * holds that block scope, so a temporary of the same name declared in an
-   * inner block shadows it without being it; otherwise it is found anew, in
-   * the innermost frame named by the scope, from its innermost block scope
-   * out. Nothing when no such variable is in scope.
+   * Notes where a data breakpoint's variable is bound now and the value
+   * object it holds. A global is bound by its name. A temporary is found in
+   * the block scope that held it when the watch last found it, while a frame
+   * named by the watch's scope still holds that block scope, so a temporary
+   * of the same name declared in an inner block shadows it without being it;
+   * otherwise it is found anew, in the innermost frame named by the scope,
+   * from its innermost block scope out. A temporary bound to a pointer (a
+   * variable passed by reference, or one a closure captured) is bound where
+   * the pointer leads, which a write through it reaches. Nothing is bound
+   * when no such variable is in scope.
    */
-  protected readWatch(
+  protected locateWatch(
     program: ProgramStory,
     watch: (typeof this._dataWatches)[number],
-  ): { value: unknown; same: boolean } {
+  ) {
+    const variablesState = program.state.variablesState;
+    watch.written = false;
     if (watch.scope === undefined) {
-      const value =
-        program.state.variablesState.GetGlobalVariableValue(watch.name) ??
-        undefined;
-      return { value, same: true };
+      watch.binding = null;
+      watch.bindingName = watch.name;
+      watch.last =
+        variablesState.GetGlobalVariableValue(watch.name) ?? undefined;
+      return;
     }
     const callStack = program.state.callStack;
     const frames =
       program.debugFrames(callStack.currentThread.threadIndex) ?? [];
     const named = frames.filter((frame) => frame.name === watch.scope);
-    // A temporary bound to a pointer (a variable passed by reference, or
-    // one a closure captured) is read through it, since a write through it
-    // leaves the pointer in place.
-    const resolve = (value: InkObject | undefined): unknown =>
-      value instanceof VariablePointerValue
-        ? (program.state.variablesState.ValueAtVariablePointer(value) ??
-          undefined)
-        : value;
-    const bound = watch.binding;
+    const held = watch.blockScope;
+    let scope: Map<string, InkObject> | null = null;
     if (
-      bound &&
-      bound.has(watch.name) &&
-      named.some((frame) => frame.element.temporaryScopes.includes(bound))
+      held &&
+      held.has(watch.name) &&
+      named.some((frame) => frame.element.temporaryScopes.includes(held))
     ) {
-      return { value: resolve(bound.get(watch.name)), same: true };
-    }
-    watch.binding = null;
-    const innermost = named.at(-1);
-    const scopes = innermost?.element.temporaryScopes ?? [];
-    for (let s = scopes.length - 1; s >= 0; s -= 1) {
-      const value = scopes[s]!.get(watch.name);
-      if (value !== undefined) {
-        watch.binding = scopes[s]!;
-        return { value: resolve(value), same: false };
+      scope = held;
+    } else {
+      const scopes = named.at(-1)?.element.temporaryScopes ?? [];
+      for (let s = scopes.length - 1; s >= 0 && !scope; s -= 1) {
+        if (scopes[s]!.has(watch.name)) {
+          scope = scopes[s]!;
+        }
       }
     }
-    return { value: undefined, same: false };
+    watch.blockScope = scope;
+    if (!scope) {
+      watch.binding = undefined;
+      watch.bindingName = watch.name;
+      watch.last = undefined;
+      return;
+    }
+    const { binding, name } = variablesState.BindingOf(scope, watch.name);
+    watch.binding = binding;
+    watch.bindingName = name;
+    watch.last = this.valueAtBinding(program, binding, name);
   }
 
-  /** Notes what each data breakpoint's variable holds now, so that only a
-   *  step that writes it stops the game: a load, a jump or a replay between
-   *  steps changes it without a step. */
+  /** The value object a binding holds for the variable `name`. */
+  protected valueAtBinding(
+    program: ProgramStory,
+    binding: VariableBinding,
+    name: string,
+  ): unknown {
+    if (binding === null) {
+      return (
+        program.state.variablesState.GetGlobalVariableValue(name) ?? undefined
+      );
+    }
+    if (binding instanceof VariablePointerValue) {
+      return binding.closedValue ?? undefined;
+    }
+    return binding.get(name);
+  }
+
+  /** Notes where each data breakpoint's variable is bound now and what it
+   *  holds, so that only a step that writes it stops the game: a load, a
+   *  jump or a replay between steps changes it without a step. */
   protected refreshDataWatches() {
     const program = this.programStory;
     for (const watch of this._dataWatches) {
-      watch.last = this.readWatch(program, watch).value;
+      this.locateWatch(program, watch);
     }
   }
 
-  /** Whether a data breakpoint's variable holds another value than it did,
-   *  noting what each holds now. A variable that comes into scope, goes out
-   *  of it, or is found in another binding is declared, dropped or shadowed
-   *  rather than written. */
+  /** Whether the step that ran last wrote another value to a data
+   *  breakpoint's variable: the engine reported a write to the binding the
+   *  watch noted before the step, and the binding holds another value
+   *  object than it did. A declaration binds a new variable, which the
+   *  engine does not report, so a temporary declared again, in its own
+   *  block, an inner one or another invocation of its function, is not
+   *  written. Notes where each is bound for the next step. */
   protected dataWatchesChanged(): boolean {
     const program = this.programStory;
     let changed = false;
     for (const watch of this._dataWatches) {
-      const { value, same } = this.readWatch(program, watch);
       if (
-        same &&
-        value !== undefined &&
-        watch.last !== undefined &&
-        value !== watch.last &&
-        // A temporary declared again in its own block is a new variable in
-        // the same block scope, not a write to the one watched: the step ran
-        // one of the declarations of its name in the code its frame runs
-        // (a function it calls declares in a frame of its own).
-        !this._executedLog.some((address) => watch.redeclarations.has(address))
+        watch.written &&
+        watch.binding !== undefined &&
+        this.valueAtBinding(program, watch.binding, watch.bindingName) !==
+          watch.last
       ) {
         changed = true;
       }
-      watch.last = value;
+      this.locateWatch(program, watch);
     }
     return changed;
   }
@@ -1331,15 +1368,11 @@ export class Game<T extends M = {}> {
       watches.push({
         scope,
         name,
+        blockScope: null,
+        binding: undefined,
+        bindingName: name,
         last: undefined,
-        binding: null,
-        redeclarations: new Set(
-          scope === undefined
-            ? []
-            : declarations.filter((address) =>
-                declaresName(program.root, address, name),
-              ),
-        ),
+        written: false,
       });
       // A global is placed where it is declared, since a temporary that
       // shadows it is assigned by the same name; a temporary where it is
@@ -2505,6 +2538,12 @@ export class Game<T extends M = {}> {
         const log = this._executedLog;
         log.length = 0;
         program.executedLog = log;
+        // While a data breakpoint is set, the engine reports each write to
+        // a bound variable during the step, so the watch hears which
+        // binding a write reached. With none it calls nothing.
+        const variablesState = program.state.variablesState;
+        variablesState.writeWatch =
+          this._dataWatches.length > 0 ? this._noteWrite : null;
         this._story.stepLimit =
           stepsBefore + 1 + this._executionStepsRemaining;
         let stopped = false;
@@ -2522,6 +2561,7 @@ export class Game<T extends M = {}> {
             this._story.stepCount - stepsBefore - 1,
           );
           program.executedLog = null;
+          variablesState.writeWatch = null;
         }
         let hit = false;
         for (let i = 0; i < log.length; i += 1) {

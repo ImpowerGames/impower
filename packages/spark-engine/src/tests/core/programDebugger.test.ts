@@ -114,6 +114,32 @@ const NESTED = [
 const names = (vars: { name: string; value: string }[]) =>
   vars.map((v) => `${v.name}=${v.value}`);
 
+/** Counts each write watch the game installs on the story's variables
+ *  (`VariablesState.writeWatch`, #1664), and each write the engine reports
+ *  to it. */
+function countWriteWatch(story: ProgramStory) {
+  const variables = story.state.variablesState;
+  const counts = { variables, installs: 0, calls: 0 };
+  let watch: typeof variables.writeWatch = variables.writeWatch;
+  Object.defineProperty(variables, "writeWatch", {
+    configurable: true,
+    get: () =>
+      watch === null
+        ? null
+        : (...args: Parameters<NonNullable<typeof watch>>) => {
+            counts.calls += 1;
+            watch!(...args);
+          },
+    set: (value) => {
+      if (value !== null) {
+        counts.installs += 1;
+      }
+      watch = value;
+    },
+  });
+  return counts;
+}
+
 describe("the debugger on the program engine", () => {
   it("stops at a line breakpoint on its beat, and not again when continued", () => {
     const h = debugGame(NESTED);
@@ -626,14 +652,11 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables())).toContain("n=3");
   });
 
-  // A known limitation (#1664): the game infers from outside the
-  // engine which binding a write reached, and takes a declaration of the
-  // watched name in the watched function's code, run within the same step,
-  // for a new binding. A recursive call of that function inside one builtin
-  // step runs such a declaration in another invocation, so the write to the
-  // watched invocation's `n` is missed. When the engine reports writes to a
-  // watched binding, this case stops, and the expectation below turns red.
-  it("misses a write to a watched temporary when a recursive call in the same step declares its name", () => {
+  // The engine reports the write to the watched binding (#1664): a recursive
+  // call of the watched function inside one builtin step declares its own
+  // `n` in another invocation, which is not the variable watched, and the
+  // comparator's write to the watched invocation's `n` still stops.
+  it("fires a data breakpoint on a write to a watched temporary when a recursive call in the same step declares its name", () => {
     const text = [
       "-> main", //                                0
       "scene main", //                             1
@@ -664,11 +687,60 @@ describe("the debugger on the program engine", () => {
     expect(h.game.setDataBreakpoints([{ dataId: "outer.n" }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
     h.game.continue();
-    // The comparator wrote `outer`'s `n`, and the beat shows it did, but
-    // the continue ran on to that beat: no data breakpoint stop followed
-    // the write.
-    expect(h.game.story.currentText).toMatch(/^Got [1-9]\d*\.\n$/);
-    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    // The comparator wrote `outer`'s `n`: the game stops after the step
+    // that ran `table.sort`, before the beat that shows it.
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    // The watched invocation, the outermost `outer` frame, shows the value
+    // the comparator wrote; the recursive invocation has returned.
+    const outerFrames = h
+      .frames()
+      .stackFrames.filter((f) => f.name === "outer");
+    expect(outerFrames).toHaveLength(1);
+    expect(
+      names(h.game.getTempVariables(0, outerFrames[0]!.id)).find((v) =>
+        v.startsWith("n="),
+      ),
+    ).toMatch(/^n=[1-9]\d*$/);
+  });
+
+  // A closure's frame binds the variable it captured to the cell that
+  // outlived the function that declared it; a write in the closure reaches
+  // the cell, and only the call that writes it stops.
+  it("fires a data breakpoint on a captured variable in its closure's frame, through the cell its function left", () => {
+    const text = [
+      "-> main", //                       0
+      "scene main", //                    1
+      "  Start.", //                      2
+      "  Got {count()}.", //              3
+      "  Then {count()}.", //             4
+      "  done", //                        5
+      "end", //                           6
+      "function make()", //               7
+      "  local n = 0", //                 8
+      "  return function()", //           9
+      "    n = n + 1", //                 10
+      "    return n", //                  11
+      "  end", //                         12
+      "end", //                           13
+      "store count = make()", //          14
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.setBreakpoints([{ file: MAIN, line: 11 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(11);
+    const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+    expect(n.value).toBe("1");
+    const dataId = `${n.scopePath}.${n.name}`;
+    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    // The rest of the first call reads `n`, and the beat shows it; the
+    // second call writes it.
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    expect(h.stoppedAt()).toBe(10);
+    expect(names(h.game.getTempVariables())).toContain("n=2");
   });
 
   it("fires a function breakpoint on a named function written inside another function", () => {
@@ -875,8 +947,11 @@ describe("the debugger on the program engine", () => {
     }) as typeof JSON.stringify;
     const stepsBefore = story.stepCount;
     const executed: number[] = [];
+    h.game.start();
+    // The variables of the story the game started.
+    const writes = countWriteWatch(story);
+    const stepsWatched = story.stepCount;
     try {
-      h.game.start();
       for (let i = 0; i < 3; i += 1) {
         h.game.continue();
         executed.push(h.game.runtimeState.pathsExecutedThisFrame.size);
@@ -888,10 +963,26 @@ describe("the debugger on the program engine", () => {
     expect(steps).toBeGreaterThan(40);
     expect(installed).toBeNull();
     expect(hookCalls).toBe(0);
+    // The story wrote variables in those steps (`health`, `result`, the
+    // locals), and reported none of them: no write watch was installed.
+    expect(story.state.variablesState).toBe(writes.variables);
+    expect(story.stepCount - stepsWatched).toBeGreaterThan(20);
+    expect(writes.installs).toBe(0);
+    expect(writes.calls).toBe(0);
     // What a beat's checkpoint serializes is per beat, not per step.
     expect(strings).toBeLessThan(steps / 4);
     // The game still records each step it takes.
     expect(executed.every((size) => size > 0)).toBe(true);
+    // The same counters see the watch a data breakpoint installs.
+    const watched = debugGame(NESTED);
+    const watchedStory = watched.game.story as unknown as ProgramStory;
+    watched.game.setDataBreakpoints([{ dataId: "result" }]);
+    watched.game.start();
+    const watchedWrites = countWriteWatch(watchedStory);
+    watched.continueToBreakpoint();
+    expect(watched.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(watchedWrites.installs).toBeGreaterThan(0);
+    expect(watchedWrites.calls).toBeGreaterThan(0);
   });
 
   it("records the lines each continue ran", () => {
