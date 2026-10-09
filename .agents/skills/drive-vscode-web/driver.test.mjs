@@ -36,7 +36,7 @@ import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs"
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
-import { desktop, launchOwnedCdp, advancePlayer, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
+import { desktop, launchOwnedCdp, ownedDescendants, advancePlayer, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
 import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import {
@@ -2055,6 +2055,17 @@ await check("CDP transport closing cannot verify live descendants or an unconfir
   let spawned = false;
   await assert.rejects(launchOwnedCdp(cdpLaunch, { platform: 'linux', spawn: () => { spawned = true; } }), /only on Windows/);
   assert.equal(spawned, false, 'unsupported platform must be refused before launch');
+});
+
+await check("owned descendant PID reuse retains both start identities and refuses unrelated reparenting", () => {
+  const root = { pid: 42, start: 'root' }, old = { pid: 43, parent: 42, start: 'old' }, replacement = { ...old, start: 'new' };
+  const tracked = ownedDescendants([root, replacement], root, [old]);
+  assert.ok(tracked.some(row => row.start === 'old'));
+  assert.ok(tracked.some(row => row.start === 'new'), 'reused owned descendant was hidden behind its previous PID');
+  const orphan = ownedDescendants([replacement], root, tracked);
+  assert.ok(orphan.some(row => row.pid === 43 && row.start === 'new'), 'a reparented descendant cannot disappear from exit inspection');
+  const foreign = { pid: 44, parent: 43, start: 'foreign' };
+  assert.ok(!ownedDescendants([replacement, foreign], root, [old]).some(row => row.pid === 44), 'reused unrelated PID cannot authorize ownership of its children');
 });
 
 if (failures) {

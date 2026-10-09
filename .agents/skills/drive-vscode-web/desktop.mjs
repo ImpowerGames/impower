@@ -59,13 +59,14 @@ export function verifyCdpOwnership(owner, current, listeners) {
 }
 
 export function ownedDescendants(rows, root, known = []) {
-  const owned = new Map([[root.pid, root], ...known.map(row => [row.pid, row])]);
+  const key = row => row.pid + ':' + row.start;
+  const owned = new Map([root, ...known].map(row => [key(row), row]));
   let changed = true;
   while (changed) {
     changed = false;
     for (const row of rows) {
-      const parent = owned.get(row.parent);
-      if (!owned.has(row.pid) && parent && rows.some(current => sameIdentity(parent, current))) { owned.set(row.pid, row); changed = true; }
+      const parent = [...owned.values()].find(parent => parent.pid === row.parent && rows.some(current => sameIdentity(parent, current)));
+      if (!owned.has(key(row)) && parent) { owned.set(key(row), row); changed = true; }
     }
   }
   return [...owned.values()];
