@@ -41,17 +41,47 @@ function links(p, budget = { deadline: Date.now() + 500, count: 0 }) {
   return null;
 }
 const gitValueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--attr-source"]);
-function literalArguments(tokens, shell) {
-  return tokens.map(token => shell === "powershell" ? token.text.replace(/^-[A-Za-z][\w-]*:/, "") : token.text);
+const singlePowerShellLiteral = /^(?:'(?:[^']|'')*'|"[^"$`]*")$/;
+function literalArguments(tokens, shell, command) {
+  const values = [];
+  for (const token of tokens) {
+    let text = token.text;
+    if (shell === "powershell") {
+      const raw = command.slice(token.start, token.end).trim().replace(/,$/, "");
+      const rawValue = raw.replace(/^-[A-Za-z][\w-]*:/, "");
+      if (raw.startsWith("-")) text = text.replace(/^-[A-Za-z][\w-]*:/, "");
+      if (token.quoted && /^["']/.test(rawValue) && !singlePowerShellLiteral.test(rawValue)) values.error = "Combined cleanup/setup literals cannot be verified";
+      if (!token.quoted && text.includes(",")) values.error = "Multiple cleanup/setup targets cannot be verified";
+      if (token.group || /^@?\(/.test(text)) {
+        const inner = text.replace(/^@?\(/, "").replace(/\)$/, "").trim();
+        const { segments } = readCommand(inner, "powershell"), literal = segments[0]?.tokens[0];
+        if (!/^@?\([\s\S]*\)$/.test(text) || segments.length !== 1 || segments[0].tokens.length !== 1 || !literal.quoted || literal.group || literal.start !== 0 || literal.end !== inner.length || !singlePowerShellLiteral.test(inner) || /[`$]/.test(inner)) {
+          values.error = "Grouped cleanup/setup argument is not a verified single literal";
+        } else text = literal.text;
+      }
+      const provider = /^(?:Microsoft\.PowerShell\.Core\\)?FileSystem::/i;
+      if (provider.test(text)) {
+        text = text.replace(provider, "");
+        if (!path.isAbsolute(text)) values.error = "Provider-qualified path is not absolute";
+      } else if (/^[\w.\\]+::/.test(text) || (/^[A-Za-z][\w]*:/.test(text) && !/^[A-Za-z]:[\/\\]/.test(text))) {
+        values.error = "Cleanup/setup drive or provider identity cannot be verified";
+      }
+    } else if (!token.quoted && /[~{}]/.test(text)) {
+      values.error = "Shell-expanded cleanup/setup target cannot be verified";
+    }
+    values.push(text);
+  }
+  return values;
 }
 // Reuse the established tokenizer; quoted prose/comments are not commands.
-// Indirect runtimes and variable paths outside owned contexts remain outside
+// Indirect runtimes and computed paths outside known repositories remain outside
 // coverage. Literal location changes and shell command strings are recognized.
 function operations(command, shell, cwd, depth = 0) {
   if (depth > 3) return [];
   const { segments, subs } = readCommand(command, shell), found = [];
   for (const sub of subs) found.push(...operations(sub, shell, cwd, depth + 1));
   let location = cwd, locationError = null;
+  const locationStack = [];
   for (const { tokens, positions } of segments) {
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i], name = baseName(token);
@@ -62,17 +92,28 @@ function operations(command, shell, cwd, depth = 0) {
       }
       const method = !token.quoted && /(?:\.|::)Delete$/i.test(token.text) && command.slice(token.end).trimStart().startsWith("(");
       if (method) {
-        const methodTokens = segments.flatMap(segment => segment.tokens).map(t => command.slice(t.start, t.end).endsWith(",") ? { ...t, text: t.text.replace(/,$/, "") } : t);
-        found.push({ kind: "delete", cwd: location, targets: literalArguments(methodTokens, shell), locationError });
+        const methodTokens = segments.flatMap(segment => segment.tokens).filter(t => t.quoted || (t.text.includes("$") && !/^\$(true|false)$/i.test(t.text))).map(t => command.slice(t.start, t.end).endsWith(",") ? { ...t, text: t.text.replace(/,$/, "") } : t);
+        const targets = literalArguments(methodTokens, shell, command);
+        if (!targets.length) targets.error = "Delete method target cannot be verified";
+        found.push({ kind: "delete", cwd: location, targets, locationError });
       }
       if (!positions.has(i)) continue;
       const args = tokens.slice(i + 1);
-      const targets = literalArguments(args, shell);
-      if (["cd", "set-location", "pushd"].includes(name)) {
+      const targets = literalArguments(args, shell, command);
+      if (["popd", "pop-location"].includes(name)) {
+        if (args.length || !locationStack.length) locationError = "Location stack cannot be verified";
+        else location = locationStack.pop();
+        continue;
+      }
+      if (["cd", "set-location", "pushd", "push-location"].includes(name)) {
         const target = targets.find(text => !text.startsWith("-"));
+        if (targets.error || args.some(t => /^-stackname(?::|$)/i.test(t.text))) locationError = targets.error ?? "Named location stack cannot be verified";
+        const allowedFlag = shell === "powershell" ? /^-(?:path|literalpath)(?::|$)|^-passthru$/i : name === "cd" ? /^(?:--|-L|-P)$/ : /$^/;
+        if (args.some(t => t.text.startsWith("-") && !allowedFlag.test(t.text))) locationError = "Location options cannot be verified";
+        if (!target || /[`$*?]/.test(target)) locationError = "Effective location cannot be verified";
         if (target && !/[`$]/.test(target)) {
           const next = path.resolve(location, target);
-          try { if (!fs.statSync(next).isDirectory()) throw new Error("not a directory"); location = next; }
+          try { if (!fs.statSync(next).isDirectory()) throw new Error("not a directory"); if (["pushd", "push-location"].includes(name)) locationStack.push(location); location = next; }
           catch { locationError = `Literal location cannot be verified: ${next}`; }
         }
         continue;
@@ -89,7 +130,6 @@ function operations(command, shell, cwd, depth = 0) {
   return found;
 }
 function inspect(op) {
-  if (op.locationError) return `${op.locationError}; cleanup is refused. ${route}`;
   if (op.kind === "remove") return `Direct git worktree remove is refused: it can follow dependency junctions. ${route}`;
   let roots, registryCwd = op.cwd, fromRepository = true;
   try { git(registryCwd, ["rev-parse", "--show-toplevel"]); }
@@ -103,7 +143,10 @@ function inspect(op) {
     // arbitrary repositories or treat unreadable identity as unrelated.
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
+  if (op.targets.error || op.locationError) return (fromRepository || op.contextKnown) ? `${op.targets.error ?? op.locationError}; direct operation is refused. ${route}` : null;
+  if ((fromRepository || op.contextKnown) && op.targets.some(text => !text.startsWith("-") && /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${route}`;
   const candidates = op.targets.filter(s => !s.startsWith("-") && !/[`$]/.test(s));
+  if (op.kind === "delete" && !candidates.length && (fromRepository || op.contextKnown)) return `Cleanup target is missing or cannot be verified. ${route}`;
   for (const candidate of candidates) {
     const target = path.resolve(op.cwd, candidate);
     try {
@@ -125,7 +168,11 @@ export function decide(command, shell, cwd = process.cwd()) {
   if (!["bash", "powershell"].includes(shell)) return decide(command, "bash", cwd) ?? decide(command, "powershell", cwd);
   const ops = operations(command, shell, cwd);
   if (ops.length) {
-    try { if (owned(real(git(cwd, ["rev-parse", "--show-toplevel"])))) return `Direct setup/cleanup from an owned filing context is refused, including changed or ambiguous locations. ${route}`; }
+    try {
+      const top = real(git(cwd, ["rev-parse", "--show-toplevel"]));
+      for (const op of ops) op.contextKnown = true;
+      if (owned(top)) return `Direct setup/cleanup from an owned filing context is refused, including changed or ambiguous locations. ${route}`;
+    }
     catch { /* inspect each operation's explicit location below */ }
   }
   for (const op of ops) { const reason = inspect(op); if (reason) return reason; }

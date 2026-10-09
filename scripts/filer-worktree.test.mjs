@@ -44,16 +44,30 @@ console.log("PASS: direct cleanup refusal preserves external tracked, untracked 
 const { create, install, checkLinks, remove, markerName } = await import("./filer-worktree.mjs");
 const { decide: cleanup } = await import("../.agents/hooks/worktree-cleanup.mjs");
 const colonCommand = `Remove-Item -LiteralPath:'${reproduction}/node_modules/untracked.txt' -Force`;
+const additionalLiterals = [
+  `Push-Location -LiteralPath '${reproduction}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`,
+  `Remove-Item -LiteralPath ('${reproduction}/node_modules/tracked.txt') -Force`,
+  `Remove-Item -LiteralPath @('${reproduction}/node_modules/tracked.txt') -Force`,
+  `Remove-Item -LiteralPath 'FileSystem::${reproduction}/node_modules/tracked.txt' -Force`,
+];
+for (const command of additionalLiterals) { assert.ok(cleanup(command, "powershell", main), "literal location/group/provider must refuse"); preserved(); }
+if (process.platform === "win32") for (const command of additionalLiterals) {
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `${command} -WhatIf`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /tracked\.txt/, "real shell accepts the literal deletion target under WhatIf"); preserved();
+}
 for (const command of [colonCommand, `Set-Location -LiteralPath:'${reproduction}'; Remove-Item -LiteralPath 'node_modules/untracked.txt' -Force`]) {
   assert.ok(cleanup(command, "powershell", main), "colon-bound literal parameter must refuse"); preserved();
 }
 const escapedExternal = external.replaceAll(path.sep, "/").replaceAll(" ", "\\ ");
 assert.ok(cleanup(`rm -rf ${escapedExternal}`, "bash", main), "Bash escaped-space literal checkout must refuse"); preserved();
 for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
-  const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command: colonCommand } });
-  const result = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+  for (const command of [colonCommand, ...additionalLiterals]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command } });
+    const result = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+  }
 }
 for (const command of [`Remove-Item -Recurse '${reproduction}/node_modules'`, `rm -rf '${reproduction}'`, `[IO.Directory]::Delete('${reproduction}', $true)`, `(Get-Item '${reproduction}/node_modules').Delete()`]) {
   assert.ok(cleanup(command, "powershell", main), command); preserved();
@@ -74,6 +88,17 @@ for (const target of [path.dirname(external), external, `${reproduction}/node_mo
 assert.equal(cleanup(`Remove-Item -LiteralPath '${sibling}' -Recurse`, "powershell", main), null);
 assert.equal(cleanup(`Remove-Item -LiteralPath:'${sibling}' -Recurse`, "powershell", main), null, "colon-bound harmless sibling remains permitted");
 assert.equal(cleanup(`rm -rf ${sibling.replaceAll(path.sep, "/").replaceAll(" ", "\\ ")}`, "bash", main), null, "escaped-space harmless sibling remains permitted");
+for (const target of [`('${sibling}')`, `@('${sibling}')`, `'FileSystem::${sibling}'`]) assert.equal(cleanup(`Remove-Item -LiteralPath ${target} -Recurse`, "powershell", main), null, "verified harmless literal form remains permitted");
+assert.equal(cleanup(`Push-Location '${sibling}'; Pop-Location; Remove-Item -LiteralPath '${sibling}' -Recurse`, "powershell", main), null, "verified location stack restores its cwd");
+assert.ok(cleanup(`Push-Location '${reproduction}'; Push-Location '${sibling}'; Pop-Location; Remove-Item -LiteralPath node_modules/tracked.txt -Force`, "powershell", main)); preserved();
+for (const command of ["Pop-Location; Remove-Item unknown", `Push-Location -StackName custom '${sibling}'; Remove-Item unknown`, "Set-Location; Remove-Item unknown", "Set-Location $unknown; Remove-Item unknown", "Remove-Item -LiteralPath @($unknown)", "Remove-Item -LiteralPath $unknown", "rm -rf *", "Remove-Item -LiteralPath 'CustomDrive:unknown'"])
+  assert.ok(cleanup(command, "powershell", main), "ambiguous location/target refuses in known repository");
+for (const command of [`Remove-Item -LiteralPath @('${external}','${sibling}')`, `Remove-Item -LiteralPath '${external}','${sibling}'`, `Remove-Item -LiteralPath ('${external}' + '/tracked.txt')`, "Remove-Item -LiteralPath 'Registry::unknown'", "Remove-Item -LiteralPath 'FileSystem::relative'", "Remove-Item -LiteralPath 'C:relative'", "Pop-Location -StackName custom; Remove-Item unknown", "Push-Location -LiteralPath (Get-Location); Remove-Item unknown", "rm -rf path?", "rm -rf [abc]", "Remove-Item -Recurse"])
+  assert.ok(cleanup(command, "powershell", main), "unclassified operand/location must not become an invented pathname");
+assert.ok(cleanup(`Push-Location -Unknown '${sibling}'; Remove-Item node_modules/tracked.txt`, "powershell", reproduction)); preserved();
+assert.ok(cleanup(`pushd -n '${sibling}'; rm -rf node_modules/tracked.txt`, "bash", reproduction)); preserved();
+assert.ok(cleanup(`Remove-Item -LiteralPath ${sibling},${reproduction}/node_modules/tracked.txt`, "powershell", main)); preserved();
+for (const command of ["rm -rf ~/unknown", "rm -rf prefix{one,two}"]) assert.ok(cleanup(command, "bash", main), "shell expansion-looking operand refuses");
 assert.equal(cleanup(`rm -f '${external}/untracked.txt'`, "bash", main), null, "plain descendant without traversal remains supported");
 if (process.platform === "win32") {
   const short = spawnSync("cmd.exe", ["/d", "/c", `for %I in ("${reproduction}") do @echo %~sI`], { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true }).stdout.trim();
