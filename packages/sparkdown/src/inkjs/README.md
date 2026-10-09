@@ -1,22 +1,24 @@
 # InkJS (Sparkdown Flavor)
 
-Spark games utilize a slightly modified version of [inkjs](https://github.com/y-lohse/inkjs/) compiler -- a javascript port of inkle's [ink](https://github.com/inkle/ink) scripting language -- to compile and run sparkdown.
+Sparkdown began as a modified version of the [inkjs](https://github.com/y-lohse/inkjs/) compiler and engine, a JavaScript port of inkle's [ink](https://github.com/inkle/ink) scripting language.
 
-While the inkjs engine remains largely untouched, the new compiler diverges from the standard inkjs compiler in a few important ways in order to more easily support sparkdown without requiring the user to do too much manual escaping or tagging.
+What stays of that fork in this directory is the parsed hierarchy (`compiler/Parser/ParsedHierarchy/`), whose classes the lowerer builds from the syntax tree and which emit the statement chunks a story runs as (`EmitProgram`), and `compiler/Parser/ErrorType.ts`. The inkjs engine is gone (#705): stories run on the binary program engine, `../program/ProgramStory.ts`, on the value layer kept from the inkjs runtime in `../runtime/` (see [its README](../runtime/README.md)). The [Sparkdown Runtime Guide](../../docs/runtime/RUNTIME.md) describes how a story runs.
 
-Each of these changes are explained below...
+The sections below record how the fork diverged from standard inkjs. The engine changes are history. The compiler changes describe the fork's ink parser, which the lowerer has since replaced, and much of the syntax they show has changed with it; [`DIVERGENCES.md`](../../docs/runtime/DIVERGENCES.md) describes the language as it is.
 
-## Engine Changes:
+## Engine Changes (history):
 
 ### 1. Internal whitespace is no longer collapsed at runtime
 
-Since whitespace is syntactically relevant in sparkdown, the inkjs engine has been updated to no longer collapse whitespace when outputting text.
+Since whitespace is syntactically relevant in sparkdown, the inkjs engine was changed to no longer collapse whitespace when outputting text.
 
 This way we can continue using the number of spaces to determine things like the length of pauses between words when text is typing out.
 
-### 2. Story now has an onWriteRuntimeObject callback
+The program engine keeps this: a game turns off `collapseWhitespace` and `processEscapes` on its story (`cleanOutputWhitespace` in `../runtime/outputWhitespace.ts`).
 
-This is called when an InkObject is compiled into a runtime object. It is useful for recording the runtime path of a particular script statement.
+### 2. Story had an onWriteRuntimeObject callback
+
+This was called when an InkObject was compiled into a runtime object, to record the runtime path of a particular script statement. It went with the inkjs engine (#705): a statement's position is now an address, which `ProgramStory.onExecute` reports as each instruction runs.
 
 ## Compiler Changes:
 

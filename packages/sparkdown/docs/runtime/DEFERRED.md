@@ -1,5 +1,7 @@
 # Deferred Lowerer Tasks
 
+> **History.** This catalog was written during the lowerer migration, against the inkjs parser and the object engine. Both are gone: the `InkParser` fallback and its compile path, `Compiler.ts` among it, were removed (29ae952ae), and the object engine (`src/inkjs/engine/`, with its `Story.ts` and control commands) and the code generation that fed it (`ExportRuntime`) were deleted in #705. Where an entry below names those files, classes or commands, it describes code that no longer exists; stories now run on the binary program engine described in [`RUNTIME.md`](./RUNTIME.md) and [`docs/engine/binary-program.md`](../../../../docs/engine/binary-program.md). The open entries have not been checked against the current compiler one by one; check an entry against the code before acting on it, and file current work as a GitHub issue rather than here.
+
 This file catalogs every task that was deferred during Slices 0–10 of the
 lowerer migration. **All "Critical" items must be resolved before the
 `InkParser` fallback in `CompilationAnnotator` can be deleted.** Items in
@@ -148,11 +150,13 @@ without lowerers for them will silently drop content.
 
 ---
 
-## Cleanup tasks for the Slice 11 PR
+## Cleanup tasks for the Slice 11 PR (history)
 
-- **Remove `InkParser` import and usage** from `CompilationAnnotator.enter`.
-- **Delete the `DefineViewDeclaration` / `DefineStylingDeclaration` / `DefinePlainDeclaration` branches** [Slice 9] — these grammar node names no longer exist; the branches are dead code.
-- **Per-chunk `uuid + json`** in the "Other" InkParser fallback branch — currently used for incremental change detection across edits. The new lowerer doesn't produce these. Either replicate via deterministic hashing of the lowered content, or accept slightly more re-work per edit.
-- **Per-chunk `context` / `contextPropertyRegistry` / `defaultDefinitions`** in the `DefineX` fallback — populated via `populateDefinedStructs(runtimeStory.structDefinitions, ...)`. Migrate to a single post-compile call at the end of `SparkdownCompiler.compile()` once the full Story's `ExportRuntime` has produced the runtime struct definitions.
-- **Delete `packages/sparkdown/src/inkjs/compiler/Parser/InkParser.ts`** and the rest of the hand-rolled parser (`Parser/StringParser.ts`, the `Parser/InkParser*.ts` files). Keep `Parser/ParsedHierarchy/`, `Parser/ErrorType.ts`, `engine/*`, and the `Compiler.ts` orchestrator path (we still use its `ExportRuntime` / `ToJson`).
-- **Update the `formatLoweredEntry` "no lowerer, falls back to InkParser"** message — once the fallback is gone, this should become a hard error or list-of-unhandled-types for diagnostics.
+The Slice 11 cleanup is done, and the object engine the list kept has since been deleted too (#705). Each item as it stands now:
+
+- ✅ **Remove `InkParser` import and usage** from `CompilationAnnotator.enter` — removed with the parser (29ae952ae).
+- ✅ **Delete the `DefineViewDeclaration` / `DefineStylingDeclaration` / `DefinePlainDeclaration` branches** [Slice 9] — no such branch remains in the compiler.
+- ✅ **Per-chunk `uuid + json`** in the "Other" InkParser fallback branch — the fallback is gone. Change detection across edits is now the chunk store's: a statement keeps its chunk while its syntax and the inputs its lowering read are unchanged (`docs/engine/binary-program.md`, section 1, Identity).
+- ✅ **Per-chunk `context` / `contextPropertyRegistry` / `defaultDefinitions`** in the `DefineX` fallback — the fallback and `populateDefinedStructs` are gone; the program's struct definitions come from `ProgramResolver` (`root.tables.structDefinitions`), with no `ExportRuntime`.
+- ✅ **Delete `packages/sparkdown/src/inkjs/compiler/Parser/InkParser.ts`** and the rest of the hand-rolled parser — deleted (29ae952ae). `Parser/ParsedHierarchy/` and `Parser/ErrorType.ts` stay. The list kept `engine/*` and the `Compiler.ts` orchestrator (`ExportRuntime`, `ToJson`); `Compiler.ts` went with the parser, #705 deleted `engine/*` and `ExportRuntime`, and the parsed hierarchy now emits statement chunks (`EmitProgram`).
+- ✅ **Update the `formatLoweredEntry` "no lowerer, falls back to InkParser"** message — it now reads `(no lowerer)` (`src/tests/compiler/compileSnapshot.ts`).
