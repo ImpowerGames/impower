@@ -24,10 +24,45 @@ const SCRIPT = [
   "",
 ].join("\n");
 
-// The line of `scene start`, 0-based, and so the 1-based line after it.
+// A script whose beats meet conditions and choices.
+const DECISIONS = [
+  "store key = false",
+  "",
+  "-> start",
+  "",
+  "scene start",
+  "  You approach the door.",
+  "  & key = true",
+  "  if key then",
+  "    The door opens.",
+  "  else",
+  "    The door is shut.",
+  "  end",
+  "  choose",
+  "  + [Take the gold]",
+  "    You grab the gold.",
+  "  + [Leave it]",
+  "    You leave it be.",
+  "  end",
+  "  if key then",
+  "    You lock the door behind you.",
+  "  end",
+  "  choose",
+  "  + [Rest]",
+  "    You rest.",
+  "  + [Run]",
+  "    You run.",
+  "  end",
+  "  Final words.",
+  "end",
+  "",
+].join("\n");
+
+// The line of `scene start`, 0-based, and so the 1-based line after it. Both
+// scripts open their scene on the same line.
 const SCENE_LINE = SCRIPT.split("\n").indexOf("scene start");
 
-function compile(): SparkProgram {
+function compile(script = SCRIPT): SparkProgram {
   const c = new SparkdownCompiler();
   c.configure({
     files: [
@@ -36,7 +71,7 @@ function compile(): SparkProgram {
         type: "script",
         name: "main",
         ext: "sd",
-        text: SCRIPT,
+        text: script,
         version: 1,
         languageId: "sparkdown",
       },
@@ -114,6 +149,37 @@ describe("a checkpoint's runtime record", () => {
       }
     });
   }
+
+  it("is the record the game held in play, through the choices and conditions its beats met", () => {
+    const game = createGame(compile(DECISIONS), { checkpointBaseInterval: 4 });
+    const live: string[] = [];
+    const checkpoint = game.checkpoint.bind(game);
+    game.checkpoint = () => {
+      checkpoint();
+      live[game.checkpoints.length - 1] = (game as any)._runtimeState.toJSON();
+    };
+    game.start();
+    for (let turn = 0; turn < 20; turn += 1) {
+      if ((game as any).story.currentChoices.length > 0) {
+        game.chosePathToContinue(0);
+      } else {
+        game.clickedToContinue();
+      }
+    }
+    const store = game.checkpoints;
+    const records = live.map((r) => JSON.parse(r));
+    // The run met conditions and choices, and checkpointed beats between
+    // keyframes after them.
+    expect(records.some((r) => r.choicesEncountered.length > 0)).toBe(true);
+    expect(records.some((r) => r.conditionsEncountered.length > 0)).toBe(true);
+    expect(store.stats.deltas).toBeGreaterThan(2);
+    for (let i = 0; i < store.length; i += 1) {
+      expect({ i, record: store.imageAt(i)!.save["runtime"] }).toEqual({
+        i,
+        record: live[i],
+      });
+    }
+  });
 
   it("restored in play reports the lines of that checkpoint's beat only", () => {
     const game = createGame(compile(), { checkpointBaseInterval: 100 });
