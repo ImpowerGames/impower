@@ -106,6 +106,12 @@ test("the kept text equals a fresh one after every shape of edit", () => {
     edit(from, to, inserts[Math.floor(next() * inserts.length)]!);
   }
 
+  // A document set with CRLF and bare CR line endings, then edited with both.
+  registry.set({ textDocument: { uri, text: "one\r\ntwo\rthree\r\n", version: ++version, languageId: "sparkdown" } });
+  doc = "one\ntwo\nthree\n";
+  check();
+  edit(4, 7, "2\r\n2b\rx");
+
   // A whole-document replace.
   apply([{ text: "Replaced\nentirely" }], "Replaced\nentirely");
   edit(doc.length, doc.length, "\n");
