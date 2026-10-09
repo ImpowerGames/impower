@@ -1,0 +1,80 @@
+import { createHash } from "node:crypto";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { runNativePortedCase, sourceChecksOf, type PortedCase } from "./typecheck/portedCases";
+
+// Pinned Luau 7d5f73364fdbbaa984fa545071630eba73cfea98.
+// These three original cases consume the released native shared boundary.
+// No source/fixture skip may turn required semantic acceptance into parse-only success.
+beforeEach(() => vi.stubEnv("LUAU_TYPECHECK_AREAS", "all"));
+afterEach(() => vi.unstubAllEnvs());
+const required = () => { throw Error("required original #1381 acceptance case skipped"); };
+const sha = (source: string) => createHash("sha256").update(source, "utf8").digest("hex");
+
+// TypeInfer.builtins.test.cpp:1406, BuiltinsFixture; no trailing newline.
+const retainedFunctionSource = "local a = math.frexp";
+const retainedFunction: PortedCase = {
+  name: "no_persistent_typelevel_change",
+  fixture: "BuiltinsFixture",
+  actions: [
+    // Native capture requires math TableType, readable frexp and its FunctionType.
+    // It saves that exact global-owned FunctionType and its pre-check TypeLevel.
+    { captureGlobalFunction: { as: "frexp", global: "math", property: "frexp" } },
+    { check: { source: retainedFunctionSource, expect: [{ errors: 0 }] } },
+    // Native assertion order is original level, then original subLevel.
+    { expectCapturedLevels: { capture: "frexp", levelUnchanged: true, subLevelUnchanged: true } },
+  ],
+};
+
+// NonStrictTypeChecker.test.cpp:625, NonStrictTypeCheckerFixture.
+const nonTestableSource = `
+os.time({year = 0, month = 0, day = 0, min = 0, isdst = nil})
+`;
+const nonTestable: PortedCase = {
+  name: "non_testable_type_throws_ice",
+  fixture: "NonStrictTypeCheckerFixture",
+  actions: [
+    // Sole original assertion: actual Luau::InternalCompilerError from checkNonStrict.
+    // No invented CheckResult, diagnostic count, message parsing or subsequent query.
+    { checkThrows: { source: nonTestableSource, exception: "InternalCompilerError" } },
+  ],
+};
+
+// TypeInfer.builtins.test.cpp:997, BuiltinsFixture; final four spaces are original.
+const stringFormatSource = `
+        ("%s%d%s"):format(1, "hello", true)
+        string.format("%s%d%s", 1, "hello", true)
+    `;
+const stringFormat: PortedCase = {
+  name: "string_format_report_all_type_errors_at_correct_positions",
+  fixture: "BuiltinsFixture",
+  source: stringFormatSource,
+  expect: [
+    { errors: 6 },
+    { error: 0, location: [1, 26, 1, 27] },
+    { error: 0, typeMismatchData: { wanted: "string", given: "number" } },
+    { error: 1, location: [1, 29, 1, 36] },
+    { error: 1, typeMismatchData: { wanted: "number", given: "string" } },
+    { error: 2, location: [1, 38, 1, 42] },
+    { error: 2, typeMismatchData: { wanted: "string", given: "boolean" } },
+    { error: 3, location: [2, 32, 2, 33] },
+    { error: 3, typeMismatchData: { wanted: "string", given: "number" } },
+    { error: 4, location: [2, 35, 2, 42] },
+    { error: 4, typeMismatchData: { wanted: "number", given: "string" } },
+    { error: 5, location: [2, 44, 2, 48] },
+    { error: 5, typeMismatchData: { wanted: "string", given: "boolean" } },
+  ],
+};
+
+for (const [upstream, record, sourceHash] of [
+  ["TypeInfer.builtins.test.cpp", retainedFunction, "56efde15d5d21e53641e9f12d7a125b419746cbca93a0fa2557b50cbb4c1a45c"],
+  ["NonStrictTypeChecker.test.cpp", nonTestable, "421affb9e8b6e122e658bf33e297d04cbb658a26de862d81d2aa534d6df098df"],
+  ["TypeInfer.builtins.test.cpp", stringFormat, "e4aa9b2debb88c67c9d17e2b1c486bdc0013ccb2d47bb29b120f7218f130fd84"],
+] as const) {
+  it(record.name, async () => {
+    // Source audits include the terminal exception action as a real logical check.
+    const sources = sourceChecksOf(record);
+    expect(sources).toHaveLength(1);
+    expect(sha(sources[0]!.check.source)).toBe(sourceHash);
+    await runNativePortedCase(upstream, record, required);
+  });
+}

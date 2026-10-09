@@ -732,6 +732,11 @@ export class TypeChecker2 {
   }
 
   private lookupAnnotation(annotation: AstType): TypeId {
+    // TypeChecker2.cpp:560–564 at 7d5f733.
+    if (this.limits.debugMagicTypes && annotation instanceof AstTypeReference && annotation.name === "_luau_force_constraint_solving_incomplete") {
+      this.reportError({ kind: "ConstraintSolvingIncompleteError" }, annotation.location);
+      return this.builtinTypes.anyType;
+    }
     const ty = this.module.astResolvedTypes.get(annotation);
 
     if (this.module.constraintGenerationDidNotComplete && !ty) return this.builtinTypes.anyType;
@@ -2493,6 +2498,7 @@ export class TypeChecker2 {
   }
 
   private visitTypeReference(ty: AstTypeReference): void {
+    if (this.limits.debugMagicTypes && ty.name === "_luau_force_constraint_solving_incomplete") return;
     for (const param of ty.parameters) {
       if (param.type) this.visitType(param.type);
       else this.visitTypePack(param.typePack!);

@@ -59,6 +59,15 @@ export class TypeFunctionRuntime {
 export interface TypeCheckLimits {
   instantiationChildLimit?: number;
   unifierIterationLimit?: number;
+  /** Optional per-check equivalents of the pinned Luau recursion fastints. */
+  constraintGeneratorRecursionLimit?: number;
+  nonStrictRecursionLimit?: number;
+  /** Keep existing production behavior when absent; tests can select the upstream flag. */
+  addRecursionCounterToNonStrictTypeChecker?: boolean;
+  /** Enables the force-incomplete debug annotation used by Luau's non-strict tests. */
+  debugMagicTypes?: boolean;
+  /** Frontend's standalone incomplete-error visibility; absent keeps its current default. */
+  alwaysShowConstraintSolvingIncomplete?: boolean;
 }
 
 export class TypeFunctionContext {

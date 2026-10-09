@@ -167,7 +167,7 @@ import {
   type TypeVariant,
   type UserDefinedFunctionData,
 } from "./Type";
-import type { TypeFunction, TypeFunctionRuntime } from "./TypeFunction";
+import type { TypeCheckLimits, TypeFunction, TypeFunctionRuntime } from "./TypeFunction";
 import { TypeIds } from "./TypeIds";
 import {
   ErrorSuppression,
@@ -661,6 +661,7 @@ export class ConstraintGenerator {
     dfg: DataFlowGraph,
     requireCycles: RequireCycle[],
     cgraph: ConstraintGraph,
+    readonly limits: TypeCheckLimits = {},
   ) {
     this.module = module;
     this.sharedModuleName = module.name;
@@ -1254,7 +1255,7 @@ export class ConstraintGenerator {
   private visitBlockWithoutChildScope(scope: Scope, block: AstStatBlock): ControlFlow {
     this.recursionCount++;
     try {
-      if (this.recursionCount >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) {
+      if (this.recursionCount >= (this.limits.constraintGeneratorRecursionLimit ?? CONSTRAINT_GENERATOR_RECURSION_LIMIT)) {
         this.reportCodeTooComplex(block.location);
         return ControlFlow.None;
       }
@@ -1276,7 +1277,7 @@ export class ConstraintGenerator {
   private visitStat(scope: Scope, stat: AstStat): ControlFlow {
     this.recursionCount++;
     try {
-      if (this.recursionCount >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) {
+      if (this.recursionCount >= (this.limits.constraintGeneratorRecursionLimit ?? CONSTRAINT_GENERATOR_RECURSION_LIMIT)) {
         this.reportCodeTooComplex(stat.location);
         return ControlFlow.None;
       }
@@ -1986,7 +1987,7 @@ export class ConstraintGenerator {
     emplaceType(classBindTy, boundType(externTy));
 
     if (declaredExternType.indexer) {
-      if (this.recursionCount >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) {
+      if (this.recursionCount >= (this.limits.constraintGeneratorRecursionLimit ?? CONSTRAINT_GENERATOR_RECURSION_LIMIT)) {
         this.reportCodeTooComplex(declaredExternType.indexer.location);
       } else {
         // Extern types are not generic, but an indexer over generics has
@@ -2209,7 +2210,7 @@ export class ConstraintGenerator {
   private checkPack(scope: Scope, expr: AstExpr, expectedTypes: (TypeId | undefined)[] = [], generalize = true): InferencePack {
     this.recursionCount++;
     try {
-      if (this.recursionCount >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) {
+      if (this.recursionCount >= (this.limits.constraintGeneratorRecursionLimit ?? CONSTRAINT_GENERATOR_RECURSION_LIMIT)) {
         this.reportCodeTooComplex(expr.location);
         return inferencePack(this.builtinTypes.errorTypePack);
       }
@@ -2511,7 +2512,7 @@ export class ConstraintGenerator {
   private check(scope: Scope, expr: AstExpr, expectedType?: TypeId, forceSingleton = false, generalize = true): Inference {
     this.recursionCount++;
     try {
-      if (this.recursionCount >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) {
+      if (this.recursionCount >= (this.limits.constraintGeneratorRecursionLimit ?? CONSTRAINT_GENERATOR_RECURSION_LIMIT)) {
         this.reportCodeTooComplex(expr.location);
         return inference(this.builtinTypes.errorType);
       }
