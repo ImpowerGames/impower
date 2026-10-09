@@ -2363,32 +2363,43 @@ export class ChunkStore {
    * The chunk the last committed build gave the statement `memo` stands
    * for, when a memo can hold it (`compiler/lower/statementMemo.ts`): a
    * chunk of the current root and the table's generation that holds no
-   * block, exports nothing, writes no function, alternator or choice of its
-   * own, and refers to no other statement's function by an anonymous symbol,
-   * so that it stays right while the facts it read about the symbols it
-   * refers to read the same, which the store checks of every chunk it keeps.
+   * block but those its heads head, exports nothing but a label its
+   * stand-in names, writes no function or alternator of its own, raises no
+   * choice but a `choose` block's, and refers to no other statement's
+   * function by an anonymous symbol, so that it stays right while the facts
+   * it read about the symbols it refers to read the same, which the store
+   * checks of every chunk it keeps. A `choose` block's chunk keeps the count
+   * symbols of its choices (`ChunkInfo.choices`) as any kept chunk does, and
+   * hands them on when the block is emitted again (#1683).
    */
   memoChunk(memo: object): ProgramChunk | undefined {
     const chunk = this._byBlock.get(memo);
     const info = chunk && this._info.get(chunk);
+    const owner = (memo as StatementMemoEntry).owner;
+    const choose = !!owner?.choose;
+    // The labels its stand-in names: a label's own, or a `choose` block's
+    // named choices and labelled `then` clause (`MemoHolder`).
+    const labels = choose
+      ? owner!.holders.filter((holder) => holder.kind === "label" || holder.kind === "choice").length
+      : 1;
     if (
       !chunk ||
       !info ||
       !this.holdsMemoChunk(chunk, info.generation) ||
       info.parts.length > 0 ||
       info.alternators.length > 0 ||
-      info.choices.length > 0 ||
+      (info.choices.length > 0 && !choose) ||
       info.anonymousReferences.length > 0 ||
       info.defines !== undefined ||
       info.globals !== undefined ||
       info.hoisted !== "" ||
       info.params !== "" ||
       // A block statement's bodies are blocks its heads head (a branch's, a
-      // loop's), which its served shape holds again; no other block.
-      blockCount(chunk) !== info.heads.length ||
-      // A label's chunk exports its symbol, which its stand-in names; a
-      // statement exports nothing else a memo stands for.
-      exportCount(chunk) > 1
+      // loop's, a `then` clause's) or its choices do, which its served shape
+      // holds again; no other block.
+      blockCount(chunk) !==
+        info.heads.length + info.choices.filter((part) => part.block >= 0).length ||
+      exportCount(chunk) > labels
     ) {
       return undefined;
     }

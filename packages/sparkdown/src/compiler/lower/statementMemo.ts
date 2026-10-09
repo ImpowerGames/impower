@@ -1,6 +1,7 @@
 import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { AuthorWarning } from "../../inkjs/compiler/Parser/ParsedHierarchy/AuthorWarning";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import type { ContentList } from "../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
@@ -15,7 +16,9 @@ import {
   type MemoGather,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
 import {
+  type MemoPosition,
   MemoizedStatement,
+  markHolder,
   memoOf,
   placeIdentifier,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
@@ -33,6 +36,9 @@ import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
+import { Wrap } from "../../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
+import { ControlCommand as RuntimeControlCommand } from "../../runtime/ControlCommand";
+import { DebugMetadata } from "../../runtime/DebugMetadata";
 import type { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import type { ProgramChunk } from "../../program/ProgramChunk";
 import type {
@@ -49,7 +55,12 @@ import {
 } from "./recordingContext";
 import { buildDebugMetadata, statementBounds } from "./utils/debugMetadata";
 import type { SparkdownNodeName } from "../types/SparkdownNodeName";
-import type { StatementShape } from "./utils/statementShape";
+import {
+  isLoopInternal,
+  loopExitOf,
+  loopOf,
+  type StatementShape,
+} from "./utils/statementShape";
 import { holdsCheckedBlock } from "./utils/validateBlockEnds";
 
 /** A node of the Sparkdown grammar (LOWERING.md, section 5.0). */
@@ -76,9 +87,11 @@ type SparkdownNode = GrammarSyntaxNode<SparkdownNodeName>;
  * an object of that class built from what its memo recorded (`memoOf`,
  * #1676): a divert with no arguments (`MemoizedDivert`), a plain assignment
  * or a local declaration (`MemoizedAssignment`), a label (`MemoizedGather`).
- * An `if` block is remembered with the memos of the statements of its
- * bodies and what their lowerings read of the context as it found it
- * (`MemoOwner`), and is served with them.
+ * An `if` block, a loop and a `choose` block are remembered with the memos
+ * of the statements of their bodies and what their lowerings read of the
+ * context as they found it (`MemoOwner`), and are served with them; a loop's
+ * labels and locals and a `choose` block's named choices and labelled `then`
+ * clause are held again by its stand-in (`MemoHolder`, #1683).
  *
  * What a memo holds is no parsed object: the statement's chunk, which holds
  * the symbols it exports and refers to; the reads its lowering made; the
@@ -87,12 +100,11 @@ type SparkdownNode = GrammarSyntaxNode<SparkdownNodeName>;
  * else reads its parsed objects reads nothing its memo cannot stand for: its
  * lowering wrote nothing into the context but its diagnostics, and its own
  * objects hold no choice, gather, weave, divert other than a call's, tunnel
- * return, author warning or flow, but those the stand-ins above stand for.
- * Still lowered whenever their block is: loops and `choose` blocks written
- * in a body, whose own objects are weave points numbered by place and a
- * weave of choices (#1683). The resolver and the chunk store complete the
- * memo once the compile that lowered the statement has resolved it and
- * committed its chunk, and leave it incomplete when the statement declares
+ * return, author warning or flow, but those the stand-ins above stand for
+ * and the holders hold, and a loop's `break` or `continue`. The resolver and
+ * the chunk store complete the memo once the compile that lowered the
+ * statement has resolved it and committed its chunk, and leave it
+ * incomplete when the statement declares
  * anything the whole program keeps (a global, a constant, a list, a struct,
  * an external, a flow), reads the story's assignments or function values,
  * or reports a position outside itself (`ProgramResolver.memoResolutionOf`,
@@ -190,7 +202,85 @@ export interface MemoOwner {
   readonly reads: readonly { readonly at: number; readonly reads: readonly ContextRead[] }[];
   /** The memos of the statements at any depth inside it, in order. */
   readonly descendants: readonly StatementMemoEntry[];
+  /** The parts of its own objects that the passes over the whole story read
+   *  for what they are, which its stand-in holds again (#1683): a loop's
+   *  labels, locals and assignments, a `choose` block's named choices and
+   *  labelled `then` clause. */
+  readonly holders: readonly MemoHolder[];
+  /** Whether its stand-in holds everything inside it in a scope of its own,
+   *  as a loop's objects are: a local declared inside it is in scope for no
+   *  statement after it. */
+  readonly scoped: boolean;
+  /** Whether it is a `choose` block, whose chunk raises its choices and
+   *  exports the labels of its named choices and its `then` clause, which
+   *  its holders name (`ChunkStore.memoChunk`). */
+  readonly choose: boolean;
 }
+
+/**
+ * A part of a block statement's own objects that the passes over the whole
+ * story read for what it is, which its stand-in holds again as an object of
+ * that class (a holder), never generated or resolved as itself (#1683):
+ *
+ * - a loop's label (`__while_..._loop`), which the story names in the
+ *   flow's weave and counts among its labels;
+ * - a loop's local, a hidden temporary or a loop variable, which the flow
+ *   declares (`FlowBase.variableDeclarations`), and the assignment of a
+ *   hidden temporary, which the census of the flow's names counts;
+ * - a `choose` block's named choice and its labelled `then` clause, which
+ *   other statements divert to and read the counts of.
+ *
+ * A name the lowering made from the loop's place in the document
+ * (`syntheticId`) is held as its text around the place (`before`, `after`)
+ * and the place's distance from the statement's start (`shift`), so that a
+ * holder of a loop an edit moved is named as the loop's lowering names it
+ * where it stands now, and the compile numbers it
+ * (`SparkdownCompiler.canonicalizeSyntheticFlowNames`) as a cold compile
+ * numbers the loop's: the names a served statement holds take as many
+ * numbers as its lowering's would, so every other statement's are a cold
+ * compile's. `line` and `place` are where the part stands relative to the
+ * statement, which the stand-in orders its holders and the statements
+ * inside it by, and places a choice's or a label's name at.
+ */
+export interface MemoHolder {
+  readonly kind: "label" | "choice" | "local" | "assign";
+  readonly name: { readonly before: string; readonly shift: number | null; readonly after: string };
+  readonly depth: number;
+  readonly endsChooseBlock: boolean;
+  readonly onceOnly: boolean;
+  readonly line: number;
+  readonly place: MemoPlace | null;
+}
+
+/** Where a holder's part stood relative to its statement's first object:
+ *  its own range, or null for a part that took its range from what holds
+ *  it, and its name's (`MemoPosition`), lines counted from the first
+ *  object's first line. */
+export interface MemoPlace {
+  readonly own: MemoPosition | null;
+  readonly name: MemoPosition | null;
+}
+
+/** Where `at` stands relative to `first` (`MemoPlace`). */
+const relativeTo = (first: DebugMetadata, at: DebugMetadata | null | undefined): MemoPosition | null =>
+  at
+    ? {
+        line: at.startLineNumber - first.startLineNumber,
+        endLine: at.endLineNumber - first.startLineNumber,
+        start: at.startCharacterNumber,
+        end: at.endCharacterNumber,
+      }
+    : null;
+
+/** A position `at` places relative to `first` (`relativeTo`). */
+const placedAt = (first: DebugMetadata, at: MemoPosition): DebugMetadata => {
+  const position = new DebugMetadata(first);
+  position.startLineNumber = first.startLineNumber + at.line;
+  position.endLineNumber = first.startLineNumber + at.endLine;
+  position.startCharacterNumber = at.start;
+  position.endCharacterNumber = at.end;
+  return position;
+};
 
 /** What a statement's memo records of a statement of several assignments
  *  (`& local a = 1; local b = 2`): each, as one is recorded. */
@@ -328,7 +418,9 @@ const ownerReads = (obj: ParsedObject, top: boolean): boolean => {
     obj instanceof AuthorWarning ||
     obj instanceof FlowBase ||
     (top && obj instanceof Weave) ||
-    (obj instanceof Divert && !obj.isFunctionCall)
+    // A loop's `break` or `continue` is a jump within the loop's blocks, no
+    // jump to a label, which nothing but the writer reads (#1683).
+    (obj instanceof Divert && !obj.isFunctionCall && !loopExitOf.has(obj))
   ) {
     return true;
   }
@@ -737,6 +829,7 @@ export class StatementMemoSession {
     base: number,
     ctx: LowerContext,
     placed: ParsedObject[],
+    items: Placed[] | null,
   ): StatementShape["bodies"] {
     return owner.bodies.map((body) => ({
       headStart: start + body.headStart,
@@ -744,16 +837,23 @@ export class StatementMemoSession {
       nextStart: start + body.nextStart,
       statements: body.statements.map((nested): StatementShape => {
         const from = start + nested.from;
-        const statement = this.standIn(nested.entry, base + from, base + start + nested.to, ctx);
+        const to = base + start + nested.to;
+        const statement = this.standIn(nested.entry, base + from, to, ctx);
         placed.push(statement);
         this.used.add(nested.entry);
+        if (items) {
+          items.push({ key: keyAt(base + from, 1, ctx), obj: statement });
+          if (nested.entry.owner) {
+            holdersInto(nested.entry.owner, base + from, to, statement, ctx, items);
+          }
+        }
         return {
           node: nested.node,
           from,
           to: start + nested.to,
           objects: [statement],
           bodies: nested.entry.owner
-            ? this.bodiesOf(nested.entry.owner, from, base, ctx, placed)
+            ? this.bodiesOf(nested.entry.owner, from, base, ctx, placed, items)
             : [],
           reads: {
             callable: new Map(),
@@ -786,10 +886,30 @@ export class StatementMemoSession {
     if (entry.owner) {
       // A block statement stands with the statements of its bodies, each as
       // its memo's stand-in, which its stand-in holds, so that the passes
-      // over the whole story find what they read of them.
+      // over the whole story find what they read of them, and with the
+      // holders of its own objects and of every block statement inside it
+      // (`MemoHolder`), each where its part stood, a loop's inside the scope
+      // of the loop.
       const placed: ParsedObject[] = [];
-      shape.bodies = this.bodiesOf(entry.owner, shape.from, node.from - shape.from, ctx, placed);
-      statement.AddContent(placed);
+      // With no holder at any depth, the stand-ins stand in the order they
+      // were placed.
+      const items: Placed[] | null = [entry, ...entry.owner.descendants].some(
+        ({ owner }) => !!owner && (owner.holders.length > 0 || owner.scoped),
+      )
+        ? []
+        : null;
+      if (items) {
+        holdersInto(entry.owner, node.from, to, statement, ctx, items);
+      }
+      shape.bodies = this.bodiesOf(
+        entry.owner,
+        shape.from,
+        node.from - shape.from,
+        ctx,
+        placed,
+        items,
+      );
+      statement.AddContent(items ? placeInOrder(items) : placed);
       this.served.push(...placed);
       this.stats.served += placed.length;
     }
@@ -837,6 +957,104 @@ export class StatementMemoSession {
   }
 }
 
+/** An object a block statement's stand-in holds, with where it stands: the
+ *  line and the column, 1-based, of the part or the statement it stands
+ *  for, then whether it opens a loop's scope (0), stands for a part or a
+ *  statement (1), or closes the scope (2). */
+interface Placed {
+  key: readonly [number, number, number];
+  obj: ParsedObject;
+}
+
+const keyAt = (at: number, rank: number, ctx: LowerContext): Placed["key"] => [
+  ctx.lineNumber(at) + 1,
+  ctx.characterNumber(at) + 1,
+  rank,
+];
+
+/** The objects of `items` in the order their parts and statements stand,
+ *  those that stand at one place in the order they were placed. */
+const placeInOrder = (items: Placed[]): ParsedObject[] =>
+  items
+    .map((item, i) => ({ item, i }))
+    .sort(
+      (a, b) =>
+        a.item.key[0] - b.item.key[0] ||
+        a.item.key[1] - b.item.key[1] ||
+        a.item.key[2] - b.item.key[2] ||
+        a.i - b.i,
+    )
+    .map(({ item }) => item.obj);
+
+/**
+ * Places the holders of the block statement `owner` is the memo of, which
+ * stands from `from` to `to` in the document as `statement` (`MemoHolder`):
+ * each an object of its part's class, holding nothing, named as its part
+ * is named where the statement stands now, and placed where its part stood;
+ * a loop's inside a scope of its own (`MemoOwner.scoped`), which holds what
+ * the loop holds.
+ */
+const holdersInto = (
+  owner: MemoOwner,
+  from: number,
+  to: number,
+  statement: ParsedObject,
+  ctx: LowerContext,
+  items: Placed[],
+): void => {
+  if (owner.holders.length === 0 && !owner.scoped) {
+    return;
+  }
+  const own = statement.ownDebugMetadata;
+  const [line, column] = keyAt(from, 0, ctx);
+  if (owner.scoped) {
+    items.push({ key: [line, column, 0], obj: new Wrap(RuntimeControlCommand.BeginScope()) });
+    items.push({ key: keyAt(to, 2, ctx), obj: new Wrap(RuntimeControlCommand.EndScope()) });
+  }
+  for (const holder of owner.holders) {
+    const { before, shift, after } = holder.name;
+    const name = new Identifier(`${before}${shift === null ? "" : from + shift}${after}`);
+    let obj: ParsedObject;
+    switch (holder.kind) {
+      case "label": {
+        const gather = new Gather(name, holder.depth);
+        gather.endsChooseBlock = holder.endsChooseBlock;
+        obj = gather;
+        break;
+      }
+      case "choice": {
+        const choice = new Choice(
+          null as unknown as ContentList,
+          null as unknown as ContentList,
+          null as unknown as ContentList,
+        );
+        choice.identifier = name;
+        choice.indentationDepth = holder.depth;
+        choice.onceOnly = holder.onceOnly;
+        obj = choice;
+        break;
+      }
+      default:
+        obj = new VariableAssignment({
+          variableIdentifier: name,
+          isTemporaryNewDeclaration: holder.kind === "local",
+        });
+    }
+    markHolder(obj);
+    // A part with no range of its own takes the statement's, as the part
+    // took its own statement's.
+    const place = holder.place;
+    if (own && place?.own) {
+      obj.debugMetadata = placedAt(own, place.own);
+    }
+    if (own && place?.name && obj.identifier) {
+      obj.identifier.debugMetadata = placedAt(own, place.name);
+    }
+    const at = place?.own ?? place?.name;
+    items.push({ key: at ? [line + at.line, at.start, 1] : [line, column, 1], obj });
+  }
+};
+
 const shifted = (diagnostic: InkDiagnostic, line: number): InkDiagnostic =>
   diagnostic.source
     ? {
@@ -882,7 +1100,11 @@ const remember = (
   const only = shape.objects.length === 1 ? shape.objects[0] : undefined;
   const stand =
     only instanceof Divert
-      ? memoDivertOf(only)
+      ? // A loop's `break` or `continue` stands as a statement: its target is
+        // a label its loop's lowering named by its place (#1683).
+        loopExitOf.has(only)
+        ? null
+        : memoDivertOf(only)
       : only instanceof VariableAssignment
         ? memoAssignmentOf(only)
         : only instanceof MultiVariableAssignment
@@ -975,16 +1197,32 @@ const ownerOf = (pending: Pending): MemoOwner | null => {
   // the scopes its branches open, so a local declared inside it would be
   // found in scope after it: such a block statement is lowered, and its
   // bodies' statements served inside it.
-  const declaresLocal = descendants.some(
-    (entry) =>
-      ((entry.stand?.kind === "assignment" || entry.stand?.kind === "multi") && entry.stand.local) ||
-      (entry.stand?.kind === "group" && entry.stand.parts.some((part) => part.local)),
-  );
+  // A loop's stand-in holds them in a scope of its own, as its objects do
+  // (#1683).
+  const loop = loopOf.has(shape.objects[0]!);
+  const declaresLocal =
+    !loop &&
+    descendants.some(
+      (entry) =>
+        ((entry.stand?.kind === "assignment" || entry.stand?.kind === "multi") && entry.stand.local) ||
+        (entry.stand?.kind === "group" && entry.stand.parts.some((part) => part.local)),
+    );
+  // The parts of its own objects its stand-in holds again (`MemoHolder`): a
+  // loop's labels, the diverts to them and its locals; a `choose` block's
+  // choices and the gather that ends it.
+  const only = shape.objects.length === 1 ? shape.objects[0] : undefined;
+  const choose = only instanceof Weave && only.isChooseBlock;
+  const held = (obj: ParsedObject) =>
+    loop ? isLoopInternal(obj) : choose && (obj instanceof Choice || obj instanceof Gather);
   if (
     !remembered ||
     declaresLocal ||
-    shape.objects.some((obj) => ownerReadsOwn(obj, nestedObjects))
+    shape.objects.some((obj) => ownerReadsOwn(obj, nestedObjects, held))
   ) {
+    return null;
+  }
+  const holders = holdersOf(pending, nestedObjects, held);
+  if (!holders) {
     return null;
   }
   const at = (offset: number) => offset - shape.from;
@@ -1002,7 +1240,85 @@ const ownerOf = (pending: Pending): MemoOwner | null => {
     })),
     reads: pending.nested,
     descendants,
+    holders,
+    scoped: loop,
+    choose,
   };
+};
+
+/**
+ * The holders of the block statement `pending` lowered (`MemoHolder`), in
+ * the order its objects hold their parts, or null when a part's name was
+ * made from a place in the document in a form its holder cannot name again.
+ */
+const holdersOf = (
+  pending: Pending,
+  nested: ReadonlySet<ParsedObject>,
+  held: (obj: ParsedObject) => boolean,
+): MemoHolder[] | null => {
+  const { shape } = pending;
+  const first = shape.objects[0]?.ownDebugMetadata ?? null;
+  const out: MemoHolder[] = [];
+  let failed = false;
+  const nameOf = (name: string): MemoHolder["name"] => {
+    // value-level: the name of a label or a local its lowering made
+    if (!name.includes("$")) {
+      return { before: name, shift: null, after: "" };
+    }
+    // `syntheticId`: the document's tag, `$`, then the place.
+    // value-level: the name of a label or a local its lowering made
+    const parts = /^([^$]*\$)(\d+)(\D[^$]*)?$/.exec(name);
+    if (!parts) {
+      failed = true;
+      return { before: name, shift: null, after: "" };
+    }
+    return {
+      before: parts[1]!,
+      shift: Number(parts[2]) - pending.from,
+      after: parts[3] ?? "",
+    };
+  };
+  const visit = (obj: ParsedObject) => {
+    if (nested.has(obj)) {
+      return;
+    }
+    const name =
+      obj instanceof Gather || obj instanceof Choice
+        ? obj.name
+        : obj instanceof VariableAssignment
+          ? obj.variableName
+          : null;
+    if (held(obj) && name) {
+      const place = first
+        ? {
+            own: relativeTo(first, obj.ownDebugMetadata),
+            name: relativeTo(first, obj.identifier?.debugMetadata),
+          }
+        : null;
+      const line = place?.own?.line ?? place?.name?.line ?? 0;
+      out.push({
+        kind:
+          obj instanceof Gather
+            ? "label"
+            : obj instanceof Choice
+              ? "choice"
+              : (obj as VariableAssignment).isNewTemporaryDeclaration
+                ? "local"
+                : "assign",
+        name: nameOf(name),
+        depth: obj instanceof Gather || obj instanceof Choice ? obj.indentationDepth : 0,
+        endsChooseBlock: obj instanceof Gather && obj.endsChooseBlock,
+        onceOnly: obj instanceof Choice && obj.onceOnly,
+        line,
+        place,
+      });
+    }
+    for (const child of obj.content ?? []) {
+      visit(child);
+    }
+  };
+  shape.objects.forEach(visit);
+  return failed ? null : out;
 };
 
 /** What a statement's memo records of a statement of several assignments, or
@@ -1034,22 +1350,28 @@ const placeTargets = (assignment: MultiVariableAssignment, recorded: MemoMultiAs
 };
 
 /** `ownerReads` of a block statement's own objects, leaving out the objects
- *  of the statements of its bodies (`nested`), which their memos judge. */
-const ownerReadsOwn = (obj: ParsedObject, nested: ReadonlySet<ParsedObject>): boolean => {
+ *  of the statements of its bodies (`nested`), which their memos judge, and
+ *  the parts of its own its stand-in holds again (`held`, `MemoHolder`). */
+const ownerReadsOwn = (
+  obj: ParsedObject,
+  nested: ReadonlySet<ParsedObject>,
+  held: (obj: ParsedObject) => boolean,
+): boolean => {
   if (nested.has(obj)) {
     return false;
   }
   if (
-    obj instanceof Choice ||
+    !held(obj) &&
+    (obj instanceof Choice ||
     obj instanceof Gather ||
     obj instanceof TunnelOnwards ||
     obj instanceof AuthorWarning ||
     obj instanceof FlowBase ||
-    (obj instanceof Divert && !obj.isFunctionCall)
+    (obj instanceof Divert && !obj.isFunctionCall))
   ) {
     return true;
   }
-  return (obj.content ?? []).some((child) => ownerReadsOwn(child, nested));
+  return (obj.content ?? []).some((child) => ownerReadsOwn(child, nested, held));
 };
 
 /** The statements of a body that a block's lowering served from their

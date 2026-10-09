@@ -75,6 +75,27 @@ const encode = (value: unknown): ContextValue => {
   return typeof value === "function" ? FUNCTION : OBJECT;
 };
 
+/**
+ * A value as a read records it for the statement that starts at `from`: a
+ * name the lowering made from a place in the document (`syntheticId`: the
+ * document's tag, which ends with `__`, then `$` and the place, as a loop's
+ * labels are named, which the loop pushes onto `loopStack` for the `break`
+ * and `continue` in its body) with the place counted from the statement's
+ * start, as a read of the document outside the statement is (#1683). The
+ * name says where the code that made it stands, so a statement that an edit
+ * above moves with that code reads the same, as a cold compile of the moved
+ * text lowers it alike.
+ */
+const placed = (value: unknown, from: number): unknown => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  // value-level: a string a lowering read from the context
+  const named = value.includes("__$");
+  // value-level: a string a lowering read from the context
+  return named ? value.replace(/__\$(\d+)/g, (_, place: string) => `__$~${Number(place) - from}`) : value;
+};
+
 const sameValue = (a: ContextValue, b: ContextValue): boolean =>
   a !== null && b !== null && typeof a === "object" && typeof b === "object"
     ? a.kind === b.kind
@@ -181,9 +202,14 @@ export function recordLowering(
     const key = JSON.stringify(path);
     if (!recorded.has(key)) {
       recorded.add(key);
-      recording.reads.push({ kind: "path", path, value: encode(value) });
+      recording.reads.push({ kind: "path", path, value: encode(placed(value, from)) });
     }
   };
+  // The length of each array of the context the lowering pushed onto or
+  // took from, before it first did: a read of its length after that reads
+  // what the lowering made of that one, which is its input (a loop pushes a
+  // block onto `blockEndStack` and then reads the stack's top).
+  const lengths = new Map<object, number>();
   const recordOnce = (key: string, read: ContextRead) => {
     if (!recorded.has(key)) {
       recorded.add(key);
@@ -274,9 +300,16 @@ export function recordLowering(
             return (...args: unknown[]) => {
               if (!finished) {
                 noteWrite(t, path);
+                if (!lengths.has(t)) {
+                  lengths.set(t, t.length);
+                }
               }
               return method.apply(t, args.map(owned));
             };
+          }
+          if (prop === "length" && lengths.has(t)) {
+            record([...path, "length"], lengths.get(t));
+            return t.length;
           }
           // value-level: a property name of an array of the context, read as its index
           const own = /^\d+$/.test(prop) ? Number(prop) : prop;
@@ -599,7 +632,7 @@ export function readsHold(
             value = (value as any)[step];
           }
         }
-        if (!sameValue(encode(reached ? value : undefined), read.value)) {
+        if (!sameValue(encode(placed(reached ? value : undefined, from)), read.value)) {
           return false;
         }
         break;

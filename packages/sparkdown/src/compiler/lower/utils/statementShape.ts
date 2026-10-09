@@ -168,27 +168,46 @@ export const inlineExitOf = new WeakMap<ParsedObject, LoopShape>();
 
 // The labels a loop's lowering made for its own head, step and exits, and the
 // diverts to them, which the binary program's writer emits as the loop's
-// chunk and never as a label or a jump.
+// chunk and never as a label or a jump; and the assignments of its hidden
+// temporaries and its variables (`LoopShape.init`, `copy`, `step`, `call`,
+// `update`).
 const loopInternals = new WeakSet<ParsedObject>();
 
 /** Records `loop`, whose objects start with `first`, and marks `internals`,
- *  the labels and diverts its lowering made for itself. The lowering names
- *  them: a divert an author wrote in the loop's header (`-> top` as a value,
- *  or the proxy divert of `READ_COUNT(-> top)`) sits among the loop's
- *  objects too, and stays an author's jump target. */
+ *  the labels and diverts its lowering made for itself, and the assignments
+ *  of its hidden temporaries and its variables. The lowering names the
+ *  labels and diverts: a divert an author wrote in the loop's header (`-> top`
+ *  as a value, or the proxy divert of `READ_COUNT(-> top)`) sits among the
+ *  loop's objects too, and stays an author's jump target. */
 export const recordLoop = (
   first: ParsedObject,
   loop: LoopShape,
   internals: readonly ParsedObject[],
 ): void => {
   loopOf.set(first, loop);
-  for (const obj of internals) {
-    loopInternals.add(obj);
+  for (const obj of [
+    ...internals,
+    ...loop.init,
+    loop.copy,
+    loop.step,
+    loop.call,
+    loop.update,
+  ]) {
+    if (obj) {
+      loopInternals.add(obj);
+      // An assignment of several names declares each through a target of
+      // its own.
+      for (const target of (obj as Partial<MultiVariableAssignment>).targetAssignments ?? []) {
+        loopInternals.add(target);
+      }
+    }
   }
 };
 
 /** Whether `obj` is a label, or a divert to one, that a loop's lowering made
- *  for itself (`recordLoop`), as opposed to one an author wrote. */
+ *  for itself (`recordLoop`), as opposed to one an author wrote, or an
+ *  assignment of its hidden temporaries or its variables, or a target of
+ *  one. */
 export const isLoopInternal = (obj: ParsedObject): boolean =>
   loopInternals.has(obj);
 

@@ -52,8 +52,14 @@ import type {
 } from "../compiler/lower/statementMemo";
 import {
   MemoizedStatement,
+  isHolder,
   memoOf,
 } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import {
+  isLoopInternal,
+  loopExitOf,
+  loopOf,
+} from "../compiler/lower/utils/statementShape";
 
 /** The parsed objects under `node` that a walk over its subtree visits: its
  *  `content`, and for a call that generated as a builtin, native or stdlib
@@ -1924,8 +1930,13 @@ export class ProgramResolver {
     // A block statement holds the objects of the statements of its bodies,
     // which their own memos judge, and stand-ins of them when it is served.
     const nested = tally.candidate.nested;
+    // The parts of a loop's or a `choose` block's own objects that its
+    // stand-in holds again (`MemoHolder`, #1683): a loop's labels, locals and
+    // their assignments, a `choose` block's named choices and the label of
+    // its `then` clause.
+    const held = heldPartsOf(objects);
     const walks = (obj: ParsedObject): boolean =>
-      nested?.has(obj) ? false : holdsWhatTheStoryWalks(obj, nested);
+      nested?.has(obj) ? false : holdsWhatTheStoryWalks(obj, nested, held);
     if (
       (assignments
         ? objects.some((obj) =>
@@ -1954,10 +1965,15 @@ export class ProgramResolver {
         return undefined;
       }
     }
+    // The names a loop's lowering made from its place in the document, which
+    // its stand-in names again where it stands (`MemoHolder`), and the label a
+    // `break` or `continue` leaves by, which its loop's lowering made: what
+    // the statement's syntax decides, which the compile numbers anew.
+    const own = ownNumberedNames(objects, nested);
     return {
       generate: tally.generate,
       resolve: tally.resolve,
-      reads: [...tally.reads],
+      reads: own.size > 0 ? [...tally.reads].filter((name) => !own.has(name)) : [...tally.reads],
       context: tally.context,
       resolver: this._id,
       at: this._compile,
@@ -2025,6 +2041,15 @@ export class ProgramResolver {
     // made, made again where its resolution would, while no name resolves
     // the name (the lookup reads the names, as the resolution's own did); a
     // block statement's stand-in does so for the statements inside it.
+    // The locals of a loop a block statement's stand-in holds (`MemoHolder`),
+    // declared again where the loop's generation declares them (#1683).
+    if (phase === "generate" && entry.owner) {
+      for (const held of statement.content) {
+        if (isHolder(held) && held instanceof VariableAssignment && held.isNewTemporaryDeclaration) {
+          this.event({ kind: "declare", declaration: held }, held.RegisterDeclaration);
+        }
+      }
+    }
     for (const { assignment, made } of assignmentsOf(statement, resolution, !!entry.owner)) {
       if (phase === "generate" && made.declares.includes(assignment.variableName)) {
         this.event({ kind: "declare", declaration: assignment }, assignment.RegisterDeclaration);
@@ -2283,6 +2308,14 @@ export class ProgramResolver {
     ) {
       // A stand-in makes it again, as the block statement that holds it
       // will (`repeatMemo`).
+    } else if (
+      event.kind === "declare" &&
+      isLoopInternal(event.declaration) &&
+      !!frame &&
+      loopOf.has(frame.tally.candidate.objects[0]!)
+    ) {
+      // A loop's hidden temporary or variable, which the loop's stand-in
+      // declares again through its holder (`MemoHolder`, #1683).
     } else if (this._candidates) {
       // A statement that declares anything, which the story keeps for the
       // rest of the compile, is no statement a memo can stand for.
@@ -2316,9 +2349,13 @@ export class ProgramResolver {
 const holdsWhatTheStoryWalks = (
   obj: ParsedObject,
   except?: ReadonlySet<ParsedObject>,
+  held?: (obj: ParsedObject) => boolean,
 ): boolean => {
   if (except?.has(obj)) {
     return false;
+  }
+  if (held?.(obj)) {
+    return parsedChildren(obj).some((child) => holdsWhatTheStoryWalks(child, except, held));
   }
   if (
     obj instanceof FlowBase ||
@@ -2334,7 +2371,56 @@ const holdsWhatTheStoryWalks = (
   ) {
     return true;
   }
-  return parsedChildren(obj).some((child) => holdsWhatTheStoryWalks(child, except));
+  return parsedChildren(obj).some((child) => holdsWhatTheStoryWalks(child, except, held));
+};
+
+/** The parts of a statement's own objects its stand-in holds again
+ *  (`MemoHolder`, #1683): for a loop, the labels, locals and assignments
+ *  its lowering made for itself (`isLoopInternal`); for a `choose` block,
+ *  its choices and the gather that ends it. */
+const heldPartsOf = (
+  objects: readonly ParsedObject[],
+): ((obj: ParsedObject) => boolean) => {
+  const first = objects[0];
+  if (first && loopOf.has(first)) {
+    return isLoopInternal;
+  }
+  if (objects.length === 1 && first instanceof Weave && first.isChooseBlock) {
+    return (obj) => obj instanceof Choice || obj instanceof Gather;
+  }
+  return () => false;
+};
+
+/** The names the compile numbers by document order that a statement's own
+ *  objects (`objects`, but those of the statements of its bodies) hold as a
+ *  loop's own: its labels, its locals and the labels its `break` and
+ *  `continue` leave by. */
+const ownNumberedNames = (
+  objects: readonly ParsedObject[],
+  nested: ReadonlySet<ParsedObject> | undefined,
+): Set<string> => {
+  const out = new Set<string>();
+  const visit = (obj: ParsedObject) => {
+    if (nested?.has(obj)) {
+      return;
+    }
+    if (isLoopInternal(obj) || loopExitOf.has(obj)) {
+      const name =
+        obj instanceof Gather
+          ? obj.name
+          : obj instanceof VariableAssignment
+            ? obj.variableName
+            : obj instanceof Divert
+              ? (obj.pathIdentifiers?.[0]?.name ?? null)
+              : null;
+      if (name && /^__synth_\d+$/.test(name)) {
+        out.add(name);
+      }
+    }
+    parsedChildren(obj).forEach(visit);
+  };
+  objects.forEach(visit);
+  return out;
 };
 
 /** The named gathers, then the named choices, a weave holds at any depth, as
