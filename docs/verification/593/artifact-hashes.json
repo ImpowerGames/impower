@@ -1,0 +1,17 @@
+[
+  {
+    "file": "evidence/transcription-checkpoint.json",
+    "sha256": "f8969171553c01bdd982a901ad2e52f9594d3e3e6fdbdf316d16ce6ed8636b6c",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/source-audit-final.json",
+    "sha256": "cbfcc17fb7873a770de538239968333a5f52b98b6022d0da9d2d10759b797ca9",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "44e0545c395a213139418d2fb5c4770012391cadb78f8900427c82a704e273eb",
+    "kind": "unaltered historical artifact"
+  }
+]
