@@ -197,6 +197,22 @@ describe("names the compiler generates", () => {
     expect(text).toContain("Done at 20.");
   });
 
+  // A binding's evaluator is defined under its generated name, which its
+  // frame shows in a readable form, as a function a statement writes does.
+  it("show a binding's evaluator as anonymous in its frame", () => {
+    const program = compile(
+      ["layout hud with", '  text "{debug.info(1, \'n\')}"', "end", ""].join("\n"),
+    );
+    expect(errors(program)).toEqual([]);
+    const exprId = JSON.stringify(program.sparkle?.layouts?.["hud"]).match(
+      /__binding\$\w+/,
+    )?.[0];
+    expect(exprId).toBeDefined();
+    const story = testStory(program.chunks);
+    expect(story.HasFunction(exprId!)).toBe(true);
+    expect(quiet(() => story.EvaluateFunction(exprId!))).toBe("<anonymous>");
+  });
+
   // The canonical form of an earlier compiler is an ordinary name now.
   it("leave an author's name of the old canonical shape as it is", () => {
     const main = [
