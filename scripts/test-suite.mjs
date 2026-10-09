@@ -335,6 +335,21 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
 // match so direct Vitest calls are refused at the same width.
 export const MAX_RUN_FILES = 8;
 
+// Refuse mistaken workspace names before dependency lookup or queue admission.
+function packageDirectory(target) {
+  const directory = path.resolve(target);
+  try {
+    if (fs.statSync(directory).isDirectory() && fs.statSync(path.join(directory, "package.json")).isFile()) {
+      return canonicalPath(directory);
+    }
+  } catch (error) {
+    if (!["ENOENT", "ENOTDIR"].includes(error.code)) {
+      throw new Error(`Cannot inspect package directory ${directory}: ${error.message}`);
+    }
+  }
+  throw new Error(`Expected a package directory containing a package.json file: ${directory}. Use the package's directory, such as packages/sparkdown, rather than its workspace name.`);
+}
+
 // The command line. `dependencies` is the test seam for the reservation store,
 // census and child programs; the entry point below passes none.
 export async function main(argv, dependencies = {}) {
@@ -347,12 +362,13 @@ export async function main(argv, dependencies = {}) {
     // hook refuses it.
     if (!args.length) throw new Error("Name the test files under work; the package result comes from the Test Suite workflow on the pushed head");
     if (args.length > MAX_RUN_FILES) throw new Error(`run takes at most ${MAX_RUN_FILES} test files (${args.length} named): a longer list is a package run, which the Test Suite workflow runs for the pushed head; run only the test files under work locally`);
-    const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot: target, files: args, waitMs });
+    const packageRoot = packageDirectory(target);
+    const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot, files: args, waitMs });
     if (launchError) throw new Error(launchError);
     if (signal) console.error(`Vitest ended by signal ${signal}`);
     return exit ?? 1;
   } else if (command === "start" && target && !args.length) {
-    const packageRoot = canonicalPath(target);
+    const packageRoot = packageDirectory(target);
     const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
     const directory = path.join(gitDir, "test-suites", randomUUID());
     console.log(JSON.stringify({ run: directory, status: "starting", coordinator: processIdentity(process.pid) }));
@@ -362,7 +378,7 @@ export async function main(argv, dependencies = {}) {
     const run = read(path.join(target, "run.json"));
     result = await execute({ ...dependencies, directory: target, waitMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
   } else if (command === "status" && target && !args.length) result = status(target);
-  else throw new Error("Usage: node scripts/test-suite.mjs run <package> <test-file> [<test-file> ...] [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]");
+  else throw new Error("Usage: node scripts/test-suite.mjs run <package-dir> <test-file> [<test-file> ...] [--wait <seconds>] | start <package-dir> [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]; <package-dir> is a directory such as packages/sparkdown");
   console.log(JSON.stringify(result, null, 2));
   return result.status === "passed" ? 0 : 1;
 }

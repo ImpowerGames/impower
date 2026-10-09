@@ -10,6 +10,29 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 assert.ok(fs.existsSync(path.join(root, "test-suite.mjs")),
   "package verification must provide durable status/resume instead of manual log concatenation");
 const { verifyResult, aggregate } = await import("./test-suite.mjs");
+const { main: packageMain } = await import("./test-suite.mjs");
+const packageScratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-package-preflight-"));
+console.log(`Package preflight scratch: ${packageScratch}`);
+const plainFile = path.join(packageScratch, "plain-file");
+fs.writeFileSync(plainFile, "fixture");
+const noManifest = path.join(packageScratch, "no-manifest");
+fs.mkdirSync(noManifest);
+const directoryManifest = path.join(packageScratch, "directory-manifest");
+fs.mkdirSync(path.join(directoryManifest, "package.json"), { recursive: true });
+for (const target of [path.join(packageScratch, "missing"), plainFile, noManifest, directoryManifest]) {
+  for (const command of ["run", "start"]) {
+    let censusCalls = 0;
+    await assert.rejects(packageMain([command, target, ...(command === "run" ? ["fixture.test.ts"] : [])], {
+      vitestPath: plainFile,
+      root: path.join(packageScratch, "reservation"),
+      census: () => { censusCalls++; throw new Error("must not queue"); },
+    }), error => error.message.includes(path.resolve(target)) && error.message.includes("package directory")
+      && error.message.includes("packages/sparkdown"), `${command} explains invalid package path ${target}`);
+    assert.equal(censusCalls, 0, "invalid package paths are refused before queue admission");
+    assert.equal(fs.existsSync(path.join(packageScratch, "reservation")), false);
+  }
+}
+console.log("PASS: run and start explain invalid package directories before queue admission");
 const file = path.resolve("fixture.test.ts");
 const report = () => ({ success: true, numTotalTestSuites: 1, numPassedTestSuites: 1,
   numFailedTestSuites: 0, numPendingTestSuites: 0, numTotalTests: 1,
@@ -351,6 +374,8 @@ console.log("PASS: run composes the one-worker flags, caps the heap and holds th
 // the deadline rather than after a full interval.
 const { main } = await import("./test-suite.mjs");
 const seam = { root: lockRoot, census: () => [], vitestPath: fakeVitest, stdio: "ignore" };
+assert.equal(await main(["run", path.relative(process.cwd(), scratch), "a.test.ts"], seam), 3,
+  "valid relative package directories still launch Vitest");
 assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 3, "run returns the Vitest exit status");
 assert.deepEqual(read(fakeRecord).argv, vitestArguments(["a.test.ts"]), "--wait and its value are not passed to Vitest");
 const cliHolder = acquire("cli holder", { root: lockRoot, census: () => [] });
