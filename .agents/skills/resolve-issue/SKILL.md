@@ -27,7 +27,7 @@ Establish the reported failure before editing and retain before-evidence.
 
 - Compiler/parser/engine: invoke `/write-regression-test` (skill name `write-regression-test`) in reproduction-only mode to write the failing case.
 - Editor/preview/visual: invoke `/drive-web-editor` (skill name `drive-web-editor`) and inspect a screenshot of the broken state.
-- Extension: invoke `/drive-vscode-web` (skill name `drive-vscode-web`) and inspect the served workbench.
+- Extension: invoke `/drive-vscode-web` (skill name `drive-vscode-web`), select served or desktop verification for the reported surface, and inspect its screenshots.
 - Tooling/docs with nothing to boot: exercise the pre-change behavior with the relevant standalone check. A newly written check must fail against the base, not merely pass after editing. For prose with no executable check, compare the relevant rules before and after and disclose that manual verification.
 
 ## 4. Fix it
@@ -42,7 +42,7 @@ Invoke `/write-regression-test` now (skill name `write-regression-test`). Use fu
 
 Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for changes under `impower-dev/` or `packages/`. Use the actual project for assets and installed-worker verification for service-worker changes. Inspect before/after pixels; use measured evidence for changes with no visual signature and still inspect for visual regressions.
 
-For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared language-server changes use both drivers. Surfaces the served workbench cannot reach require a desktop development host or an explicit unverified disclosure in the PR. Tooling/docs-only work has nothing to boot: run its checks and say so.
+For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared language-server changes use both drivers. Select desktop mode for F5, commands, Game Preview or debugging; disclose an unavailable host as an unverified surface in the PR. Tooling/docs-only work has nothing to boot: run its checks and say so.
 
 ## 7. Commit, push, and open a draft PR
 

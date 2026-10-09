@@ -1,0 +1,13 @@
+include scripts/end.sd
+store driver_score = 42
+
+-> START
+
+scene START
+  [[show backdrop driver_card]]
+  Desktop preview is ready.
+  choose
+    * Continue the driver story
+      -> FINISH
+  end
+end

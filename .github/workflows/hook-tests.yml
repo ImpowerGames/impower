@@ -37,6 +37,8 @@ jobs:
         .gitignore
         package.json
         vscode-sparkdown/package.json
+        vscode-sparkdown/scripts/f5.mjs
+        .vscode/tasks.json
         .github/scripts/**
         .github/workflows/test-suite.yml
         .github/PULL_REQUEST_TEMPLATE.md
@@ -63,6 +65,8 @@ jobs:
         .gitignore
         package.json
         vscode-sparkdown/package.json
+        vscode-sparkdown/scripts/f5.mjs
+        .vscode/tasks.json
         .github/workflows/test-suite.yml
         .github/workflows/hook-tests.yml
         .github/workflows/changed-paths.yml
@@ -94,6 +98,7 @@ jobs:
             /.gitignore
             /package.json
             /vscode-sparkdown/package.json
+            /vscode-sparkdown/scripts/f5.mjs
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
@@ -133,6 +138,7 @@ jobs:
             /.gitignore
             /package.json
             /vscode-sparkdown/package.json
+            /vscode-sparkdown/scripts/f5.mjs
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:

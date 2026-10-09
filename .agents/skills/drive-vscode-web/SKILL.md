@@ -1,14 +1,14 @@
 ---
 name: drive-vscode-web
-description: "Verify the built extension in a served VS Code workbench: open a script, inspect diagnostics and hover, and view screenshots. Use for extension and shared language-server changes."
+description: "Verify the extension in a served workbench or desktop development host, including F5, language health, Game Preview and debugging. Use for extension and shared language-server changes."
 ---
 
-# Drive the extension in the web workbench
+# Drive the extension
 
 Commands run inside the worktree:
 `node .agents/skills/drive-vscode-web/driver.mjs <command>`.
 
-This driver reaches open-script text, diagnostics and hover. Preview panels, commands, tree views and debugging require a desktop development host; disclose them as unverified if no host is available.
+Select the surface before launching: served `up`/`verify` covers open-script text, diagnostics and hover, with `verify --debug` for the web debugger; `desktop --mode full` covers the fully built extension's language server, Game Preview and debugger; `desktop --mode f5` exercises the checkout's actual F5 task first. Read [desktop scenarios](references/desktop.md) for either desktop mode. A served pass never substitutes for a desktop result. Report unavailable surfaces explicitly.
 
 ## 1. Build
 
