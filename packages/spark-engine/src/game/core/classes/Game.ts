@@ -70,7 +70,7 @@ import {
   validAddressPrefixLength,
 } from "../utils/routeResume";
 import { storyPositions, type StoryPositions } from "../utils/storyPositions";
-import { CheckpointStore } from "./CheckpointStore";
+import { CheckpointStore, type StoredCheckpoint } from "./CheckpointStore";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
@@ -1504,6 +1504,21 @@ export class Game<T extends M = {}> {
       maxCheckpoint?: number;
     },
   ) {
+    const index = this.stepCheckpoint(seq, expected);
+    return index === null ? null : this._checkpoints.getJson(index);
+  }
+
+  /** The index of the checkpoint `getCheckpoint` would write, when it would
+   *  write one: a route's resumption asks whether there is one, which needs
+   *  no save written (#1758). */
+  protected stepCheckpoint(
+    seq: string,
+    expected?: {
+      address?: ProgramAddress;
+      index?: number;
+      maxCheckpoint?: number;
+    },
+  ): number | null {
     if (this._plannedRoute) {
       const stepIndex = this._plannedRouteStepMap[seq];
       if (stepIndex != null) {
@@ -1528,12 +1543,23 @@ export class Game<T extends M = {}> {
               // it (see `findResumePoint`).
               return null;
             }
-            return this._checkpoints.getJson(step.checkpoint);
+            const image = this._checkpoints.imageOf(step.checkpoint);
+            return image !== undefined && this.writesImage(image)
+              ? step.checkpoint
+              : null;
           }
         }
       }
     }
     return null;
+  }
+
+  /** Whether the story writes a save of `image` (`ProgramStory.saveOfImage`
+   *  answers one rather than nothing): it places the image's beat, which
+   *  for an image taken just after a choice is the beat before its menu. */
+  protected writesImage(image: unknown): boolean {
+    const taken = image as ProgramImage;
+    return this._story.canRestore(taken.afterChoice?.menu ?? taken);
   }
 
   protected simulateRoute(
@@ -1781,7 +1807,7 @@ export class Game<T extends M = {}> {
     const program = this.programStory;
     // The checkpoint's image, restored in place, which a search node runs
     // from as it is.
-    const image = this._checkpoints.imageAt(checkpointIndex)?.image as
+    const image = this._checkpoints.imageOf(checkpointIndex) as
       | ProgramImage
       | undefined;
     // A route resumes only from a checkpoint whose positions the new
@@ -1867,6 +1893,18 @@ export class Game<T extends M = {}> {
    * replay stamps a checkpoint on every step it reaches.
    */
   resumePlannedRoute(stepIndex: number, checkpointIndex: number): string | null {
+    return this.checkpointJson(
+      this.replayPlannedRoute(stepIndex, checkpointIndex),
+    );
+  }
+
+  /** `resumePlannedRoute`, answering the newest checkpoint as a value
+   *  (`newestCheckpoint`) rather than as its full save, which a game in the
+   *  same session loads in place (`loadCheckpoint`) (#1758). */
+  replayPlannedRoute(
+    stepIndex: number,
+    checkpointIndex: number,
+  ): StoredCheckpoint | null {
     const route = this._plannedRoute;
     if (!route || !route.steps[stepIndex]) {
       return null;
@@ -1877,7 +1915,7 @@ export class Game<T extends M = {}> {
         : { seq: step.seq, address: step.address, decision: step.decision },
     );
     this.simulateRoute({ ...route, steps }, stepIndex, checkpointIndex);
-    return this._checkpoints.at(-1) ?? null;
+    return this.newestCheckpoint();
   }
 
   /**
@@ -1896,6 +1934,16 @@ export class Game<T extends M = {}> {
     newRoute: RoutePlan,
     limits?: { steps: number; checkpoint: number },
   ): string | null {
+    return this.checkpointJson(this.replayPatchedRoute(newRoute, limits));
+  }
+
+  /** `patchAndSimulateRoute`, answering the newest checkpoint as a value
+   *  (`newestCheckpoint`) rather than as its full save, which a game in the
+   *  same session loads in place (`loadCheckpoint`) (#1758). */
+  replayPatchedRoute(
+    newRoute: RoutePlan,
+    limits?: { steps: number; checkpoint: number },
+  ): StoredCheckpoint | null {
     if (
       !this._plannedRoute ||
       this._plannedRoute.from !== newRoute.from
@@ -1903,7 +1951,7 @@ export class Game<T extends M = {}> {
       // simulate from the beginning
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
-      return this._checkpoints.at(-1) ?? null;
+      return this.newestCheckpoint();
     }
 
     // Search for a valid checkpoint we can start simulation from, among the
@@ -1919,7 +1967,7 @@ export class Game<T extends M = {}> {
     let lastValidNewRouteStep = validSteps.at(-1);
     // The resume below is positional (`validSteps.length - 1` indexes the OLD
     // route), so the match has to agree on that index, not merely on identity.
-    let lastValidOldRouteCheckpoint = this.getCheckpoint(
+    let lastValidOldRouteCheckpoint = this.stepCheckpoint(
       lastValidNewRouteStep?.seq || "",
       {
         address: lastValidNewRouteStep?.address,
@@ -1927,13 +1975,13 @@ export class Game<T extends M = {}> {
         maxCheckpoint: limits?.checkpoint,
       },
     );
-    while (lastValidNewRouteStep && !lastValidOldRouteCheckpoint) {
+    while (lastValidNewRouteStep && lastValidOldRouteCheckpoint === null) {
       const invalidStep = validSteps.pop();
       if (invalidStep) {
         newSteps.unshift(invalidStep);
       }
       lastValidNewRouteStep = validSteps.at(-1);
-      lastValidOldRouteCheckpoint = this.getCheckpoint(
+      lastValidOldRouteCheckpoint = this.stepCheckpoint(
         lastValidNewRouteStep?.seq || "",
         {
           address: lastValidNewRouteStep?.address,
@@ -1943,11 +1991,11 @@ export class Game<T extends M = {}> {
       );
     }
 
-    if (!lastValidOldRouteCheckpoint) {
+    if (lastValidOldRouteCheckpoint === null) {
       // Could not start from an earlier checkpoint, so simulate from the beginning
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
-      return this._checkpoints.at(-1) ?? null;
+      return this.newestCheckpoint();
     }
 
     // Keep valid steps, trim away invalid steps
@@ -1968,7 +2016,7 @@ export class Game<T extends M = {}> {
     // Add new checkpoints onto the previous simulation
     const fromStep = validSteps.length - 1;
     this.simulateRoute(patchedRoute, fromStep);
-    return this._checkpoints.at(-1) ?? null;
+    return this.newestCheckpoint();
   }
 
   /** End the route simulation, so the modules connect, restore and display as
@@ -2231,6 +2279,93 @@ export class Game<T extends M = {}> {
     return this.loadProgramSave(this._story, saveJSON);
   }
 
+  /** The newest checkpoint as a value, or null when there is none or the
+   *  story cannot write its image, as `checkpoints.at(-1)` is then null.
+   *  Nothing is written: its full save is `checkpointJson`'s (#1758). */
+  newestCheckpoint(): StoredCheckpoint | null {
+    const checkpoint = this._checkpoints.checkpointAt(-1);
+    return checkpoint && this.writesImage(checkpoint.image) ? checkpoint : null;
+  }
+
+  /** The full save of a checkpoint value, as `checkpoints.at` writes one,
+   *  for a reader that needs the string: a game of its own (PLAY's), a save
+   *  file, a test. Written by the story as it is now. */
+  checkpointJson(checkpoint: StoredCheckpoint | null): string | null {
+    return checkpoint ? this._checkpoints.jsonOf(checkpoint) : null;
+  }
+
+  /**
+   * Loads a checkpoint value this game's route left (`newestCheckpoint`),
+   * holding afterwards what a load of its full save (`checkpointJson`)
+   * holds, without writing the save or reading it back (#1758). The story
+   * loads the image in place (`ProgramStory.loadImage`); the module state
+   * is read from the checkpoint's body; the runtime record is the
+   * checkpoint's collections, with the executed positions a load of the
+   * save keeps (each through its durable form, `durableExecuted` then
+   * `placedExecuted`); and each data breakpoint's binding goes, as a load of
+   * a save that notes no cell drops it. An image the story loads only
+   * through its saved form (one taken just after a choice, or in another
+   * root) loads through the save. Refuses, with nothing of the game
+   * changed, what a load of the save refuses.
+   */
+  loadCheckpoint(checkpoint: StoredCheckpoint): boolean {
+    const program = this._story;
+    const image = checkpoint.image as ProgramImage;
+    try {
+      // Read before anything changes, as `loadProgramSave` reads the save.
+      const saveData: SaveData = JSON.parse(checkpoint.body);
+      const isRecord = (value: unknown) =>
+        typeof value === "object" && value !== null && !Array.isArray(value);
+      if (!isRecord(saveData.modules)) {
+        throw new Error("The save holds no module states to load");
+      }
+      for (const k of this._moduleNames) {
+        if (this._modules[k] && !isRecord(saveData.modules[k])) {
+          throw new Error(`The save holds no state for the module ${k}`);
+        }
+      }
+      if (!this.writesImage(image)) {
+        // A load of the save, which is no save, would refuse it.
+        throw new Error("The save holds no story to load");
+      }
+      const rt = checkpoint.runtime;
+      const runtime = RuntimeState.of({
+        pe: this.placedExecuted(program.root, this.durableExecuted(rt.pe)),
+        ce: rt.ce,
+        cde: rt.cde,
+      });
+      if (!program.loadImage(image)) {
+        const json = this.checkpointJson(checkpoint);
+        return json !== null && this.load(json);
+      }
+      // A save written of a checkpoint notes no cell, so a load of it
+      // binds no data breakpoint (`loadProgramSave`).
+      for (const watch of this._dataWatches) {
+        watch.pointer = null;
+        watch.pointerState = null;
+      }
+      // A preview waiting for its pictures would display its beat over the
+      // loaded state, and record a checkpoint of it.
+      this.cancelPreview();
+      this.restoreReactiveTracking();
+      for (const k of this._moduleNames) {
+        const module = this._modules[k];
+        if (module) {
+          module.load(saveData.modules[k]);
+        }
+      }
+      this._runtimeState = runtime;
+      if (saveData.simulatedFrom) {
+        this._simulation = "success";
+        this._simulateFlow = saveData.simulatedFrom;
+      }
+      return true;
+    } catch (e) {
+      this.log(e, "error");
+    }
+    return false;
+  }
+
   /**
    * Loads a save into the game, or refuses it with nothing of the game changed:
    * everything that can fail is read before anything changes. The save must
@@ -2353,9 +2488,9 @@ export class Game<T extends M = {}> {
    * does not translate (`readResumePoint`).
    */
   restoreCheckpoint(index: number): boolean {
-    const entry = this._checkpoints.imageAt(index);
+    const entry = this._checkpoints.checkpointAt(index);
     const story = this.programStory;
-    if (!entry) {
+    if (!entry || index < 0) {
       return false;
     }
     const image = entry.image as ProgramImage;
@@ -2370,13 +2505,13 @@ export class Game<T extends M = {}> {
       return false;
     }
     this.restoreReactiveTracking();
-    const saveData = entry.save as SaveData;
+    const saveData = JSON.parse(entry.body) as SaveData;
     for (const k of this._moduleNames) {
       this._modules[k]?.load(saveData.modules[k]);
     }
-    if (saveData.runtime) {
-      this._runtimeState = RuntimeState.fromJSON(saveData.runtime);
-    }
+    // The collections as the session holds them, which no record is
+    // written of or read back from (#1758).
+    this._runtimeState = RuntimeState.of(entry.runtime);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this._simulateFlow = saveData.simulatedFrom;

@@ -182,6 +182,26 @@ export class RuntimeState {
     return obj;
   }
 
+  /** A record holding the given collections, as a load of the record they
+   *  make (`read`) holds them: lists of its own, each choice and condition
+   *  copied, with nothing drained since. A checkpoint's collections are
+   *  shared with the store that replays them, and a load of its full save
+   *  shares nothing with it (#1758). */
+  static of(collections: RuntimeDelta): RuntimeState {
+    const obj = new RuntimeState();
+    obj.fromSerializable({
+      pathsExecutedThisFrame: collections.pe,
+      choicesEncountered: collections.ce.map((c) => ({
+        options: c.options.slice(),
+        selected: c.selected,
+      })),
+      conditionsEncountered: collections.cde.map((c) => ({
+        selected: c.selected,
+      })),
+    });
+    return obj;
+  }
+
   static clone(state: RuntimeState) {
     const cloned = new RuntimeState();
     if (state) {

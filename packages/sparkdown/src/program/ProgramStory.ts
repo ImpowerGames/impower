@@ -979,6 +979,49 @@ export class ProgramStory implements StoryEngine {
     return load.header;
   }
 
+  /**
+   * Loads an image this engine's root took, as `loadSave` loads the save
+   * `saveOfImage` writes of it, without writing the save or reading it
+   * (#1758): the state is the image's, a line in progress ends, and the
+   * history holds the image's beat alone, with the flags and decisions a
+   * save of it writes, under an image of its own, as a load captures each
+   * beat it reads, so that the beats after it record nothing into the
+   * image's own record. Answers false, with nothing changed, for an image
+   * taken just after a choice, which a load takes again by raising the menu
+   * (`loadSave`), and for one that names a chunk or a sequence this root
+   * does not hold, which a load places through its saved form: the caller
+   * loads its save instead.
+   */
+  loadImage(image: ProgramImage): boolean {
+    if (this._recursiveContinueCount > 0) {
+      throw new Error("Can't load a save from inside a Continue.");
+    }
+    const engine = image.engine;
+    if (
+      image.afterChoice ||
+      !(engine instanceof ProgramStory) ||
+      engine.root !== this.root ||
+      !this.canRestore(image, false)
+    ) {
+      return false;
+    }
+    // The record a save of the image writes (`saveOfImage`).
+    const beat = this.history.recordOf(image) ?? (image.beat as BeatRecord | undefined);
+    const flags = beat?.flags ?? 0;
+    const decisions = [...(beat?.decisions ?? [])];
+    if (!this.restoreInPlace(image, false)) {
+      return false;
+    }
+    this.CancelAsyncContinue();
+    this._chosenAt = null;
+    const loaded = this.capture();
+    this.history.replace([{ image: loaded, flags, decisions }], true);
+    // The loaded beat is this engine's.
+    this._currentBeat = this.history.newest ?? null;
+    this._currentAtStep = this.stepCount;
+    return true;
+  }
+
   /** Throws what `loadSave` would refuse a save for (`SaveRefused`): a
    *  format version this engine does not read, another engine's save, or a
    *  save none of whose beats this program can place. Changes nothing. */
