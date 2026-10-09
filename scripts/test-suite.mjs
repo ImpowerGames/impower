@@ -335,6 +335,21 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
 // match so direct Vitest calls are refused at the same width.
 export const MAX_RUN_FILES = 8;
 
+// Validate the whole request before dependency lookup or queue admission.
+function validateTestFiles(packageRoot, files) {
+  for (const requested of files) {
+    const escaped = JSON.stringify(requested)?.replace(/[\u007f-\u009f\u2028\u2029]/g, value => `\\u${value.charCodeAt(0).toString(16).padStart(4, "0")}`);
+    const refusal = () => new Error(`Invalid test file ${escaped}: name an existing literal test/spec TS or TSX file within ${JSON.stringify(packageRoot)}`);
+    if (typeof requested !== "string" || /[\x00-\x1f\u007f-\u009f\u2028\u2029*?]/.test(requested)
+      || requested.startsWith("-") || !/\.(test|spec)\.(ts|tsx)$/.test(requested)) throw refusal();
+    const resolved = path.resolve(packageRoot, requested);
+    if (!isWithinDirectory(packageRoot, resolved)) throw refusal();
+    try {
+      if (!fs.statSync(resolved).isFile() || !isWithinDirectory(packageRoot, canonicalPath(resolved))) throw refusal();
+    } catch { throw refusal(); }
+  }
+}
+
 // Refuse mistaken workspace names before dependency lookup or queue admission.
 function packageDirectory(target) {
   const directory = path.resolve(target);
@@ -363,6 +378,7 @@ export async function main(argv, dependencies = {}) {
     if (!args.length) throw new Error("Name the test files under work; the package result comes from the Test Suite workflow on the pushed head");
     if (args.length > MAX_RUN_FILES) throw new Error(`run takes at most ${MAX_RUN_FILES} test files (${args.length} named): a longer list is a package run, which the Test Suite workflow runs for the pushed head; run only the test files under work locally`);
     const packageRoot = packageDirectory(target);
+    validateTestFiles(packageRoot, args);
     const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot, files: args, waitMs });
     if (launchError) throw new Error(launchError);
     if (signal) console.error(`Vitest ended by signal ${signal}`);

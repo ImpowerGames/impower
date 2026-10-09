@@ -33,6 +33,41 @@ for (const target of [path.join(packageScratch, "missing"), plainFile, noManifes
   }
 }
 console.log("PASS: run and start explain invalid package directories before queue admission");
+const literalPackage = path.join(packageScratch, "literal-tests");
+fs.mkdirSync(literalPackage);
+fs.writeFileSync(path.join(literalPackage, "package.json"), '{"type":"module"}');
+fs.writeFileSync(path.join(literalPackage, "valid.test.ts"), "fixture");
+const literalStore = path.join(packageScratch, "literal-reservation");
+const literalMarker = path.join(packageScratch, "literal-child-started");
+const literalChild = path.join(packageScratch, "literal-child.mjs");
+fs.writeFileSync(literalChild, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(literalMarker)}, "started");`);
+fs.mkdirSync(path.join(literalPackage, "directory.test.ts"));
+fs.writeFileSync(path.join(packageScratch, "outside.test.ts"), "fixture");
+const outsideTests = path.join(packageScratch, "outside-tests");
+fs.mkdirSync(outsideTests);
+fs.writeFileSync(path.join(outsideTests, "outside.test.ts"), "fixture");
+fs.symlinkSync(outsideTests, path.join(literalPackage, "escape"), process.platform === "win32" ? "junction" : "dir");
+for (const invalid of ["missing.test.ts", "valid.test.ts\r", "valid.test.ts\n", "valid.test.ts ", "*.test.ts",
+  "--passWithNoTests", "directory.test.ts", "../outside.test.ts", "escape/outside.test.ts", "valid.ts", "valid.test.js"]) {
+  let literalCensusCalls = 0;
+  await assert.rejects(packageMain(["run", literalPackage, "valid.test.ts", invalid], {
+    vitestPath: literalChild, root: literalStore,
+    census: () => { literalCensusCalls++; return []; },
+  }), error => error.message.includes(JSON.stringify(invalid)) && error.message.includes("test file")
+    && !/[\r\n]/.test(error.message), "a mixed request refuses its escaped invalid input before queue admission");
+  assert.equal(literalCensusCalls, 0);
+  assert.equal(fs.existsSync(literalStore), false, "invalid files create no reservation store or child");
+  assert.equal(fs.existsSync(literalMarker), false, "a mixed invalid list starts no child");
+}
+for (const control of ["\u007f", "\u0085", "\u2028", "\u2029"]) {
+  const requested = `valid${control}.test.ts`;
+  await assert.rejects(packageMain(["run", literalPackage, requested], { vitestPath: literalChild, root: literalStore }),
+    error => !error.message.includes(control) && error.message.includes(`\\u${control.charCodeAt(0).toString(16).padStart(4, "0")}`),
+    "non-JSON control and line separator diagnostics remain escaped");
+  assert.equal(fs.existsSync(literalStore), false);
+  assert.equal(fs.existsSync(literalMarker), false);
+}
+console.log("PASS: literal test inputs refuse missing, control, filter, option, directory and escaping paths before admission");
 const file = path.resolve("fixture.test.ts");
 const report = () => ({ success: true, numTotalTestSuites: 1, numPassedTestSuites: 1,
   numFailedTestSuites: 0, numPendingTestSuites: 0, numTotalTests: 1,
@@ -393,9 +428,14 @@ await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait tak
 await assert.rejects(main(["run", scratch, "--wait", "5"], seam), /Name the test files under work/, "run refuses a whole-package call");
 const { MAX_RUN_FILES } = await import("./test-suite.mjs");
 const manyFiles = Array.from({ length: MAX_RUN_FILES + 1 }, (_, i) => `f${i}.test.ts`);
+for (const name of manyFiles) fs.writeFileSync(path.join(scratch, name), "fixture");
 await assert.rejects(main(["run", scratch, ...manyFiles, "--wait", "5"], seam), new RegExp(`at most ${MAX_RUN_FILES} test files \\(${MAX_RUN_FILES + 1} named\\)`), "run refuses a list wider than the bound");
 assert.equal(await main(["run", scratch, ...manyFiles.slice(1), "--wait", "5"], seam), 3, "run accepts a list at the bound");
 assert.deepEqual(read(fakeRecord).argv, vitestArguments(manyFiles.slice(1)), "every named file at the bound reaches Vitest");
+const literalNames = ["a.test.ts", "b.spec.tsx", "bracket[1]{brace}(group)+@!.test.ts", "space name.test.ts"];
+for (const name of literalNames.slice(2)) fs.writeFileSync(path.join(scratch, name), "fixture");
+assert.equal(await main(["run", scratch, ...literalNames], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments(literalNames), "valid multiple literal files retain exact spelling and order");
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 
