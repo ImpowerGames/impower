@@ -154,8 +154,7 @@ export interface PositionCopy {
    *  a scene's or a branch's parameters, or -1 for a flow with none; and for
    *  a branch, the id of its scene's (`sceneEntry`, -1 otherwise). A root
    *  whose flows have other entries places the position through its saved
-   *  form, which restarts a flow whose entry binds its parameters in other
-   *  code (#1728). */
+   *  form, which restarts a flow whose parameters changed (#1728). */
   readonly flowEntry: number;
   readonly sceneEntry: number;
 }
@@ -310,7 +309,7 @@ export interface ThreadCuts {
    *  statement that called the first one dropped. */
   callerAfter?: ProgramPosition | null;
   /** When the element that is now the top stands in a scene or a branch
-   *  whose entry binds its parameters in other code (#1728): the flow's
+   *  whose parameters changed (#1728): the flow's
    *  qualified name, where the element restarts it (past its entry's
    *  `SetVar`s), the parameters that entry binds, in the order its header
    *  writes them, and the names of those the saved entry bound. The

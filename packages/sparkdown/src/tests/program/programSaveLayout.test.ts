@@ -679,7 +679,8 @@ describe("a save inside a scene entered by a divert", () => {
     const save = saveAt(OUTER("a, b"), "First 10 20.");
     const level = JSON.parse(save).beats.at(-1).position.st.levels[0];
     expect(level.flow).toBe("outer.inner");
-    expect(level.scene.params).toEqual(["a", "b"]);
+    expect(level.params).toEqual([]);
+    expect(level.scene).toEqual(["a", "b"]);
     const same = engine(rootOf(OUTER("a, b")));
     same.loadSave(save);
     expect(same.loadedSaveReport!.exact).toBe(true);

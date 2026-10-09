@@ -88,7 +88,7 @@ import {
  * aligns them; then the anchor and the layout, placing a frame after the
  * statement or loop whose code it can no longer resume in, dropping a
  * frame whose function binds its parameters in other code, or restarting a
- * scene or a branch whose entry binds them in other code, its parameters
+ * scene or a branch whose parameter names changed, its parameters
  * bound by name from the saved ones (#1728). It takes the
  * newest beat whose every frame is placed exactly, or else the newest placed
  * at all, restores that beat's state, and refuses a save none of whose beats
@@ -1433,8 +1433,8 @@ interface ThreadPlan {
  * for the top one `top`), placed by `place`; a frame whose function binds its
  * parameters in other code (`drop`) is dropped with every frame above it,
  * and the frame below placed after the statement that called it. An element
- * standing in a scene or a branch whose entry binds its parameters in other
- * code (`restart`, #1728) restarts the flow, with every frame above it
+ * standing in a scene or a branch whose parameters changed (`restart`,
+ * #1728) restarts the flow, with every frame above it
  * dropped. Nothing when a position that is not dropped cannot be placed.
  */
 const planThread = (
@@ -2012,8 +2012,8 @@ class SaveReader {
             restarted = true;
             this._placer.warnings.push(
               choice
-                ? `A choice raised in '${restart.flow}' is dropped, since the flow binds its parameters in other code.`
-                : `The save inside '${restart.flow}' resumes at its start, since it binds its parameters in other code; each parameter takes the saved argument of the same name, or nil.`,
+                ? `A choice raised in '${restart.flow}' is dropped, since the flow's parameters changed.`
+                : `The save inside '${restart.flow}' resumes at its start, since its parameters changed; each parameter takes the saved argument of the same name, or nil.`,
             );
           }
           return restart;
@@ -2567,7 +2567,7 @@ export const translatePositional = (
     return now < 0 || bindingLayout(root, now) !== was;
   };
   // The restart of an element whose position was in a scene or a branch of
-  // `from` and is in one whose entry binds its parameters in other code now
+  // `from` and is in one whose parameters changed
   // (#1728), read from `from` as a save's first level carries it, in a frame
   // whose outermost scope is `scope`.
   const restarts = (
