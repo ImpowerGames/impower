@@ -673,6 +673,7 @@ export class Divert extends ParsedObject {
             " can't be diverted to. It can only be called as a function since it's been marked as such: '" +
             targetFlow.identifier +
             "(...)'",
+          this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this,
         );
       }
     }
