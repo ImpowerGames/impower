@@ -7,6 +7,7 @@ import { Divert } from "./Divert";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
+import { Identifier } from "../Identifier";
 import { MultipleConditionExpression } from "../Expression/MultipleConditionExpression";
 import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
@@ -64,14 +65,21 @@ export class DivertTarget extends Expression {
     emitter.emit(Op.Sym, symbol);
   }
 
-  /** Its divert prepared, on every call. A divert to DONE or END throws,
-   *  which stops the compile (#1703 reports the error in its place). */
+  /** Its divert prepared, on every call. A divert to DONE or END is not a
+   *  value; resolution reports it on the target (`ResolveWith`, #1703). */
   public override PrepareIntoContainer(): void {
     this.divert.PrepareUncached();
-    if (this.divert.isDone || this.divert.isEnd) {
-      throw new Error();
-    }
     this._preparedTarget = true;
+  }
+
+  /** Where this target's diagnostics are reported: the target's name, as the
+   *  divert places `target not found` (#1703, #1715). The target holds no
+   *  position of its own, so reported on itself a diagnostic would land at
+   *  line 0 column 0 at the top level or, in a scene, be dropped with the
+   *  scene's position. */
+  private get targetName(): ParsedObject | Identifier {
+    const path = this.divert.pathIdentifiers;
+    return path && path.length > 0 ? new Identifier(...path) : this;
   }
 
   public override ResolveWith(context: Story): void {
@@ -80,7 +88,7 @@ export class DivertTarget extends Expression {
     if (this.divert.isDone || this.divert.isEnd) {
       this.Error(
         `Can't use '-> DONE' or '-> END' as variable divert targets`,
-        this,
+        this.targetName,
       );
 
       return;
@@ -155,7 +163,7 @@ export class DivertTarget extends Expression {
         // `CallValueAsFunction` / closure dispatch and get no hint.
         this.Error(
           `Can't use a divert target like that. Did you intend to call \`${this.divert.target}\` as a function: \`likeThis()\`, or check the read count: \`likeThis\`, with no arrows?`,
-          this,
+          this.targetName,
           true,
         );
       }
@@ -185,6 +193,7 @@ export class DivertTarget extends Expression {
 
       this.Error(
         `Since \`${this.divert.target.dotSeparatedComponents}\` is a variable, it shouldn't be preceded by '->' here.`,
+        this.targetName,
       );
     }
 
@@ -210,6 +219,7 @@ export class DivertTarget extends Expression {
           if (arg.isByReference) {
             this.Error(
               `Can't store a divert target to a knot or function that has by-reference arguments (\`${targetFlow.identifier}\` has \`ref ${arg.identifier}\`).`,
+              this.targetName,
             );
           }
         }

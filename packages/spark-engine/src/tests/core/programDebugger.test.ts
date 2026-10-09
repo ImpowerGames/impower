@@ -440,10 +440,14 @@ describe("the debugger on the program engine", () => {
         typeof d.message === "string" ? d.message : d.message.value,
       ]);
     // `NESTED` holds lines 0 to 21, so the scene starts on line 22 and the
-    // divert is line 23.
-    expect(errors).toContainEqual([
-      23,
-      "A function can't be diverted to: call it instead, as `& name()` on a line of its own or `{name()}` in a line.",
+    // divert is line 23. The divert's own error is the one error on that
+    // line (#1708): the program's unsupported-construct report is not
+    // added on top of it.
+    expect(errors.filter(([line]) => line === 23)).toEqual([
+      [
+        23,
+        "A function can't be diverted to: call `add` instead, as `& add()` on a line of its own or `{add()}` in a line.",
+      ],
     ]);
     expect(program.chunks).toBeUndefined();
   });
