@@ -47,4 +47,21 @@ describe("divert to a function (#1708)", () => {
     );
     expect(onLine, JSON.stringify(ds)).toHaveLength(1);
   });
+
+  it("reports only the divert error when the divert passes arguments", () => {
+    const ds = compileDiagnostics(
+      'function greet()\n  return "Hello"\nend\n\n-> greet(1)\n',
+    );
+    const errors = ds.filter((x) => x.severity === 1);
+    expect(errors, JSON.stringify(ds)).toHaveLength(1);
+    expect(errors[0]!.message).toContain("can't be diverted to");
+    expect(errors[0]!.range.start.line).toBe(4);
+  });
+
+  it("still checks arguments of a function called as one", () => {
+    const ds = compileDiagnostics("function f(x)\n  return x\nend\n\n{f()}\n");
+    const d = ds.find((x) => x.message.includes("requires 1 argument"));
+    expect(d, JSON.stringify(ds)).toBeDefined();
+    expect(d!.range.start.line).toBe(4);
+  });
 });

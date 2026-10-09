@@ -791,6 +791,16 @@ export class Divert extends ParsedObject {
 
     const targetFlow = asOrNull(this.targetContent, FlowBase);
 
+    // A divert to a function is reported once, on its target, by
+    // `ResolveWith` (#1708); its arguments are not checked on top of that.
+    if (
+      targetFlow?.isFunction &&
+      !this.isFunctionCall &&
+      !(this.parent instanceof DivertTarget)
+    ) {
+      return;
+    }
+
     // No error, crikey!
     if (numArgs === 0 && (targetFlow === null || !targetFlow.hasParameters)) {
       return;
