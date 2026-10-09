@@ -82,12 +82,79 @@ for (const [command, shell] of [["Write-Output 'git worktree remove is unsafe'",
 const sibling = `${external}-sibling`;
 fs.mkdirSync(sibling);
 fs.writeFileSync(path.join(sibling, "plain.txt"), "safe sibling\n");
+fs.mkdirSync(path.join(sibling, "node_modules"));
+fs.writeFileSync(path.join(sibling, "node_modules", "tracked.txt"), "safe local file\n");
+const splat = `$targets=@('${reproduction}/node_modules/tracked.txt'); Remove-Item -LiteralPath @targets -Force`;
+if (process.platform === "win32") {
+  const r = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `${splat} -WhatIf`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /tracked\.txt/); preserved();
+}
+assert.ok(cleanup(splat, "powershell", main), "unresolved splatting must not become a literal pathname"); preserved();
+const bracket = path.join(reproduction, "loc[1]"), expanded = path.join(reproduction, "loc1");
+fs.mkdirSync(bracket); fs.mkdirSync(expanded);
+fs.symlinkSync(external, path.join(expanded, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+const uncertainLocations = [
+  `Set-Location '${bracket}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`,
+  `Push-Location '${bracket}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`,
+  `Set-Location '${sibling}' extra; Remove-Item -LiteralPath node_modules/tracked.txt -Force`,
+  `Set-Location -Path '${sibling}' -LiteralPath '${sibling}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`,
+  `if ($false) { Set-Location '${sibling}' }; Remove-Item -LiteralPath node_modules/tracked.txt -Force`,
+  `Remove-Item -LiteralPath ‘${reproduction}/node_modules/tracked.txt’ -Force`,
+];
+for (const command of uncertainLocations) {
+  assert.ok(cleanup(command, "powershell", reproduction), "uncertain location/quotes must refuse"); preserved();
+  for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: reproduction, tool_input: { command } });
+    const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+  }
+}
+fs.unlinkSync(path.join(expanded, "node_modules"));
+const safeLocation = `Set-Location -LiteralPath '${sibling}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`;
+const outsideLocation = path.join(scratch, "possible-non-git");
+fs.mkdirSync(outsideLocation);
+fs.symlinkSync(external, path.join(outsideLocation, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+assert.ok(cleanup(`Set-Location '${outsideLocation}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`, "powershell", main), "all possible cwd targets use the original known registry"); preserved();
+fs.unlinkSync(path.join(outsideLocation, "node_modules"));
+const initialChild = path.join(main, "relative-cwd"), movedChild = path.join(sibling, "relative-cwd");
+fs.mkdirSync(initialChild); fs.mkdirSync(movedChild);
+fs.symlinkSync(external, path.join(initialChild, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+assert.ok(cleanup(`Set-Location '${sibling}'; Set-Location relative-cwd; Remove-Item node_modules/tracked.txt`, "powershell", main), "relative locations propagate from every possible prior cwd"); preserved();
+fs.unlinkSync(path.join(initialChild, "node_modules"));
+const manyLocations = Array.from({ length: 9 }, (_, i) => {
+  const dir = path.join(scratch, `location-state-${i}`); fs.mkdirSync(dir); return `Set-Location '${dir}'`;
+}).join("; ");
+assert.match(cleanup(`${manyLocations}; Remove-Item relative.txt`, "powershell", main), /states.*bound/, "state overflow refuses rather than truncates");
+assert.equal(cleanup(`${manyLocations}; Remove-Item -LiteralPath '${sibling}/plain.txt'`, "powershell", main), null, "verified absolute target is independent of uncertain location states");
+assert.equal(cleanup(`if ($false) { Set-Location '/missing-filer-1766' }; Remove-Item -LiteralPath '${sibling}/plain.txt'`, "powershell", main), null, "safe absolute literal survives unresolved flow");
+assert.ok(cleanup(`Set-Location '/missing-filer-1766'; Remove-Item node_modules/tracked.txt`, "powershell", reproduction)); preserved();
+for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+  const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command: safeLocation } });
+  const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout.trim(), "", "both complete adapters permit the supported harmless cmdlet form"); preserved();
+}
+if (process.platform === "win32") for (const command of [uncertainLocations[2], uncertainLocations[4], "Set-Location '/missing-filer-1766'; Remove-Item -LiteralPath node_modules/tracked.txt -Force"]) {
+  const r = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `${command} -WhatIf`], { cwd: reproduction, encoding: "utf8", windowsHide: true });
+  assert.match(r.stdout, /tracked\.txt/, "failed/skipped location retains the real initial cwd under WhatIf"); preserved();
+}
 for (const target of [path.dirname(external), external, `${reproduction}/node_modules/tracked.txt`]) {
   assert.ok(cleanup(`Remove-Item -LiteralPath '${target}' -Recurse`, "powershell", main), target); preserved();
 }
 assert.equal(cleanup(`Remove-Item -LiteralPath '${sibling}' -Recurse`, "powershell", main), null);
 assert.equal(cleanup(`Remove-Item -LiteralPath:'${sibling}' -Recurse`, "powershell", main), null, "colon-bound harmless sibling remains permitted");
 assert.equal(cleanup(`rm -rf ${sibling.replaceAll(path.sep, "/").replaceAll(" ", "\\ ")}`, "bash", main), null, "escaped-space harmless sibling remains permitted");
+const shortShape = path.join(scratch, "RUNNER~1", "harmless sibling");
+fs.mkdirSync(shortShape, { recursive: true });
+const shortShapeLiteral = shortShape.replaceAll(path.sep, "/"), escapedShortShape = shortShapeLiteral.replaceAll(" ", "\\ ");
+const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+const spelling = spawnSync(bash, ["-c", `printf '%s\n' ${escapedShortShape}`], { encoding: "utf8", windowsHide: true });
+assert.equal(spelling.status, 0, spelling.stderr); assert.equal(spelling.stdout.trim(), shortShapeLiteral, "embedded short-name tilde is literal in real Bash");
+assert.equal(cleanup(`rm -rf ${escapedShortShape}`, "bash", main), null, "CI short-name path shape remains permitted"); preserved();
+for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+  const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd: main, tool_input: { command: `rm -rf ${escapedShortShape}` } });
+  const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout.trim(), "", "both adapters preserve embedded-tilde escaped-space literal control"); preserved();
+}
 for (const target of [`('${sibling}')`, `@('${sibling}')`, `'FileSystem::${sibling}'`]) assert.equal(cleanup(`Remove-Item -LiteralPath ${target} -Recurse`, "powershell", main), null, "verified harmless literal form remains permitted");
 assert.equal(cleanup(`Push-Location '${sibling}'; Pop-Location; Remove-Item -LiteralPath '${sibling}' -Recurse`, "powershell", main), null, "verified location stack restores its cwd");
 assert.ok(cleanup(`Push-Location '${reproduction}'; Push-Location '${sibling}'; Pop-Location; Remove-Item -LiteralPath node_modules/tracked.txt -Force`, "powershell", main)); preserved();

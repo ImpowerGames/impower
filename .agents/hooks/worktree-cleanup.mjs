@@ -50,6 +50,7 @@ function literalArguments(tokens, shell, command) {
       const raw = command.slice(token.start, token.end).trim().replace(/,$/, "");
       const rawValue = raw.replace(/^-[A-Za-z][\w-]*:/, "");
       if (raw.startsWith("-")) text = text.replace(/^-[A-Za-z][\w-]*:/, "");
+      if (!token.quoted && (text.startsWith("@") || /[‘’“”]/.test(text))) values.error = "Splat or shell quote syntax cannot be verified";
       if (token.quoted && /^["']/.test(rawValue) && !singlePowerShellLiteral.test(rawValue)) values.error = "Combined cleanup/setup literals cannot be verified";
       if (!token.quoted && text.includes(",")) values.error = "Multiple cleanup/setup targets cannot be verified";
       if (token.group || /^@?\(/.test(text)) {
@@ -66,7 +67,7 @@ function literalArguments(tokens, shell, command) {
       } else if (/^[\w.\\]+::/.test(text) || (/^[A-Za-z][\w]*:/.test(text) && !/^[A-Za-z]:[\/\\]/.test(text))) {
         values.error = "Cleanup/setup drive or provider identity cannot be verified";
       }
-    } else if (!token.quoted && /[~{}]/.test(text)) {
+    } else if (!token.quoted && /^~|[{}]/.test(text)) {
       values.error = "Shell-expanded cleanup/setup target cannot be verified";
     }
     values.push(text);
@@ -79,8 +80,18 @@ function literalArguments(tokens, shell, command) {
 function operations(command, shell, cwd, depth = 0) {
   if (depth > 3) return [];
   const { segments, subs } = readCommand(command, shell), found = [];
-  for (const sub of subs) found.push(...operations(sub, shell, cwd, depth + 1));
-  let location = cwd, locationError = null;
+  const possibleCwds = new Set([cwd]);
+  let locationError = null, hasLocation = false;
+  const addCwd = next => {
+    if (possibleCwds.size >= 8 && !possibleCwds.has(next)) locationError = "Possible location states exceed the supported bound";
+    else possibleCwds.add(next);
+  };
+  const emit = op => found.push({ ...op, cwd, cwds: [...possibleCwds], locationError });
+  for (const sub of subs) {
+    const nested = operations(sub, shell, cwd, depth + 1);
+    found.push(...nested);
+    if (nested.hasLocation) { hasLocation = true; locationError = "Nested location flow cannot be verified"; }
+  }
   const locationStack = [];
   for (const { tokens, positions } of segments) {
     for (let i = 0; i < tokens.length; i++) {
@@ -88,50 +99,60 @@ function operations(command, shell, cwd, depth = 0) {
       if (token.quoted && isShellCommandString(tokens, i, positions)) {
         const before = programBefore(tokens, i - 1);
         const innerShell = before >= 0 && /^(pwsh|powershell)$/.test(baseName(tokens[before])) ? "powershell" : "bash";
-        found.push(...operations(token.text, innerShell, location, depth + 1));
+        for (const possible of possibleCwds) found.push(...operations(token.text, innerShell, possible, depth + 1));
       }
       const method = !token.quoted && /(?:\.|::)Delete$/i.test(token.text) && command.slice(token.end).trimStart().startsWith("(");
       if (method) {
         const methodTokens = segments.flatMap(segment => segment.tokens).filter(t => t.quoted || (t.text.includes("$") && !/^\$(true|false)$/i.test(t.text))).map(t => command.slice(t.start, t.end).endsWith(",") ? { ...t, text: t.text.replace(/,$/, "") } : t);
         const targets = literalArguments(methodTokens, shell, command);
         if (!targets.length) targets.error = "Delete method target cannot be verified";
-        found.push({ kind: "delete", cwd: location, targets, locationError });
+        emit({ kind: "delete", targets });
       }
       if (!positions.has(i)) continue;
       const args = tokens.slice(i + 1);
       const targets = literalArguments(args, shell, command);
       if (["popd", "pop-location"].includes(name)) {
-        if (args.length || !locationStack.length) locationError = "Location stack cannot be verified";
-        else location = locationStack.pop();
+        hasLocation = true;
+        if (locationStack.length) for (const previous of locationStack.pop()) addCwd(previous);
+        // A preceding push could fail or be skipped; never assume the shell's
+        // pre-existing stack is known merely because a push appears in text.
+        locationError = "Location stack restore cannot be verified";
         continue;
       }
       if (["cd", "set-location", "pushd", "push-location"].includes(name)) {
-        const target = targets.find(text => !text.startsWith("-"));
+        hasLocation = true;
+        const operands = targets.filter(text => !text.startsWith("-")), target = operands[0];
+        if (operands.length !== 1) locationError = "Location argument cardinality cannot be verified";
         if (targets.error || args.some(t => /^-stackname(?::|$)/i.test(t.text))) locationError = targets.error ?? "Named location stack cannot be verified";
         const allowedFlag = shell === "powershell" ? /^-(?:path|literalpath)(?::|$)|^-passthru$/i : name === "cd" ? /^(?:--|-L|-P)$/ : /$^/;
         if (args.some(t => t.text.startsWith("-") && !allowedFlag.test(t.text))) locationError = "Location options cannot be verified";
-        if (!target || /[`$*?]/.test(target)) locationError = "Effective location cannot be verified";
-        if (target && !/[`$]/.test(target)) {
-          const next = path.resolve(location, target);
-          try { if (!fs.statSync(next).isDirectory()) throw new Error("not a directory"); if (["pushd", "push-location"].includes(name)) locationStack.push(location); location = next; }
-          catch { locationError = `Literal location cannot be verified: ${next}`; }
+        if (!target || /[`$*?\[]/.test(target)) locationError = "Effective location cannot be verified";
+        if (target && !locationError) {
+          const prior = [...possibleCwds];
+          if (["pushd", "push-location"].includes(name)) locationStack.push(prior);
+          for (const possible of prior) {
+            const next = path.resolve(possible, target);
+            try { if (!fs.statSync(next).isDirectory()) throw new Error("not a directory"); addCwd(next); }
+            catch { locationError = `Literal location cannot be verified: ${next}`; }
+          }
         }
         continue;
       }
-      if (["rm", "rmdir", "rd", "remove-item", "del", "erase"].includes(name)) found.push({ kind: "delete", cwd: location, targets, locationError });
+      if (["rm", "rmdir", "rd", "remove-item", "del", "erase"].includes(name)) emit({ kind: "delete", targets });
       if (name === "git") {
         let k = 0;
         while (args[k]?.text.startsWith("-")) { const value = args[k].text; k += gitValueOptions.has(value) ? 2 : 1; }
-        if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) found.push({ kind: args[k + 1].text.toLowerCase() === "remove" ? "remove" : "setup", cwd: location, targets, locationError });
+        if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) emit({ kind: args[k + 1].text.toLowerCase() === "remove" ? "remove" : "setup", targets });
       }
-      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text))) || (name === "npm" && targets.some(text => /^(install|ci)$/i.test(text)))) found.push({ kind: "setup", cwd: location, targets, locationError });
+      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text))) || (name === "npm" && targets.some(text => /^(install|ci)$/i.test(text)))) emit({ kind: "setup", targets });
     }
   }
+  found.hasLocation = hasLocation;
   return found;
 }
-function inspect(op) {
+function inspectAt(op) {
   if (op.kind === "remove") return `Direct git worktree remove is refused: it can follow dependency junctions. ${route}`;
-  let roots, registryCwd = op.cwd, fromRepository = true;
+  let roots, registryCwd = op.contextKnown ? op.registryCwd : op.cwd, fromRepository = true;
   try { git(registryCwd, ["rev-parse", "--show-toplevel"]); }
   catch { registryCwd = sourceCheckout; fromRepository = false; }
   try {
@@ -163,14 +184,27 @@ function inspect(op) {
   }
   return null;
 }
+function inspect(op) {
+  const relative = op.kind === "setup" || op.targets.some(text => !text.startsWith("-") && !path.isAbsolute(text));
+  for (const cwd of relative ? op.cwds : [op.cwd]) {
+    const reason = inspectAt({ ...op, cwd, locationError: relative ? op.locationError : null });
+    if (reason) return reason;
+  }
+  return null;
+}
 export function decide(command, shell, cwd = process.cwd()) {
   if (typeof command !== "string") return null;
-  if (!["bash", "powershell"].includes(shell)) return decide(command, "bash", cwd) ?? decide(command, "powershell", cwd);
+  if (!["bash", "powershell"].includes(shell)) {
+    const { segments } = readCommand(command, "powershell");
+    const cmdlets = new Set(["remove-item", "set-location", "push-location", "pop-location", "new-item"]);
+    if (segments.some(({ tokens, positions }) => tokens.some((token, i) => positions.has(i) && cmdlets.has(baseName(token))))) return decide(command, "powershell", cwd);
+    return decide(command, "bash", cwd) ?? decide(command, "powershell", cwd);
+  }
   const ops = operations(command, shell, cwd);
   if (ops.length) {
     try {
       const top = real(git(cwd, ["rev-parse", "--show-toplevel"]));
-      for (const op of ops) op.contextKnown = true;
+      for (const op of ops) { op.contextKnown = true; op.registryCwd = cwd; }
       if (owned(top)) return `Direct setup/cleanup from an owned filing context is refused, including changed or ambiguous locations. ${route}`;
     }
     catch { /* inspect each operation's explicit location below */ }
