@@ -48,6 +48,22 @@ function positionsOf(text: string) {
   return { starts, location: read && JSON.stringify(read.expr.location), errors: read && JSON.stringify(read.errors) };
 }
 
+test("positions after an edit to and from an empty document are those of a fresh scan", () => {
+  const text = "a\n\nlocal y =\n  value\n";
+  forget();
+  for (const [before, after] of [
+    [text, ""],
+    ["", text],
+    [text, "\n"],
+    ["\n", text],
+  ]) {
+    positionsOf(before!);
+    const edited = positionsOf(after!);
+    forget();
+    expect(edited, JSON.stringify([before, after])).toEqual(positionsOf(after!));
+  }
+});
+
 test("positions after edits that insert and remove newlines are those of a fresh scan", () => {
   // A small fixed generator, so a failure reproduces.
   let seed = 1745;
