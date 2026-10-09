@@ -1163,8 +1163,9 @@ export class Game<T extends M = {}> {
       watch.pointerState = variablesState;
     } else if (!watch.pointer || watch.pointerState !== variablesState) {
       // A reset gives the story other variables, which no pointer of the
-      // earlier ones reaches (a load, which keeps them, drops the pointer
-      // itself: `loadProgramSave`).
+      // earlier ones reaches (a load, which keeps them, carries the pointer
+      // to the cell it read for the variable, or drops it:
+      // `loadProgramSave`).
       watch.pointer = null;
       watch.binding = undefined;
       watch.bindingName = watch.name;
@@ -2208,12 +2209,30 @@ export class Game<T extends M = {}> {
       runtime.pathsExecutedThisFrame = RecencySet.from(
         this.placedExecuted(program.root, runtime.pathsExecutedThisFrame.toArray()),
       );
-      program.loadSave(saveData.story);
       // A load reads the cells of captured variables anew, so no data
-      // breakpoint's pointer reaches the variable it watched any more.
-      for (const watch of this._dataWatches) {
-        watch.pointer = null;
-      }
+      // breakpoint's pointer reaches the variable it watched any more. Each
+      // watch notes how the state reaches its cell before the load, and
+      // follows the same path to the cell the load read for it; a path the
+      // loaded state does not have, or that reaches another variable's
+      // cell, leaves the watch unbound until a frame of its scope runs.
+      const variablesState = program.state.variablesState;
+      const paths = this._dataWatches.map((watch) =>
+        watch.pointer && watch.pointerState === variablesState
+          ? variablesState.PathToCell(watch.pointer)
+          : null,
+      );
+      program.loadSave(saveData.story);
+      this._dataWatches.forEach((watch, i) => {
+        const path = paths[i];
+        const cell = path
+          ? program.state.variablesState.CellAtPath(path)
+          : null;
+        watch.pointer =
+          cell && cell.variableName === watch.pointer?.variableName
+            ? cell
+            : null;
+        watch.pointerState = cell ? program.state.variablesState : null;
+      });
       // A preview waiting for its pictures would display its beat over the
       // loaded state, and record a checkpoint of it.
       this.cancelPreview();

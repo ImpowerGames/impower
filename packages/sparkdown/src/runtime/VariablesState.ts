@@ -615,6 +615,123 @@ export class VariablesState extends VariablesStateAccessor<
     return { binding, name };
   }
 
+  /** How the state reaches the upvalue cell `cell` now, or null when
+   *  nothing does: a root, which is a global (`["global", name]`) or a
+   *  temporary of a frame (`["temp", thread, frame, scope, name]`), and the
+   *  segments from it, as the anchors of `SnapshotInitTables` write them
+   *  (`".key"`, `"@mt"`, `"@cv.key"`, then `"@cell.key"` for the cell a
+   *  table holds; `"@cv"` for a closed value a root holds). The shortest
+   *  path found, globals first. A load reads every cell anew, and the same
+   *  path in the loaded state (`CellAtPath`) reaches the cell the load read
+   *  for the variable, when the save holds it where `cell` is now. */
+  public PathToCell(cell: VariablePointerValue): string[] | null {
+    const queue: { value: InkObject; path: string[] }[] = [];
+    for (const [name, value] of this._globalVariables) {
+      queue.push({ value, path: ["global", name] });
+    }
+    const threads = this._callStack?._threads ?? [];
+    threads.forEach((thread, t) => {
+      thread.callstack.forEach((element, e) => {
+        element.temporaryScopes.forEach((scope, s) => {
+          for (const [name, value] of scope) {
+            queue.push({
+              value,
+              path: ["temp", String(t), String(e), String(s), name],
+            });
+          }
+        });
+      });
+    });
+    const seen = new Set<object>();
+    for (let i = 0; i < queue.length; i++) {
+      const { value, path } = queue[i]!;
+      if (value === cell) return path;
+      // A table is its map, which more than one value can wrap.
+      const identity =
+        value instanceof ObjectValue && value.value !== null
+          ? value.value
+          : value;
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      if (value instanceof VariablePointerValue) {
+        if (value.isClosed && value.closedValue) {
+          queue.push({ value: value.closedValue, path: [...path, "@cv"] });
+        }
+        continue;
+      }
+      if (!(value instanceof ObjectValue) || !(value.value instanceof Map)) {
+        continue;
+      }
+      for (const [key, entry] of value.value as Map<string, InkObject>) {
+        if (entry === cell) return [...path, "@cell." + key];
+        if (entry instanceof ObjectValue) {
+          queue.push({ value: entry, path: [...path, "." + key] });
+        } else if (
+          entry instanceof VariablePointerValue &&
+          entry.isClosed &&
+          entry.closedValue
+        ) {
+          if (seen.has(entry)) continue;
+          seen.add(entry);
+          queue.push({
+            value: entry.closedValue,
+            path: [...path, "@cv." + key],
+          });
+        }
+      }
+      if (value.metatable) {
+        queue.push({ value: value.metatable, path: [...path, "@mt"] });
+      }
+    }
+    return null;
+  }
+
+  /** The upvalue cell the state reaches by `path` now (`PathToCell`), or
+   *  null when the path reaches none. */
+  public CellAtPath(path: readonly string[]): VariablePointerValue | null {
+    let value: InkObject | undefined;
+    let i: number;
+    if (path[0] === "global" && path.length >= 2) {
+      value = this._globalVariables.get(path[1]!);
+      i = 2;
+    } else if (path[0] === "temp" && path.length >= 5) {
+      const thread = this._callStack?._threads[Number(path[1])];
+      const element = thread?.callstack[Number(path[2])];
+      value = element?.temporaryScopes[Number(path[3])]?.get(path[4]!);
+      i = 5;
+    } else {
+      return null;
+    }
+    for (; value !== undefined && i < path.length; i++) {
+      const segment = path[i]!;
+      if (value instanceof VariablePointerValue) {
+        if (segment !== "@cv" || !value.isClosed) return null;
+        value = value.closedValue ?? undefined;
+        continue;
+      }
+      if (!(value instanceof ObjectValue) || !(value.value instanceof Map)) {
+        return null;
+      }
+      const map = value.value as Map<string, InkObject>;
+      if (segment === "@mt") {
+        value = value.metatable ?? undefined;
+      } else if (segment.startsWith(".")) {
+        value = map.get(segment.slice(1));
+      } else if (segment.startsWith("@cv.")) {
+        const held = map.get(segment.slice("@cv.".length));
+        if (!(held instanceof VariablePointerValue) || !held.isClosed) {
+          return null;
+        }
+        value = held.closedValue ?? undefined;
+      } else if (segment.startsWith("@cell.") && i === path.length - 1) {
+        value = map.get(segment.slice("@cell.".length));
+      } else {
+        return null;
+      }
+    }
+    return value instanceof VariablePointerValue ? value : null;
+  }
+
   /** The globals as they stand, by name, which an image copies
    *  (`ProgramImages`). Read only. */
   public get globalEntries(): ReadonlyMap<string, InkObject> {
