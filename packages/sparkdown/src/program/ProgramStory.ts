@@ -95,6 +95,7 @@ import {
   UNDEFINED_KIND,
   countIdOf,
   isAnonymousSymbol,
+  readableSymbolLabel,
 } from "./ProgramSymbols";
 import {
   ProgramChoice,
@@ -1714,7 +1715,7 @@ export class ProgramStory implements StoryEngine {
     }
     const frame = state.frameOf(element);
     if (frame) {
-      return this.root.labelOf(frame.symbol);
+      return readableSymbolLabel(this.root.labelOf(frame.symbol));
     }
     return this.flowName(position.sequence.flow);
   }
@@ -1789,7 +1790,10 @@ export class ProgramStory implements StoryEngine {
       frames.push({
         type: element.type,
         symbol,
-        name: frame ? this.root.labelOf(frame.symbol) : this.flowName(symbol),
+        name: frame
+          ? readableSymbolLabel(this.root.labelOf(frame.symbol))
+          : this.flowName(symbol),
+        scope: frame ? this.root.labelOf(frame.symbol) : this.flowName(symbol),
         address,
         element,
       });
@@ -2681,7 +2685,7 @@ export class ProgramStory implements StoryEngine {
           symbol,
           this.root.generation,
           isAnonymousSymbol(table, symbol) ? null : table.symbols[symbol]!,
-          this.root.labelOf(symbol),
+          readableSymbolLabel(this.root.labelOf(symbol)),
         ),
       );
       this._symbols.set(symbol, value);

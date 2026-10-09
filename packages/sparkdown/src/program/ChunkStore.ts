@@ -1609,7 +1609,7 @@ export class ChunkStore {
       }
       this._labels.set(
         plan.symbols[k]!,
-        readableLabel(statement.defines ?? functionLabel(fn)),
+        statement.defines ?? functionLabel(fn),
       );
     }
   }
@@ -4112,28 +4112,11 @@ const qualifiedFlowName = (flow: FlowBase): string | null => {
   return at ? names.join(".") : null;
 };
 
-/** How a function the compiler named is shown. */
-const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
-
-/** A name the compiler generates: `__`, its family, then a `$`, which no
- *  name an author writes holds (`__synth$3`, `__binding$...`). */
-const GENERATED_LABEL_PART = /^__[A-Za-z]\w*\$/;
-
-/** A function's qualified name as the frames view, a stack trace and
- *  `debug.info` show it: each part the compiler named read as anonymous
- *  (#1729), whether the function is one a statement writes or a binding's
- *  evaluator, which its statement defines under its generated name. */
-const readableLabel = (name: string): string =>
-  name
-    .split(".")
-    .map((part) =>
-      GENERATED_LABEL_PART.test(part) ? ANONYMOUS_FUNCTION_LABEL : part,
-    )
-    .join(".");
-
-/** The name a function a statement writes is shown by in a stack trace, as
- *  the object engine named its container: the names of the flows that hold
- *  it and its own, which the compiler gives it. */
+/** The name a function a statement writes is labelled by, as the object
+ *  engine named its container: the names of the flows that hold it and its
+ *  own, which the compiler gives it. The label is the function's identity
+ *  for data breakpoints; an author reads it through `readableSymbolLabel`,
+ *  where a generated part shows as anonymous. */
 const functionLabel = (fn: ParsedObject): string => {
   const names: string[] = [];
   let at: ParsedObject | null = fn;
