@@ -1422,4 +1422,31 @@ describe("the debugger on the program engine", () => {
       '$type="list.var"',
     ]);
   });
+
+  it("lists a table's array part before its other integer keys, up to the first hole", () => {
+    const h = debugGame(
+      [
+        "-> main", //                                                     0
+        "scene main", //                                                  1
+        "  Start.", //                                                    2
+        "  local s = {'one', 'two', name = 'n', [0] = 'zero', [4] = 'four'}", // 3
+        "  After.", //                                                    4
+        "  done", //                                                      5
+        "end", //                                                         6
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(4);
+    const s = h.game.getTempVariables().find((v) => v.name === "s")!;
+    expect(names(h.game.getChildVariables(s.variablesReference))).toEqual([
+      '1="one"',
+      '2="two"',
+      'name="n"',
+      '0="zero"',
+      '4="four"',
+    ]);
+  });
 });

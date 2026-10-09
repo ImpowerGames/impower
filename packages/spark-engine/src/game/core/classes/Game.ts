@@ -308,10 +308,11 @@ export class Game<T extends M = {}> {
 
   protected _objectVariableRefMap = new Map<number, object>();
 
-  // The records `getTableRecord` made of Luau tables. A table's keys are
-  // all its own entries, so the view reads them without the `$` metadata
-  // conventions of the other records it shows (`$type` of a list).
-  protected _tableRecords = new WeakSet<object>();
+  // The records `getTableRecord` made of Luau tables, each with its keys in
+  // the order the view lists them. A table's keys are all its own entries,
+  // so the view reads them without the `$` metadata conventions of the
+  // other records it shows (`$type` of a list).
+  protected _tableRecords = new WeakMap<object, string[]>();
 
   protected _startFrom?: {
     file: string;
@@ -3216,11 +3217,14 @@ export class Game<T extends M = {}> {
         );
       });
     } else if (typeof value === "object" && value) {
-      const isTable = this._tableRecords.has(value);
-      for (const [k, v] of Object.entries(value)) {
-        if (isTable || !k.startsWith("$")) {
+      // A table lists its keys in the order `getTableRecord` gave them; a
+      // record's own enumeration would put every integer key first.
+      const tableKeys = this._tableRecords.get(value);
+      const record = value as Record<string, unknown>;
+      for (const k of tableKeys ?? Object.keys(record)) {
+        if (tableKeys || !k.startsWith("$")) {
           variables.push(
-            this.getVariableInfo(k, v, {
+            this.getVariableInfo(k, record[k], {
               kind: "property",
               visibility: "public",
             }),
@@ -3287,8 +3291,8 @@ export class Game<T extends M = {}> {
   }
 
   /** A Luau table as the Variables view reads it: a plain record of its
-   *  entries, the array part first in order (integer keys order first in a
-   *  record), then its other keys as the table holds them. A nested table
+   *  entries; `_tableRecords` keeps its keys in order, the array part first,
+   *  then its other keys as the table holds them. A nested table
    *  becomes its own record, and a table reached again (a cycle, or one held
    *  twice) reuses the record already made, so the conversion ends; the view
    *  expands one level at a time. */
@@ -3304,8 +3308,28 @@ export class Game<T extends M = {}> {
     // other rather than a call of an inherited setter.
     const record: Record<string, unknown> = Object.create(null);
     made.set(table, record);
-    this._tableRecords.add(record);
-    for (const [key, entry] of table.value ?? []) {
+    const entries = table.value ?? new Map<string, unknown>();
+    // The array part is the keys 1, 2, 3, ... up to the first hole, as
+    // `ipairs` reads it (`arrayPortion` in the runtime's MethodDispatch);
+    // every other key follows in the order the table holds them.
+    const keys: string[] = [];
+    for (let i = 1; entries.get(String(i)) != null; i += 1) {
+      keys.push(String(i));
+    }
+    const arrayLength = keys.length;
+    for (const key of entries.keys()) {
+      const index = Number(key);
+      const inArray =
+        Number.isInteger(index) &&
+        index >= 1 &&
+        index <= arrayLength &&
+        String(index) === key;
+      if (!inArray) {
+        keys.push(key);
+      }
+    }
+    this._tableRecords.set(record, keys);
+    for (const [key, entry] of entries) {
       record[key] =
         entry instanceof ObjectValue
           ? this.getTableRecord(entry, made)
