@@ -313,8 +313,43 @@ class UnitLineIndex extends LineIndex {
 let lastIndex: LineIndex | undefined;
 
 function lineIndex(text: string): LineIndex {
-  if (lastIndex?.text !== text) lastIndex = new LineIndex(text);
+  const last = lastIndex;
+  if (last?.text === text) return last;
+  lastIndex = last ? editedLineIndex(last, text) : new LineIndex(text);
   return lastIndex;
+}
+
+/**
+ * `last`'s line starts carried over to `text`: the starts in the text both
+ * begin with are kept, those in the text both end with are shifted by the
+ * length the edit added, and only the text between is searched for newlines.
+ * A new array, since unit indexes share the last one's.
+ */
+function editedLineIndex(last: LineIndex, text: string): LineIndex {
+  const old = last.text;
+  const prefix = commonPrefixLength(old, text);
+  const suffix = commonSuffixLength(old, text, Math.min(old.length, text.length) - prefix);
+  const oldEnd = old.length - suffix;
+  const newEnd = text.length - suffix;
+  const delta = text.length - old.length;
+  const oldStarts = last.starts;
+  // A start follows its newline: one at or before `prefix` follows a newline before it.
+  const kept = last.lineAt(prefix) + 1;
+  const starts = oldStarts.slice(0, kept);
+  for (let i = text.indexOf("\n", prefix); i >= 0 && i < newEnd; i = text.indexOf("\n", i + 1)) starts.push(i + 1);
+  // A start after `oldEnd` follows a newline in the common suffix.
+  let from = kept;
+  while (from < oldStarts.length && oldStarts[from]! <= oldEnd) from++;
+  for (let i = from; i < oldStarts.length; i++) starts.push(oldStarts[i]! + delta);
+  return new LineIndex(text, starts);
+}
+
+/** How many characters `a` and `b` end with in common, up to `limit`. */
+function commonSuffixLength(a: string, b: string, limit: number): number {
+  let same = 0;
+  while (same + PREFIX_CHUNK <= limit && a.slice(a.length - same - PREFIX_CHUNK, a.length - same) === b.slice(b.length - same - PREFIX_CHUNK, b.length - same)) same += PREFIX_CHUNK;
+  while (same < limit && a.charCodeAt(a.length - same - 1) === b.charCodeAt(b.length - same - 1)) same++;
+  return same;
 }
 
 // ---------------------------------------------------------------------------
@@ -4116,12 +4151,17 @@ let lastAhead: Ahead | undefined;
 // compared natively, far faster than one character at a time.
 const PREFIX_CHUNK = 1024;
 
+// The last comparison, since the token lookups and the line index compare the same two documents after an edit.
+let lastPrefix: { a: string; b: string; same: number } | undefined;
+
 /** How many characters `a` and `b` begin with in common. */
 function commonPrefixLength(a: string, b: string): number {
+  if (lastPrefix?.a === a && lastPrefix.b === b) return lastPrefix.same;
   const length = Math.min(a.length, b.length);
   let same = 0;
   while (same + PREFIX_CHUNK <= length && a.slice(same, same + PREFIX_CHUNK) === b.slice(same, same + PREFIX_CHUNK)) same += PREFIX_CHUNK;
   while (same < length && a.charCodeAt(same) === b.charCodeAt(same)) same++;
+  lastPrefix = { a, b, same };
   return same;
 }
 
