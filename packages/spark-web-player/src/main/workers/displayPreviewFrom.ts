@@ -1,3 +1,4 @@
+import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
@@ -19,6 +20,7 @@ export interface DisplayingGame {
   routeStartOf(address: ProgramAddress): string;
   endSimulation(): void;
   load(checkpoint: string): unknown;
+  loadCheckpoint(checkpoint: StoredCheckpoint): unknown;
   connect(
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
   ): Promise<void>;
@@ -35,8 +37,10 @@ export interface DisplayRequest {
   line: number;
   speculative: boolean;
   /** The route to the point: its checkpoint when it was replayed, and why
-   *  not when it was not. */
-  checkpoint?: string;
+   *  not when it was not. The worker's route hands the checkpoint over as
+   *  the value its game holds, which loads in place; a full save loads as a
+   *  save. */
+  checkpoint?: string | StoredCheckpoint;
   simulationFailure?: SimulationFailure;
   /** Where the game sends the page what it displays. */
   send: (message: Message, transfer?: ArrayBuffer[]) => void;
@@ -84,8 +88,12 @@ export async function displayPreviewFrom(
   // The route search leaves the game simulating, and while it is, the
   // modules restore as a simulation does.
   game.endSimulation();
-  if (request.checkpoint) {
-    game.load(request.checkpoint);
+  const checkpoint = request.checkpoint;
+  if (typeof checkpoint === "string" && checkpoint) {
+    game.load(checkpoint);
+  } else if (checkpoint && typeof checkpoint === "object") {
+    // No save is written of the route's checkpoint and read back (#1758).
+    game.loadCheckpoint(checkpoint);
   } else {
     if (validPreviewAddress != null) {
       game.simulateFlow = game.routeStartOf(validPreviewAddress);

@@ -5,6 +5,7 @@ import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import {
@@ -49,8 +50,11 @@ import {
 } from "./messages/StopPlayMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
-import { RouteSearchLog } from "./RouteSearchLog";
-import { searchRouteTo } from "./searchRouteTo";
+import {
+  RouteSearchLog,
+  type RouteSearchReportTarget,
+} from "./RouteSearchLog";
+import { searchRouteFor } from "./searchRouteTo";
 import { watchExecution } from "./watchExecution";
 
 /** A program the worker's game can display, and what the route searches run
@@ -133,9 +137,12 @@ export function installPlayerWorker(connection: MessageConnection) {
   // the game starts a new one.
   let routeSearches = new RouteSearchLog();
 
-  /** Plan a route to the address `to` and replay it for the real program. */
+  /** Plan a route to the address `to` and replay it for the real program.
+   *  Every search here records its checkpoint as the value the game holds,
+   *  which a display loads in place, and whose full save is written only for
+   *  PLAY's game (#1758). */
   const searchRealRouteTo = (game: Game, to: ProgramAddress) =>
-    searchRouteTo(game, to, routeSearches, {
+    searchRouteFor(game, to, routeSearches, {
       config: compiler.config,
       profilerId: compiler.profilerId,
     });
@@ -269,8 +276,10 @@ export function installPlayerWorker(connection: MessageConnection) {
       const to = game.startAddress;
       if (to != null) {
         searchRealRouteTo(game, to);
-        // Augment with the simulated checkpoint, and with what the search
-        // established about this start point.
+        // Augment with what the search established about this start point.
+        // The checkpoint stays in the log as a value: the answer to the page
+        // leaves it out (`installSparkdownWorker`), and the display and PLAY
+        // read it there.
         routeSearches.report(params, to);
       }
     }
@@ -296,7 +305,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     profile("end", profilerId + " " + "game/setStartFrom");
     const to = game.startAddress;
     if (to != null) {
-      searchRouteTo(game, to, log, {
+      searchRouteFor(game, to, log, {
         config: compiler.config,
         profilerId,
         remember: false,
@@ -430,6 +439,16 @@ export function installPlayerWorker(connection: MessageConnection) {
     connection.postMessage(message, transfer);
   };
 
+  /** What a route search established about a point, as the display and
+   *  PLAY read it. */
+  type RouteReport = {
+    checkpoint?: string | StoredCheckpoint;
+    simulatedAddress?: ProgramAddress | null;
+    simulatedProgramId?: string;
+    simulationFailure?: any;
+    simulationErrors?: SimulationError[];
+  };
+
   /** The route to `point`'s `beat` in `entry`, with the game holding the
    *  entry's program: the search its log already holds for that path, or one
    *  run now. */
@@ -438,29 +457,25 @@ export function installPlayerWorker(connection: MessageConnection) {
     entry: DisplayableProgram,
     point: { file: string; line: number },
     beat: "first" | "last",
-  ) => {
+  ): RouteReport => {
     const to = routeGameTo(
       game,
       point,
       beat,
       entry.log,
       (searched, address) =>
-        searchRouteTo(searched, address, entry.log, {
+        searchRouteFor(searched, address, entry.log, {
           config: compiler.config,
           profilerId: compiler.profilerId,
           remember: entry.log === routeSearches,
         }),
       compiler.profilerId,
     );
-    const report: {
-      checkpoint?: string;
-      simulatedAddress?: ProgramAddress | null;
-      simulatedProgramId?: string;
-      simulationFailure?: any;
-      simulationErrors?: SimulationError[];
-    } = {};
+    const report: RouteSearchReportTarget = {};
     entry.log.report(report, to);
-    return report;
+    // The checkpoint as the log holds it, which `report` passes on only as a
+    // full save.
+    return { ...report, checkpoint: entry.log.checkpointFor(to) };
   };
 
   const display = async (
@@ -611,7 +626,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       updateGameProgram(game, entry.program);
     }
     // PLAY from a line starts at its first beat (#721).
-    const route = params.startFrom
+    const route: RouteReport = params.startFrom
       ? routeTo(game, entry, params.startFrom, "first")
       : {};
     releaseUnneeded();
@@ -626,7 +641,13 @@ export function installPlayerWorker(connection: MessageConnection) {
       running,
       params.simulationOptions,
       {
-        checkpoint: route.checkpoint,
+        // PLAY's game is a game of its own, whose story loads the route's
+        // checkpoint from its full save, written here by the game that ran
+        // the route, which holds the program it ran it in.
+        checkpoint:
+          typeof route.checkpoint === "object"
+            ? (game.checkpointJson(route.checkpoint) ?? undefined)
+            : route.checkpoint,
         address: route.simulatedAddress,
         programId: route.simulatedProgramId,
         failure: route.simulationFailure,
