@@ -1867,6 +1867,35 @@ await check("desktop story requires a visible player frame; source text and hidd
   assert.equal(f5Ready([{ event: 'parent-ready', root: '/repo' }], '/repo'), true);
 });
 
+await check("desktop story waits for every non-whitespace glyph to finish revealing", async () => {
+  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null };
+  let opacity = '0', rect = { width: 8, height: 16 }, polls = 0, revealOnSecondPoll = false;
+  const element = { style: { opacity: '1', visibility: 'visible', display: 'block' }, parentElement: null, getRootNode: () => ({ host: null }) };
+  const glyph = { style: { opacity, visibility: 'visible', display: 'inline' }, parentElement: element, matches: selector => selector === '.text_letter' };
+  const text = { textContent: 'known', parentElement: glyph };
+  element.ownerDocument = {
+    createTreeWalker() { let read = false; return { nextNode() { if (read) return null; read = true; return text; } }; },
+    createRange() { return { selectNodeContents() {}, getBoundingClientRect: () => rect }; },
+  };
+  const hit = { first() { return this; }, isVisible: async () => true, async evaluate(fn) {
+    polls++; glyph.style.opacity = revealOnSecondPoll && polls >= 2 ? '1' : opacity;
+    return Function('element', 'getComputedStyle', 'NodeFilter', 'return (' + fn.toString() + ')(element)')(element, node => node.style, { SHOW_TEXT: 4 });
+  } };
+  const frame = { url: () => 'vscode-webview://player', parentFrame: () => main, getByText: () => hit, frameElement: async () => ({ evaluate: async () => true }) };
+  const page = { mainFrame: () => main, frames: () => [main, frame] };
+  for (const value of ['0', '0.5']) {
+    opacity = value;
+    await assert.rejects(storyFrame(page, 'known', 1), /did not render/);
+  }
+  opacity = '1'; rect = { width: 0, height: 16 };
+  await assert.rejects(storyFrame(page, 'known', 1), /did not render/);
+  rect = { width: 8, height: 16 };
+  assert.equal((await storyFrame(page, 'known', 20)).frame, frame);
+  opacity = '0'; polls = 0; revealOnSecondPoll = true;
+  assert.equal((await storyFrame(page, 'known', 1000)).frame, frame);
+  assert.equal(polls, 2, 'Do not accept full DOM text before the pending glyph becomes visible');
+});
+
 await check("player input uses current canvas geometry after RUN changes the layout", async () => {
   const before = { x: 746, y: 69, width: 393, height: 798 };
   const after = { x: 746, y: 69, width: 393, height: 474 };

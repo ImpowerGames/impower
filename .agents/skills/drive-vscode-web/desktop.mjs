@@ -330,10 +330,28 @@ export async function storyFrame(page, text, timeoutMs) {
       const hit = frame.getByText(text, { exact: true }).first();
       if (await hit.isVisible().catch(() => false)) {
         const visible = await hit.evaluate(element => {
-          for (let node = element; node; node = node.parentElement ?? node.getRootNode()?.host) {
-            const style = getComputedStyle(node);
-            if (Number(style.opacity) === 0 || style.visibility === 'hidden' || style.display === 'none') return false;
+          const shown = element => {
+            for (let node = element; node; node = node.parentElement ?? node.getRootNode()?.host) {
+              const style = getComputedStyle(node);
+              if (Number(style.opacity) === 0 || style.visibility === 'hidden' || style.visibility === 'collapse' || style.display === 'none') return false;
+              // The player builds the entire line before revealing its glyphs.
+              if (node.matches?.('.text_letter') && Number(style.opacity) !== 1) return false;
+            }
+            return true;
+          };
+          if (!shown(element)) return false;
+          const document = element.ownerDocument;
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+          let text, glyphs = 0;
+          while ((text = walker.nextNode())) {
+            if (!text.textContent.trim()) continue;
+            if (!shown(text.parentElement)) return false;
+            const range = document.createRange(); range.selectNodeContents(text);
+            const box = range.getBoundingClientRect();
+            if (!(box.width > 0 && box.height > 0)) return false;
+            glyphs++;
           }
+          if (!glyphs) return false;
           return true;
         }).catch(() => false);
         let visibleFrames = visible;
