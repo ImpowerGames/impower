@@ -143,6 +143,23 @@ describe("Sequences — inline-glued form (`..keyword|a|b|c..`)", () => {
     expect([...arms].sort()).toEqual(["A", "B", "C"]);
   });
 
+  test("inline-glued plain shuffle shows one arm per pass, never its source text (#1706)", () => {
+    // Plain `shuffle` (no `queue`, `cycle` or `chain` after it) is an
+    // alternator in the glued form as it is braced, on one line and as a
+    // block. Each of the five passes shows one arm, never the line's own
+    // `..`, keyword and `|` separators.
+    const ctx = makeRuntimeStoryFromFile("sequences", "inline-glued-plain-shuffle");
+    expect(ctx.errorMessages).toEqual([]);
+    const lines = ctx.story
+      .ContinueMaximally()
+      .split("\n")
+      .filter((line) => line.length > 0);
+    expect(lines).toHaveLength(5);
+    for (const line of lines) {
+      expect(line).toMatch(/^Before [ABC] After\.$/);
+    }
+  });
+
   test("plural.category(n) is directly callable as a stdlib function", () => {
     // Authors can call `plural.category(n)` directly to get the CLDR
     // category name as a string, independent of any alternator. The

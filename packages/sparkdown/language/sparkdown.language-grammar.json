@@ -429,7 +429,7 @@
     "LEADING_GLUE": "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})",
     "INLINE_LEADING_GLUE": "(?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})",
     "ALTERNATOR_GLUE": "(?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))",
-    "INLINE_GLUED_ALTERNATOR_START": "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}+)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}){{WS}}*{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))",
+    "INLINE_GLUED_ALTERNATOR_START": "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}})(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}*|(?!(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})\\b))(?:(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})\\b)){{WS}}*{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))",
     "NL": "(?:\\r\\n|\\r|\\n)",
     "WS": "(?:[^\\S\\n\\r])",
     "WORD": "(?:[\\p{L}\\p{N}\\p{Mn}]+)",
@@ -1122,7 +1122,7 @@
       "match": "((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))"
     },
     "LuauSparkdownInlineGluedSequentialAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))((?:[^\\S\\n\\r])+)(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])+))?(\\b(?:queue|cycle|chain)\\b)((?:[^\\S\\n\\r])*)(?!(?:[^\\S\\n\\r])*[.])",
+      "begin": "((?:[^\\S\\n\\r])*)((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))((?:[^\\S\\n\\r])+)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*)|(?!(?:\\b(?:shuffle)\\b)\\b))(?:(\\b(?:queue|cycle|chain)\\b)|(?!(?:[^\\S\\n\\r])*(?:\\b(?:queue|cycle|chain)\\b)\\b))((?:[^\\S\\n\\r])*)(?!(?:[^\\S\\n\\r])*[.])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2798,7 +2798,7 @@
     "InlineTitle": {
       "tag": "monospace",
       "name": "string.display.title.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)(\\^)([:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)(\\^)([:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*|(?!(?:\\b(?:shuffle)\\b)\\b))(?:(?:\\b(?:queue|cycle|chain)\\b)|(?!(?:[^\\S\\n\\r])*(?:\\b(?:queue|cycle|chain)\\b)\\b))(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2932,7 +2932,7 @@
     "InlineHeading": {
       "tag": "regexp",
       "name": "string.display.heading.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)([$])([:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)([$])([:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*|(?!(?:\\b(?:shuffle)\\b)\\b))(?:(?:\\b(?:queue|cycle|chain)\\b)|(?!(?:[^\\S\\n\\r])*(?:\\b(?:queue|cycle|chain)\\b)\\b))(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3066,7 +3066,7 @@
     "InlineTransitional": {
       "tag": "labelName",
       "name": "string.display.transitional.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)([%])([:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)([%])([:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*|(?!(?:\\b(?:shuffle)\\b)\\b))(?:(?:\\b(?:queue|cycle|chain)\\b)|(?!(?:[^\\S\\n\\r])*(?:\\b(?:queue|cycle|chain)\\b)\\b))(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3215,7 +3215,7 @@
     "InlineWrite": {
       "tag": "definition(string)",
       "name": "string.display.write.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)([@])((?:[^\\S\\n\\r])*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)([@])((?:[^\\S\\n\\r])*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*|(?!(?:\\b(?:shuffle)\\b)\\b))(?:(?:\\b(?:queue|cycle|chain)\\b)|(?!(?:[^\\S\\n\\r])*(?:\\b(?:queue|cycle|chain)\\b)\\b))(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3369,7 +3369,7 @@
     "InlineDialogue": {
       "tag": "definition(string)",
       "name": "string.display.dialogue.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*|(?!(?:\\b(?:shuffle)\\b)\\b))(?:(?:\\b(?:queue|cycle|chain)\\b)|(?!(?:[^\\S\\n\\r])*(?:\\b(?:queue|cycle|chain)\\b)\\b))(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4167,7 +4167,7 @@
           "include": "#DisplayText"
         }
       ],
-      "end": "(?=$|(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r]))|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r]))|(?:[>]))))|(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])+)?(?:\\b(?:queue|cycle|chain)\\b)(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(])))|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:[^\\S\\n\\r])*[/]{2}(?=$|(?:[^\\S\\n\\r]))|(?:[^\\S\\n\\r])*(?:[>]))"
+      "end": "(?=$|(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r]))|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r]))|(?:[>]))))|(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*|(?!(?:\\b(?:shuffle)\\b)\\b))(?:(?:\\b(?:queue|cycle|chain)\\b)|(?!(?:[^\\S\\n\\r])*(?:\\b(?:queue|cycle|chain)\\b)\\b))(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r])*[.])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(])))|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:[^\\S\\n\\r])*[/]{2}(?=$|(?:[^\\S\\n\\r]))|(?:[^\\S\\n\\r])*(?:[>]))"
     },
     "DisplayText": {
       "patterns": [

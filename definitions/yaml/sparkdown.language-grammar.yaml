@@ -425,7 +425,7 @@ variables:
   # The `..` that opens and closes an inline alternator mid-line
   # (`.. queue|a|b ..`).
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))
-  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}+)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}){{WS}}*{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
+  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}})(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}*|(?!(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})\\b))(?:(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})\\b)){{WS}}*{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
 
   # Newline
   NL: (?:\r\n|\r|\n)
@@ -1460,6 +1460,17 @@ repository:
   #
   #   Here is some text .. queue|a|b|c .. and more text after.
   #
+  # The head takes the same keywords as the other alternator forms: an
+  # optional `shuffle` and an optional `queue`, `cycle` or `chain`, at
+  # least one of them (`.. shuffle|a|b ..` is a plain shuffle, #1706).
+  #
+  # lookaround: the head lookahead requires a standalone keyword that is
+  # not a member access (`.. queue.x`, `.. shuffle.x` stay text). Each
+  # keyword may be skipped only where it is absent, so backtracking cannot
+  # drop `shuffle` or `queue` to accept a head the full form refused
+  # (`.. shuffle queue.x` stays text) or open an alternator on no keyword.
+  # `INLINE_GLUED_ALTERNATOR_START` repeats the same head without captures.
+  #
   # Required `..` delimiters give the grammar an unambiguous scope.
   # Inside the scope, arm bodies are parsed as display content (text +
   # nested `{interp}`), with `|` separating arms.
@@ -1471,7 +1482,7 @@ repository:
   # for the arms.
 
   LuauSparkdownInlineGluedSequentialAlternatorBlock:
-    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}+))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}"
+    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}})(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*)|(?!(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})\\b))(?:({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})\\b))({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}"
     beginCaptures:
       1:
         patterns:

@@ -1,0 +1,5 @@
+x .. shuffle|a|b|c ..
+x .. shuffle | a | b .. y
+x .. shuffle.x is not an alternator
+x .. shuffle queue.x is not an alternator
+x .. shuffled is not an alternator
