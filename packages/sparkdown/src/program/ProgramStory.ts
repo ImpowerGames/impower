@@ -54,7 +54,6 @@ import {
   type SaveHeader,
   type SaveReport,
 } from "./ProgramSave";
-import { JsonSerialisation } from "../runtime/JsonSerialisation";
 import {
   ImageTracker,
   ProgramImages,
@@ -132,10 +131,6 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
-
-/** Each image's run of the declarations (`ProgramStory._tableInit`), shared
- *  by the engines of a game, as its images are. */
-const tableInits = new WeakMap<ProgramImage, object>();
 
 /** The function a symbol names, as the call handlers the two engines share
  *  read it (`FunctionTarget`): where its entry code starts, and what its
@@ -546,22 +541,9 @@ export class ProgramStory implements StoryEngine {
   capture(keyframe = false): ProgramImage {
     this.enableImages();
     const image = captureImage(this._state, this._tracker, this, keyframe);
-    if (this._tableInit) {
-      tableInits.set(image, this._tableInit);
-    }
     this.notMovedSince(image);
     return image;
   }
-
-  /** The run of the declarations whose tables the state holds: the
-   *  `VariablesState` a reset built, whose anchors (`InitTableAnchors`) name
-   *  those tables, or the one an image restored was taken with. A reset,
-   *  in this engine or in the one a later program builds, runs the
-   *  declarations again into tables of its own; an image taken before it
-   *  restores the tables of the run it was taken with, which the anchors
-   *  of the current one do not name, where a load of its save fills the
-   *  current run's (#1758, `loadImage`). */
-  protected _tableInit: object | null = null;
 
   // The image the state last was, and whether it has moved since: a step,
   // a choice taken, a path chosen, a call stack reset, or a write the
@@ -684,7 +666,6 @@ export class ProgramStory implements StoryEngine {
     this.notMovedSince(image);
     this._stateIsPristine = false;
     this._state.beatImage = null;
-    this._tableInit = tableInits.get(image) ?? null;
     return true;
   }
 
@@ -948,10 +929,6 @@ export class ProgramStory implements StoryEngine {
     const before = this.capture();
     const records: BeatRecord[] = [];
     let load: ReturnType<typeof readSave>;
-    // A load fills the tables of the declarations' current run, or makes
-    // new ones, so the beats it reads hold that run's tables; a refused load
-    // puts back `before`, and the run it was taken with.
-    this._tableInit = this._state.variablesState;
     try {
       load = readSave(
         this._state,
@@ -1003,20 +980,21 @@ export class ProgramStory implements StoryEngine {
   }
 
   /**
-   * Loads an image this engine's root took, as `loadSave` loads the save
+   * Loads an image this engine's root took in place of a load of the save
    * `saveOfImage` writes of it, without writing the save or reading it
    * (#1758): the state is the image's, a line in progress ends, and the
    * history holds the image's beat alone, with the flags and decisions a
    * save of it writes, under an image of its own, as a load captures each
    * beat it reads, so that the beats after it record nothing into the
-   * image's own record. Answers false, with nothing changed, for an image
-   * taken just after a choice, which a load takes again by raising the menu
-   * (`loadSave`), for one that names a chunk or a sequence this root does
-   * not hold, which a load places through its saved form, for one taken
-   * with tables of another run of the declarations than those the state
-   * holds (`_tableInit`), whose save a load writes into the current run's,
-   * which its anchors name, and for one that holds a table a save writes
-   * only part of (`holdsUnsavedFields`): the caller loads its save instead.
+   * image's own record. The state loaded is the image's, the state the
+   * story stood in at that beat, where a load of the save holds the save's
+   * reconstruction of it on the declarations' current run: a define's
+   * properties other than `store` ones, and the tables the story shares,
+   * follow the image (the maintainer's decision on #1758). Answers false,
+   * with nothing changed, for an image taken just after a choice, which a
+   * load takes again by raising the menu (`loadSave`), and for one that
+   * names a chunk or a sequence this root does not hold as it is, which a
+   * load places through its saved form: the caller loads its save instead.
    */
   loadImage(image: ProgramImage): boolean {
     if (this._recursiveContinueCount > 0) {
@@ -1027,9 +1005,7 @@ export class ProgramStory implements StoryEngine {
       image.afterChoice ||
       !(engine instanceof ProgramStory) ||
       engine.root !== this.root ||
-      !this.canRestore(image, false) ||
-      tableInits.get(image) !== this._tableInit ||
-      ProgramStory.holdsUnsavedFields(image)
+      !this.canRestore(image, false)
     ) {
       return false;
     }
@@ -1048,111 +1024,6 @@ export class ProgramStory implements StoryEngine {
     this._currentBeat = this.history.newest ?? null;
     this._currentAtStep = this.stepCount;
     return true;
-  }
-
-  /**
-   * Whether `image` holds a table a save writes only part of, which a load
-   * of the save can hold otherwise than the image (#1758). A save writes a
-   * define's `store` properties alone (`JsonSerialisation.WriteRuntimeObject`):
-   * - an instance a `new` made, holding a property its class does not mark
-   *   `store`, which a load makes again with its `store` properties alone,
-   *   so that the rest read the class's defaults;
-   * - a named define holding a property other than a `store` one that is no
-   *   longer what the declarations gave it (its pristine copy), whose saved
-   *   `store` properties a load merges into the table it finds, leaving the
-   *   rest as they stand there.
-   * The image keeps what was written. Such a property exists only once
-   * something wrote it, which the write barrier marks, so every one is a
-   * table on the image's chain: the keyframe copies every table ever
-   * written, and each delta those written since. Instances the declarations
-   * made, which a load fills in place, are counted too, so the answer errs
-   * towards the save.
-   */
-  static holdsUnsavedFields(image: ProgramImage): boolean {
-    const seen = new Set<ObjectValue>();
-    for (let at: ProgramImage | null = image; at; at = at.parent) {
-      for (const [table, copy] of at.tables) {
-        if (seen.has(table)) {
-          continue;
-        }
-        // The newest copy on the chain is the table as the image holds it.
-        seen.add(table);
-        const entries = copy.entries;
-        if (!entries || entries.size === 0) {
-          continue;
-        }
-        const instance = ProgramStory.isInstance(copy.metatable);
-        if (!instance && !ProgramStory.isNamedDefine(copy.metatable)) {
-          continue;
-        }
-        const stored = JsonSerialisation.collectDefineStoreNames(table);
-        if (instance) {
-          for (const key of entries.keys()) {
-            if (key !== "__iter_key_snapshot" && !stored.has(key)) {
-              return true;
-            }
-          }
-          continue;
-        }
-        // A named define: a load of the save merges its `store` properties
-        // into the table it finds, whose other properties stay as they
-        // stand, where the image puts them back as they were. The two agree
-        // while those properties hold what the declarations gave them,
-        // which the table's pristine copy holds.
-        const pristine = image.images.pristineTable(table)?.entries;
-        const keys = new Set([...entries.keys(), ...(pristine?.keys() ?? [])]);
-        for (const key of keys) {
-          if (
-            key !== "__iter_key_snapshot" &&
-            !stored.has(key) &&
-            (!pristine || entries.get(key) !== pristine.get(key))
-          ) {
-            return true;
-          }
-        }
-      }
-      if (at === image.keyframe) {
-        break;
-      }
-    }
-    return false;
-  }
-
-  // Whether a table with `metatable` is a named define, as a save
-  // classifies one (`JsonSerialisation.defineSerializationInfo`): its
-  // metatable names a define of its own.
-  protected static isNamedDefine(metatable: ObjectValue | null): boolean {
-    return (
-      metatable instanceof ObjectValue &&
-      (metatable.value as Map<string, unknown> | null)?.get(
-        JsonSerialisation.DEFINE_MARKER,
-      ) instanceof StringValue
-    );
-  }
-
-  // Whether a table with `metatable` is an instance a `new` made, as a save
-  // classifies one (`JsonSerialisation.defineSerializationInfo`): its
-  // metatable names no define of its own and indexes a table whose
-  // metatable does.
-  protected static isInstance(metatable: ObjectValue | null): boolean {
-    if (!(metatable instanceof ObjectValue)) {
-      return false;
-    }
-    const map = metatable.value as Map<string, unknown> | null;
-    if (map?.get(JsonSerialisation.DEFINE_MARKER) instanceof StringValue) {
-      return false;
-    }
-    const index = map?.get("__index");
-    if (!(index instanceof ObjectValue)) {
-      return false;
-    }
-    const indexMeta = index.metatable;
-    return (
-      indexMeta instanceof ObjectValue &&
-      (indexMeta.value as Map<string, unknown> | null)?.get(
-        JsonSerialisation.DEFINE_MARKER,
-      ) instanceof StringValue
-    );
   }
 
   /** Throws what `loadSave` would refuse a save for (`SaveRefused`): a
@@ -1285,8 +1156,6 @@ export class ProgramStory implements StoryEngine {
     };
     this.runDeclarations();
     variablesState.SnapshotDefaultGlobals();
-    // The state holds the tables this run of the declarations made.
-    this._tableInit = variablesState;
     // A global written from outside the story (`variablesState[name] = v`)
     // leaves the state no longer the one this reset built, as the deleted object
     // engine's `VariableStateDidChangeEvent` records (#1692). Registered after

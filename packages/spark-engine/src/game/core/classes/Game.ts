@@ -2296,17 +2296,22 @@ export class Game<T extends M = {}> {
 
   /**
    * Loads a checkpoint value this game's route left (`newestCheckpoint`),
-   * holding afterwards what a load of its full save (`checkpointJson`)
-   * holds, without writing the save or reading it back (#1758). The story
-   * loads the image in place (`ProgramStory.loadImage`); the module state
+   * without writing its full save (`checkpointJson`) or reading it back
+   * (#1758). The game then holds the route's state at that beat: the beat,
+   * the story's position and output, `store` values, the runtime record and
+   * the module state are what a load of the save holds, while a define's
+   * properties other than `store` ones and the tables the story shares
+   * follow the route, not the save's reconstruction of them on the
+   * declarations' current run (the maintainer's decision on #1758). The
+   * story loads the image in place (`ProgramStory.loadImage`); the module state
    * is read from the checkpoint's body; the runtime record is the
    * checkpoint's collections, with the executed positions a load of the
    * save keeps (each through its durable form, `durableExecuted` then
    * `placedExecuted`); and each data breakpoint's binding goes, as a load of
    * a save that notes no cell drops it. An image the story does not load in
-   * place (`ProgramStory.loadImage`: one taken just after a choice, in
-   * another root, or holding an instance property a save leaves out) loads
-   * through the save. Refuses, with nothing of the game changed, what a load
+   * place (`ProgramStory.loadImage`: one taken just after a choice, or one
+   * whose positions this root does not hold as they are) loads through the
+   * save. Refuses, with nothing of the game changed, what a load
    * of the save refuses; the two share their checks of the module states
    * and what they do once the story has loaded (`checkSaveModules`,
    * `finishLoad`).
