@@ -68,6 +68,14 @@ for (const control of ["\u007f", "\u0085", "\u2028", "\u2029"]) {
   assert.equal(fs.existsSync(literalMarker), false);
 }
 console.log("PASS: literal test inputs refuse missing, control, filter, option, directory and escaping paths before admission");
+const literalAlias = path.join(packageScratch, "literal-alias");
+fs.symlinkSync(literalPackage, literalAlias, process.platform === "win32" ? "junction" : "dir");
+for (const requested of ["valid.test.ts", path.join(literalPackage, "valid.test.ts"), path.join(literalAlias, "valid.test.ts")]) {
+  await assert.rejects(packageMain(["run", literalAlias, requested], {
+    vitestPath: literalChild, root: literalStore,
+    census: () => { throw new Error("valid alias reached queue admission"); },
+  }), /valid alias reached queue admission/, "valid relative, physical and aliased absolute paths reach admission");
+}
 const file = path.resolve("fixture.test.ts");
 const report = () => ({ success: true, numTotalTestSuites: 1, numPassedTestSuites: 1,
   numFailedTestSuites: 0, numPendingTestSuites: 0, numTotalTests: 1,
@@ -436,6 +444,11 @@ const literalNames = ["a.test.ts", "b.spec.tsx", "bracket[1]{brace}(group)+@!.te
 for (const name of literalNames.slice(2)) fs.writeFileSync(path.join(scratch, name), "fixture");
 assert.equal(await main(["run", scratch, ...literalNames], seam), 3);
 assert.deepEqual(read(fakeRecord).argv, vitestArguments(literalNames), "valid multiple literal files retain exact spelling and order");
+const runAlias = path.join(path.dirname(scratch), path.basename(scratch) + "-literal-run-alias");
+fs.symlinkSync(scratch, runAlias, process.platform === "win32" ? "junction" : "dir");
+const aliasFile = path.join(runAlias, "a.test.ts");
+assert.equal(await main(["run", runAlias, aliasFile], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "valid absolute package alias is forwarded unchanged");
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 
