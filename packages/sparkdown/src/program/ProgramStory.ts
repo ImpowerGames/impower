@@ -1009,10 +1009,13 @@ export class ProgramStory implements StoryEngine {
     ) {
       return false;
     }
-    // The record a save of the image writes (`saveOfImage`).
-    const beat = this.history.recordOf(image) ?? (image.beat as BeatRecord | undefined);
-    const flags = beat?.flags ?? 0;
-    const decisions = [...(beat?.decisions ?? [])];
+    // The record a save of the image writes (`saveOfImage`): the history's,
+    // or, for a beat the history no longer holds, its own record with its
+    // decisions put in this root (`recordFor`), which the engine of another
+    // program may have named in its own.
+    const beat = this.history.recordOf(image) ?? this.recordFor(image);
+    const flags = beat.flags;
+    const decisions = [...beat.decisions];
     if (!this.restoreInPlace(image, false)) {
       return false;
     }
