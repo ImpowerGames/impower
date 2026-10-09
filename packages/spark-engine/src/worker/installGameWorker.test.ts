@@ -6,6 +6,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { CreateGameMessage } from "../game/core/classes/messages/CreateGameMessage";
 import { EnableGameDebugMessage } from "../game/core/classes/messages/EnableGameDebugMessage";
+import { GetGameVariablesMessage } from "../game/core/classes/messages/GetGameVariablesMessage";
 import { PageFramedMessage } from "../game/core/classes/messages/PageFramedMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
 import { compileProgram } from "../tests/harness/compileProgram";
@@ -66,6 +67,77 @@ describe("a game the worker creates", () => {
       (address) => game.locator.locationOf(address)?.startLine,
     );
     expect(stops).toContain(line);
+  });
+});
+
+// The Variables view shows the temporaries of the frame selected in the Call
+// Stack, which the request names by its thread and frame (#1727).
+describe("a request for a game's temporaries", () => {
+  test("answers with the frame it names, and with the running frame when it names none", async () => {
+    vi.stubGlobal("self", {
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+    });
+    const source = [
+      "-> main",
+      "scene main",
+      "  local mainLoc = 111",
+      "  Main here.",
+      "  -> sub ->",
+      "  done",
+      "end",
+      "scene sub",
+      "  local subLoc = 222",
+      "  Sub here.",
+      "  More sub.",
+      "  ->->",
+      "end",
+      "",
+    ].join("\n");
+    const program = compileProgram(source);
+    const listeners: ((e: MessageEvent) => void)[] = [];
+    const answers: unknown[] = [];
+    const state = installGameWorker({
+      addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+      sendResponse: async (_message: unknown, result: unknown) => {
+        answers.push(typeof result === "function" ? await result() : result);
+      },
+      sendNotification() {},
+      postMessage() {},
+    } as any);
+    const ask = async (message: unknown) => {
+      for (const listener of listeners) {
+        listener({ data: message } as MessageEvent);
+      }
+      await Promise.resolve();
+      return answers.at(-1) as any;
+    };
+    await ask(CreateGameMessage.type.request({ program }));
+    const game = state.game!;
+    const line = source.split("\n").indexOf("  More sub.");
+    game.setBreakpoints([{ file: program.uri, line }]);
+    game.start();
+    for (let i = 0; i < 8 && game.getStackTrace(0).totalFrames < 2; i += 1) {
+      game.continue();
+    }
+    const frames = game.getStackTrace(0).stackFrames;
+    expect(frames.map((f) => [f.id, f.name])).toEqual([
+      [1, "sub"],
+      [0, "main"],
+    ]);
+    const temps = async (params: object) =>
+      (
+        await ask(
+          GetGameVariablesMessage.type.request({ scope: "temps", ...params }),
+        )
+      ).variables.map((v: { name: string; value: string }) => `${v.name}=${v.value}`);
+    // The caller's frame, selected in the Call Stack.
+    expect(await temps({ threadId: 0, frameId: 0 })).toEqual(["mainLoc=111"]);
+    expect(await temps({ threadId: 0, frameId: 1 })).toEqual(["subLoc=222"]);
+    // A request from a client that names no frame reads the running one.
+    expect(await temps({})).toEqual(["subLoc=222"]);
   });
 });
 
