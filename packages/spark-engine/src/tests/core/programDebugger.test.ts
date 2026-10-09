@@ -1359,4 +1359,39 @@ describe("the debugger on the program engine", () => {
       expect(holds).toBe(true);
     }
   });
+
+  it("shows a table's entries, its array part in order and then its keys, and a nested table's too", () => {
+    const h = debugGame(
+      [
+        "-> main", //                                      0
+        "scene main", //                                   1
+        "  Start.", //                                     2
+        "  local t = {2, 1}", //                           3
+        "  local n = {10, name = 'a', inner = {x = 1}}", // 4
+        "  After.", //                                     5
+        "  done", //                                       6
+        "end", //                                          7
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 5 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(5);
+    const temps = h.game.getTempVariables();
+    expect(names(temps).sort()).toEqual(["n={...}", "t={...}"]);
+    const t = temps.find((v) => v.name === "t")!;
+    expect(t.namedVariables).toBe(2);
+    expect(names(h.game.getChildVariables(t.variablesReference))).toEqual([
+      "1=2",
+      "2=1",
+    ]);
+    const n = temps.find((v) => v.name === "n")!;
+    const entries = h.game.getChildVariables(n.variablesReference);
+    expect(names(entries)).toEqual(["1=10", 'name="a"', "inner={...}"]);
+    const inner = entries.find((v) => v.name === "inner")!;
+    expect(names(h.game.getChildVariables(inner.variablesReference))).toEqual([
+      "x=1",
+    ]);
+  });
 });

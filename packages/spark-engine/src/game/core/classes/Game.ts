@@ -30,7 +30,10 @@ import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
 import { InkList } from "@impower/sparkdown/src/runtime/InkList";
 import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
-import { VariablePointerValue } from "@impower/sparkdown/src/runtime/Value";
+import {
+  ObjectValue,
+  VariablePointerValue,
+} from "@impower/sparkdown/src/runtime/Value";
 import type {
   VariableBinding,
   WriteWatch,
@@ -3261,9 +3264,39 @@ export class Game<T extends M = {}> {
         }
         return listValue;
       }
+      if (valueObj instanceof ObjectValue) {
+        return this.getTableRecord(valueObj, new Map());
+      }
       return valueObj.value;
     }
     return undefined;
+  }
+
+  /** A Luau table as the Variables view reads it: a plain record of its
+   *  entries, the array part first in order (integer keys order first in a
+   *  record), then its other keys as the table holds them. A nested table
+   *  becomes its own record, and a table reached again (a cycle, or one held
+   *  twice) reuses the record already made, so the conversion ends; the view
+   *  expands one level at a time. */
+  getTableRecord(
+    table: ObjectValue,
+    made: Map<ObjectValue, Record<string, unknown>>,
+  ): Record<string, unknown> {
+    const existing = made.get(table);
+    if (existing) {
+      return existing;
+    }
+    const record: Record<string, unknown> = {};
+    made.set(table, record);
+    for (const [key, entry] of table.value ?? []) {
+      record[key] =
+        entry instanceof ObjectValue
+          ? this.getTableRecord(entry, made)
+          : entry && typeof entry === "object" && "value" in entry
+            ? entry.value
+            : entry;
+    }
+    return record;
   }
 
   getVariableInfo(
