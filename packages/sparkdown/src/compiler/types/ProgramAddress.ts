@@ -6,10 +6,23 @@
  * beat share an execution position and that is what a consumer asks about.
  *
  * It is one number, a chunk id and an offset, which survives a compile for
- * every statement that was not emitted again. Before #705 the current
- * engine's address was the runtime path it named the position by, a string.
+ * every statement that was not emitted again. The deleted object engine named
+ * a position by its runtime path, a string; no producer makes one since #705,
+ * and an address is never a string (#1709).
  */
-export type ProgramAddress = number | string;
+export type ProgramAddress = number;
+
+/**
+ * Where a run starts when the line it starts from has no address of its own
+ * and none below it does (`ProgramLocator.addressAt` answers nothing): the top
+ * of the top-level content. It is no position of a program, so
+ * `ProgramLocator.locationOf` and `sceneAt` find nothing for it, a route
+ * search never reaches it, and jumping to it starts the top-level flow
+ * (docs/engine/binary-program.md, section 8). It is -1, the value the story
+ * gives `previousAddress` before a step has run, since an address is never
+ * negative.
+ */
+export const TOP_LEVEL_START: ProgramAddress = -1;
 
 /** A source range, with lines and columns counting from 0, in the script
  *  `uri`. */

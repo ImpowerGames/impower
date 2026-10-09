@@ -1,6 +1,7 @@
-import type {
-  ProgramAddress,
-  ProgramLocator,
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+  type ProgramLocator,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { rootLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
@@ -25,9 +26,12 @@ export interface StoryPositions {
   /** The addresses the story will come back to: where every open tunnel,
    *  thread and function call returns, with the position. */
   stack(): ProgramAddress[];
-  /** Moves the story to an address, or to the top of a flow named by its
-   *  qualified name (a route's start). */
-  jumpTo(target: ProgramAddress): void;
+  /** Moves the story to an address; `TOP_LEVEL_START` is the top of the
+   *  top-level content. */
+  jumpTo(address: ProgramAddress): void;
+  /** Moves the story to the top of a flow named by its qualified name (a
+   *  route's start), `"0"` for the top-level content. */
+  jumpToFlow(flow: string): void;
   /** Whether the program holds the address. */
   holds(address: ProgramAddress | null | undefined): boolean;
 }
@@ -44,15 +48,16 @@ const programPositions = (story: ProgramStory): StoryPositions => ({
     return address >= 0 ? address : undefined;
   },
   stack: () => story.stackAddresses(),
-  jumpTo: (target) => {
-    if (typeof target === "number") {
-      story.ChooseAddress(target);
+  jumpTo: (address) => {
+    if (address === TOP_LEVEL_START) {
+      story.ChoosePathString("0");
     } else {
-      story.ChoosePathString(target);
+      story.ChooseAddress(address);
     }
   },
+  jumpToFlow: (flow) => story.ChoosePathString(flow),
   holds: (address) =>
-    typeof address === "number" &&
+    address != null &&
     story.root.position(chunkOfAddress(address)) !== undefined,
 });
 

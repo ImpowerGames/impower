@@ -29,9 +29,16 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
-import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
+
+/** An address no program here holds: chunk 2^19, far past any chunk id a
+ *  test program is given. */
+const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
@@ -92,7 +99,7 @@ describe("a long scene is not mistaken for an unreachable one", () => {
     const beats = 24_000;
     const program = compileSrc(longScene(beats));
     const toPath = targetPathForLine(program, beats + 2);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     const game = newGame(program);
     const route = Game.planRoute(
@@ -125,7 +132,7 @@ describe("the declared budget decides the verdict, and decides it the same way e
   test("one advance below what the scene needs fails, and at it succeeds", () => {
     const program = compileSrc(SCENE);
     const toPath = targetPathForLine(program, 302);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     // Smallest budget that still finds the route.
     let low = 1;
@@ -180,7 +187,7 @@ describe("a budget of N permits N, not N minus one", () => {
   test("a fork-free scene plans with a single node expansion", () => {
     const program = compileSrc(longScene(20));
     const toPath = targetPathForLine(program, 22);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     // No decisions anywhere in this scene, so one expansion is the whole
     // search. If it needs two, the budget is being charged twice.
@@ -239,7 +246,7 @@ end
     const route = planRoute(
       newGame(program).story,
       "start",
-      "start.NO_SUCH_PATH",
+      NO_SUCH_ADDRESS,
       {
         stayWithinKnot: true,
         maxSteps: 5_000,
@@ -291,7 +298,7 @@ end
 
   const searchForMissingTarget = (src: string) => {
     const program = compileSrc(src);
-    planRoute(newGame(program).story, "start", "start.NO_SUCH_PATH", {
+    planRoute(newGame(program).story, "start", NO_SUCH_ADDRESS, {
       stayWithinKnot: true,
       maxSteps: 400_000,
       maxNodes: 10_000,
@@ -350,8 +357,8 @@ end
 
     const truePath = targetPathForLine(program, 7);
     const falsePath = targetPathForLine(program, 9);
-    expect(truePath).not.toBe("0");
-    expect(falsePath).not.toBe("0");
+    expect(truePath).not.toBe(TOP_LEVEL_START);
+    expect(falsePath).not.toBe(TOP_LEVEL_START);
     // The two sides really are different places in the story.
     expect(truePath).not.toBe(falsePath);
 
@@ -377,7 +384,7 @@ end
   test("a beat after the branch is still reachable", () => {
     const program = compileSrc(TWO_BRANCHES);
     const toPath = targetPathForLine(program, 11);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
     const route = Game.planRoute(
       newGame(program).story,
       program as any,

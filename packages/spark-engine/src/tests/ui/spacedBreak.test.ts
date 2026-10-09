@@ -75,7 +75,7 @@ describe("spaced `>` break", () => {
       story(`  HERO: Hi.\n  >\n  HERO: Bye.`),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(typed(harness.nextBeat())).toBe("Hi.");
 
     const pause = harness.nextBeat();
@@ -93,7 +93,7 @@ describe("spaced `>` break", () => {
   test("a break on a glued continuation keeps the cue of the line it continues", async () => {
     const harness = createHarness(story(`  HERO: Hi. ..\n  .. more > Bye.`));
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const joined = harness.nextBeat();
     expect(typed(joined)).toBe("Hi. more");
     expect(Object.keys(joined?.text ?? {}).sort()).toEqual([
@@ -121,7 +121,7 @@ describe("spaced `>` break", () => {
     await harness.ready;
     // Run the HERO line first, so a beat with another cue is what the
     // interpreter last queued.
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(cue(harness.nextBeat())).toBe("HERO");
 
     // Then jump straight to the last beat of the VILLAIN continuation.
@@ -149,7 +149,7 @@ describe("spaced `>` break", () => {
       `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  .. C ..\n  .. D > E\nend\n`,
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const joined = harness.nextBeat();
     expect(typed(joined)).toBe("A B C D");
     expect(cue(joined)).toBe("HERO");
@@ -167,7 +167,7 @@ describe("spaced `>` break", () => {
       `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  .. C > D ..\n  .. E > F\nend\n`,
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const beats = [
       harness.nextBeat(),
       harness.nextBeat(),
@@ -187,7 +187,7 @@ describe("spaced `>` break", () => {
     ]) {
       const harness = createHarness(story(body));
       await harness.ready;
-      harness.jumpTo("start");
+      harness.jumpToFlow("start");
       const joined = harness.nextBeat();
       expect(typed(joined)).toBe("A B");
       const after = harness.nextBeat();
@@ -207,7 +207,7 @@ describe("spaced `>` break", () => {
     const primed = async () => {
       const harness = createHarness(source);
       await harness.ready;
-      harness.jumpTo("start");
+      harness.jumpToFlow("start");
       // The joined beat remembers HERO for the continuation.
       expect(cue(harness.nextBeat())).toBe("HERO");
       return harness;
@@ -250,7 +250,7 @@ describe("spaced `>` break", () => {
     expect(evil.indexOf("  .. joined")).toBe(main.indexOf("  .. joined"));
     const harness = createHarness(main, 0, { scripts: { [INCLUDE]: evil } });
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(cue(harness.nextBeat())).toBe("HERO");
 
     const line = evil.split("\n").findIndex((l) => l.includes("joined"));
@@ -269,7 +269,7 @@ describe("spaced `>` break", () => {
       story(`  [[show backdrop BG]] >\n  Next.`),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
 
     const picture = harness.nextBeat();
     expect(picture?.image).toBeDefined();

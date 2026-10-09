@@ -463,7 +463,8 @@ describe("a route search on the program engine", () => {
     const search = (stateImages: boolean) => {
       const story = new ProgramStory(root);
       const before = { ...story.images.stats };
-      const plan = planRoute(story, "start", "nowhere", {
+      // A target no chunk holds, so the search runs until it is stopped.
+      const plan = planRoute(story, "start", 2 ** 40, {
         stateImages,
         maxNodes: 2000,
       });

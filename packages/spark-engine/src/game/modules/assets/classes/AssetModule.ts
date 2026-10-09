@@ -187,7 +187,7 @@ export class AssetModule extends Module<
    *  story may not have executed yet. In play, the executing address. */
   protected get anchorAddress(): ProgramAddress | null | undefined {
     const previewing = this.context.system.previewing;
-    return typeof previewing === "string" || typeof previewing === "number"
+    return typeof previewing === "number"
       ? previewing
       : this._game.executingAddress;
   }
@@ -589,7 +589,7 @@ export class AssetModule extends Module<
     flow: string,
     address: ProgramAddress | null | undefined,
   ): number {
-    if (address == null || address === "") {
+    if (address == null) {
       return -1;
     }
     const program = this._game.program;

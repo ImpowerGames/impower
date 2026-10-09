@@ -38,7 +38,7 @@ end
 async function withBackdropShowing() {
   const h = createHarness(SOURCE);
   await h.ready;
-  h.jumpTo("start");
+  h.jumpToFlow("start");
   const beat = h.nextBeat();
   await h.display(beat!, /* instant */ true);
   await flushMicrotasks();

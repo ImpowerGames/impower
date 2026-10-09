@@ -180,7 +180,7 @@ describe("a route replay", () => {
     // A target the replay never reaches, so it runs on to the story's end,
     // where the continue after the last line ends the story with nothing to
     // flush.
-    route.to = "start.nowhere";
+    route.to = 2 ** 40;
 
     const anyGame = game as any;
     let beats = 0;
@@ -253,7 +253,7 @@ describe("a game", () => {
     };
 
     game.start();
-    game.jumpTo("start");
+    game.jumpToFlow("start");
     beats.length = 0;
     game.continue();
     expect(beats).toEqual([{ text: ["Pick a door."], choices: [] }]);
