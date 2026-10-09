@@ -876,8 +876,8 @@ export class ProgramRoot {
 
   /** The address of `line` among the statements of `sequence` that start on
    *  it, of which `last` is the last, or of the statement at `last` when it
-   *  starts above the line. A line can hold several statements (a `..`
-   *  continuation and the tags written after it): the first beat is the
+   *  starts above the line. A line can hold several statements (a label
+   *  and the tags written after it): the first beat is the
    *  first statement's that puts an address on the line, and the last beat
    *  the last one's, at its last beat on the line or at its start, as a
    *  line's beats and statements run in the order they are written. */

@@ -232,15 +232,16 @@ describe("the statements a `done` leaves unreachable", () => {
   }
 });
 
-// Tags written right after the inline text of a line are a statement of their
-// own. Shortening the text before them moves them along the line, and their
-// chunk's line rows hold columns, so it is emitted again with the new ones.
+// Tags written after a label are a statement of their own (a display line's
+// tags are part of its display statement, TrailingTagBeat.test.ts). Shortening
+// the label's name moves them along the line, and their chunk's line rows hold
+// columns, so it is emitted again with the new ones.
 describe("a statement that shares its first line with another", () => {
   const filler = Array.from({ length: 6 }, (_, i) => `Filler line ${i}.`);
   const text = [
     ...filler,
-    "You see a ..",
-    ".. door in the hall# t",
+    "You see a door.",
+    "label door_in_the_hall # t",
     "After.",
     ...filler,
     "",
@@ -249,14 +250,14 @@ describe("a statement that shares its first line with another", () => {
   it("is emitted again when the statement before it on its line changes length", () => {
     const s = session({ [MAIN]: text });
     s.edit("Filler line 0.", "Filler line 0!");
-    const after = s.edit("door in the hall", "door in hall");
-    // The edited text and the tags after it.
+    const after = s.edit("door_in_the_hall", "door_in_hall");
+    // The renamed label and the tags after it.
     expect(s.store.emittedLastBuild).toBe(2);
     const cold = programCompiler(
       {
         [MAIN]: text
           .replace("Filler line 0.", "Filler line 0!")
-          .replace("door in the hall", "door in hall"),
+          .replace("door_in_the_hall", "door_in_hall"),
       },
       { seedBuiltinsIntoStory: true },
     ).compile().program.chunks!;

@@ -3437,7 +3437,7 @@ export class SparkdownCompiler {
    *  place in its script. Its syntax (the node's name, the column it starts
    *  at and its text) is read only when the store compares it. The column
    *  belongs to it because a statement that shares its first line with
-   *  another, such as tags after inline text, moves along the line when the
+   *  another, such as tags after a label, moves along the line when the
    *  other one changes, and its chunk's line rows hold columns. */
   protected statementRecord(
     block: CompiledBlock,

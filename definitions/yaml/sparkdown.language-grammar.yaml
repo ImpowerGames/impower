@@ -384,6 +384,10 @@ variables:
   IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}\b)
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
+  # A `#` run that is not a TAG_START: a line rule ends before it, while a
+  # tag that touches the line's text (`Hello# t`) stays inside the line's
+  # Annotation, so its tags are the line's own (#1710).
+  NOT_TAG_HASH: (?:[#]+[^#\s])
   COMMENT_START: (?:[-][-])
   # A `>` in display text, which may touch the words around it (`A>B`), and
   # each `>` of `>>` is one. The marks that hold a `>` are matched before it:
@@ -2678,7 +2682,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   TitleMark:
     tag: definition(punctuation)
     name: punctuation.title.mark.sd
@@ -2742,7 +2746,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   HeadingMark:
     tag: definition(punctuation)
     name: punctuation.heading.mark.sd
@@ -2806,7 +2810,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   TransitionalMark:
     tag: definition(punctuation)
     name: punctuation.transitional.mark.sd
@@ -3112,7 +3116,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   ImplicitAction:
     begin: ({{WS}}*)(?!{{END}})(?=\S)
     beginCaptures:
@@ -3127,7 +3131,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   # Action bodies share display parsing, but also expose the load directive.
   # Keep the enclosing line shapes parallel to the ordinary display rules.
   BlockActionLineContinue:
