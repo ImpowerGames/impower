@@ -412,6 +412,19 @@ export class ProgramStoryState {
    *  `NEVER_VISITED`. */
   turns: Int32Array = new Int32Array(0);
 
+  /** Hears, once a durable save of this state is written, the id the save
+   *  gave each upvalue cell it wrote (`writeSave`), or nothing. A debugger
+   *  watching a captured variable notes its cell's id, and finds the cell a
+   *  load of the save reads under that id (`cellsRead`). */
+  cellsWritten:
+    | ((cells: ReadonlyMap<VariablePointerValue, number>) => void)
+    | null = null;
+  /** Hears, once a durable save is read into this state and before its ids
+   *  are forgotten, each upvalue cell the load holds by the id the save gave
+   *  it (`readSave`), or nothing. */
+  cellsRead: ((cells: ReadonlyMap<number, VariablePointerValue>) => void) | null =
+    null;
+
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
   constructor(

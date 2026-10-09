@@ -799,12 +799,12 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
   });
 
-  // A load reads a captured variable's cell anew. The watch follows the
-  // variable it watched into the loaded state, reached the way the watched
-  // cell was reached before the load, so a builtin's call of the closure
-  // right after the load stops on its write with no frame of the closure
-  // run between steps; another closure of the same function, with a cell of
-  // its own, does not. The cases load a closure init built, whose cell the
+  // A load reads a captured variable's cell anew. A save written while the
+  // watch holds the cell names it by the id the save gave it, and the load
+  // binds the watch to the cell it read under that id, so a builtin's call
+  // of the closure right after the load stops on its write with no frame of
+  // the closure run between steps; another closure of the same function,
+  // with a cell of its own, does not. The cases load a closure init built, whose cell the
   // save anchors; one a step built and a global holds, whose cell the save
   // names by an id of its own; and one a step built and a temporary of the
   // running scene holds.
@@ -863,7 +863,11 @@ describe("the debugger on the program engine", () => {
       expect(h.game.story.currentText).toBe("First true.\n");
       expect(h.of("game/hitBreakpoint")).toHaveLength(1);
       // A save of the state, loaded back through `Game.loadProgramSave`.
-      expect(h.game.load(h.game.save())).toBe(true);
+      const save = h.game.save();
+      expect(JSON.parse(save).watchedCells).toEqual([
+        { dataId, cell: expect.any(Number) },
+      ]);
+      expect(h.game.load(save)).toBe(true);
       expect(h.game.story.currentText).toBe("First true.\n");
       // `other`'s comparator writes its own cell.
       h.game.continue();
@@ -877,44 +881,49 @@ describe("the debugger on the program engine", () => {
     });
   }
 
-  // A save written before the watch was set, and loaded after it, holds the
-  // closure where the watched one is now, with the value the variable had
-  // then: the watch follows the loaded cell, and the sort's comparator,
-  // the first write after the load, stops.
-  it("keeps a captured variable's watch across a load of a save written before the watch", () => {
+  // A save written before the watch was set names no cell for it, so a
+  // load binds the watch to none, however the loaded story reaches its
+  // closures: here `less` held another closure when the save was written,
+  // and that closure's comparator write after the load does not stop.
+  it("carries no captured variable's watch to another closure's variable across a load of a save written before the watch", () => {
     const text = [
       "-> main", //                         0
       "scene main", //                      1
       "  & less = make()", //               2
-      "  Start.", //                        3
-      "  local t = {2, 1}", //              4
-      "  & table.sort(t, less)", //         5
-      "  Sorted.", //                       6
-      "  local first = less(1, 2)", //      7
-      "  First {first}.", //                8
-      "  done", //                          9
-      "end", //                             10
-      "function make()", //                 11
-      "  local n = 0", //                   12
-      "  return function(a, b)", //         13
-      "    n = n + 1", //                   14
-      "    return a < b", //                15
-      "  end", //                           16
-      "end", //                             17
-      "store less = nil", //                18
+      "  & other = make()", //              3
+      "  Start.", //                        4
+      "  local t = {2, 1}", //              5
+      "  & table.sort(t, less)", //         6
+      "  Sorted.", //                       7
+      "  & less = other", //                8
+      "  local first = less(1, 2)", //      9
+      "  First {first}.", //                10
+      "  done", //                          11
+      "end", //                             12
+      "function make()", //                 13
+      "  local n = 0", //                   14
+      "  return function(a, b)", //         15
+      "    n = n + 1", //                   16
+      "    return a < b", //                17
+      "  end", //                           18
+      "end", //                             19
+      "store less = nil", //                20
+      "store other = nil", //               21
       "",
     ].join("\n");
     const h = debugGame(text);
     h.game.start();
     expect(h.game.story.currentText).toBe("Start.\n");
     const save = h.game.save();
+    expect(JSON.parse(save).watchedCells).toBeUndefined();
     h.game.continue();
     expect(h.game.story.currentText).toBe("Sorted.\n");
-    h.game.setBreakpoints([{ file: MAIN, line: 15 }]);
+    // The call of `less`, which holds `other`'s closure now.
+    h.game.setBreakpoints([{ file: MAIN, line: 17 }]);
     h.continueToBreakpoint();
-    expect(h.stoppedAt()).toBe(15);
+    expect(h.stoppedAt()).toBe(17);
     const n = h.game.getTempVariables().find((v) => v.name === "n")!;
-    expect(n.value).toBe("2");
+    expect(n.value).toBe("1");
     const dataId = `${n.scopePath}.${n.name}`;
     expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
@@ -923,9 +932,10 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.game.load(save)).toBe(true);
     expect(h.game.story.currentText).toBe("Start.\n");
+    // The loaded `less` is the closure the watch never watched.
     h.game.continue();
-    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
-    expect(h.stoppedAt()).toBe(15);
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.game.story.currentText).toBe("Sorted.\n");
   });
 
   // While the function that declared the variable still runs, the closure's

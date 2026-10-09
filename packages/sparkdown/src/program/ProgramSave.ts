@@ -1654,6 +1654,7 @@ class SaveWriter implements StateCodec {
     writer.WriteProperty("listings", (w) => w.WriteInjected(listings));
     writer.WriteProperty("parts", (w) => w.WriteInjected(parts));
     writer.WriteObjectEnd();
+    state.cellsWritten?.(JsonSerialisation.WrittenCells(writer));
     return writer.toString();
   }
 }
@@ -2167,6 +2168,7 @@ export const readSave = (
     reader.apply(index, plans, (beat) =>
       onBeat(Number(beat["flags"] ?? BEAT_WAITED), reader.decisionsOf(beat)),
     );
+    state.cellsRead?.(JsonSerialisation.LoadSessionCells());
   } finally {
     JsonSerialisation.ResetObjectLoadSession();
   }
