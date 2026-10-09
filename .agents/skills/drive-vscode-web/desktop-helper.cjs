@@ -15,7 +15,12 @@ exports.activate = async context => {
   const planFile = process.env.IMPOWER_VSCODE_PROBE_PLAN;
   if (!planFile) return;
   const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
-  const save = result => fs.writeFileSync(plan.result, JSON.stringify({ runId: plan.runId, ...result }, null, 2));
+  const write = (file, result) => {
+    const temporary = file + '.tmp';
+    fs.writeFileSync(temporary, JSON.stringify({ runId: plan.runId, identity: { ...plan.identity, loadedHelperSha256: crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex') }, ...result }, null, 2));
+    fs.renameSync(temporary, file);
+  };
+  const save = result => write(plan.result, { ...result, complete: true });
   context.subscriptions.push(vscode.commands.registerCommand('impower.verification.stopTasks', async () => {
     const executions = [...vscode.tasks.taskExecutions];
     await Promise.all(executions.map(execution => new Promise((resolve, reject) => {
@@ -57,7 +62,7 @@ exports.activate = async context => {
     const editor = await vscode.window.showTextDocument(document, { preview: false });
     report.document = { uri: document.uri.toString(), version: document.version, languageId: document.languageId };
     // Preserve identity before language readiness, including failed F5 builds.
-    fs.writeFileSync(plan.result + '.progress', JSON.stringify({ runId: plan.runId, ...report, phase: 'document-opened', complete: false }, null, 2));
+    write(plan.result + '.progress', { ...report, phase: 'document-opened', complete: false });
     if (document.languageId !== 'sparkdown') throw new Error('Requested script is not a Sparkdown document');
     const first = document.getText().split(/\r?\n/).findIndex(line => line.includes(plan.firstText));
     if (first < 0) throw new Error('Expected initial story text is absent from the selected script');

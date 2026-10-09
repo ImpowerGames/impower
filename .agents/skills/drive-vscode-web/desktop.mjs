@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { sourceFiles, nearestDirMtime, checkBuild, parseFlags, WORKBENCH_CONSOLE_NOISE, liveDeps, openFile } from './driver.mjs';
 import { consoleLine, partitionConsole } from '../drive-web-editor/driver.mjs';
@@ -210,7 +211,9 @@ export async function desktop(args, deps = {}) {
   fs.writeFileSync(path.join(profile, 'User/settings.json'), JSON.stringify({ 'security.workspace.trust.enabled': false, 'workbench.startupEditor': 'none', 'update.mode': 'none', 'extensions.autoUpdate': false, 'telemetry.telemetryLevel': 'off', 'window.restoreWindows': 'none', 'sparkdown-language-server.trace.server': 'verbose' }));
   fs.writeFileSync(path.join(helper, 'package.json'), JSON.stringify({ name: 'impower-verification', publisher: 'impower', version: '0.0.0', engines: { vscode: '^1.100.0' }, main: './extension.cjs', activationEvents: ['onStartupFinished'], contributes: { commands: [{ command: 'impower.verification.stopTasks', title: 'Impower Verification: Stop Owned Tasks' }, { command: 'impower.verification.startF5', title: 'Impower Verification: Start Committed F5 Configuration' }] } }));
   fs.copyFileSync(path.join(here, 'desktop-helper.cjs'), path.join(helper, 'extension.cjs'));
-  const plan = { ...options, repoRoot: root, runId: crypto.randomUUID(), extensionPath: path.join(root, 'vscode-sparkdown'), result: path.join(runDir, 'host.json'), events: path.join(runDir, 'events.jsonl') };
+  const identity = { head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), driverSha256: hash(path.join(here, 'desktop.mjs')), helperSha256: hash(path.join(here, 'desktop-helper.cjs')) };
+  report.identity = identity;
+  const plan = { ...options, identity, repoRoot: root, runId: crypto.randomUUID(), extensionPath: path.join(root, 'vscode-sparkdown'), result: path.join(runDir, 'host.json'), events: path.join(runDir, 'events.jsonl') };
   const planFile = path.join(runDir, 'plan.json');
   fs.writeFileSync(planFile, JSON.stringify(plan));
   const consoleLines = [], hostLines = [];
