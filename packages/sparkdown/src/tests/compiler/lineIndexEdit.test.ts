@@ -4,7 +4,7 @@
 // script pays for the whole script; and the positions it gives must be the
 // ones a fresh scan gives.
 import { expect, test, vi } from "vitest";
-import { luauPositionOffset, readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
+import { luauPositionOffset, noteLuauDocumentEdit, readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
 
 // An index of an empty document makes the next lookup index its document from scratch.
 const forget = () => luauPositionOffset({ line: 0, column: 0 } as never, "");
@@ -17,6 +17,7 @@ function newlineScansAfterEdit(lines: number) {
   // An edit near the end that inserts a line.
   const at = source.length - "value\n".length;
   const edited = `${source.slice(0, at)}(\n${source.slice(at)}`;
+  noteLuauDocumentEdit(source, edited, at, at, at + 2);
   let scans = 0;
   const indexOf = String.prototype.indexOf;
   const spy = vi.spyOn(String.prototype, "indexOf").mockImplementation(function (this: string, search: string, position?: number) {
@@ -58,6 +59,12 @@ test("positions after an edit to and from an empty document are those of a fresh
     ["\n", text],
   ]) {
     positionsOf(before!);
+    // The edit as narrow as these texts allow: what both begin and end with is kept.
+    let from = 0;
+    while (from < Math.min(before!.length, after!.length) && before![from] === after![from]) from++;
+    let suffix = 0;
+    while (suffix < Math.min(before!.length, after!.length) - from && before![before!.length - suffix - 1] === after![after!.length - suffix - 1]) suffix++;
+    noteLuauDocumentEdit(before!, after!, from, before!.length - suffix, after!.length - suffix);
     const edited = positionsOf(after!);
     forget();
     expect(edited, JSON.stringify([before, after])).toEqual(positionsOf(after!));
@@ -90,8 +97,15 @@ test("positions after edits that insert and remove newlines are those of a fresh
     }
     if (to < from) to = from;
     const insert = pieces[random(pieces.length)]! + (shape === 3 ? pieces[random(pieces.length)]! : "");
+    const before = text;
     text = text.slice(0, from) + insert + text.slice(to);
-    if (!text.includes("value")) text += "\nlocal y = value\n";
+    // As the registry notes each change it applies (#1750).
+    noteLuauDocumentEdit(before, text, from, to, from + insert.length);
+    if (!text.includes("value")) {
+      const unvalued = text;
+      text += "\nlocal y = value\n";
+      noteLuauDocumentEdit(unvalued, text, unvalued.length, unvalued.length, text.length);
+    }
     const edited = positionsOf(text);
     forget();
     // The fresh scan's index is the one the next edit starts from.

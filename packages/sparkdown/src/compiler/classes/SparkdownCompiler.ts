@@ -1306,10 +1306,22 @@ export class SparkdownCompiler {
     // Negative, and never reused, so neither the no-change short-circuit nor
     // `isProgramOutdated` can mistake the edited text for a real version.
     const previewVersion = --this._lastPreviewVersion;
-    const applied = this.documents.update({
-      textDocument: { uri: textDocument.uri, version: previewVersion },
-      contentChanges,
-    });
+    // What the preview's updates lower, from the suggestion's to the one that
+    // puts the text back, no compile completes, so a statement they lower
+    // anew keeps the memo a real compile completed for the lowerings after
+    // them (`StatementMemoHost.provisional`, #1757).
+    const provisional = this._memoHost.provisional;
+    this._memoHost.provisional = true;
+    let applied: boolean;
+    try {
+      applied = this.documents.update({
+        textDocument: { uri: textDocument.uri, version: previewVersion },
+        contentChanges,
+      });
+    } catch (e) {
+      this._memoHost.provisional = provisional;
+      throw e;
+    }
     if (applied) {
       this.noteDocumentEdits(textDocument.uri, contentChanges);
     }
@@ -1325,19 +1337,23 @@ export class SparkdownCompiler {
       }
     } finally {
       this._previewing = false;
-      if (applied) {
-        this.documents.update({
-          textDocument: {
-            uri: textDocument.uri,
-            version: textDocument.version,
-          },
-          contentChanges: inverse,
-        });
-        // Putting the text back is itself an edit as far as the NEXT compile is
-        // concerned: the compile above is the one it will be measured against,
-        // and that compile read the suggested text.
-        this.noteDocumentEdits(textDocument.uri, inverse);
-        this._previewedSinceCanonical = true;
+      try {
+        if (applied) {
+          this.documents.update({
+            textDocument: {
+              uri: textDocument.uri,
+              version: textDocument.version,
+            },
+            contentChanges: inverse,
+          });
+          // Putting the text back is itself an edit as far as the NEXT compile is
+          // concerned: the compile above is the one it will be measured against,
+          // and that compile read the suggested text.
+          this.noteDocumentEdits(textDocument.uri, inverse);
+          this._previewedSinceCanonical = true;
+        }
+      } finally {
+        this._memoHost.provisional = provisional;
       }
     }
     const event = {

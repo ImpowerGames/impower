@@ -1,5 +1,6 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
+import { documentString } from "../utils/documentString";
 import {
   ChangeDesc,
   ChangeSet,
@@ -599,8 +600,7 @@ export class SparkdownCombinedAnnotator {
       text.sliceString(a, Math.min(b, text.length));
     // All trivia probes in this window share the same immutable document.
     // Materialize it only when a probe needs token lookahead.
-    let source: string | undefined;
-    const document = () => source ??= text.toString();
+    const document = () => documentString(text);
     type Line = ReturnType<Text["line"]>;
     const isCode = (line: Line) => !this.holdsOnlyTrivia(tree, line, read, document);
     const previousCode = (line: Line): Line | null => {

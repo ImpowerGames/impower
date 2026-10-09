@@ -3,12 +3,14 @@ Range,
 TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 
-import { type ChangeSpec, Text } from "@codemirror/state";
+import { type ChangeSpec, type Text } from "@codemirror/state";
 import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type ChangedRange, Tree, TreeFragment } from "@lezer/common";
+import { noteLuauDocumentEdit } from "../typecheck/readLuauAst";
 import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
 import { createSparkdownParser } from "../utils/createSparkdownParser";
+import { documentString, documentText, editedDocumentText } from "../utils/documentString";
 import { profile } from "../utils/profile";
 import {
   type SparkdownAnnotatorConfigs,
@@ -30,6 +32,8 @@ interface TextDocumentState {
   tree?: Tree;
   treeFragments?: readonly TreeFragment[];
   treeVersion?: number;
+  /** The text the annotators were last given, which the next change is applied to. */
+  text?: Text;
   annotators: SparkdownCombinedAnnotator;
 }
 
@@ -141,7 +145,19 @@ export class SparkdownDocumentRegistry {
         const documentLengthBeforeChange = changeDocument.length;
         changeDocument.update([change], changeDocument.version + 1);
         const documentLengthAfterChange = changeDocument.length;
-        const text = Text.of(changeDocument.getText().split("\n"));
+        // Apply the change to the text before it rather than split the
+        // whole document again; a text that does not match the document
+        // before the change is rebuilt from scratch.
+        const text =
+          state.text && state.text.length === documentLengthBeforeChange
+            ? editedDocumentText(state.text, fromA, toA, change.text, changeDocument.getText())
+            : documentText(changeDocument.getText());
+        // The Luau readers carry what they read of the text before over to
+        // this one outside the change, rather than compare the two.
+        if (state.text) {
+          noteLuauDocumentEdit(documentString(state.text), documentString(text), fromA, toA, toB);
+        }
+        state.text = text;
         state.tree = this._parser.parse(changeDocument, state.treeFragments);
         state.treeFragments = TreeFragment.addTree(
           state.tree,
@@ -170,7 +186,8 @@ export class SparkdownDocumentRegistry {
     } else {
       // First full parse
       profile("start", this._profilerId, "fullParse", beforeDocument.uri);
-      const text = Text.of(afterDocument.getText().split("\n"));
+      const text = documentText(afterDocument.getText());
+      state.text = text;
       state.tree = this._parser.parse(afterDocument);
       state.treeFragments = TreeFragment.addTree(state.tree);
       state.annotators.create(state.tree, text, this._annotate, afterDocument.uri);
@@ -328,6 +345,7 @@ export class SparkdownDocumentRegistry {
       state.tree = undefined;
       state.treeFragments = undefined;
       state.treeVersion = undefined;
+      state.text = undefined;
       return true;
     }
     this.updateSyntaxTree(beforeDocument, syncedDocument);

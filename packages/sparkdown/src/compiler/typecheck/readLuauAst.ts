@@ -315,20 +315,22 @@ let lastIndex: LineIndex | undefined;
 function lineIndex(text: string): LineIndex {
   const last = lastIndex;
   if (last?.text === text) return last;
-  lastIndex = last ? editedLineIndex(last, text) : new LineIndex(text);
+  const edit = editTo(indexEdit, text);
+  indexEdit = undefined;
+  lastIndex = last && edit ? editedLineIndex(last, text, edit) : new LineIndex(text);
   return lastIndex;
 }
 
 /**
- * `last`'s line starts carried over to `text`: the starts in the text both
- * begin with are kept, those in the text both end with are shifted by the
- * length the edit added, and only the text between is searched for newlines.
- * A new array, since unit indexes share the last one's.
+ * `last`'s line starts carried over to `text` through `edit`: the starts in
+ * the text both begin with are kept, those in the text both end with are
+ * shifted by the length the edit added, and only the text between is
+ * searched for newlines. A new array, since unit indexes share the last one's.
  */
-function editedLineIndex(last: LineIndex, text: string): LineIndex {
+function editedLineIndex(last: LineIndex, text: string, edit: DocumentEdit): LineIndex {
   const old = last.text;
-  const prefix = commonPrefixLength(old, text);
-  const suffix = commonSuffixLength(old, text, Math.min(old.length, text.length) - prefix);
+  const prefix = edit.from;
+  const suffix = edit.suffix;
   const oldEnd = old.length - suffix;
   const newEnd = text.length - suffix;
   const delta = text.length - old.length;
@@ -344,12 +346,58 @@ function editedLineIndex(last: LineIndex, text: string): LineIndex {
   return new LineIndex(text, starts);
 }
 
-/** How many characters `a` and `b` end with in common, up to `limit`. */
-function commonSuffixLength(a: string, b: string, limit: number): number {
-  let same = 0;
-  while (same + PREFIX_CHUNK <= limit && a.slice(a.length - same - PREFIX_CHUNK, a.length - same) === b.slice(b.length - same - PREFIX_CHUNK, b.length - same)) same += PREFIX_CHUNK;
-  while (same < limit && a.charCodeAt(a.length - same - 1) === b.charCodeAt(b.length - same - 1)) same++;
-  return same;
+// ---------------------------------------------------------------------------
+// Edits
+// ---------------------------------------------------------------------------
+
+/**
+ * The edits made to the document a reader last read, since it read it: the
+ * text they led to, which begins with `from` characters of the text read
+ * and ends with its last `suffix` characters, the two not overlapping in
+ * either text. The reader carries what it read over to `text` outside
+ * those, without comparing the two texts.
+ */
+interface DocumentEdit {
+  readonly text: string;
+  readonly from: number;
+  readonly suffix: number;
+}
+
+// The edits since the line index's and the token lookups' last documents.
+let indexEdit: DocumentEdit | undefined;
+let aheadEdit: DocumentEdit | undefined;
+
+/**
+ * Notes that `after` is `before` with the characters from `from` to `toA`
+ * replaced by those from `from` to `toB` of `after`, as the document
+ * registry knows from each change it applies. A reader whose last document
+ * is `before`, or was edited into it, reads `after` by carrying over what
+ * lies outside the changes; one that reaches a document without the edits
+ * that led to it noted reads it from scratch.
+ */
+export function noteLuauDocumentEdit(before: string, after: string, from: number, toA: number, toB: number): void {
+  const suffix = before.length - toA;
+  const valid = from >= 0 && from <= toA && from <= toB && suffix >= 0 && suffix === after.length - toB;
+  indexEdit = valid ? followEdit(lastIndex?.text, indexEdit, before, after, from, suffix) : undefined;
+  aheadEdit = valid ? followEdit(lastAhead?.text, aheadEdit, before, after, from, suffix) : undefined;
+}
+
+/**
+ * A reader's edits once `before` is edited into `after`: added to those
+ * already noted when they led to `before`. Where two edits leave the texts
+ * the same, so does the two together, within the lesser of their extents.
+ * The strings compared are the registry's one string of each version
+ * (`documentString`), so each comparison is of identity.
+ */
+function followEdit(read: string | undefined, edit: DocumentEdit | undefined, before: string, after: string, from: number, suffix: number): DocumentEdit | undefined {
+  if (edit && edit.text === before) return { text: after, from: Math.min(edit.from, from), suffix: Math.min(edit.suffix, suffix) };
+  if (read !== undefined && read === before) return { text: after, from, suffix };
+  return undefined;
+}
+
+/** A reader's edits, when they lead to `text`. */
+function editTo(edit: DocumentEdit | undefined, text: string): DocumentEdit | undefined {
+  return edit && edit.text === text ? edit : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -4147,24 +4195,6 @@ const RESUME_GAP = 64;
 
 let lastAhead: Ahead | undefined;
 
-// How many characters a document is compared in at once: two strings are
-// compared natively, far faster than one character at a time.
-const PREFIX_CHUNK = 1024;
-
-// The last comparison, since the token lookups and the line index compare the same two documents after an edit.
-let lastPrefix: { a: string; b: string; same: number } | undefined;
-
-/** How many characters `a` and `b` begin with in common. */
-function commonPrefixLength(a: string, b: string): number {
-  if (lastPrefix?.a === a && lastPrefix.b === b) return lastPrefix.same;
-  const length = Math.min(a.length, b.length);
-  let same = 0;
-  while (same + PREFIX_CHUNK <= length && a.slice(same, same + PREFIX_CHUNK) === b.slice(same, same + PREFIX_CHUNK)) same += PREFIX_CHUNK;
-  while (same < length && a.charCodeAt(same) === b.charCodeAt(same)) same++;
-  lastPrefix = { a, b, same };
-  return same;
-}
-
 // How far past a token's end the lexer can have read to read it: the
 // character after it, or the 64 characters from its start that a long
 // bracket's opening is looked for in (`Tokenizer.lexOne`).
@@ -4176,13 +4206,15 @@ function aheadOf(documentText: string): Ahead {
   if (last?.text === documentText) return last;
   let kept: Token[] = [];
   let resumes: number[] = [];
-  if (last) {
+  const edit = editTo(aheadEdit, documentText);
+  aheadEdit = undefined;
+  if (last && edit) {
     // A token whose reading looked only at text before the first character
     // the edit changed is the whole document's lex's token in both
     // documents, and so is every token before it; so is a resume offset
     // the lex reached having read only such text. A token clipped at the
     // document's end ends there, past the change.
-    const limit = commonPrefixLength(last.text, documentText) - LEX_LOOKAHEAD - 1;
+    const limit = edit.from - LEX_LOOKAHEAD - 1;
     // The last document's tokens and offsets are not read again: keep them in place.
     kept = last.tokenizer.tokens;
     kept.length = countUpTo(kept, (token) => token.to, limit);
