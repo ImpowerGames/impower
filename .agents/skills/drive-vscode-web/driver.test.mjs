@@ -2000,6 +2000,36 @@ function cdpFixture({ foreignListener = false, replacement = false, remainingChi
   return { deps, record, get app() { return app; }, get connects() { return connectCount; }, get killed() { return killed; } };
 }
 
+await check("ancillary F5 screenshot failure continues and retains late valid partial host identity", async () => {
+  for (const valid of [true, false]) {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-late-progress-'));
+    assert.equal(spawnSync('git', ['init', '--quiet', repo], { windowsHide: true }).status, 0);
+    assert.equal(spawnSync('git', ['-C', repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=NUL', 'commit', '--allow-empty', '--quiet', '-m', 'fixture'], { windowsHide: true }).status, 0);
+    const project = path.join(repo, '.agents/skills/drive-vscode-web/fixtures/desktop-project'), script = path.join(project, 'project/main.sd');
+    fs.mkdirSync(path.dirname(script), { recursive: true }); fs.writeFileSync(script, 'fixture');
+    const code = path.join(repo, 'code-fixture'); fs.writeFileSync(code, 'owned fixture');
+    let clock = 0, plan, shots = 0, finalShotAfterProgress = false;
+    const child = new EventEmitter(); child.pid = 42; child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
+    const locator = { first() { return this; }, filter() { return this; }, async fill() {}, async waitFor() {}, async click() {
+      fs.writeFileSync(plan.events + '.stopped', '[]');
+      fs.writeFileSync(plan.result + '.progress', JSON.stringify({ runId: valid ? plan.runId : 'wrong-run', complete: false, phase: 'document-opened', workspaceRoot: project, document: { uri: pathToFileURL(script).href }, requests: [] }));
+    } };
+    const page = { on() {}, locator: () => locator, keyboard: { async press(key) { if (key === 'F5') fs.appendFileSync(plan.events, JSON.stringify({ event: 'task-start', name: 'F5: watch:extension' }) + '\n'); } }, async screenshot() { if (++shots === 1) throw new Error('Trigger screenshot timed out'); finalShotAfterProgress = fs.existsSync(plan.result + '.progress'); } };
+    const electron = { async launch(options) { plan = JSON.parse(fs.readFileSync(options.env.IMPOWER_VSCODE_PROBE_PLAN, 'utf8')); fs.writeFileSync(plan.events, JSON.stringify({ event: 'parent-ready', root: repo }) + '\n'); return { process: () => child, windows: () => [page], on() {}, firstWindow: async () => page, async close() { child.emit('exit', 0, null); } }; } };
+    const result = await desktop(['--code', code, '--scenario', 'f5', '--timeout', '10', '--out', path.join(repo, 'probe')], { repoRoot: repo, electron, now: () => clock, sleep: async ms => { clock += ms; } });
+    assert.equal(finalShotAfterProgress, true, 'final screenshots must follow task cleanup and late progress collection');
+    assert.equal(result.exitCode, 1); assert.ok(result.report.failed.some(error => /Trigger screenshot timed out/.test(error)));
+    if (valid) {
+      assert.equal(result.report.hostProgressCollectedDuringCleanup, true);
+      assert.equal(result.report.host.workspaceRoot, project); assert.equal(result.report.surfaces.desktop, 'verified');
+      assert.equal(result.report.surfaces.lsp, 'failed', 'partial progress cannot verify language health');
+    } else {
+      assert.equal(result.report.host, undefined); assert.notEqual(result.report.surfaces.desktop, 'verified');
+      assert.ok(result.report.failed.some(error => /Late partial host progress was not admitted/.test(error)));
+    }
+  }
+});
+
 await check("player input stops at the first visible goal and waits before retrying typing completion", async () => {
   for (const required of [1, 2]) {
     let clicks = 0, reads = 0, positions = 0;

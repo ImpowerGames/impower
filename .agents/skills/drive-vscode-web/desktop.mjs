@@ -361,6 +361,7 @@ export const DESKTOP_CONSOLE_NOISE = [
 
 export async function desktop(args, deps = {}) {
   const root = deps.repoRoot ?? path.resolve(here, '../../..');
+  const pause = deps.sleep ?? sleep, now = deps.now ?? Date.now;
   const options = desktopOptions(args, root);
   for (const [file, kind] of [[options.code, 'executable'], [options.project, 'project'], [options.script, 'script']]) {
     if (!fs.existsSync(file)) throw new Error('Missing ' + kind + ': ' + file);
@@ -436,21 +437,21 @@ export async function desktop(args, deps = {}) {
     await parent.locator('.monaco-workbench').waitFor({ timeout: options.timeoutMs });
     report.parent = { workbench: 'verified' };
     if (options.scenario === 'f5') {
-      const readyBy = Date.now() + options.timeoutMs;
+      const readyBy = now() + options.timeoutMs;
       const ready = () => fs.existsSync(plan.events) && f5Ready(fs.readFileSync(plan.events, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)), root);
-      while (!ready() && Date.now() < readyBy && !report.crash) await sleep(200);
+      while (!ready() && now() < readyBy && !report.crash) await pause(200);
       if (!ready()) throw new Error('F5 parent helper did not activate its task subscriptions for this repository');
       await parent.keyboard.press('F5');
-      await parent.screenshot({ path: path.join(runDir, 'f5-trigger.png') });
-      await sleep(2000);
+      await parent.screenshot({ path: path.join(runDir, 'f5-trigger.png'), timeout: 5000 }).catch(error => report.failed.push('F5 trigger screenshot could not be collected: ' + error.message));
+      await pause(2000);
       if (!fs.readFileSync(plan.events, 'utf8').includes('task-start')) {
         await palette(parent, 'Impower Verification: Start Committed F5 Configuration');
         report.f5.namedLaunchFallback = 'vscode.debug.startDebugging(workspace, Launch vscode-sparkdown), retaining committed preLaunchTask';
       }
       report.f5.trigger = 'F5 in impower with committed .vscode/launch.json and preLaunchTask';
     }
-    const deadline = Date.now() + options.timeoutMs;
-    while (!fs.existsSync(plan.result) && Date.now() < deadline && !report.crash) await sleep(250);
+    const deadline = now() + options.timeoutMs;
+    while (!fs.existsSync(plan.result) && now() < deadline && !report.crash) await pause(250);
     if (!fs.existsSync(plan.result)) {
       if (fs.existsSync(plan.result + '.progress')) report.host = JSON.parse(fs.readFileSync(plan.result + '.progress', 'utf8'));
       if (report.host && report.host.runId !== plan.runId) { delete report.host; throw new Error('Host progress belongs to a different run'); }
@@ -497,15 +498,24 @@ export async function desktop(args, deps = {}) {
   } finally {
     report.build = artifactEvidence(root);
     if (app) {
-      for (const page of app.windows()) await page.screenshot({ path: path.join(runDir, 'host-' + app.windows().indexOf(page) + '.png') }).catch(() => {});
       if (options.scenario === 'f5') {
         try {
           await palette(app.windows()[0], 'Impower Verification: Stop Owned Tasks');
-          const deadline = Date.now() + 15000;
-          while (!fs.existsSync(plan.events + '.stopped') && Date.now() < deadline) await sleep(200);
+          const deadline = now() + 15000;
+          while (!fs.existsSync(plan.events + '.stopped') && now() < deadline) await pause(200);
           if (!fs.existsSync(plan.events + '.stopped')) throw new Error('Task exit evidence did not arrive');
         } catch (error) { report.failed.push('Owned F5 task cleanup could not be confirmed: ' + error.message); }
       }
+      if (!report.host && fs.existsSync(plan.result + '.progress')) {
+        try {
+          const progress = JSON.parse(fs.readFileSync(plan.result + '.progress', 'utf8'));
+          if (progress.runId !== plan.runId || progress.complete !== false) throw new Error('Partial host progress identity or completeness differs from this run');
+          report.host = progress; report.hostProgressCollectedDuringCleanup = true;
+          report.surfaces.desktop = desktopIdentityFailures(progress, options).length ? 'failed' : 'verified';
+          report.surfaces.lsp = 'failed';
+        } catch (error) { report.failed.push('Late partial host progress was not admitted: ' + error.message); }
+      }
+      for (const [index, page] of app.windows().entries()) await page.screenshot({ path: path.join(runDir, 'host-' + index + '.png'), timeout: 5000 }).catch(error => report.failed.push('Final host screenshot could not be collected: ' + error.message));
       report.preShutdownNativeCrash = nativeHostCrash(hostLines.join(''));
       closing = true;
       report.shutdownStartedAt = new Date().toISOString(); persist();
