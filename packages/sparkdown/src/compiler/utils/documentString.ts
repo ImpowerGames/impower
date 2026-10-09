@@ -23,3 +23,20 @@ export function documentText(string: string): Text {
   strings.set(text, string);
   return text;
 }
+
+/**
+ * The `Text` of `before` with `from`..`to` replaced by `insert`, whose
+ * `documentString` is `string`, the whole document after the change. Only the
+ * inserted text is split, so the cost follows the change, not the document.
+ */
+export function editedDocumentText(
+  before: Text,
+  from: number,
+  to: number,
+  insert: string,
+  string: string,
+): Text {
+  const text = before.replace(from, to, Text.of(insert.split("\n")));
+  strings.set(text, string);
+  return text;
+}
