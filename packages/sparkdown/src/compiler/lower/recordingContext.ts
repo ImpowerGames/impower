@@ -84,16 +84,17 @@ const encode = (value: unknown): ContextValue => {
  * start, as a read of the document outside the statement is (#1683). The
  * name says where the code that made it stands, so a statement that an edit
  * above moves with that code reads the same, as a cold compile of the moved
- * text lowers it alike.
+ * text lowers it alike. Such a name is an identifier save for its one `$`,
+ * which no name an author writes holds; any other value, a document's path
+ * holding `__$` among them, is recorded as it is.
  */
 const placed = (value: unknown, from: number): unknown => {
   if (typeof value !== "string") {
     return value;
   }
   // value-level: a string a lowering read from the context
-  const named = value.includes("__$");
-  // value-level: a string a lowering read from the context
-  return named ? value.replace(/__\$(\d+)/g, (_, place: string) => `__$~${Number(place) - from}`) : value;
+  const name = /^(\w*__)\$(\d+)(\w*)$/.exec(value);
+  return name ? `${name[1]}$~${Number(name[2]) - from}${name[3]}` : value;
 };
 
 const sameValue = (a: ContextValue, b: ContextValue): boolean =>

@@ -1353,3 +1353,47 @@ describe("the names a loop's lowering makes from its place (#1683)", () => {
     expect([...placedNames(s.compiler)].sort()).toEqual([...placedNames(coldCompiler(s.text))].sort());
   });
 });
+
+describe("a script whose path holds what a name made from a place holds (#1683)", () => {
+  it("keeps its loops and `choose` blocks served when an edit above moves them", () => {
+    // A path a loop's lowering reads (its labels' document tag), as a line's
+    // lowering reads it, written like the place in such a name: it is a
+    // path, which the recording keeps as it is.
+    const uri = "inmemory:///scripts/chapter__$123.sd";
+    const c = programCompiler({ [uri]: loopsScript() });
+    let text = loopsScript();
+    let version = 1;
+    const edit = (find: string, replace: string) => {
+      const offset = text.indexOf(find);
+      expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+      version += 1;
+      c.compiler.updateDocument({
+        textDocument: { uri, version },
+        contentChanges: [
+          {
+            range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
+            text: replace,
+          },
+        ],
+      });
+      text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      return quietly(() => c.compile(uri).program);
+    };
+    quietly(() => c.compile(uri));
+    edit("Warm line.", "Warm line!");
+    const before = new Set(rootChunks(edit("Line one.", "Line one, edited.").chunks!));
+    const program = edit("    Line one, edited.\n", "    Line one, edited.\n    A line written above them.\n");
+    const stats = c.compiler.memoStats(uri)!;
+    const lines = stats.loweredAt.map((at) => text.slice(at, text.indexOf("\n", at)).trim());
+    // The statement written, and the statements the parse rebuilt with it.
+    expect(lines).not.toContain("while trust < 2 do");
+    expect(lines).not.toContain("for i = 1, 2 do");
+    expect(lines).not.toContain("repeat");
+    expect(lines).not.toContain("choose");
+    expect(stats.served).toBeGreaterThan(2 * FILLER.length);
+    expect(rootChunks(program.chunks!).filter((chunk) => !before.has(chunk)).length).toBeLessThanOrEqual(2);
+    const coldProgram = quietly(() => programCompiler({ [uri]: text }).compile(uri).program);
+    expect(describeRoot(program.chunks!)).toEqual(describeRoot(coldProgram.chunks!));
+    expect(diagnostics(program)).toEqual(diagnostics(coldProgram));
+  });
+});
