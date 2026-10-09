@@ -179,6 +179,12 @@ export const SET_GLOBAL = 2;
 /** The variable is a variadic function's hidden `...` local, which keeps a
  *  multiple value whole. */
 export const SET_VARARGS = 4;
+/** The assignment is the initializer of the declaration just before it: it
+ *  writes the variable that declaration bound, as the second half of one
+ *  declaration (a self-recursive `local function`, whose closure is assigned
+ *  after its name is declared, #1720). It assigns as an assignment does, and
+ *  a data breakpoint's write watch does not hear it. */
+export const SET_INITIALIZE = 8;
 
 /** `CallValue`'s `aux` when the call site does not say how many arguments it
  *  passed. */

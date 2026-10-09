@@ -110,6 +110,47 @@ describe("the writer", () => {
     ]);
   });
 
+  // A self-recursive local function in a function's body declares its name,
+  // then assigns its closure as the declaration's initializer (#1720); a
+  // local function that does not call itself is one declaring SetVar, with
+  // no initializer.
+  it("marks a self-recursive local function's closure assignment as its declaration's initializer", () => {
+    const root = chunked(
+      [
+        "function outer()",
+        "  local function f(x)",
+        "    if x > 0 then",
+        "      return f(x - 1)",
+        "    end",
+        "    return 0",
+        "  end",
+        "  local function g(x)",
+        "    return x",
+        "  end",
+        "  return f(2) + g(1)",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    // Each definition's statement code ends at the jump over the function's
+    // own code, whose entry binds the closure's captured `f` again.
+    const setVars = [...root.sequences()].flatMap((sequence) =>
+      sequence.arrays.chunks.flatMap((chunk) => {
+        const code = instructionsOf(root, chunk);
+        const jump = code.findIndex((i) => i.startsWith("Jump "));
+        return code
+          .slice(0, jump < 0 ? code.length : jump)
+          .filter((i) => i.startsWith("SetVar f") || i.startsWith("SetVar g"));
+      }),
+    );
+    expect(setVars).toEqual([
+      "SetVar f flags 1",
+      // SET_INITIALIZE
+      "SetVar f flags 8",
+      "SetVar g flags 1",
+    ]);
+  });
+
   it("emits a table with a computed key as each key and value, then MakeTable", () => {
     expect(code('local a = 5\nlocal t = { x = 1, [a + 1] = "six" }\n')[1]).toEqual([
       'Str "x"',

@@ -53,7 +53,8 @@ export type VariableBinding =
  *  assignment to a temporary, to a closed upvalue cell, or to a global
  *  (docs/engine/binary-program.md, section 9: a data breakpoint). A
  *  temporary's declaration binds a new variable, so it is not a write to
- *  one; a global's writes the one global of its name. */
+ *  one, and neither is the initializer that completes it (`SET_INITIALIZE`);
+ *  a global's writes the one global of its name. */
 export type WriteWatch = (binding: VariableBinding, name: string) => void;
 
 export class VariablesState extends VariablesStateAccessor<
@@ -556,7 +557,14 @@ export class VariablesState extends VariablesStateAccessor<
       contextIndex,
       scopeIndex,
     );
-    if (this.writeWatch !== null && !varAss.isNewDeclaration) {
+    // A declaration binds a new variable, and its initializer (a
+    // self-recursive `local function`'s closure, #1720) completes it: neither
+    // writes a variable that was there before.
+    if (
+      this.writeWatch !== null &&
+      !varAss.isNewDeclaration &&
+      !varAss.isInitializer
+    ) {
       this.writeWatch(scope, name);
     }
   }
