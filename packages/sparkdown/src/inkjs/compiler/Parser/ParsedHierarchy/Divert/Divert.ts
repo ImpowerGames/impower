@@ -31,7 +31,10 @@ import {
   isLoopInternal,
   loopExitOf,
 } from "../../../../../compiler/lower/utils/statementShape";
-import { FUNCTION_DIVERT } from "../../../../../compiler/utils/unsupportedConstructMessage";
+import {
+  FUNCTION_DIVERT,
+  functionDivertMessage,
+} from "../../../../../compiler/utils/unsupportedConstructMessage";
 
 export class Divert extends ParsedObject {
   public readonly args: Expression[] = [];
@@ -669,10 +672,8 @@ export class Divert extends ParsedObject {
         !(this.parent instanceof DivertTarget)
       ) {
         super.Error(
-          targetFlow.identifier +
-            " can't be diverted to. It can only be called as a function since it's been marked as such: '" +
-            targetFlow.identifier +
-            "(...)'",
+          functionDivertMessage(targetFlow.identifier?.name ?? ""),
+          this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this,
         );
       }
     }
@@ -789,6 +790,16 @@ export class Divert extends ParsedObject {
     }
 
     const targetFlow = asOrNull(this.targetContent, FlowBase);
+
+    // A divert to a function is reported once, on its target, by
+    // `ResolveWith` (#1708); its arguments are not checked on top of that.
+    if (
+      targetFlow?.isFunction &&
+      !this.isFunctionCall &&
+      !(this.parent instanceof DivertTarget)
+    ) {
+      return;
+    }
 
     // No error, crikey!
     if (numArgs === 0 && (targetFlow === null || !targetFlow.hasParameters)) {

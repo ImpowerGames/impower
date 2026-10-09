@@ -9,6 +9,12 @@ export const CHOICE_OUTSIDE_CHOOSE_MESSAGE =
  *  diverted to (`Divert.EmitProgram`). */
 export const FUNCTION_DIVERT = "a divert to a function";
 
+/** The one error a divert to the function `name` reports, on its target
+ *  (`Divert.ResolveWith`, #1708): the unsupported-construct message for
+ *  `FUNCTION_DIVERT`, naming the function. */
+export const functionDivertMessage = (name: string): string =>
+  `A function can't be diverted to: call \`${name}\` instead, as \`& ${name}()\` on a line of its own or \`{${name}()}\` in a line.`;
+
 /**
  * The error a compile reports at a statement that holds a construct the
  * program has no emit path for, named as the program's build names it
