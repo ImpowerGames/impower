@@ -72,6 +72,8 @@ export interface UIHarness {
   /** Reset the story to an address so subsequent `nextBeat()` calls start
    *  there. (The screen tree is already built by `connect()`'s onConnected.) */
   jumpTo(address: ProgramAddress): void;
+  /** Reset the story to the top of a flow named by its qualified name. */
+  jumpToFlow(flow: string): void;
   /** Run one story beat and return the real interpreter `Instructions`. */
   nextBeat(): Instructions | undefined;
   /** Fan a beat's text/image/audio out through the real module methods,
@@ -347,6 +349,9 @@ export function createHarness(
     },
     jumpTo(address: ProgramAddress) {
       game.jumpTo(address);
+    },
+    jumpToFlow(flow: string) {
+      game.jumpToFlow(flow);
     },
     nextBeat() {
       const interpreter: any = game.module.interpreter;

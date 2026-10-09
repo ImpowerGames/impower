@@ -208,8 +208,7 @@ export const captureProgramAssets = (
   for (const capture of captures.values()) {
     const keys = new Map<SceneBeat, [number, number, number]>();
     for (const beat of capture.beats) {
-      const at =
-        typeof beat.address === "number" ? root.locationOf(beat.address) : undefined;
+      const at = root.locationOf(beat.address);
       if (at && !scripts.has(at.uri)) {
         scripts.set(at.uri, scripts.size);
       }

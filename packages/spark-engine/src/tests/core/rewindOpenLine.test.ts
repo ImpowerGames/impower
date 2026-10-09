@@ -249,7 +249,7 @@ describe("letting go of a line the story cannot finish", () => {
     const before = p.advances();
     p.capAdvances(baseline + 100_000);
 
-    expect(() => p.game.jumpTo("a")).not.toThrow();
+    expect(() => p.game.jumpToFlow("a")).not.toThrow();
     expect(p.midLine()).toBe(false);
     // A jump re-declares globals like a reset does, and does nothing else.
     expect(p.advances() - before).toBe(baseline);
@@ -471,7 +471,7 @@ describe("ordinary content is unaffected", () => {
       return lines;
     };
 
-    game.jumpTo("start");
+    game.jumpToFlow("start");
     const first = readAll();
     expect(first).toEqual([
       "The first thing that happens.",
@@ -479,7 +479,7 @@ describe("ordinary content is unaffected", () => {
       "The third thing that happens.",
     ]);
 
-    game.jumpTo("start");
+    game.jumpToFlow("start");
     expect(readAll()).toEqual(first);
   }, 300_000);
 });

@@ -47,7 +47,7 @@ describe("the loading layout", () => {
   it("is what `-> load` lowers to: a load beat before the divert", async () => {
     const h = createHarness(STORY, 0, { assets: ASSETS, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("A");
+    h.jumpToFlow("A");
     const first = h.nextBeat();
     expect(first?.text).toBeDefined();
     const second = h.nextBeat();
