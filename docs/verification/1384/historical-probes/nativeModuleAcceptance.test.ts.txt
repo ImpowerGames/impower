@@ -1,0 +1,67 @@
+import { createHash } from "node:crypto";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { runNativePortedCase, sourceChecksOf, type PortedCase } from "./typecheck/portedCases";
+
+// Pinned Luau 7d5f73364fdbbaa984fa545071630eba73cfea98,
+// tests/TypeInfer.modules.test.cpp:802, BuiltinsFixture.
+// Each literal includes its original leading newline and final four spaces.
+const moduleA = `
+        --!strict
+        local module = {}
+
+        function module.foo()
+            return 2
+        end
+
+        function module.bar()
+            local m = require(game.B)
+            return m.foo() + 1
+        end
+
+        return module
+    `;
+const moduleB = `
+        --!strict
+        local module = {}
+
+        function module.foo()
+            return 2
+        end
+
+        function module.bar()
+            local m = require(game.A)
+            return m.foo() + 1
+        end
+
+        return module
+    `;
+
+const originalCase: PortedCase = {
+  name: "cycles_dont_make_everything_any",
+  fixture: "BuiltinsFixture",
+  source: moduleA,
+  module: "game/A",
+  // Registration does not perform check(B). A is supplied by the entry source.
+  moduleSources: { "game/B": moduleB },
+  // Sole original assertion. Keep actual diagnostics; upstream asserts no count.
+  expect: [{ moduleReturn: true, module: "game/B", equals: "module" }],
+};
+
+// No case-body cycle flag override: the shared all-Luau-flags-on configuration
+// enables LuauCyclicRequireTypeInference. Both root returns make this component
+// ineligible for combined SCC inference, as in pinned Frontend.cpp1213–1257.
+// The official frontend supplies the real sequential/cycle-metadata path.
+// Do not turn a require syntax failure (#879) into parse-only or raw-native success.
+beforeEach(() => vi.stubEnv("LUAU_TYPECHECK_AREAS", "TypeInfer.modules.test.cpp"));
+afterEach(() => vi.unstubAllEnvs());
+const required = () => { throw Error("required original #1384 acceptance case skipped"); };
+const sha = (source: string) => createHash("sha256").update(source, "utf8").digest("hex");
+
+it(originalCase.name, async () => {
+  const sources = sourceChecksOf(originalCase);
+  expect(sources).toHaveLength(1);
+  expect(sources[0]!.check.source).toBe(moduleA);
+  expect(sha(moduleA)).toBe("c6ad5cd2e10cdfac72dd2a3759bc65b8aac8c44445f53cad9843c6af8888c974");
+  expect(sha(moduleB)).toBe("ca2edcf866d1fd36bad23ca054cb8f0dc81e191763490239b8753a5edfcfb95a");
+  await runNativePortedCase("TypeInfer.modules.test.cpp", originalCase, required);
+});
