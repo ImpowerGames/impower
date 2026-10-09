@@ -54,6 +54,7 @@ import {
   type SaveHeader,
   type SaveReport,
 } from "./ProgramSave";
+import { JsonSerialisation } from "../runtime/JsonSerialisation";
 import {
   ImageTracker,
   ProgramImages,
@@ -988,9 +989,10 @@ export class ProgramStory implements StoryEngine {
    * beat it reads, so that the beats after it record nothing into the
    * image's own record. Answers false, with nothing changed, for an image
    * taken just after a choice, which a load takes again by raising the menu
-   * (`loadSave`), and for one that names a chunk or a sequence this root
-   * does not hold, which a load places through its saved form: the caller
-   * loads its save instead.
+   * (`loadSave`), for one that names a chunk or a sequence this root does
+   * not hold, which a load places through its saved form, and for one that
+   * holds a table a save writes only part of (`holdsUnsavedFields`): the
+   * caller loads its save instead.
    */
   loadImage(image: ProgramImage): boolean {
     if (this._recursiveContinueCount > 0) {
@@ -1001,7 +1003,8 @@ export class ProgramStory implements StoryEngine {
       image.afterChoice ||
       !(engine instanceof ProgramStory) ||
       engine.root !== this.root ||
-      !this.canRestore(image, false)
+      !this.canRestore(image, false) ||
+      ProgramStory.holdsUnsavedFields(image)
     ) {
       return false;
     }
@@ -1020,6 +1023,72 @@ export class ProgramStory implements StoryEngine {
     this._currentBeat = this.history.newest ?? null;
     this._currentAtStep = this.stepCount;
     return true;
+  }
+
+  /**
+   * Whether `image` holds a table a save writes only part of, which a load
+   * of the save holds otherwise than the image: an instance a `new` made
+   * holding a property its class does not mark `store`. A save writes an
+   * instance's `store` properties alone, and a load makes an instance the
+   * story made after its declarations again with those alone, so that the
+   * rest read the class's defaults (`JsonSerialisation.WriteRuntimeObject`),
+   * where the image keeps what was written (#1758). An instance holds such
+   * a property only once something wrote it, which the write barrier marks,
+   * so every one is a table on the image's chain: the keyframe copies every
+   * table ever written, and each delta those written since. Instances the
+   * declarations made, which a load gives the saved properties in place,
+   * are counted too, so the answer errs towards the save.
+   */
+  static holdsUnsavedFields(image: ProgramImage): boolean {
+    const seen = new Set<ObjectValue>();
+    for (let at: ProgramImage | null = image; at; at = at.parent) {
+      for (const [table, copy] of at.tables) {
+        if (seen.has(table)) {
+          continue;
+        }
+        // The newest copy on the chain is the table as the image holds it.
+        seen.add(table);
+        const entries = copy.entries;
+        if (!entries || entries.size === 0 || !ProgramStory.isInstance(copy.metatable)) {
+          continue;
+        }
+        const stored = JsonSerialisation.collectDefineStoreNames(table);
+        for (const key of entries.keys()) {
+          if (key !== "__iter_key_snapshot" && !stored.has(key)) {
+            return true;
+          }
+        }
+      }
+      if (at === image.keyframe) {
+        break;
+      }
+    }
+    return false;
+  }
+
+  // Whether a table with `metatable` is an instance a `new` made, as a save
+  // classifies one (`JsonSerialisation.defineSerializationInfo`): its
+  // metatable names no define of its own and indexes a table whose
+  // metatable does.
+  protected static isInstance(metatable: ObjectValue | null): boolean {
+    if (!(metatable instanceof ObjectValue)) {
+      return false;
+    }
+    const map = metatable.value as Map<string, unknown> | null;
+    if (map?.get(JsonSerialisation.DEFINE_MARKER) instanceof StringValue) {
+      return false;
+    }
+    const index = map?.get("__index");
+    if (!(index instanceof ObjectValue)) {
+      return false;
+    }
+    const indexMeta = index.metatable;
+    return (
+      indexMeta instanceof ObjectValue &&
+      (indexMeta.value as Map<string, unknown> | null)?.get(
+        JsonSerialisation.DEFINE_MARKER,
+      ) instanceof StringValue
+    );
   }
 
   /** Throws what `loadSave` would refuse a save for (`SaveRefused`): a

@@ -2303,31 +2303,25 @@ export class Game<T extends M = {}> {
    * checkpoint's collections, with the executed positions a load of the
    * save keeps (each through its durable form, `durableExecuted` then
    * `placedExecuted`); and each data breakpoint's binding goes, as a load of
-   * a save that notes no cell drops it. An image the story loads only
-   * through its saved form (one taken just after a choice, or in another
-   * root) loads through the save. Refuses, with nothing of the game
-   * changed, what a load of the save refuses.
+   * a save that notes no cell drops it. An image the story does not load in
+   * place (`ProgramStory.loadImage`: one taken just after a choice, in
+   * another root, or holding an instance property a save leaves out) loads
+   * through the save. Refuses, with nothing of the game changed, what a load
+   * of the save refuses; the two share their checks of the module states
+   * and what they do once the story has loaded (`checkSaveModules`,
+   * `finishLoad`).
    */
   loadCheckpoint(checkpoint: StoredCheckpoint): boolean {
     const program = this._story;
     const image = checkpoint.image as ProgramImage;
     try {
       // Read before anything changes, as `loadProgramSave` reads the save.
-      const saveData: SaveData = JSON.parse(checkpoint.body);
-      const isRecord = (value: unknown) =>
-        typeof value === "object" && value !== null && !Array.isArray(value);
-      if (!isRecord(saveData.modules)) {
-        throw new Error("The save holds no module states to load");
-      }
-      for (const k of this._moduleNames) {
-        if (this._modules[k] && !isRecord(saveData.modules[k])) {
-          throw new Error(`The save holds no state for the module ${k}`);
-        }
-      }
       if (!this.writesImage(image)) {
         // A load of the save, which is no save, would refuse it.
         throw new Error("The save holds no story to load");
       }
+      const saveData: SaveData = JSON.parse(checkpoint.body);
+      this.checkSaveModules(saveData);
       const rt = checkpoint.runtime;
       const runtime = RuntimeState.of({
         pe: this.placedExecuted(program.root, this.durableExecuted(rt.pe)),
@@ -2344,26 +2338,49 @@ export class Game<T extends M = {}> {
         watch.pointer = null;
         watch.pointerState = null;
       }
-      // A preview waiting for its pictures would display its beat over the
-      // loaded state, and record a checkpoint of it.
-      this.cancelPreview();
-      this.restoreReactiveTracking();
-      for (const k of this._moduleNames) {
-        const module = this._modules[k];
-        if (module) {
-          module.load(saveData.modules[k]);
-        }
-      }
-      this._runtimeState = runtime;
-      if (saveData.simulatedFrom) {
-        this._simulation = "success";
-        this._simulateFlow = saveData.simulatedFrom;
-      }
+      this.finishLoad(saveData, runtime);
       return true;
     } catch (e) {
       this.log(e, "error");
     }
     return false;
+  }
+
+  /** Throws what a load refuses a save's module states for: no record of
+   *  them, or a module of the game's without a state, each an object, as
+   *  `save` writes them. What a module's state holds is the module's to
+   *  read. */
+  protected checkSaveModules(saveData: SaveData): void {
+    const isRecord = (value: unknown) =>
+      typeof value === "object" && value !== null && !Array.isArray(value);
+    if (!isRecord(saveData.modules)) {
+      throw new Error("The save holds no module states to load");
+    }
+    for (const k of this._moduleNames) {
+      if (this._modules[k] && !isRecord(saveData.modules[k])) {
+        throw new Error(`The save holds no state for the module ${k}`);
+      }
+    }
+  }
+
+  /** What a load does once its story has loaded, which cannot fail: a
+   *  waiting preview goes, and the modules and the runtime record load. */
+  protected finishLoad(saveData: SaveData, runtime: RuntimeState): void {
+    // A preview waiting for its pictures would display its beat over the
+    // loaded state, and record a checkpoint of it.
+    this.cancelPreview();
+    this.restoreReactiveTracking();
+    for (const k of this._moduleNames) {
+      const module = this._modules[k];
+      if (module) {
+        module.load(saveData.modules[k]);
+      }
+    }
+    this._runtimeState = runtime;
+    if (saveData.simulatedFrom) {
+      this._simulation = "success";
+      this._simulateFlow = saveData.simulatedFrom;
+    }
   }
 
   /**
@@ -2386,16 +2403,7 @@ export class Game<T extends M = {}> {
       if (typeof saveData?.story !== "string" || !saveData.story) {
         throw new Error("The save holds no story to load");
       }
-      const isRecord = (value: unknown) =>
-        typeof value === "object" && value !== null && !Array.isArray(value);
-      if (!isRecord(saveData.modules)) {
-        throw new Error("The save holds no module states to load");
-      }
-      for (const k of this._moduleNames) {
-        if (this._modules[k] && !isRecord(saveData.modules[k])) {
-          throw new Error(`The save holds no state for the module ${k}`);
-        }
-      }
+      this.checkSaveModules(saveData);
       if (typeof saveData.runtime !== "string") {
         throw new Error("The save holds no runtime record to load");
       }
@@ -2455,21 +2463,7 @@ export class Game<T extends M = {}> {
         watch.pointer = cell ?? null;
         watch.pointerState = cell ? program.state.variablesState : null;
       }
-      // A preview waiting for its pictures would display its beat over the
-      // loaded state, and record a checkpoint of it.
-      this.cancelPreview();
-      this.restoreReactiveTracking();
-      for (const k of this._moduleNames) {
-        const module = this._modules[k];
-        if (module) {
-          module.load(saveData.modules[k]);
-        }
-      }
-      this._runtimeState = runtime;
-      if (saveData.simulatedFrom) {
-        this._simulation = "success";
-        this._simulateFlow = saveData.simulatedFrom;
-      }
+      this.finishLoad(saveData, runtime);
       return true;
     } catch (e) {
       this.log(e, "error");
