@@ -4,7 +4,7 @@
 import { expect, test, vi } from "vitest";
 import { Text } from "@codemirror/state";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
-import { nextLuauToken, readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
+import { lexLuauDocumentForTesting, nextLuauToken, readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
 
 // The lookups keep the last document's tokens; a lookup in an empty
 // document makes the next one lex its document from the start.
@@ -33,6 +33,44 @@ test.each([
   }
 });
 
+/**
+ * What the lexer reads from the document (its comment test at the start of
+ * each token or comment, `text.startsWith("--", i)`) for a lookup after an
+ * edit in the last of `lines` comment lines: comments leave no token behind,
+ * so only what the lexer records of its way through them can spare it
+ * reading them again.
+ */
+function scansBelowComments(lines: number) {
+  const head = `local x = 1\n${"-- note\n".repeat(lines)}`;
+  const source = `${head}-- edit me\nvalue\n`;
+  forget();
+  // The cache has read the whole document before the edit.
+  expect(nextLuauToken(source.length, source)).toBeNull();
+  const at = head.length + "-- edit".length;
+  const edited = `${source.slice(0, at)}s${source.slice(at)}`;
+  let scans = 0;
+  const startsWith = String.prototype.startsWith;
+  const spy = vi.spyOn(String.prototype, "startsWith").mockImplementation(function (this: string, search: string, position?: number) {
+    if (search === "--" && this.length === edited.length) scans++;
+    return startsWith.call(this, search, position);
+  });
+  try {
+    // From the end of the edited line, as the window looks up.
+    expect(nextLuauToken(edited.indexOf("\n", at), edited)).toEqual({ text: "value", from: edited.lastIndexOf("value") });
+  } finally {
+    spy.mockRestore();
+  }
+  return scans;
+}
+
+test("an edit below a long run of comments reads only near the edit", () => {
+  const long = scansBelowComments(1000);
+  const longer = scansBelowComments(4000);
+  console.log("lookup below comments", JSON.stringify({ long, longer }));
+  expect(longer).toBeLessThanOrEqual(long + 2);
+  expect(longer).toBeLessThan(60);
+});
+
 test("lookups after edits read the tokens a lex of the whole edited document gives", () => {
   // A small fixed generator, so a failure reproduces.
   let seed = 1724;
@@ -41,28 +79,42 @@ test("lookups after edits read the tokens a lex of the whole edited document giv
     return seed % n;
   };
   const pieces = ["-", "[", "]", "=", "'", '"', "\n", " ", "x", "1", ".", "--", "[[", "]]", "--[==[", "]==]", "local y = ", "Hello there"];
+  // Runs of comments and blank lines longer than the lex's resume gap, so
+  // edits also resume from between two tokens.
+  const trivia = (i: number) => `-- ${"a long comment ".repeat(6)}${i}\n\n${" ".repeat(70)}\n--[==[ ${"block ".repeat(14)}]==]\n`;
   let source = Array.from({ length: 40 }, (_, i) =>
-    i % 3 === 0 ? `local v${i} = ${i} -- c${i}\n` : i % 3 === 1 ? `The hero's [[path]] ${i}.\n` : `--[=[ long ${i}\n]=] x${i} = "s${i}"\n`).join("");
+    i % 4 === 0 ? `local v${i} = ${i} -- c${i}\n` : i % 4 === 1 ? `The hero's [[path]] ${i}.\n` : i % 4 === 2 ? `--[=[ long ${i}\n]=] x${i} = "s${i}"\n` : trivia(i)).join("");
+  type Step = { source: string; probes: number[]; bound: number; found: unknown };
+  const lookups = ({ source, probes, bound }: Omit<Step, "found">) => ({
+    tokens: probes.map((from) => nextLuauToken(from, source)),
+    expression: readLuauExpressionAfter(probes[0]!, source),
+    bounded: readLuauExpressionAfter(probes[1]!, source, bound),
+  });
+  // One chain of edits, each looked up with the tokens carried over from
+  // the lookups after the edits before it, as an editing session does.
+  forget();
+  const steps: Step[] = [];
   for (let step = 0; step < 200; step++) {
-    const previous = source;
     const at = random(source.length + 1);
     const removed = random(4) === 0 ? random(8) : 0;
     source = source.slice(0, at) + (random(3) === 0 ? "" : pieces[random(pieces.length)]) + source.slice(at + removed);
-    const probes = Array.from({ length: 6 }, () => random(source.length + 1));
+    // Some lookups near the edit, some anywhere.
+    const probes = Array.from({ length: 6 }, (_, i) => i % 2 === 0 ? Math.min(source.length, at + random(80)) : random(source.length + 1));
     const bound = Math.min(source.length, probes[1]! + 40);
-    const lookups = () => ({
-      tokens: probes.map((from) => nextLuauToken(from, source)),
-      expression: readLuauExpressionAfter(probes[0]!, source),
-      bounded: readLuauExpressionAfter(probes[1]!, source, bound),
-    });
-    // The whole edited document's tokens, lexed from its start.
+    steps.push({ source, probes, bound, found: lookups({ source, probes, bound }) });
+  }
+  // Each edited document's tokens, lexed whole with no cache, give the
+  // tokens looked up; the expressions read again from an emptied cache are
+  // the ones read with the tokens carried over.
+  for (const { found, ...step } of steps) {
+    const tokens = lexLuauDocumentForTesting(step.source);
+    const next = (from: number) => {
+      const token = tokens.find((candidate) => candidate.from >= from);
+      if (!token) return null;
+      return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0], from: token.from };
+    };
     forget();
-    const expected = lookups();
-    // The same lookups with tokens carried over from the document before
-    // the edit, lexed as far as one lookup in it went.
-    forget();
-    nextLuauToken(random(previous.length + 1), previous);
-    expect(lookups()).toEqual(expected);
+    expect(found).toEqual({ ...lookups(step), tokens: step.probes.map(next) });
   }
 });
 

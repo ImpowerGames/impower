@@ -4098,7 +4098,17 @@ interface Ahead {
   readonly text: string;
   readonly tokenizer: AheadTokenizer;
   at: number;
+  /**
+   * Offsets, ascending, that the lex passed between two tokens: where an
+   * edit's lex can go on from when comments or whitespace, which leave no
+   * token, stand between the last token it keeps and the edit.
+   */
+  readonly resumes: number[];
 }
+
+// How far the lex goes past its last token or resume offset, reading only
+// comments and whitespace, before it records another resume offset.
+const RESUME_GAP = 64;
 
 let lastAhead: Ahead | undefined;
 
@@ -4125,38 +4135,54 @@ function aheadOf(documentText: string): Ahead {
   const last = lastAhead;
   if (last?.text === documentText) return last;
   let kept: Token[] = [];
+  let resumes: number[] = [];
   if (last) {
     // A token whose reading looked only at text before the first character
     // the edit changed is the whole document's lex's token in both
-    // documents, and so is every token before it. A token clipped at the
+    // documents, and so is every token before it; so is a resume offset
+    // the lex reached having read only such text. A token clipped at the
     // document's end ends there, past the change.
     const limit = commonPrefixLength(last.text, documentText) - LEX_LOOKAHEAD - 1;
-    const tokens = last.tokenizer.tokens;
-    let count = 0;
-    let hi = tokens.length;
-    while (count < hi) {
-      const mid = (count + hi) >> 1;
-      if (tokens[mid]!.to <= limit) count = mid + 1;
-      else hi = mid;
-    }
-    // The last document's tokens are not read again: keep them in place.
-    tokens.length = count;
-    kept = tokens;
+    // The last document's tokens and offsets are not read again: keep them in place.
+    kept = last.tokenizer.tokens;
+    kept.length = countUpTo(kept, (token) => token.to, limit);
+    resumes = last.resumes;
+    resumes.length = countUpTo(resumes, (offset) => offset, limit);
   }
-  const ahead: Ahead = { text: documentText, tokenizer: new AheadTokenizer(documentText, kept), at: kept[kept.length - 1]?.to ?? 0 };
+  const at = Math.max(kept[kept.length - 1]?.to ?? 0, resumes[resumes.length - 1] ?? 0);
+  const ahead: Ahead = { text: documentText, tokenizer: new AheadTokenizer(documentText, kept), at, resumes };
   lastAhead = ahead;
   return ahead;
+}
+
+/** How many of `items`, ascending by `offset`, have an offset no greater than `limit`. */
+function countUpTo<T>(items: readonly T[], offset: (item: T) => number, limit: number): number {
+  let count = 0;
+  let hi = items.length;
+  while (count < hi) {
+    const mid = (count + hi) >> 1;
+    if (offset(items[mid]!) <= limit) count = mid + 1;
+    else hi = mid;
+  }
+  return count;
 }
 
 /** The tokens of `documentText`, lexed at least until one begins at or after `target` or the document ends. */
 function lexAhead(documentText: string, target: number): Token[] {
   const ahead = aheadOf(documentText);
   const tokens = ahead.tokenizer.tokens;
+  const resumes = ahead.resumes;
   const end = documentText.length;
   while (ahead.at < end) {
     const last = tokens[tokens.length - 1];
     if (last && last.from >= target) break;
+    const count = tokens.length;
     ahead.at = ahead.tokenizer.lexOne(ahead.at, end);
+    // Past only comments and whitespace since the last token or offset
+    // recorded: record where the lex is, which is between two tokens.
+    if (tokens.length === count && ahead.at < end && ahead.at - Math.max(last?.to ?? 0, resumes[resumes.length - 1] ?? 0) >= RESUME_GAP) {
+      resumes.push(ahead.at);
+    }
   }
   return tokens;
 }
@@ -4171,6 +4197,16 @@ function firstFrom(tokens: readonly Token[], from: number): number {
     else hi = mid;
   }
   return lo;
+}
+
+/**
+ * The tokens a lex of the whole document gives, from start to end, with no
+ * cache: what the lookups' tokens must agree with, for their tests.
+ */
+export function lexLuauDocumentForTesting(documentText: string): readonly { kind: string; text: string; from: number; to: number }[] {
+  const tokenizer = new AheadTokenizer(documentText, []);
+  tokenizer.lex(0, documentText.length);
+  return tokenizer.tokens;
 }
 
 /** The next token as Luau reads it, past whitespace and comments. */
