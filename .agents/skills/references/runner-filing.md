@@ -8,3 +8,17 @@ The resolve-issue [outstanding work](../resolve-issue/references/follow-ups.md) 
 | Codex       | A fresh `codex exec` process per item on the installation's lowest-cost model at low reasoning effort, with the same prompt body as the Claude definition; await process exit. |
 
 The prompt for one item carries its `file:line`, one sentence on the symptom, the base commit, the PR number and the instruction to report the issue number or `Not filed` with the reason. The writer reads every filed ticket back before recording it in the PR body. When the runner offers no such route, the writer runs the sweep itself as the reference describes.
+
+## Checked reproduction lifecycle
+
+Both routes use `scripts/filer-worktree.mjs` from the main checkout. Include this lifecycle in each item's prompt, including the stable filing session identity as `--owner`:
+
+```sh
+node scripts/filer-worktree.mjs create --root <absolute-main-checkout> --owner <filing-session>
+node scripts/filer-worktree.mjs check --record <absolute-owner.json> --owner <filing-session>
+node scripts/filer-worktree.mjs remove --record <absolute-owner.json> --owner <filing-session>
+```
+
+Create returns the worktree, branch, ownership record and private artifacts directory outside checkouts. It installs dependencies independently with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`; tooling-only filing adds `--tooling-only` to create and can later use `install --record ... --owner ...`. Never borrow another checkout's install. Ordinary workspace links whose physical targets stay inside this worktree are allowed. Keep repro evidence in the returned artifacts directory, restore only your repro changes, and stop owned servers before cleanup. Removal verifies ownership and the unchanged initial commit, delegates to guarded clean-worktrees removal, verifies the tree and registration disappeared, then removes the unchanged owned branch. Dirty, live, external-link or uncertain ownership refusals preserve work for a person; report the record path and reason and never choose another deletion call. Artifacts remain for evidence.
+
+The shared native hook and the other runner's adapter refuse direct `git worktree remove`, and recognized direct deletion or dependency/worktree setup in an owned filing checkout. Literal deletion targets in registered checkouts are checked for external links. These are supported tool-shell checks: variable-based calls outside an owned checkout, aliases, and indirect scripts executed by another runtime are outside their coverage. They do not sandbox arbitrary code. The lifecycle helper repeats physical link and ownership checks regardless of hook availability; no recursive install scan runs for unrelated shell commands.

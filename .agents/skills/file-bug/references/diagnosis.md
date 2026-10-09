@@ -4,6 +4,8 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 2. Build the reproduction
 
+Delegated filing uses the [checked reproduction lifecycle](../../references/runner-filing.md#checked-reproduction-lifecycle) for its isolated worktree, independent dependencies, ownership artifacts and guarded cleanup.
+
 The technique here is adapted from Matt Pocock's diagnosing-bugs skill (github.com/mattpocock/skills, MIT): build a tight pass/fail signal first, then minimise. The repo has three seams that reach most bugs. Any report, from a person or from a reviewer subagent, is a claim to reproduce before filing; a reviewer's finding gets the same loop as a user's.
 
 Host the repro where a harness already exists, and say in the ticket which one: a package that has tests takes a test, the editor takes a `.sd` script through the driver. Standing up a harness for a package that has none is resolve-issue's job, not this skill's; a repro for such a package is a script or a driver probe, and the ticket says the package has no test setup. Copy repro syntax from a passing fixture rather than from memory; a repro written from recalled syntax fails on the syntax and reads as the bug.
