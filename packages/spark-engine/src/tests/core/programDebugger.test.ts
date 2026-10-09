@@ -555,6 +555,52 @@ describe("the debugger on the program engine", () => {
     },
   );
 
+  // Both functions show as `<anonymous>` (#1729); each keeps a scope of
+  // its own, so a data breakpoint on one's local is not the other's.
+  it("keeps the data breakpoint of one anonymous function's temporary off another's of the same name", () => {
+    const text = [
+      "-> main", //                    0
+      "scene main", //                 1
+      "  local first = function()", // 2
+      "    local n = 0", //            3
+      "    n = n + 1", //              4
+      "    return n", //               5
+      "  end", //                      6
+      "  local second = function()", // 7
+      "    local n = 0", //            8
+      "    n = n + 2", //              9
+      "    return n", //               10
+      "  end", //                      11
+      "  Start.", //                   12
+      "  local b = second()", //       13
+      "  local a = first()", //        14
+      "  Got {a} {b}.", //             15
+      "  done", //                     16
+      "end", //                        17
+      "",
+    ].join("\n");
+    const paused = debugGame(text);
+    paused.game.setBreakpoints([{ file: MAIN, line: 9 }]);
+    paused.game.start();
+    paused.continueToBreakpoint();
+    expect(paused.stoppedAt()).toBe(9);
+    expect(paused.frames().stackFrames[0]!.name).toBe("<anonymous>");
+    const n = paused.game.getTempVariables().find((v) => v.name === "n")!;
+    const dataId = `${n.scopePath}.${n.name}`;
+    const h = debugGame(text);
+    const set = h.game.setDataBreakpoints([{ dataId }]);
+    expect(set[0]!.verified).toBe(true);
+    expect(set[0]!.location?.range.start.line).toBe(9);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.stoppedAt()).toBe(9);
+    expect(names(h.game.getTempVariables())).toContain("n=2");
+    // The other function's write to its own `n` does not stop.
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+  });
+
   it("fires a data breakpoint on a temporary a closure captured, when the closure writes it", () => {
     const text = [
       "-> main", //                       0

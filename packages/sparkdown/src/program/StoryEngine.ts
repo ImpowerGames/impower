@@ -26,7 +26,13 @@ export interface DebugFrame {
   /** The symbol of the function or tunnel the frame runs, or of the flow
    *  the flow's own frame stands in (-1 for a declaration). */
   readonly symbol: number;
+  /** The frame's name as an author reads it: a function the compiler named
+   *  shows as anonymous (`readableSymbolLabel`). */
   readonly name: string;
+  /** The frame's identity as a temporary's scope and a data breakpoint name
+   *  it: the label the program holds, which keeps two functions the
+   *  compiler named apart. */
+  readonly scope: string;
   /** The address the frame stands at, or -1 when it stands nowhere. */
   readonly address: number;
   /** The call stack element whose scopes hold the frame's temporaries. */

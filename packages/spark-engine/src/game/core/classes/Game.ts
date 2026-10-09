@@ -1167,7 +1167,7 @@ export class Game<T extends M = {}> {
     const callStack = program.state.callStack;
     const frames =
       program.debugFrames(callStack.currentThread.threadIndex) ?? [];
-    const named = frames.filter((frame) => frame.name === watch.scope);
+    const named = frames.filter((frame) => frame.scope === watch.scope);
     const held = watch.blockScope;
     let scope: Map<string, InkObject> | null = null;
     if (
@@ -3181,10 +3181,11 @@ export class Game<T extends M = {}> {
         ? thread.callstack.length - 1
         : callStack.currentElementIndex);
     const contextElement = thread?.callstack[frameIndex];
-    // A temporary's scope is the name of the frame it is a temporary of.
+    // A temporary's scope is the identity of the frame it is a temporary of
+    // (`DebugFrame.scope`), which keeps two anonymous functions apart.
     const programScope = this._story.debugFrames(thread?.threadIndex ?? 0)?.[
       frameIndex
-    ]?.name;
+    ]?.scope;
     // Every block scope of the frame, from the innermost out, so a temporary
     // of an outer block (a function's parameters and the variables its
     // closure captured, beside the locals of its body) is shown while the
@@ -3695,7 +3696,7 @@ export class Game<T extends M = {}> {
       this.module.assets.releaseAbandonedGates();
       // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
       // has no narrative path to preview: every path-located flow is a synthetic
-      // `__binding_*` evaluator, and those are excluded from preview candidates.
+      // `__binding$*` evaluator, and those are excluded from preview candidates.
       // Its layouts were still mounted at connect, but nothing reveals the
       // layouts LAYER in this case — no content beat runs, so neither the
       // per-beat Coordinator reveal nor the UI-only `continue()` fallback fires,

@@ -123,6 +123,20 @@ The id stays interned and its definition row becomes -1 in the new root. At comp
 
 **Decision:** exact interned ids in `ProgramTable`, definitions per root in typed arrays, anonymous symbols owned by the part of the statement that produced them and handed on by aligning parts on re-emit, a reference to a vanished symbol reported and left in place.
 
+### Generated names
+
+An identifier an author writes matches `LUAU_IDENTIFIER`, `[a-zA-Z_][a-zA-Z0-9_]*` (`definitions/yaml/sparkdown.language-grammar.yaml`), so a character outside `[A-Za-z0-9_]` is one no author's name holds. Every name the compiler generates holds a `$`, as an anonymous symbol's key begins with a NUL, so no name an author writes can equal one, and the compiler has no reserved names, no diagnostic for them and no rename of an author's name (#1729):
+
+| Family | Form |
+| --- | --- |
+| A name a lowering makes from a place (`syntheticId`): a function written inside a statement, a `define`'s method, a redefinition, a method call's receiver, a property or multiple assignment's temporaries, a loop's temporaries and labels | `__anon_fn_<document tag>$<offset>`, `__while_<document tag>$<offset>_loop` and the like |
+| The same names numbered by document order (`canonicalizeSyntheticFlowNames`) | `__synth$<n>` |
+| A continuation's group | `__group$<n>` |
+| A UI binding's evaluator | `__binding$<document tag><kind>_<name>_<offset>` |
+| A chunk's own name for a generated temporary | `__t$<n>`; a loop's hidden temporaries `__forIdx$`, `__forIn_iter$` and the like |
+
+The `$` is infix, never the first character, so the checks that read a leading `$` as a temporary of the runtime's own, or a key of a struct's own, do not take a generated name for one. Where a generated name reaches an author it is shown in a readable form: a function the compiler named, a binding's evaluator among them, is `<anonymous>` in the frames view, a stack trace, `debug.info` and a function value's text (`readableSymbolLabel`), while the label the root holds, which a frame carries as its `scope`, stays the generated name, so the Variables view and data breakpoints keep two anonymous functions' temporaries apart; and the Variables view leaves out every name with a `$`. The names `__varargs__`, a vararg function's local, and `__run_<path>`, the wrapper of a `run` statement, are generated without a `$`: the first is read by saves and diagnostics, and the second is spliced into source text the parser reads.
+
 **Reason:** a chunk never depends on where its target is, so an edit to the target re-emits only the target; ids are exact, so nothing is tie-broken.
 
 **Alternative:** absolute offsets written into instructions at the end of a compile, which is what inkcpp's emitter does (`inkcpp_compiler/binary_emitter.cpp`, `process_paths`) and what a batch compiler can afford; 32-bit hashes of names, which inkcpp uses and has to tie-break by offset because paths repeat (`shared/private/header.h`, `container_hash_t`); ordinal names such as `g-0` and `c-1`, which one inserted gather renumbers.

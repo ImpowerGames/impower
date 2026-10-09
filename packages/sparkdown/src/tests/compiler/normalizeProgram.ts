@@ -28,7 +28,7 @@ const isSpan = (value: unknown): boolean =>
  * The layout tree (`program.sparkle`) without its nodes' source positions,
  * and the generated names it holds. A binding, condition or loop is compiled
  * into a function named after its source offset
- * (`__binding_<uri>__layout_main_2310`), which the tree names in `exprId`
+ * (`__binding$<uri>__layout_main_2310`), which the tree names in `exprId`
  * and the compiled story and scene assets hold as a key.
  */
 function readLayoutTree(value: unknown, names: Map<string, string>): unknown {

@@ -40,6 +40,27 @@ export const ROOT_FLOW_NAME = "";
  *  (`programFlows.ts`, `IncludeEntry`). Both stand in the top level. */
 export const INCLUDED_FLOW_PREFIX = "$include:";
 
+/** How a function the compiler named is shown to an author. */
+export const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
+
+/** A name the compiler generates: `__`, its family, then a `$`, which no
+ *  name an author writes holds (`__synth$3`, `__binding$...`;
+ *  docs/engine/binary-program.md, section 2). */
+const GENERATED_LABEL_PART = /^__[A-Za-z]\w*\$/;
+
+/** A symbol's label (`ProgramRoot.labelOf`) as an author reads it in a
+ *  stack trace, `debug.info`, the frames view or a function value: each
+ *  part the compiler named read as anonymous (#1729). The label itself
+ *  stays the symbol's identity, which data breakpoints name a scope by, so
+ *  two anonymous functions keep scopes of their own. */
+export const readableSymbolLabel = (label: string): string =>
+  label
+    .split(".")
+    .map((part) =>
+      GENERATED_LABEL_PART.test(part) ? ANONYMOUS_FUNCTION_LABEL : part,
+    )
+    .join(".");
+
 /** The id of the symbol named `name`, interned when it is new, with a count
  *  id when `counted`. The id is the name's in every root the table serves,
  *  whatever each root's program defines it as. Every kind the build-out

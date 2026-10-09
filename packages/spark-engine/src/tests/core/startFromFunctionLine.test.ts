@@ -89,7 +89,7 @@ describe("a store whose value is a function literal (#835)", () => {
   test("a preview of its line shows the story line after it", async () => {
     const shown = await previewOf(SOURCE, 0);
     expect(shown.errors).toEqual([]);
-    expect(shown.path).not.toContain("__synth_");
+    expect(shown.path).not.toContain("__synth$");
     expect(shown.text).toContain("A");
   });
 });

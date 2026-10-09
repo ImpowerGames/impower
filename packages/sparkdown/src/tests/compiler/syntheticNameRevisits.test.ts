@@ -112,7 +112,7 @@ function diagnostics(program: any): string[] {
 
 // The value the evaluator behind a layout's first binding returns.
 function firstBindingValue(program: any, layout: string): unknown {
-  const id = JSON.stringify(program.sparkle?.layouts?.[layout]).match(/__binding_\w+/)?.[0];
+  const id = JSON.stringify(program.sparkle?.layouts?.[layout]).match(/__binding\$\w+/)?.[0];
   expect(id).toBeDefined();
   const story = testStory(program.chunks);
   return story.EvaluateFunction(id!);
@@ -179,7 +179,7 @@ describe("synthetic names after an edit", () => {
     expect(incremental.sparkle.layouts.la).toBe(before.sparkle.layouts.la);
     expect(incremental.spans).toEqual(cold.spans);
     expect(incremental.spans).toHaveLength(1);
-    expect(incremental.text).toContain("__binding_");
+    expect(incremental.text).toContain("__binding$");
     expect(incremental.text).toBe(cold.text);
   });
 

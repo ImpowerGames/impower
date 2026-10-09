@@ -58,14 +58,14 @@ describe("a layout on the program engine", () => {
     evaluated.length = 0;
     buttons[1]!.click();
     await flushMicrotasks(10);
-    expect(evaluated.some((name) => name.startsWith("__binding_"))).toBe(true);
+    expect(evaluated.some((name) => name.startsWith("__binding$"))).toBe(true);
     expect(text()).toBe("Count 3");
 
     // An inline closure, through its evaluator.
     evaluated.length = 0;
     buttons[2]!.click();
     await flushMicrotasks(10);
-    expect(evaluated.some((name) => name.startsWith("__binding_"))).toBe(true);
+    expect(evaluated.some((name) => name.startsWith("__binding$"))).toBe(true);
     expect(text()).toBe("Count 6");
     expect(story.variablesState.$("count")).toBe(6);
   });

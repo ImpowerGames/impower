@@ -3822,7 +3822,7 @@ const isOwnJump = (obj: Divert): boolean =>
  *  it; and a function a statement writes by the function itself, whose
  *  anonymous symbol belongs to that object for as long as its statement is
  *  kept. The compile places a function a statement writes among the story's
- *  flows too, under a name it gives by document order (`__synth_<n>`), which
+ *  flows too, under a name it gives by document order (`__synth$<n>`), which
  *  a function written above renumbers: that name is not the symbol. */
 const targetOf = (target: ParsedObject | null | undefined): string => {
   if (!target) {
@@ -3839,7 +3839,7 @@ const targetOf = (target: ParsedObject | null | undefined): string => {
 };
 
 /** The name the compile gives a function a statement writes. */
-const WRITTEN_FUNCTION_NAME = /^__synth_\d+$/;
+const WRITTEN_FUNCTION_NAME = /^__synth\$\d+$/;
 
 const readReference = (obj: VariableReference): string =>
   `${obj.resolutionKey}|${targetOf(obj.countTarget)}`;
@@ -4077,7 +4077,7 @@ const alternatorFingerprint = (
 
 // A name the compiler generates, numbered by document order
 // (`SparkdownCompiler.canonicalizeSyntheticFlowNames`).
-const GENERATED_NAMES = /__synth_\d+/g;
+const GENERATED_NAMES = /__synth\$\d+/g;
 
 /** The hash a function part is aligned by: its own source, normalized. */
 const fingerprintOf = (body: BodySource): string =>
@@ -4112,9 +4112,11 @@ const qualifiedFlowName = (flow: FlowBase): string | null => {
   return at ? names.join(".") : null;
 };
 
-/** The name a function a statement writes is shown by in a stack trace, as
- *  the object engine named its container: the names of the flows that hold
- *  it and its own, which the compiler gives it. */
+/** The name a function a statement writes is labelled by, as the object
+ *  engine named its container: the names of the flows that hold it and its
+ *  own, which the compiler gives it. The label is the function's identity
+ *  for data breakpoints; an author reads it through `readableSymbolLabel`,
+ *  where a generated part shows as anonymous. */
 const functionLabel = (fn: ParsedObject): string => {
   const names: string[] = [];
   let at: ParsedObject | null = fn;

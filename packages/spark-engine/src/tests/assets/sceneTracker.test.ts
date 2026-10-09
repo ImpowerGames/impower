@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SceneTracker } from "../../game/core/classes/SceneTracker";
 
 describe("SceneTracker", () => {
-  const functions = new Set(["Helper", "__binding_3"]);
+  const functions = new Set(["Helper", "__binding$3"]);
   const tracker = () => new SceneTracker((flow) => functions.has(flow));
   // Each observation names the flow the story stands in, as the program's
   // locator names it (`sceneAt`).
@@ -28,7 +28,7 @@ describe("SceneTracker", () => {
     const t = tracker();
     t.observe("A");
     expect(t.observe("Helper")).toBeNull();
-    expect(t.observe("__binding_3")).toBeNull();
+    expect(t.observe("__binding$3")).toBeNull();
     expect(t.current).toBe("A");
     expect(t.observe("A")).toBeNull();
   });

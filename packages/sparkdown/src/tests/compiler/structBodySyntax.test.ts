@@ -79,10 +79,10 @@ test.each(["none", "uniform", "random"])("builtins struct bodies compile identic
     expect(program.chunks, "the compile built statement chunks").toBeDefined();
     const listings = [...flowListings(program.chunks)];
     const offsetOf = (name: string) => Number(/_(\d+)$/.exec(name)?.[1] ?? -1);
-    const generated = [...new Set(JSON.stringify(listings).match(/__binding_\w+/g) ?? [])]
+    const generated = [...new Set(JSON.stringify(listings).match(/__binding\$\w+/g) ?? [])]
       .sort((a, b) => offsetOf(a) - offsetOf(b));
     const rename = (text: string) =>
-      text.replace(/__binding_\w+/g, (name) => `__generated_${generated.indexOf(name)}`);
+      text.replace(/__binding\$\w+/g, (name) => `__generated_${generated.indexOf(name)}`);
     const code = listings
       .map(([flow, listing]) => [rename(flow), listing.map(rename)] as const)
       .sort(([a], [b]) => a.localeCompare(b));

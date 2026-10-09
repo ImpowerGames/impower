@@ -284,7 +284,7 @@ export class VariableReference extends Expression {
    *  numbers by document order, is recorded without its number, since the
    *  chunk names it by its own. */
   get resolutionKey(): string {
-    const name = /^__synth_\d+$/.test(this.name) ? "__synth" : this.name;
+    const name = /^__synth\$\d+$/.test(this.name) ? "__synth" : this.name;
     if (this.resolvedAs === "count") {
       return `${name}:count:${this.countTarget?.programSymbolName ?? ""}`;
     }

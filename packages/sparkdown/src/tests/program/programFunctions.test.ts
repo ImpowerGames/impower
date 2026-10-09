@@ -846,7 +846,7 @@ describe("a stack trace", () => {
     expect(shown).toContain("<SOMEWHERE IN 0>");
     expect(shown).toContain("<SOMEWHERE IN outer>");
     expect(shown).toContain("<SOMEWHERE IN inner>");
-    expect(shown).toContain("Names __synth_0/frames/0.");
+    expect(shown).toContain("Names <anonymous>/frames/0.");
   });
 
   // Inside a block of a function the engine names the frame by the
