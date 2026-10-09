@@ -36,7 +36,7 @@ import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs"
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
-import { artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
+import { desktop, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
 import { spawnSync } from 'node:child_process';
 import {
   DEFAULT_SETTLE_S,
@@ -1919,7 +1919,7 @@ await check("desktop stamp cannot admit an obsolete replacement game bundle", ()
 await check("desktop stamp preserves deleted sources until all affected bundles rebuild", () => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-deleted-'));
   console.log('Scratch deletion repository: ' + scratch);
-  spawnSync('git', ['init', '--quiet', scratch]);
+  assert.equal(spawnSync('git', ['init', '--quiet', scratch], { windowsHide: true }).status, 0);
   const source = path.join(scratch, 'vscode-sparkdown/webviews/game-webview/src/player.ts');
   fs.mkdirSync(path.dirname(source), { recursive: true }); fs.writeFileSync(source, 'deleted player feature');
   const old = new Date(Date.now() - 10000); fs.utimesSync(source, old, old);
@@ -1940,6 +1940,38 @@ await check("desktop stamp preserves deleted sources until all affected bundles 
   for (const file of desktopArtifacts(scratch).filter(file => !file.includes(path.join('out', 'data')))) fs.utimesSync(file, later, later);
   assert.deepEqual(artifactEvidence(scratch).failed, [], 'a complete rebuild after deletion remains usable');
   assert.ok(!fs.readFileSync(stamp, 'utf8').includes('player.ts'), 'rebuilt stamp retains the obsolete source');
+});
+
+await check("visible F5 parent cannot verify a missing or crashed development host", async () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-lifecycle-'));
+  const hide = { windowsHide: true };
+  assert.equal(spawnSync('git', ['init', '--quiet', repo], hide).status, 0);
+  assert.equal(spawnSync('git', ['-C', repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=NUL', 'commit', '--allow-empty', '--quiet', '-m', 'fixture'], hide).status, 0);
+  const project = path.join(repo, '.agents/skills/drive-vscode-web/fixtures/desktop-project/project');
+  fs.mkdirSync(project, { recursive: true }); fs.writeFileSync(path.join(project, 'main.sd'), 'Verification first beat.');
+  const code = path.join(repo, 'code-fixture'); fs.writeFileSync(code, 'owned executable fixture');
+  let plan, exit, nativeError, parentVisible = false, f5 = 0, closed = false;
+  const locator = { first() { return this; }, filter() { return this; }, async fill() {}, async waitFor() { parentVisible = true; }, async click() { fs.writeFileSync(plan.events + '.stopped', '[]'); } };
+  const parent = { on() {}, locator: () => locator, async screenshot() {}, keyboard: { async press(key) { if (key === 'F5') { f5++; nativeError(Buffer.from('[main] Extension host with pid 31904 exited with code: 134, signal: unknown.')); throw new Error('Development host crashed before opening the project'); } } } };
+  const child = { pid: 42, stdout: { on() {} }, stderr: { on(_event, callback) { nativeError = callback; } }, once(_event, callback) { exit = callback; } };
+  const electron = { async launch(options) {
+    plan = JSON.parse(fs.readFileSync(options.env.IMPOWER_VSCODE_PROBE_PLAN, 'utf8'));
+    fs.writeFileSync(plan.events, JSON.stringify({ event: 'parent-ready', root: repo }) + '\n');
+    return { process: () => child, on() {}, firstWindow: async () => parent, windows: () => [parent], async close() { closed = true; exit(0, null); } };
+  } };
+  const out = path.join(repo, 'probe');
+  const result = await desktop(['--code', code, '--scenario', 'f5', '--out', out], { electron, repoRoot: repo });
+  assert.equal(parentVisible, true); assert.equal(f5, 1); assert.equal(closed, true);
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.report.parent.workbench, 'verified');
+  assert.notEqual(result.report.surfaces.desktop, 'verified', 'parent readiness falsely verified the missing development host');
+  const persisted = JSON.parse(fs.readFileSync(path.join(out, 'report.json'), 'utf8'));
+  assert.notEqual(persisted.surfaces.desktop, 'verified');
+  assert.equal(persisted.process.exit.code, 0);
+  assert.match(persisted.crash, /31904.*134/);
+  assert.equal(nativeHostCrash('[main] Extension host with pid 31904 exited with code: 134, signal: unknown.'), '[main] Extension host with pid 31904 exited with code: 134, signal: unknown.');
+  assert.equal(nativeHostCrash('[main] Extension host with pid 42 exited with code: 0, signal: unknown.'), undefined);
+  assert.equal(nativeHostCrash('Unrelated error code: 134'), undefined);
 });
 
 if (failures) {

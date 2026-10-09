@@ -97,10 +97,7 @@ export function validateExpectedDiagnostics(expected, project) {
 
 export function desktopFailures(report, options) {
   const failures = [...(report.failed ?? [])];
-  if (report.host?.workspaceRoot?.toLowerCase() !== options.project.toLowerCase()) failures.push('Host did not open the specified whole project root');
-  let opened;
-  try { opened = fileURLToPath(report.host?.document?.uri); } catch { /* missing/invalid URI is a failed open */ }
-  if (opened?.toLowerCase() !== options.script.toLowerCase()) failures.push('Host did not open the requested nested script');
+  failures.push(...desktopIdentityFailures(report.host, options));
   for (const method of ['textDocument/semanticTokens/full', 'textDocument/semanticTokens/range', 'textDocument/documentSymbol']) {
     if (!report.host?.requests?.some(request => request.method === method && request.success && request.length > 0)) failures.push('Missing successful language request: ' + method);
   }
@@ -117,6 +114,22 @@ export function desktopFailures(report, options) {
   if (options.scenario === 'f5' && report.f5?.baseline?.artifacts?.length) failures.push('F5 requires a fresh checkout with absent generated outputs; a full build may conceal missing dependencies');
   if (options.scenario === 'f5' && report.f5?.namedLaunchFallback) failures.push('Named configuration API fallback does not verify the actual keyboard F5 trigger');
   return [...new Set(failures)];
+}
+
+function desktopIdentityFailures(host, options) {
+  const failures = [];
+  if (host?.workspaceRoot?.toLowerCase() !== options.project.toLowerCase()) failures.push('Host did not open the specified whole project root');
+  let opened;
+  try { opened = fileURLToPath(host?.document?.uri); } catch { /* missing/invalid URI is a failed open */ }
+  if (opened?.toLowerCase() !== options.script.toLowerCase()) failures.push('Host did not open the requested nested script');
+  return failures;
+}
+
+export function nativeHostCrash(lines) {
+  return lines.split(/\r?\n/).find(line => {
+    const match = /Extension host with pid \d+ exited with code: (-?\d+)/.exec(line);
+    return match && Number(match[1]) !== 0;
+  });
 }
 
 export async function palette(page, title) {
@@ -188,7 +201,8 @@ export const DESKTOP_CONSOLE_NOISE = [
 ];
 
 export async function desktop(args, deps = {}) {
-  const options = desktopOptions(args);
+  const root = deps.repoRoot ?? path.resolve(here, '../../..');
+  const options = desktopOptions(args, root);
   for (const [file, kind] of [[options.code, 'executable'], [options.project, 'project'], [options.script, 'script']]) if (!fs.existsSync(file)) throw new Error('Missing ' + kind + ': ' + file);
   const expectedDiagnostics = options.expect ? JSON.parse(fs.readFileSync(options.expect, 'utf8')) : [];
   validateExpectedDiagnostics(expectedDiagnostics, options.project);
@@ -211,7 +225,7 @@ export async function desktop(args, deps = {}) {
   fs.writeFileSync(path.join(profile, 'User/settings.json'), JSON.stringify({ 'security.workspace.trust.enabled': false, 'workbench.startupEditor': 'none', 'update.mode': 'none', 'extensions.autoUpdate': false, 'telemetry.telemetryLevel': 'off', 'window.restoreWindows': 'none', 'sparkdown-language-server.trace.server': 'verbose' }));
   fs.writeFileSync(path.join(helper, 'package.json'), JSON.stringify({ name: 'impower-verification', publisher: 'impower', version: '0.0.0', engines: { vscode: '^1.100.0' }, main: './extension.cjs', activationEvents: ['onStartupFinished'], contributes: { commands: [{ command: 'impower.verification.stopTasks', title: 'Impower Verification: Stop Owned Tasks' }, { command: 'impower.verification.startF5', title: 'Impower Verification: Start Committed F5 Configuration' }] } }));
   fs.copyFileSync(path.join(here, 'desktop-helper.cjs'), path.join(helper, 'extension.cjs'));
-  const identity = { head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), driverSha256: hash(path.join(here, 'desktop.mjs')), helperSha256: hash(path.join(here, 'desktop-helper.cjs')) };
+  const identity = { head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim(), driverSha256: hash(path.join(here, 'desktop.mjs')), helperSha256: hash(path.join(here, 'desktop-helper.cjs')) };
   report.identity = identity;
   const plan = { ...options, identity, repoRoot: root, runId: crypto.randomUUID(), extensionPath: path.join(root, 'vscode-sparkdown'), result: path.join(runDir, 'host.json'), events: path.join(runDir, 'events.jsonl') };
   const planFile = path.join(runDir, 'plan.json');
@@ -220,7 +234,7 @@ export async function desktop(args, deps = {}) {
   let app, closing = false;
   try {
     if (options.scenario === 'full-build') {
-      checkBuild({ ...liveDeps, die: message => { throw new Error(message); } });
+      checkBuild({ ...liveDeps, repoRoot: root, extDir: path.join(root, 'vscode-sparkdown'), packagesDir: path.join(root, 'packages'), die: message => { throw new Error(message); } });
       if (before.failed.length) throw new Error(before.failed.join('\n'));
     } else if (before.artifacts.length) throw new Error('F5 scenario requires absent generated outputs in a fresh dedicated checkout; do not delete active builds or prebuild');
     const electron = deps.electron ?? (await import('playwright'))._electron;
@@ -240,7 +254,7 @@ export async function desktop(args, deps = {}) {
     const parent = await app.firstWindow({ timeout: options.timeoutMs });
     attach(parent);
     await parent.locator('.monaco-workbench').waitFor({ timeout: options.timeoutMs });
-    report.surfaces.desktop = 'verified';
+    report.parent = { workbench: 'verified' };
     if (options.scenario === 'f5') {
       const readyBy = Date.now() + options.timeoutMs;
       const ready = () => fs.existsSync(plan.events) && f5Ready(fs.readFileSync(plan.events, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)), root);
@@ -265,6 +279,7 @@ export async function desktop(args, deps = {}) {
     }
     report.host = JSON.parse(fs.readFileSync(plan.result, 'utf8'));
     if (report.host.runId !== plan.runId) throw new Error('Host report belongs to a different run');
+    report.surfaces.desktop = desktopIdentityFailures(report.host, options).length ? 'failed' : 'verified';
     report.failed.push(...(report.host.failed ?? []));
     report.build = artifactEvidence(root);
     if (report.host.loadedBuild?.extension !== report.build.artifacts.find(a => a.file.endsWith('extension.js'))?.sha256) report.failed.push('Loaded extension fingerprint differs from final artifact provenance');
@@ -308,7 +323,10 @@ export async function desktop(args, deps = {}) {
   } catch (error) {
     report.failed.push(error.stack ?? error.message);
     if (/timed out|Timeout/i.test(error.message)) report.timeout = error.message;
-    if (report.surfaces.desktop === 'verified') report.surfaces.preview = 'failed';
+    if (report.parent?.workbench === 'verified') {
+      report.surfaces.desktop = desktopIdentityFailures(report.host, options).length ? 'failed' : 'verified';
+      report.surfaces.preview = 'failed';
+    }
   } finally {
     report.build = artifactEvidence(root);
     if (app) {
@@ -325,6 +343,9 @@ export async function desktop(args, deps = {}) {
       await app.close().catch(error => report.failed.push('Owned host cleanup failed: ' + error.message));
       if (!report.process?.exit) report.failed.push('Owned desktop process exit was not confirmed');
     }
+    const nativeCrash = nativeHostCrash(hostLines.join(''));
+    if (nativeCrash) report.crash ??= nativeCrash;
+    if (report.crash) report.surfaces.desktop = 'failed';
     fs.writeFileSync(path.join(runDir, 'host-process.log'), hostLines.join(''));
     fs.writeFileSync(path.join(runDir, 'renderer.log'), consoleLines.join('\n'));
     const captured = partitionConsole(consoleLines, [...WORKBENCH_CONSOLE_NOISE, ...DESKTOP_CONSOLE_NOISE], 100);
