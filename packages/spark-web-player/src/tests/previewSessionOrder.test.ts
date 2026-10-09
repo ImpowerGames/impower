@@ -206,7 +206,7 @@ describe("preview session ordering", () => {
     expect(Object.keys(program.scripts)).toEqual(["file://proj/other.sd"]);
     await displayIn(game, stubApp(calls)).display(program, "file://proj/third.sd", 1);
     expect(calls).toContain("markPreviewing:undefined");
-    expect(calls).not.toContain("markPreviewing:0.0");
+    expect(calls).not.toContain("markPreviewing:0");
     expect(calls).toContain("preview");
   });
 
@@ -219,7 +219,7 @@ describe("preview session ordering", () => {
     game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
     game.program = { uri: PROGRAM.uri, version: PROGRAM.version };
     await displayIn(game, stubApp(calls)).display(PROGRAM, PROGRAM.uri, 9);
-    expect(calls).toContain("markPreviewing:0.0");
+    expect(calls).toContain("markPreviewing:0");
   });
 
   test("the game leaves the editors' part out of its report while it shows a suggestion, and puts it back for the document", async () => {
