@@ -1162,8 +1162,9 @@ export class Game<T extends M = {}> {
       watch.pointer = bound instanceof VariablePointerValue ? bound : null;
       watch.pointerState = variablesState;
     } else if (!watch.pointer || watch.pointerState !== variablesState) {
-      // A reset or a load gives the story other variables, which no
-      // pointer of the earlier ones reaches.
+      // A reset gives the story other variables, which no pointer of the
+      // earlier ones reaches (a load, which keeps them, drops the pointer
+      // itself: `loadProgramSave`).
       watch.pointer = null;
       watch.binding = undefined;
       watch.bindingName = watch.name;
@@ -2208,6 +2209,11 @@ export class Game<T extends M = {}> {
         this.placedExecuted(program.root, runtime.pathsExecutedThisFrame.toArray()),
       );
       program.loadSave(saveData.story);
+      // A load reads the cells of captured variables anew, so no data
+      // breakpoint's pointer reaches the variable it watched any more.
+      for (const watch of this._dataWatches) {
+        watch.pointer = null;
+      }
       // A preview waiting for its pictures would display its beat over the
       // loaded state, and record a checkpoint of it.
       this.cancelPreview();

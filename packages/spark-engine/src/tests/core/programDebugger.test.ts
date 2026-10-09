@@ -795,6 +795,65 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
   });
 
+  // A known limit: a load reads a captured variable's cell anew, and while
+  // no frame of its closure runs between steps the watch has no way to tell
+  // which new cell is the variable it watched, so it drops the old one and
+  // holds no binding (as the base held none whenever the closure's frame was
+  // not running). A builtin's call of the closure after the load does not
+  // stop; a frame of the closure that runs between steps binds the watch
+  // again.
+  it("drops a captured variable's watch on a load, and binds it again when the closure's frame runs", () => {
+    const text = [
+      "-> main", //                         0
+      "scene main", //                      1
+      "  Start.", //                        2
+      "  local first = less(1, 2)", //      3
+      "  First {first}.", //                4
+      "  local t = {2, 1}", //              5
+      "  & table.sort(t, less)", //         6
+      "  Sorted.", //                       7
+      "  local again = less(3, 4)", //      8
+      "  Again {again}.", //                9
+      "  done", //                          10
+      "end", //                             11
+      "function make()", //                 12
+      "  local n = 0", //                   13
+      "  return function(a, b)", //         14
+      "    n = n + 1", //                   15
+      "    return a < b", //                16
+      "  end", //                           17
+      "end", //                             18
+      "store less = make()", //             19
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.setBreakpoints([{ file: MAIN, line: 16 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(16);
+    const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+    const dataId = `${n.scopePath}.${n.name}`;
+    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("First true.\n");
+    expect(h.game.load(h.game.save())).toBe(true);
+    // The sort's comparator writes the cell the load read.
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("Sorted.\n");
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    // A line breakpoint holds the closure's frame between steps, which
+    // binds the watch to that cell, and its next write stops.
+    h.game.setBreakpoints([{ file: MAIN, line: 15 }]);
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(15);
+    h.game.setBreakpoints([]);
+    const hits = h.of("game/hitBreakpoint").length;
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(hits + 1);
+    expect(h.stoppedAt()).toBe(15);
+  });
+
   // While the function that declared the variable still runs, the closure's
   // frame binds it through an open pointer to that function's block scope,
   // which the watch follows while the closure's frame is gone.
