@@ -98,7 +98,7 @@ export interface LowerContext {
    * per-iteration loop variables as globals (they aren't declared globals — the
    * engine rejects assigning undeclared globals). So `lowerBinding` emits the
    * enclosing loop vars as the evaluator function's PARAMETERS
-   * (`__binding_N(item, …) return <expr> end`) and records them on the Binding
+   * (`__binding$N(item, …) return <expr> end`) and records them on the Binding
    * (`Binding.params`); the reactive runtime passes each iteration's values as
    * args. `buildForNode` pushes its bindings before lowering its body and pops
    * after (the iterable + `else` are lowered outside this scope).

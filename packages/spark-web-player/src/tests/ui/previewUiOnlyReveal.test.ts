@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 // A pure UI-only project (a `layout` whose only path-located flows are the
-// synthetic `__binding_*` evaluators the compiler hoists for `{interpolations}`
+// synthetic `__binding$*` evaluators the compiler hoists for `{interpolations}`
 // and `@event` handlers) has NO narrative path to preview: `findClosestPath`
 // excludes bindings, so `game.preview()` finds nothing and returns early.
 //

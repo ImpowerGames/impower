@@ -130,7 +130,7 @@ export interface FunctionShape {
   hoisted: ParsedObject[];
   /** Set for a function the lowering hoisted to the story's top level under
    *  a name of its own, which no statement writes: a UI binding's evaluator
-   *  (`__binding_...`). It is defined by a flow of its own, as a function
+   *  (`__binding$...`). It is defined by a flow of its own, as a function
    *  declared at the top level is, and its source is the binding's. */
   named?: boolean;
 }

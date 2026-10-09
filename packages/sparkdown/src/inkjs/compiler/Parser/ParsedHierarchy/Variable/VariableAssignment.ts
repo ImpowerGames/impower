@@ -192,7 +192,7 @@ export class VariableAssignment extends ParsedObject {
    *  the compiler generates, which it numbers by document order, is recorded
    *  without its number. */
   get resolutionKey(): string {
-    const name = /^__synth_\d+$/.test(this.variableName)
+    const name = /^__synth\$\d+$/.test(this.variableName)
       ? "__synth"
       : this.variableName;
     return `set:${name}:${this.isNewTemporaryDeclaration ? "local" : "assign"}`;

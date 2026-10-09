@@ -3822,7 +3822,7 @@ const isOwnJump = (obj: Divert): boolean =>
  *  it; and a function a statement writes by the function itself, whose
  *  anonymous symbol belongs to that object for as long as its statement is
  *  kept. The compile places a function a statement writes among the story's
- *  flows too, under a name it gives by document order (`__synth_<n>`), which
+ *  flows too, under a name it gives by document order (`__synth$<n>`), which
  *  a function written above renumbers: that name is not the symbol. */
 const targetOf = (target: ParsedObject | null | undefined): string => {
   if (!target) {
@@ -3839,7 +3839,7 @@ const targetOf = (target: ParsedObject | null | undefined): string => {
 };
 
 /** The name the compile gives a function a statement writes. */
-const WRITTEN_FUNCTION_NAME = /^__synth_\d+$/;
+const WRITTEN_FUNCTION_NAME = /^__synth\$\d+$/;
 
 const readReference = (obj: VariableReference): string =>
   `${obj.resolutionKey}|${targetOf(obj.countTarget)}`;
@@ -4077,7 +4077,7 @@ const alternatorFingerprint = (
 
 // A name the compiler generates, numbered by document order
 // (`SparkdownCompiler.canonicalizeSyntheticFlowNames`).
-const GENERATED_NAMES = /__synth_\d+/g;
+const GENERATED_NAMES = /__synth\$\d+/g;
 
 /** The hash a function part is aligned by: its own source, normalized. */
 const fingerprintOf = (body: BodySource): string =>
@@ -4112,15 +4112,22 @@ const qualifiedFlowName = (flow: FlowBase): string | null => {
   return at ? names.join(".") : null;
 };
 
+/** How a function the compiler named is shown. */
+const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
+
 /** The name a function a statement writes is shown by in a stack trace, as
  *  the object engine named its container: the names of the flows that hold
- *  it and its own, which the compiler gives it. */
+ *  it and its own, a name the compiler gave read as anonymous. */
 const functionLabel = (fn: ParsedObject): string => {
   const names: string[] = [];
   let at: ParsedObject | null = fn;
   while (at && !(at instanceof ParsedStory)) {
     if (at instanceof FlowBase) {
-      names.unshift(at.identifier?.name ?? "");
+      const name = at.identifier?.name ?? "";
+      // A name the compiler gave a function holds a `$`, which no name an
+      // author writes does; the frames view, a stack trace and
+      // `debug.info` show such a function as anonymous (#1729).
+      names.unshift(name.includes("$") ? ANONYMOUS_FUNCTION_LABEL : name);
     }
     at = at.parent;
   }

@@ -1,6 +1,6 @@
 // An incremental compile renumbers the synthetic names (`__forIdx_<n>` and the
 // like) of the chunks it re-lowers and carries the already-canonical
-// `__synth_<n>` names of the chunks it keeps. A carried synthetic temp
+// `__synth$<n>` names of the chunks it keeps. A carried synthetic temp
 // declaration, such as the one `second()` below keeps for its loop around
 // `new spawner()`, is a `VariableAssignment` whose `variableName` is a getter
 // over its identifier, so the plain-string half of the rename must leave it to

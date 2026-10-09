@@ -3618,7 +3618,7 @@ export class Game<T extends M = {}> {
       this.module.assets.releaseAbandonedGates();
       // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
       // has no narrative path to preview: every path-located flow is a synthetic
-      // `__binding_*` evaluator, and those are excluded from preview candidates.
+      // `__binding$*` evaluator, and those are excluded from preview candidates.
       // Its layouts were still mounted at connect, but nothing reveals the
       // layouts LAYER in this case — no content beat runs, so neither the
       // per-beat Coordinator reveal nor the UI-only `continue()` fallback fires,

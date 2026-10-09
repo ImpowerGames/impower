@@ -119,7 +119,7 @@ describe("a script included from two places", () => {
   it("declares its layout's binding evaluators once", () => {
     const program = compileOnce(twice(["store a = 1", "", "layout la with", '  text "{a}"', "end", ""].join("\n")));
     expect(errors(program)).toEqual([]);
-    const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding_\w+/)?.[0];
+    const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding\$\w+/)?.[0];
     expect(id).toBeDefined();
     expect(testStory(program.chunks).EvaluateFunction(id!)).toBe(1);
   });

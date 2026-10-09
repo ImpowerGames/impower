@@ -2413,7 +2413,7 @@ const ownNumberedNames = (
             : obj instanceof Divert
               ? (obj.pathIdentifiers?.[0]?.name ?? null)
               : null;
-      if (name && /^__synth_\d+$/.test(name)) {
+      if (name && /^__synth\$\d+$/.test(name)) {
         out.add(name);
       }
     }
