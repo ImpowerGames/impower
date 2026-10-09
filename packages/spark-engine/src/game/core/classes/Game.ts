@@ -396,6 +396,22 @@ export class Game<T extends M = {}> {
     written: boolean;
   }[] = [];
 
+  /** A tag for each cell a save noted for a data breakpoint, unique to the
+   *  cell across sessions, which the save writes beside the cell's id: a
+   *  load binds a watch to the cell it read under that id only when the
+   *  watch holds the cell the tag names, the cell it held when the save was
+   *  written, or the cell an earlier load of the save bound it to. */
+  protected _cellTags = new WeakMap<VariablePointerValue, string>();
+
+  protected cellTag(cell: VariablePointerValue): string {
+    let tag = this._cellTags.get(cell);
+    if (tag === undefined) {
+      tag = uuid(16);
+      this._cellTags.set(cell, tag);
+    }
+    return tag;
+  }
+
   /** The engine's write watch while a data breakpoint is set: marks each
    *  watch whose binding a write reached. */
   protected _noteWrite: WriteWatch = (binding, name) => {
@@ -2155,7 +2171,11 @@ export class Game<T extends M = {}> {
             for (const watch of watched) {
               const cell = cells.get(watch.pointer!);
               if (cell !== undefined) {
-                watchedCells.push({ dataId: watch.dataId, cell });
+                watchedCells.push({
+                  dataId: watch.dataId,
+                  cell,
+                  tag: this.cellTag(watch.pointer!),
+                });
               }
             }
           };
@@ -2240,19 +2260,29 @@ export class Game<T extends M = {}> {
         this.placedExecuted(program.root, runtime.pathsExecutedThisFrame.toArray()),
       );
       // A load reads the cells of captured variables anew, under the ids
-      // the save gave them, so a data breakpoint whose cell the save noted
-      // (`buildSave`) binds to the cell the load read under that id. Any
-      // other watch's pointer reaches no variable of the loaded story, and
-      // the watch holds no binding until a frame named by its scope runs.
-      const noted = new Map<string, number>();
+      // the save gave them, so a data breakpoint that still holds the cell
+      // the save noted for its data id (`buildSave`), which the note's tag
+      // names, binds to the cell the load read under that id, and that cell
+      // takes the tag. A watch of the same data id holding another cell, of
+      // another closure, say, is not the watch the save noted. Any other
+      // watch's pointer reaches no variable of the loaded story, and the
+      // watch holds no binding until a frame named by its scope runs.
+      const noted = new Map<string, { cell: number; tag: string }>();
       if (Array.isArray(saveData.watchedCells)) {
         for (const entry of saveData.watchedCells) {
           if (
             typeof entry?.dataId === "string" &&
-            Number.isInteger(entry?.cell)
+            Number.isInteger(entry?.cell) &&
+            typeof entry?.tag === "string"
           ) {
-            noted.set(entry.dataId, entry.cell);
+            noted.set(entry.dataId, { cell: entry.cell, tag: entry.tag });
           }
+        }
+      }
+      for (const [dataId, note] of noted) {
+        const watch = this._dataWatches.find((w) => w.dataId === dataId);
+        if (!watch?.pointer || this._cellTags.get(watch.pointer) !== note.tag) {
+          noted.delete(dataId);
         }
       }
       const read: { cells: Map<number, VariablePointerValue> | null } = {
@@ -2269,8 +2299,11 @@ export class Game<T extends M = {}> {
         program.state.cellsRead = null;
       }
       for (const watch of this._dataWatches) {
-        const id = noted.get(watch.dataId);
-        const cell = id === undefined ? undefined : read.cells?.get(id);
+        const note = noted.get(watch.dataId);
+        const cell = note ? read.cells?.get(note.cell) : undefined;
+        if (cell) {
+          this._cellTags.set(cell, note!.tag);
+        }
         watch.pointer = cell ?? null;
         watch.pointerState = cell ? program.state.variablesState : null;
       }

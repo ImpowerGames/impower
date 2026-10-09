@@ -865,6 +865,9 @@ describe("the debugger on the program engine", () => {
       // A save of the state, loaded back through `Game.loadProgramSave`.
       const save = h.game.save();
       expect(h.game.load(save)).toBe(true);
+      // A second load of the save finds the watch on the cell the first
+      // load bound it to, which the note names too.
+      expect(h.game.load(save)).toBe(true);
       expect(h.game.story.currentText).toBe("First true.\n");
       // `other`'s comparator writes its own cell.
       h.game.continue();
@@ -877,10 +880,86 @@ describe("the debugger on the program engine", () => {
       expect(h.stoppedAt()).toBe(19);
       // The save named the watched cell by its id.
       expect(JSON.parse(save).watchedCells).toEqual([
-        { dataId, cell: expect.any(Number) },
+        { dataId, cell: expect.any(Number), tag: expect.any(String) },
       ]);
     });
   }
+
+  // A save names the cell its watch held when it was written. A watch that
+  // holds another cell at the load, here `other`'s, which the watch bound
+  // when a frame of `other` ran after the save, is not the watch the save
+  // noted, so the load binds it to none: the saved `less`'s comparator, the
+  // cell the save noted for the same data id, does not stop.
+  it("carries no watch that holds another cell since the save to the cell the save noted", () => {
+    const text = [
+      "-> main", //                         0
+      "scene main", //                      1
+      "  Start.", //                        2
+      "  local first = less(1, 2)", //      3
+      "  First {first}.", //                4
+      "  local t = {2, 1}", //              5
+      "  & table.sort(t, other)", //        6
+      "  Between.", //                      7
+      "  local u = {2, 1}", //              8
+      "  & table.sort(u, less)", //         9
+      "  After.", //                        10
+      "  local second = other(3, 4)", //    11
+      "  Second {second}.", //              12
+      "  done", //                          13
+      "end", //                             14
+      "function make()", //                 15
+      "  local n = 0", //                   16
+      "  return function(a, b)", //         17
+      "    n = n + 1", //                   18
+      "    return a < b", //                19
+      "  end", //                           20
+      "end", //                             21
+      "store less = make()", //             22
+      "store other = make()", //            23
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.setBreakpoints([{ file: MAIN, line: 19 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(19);
+    const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+    const dataId = `${n.scopePath}.${n.name}`;
+    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("First true.\n");
+    // The save notes `less`'s cell.
+    const save = h.game.save();
+    // `less`'s comparator stops the watch.
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("Between.\n");
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    // Then a frame of `other` binds the watch to `other`'s cell. A stop
+    // inside a step leaves no text to read until the step ends.
+    const shown = () => {
+      try {
+        return h.game.story.currentText;
+      } catch {
+        return null;
+      }
+    };
+    for (let i = 0; i < 8 && shown() !== "Second true.\n"; i += 1) {
+      h.game.continue();
+    }
+    expect(h.game.story.currentText).toBe("Second true.\n");
+    const hits = h.of("game/hitBreakpoint").length;
+    expect(h.game.load(save)).toBe(true);
+    expect(h.game.story.currentText).toBe("First true.\n");
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(hits);
+    expect(h.game.story.currentText).toBe("Between.\n");
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(hits);
+    expect(h.game.story.currentText).toBe("After.\n");
+  });
 
   // A save written before the watch was set names no cell for it, so a
   // load binds the watch to none, however the loaded story reaches its
