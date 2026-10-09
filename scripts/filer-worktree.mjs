@@ -26,7 +26,7 @@ function absolute(p) { if (!p || !path.isAbsolute(p)) throw new Error("Supply an
 function read(p) { noLinks(p); return JSON.parse(fs.readFileSync(p, "utf8")); }
 function entries(root) { return parseWorktreeList(git(root, ["worktree", "list", "--porcelain"])); }
 function mainRoot(root) {
-  root = absolute(root);
+  root = fs.realpathSync.native(absolute(root));
   if (!same(git(root, ["rev-parse", "--show-toplevel"]), root) || !same(entries(root)[0]?.path ?? ".", root)) throw new Error("Root must name the main checkout");
   return fs.realpathSync(root);
 }
