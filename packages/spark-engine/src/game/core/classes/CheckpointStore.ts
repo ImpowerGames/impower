@@ -14,9 +14,10 @@
 // beat), so a whole copy in every keyframe would make the store quadratic in
 // the beats (#1694). Every entry, a keyframe too, holds the collections'
 // changes since the entry before it, and a checkpoint's collections are those
-// changes replayed from the chain's start; a keyframe whose live collections
-// differ from that replay (something replaced them since) starts a new chain
-// with a whole copy. The module state is the save with the story and the
+// changes replayed from the chain's start. Collections replaced since the
+// entry before (an ordinary continue starts them again every beat, a load
+// replaces them) start a new chain with a whole copy, as does a keyframe
+// whose live collections differ from that replay (#1701). The module state is the save with the story and the
 // collections left out, in a keyframe as in a delta. A checkpoint's full save
 // is written from its image when a caller asks for it (`getJson`), and a game
 // restores a checkpoint's image in place (`imageAt`).
@@ -36,8 +37,10 @@ export interface RuntimeCollections {
 export interface CheckpointHost {
   /** Full ordered snapshot of the runtime collections. */
   snapshotRuntime(): RuntimeCollections;
-  /** Runtime-collection changes since the last drain, and advance the marks. */
-  drainRuntime(): RuntimeCollections;
+  /** Runtime-collection changes since the last drain, or null when the
+   *  collections were replaced since (a record started again or loaded),
+   *  and advance the marks. */
+  drainRuntime(): RuntimeCollections | null;
   /** The image of the story's current beat, a keyframe when `keyframe` is
    *  set. */
   captureImage(keyframe: boolean): unknown;
@@ -116,25 +119,29 @@ export class CheckpointStore {
     const image = this._host.captureImage(keyframe);
     const changes = this._host.drainRuntime();
     const body = this._host.saveWithoutStory();
-    let chainStart = index === 0;
+    // Collections replaced since the entry before (an ordinary continue
+    // starts them again every beat, a load replaces them) hold no changes
+    // to that entry's, so they start a chain of their own (#1701).
+    let chainStart = index === 0 || changes === null;
     let chain = this._chainEnd;
-    if (!chainStart) {
+    if (changes !== null && !chainStart) {
       chain ??= this.chainAt(index - 1);
       applyChanges(chain, changes);
-      // A keyframe checks the chain against the live collections, which
-      // something may have replaced since the entry before (a load, a
-      // reset); a delta trusts it.
+      // A keyframe also checks the chain against the live collections, in
+      // case something changed them in place since; a delta trusts it.
       chainStart =
         keyframe && !sameCollections(chain, this._host.snapshotRuntime());
     }
-    let rt = changes;
-    if (chainStart) {
+    let rt: RuntimeCollections;
+    if (chainStart || changes === null) {
       rt = this._host.snapshotRuntime();
       chain = {
         pe: new Set<RecencyEntry>(rt.pe),
         ce: rt.ce.slice(),
         cde: rt.cde.slice(),
       };
+    } else {
+      rt = changes;
     }
     this._chainEnd = chain;
     this._entries.push({ keyframe, image, body, rt, chainStart });
