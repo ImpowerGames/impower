@@ -7,6 +7,7 @@ import { Divert } from "./Divert";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
+import { Identifier } from "../Identifier";
 import { MultipleConditionExpression } from "../Expression/MultipleConditionExpression";
 import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
@@ -64,13 +65,10 @@ export class DivertTarget extends Expression {
     emitter.emit(Op.Sym, symbol);
   }
 
-  /** Its divert prepared, on every call. A divert to DONE or END throws,
-   *  which stops the compile (#1703 reports the error in its place). */
+  /** Its divert prepared, on every call. A divert to DONE or END is not a
+   *  value; resolution reports it on the target (`ResolveWith`, #1703). */
   public override PrepareIntoContainer(): void {
     this.divert.PrepareUncached();
-    if (this.divert.isDone || this.divert.isEnd) {
-      throw new Error();
-    }
     this._preparedTarget = true;
   }
 
@@ -78,9 +76,14 @@ export class DivertTarget extends Expression {
     super.ResolveWith(context);
 
     if (this.divert.isDone || this.divert.isEnd) {
+      // Placed on the target's name, as the divert places `target not
+      // found`: the target holds no position of its own, so reported on
+      // itself it would land on its statement's line or, for a `local` in
+      // a scene, be dropped with the scene's position.
+      const path = this.divert.pathIdentifiers;
       this.Error(
         `Can't use '-> DONE' or '-> END' as variable divert targets`,
-        this,
+        path && path.length > 0 ? new Identifier(...path) : this,
       );
 
       return;
