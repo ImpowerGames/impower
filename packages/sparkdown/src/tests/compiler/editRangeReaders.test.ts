@@ -162,6 +162,60 @@ test.each(SHAPES)("after %s the readers give a fresh read's positions and tokens
   expect(readings(edited, probes)).toEqual(fresh(edited, probes));
 });
 
+test("a reader several edits behind carries what it read through all of them", () => {
+  // The token lookups run only for some edits, so their last document can be
+  // several edits behind the one they are next asked about.
+  const lines = 2000;
+  let text = `${"local a = 1\n".repeat(lines)}local x = value\n`;
+  const probes = (t: string) => [t.length - 20, t.length - 4, 30];
+  forget();
+  readings(text, probes(text));
+  // Edits near the end, counted back from it, so that together they leave
+  // the lines above them unchanged.
+  const steps: Edit[] = [
+    { from: 60, to: 60, insert: "\n\n" },
+    { from: 6, to: 1, insert: "other\n" },
+    { from: 40, to: 28, insert: "" },
+    { from: 50, to: 49, insert: "--[[ x ]]" },
+  ];
+  for (const step of steps) {
+    const from = text.length - step.from;
+    const to = text.length - step.to;
+    const insert = step.insert;
+    const before = text;
+    text = text.slice(0, from) + insert + text.slice(to);
+    noteLuauDocumentEdit(before, text, from, to, from + insert.length);
+  }
+  let scans = 0;
+  const indexOf = String.prototype.indexOf;
+  const spy = vi.spyOn(String.prototype, "indexOf").mockImplementation(function (this: string, search: string, position?: number) {
+    if (search === "\n" && this.length === text.length) scans++;
+    return indexOf.call(this, search, position);
+  });
+  let found: ReturnType<typeof readings>;
+  try {
+    found = readings(text, probes(text));
+  } finally {
+    spy.mockRestore();
+  }
+  // `readings` asks for every line's start, which needs no search once the
+  // index is carried over; a fresh index searches once per line.
+  expect(scans).toBeLessThan(lines / 10);
+  expect(found).toEqual(fresh(text, probes(text)));
+});
+
+test("an edit to another document between two reads makes the next read a fresh one", () => {
+  const text = "local a = 1\nlocal b = 2\n";
+  const edited = "local a = 1\n\nlocal b = 2\n";
+  const probes = [0, 13, 20];
+  forget();
+  readings(text, probes);
+  // The registry applies an edit to some other document, which this reader
+  // never read; then this reader is asked about an edited text of its own.
+  noteLuauDocumentEdit("other\n", "other text\n", 5, 5, 10);
+  expect(readings(edited, probes)).toEqual(fresh(edited, probes));
+});
+
 test("the readers take the edit's range as noted, without checking it against the texts", () => {
   // What the shapes above rest on: the readers carry over what the noted
   // edit says is unchanged, so a wrong range from the registry gives wrong

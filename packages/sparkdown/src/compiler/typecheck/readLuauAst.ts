@@ -315,7 +315,8 @@ let lastIndex: LineIndex | undefined;
 function lineIndex(text: string): LineIndex {
   const last = lastIndex;
   if (last?.text === text) return last;
-  const edit = last && editBetween(last.text, text);
+  const edit = editTo(indexEdit, text);
+  indexEdit = undefined;
   lastIndex = last && edit ? editedLineIndex(last, text, edit) : new LineIndex(text);
   return lastIndex;
 }
@@ -350,64 +351,53 @@ function editedLineIndex(last: LineIndex, text: string, edit: DocumentEdit): Lin
 // ---------------------------------------------------------------------------
 
 /**
- * What an edit left of a document: its text before and after begin with
- * `from` characters in common and end with `suffix` in common, which
- * overlap in neither. The readers carry what they read of `before` over
- * to `after` within those, without comparing the two texts.
+ * The edits made to the document a reader last read, since it read it: the
+ * text they led to, which begins with `from` characters of the text read
+ * and ends with its last `suffix` characters, the two not overlapping in
+ * either text. The reader carries what it read over to `text` outside
+ * those, without comparing the two texts.
  */
 interface DocumentEdit {
-  readonly before: string;
-  readonly after: string;
+  readonly text: string;
   readonly from: number;
   readonly suffix: number;
 }
 
-// The edits last noted, oldest first. Each change of an update is noted from
-// the text the change before it left, so a reader whose document is a few
-// changes behind (several changes in one event) goes through all of them.
-const edits: DocumentEdit[] = [];
-
-// How many edits are kept; a reader further behind reads its document afresh.
-const EDIT_HISTORY = 16;
+// The edits since the line index's and the token lookups' last documents.
+let indexEdit: DocumentEdit | undefined;
+let aheadEdit: DocumentEdit | undefined;
 
 /**
  * Notes that `after` is `before` with the characters from `from` to `toA`
  * replaced by those from `from` to `toB` of `after`, as the document
- * registry knows from the change it applies. The Luau readers that last
- * read `before` read `after` by carrying over what lies outside that range;
- * a document they reach without an edit noted is read from scratch.
+ * registry knows from each change it applies. A reader whose last document
+ * is `before`, or was edited into it, reads `after` by carrying over what
+ * lies outside the changes; one that reaches a document without the edits
+ * that led to it noted reads it from scratch.
  */
 export function noteLuauDocumentEdit(before: string, after: string, from: number, toA: number, toB: number): void {
   const suffix = before.length - toA;
-  if (!(from >= 0 && from <= toA && from <= toB && suffix >= 0 && suffix === after.length - toB)) {
-    // Not an edit between these texts: nothing noted before can lead to `after`.
-    edits.length = 0;
-    return;
-  }
-  edits.push({ before, after, from, suffix });
-  if (edits.length > EDIT_HISTORY) edits.shift();
+  const valid = from >= 0 && from <= toA && from <= toB && suffix >= 0 && suffix === after.length - toB;
+  indexEdit = valid ? followEdit(lastIndex?.text, indexEdit, before, after, from, suffix) : undefined;
+  aheadEdit = valid ? followEdit(lastAhead?.text, aheadEdit, before, after, from, suffix) : undefined;
 }
 
 /**
- * The edit that leads from `old` to `text` through the edits noted, the
- * latest of which must end at `text`: where the texts begin and end in
- * common is the least of where each edit's texts do.
+ * A reader's edits once `before` is edited into `after`: added to those
+ * already noted when they led to `before`. Where two edits leave the texts
+ * the same, so does the two together, within the lesser of their extents.
+ * The strings compared are the registry's one string of each version
+ * (`documentString`), so each comparison is of identity.
  */
-function editBetween(old: string, text: string): DocumentEdit | undefined {
-  let expected = text;
-  let from = Infinity;
-  let suffix = Infinity;
-  for (let i = edits.length - 1; i >= 0; i--) {
-    const edit = edits[i]!;
-    // Both are the registry's one string of their version (`documentString`)
-    // when the readers read what it noted: an identity check.
-    if (edit.after !== expected) return undefined;
-    from = Math.min(from, edit.from);
-    suffix = Math.min(suffix, edit.suffix);
-    if (edit.before === old) return { before: old, after: text, from, suffix };
-    expected = edit.before;
-  }
+function followEdit(read: string | undefined, edit: DocumentEdit | undefined, before: string, after: string, from: number, suffix: number): DocumentEdit | undefined {
+  if (edit && edit.text === before) return { text: after, from: Math.min(edit.from, from), suffix: Math.min(edit.suffix, suffix) };
+  if (read !== undefined && read === before) return { text: after, from, suffix };
   return undefined;
+}
+
+/** A reader's edits, when they lead to `text`. */
+function editTo(edit: DocumentEdit | undefined, text: string): DocumentEdit | undefined {
+  return edit && edit.text === text ? edit : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -4216,7 +4206,8 @@ function aheadOf(documentText: string): Ahead {
   if (last?.text === documentText) return last;
   let kept: Token[] = [];
   let resumes: number[] = [];
-  const edit = last && editBetween(last.text, documentText);
+  const edit = editTo(aheadEdit, documentText);
+  aheadEdit = undefined;
   if (last && edit) {
     // A token whose reading looked only at text before the first character
     // the edit changed is the whole document's lex's token in both
