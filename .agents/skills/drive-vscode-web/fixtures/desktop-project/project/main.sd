@@ -1,0 +1,15 @@
+include shared.sd
+
+-> start
+
+scene start
+  [[show backdrop badge]]
+  HERO:
+    Verification first beat.
+  & mood = 1
+  HERO:
+    Verification second beat.
+  & mood = mood + 1
+  HERO:
+    Verification third beat.
+end

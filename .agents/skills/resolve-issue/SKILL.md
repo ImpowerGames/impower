@@ -42,7 +42,7 @@ Invoke `/write-regression-test` now (skill name `write-regression-test`). Use fu
 
 Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for changes under `impower-dev/` or `packages/`. Use the actual project for assets and installed-worker verification for service-worker changes. Inspect before/after pixels; use measured evidence for changes with no visual signature and still inspect for visual regressions.
 
-For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared language-server changes use both drivers. Surfaces the served workbench cannot reach require a desktop development host or an explicit unverified disclosure in the PR. Tooling/docs-only work has nothing to boot: run its checks and say so.
+For `vscode-sparkdown/` and shared language-server changes, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared-server changes use both drivers. Run the ticket's web/debug or desktop/F5/preview scenario and inspect its pixels. Failed or unavailable required coverage remains incomplete; web counters cannot prove desktop preview or semantic-token success. Tooling/docs-only work runs its checks.
 
 ## 7. Commit, push, and open a draft PR
 

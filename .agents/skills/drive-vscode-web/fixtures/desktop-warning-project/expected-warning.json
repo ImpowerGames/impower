@@ -1,0 +1,10 @@
+[
+  {
+    "file": "project/main.sd",
+    "severity": "warning",
+    "source": "sparkdown",
+    "message": "Cannot find character named 'UNKNOWN'",
+    "start": { "line": 6, "column": 3 },
+    "end": { "line": 6, "column": 10 }
+  }
+]

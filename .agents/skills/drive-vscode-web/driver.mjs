@@ -38,6 +38,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { desktop, webDebug } from './desktop.mjs';
 import {
   consoleLine,
   partitionConsole,
@@ -1403,6 +1404,7 @@ export async function verify(args, deps = liveDeps) {
       const captured = partitionConsole(consoleLines, WORKBENCH_CONSOLE_NOISE, 20);
       report.consoleErrors = captured.errors;
       report.consoleNoise = captured.noise;
+      for (const error of captured.errors) fail(`unclassified console error: ${error}`);
     });
   } catch (err) {
     fail(`verify threw: ${firstLine(err)}`);
@@ -1418,7 +1420,7 @@ export async function verify(args, deps = liveDeps) {
 // carries that title, so the report never describes a file it was not asked
 // about, and never one of the same name in a subfolder.
 export const TOP_ROW = '.explorer-folders-view .monaco-list-row[aria-level="1"]';
-async function openFile(page, file, report, fail) {
+export async function openFile(page, file, report, fail) {
   const exact = new RegExp(`^${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
   const row = page.locator(TOP_ROW).filter({ has: page.locator(".label-name", { hasText: exact }) }).first();
   try {
@@ -1507,6 +1509,16 @@ switch (cmd) {
     process.exitCode = exitCode;
     break;
   }
+  case "desktop": {
+    const result = await desktop(rest).catch(error => die(error.message));
+    process.exitCode = result.exitCode;
+    break;
+  }
+  case "debug": {
+    const result = await webDebug(rest).catch(error => die(error.message));
+    process.exitCode = result.exitCode;
+    break;
+  }
   default:
     log(
       [
@@ -1516,6 +1528,8 @@ switch (cmd) {
         "  status             is it up? prints the URL and the served folder",
         "  down               stop the server",
         "  verify [options]   open a file in the served workbench, read diagnostics and a hover, screenshot; JSON report",
+        "  desktop --code <exe> --scenario full-build|f5  isolated desktop host, LSP and real Game Preview; see references/desktop.md",
+        "  debug [--file main.sd] --shot <png>  web Run & Debug: pause, Variables, stack, evaluation, step and continue",
         "",
         "up options (one of --sd or --project):",
         "  --sd <file.sd>       serve a one-file project holding this script as main.sd",

@@ -1,15 +1,37 @@
 # Extension build and freshness
 
-All commands run from the worktree root unless stated otherwise.
+Run from the worktree root. Choose the scenario first: desktop `f5` starts with generated outputs absent, before any preparatory full build. See [desktop scenarios](desktop.md).
 
-## 1. Build the extension
+## Full build
 
-```bash
-cd vscode-sparkdown && npm run build
+```text
+cd vscode-sparkdown
+npm run build
 ```
 
-About a minute here (49 s measured), once per worktree; after that the driver's own refusals name the shorter steps below. For an open `.sd` editor the served workbench loads `vscode-sparkdown/out/extension.js` (the extension bundle), `out/workers/sparkdown-language-server.js` (the language server every diagnostic and hover comes from, copied by `node scripts/esbuild.ts` from `packages/sparkdown-language-server/dist`, which only that package's own build rewrites) and `out/data/*` (copies of the files under `data/`). A launch and every `verify` refuse to go on while any of those is missing or older than a source that feeds it: `vscode-sparkdown/src/` and `vscode-sparkdown/language/` feed the extension bundle (the bundle takes the language configuration in by value), `data/` its copies, and `packages/*/src/` and `packages/*/language/` both bundles, since the bundles resolve the workspace packages by source and the compiler takes the grammar JSON in by value (tests, snapshots, `node_modules`, `dist` and `out` excepted), so `npm run language` under `definitions/` makes both stale. The message names the artifact, the newer source and the steps that rebuild it, so a screenshot is always of a build that includes the change; the report's `build` names the older of the two bundles and when it was written (the copies under `out/data` are checked too, but a copy carries its source's time and dates nothing). The webview bundles, the other workers and the rest of `out/data` (codicons, the player's types) are not watched, because the driver cannot show a webview, a command or an export. A source file touched but not changed (`git checkout`, a redgreen restore) does not refuse: whenever a build is accepted with no source newer than its artifacts, the driver stamps the artifacts and the content of every source into `out/.drive-vscode-web-build.json`, and a newer file whose content is what was stamped, with the stamped artifacts still in place, is the build's own. A source deleted or added since the stamp refuses, whatever the artifacts are, unless every artifact it feeds was written after the directory the entry changed in (the system writes a directory's time whenever an entry is added or removed), which is what the steps the refusal names do; the stamp is never rewritten over such a gap. An artifact rebuilt on its own while another is older than a touched file refuses too, and the full steps clear it. `package.json` is read by the workbench as it is and needs no build. The build log ends with `Error: Compiled with errors` from `dts-bundle-generator` in the `spark-web-player` step and `no type bundle produced; skipping post-process`; that type bundle is not part of the extension and the command exits 0.
+Desktop `full-build` and web `debug` need the extension, copied language-server worker, game webview (with its bundled player/workspace worker), and fonts. The scenario guard hashes those artifacts and stamps source content/source sets; copied fonts must match their sources. It accepts an identical source touch but refuses changed or deleted sources without rebuilt artifacts. Fingerprints describe files on disk in a fresh host, rather than independently captured loaded worker bytes.
 
-A change under `vscode-sparkdown/src/`, `vscode-sparkdown/language/` or `data/` alone needs only `cd vscode-sparkdown && node scripts/esbuild.ts` (5 s here); a change under `packages/` needs `cd vscode-sparkdown && npm run build:sparkdown-language-server && node scripts/esbuild.ts` (9 s here for both), which rebuilds the language server bundle and then the extension bundle with it. The refusal names exactly the steps for the artifacts it found stale, in the order they run. After those steps `out/` is no longer a full build: `out/workers/sparkdown-screenplay-pdf.js` and the webview bundles stay as they were, which matters to a session that then packages the extension or tests an export, and `npm run build` brings them up.
+An exit-zero build can still log `dts-bundle-generator` errors and `no type bundle produced; skipping post-process`. The missing `out/data/spark.d.ts` then causes a captured extension error. Preserve that strict failure; successful semantic-token replies or visible game content do not clear it.
 
----
+## Narrow editor rebuild
+
+The editor-only web `verify` guard covers `out/extension.js`, `out/workers/sparkdown-language-server.js` and copied `data/` files. Extension `src/` and `language/` feed the extension bundle. Package `src/` and `language/` feed both bundles; generated grammar edits therefore require rebuilding them. Tests, snapshots, dependencies and generated output directories are excluded from source scans. `package.json` is read directly.
+
+For extension source, language configuration or data changes:
+
+```text
+cd vscode-sparkdown
+node scripts/esbuild.ts
+```
+
+For package changes:
+
+```text
+cd vscode-sparkdown
+npm run build:sparkdown-language-server
+node scripts/esbuild.ts
+```
+
+The language-server build writes its package `dist`; the extension build copies that worker into `out/workers`. These narrow steps leave webviews and the screenplay PDF worker unchanged, so they do not prepare preview, export or packaging scenarios. Use the full build for those.
+
+The editor guard requires artifacts at least as new as their sources, with a one-millisecond allowance for copied mtimes. Its `out/.drive-vscode-web-build.json` content stamp accepts identical touches. Added/deleted source sets refuse unless all affected artifacts were rebuilt after the source directory entry changed. A partially rebuilt set still refuses. The driver's error names the missing/stale artifact and required rebuild steps. The report names the oldest rebuilt bundle; copied-data timestamps do not establish when bundling ran.

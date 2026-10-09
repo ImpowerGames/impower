@@ -31,10 +31,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from 'node:url';
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
+import { artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
 import {
   DEFAULT_SETTLE_S,
   LOOPBACKS,
@@ -1468,7 +1470,7 @@ const verifyDeps = (doc, over = {}, readCostMs = 0) => {
     },
     withWorkbench: async (url, opts, fn) => {
       acts.push(["workbench", url, opts.headless]);
-      return fn({ page, consoleLines: ["[error] boom", "[log] fine", "[pageerror] Not Found"] });
+      return fn({ page, consoleLines: ["[log] fine", "[pageerror] Not Found"] });
     },
     readFile: () => "return 1 + 1",
     ...over,
@@ -1499,7 +1501,7 @@ await check("verify opens the file, waits for the counter to change and hold, cl
   assert.equal(report.probe, 2);
   // `[pageerror] Not Found` is one of the lines every run produces, so it is
   // counted rather than listed; what is left in consoleErrors is worth reading.
-  assert.deepEqual(report.consoleErrors, ["[error] boom"]);
+  assert.deepEqual(report.consoleErrors, []);
   assert.equal(report.consoleNoise["Not Found page error"], 1);
   assert.equal(report.consoleNoise["package.nls.json 404"], 0);
   assert.deepEqual(deps.acts.slice(0, 4), [["alias", RECORD.builds], ["workbench", RECORD.url, true], ["wait", ".monaco-workbench"], ["open", "main.sd", 1]], "the row clicked is the file's own at the top level, not the subfolder's file of the same name that comes first in the DOM, nor the name that extends it");
@@ -1798,6 +1800,96 @@ await check("the page is 1400 x 900, a record names its own worktree's state fil
   assert.equal(recordFile({ worktree: path.join(FIXTURE_ROOT, "w2") }), path.join(FIXTURE_ROOT, "w2", ".agents", "skills", "drive-vscode-web", ".state.json"));
   assert.equal(path.basename(path.dirname(recordFile({}))), "drive-vscode-web");
   assert.equal(liveDeps.extensionId(), EXT_ID);
+});
+
+await check("unclassified console errors fail verification even when diagnostic counters settle", async () => {
+  const deps = verifyDeps(hoverDoc());
+  const old = deps.withWorkbench;
+  deps.withWorkbench = (url, options, callback) => old(url, options, ({ page }) => callback({ page, consoleLines: ["[error] semanticTokens/full failed -32603", "[pageerror] Not Found"] }));
+  const result = await verify([], deps);
+  assert.equal(result.exitCode, 1, "a stable counter concealed a failed semantic-token request");
+  assert.match(result.report.failed.join(" "), /semanticTokens\/full failed/);
+});
+
+await check("desktop admission preserves the full root, refuses escaped paths and isolates F5 from full-build", () => {
+  const parsed = desktopOptions(['--code', '/private/Code.exe', '--scenario', 'f5'], '/repo');
+  assert.equal(parsed.scenario, 'f5');
+  assert.equal(path.relative(parsed.project, parsed.script), path.join('project', 'main.sd'));
+  for (const args of [[], ['--code', 'Code', '--scenario', 'web'], ['--code', 'Code', '--file', '../outside.sd'], ['--code', 'Code', '--project', '/external'], ['--code', 'Code', '--timeout', '0']]) assert.throws(() => desktopOptions(args));
+});
+
+await check("desktop health requires successful full/range requests, exact diagnostics, real preview interaction and artifact provenance", () => {
+  const options = { project: path.resolve('/project'), script: path.resolve('/project/project/main.sd'), scenario: 'full-build' };
+  const healthy = { failed: [], expectedDiagnostics: [], host: { workspaceRoot: options.project, document: { uri: pathToFileURL(options.script).href }, settled: true, diagnostics: [], requests: ['textDocument/semanticTokens/full', 'textDocument/semanticTokens/range', 'textDocument/documentSymbol'].map(method => ({ method, success: true, length: 5 })) }, preview: { initial: 'first', frame: 'vscode-webview://player', inputAttempt: { event: { trusted: true, tag: 'CANVAS' } }, interaction: { result: 'second' }, screenshot: 'before.png', afterScreenshot: 'after.png' }, build: { artifacts: [{}], failed: [] }, consoleErrors: [] };
+  assert.deepEqual(desktopFailures(healthy, options), []);
+  for (const mutate of [
+    report => { report.host.requests[0].success = false; },
+    report => { report.host.requests[1].length = 0; },
+    report => { report.host.diagnostics.push({ file: options.script, severity: 'error', source: 'sparkdown', message: 'Compile failed', start: { line: 2, column: 1 }, end: { line: 2, column: 3 } }); },
+    report => { delete report.preview.interaction; },
+    report => { report.preview.inputAttempt.event.trusted = false; },
+    report => { report.preview.frame = 'vscode-file://source-editor'; },
+    report => { report.crash = 'renderer exited'; },
+    report => { report.timeout = 'language request'; },
+    report => { report.consoleErrors.push('[error] asset did not load'); },
+    report => { report.build.failed.push('Stale game webview'); },
+    report => { report.host.workspaceRoot = path.join(options.project, 'project'); },
+  ]) { const report = structuredClone(healthy); mutate(report); assert.ok(desktopFailures(report, options).length, 'unexpected outcome passed'); }
+  const intentional = { file: 'project/main.sd', severity: 'warning', source: 'sparkdown', message: 'Intentional fixture marker', start: { line: 3, column: 2 }, end: { line: 3, column: 4 } };
+  assert.deepEqual(diagnosticFailures([{ ...intentional, file: options.script }], [intentional], options.project), []);
+  assert.doesNotThrow(() => validateExpectedDiagnostics([intentional], options.project));
+  for (const invalid of [null, [{}], [{ ...intentional, file: '../other.sd' }], [{ ...intentional, start: { line: 0, column: 2 } }]]) assert.throws(() => validateExpectedDiagnostics(invalid, options.project));
+  assert.ok(diagnosticFailures([{ ...intentional, file: options.script, start: { line: 4, column: 2 } }], [intentional], options.project).length);
+  assert.ok(desktopFailures({ ...healthy, f5: { baseline: { artifacts: [{}] }, taskEvents: [] } }, { ...options, scenario: 'f5' }).some(error => /F5/.test(error)));
+  assert.ok(desktopFailures({ ...healthy, f5: { namedLaunchFallback: 'public API', baseline: { artifacts: [] }, taskEvents: [{ event: 'task-start', name: 'F5: watch:extension' }] } }, { ...options, scenario: 'f5' }).some(error => /keyboard F5/.test(error)));
+  assert.deepEqual(diagnosticFailures([{ ...intentional, file: options.script }], [{ end: intentional.end, start: intentional.start, message: intentional.message, source: intentional.source, severity: intentional.severity, file: intentional.file }], options.project), []);
+});
+
+await check("desktop story requires a visible player frame; source text and hidden webviews cannot pass", async () => {
+  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null, getByText: () => { throw new Error('Source editor must never be queried'); } };
+  await assert.rejects(storyFrame({ mainFrame: () => main, frames: () => [main] }, 'known', 1), /did not render/);
+  const hit = { first() { return this; }, isVisible: async () => true, evaluate: async () => true };
+  const hidden = { url: () => 'vscode-webview://player', parentFrame: () => main, getByText: () => hit, frameElement: async () => ({ evaluate: async () => false }) };
+  await assert.rejects(storyFrame({ mainFrame: () => main, frames: () => [main, hidden] }, 'known', 1), /did not render/);
+  const visible = { ...hidden, frameElement: async () => ({ evaluate: async () => true }) };
+  assert.equal((await storyFrame({ mainFrame: () => main, frames: () => [main, visible] }, 'known', 20)).frame, visible);
+  assert.equal(f5Ready([{ event: 'task-exit', root: '/repo' }], '/repo'), false);
+  assert.equal(f5Ready([{ event: 'parent-ready', root: '/other' }], '/repo'), false);
+  assert.equal(f5Ready([{ event: 'parent-ready', root: '/repo' }], '/repo'), true);
+});
+
+await check("player input uses current canvas geometry after RUN changes the layout", async () => {
+  const before = { x: 746, y: 69, width: 393, height: 798 };
+  const after = { x: 746, y: 69, width: 393, height: 474 };
+  let tick = 0, reads = 0;
+  const pointer = await playerPointer({ boundingBox: async () => ++reads === 1 ? before : after }, 3000, async ms => { tick += ms; }, () => tick);
+  assert.deepEqual(pointer, { bounds: after, x: 942.5, y: 306 });
+  assert.ok(reads >= 5, 'the layout change must settle before input');
+  await assert.rejects(playerPointer({ boundingBox: async () => null }, 500, async ms => { tick += ms; }, () => tick), /did not settle/);
+});
+
+await check("desktop artifact freshness covers game webview's embedded player/worker and copied fonts", () => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-artifacts-'));
+  const source = path.join(scratch, 'packages/player/src/player.ts');
+  fs.mkdirSync(path.dirname(source), { recursive: true });
+  fs.writeFileSync(source, 'export const version = 1;');
+  const earlier = new Date(Date.now() - 10000); fs.utimesSync(source, earlier, earlier);
+  assert.ok(artifactEvidence(scratch).failed.some(error => /game-webview/.test(error)));
+  for (const file of desktopArtifacts(scratch)) {
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'fresh bundle');
+    if (file.includes(path.join('out', 'data'))) { const original = path.join(scratch, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'fresh bundle'); }
+  }
+  assert.deepEqual(artifactEvidence(scratch).failed, []);
+  fs.utimesSync(source, new Date(Date.now() + 10000), new Date(Date.now() + 10000));
+  assert.deepEqual(artifactEvidence(scratch).failed, [], 'a touched identical source is vouched for by the content stamp');
+  fs.writeFileSync(source, 'export const version = 2;');
+  fs.utimesSync(source, new Date(Date.now() + 10000), new Date(Date.now() + 10000));
+  assert.ok(artifactEvidence(scratch).failed.some(error => /Stale.*game-webview/.test(error)));
+  fs.unlinkSync(source);
+  assert.ok(artifactEvidence(scratch).failed.some(error => /source set changed/.test(error)));
+  const font = path.join(scratch, 'vscode-sparkdown/data/courier-prime.ttf');
+  fs.mkdirSync(path.dirname(font), { recursive: true }); fs.writeFileSync(font, 'changed font');
+  assert.ok(artifactEvidence(scratch).failed.some(error => /Stale copied data/.test(error)));
 });
 
 if (failures) {

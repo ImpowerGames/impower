@@ -1,0 +1,10 @@
+include shared.sd
+
+-> start
+
+scene start
+  UNKNOWN:
+    Verification first beat.
+  HERO:
+    Verification second beat.
+end

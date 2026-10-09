@@ -1,0 +1,5 @@
+store mood = 0
+
+define HERO as character with
+  name = "Hero"
+end
