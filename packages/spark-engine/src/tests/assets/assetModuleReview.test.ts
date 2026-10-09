@@ -142,7 +142,7 @@ describe("AssetModule, after review", () => {
       { assets: ASSETS, beforeConnect: playing },
     );
     await h.ready;
-    h.jumpTo("Start");
+    h.jumpToFlow("Start");
     h.reset();
     const assets: any = h.game.module.assets;
     const releasesSoFar = () =>

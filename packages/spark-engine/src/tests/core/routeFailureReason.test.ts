@@ -35,9 +35,16 @@ import {
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
-import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
+
+/** An address no program here holds: chunk 2^19, far past any chunk id a
+ *  test program is given. */
+const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
@@ -144,7 +151,7 @@ describe("the planner says how its search ended", () => {
     const route = planRoute(
       newGame(program).story,
       "start",
-      "start.NO_SUCH_PATH",
+      NO_SUCH_ADDRESS,
       {
         stayWithinKnot: true,
         maxSteps: 5_000,
@@ -164,7 +171,7 @@ describe("the planner says how its search ended", () => {
     const route = planRoute(
       newGame(program).story,
       "start",
-      "start.NO_SUCH_PATH",
+      NO_SUCH_ADDRESS,
       {
         stayWithinKnot: true,
         // Room to spare on both work ceilings, so only the clock can stop it.
@@ -241,7 +248,7 @@ describe("the planner's verdict becomes the reason shown to the author", () => {
     const program = compileSrc(ENDLESS_LOOP);
     // A real search, really cut off, immediately before the question is asked —
     // the same order the engine does it in.
-    planRoute(newGame(program).story, "start", "start.NO_SUCH_PATH", {
+    planRoute(newGame(program).story, "start", NO_SUCH_ADDRESS, {
       stayWithinKnot: true,
       maxSteps: 5_000,
       maxNodes: 500,
@@ -259,17 +266,22 @@ describe("the planner's verdict becomes the reason shown to the author", () => {
     // reporting whichever ceiling it stopped on would tell them to shorten a
     // scene that is not the problem.
     const program = compileSrc(ENDLESS_LOOP);
-    planRoute(newGame(program).story, "start", "start.NO_SUCH_PATH", {
+    planRoute(newGame(program).story, "start", NO_SUCH_ADDRESS, {
       stayWithinKnot: true,
       maxSteps: 5_000,
       maxNodes: 500,
       searchTimeout: Number.MAX_SAFE_INTEGER,
     });
     expect(lastSearchStats.endReason).toBe("max-steps");
-    expect(newGame(program).describeFailedRouteSearch("start.NO_SUCH_PATH")).toBe(
+    expect(newGame(program).describeFailedRouteSearch(NO_SUCH_ADDRESS)).toBe(
       "unroutable",
     );
     expect(newGame(program).describeFailedRouteSearch(null)).toBe("unroutable");
+    // The start address of a line with none, front matter or a `define`
+    // block, is no position of the story either.
+    expect(newGame(program).describeFailedRouteSearch(TOP_LEVEL_START)).toBe(
+      "unroutable",
+    );
   }, 120_000);
 
   test("an exhausted search is reported as exhausted", () => {
@@ -292,9 +304,10 @@ describe("a game that simulates for itself records the same reason", () => {
   test("a file with no story flow is recorded as unroutable", () => {
     const program = compileSrc(NO_STORY_FLOW);
     const game: any = newGame(program);
-    // Nothing in this file resolves to a story position, so the start path
-    // falls back to the root container.
+    // Nothing in this file resolves to a story position, so the start
+    // address falls back to the top of the top-level content.
     expect(game.setStartFrom({ file: URI, line: 1 })).toBeNull();
+    expect(game.startAddress).toBe(TOP_LEVEL_START);
     game.simulate();
     expect(game.simulationFailure).toBe("unroutable");
   }, 120_000);
@@ -312,7 +325,7 @@ describe("a game that simulates for itself records the same reason", () => {
     const route = Game.planRoute(game.story, program, "start", toPath);
     expect(route).not.toBeNull();
 
-    game.simulateRoute({ ...route, to: "start.NO_SUCH_PATH" }, 0);
+    game.simulateRoute({ ...route, to: NO_SUCH_ADDRESS }, 0);
 
     expect(game.simulation).toBe("fail");
     expect(game.simulationFailure).toBe("diverged");

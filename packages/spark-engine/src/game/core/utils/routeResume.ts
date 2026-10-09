@@ -67,11 +67,7 @@ export const validAddressPrefixLength = (
   };
   let previous = -1;
   for (let i = 0; i < steps.length; i += 1) {
-    const address = steps[i]!.address;
-    if (typeof address !== "number") {
-      return i;
-    }
-    const id = chunkOfAddress(address);
+    const id = chunkOfAddress(steps[i]!.address);
     if (id === previous) {
       continue;
     }

@@ -215,15 +215,15 @@ describe("Game save/load", () => {
 describe("RuntimeState", () => {
   it("round-trips executed paths through JSON, preserving order", () => {
     const state = new RuntimeState();
-    state.recordExecution("0.1");
-    state.recordExecution("0.2");
-    state.recordExecution("0.3");
+    state.recordExecution(1);
+    state.recordExecution(2);
+    state.recordExecution(3);
 
     const restored = RuntimeState.fromJSON(state.toJSON());
     expect(Array.from(restored.pathsExecutedThisFrame)).toEqual([
-      "0.1",
-      "0.2",
-      "0.3",
+      1,
+      2,
+      3,
     ]);
   });
 
@@ -231,21 +231,28 @@ describe("RuntimeState", () => {
   // so the last entry is always the most recently executed.
   it("moves a re-executed path to the end", () => {
     const state = new RuntimeState();
-    state.recordExecution("0.1");
-    state.recordExecution("0.2");
-    state.recordExecution("0.1");
+    state.recordExecution(1);
+    state.recordExecution(2);
+    state.recordExecution(1);
 
     const restored = RuntimeState.fromJSON(state.toJSON());
-    expect(Array.from(restored.pathsExecutedThisFrame)).toEqual(["0.2", "0.1"]);
+    expect(Array.from(restored.pathsExecutedThisFrame)).toEqual([2, 1]);
   });
 
-  it("ignores global paths", () => {
-    const state = new RuntimeState();
-    state.recordExecution("global setup");
-    state.recordExecution("0.1");
-
-    const restored = RuntimeState.fromJSON(state.toJSON());
-    expect(Array.from(restored.pathsExecutedThisFrame)).toEqual(["0.1"]);
+  // A save writes each executed position in its durable form, a string, which
+  // a load places (`Game.placedExecuted`); the record still reads one.
+  it("reads a saved record's durable positions", () => {
+    const restored = RuntimeState.read(
+      JSON.stringify({
+        pathsExecutedThisFrame: ["a saved position", 2],
+        choicesEncountered: [],
+        conditionsEncountered: [],
+      }),
+    );
+    expect(Array.from(restored.pathsExecutedThisFrame)).toEqual([
+      "a saved position",
+      2,
+    ]);
   });
 
   it("round-trips recorded conditions", () => {
@@ -266,13 +273,13 @@ describe("RuntimeState", () => {
   describe("clone", () => {
     it("does not alias the executed-path set", () => {
       const state = new RuntimeState();
-      state.recordExecution("0.1");
+      state.recordExecution(1);
 
       const cloned = RuntimeState.clone(state);
-      cloned.recordExecution("0.2");
+      cloned.recordExecution(2);
 
-      expect(Array.from(state.pathsExecutedThisFrame)).toEqual(["0.1"]);
-      expect(Array.from(cloned.pathsExecutedThisFrame)).toEqual(["0.1", "0.2"]);
+      expect(Array.from(state.pathsExecutedThisFrame)).toEqual([1]);
+      expect(Array.from(cloned.pathsExecutedThisFrame)).toEqual([1, 2]);
     });
 
     it("does not alias the recorded choices", () => {
