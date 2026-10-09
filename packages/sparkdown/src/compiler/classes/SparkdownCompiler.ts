@@ -63,6 +63,11 @@ import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
 import { isLoopInternal, loopExitOf } from "../lower/utils/statementShape";
+import {
+  IDENTIFIER_FIELDS,
+  NAME_STRING_FIELDS,
+  namesHeldBy,
+} from "../utils/syntheticNameFields";
 import { createProgramTable, reseedProgramTable, type ProgramTable } from "../../program/ProgramTable";
 import { type SceneAssetCapture, type SceneAssets } from "../types/SceneAssets";
 import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
@@ -159,42 +164,6 @@ import type {
 // name can refer to a different flow after an edit — name-keyed caches must
 // never reuse entries for flows matching this.
 const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
-
-// The fields `canonicalizeSyntheticFlowNames` reads synthetic names from, which
-// `ownsItsNumbering` reads too.
-//
-// A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
-// emit runtime variable refs straight from it — `StashAndRereadExpression.tempName`
-// (the `__mcall_<from>` receiver stash), `StashedTempReadExpression.tempName`
-// (the method lookup's read of that stash) and `VariablePointerExpression.variableName`.
-// They share one remap with the Identifier-shaped names, so a temp's stash,
-// its reads and any Identifier naming it stay in lockstep.
-// Only SYNTH-matching values are touched, so user strings/display text are safe.
-// Only a node's own data property is a plain-string name: `VariableAssignment`
-// exposes `variableName` as a read-only getter over its identifier, which the
-// identifier pass already renames, and writing through it throws.
-const NAME_STRING_FIELDS = ["tempName", "variableName"];
-
-// Every Identifier-bearing field in the ParsedHierarchy (from the class
-// declarations): the base `identifier`, Divert/VariableReference
-// `pathIdentifiers`, VariableReference `unresolvedMember`,
-// VariableAssignment `variableIdentifier`,
-// StructDefinition `modifier`/`type`/`name`, List `itemIdentifierList`.
-// Visiting these directly instead of sweeping `Object.keys(node)` per node
-// is what keeps this pass cheap (no per-node key-array allocation over the
-// whole tree). If a new Identifier-valued field is ever added to a parsed
-// node, it must be listed here — the incremental oracle's synthetic-name
-// fuzz and the conformance suite are the safety net for a miss.
-const IDENTIFIER_FIELDS = [
-  "identifier",
-  "pathIdentifiers",
-  "unresolvedMember",
-  "variableIdentifier",
-  "modifier",
-  "type",
-  "name",
-  "itemIdentifierList",
-];
 
 // Reseed the binary string table once it is half again its live size, provided
 // the absolute slack is worth a full remap. A ratio rather than a
@@ -441,8 +410,9 @@ export type SparkdownCompilerEvents = {
  * longer holds (#1683): a label, a local or a local's assignment a loop's
  * lowering made from its place in the document (`isLoopInternal`), which
  * the loop's stand-in holds again under the name its lowering gives it where
- * it stands then (`MemoHolder`), so that the compile numbers as many names
- * for it as for the loop; and the label a `break` or `continue` leaves by,
+ * it stands then (`MemoHolder`), where the compile first meets the name, so
+ * that the compile numbers it as for the loop; and the label a `break` or
+ * `continue` leaves by,
  * whose loop's lowering names it. A name a statement holds otherwise (a
  * method call's receiver, a function written as a value), a continuation's
  * group or a statement's uuid keeps the statement's memo from being served.
@@ -468,23 +438,12 @@ const ownsItsNumbering = (candidate: MemoCandidate): boolean => {
         own.add(obj.variableName);
       }
     }
-    for (const field of IDENTIFIER_FIELDS) {
-      const value = (obj as any)[field];
-      for (const id of Array.isArray(value) ? value : [value]) {
-        if (id instanceof Identifier && id.name && CANONICAL_SYNTH_NAME.test(id.name)) {
-          names.add(id.name);
-          if (loopExitOf.has(obj)) {
-            own.add(id.name);
-          }
+    for (const name of namesHeldBy(obj)) {
+      if (CANONICAL_SYNTH_NAME.test(name)) {
+        names.add(name);
+        if (loopExitOf.has(obj)) {
+          own.add(name);
         }
-      }
-    }
-    for (const field of NAME_STRING_FIELDS) {
-      const value = Object.prototype.hasOwnProperty.call(obj, field)
-        ? (obj as any)[field]
-        : undefined;
-      if (typeof value === "string" && CANONICAL_SYNTH_NAME.test(value)) {
-        names.add(value);
       }
     }
     parsedChildren(obj).forEach(visit);
@@ -870,6 +829,10 @@ export class SparkdownCompiler {
   // because carried nodes keep the names it gave them.
   protected _canonicalSynthIds = new WeakSet<Identifier>();
   protected _canonicalSynthStrings = new WeakMap<object, Set<string>>();
+  // The name its last run gave each name it found (a name it gave before
+  // keeps its own key), which `programStatementMemo.test.ts` compares with a
+  // cold compile's for the names a served loop's holders take (#1683).
+  protected _syntheticNamesLastRun: ReadonlyMap<string, string> = new Map();
   // The canonical-form names its last run found and did not give.
   protected _authoredCanonicalNames: Array<{
     name: string;
@@ -3394,6 +3357,7 @@ export class SparkdownCompiler {
         changed = true;
       }
     }
+    this._syntheticNamesLastRun = remap;
     if (!changed) {
       return;
     }

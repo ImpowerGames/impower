@@ -1247,38 +1247,51 @@ describe("a loop or a `choose` block served from its memo, as the rest of the st
 });
 
 describe("the names a loop's lowering makes from its place (#1683)", () => {
-  /** The labels a loop's lowering made in the story the last compile
-   *  resolved, each with the line it stands on, in the story's order. */
-  const loopLabels = (compiler: SparkdownCompiler): string[] => {
-    const story = (compiler as any)._programResolver._story as ParsedObject;
-    const out: string[] = [];
-    const visit = (obj: ParsedObject) => {
-      const name = (obj as { identifier?: { name?: string } }).identifier?.name;
-      if (obj.typeName === "Gather" && name && /^__synth_\d+$/.test(name)) {
-        out.push(`${obj.debugMetadata?.startLineNumber}:${name}`);
-      }
-      parsedChildren(obj).forEach(visit);
-    };
-    visit(story);
-    return out;
-  };
-  const coldLabels = (text: string) => {
+  /** The number the last compile's numbering of synthetic names gave each
+   *  name a lowering made from its place (`<tag>__$<place>...`). */
+  const placedNames = (compiler: SparkdownCompiler): Map<string, string> =>
+    new Map(
+      [...((compiler as any)._syntheticNamesLastRun as Map<string, string>)].filter(([name]) =>
+        name.includes("$"),
+      ),
+    );
+
+  const coldCompiler = (text: string): SparkdownCompiler => {
     const c = programCompiler({ [MAIN_URI]: text });
     quietly(() => c.compile());
-    return loopLabels(c.compiler as SparkdownCompiler);
+    return c.compiler as SparkdownCompiler;
   };
+  /** The first line of each statement the last update lowered. */
+  const loweredLines = (s: ReturnType<typeof session>) =>
+    s.stats.loweredAt.map((at) => s.text.slice(at, s.text.indexOf("\n", at)).trim());
 
-  it("are numbered for a loop lowered after served loops as a cold compile numbers them", () => {
+  it("are numbered for each part of a served loop as a cold compile numbers them, and for a loop lowered after it", () => {
     const s = warmed(
       clauseScript(
         [
           "Line one.",
           ...FILLER,
-          "while trust < 2 do",
-          "  & trust = trust + 1",
-          "end",
+          // The `break` names the loop's exit before its `continue` label
+          // does.
+          "repeat",
+          "  break",
+          "until true",
           "for i = 1, 2 do",
+          "  if i > 1 then",
+          "    while trust < 2 do",
+          "      & trust = trust + 1",
+          "    end",
+          "    break",
+          "  end",
           "  In the for {i}.",
+          "end",
+          "for k, v in { a = 1 } do",
+          "  if k then",
+          "    continue",
+          "  end",
+          "  for j = 1, 2 do",
+          "    In the inner for {j}.",
+          "  end",
           "end",
           ...FILLER,
           "while trust < 3 do",
@@ -1288,21 +1301,55 @@ describe("the names a loop's lowering makes from its place (#1683)", () => {
         ["store trust = 0", ""],
       ),
     );
-    // The last loop is lowered, the two above it served.
+    // The last loop is lowered, the loops above it served.
     s.edit("while trust < 3 do", "while trust < 4 do");
     expect(loweredOutside(s)).toEqual([]);
-    expect(s.stats.loweredAt.map((at) => s.text.slice(at, s.text.indexOf("\n", at)).trim())).toContain(
-      "while trust < 4 do",
-    );
-    const incremental = loopLabels(s.compiler);
-    const cold = coldLabels(s.text);
-    // As many names as a cold compile's, so the lowered loop's are a cold
-    // compile's.
-    expect(incremental.map((label) => label.split(":")[1]).sort()).toEqual(
-      cold.map((label) => label.split(":")[1]).sort(),
-    );
-    const last = (labels: string[]) => labels.slice(-2);
-    expect(last(incremental)).toEqual(last(cold));
+    expect(s.stats.served).toBeGreaterThan(2 * FILLER.length);
+    const incremental = placedNames(s.compiler);
+    const c = programCompiler({ [MAIN_URI]: s.text });
+    quietly(() => c.compile());
+    const coldNames = placedNames(c.compiler as SparkdownCompiler);
+    // Every name of every loop, the served ones' held again by their
+    // stand-ins: six loops' labels, hidden temporaries and their parts.
+    expect(incremental.size).toBe(coldNames.size);
+    expect(incremental.size).toBeGreaterThan(12);
+    expect([...incremental].sort()).toEqual([...coldNames].sort());
     sameAsCold(s);
+  });
+
+  it("serve a `break` again once its loop, lowered anew by an edit of its head, is served again", () => {
+    const s = warmed(
+      clauseScript(
+        [
+          "Line one.",
+          ...FILLER,
+          "while trust < 2 do",
+          "  & trust = trust + 1",
+          "  if trust > 5 then",
+          "    break",
+          "  end",
+          "end",
+          ...FILLER,
+        ],
+        ["store trust = 0", ""],
+      ),
+    );
+    // The loop's head is rebuilt and the loop lowered anew; the statements
+    // of its body, the `if` holding the `break` among them, are served
+    // inside it.
+    s.edit("while trust < 2 do", "while trust < 3 do");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(loweredLines(s)).toContain("while trust < 3 do");
+    expect(loweredLines(s)).not.toContain("if trust > 5 then");
+    expect(loweredLines(s)).not.toContain("break");
+    sameAsCold(s);
+    expect([...placedNames(s.compiler)].sort()).toEqual([...placedNames(coldCompiler(s.text))].sort());
+    // An edit elsewhere serves the loop again, with its `break`.
+    s.edit("Line one.", "Line one, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(loweredLines(s)).not.toContain("while trust < 3 do");
+    expect(loweredLines(s)).not.toContain("break");
+    sameAsCold(s);
+    expect([...placedNames(s.compiler)].sort()).toEqual([...placedNames(coldCompiler(s.text))].sort());
   });
 });

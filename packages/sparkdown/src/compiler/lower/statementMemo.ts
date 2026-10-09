@@ -62,6 +62,8 @@ import {
   type StatementShape,
 } from "./utils/statementShape";
 import { holdsCheckedBlock } from "./utils/validateBlockEnds";
+import { namesHeldBy } from "../utils/syntheticNameFields";
+import { parsedChildren } from "../../program/ProgramResolver";
 
 /** A node of the Sparkdown grammar (LOWERING.md, section 5.0). */
 type SparkdownNode = GrammarSyntaxNode<SparkdownNodeName>;
@@ -236,11 +238,13 @@ export interface MemoOwner {
  * holder of a loop an edit moved is named as the loop's lowering names it
  * where it stands now, and the compile numbers it
  * (`SparkdownCompiler.canonicalizeSyntheticFlowNames`) as a cold compile
- * numbers the loop's: the names a served statement holds take as many
- * numbers as its lowering's would, so every other statement's are a cold
- * compile's. `line` and `place` are where the part stands relative to the
- * statement, which the stand-in orders its holders and the statements
- * inside it by, and places a choice's or a label's name at.
+ * numbers the loop's. The holders stand where their names first stood in
+ * the order the compile numbers names (`anchor`): before a statement inside
+ * the block statement, inside one (a loop's label a `break` in its body
+ * names first), or after them all, so each name of a served statement takes
+ * the number its lowering's would take and every other statement's are a
+ * cold compile's. `place` is where the part stood relative to the
+ * statement, which a choice's or a label's range and name are placed at.
  */
 export interface MemoHolder {
   readonly kind: "label" | "choice" | "local" | "assign";
@@ -248,7 +252,12 @@ export interface MemoHolder {
   readonly depth: number;
   readonly endsChooseBlock: boolean;
   readonly onceOnly: boolean;
-  readonly line: number;
+  /** Where the part's name first stands among the statements inside the
+   *  block statement: before the one that starts `at` from the block
+   *  statement's start, inside it, or after them all. */
+  readonly anchor:
+    | { readonly kind: "before" | "in"; readonly at: number }
+    | { readonly kind: "end" };
   readonly place: MemoPlace | null;
 }
 
@@ -958,9 +967,11 @@ export class StatementMemoSession {
 }
 
 /** An object a block statement's stand-in holds, with where it stands: the
- *  line and the column, 1-based, of the part or the statement it stands
- *  for, then whether it opens a loop's scope (0), stands for a part or a
- *  statement (1), or closes the scope (2). */
+ *  line and the column, 1-based, of the statement it stands for or stands
+ *  before, then whether it opens a loop's scope or stands before the
+ *  statement (0), stands for or inside it (1), stands after every statement
+ *  of a block statement (2), or closes the scope (3). Objects that stand at
+ *  one place stand in the order they were placed. */
 interface Placed {
   key: readonly [number, number, number];
   obj: ParsedObject;
@@ -1006,10 +1017,9 @@ const holdersInto = (
     return;
   }
   const own = statement.ownDebugMetadata;
-  const [line, column] = keyAt(from, 0, ctx);
   if (owner.scoped) {
-    items.push({ key: [line, column, 0], obj: new Wrap(RuntimeControlCommand.BeginScope()) });
-    items.push({ key: keyAt(to, 2, ctx), obj: new Wrap(RuntimeControlCommand.EndScope()) });
+    items.push({ key: keyAt(from, 0, ctx), obj: new Wrap(RuntimeControlCommand.BeginScope()) });
+    items.push({ key: keyAt(to, 3, ctx), obj: new Wrap(RuntimeControlCommand.EndScope()) });
   }
   for (const holder of owner.holders) {
     const { before, shift, after } = holder.name;
@@ -1050,8 +1060,14 @@ const holdersInto = (
     if (own && place?.name && obj.identifier) {
       obj.identifier.debugMetadata = placedAt(own, place.name);
     }
-    const at = place?.own ?? place?.name;
-    items.push({ key: at ? [line + at.line, at.start, 1] : [line, column, 1], obj });
+    const { anchor } = holder;
+    items.push({
+      key:
+        anchor.kind === "end"
+          ? keyAt(to, 2, ctx)
+          : keyAt(from + anchor.at, anchor.kind === "before" ? 0 : 1, ctx),
+      obj,
+    });
   }
 };
 
@@ -1248,8 +1264,10 @@ const ownerOf = (pending: Pending): MemoOwner | null => {
 
 /**
  * The holders of the block statement `pending` lowered (`MemoHolder`), in
- * the order its objects hold their parts, or null when a part's name was
- * made from a place in the document in a form its holder cannot name again.
+ * the order their names first stand in the order the compile numbers names
+ * (`canonicalizeSyntheticFlowNames`: each object's names, then what it
+ * holds), or null when a part's name was made from a place in the document
+ * in a form its holder cannot name again.
  */
 const holdersOf = (
   pending: Pending,
@@ -1258,7 +1276,6 @@ const holdersOf = (
 ): MemoHolder[] | null => {
   const { shape } = pending;
   const first = shape.objects[0]?.ownDebugMetadata ?? null;
-  const out: MemoHolder[] = [];
   let failed = false;
   const nameOf = (name: string): MemoHolder["name"] => {
     // value-level: the name of a label or a local its lowering made
@@ -1278,7 +1295,9 @@ const holdersOf = (
       after: parts[3] ?? "",
     };
   };
-  const visit = (obj: ParsedObject) => {
+  // The parts, from the block statement's own objects.
+  const parts: { obj: ParsedObject; name: string }[] = [];
+  const collect = (obj: ParsedObject) => {
     if (nested.has(obj)) {
       return;
     }
@@ -1289,14 +1308,70 @@ const holdersOf = (
           ? obj.variableName
           : null;
     if (held(obj) && name) {
-      const place = first
-        ? {
-            own: relativeTo(first, obj.ownDebugMetadata),
-            name: relativeTo(first, obj.identifier?.debugMetadata),
-          }
-        : null;
-      const line = place?.own?.line ?? place?.name?.line ?? 0;
-      out.push({
+      parts.push({ obj, name });
+    }
+    for (const child of obj.content ?? []) {
+      collect(child);
+    }
+  };
+  shape.objects.forEach(collect);
+  // Where each part stands, walking the block statement's objects, the
+  // statements inside it among them, as the compile walks them: a name made
+  // from the loop's place where the compile first meets it, which decides
+  // the number it takes (a `break` in the loop's body can name the loop's
+  // exit first), and any other part where its object stands, which decides
+  // the order the story names the block's labels in.
+  // value-level: the name of a label or a local its lowering made
+  const placed = (name: string) => name.includes("$");
+  const names = new Set(parts.filter(({ name }) => placed(name)).map(({ name }) => name));
+  const objects = new Set(parts.map(({ obj }) => obj));
+  const statementOf = new Map<ParsedObject, StatementShape>();
+  eachStatement(shape, (statement) => {
+    for (const obj of statement.objects) {
+      statementOf.set(obj, statement);
+    }
+  });
+  type At = { order: number; inside: StatementShape | null; entered: number };
+  const entered: StatementShape[] = [];
+  const seen = new Set<StatementShape>();
+  const nameAt = new Map<string, At>();
+  const objectAt = new Map<ParsedObject, At>();
+  let step = 0;
+  const walk = (obj: ParsedObject, inside: StatementShape | null) => {
+    const statement = statementOf.get(obj) ?? inside;
+    if (statement && !seen.has(statement)) {
+      seen.add(statement);
+      entered.push(statement);
+    }
+    if (objects.has(obj)) {
+      objectAt.set(obj, { order: step++, inside: statement, entered: entered.length });
+    }
+    for (const name of namesHeldBy(obj)) {
+      if (names.has(name) && !nameAt.has(name)) {
+        nameAt.set(name, { order: step++, inside: statement, entered: entered.length });
+      }
+    }
+    for (const child of parsedChildren(obj)) {
+      walk(child, statement);
+    }
+  };
+  shape.objects.forEach((obj) => walk(obj, null));
+  const atOf = ({ obj, name }: { obj: ParsedObject; name: string }) =>
+    placed(name) ? nameAt.get(name) : objectAt.get(obj);
+  const anchorOf = (at: At | undefined): MemoHolder["anchor"] => {
+    if (at?.inside) {
+      return { kind: "in", at: at.inside.from - shape.from };
+    }
+    const next = at ? entered[at.entered] : undefined;
+    return next ? { kind: "before", at: next.from - shape.from } : { kind: "end" };
+  };
+  const order = (part: { obj: ParsedObject; name: string }) => atOf(part)?.order ?? step;
+  const out = parts
+    .map((part, i) => ({ part, i }))
+    .sort((a, b) => order(a.part) - order(b.part) || a.i - b.i)
+    .map(({ part }): MemoHolder => {
+      const { obj, name } = part;
+      return {
         kind:
           obj instanceof Gather
             ? "label"
@@ -1309,15 +1384,15 @@ const holdersOf = (
         depth: obj instanceof Gather || obj instanceof Choice ? obj.indentationDepth : 0,
         endsChooseBlock: obj instanceof Gather && obj.endsChooseBlock,
         onceOnly: obj instanceof Choice && obj.onceOnly,
-        line,
-        place,
-      });
-    }
-    for (const child of obj.content ?? []) {
-      visit(child);
-    }
-  };
-  shape.objects.forEach(visit);
+        anchor: anchorOf(atOf(part)),
+        place: first
+          ? {
+              own: relativeTo(first, obj.ownDebugMetadata),
+              name: relativeTo(first, obj.identifier?.debugMetadata),
+            }
+          : null,
+      };
+    });
   return failed ? null : out;
 };
 
