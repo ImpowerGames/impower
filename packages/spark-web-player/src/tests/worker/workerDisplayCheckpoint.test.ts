@@ -215,16 +215,12 @@ describe("the route's checkpoint, handed to the display", () => {
     });
   }, 120_000);
 
-  // OPEN (#1758 handoff): fails on the current head. After the value load,
-  // a save the game writes leaves out the `anchor` of the tables its
-  // declarations made (`Hero`, `names`), which a save written after a load
-  // of the full save carries. Skipped so CI reports the rest; the next
-  // session fixes the divergence and removes the skip.
-  it.skip("loaded while the story stands at another beat, holds what its full save holds", async () => {
+  it("loaded while the story stands at another beat, holds what its full save holds", async () => {
     // A display can load a checkpoint its log kept while the game has since
     // run elsewhere (a suggestion shown again, say), so the load is what
     // puts the story there. Two games, each loading the first beat's
-    // checkpoint once its story stands at the last beat.
+    // checkpoint once its story stands at the last beat, one in place and
+    // one through the full save written of it then.
     const elsewhere = async (throughSave: boolean) => {
       const h = await createPlayerHarness({
         files: [{ uri: MAIN_URI, text: SOURCE }],
@@ -235,14 +231,17 @@ describe("the route's checkpoint, handed to the display", () => {
         const game = h.workerState.gameState.game! as CheckpointGame;
         await h.select(lineOf("The first beat"));
         const checkpoint = game.newestCheckpoint();
-        const json = game.checkpointJson(checkpoint)!;
         await h.select(lineOf("The last beat"));
         expect(held(game).heroHp).toBe(12);
+        const json = game.checkpointJson(checkpoint)!;
+        const read = vi.spyOn(ProgramStory.prototype, "loadSave");
         expect(
           throughSave ? game.load(json) : game.loadCheckpoint(checkpoint),
         ).toBe(true);
+        const savesRead = read.mock.calls.length;
+        read.mockRestore();
         expect(game.programStory.state.storySeed).toBe(seedOf(json));
-        return held(game);
+        return { state: held(game), savesRead };
       } finally {
         h.dispose();
       }
@@ -250,8 +249,47 @@ describe("the route's checkpoint, handed to the display", () => {
     const inPlace = await elsewhere(false);
     const throughSave = await elsewhere(true);
     // The first beat's state: the instance made, with its store default.
-    expect(inPlace.heroHp).toBe(10);
-    expect(inPlace).toEqual(throughSave);
+    expect(inPlace.state.heroHp).toBe(10);
+    expect(inPlace.state).toEqual(throughSave.state);
+    // The second route ran the declarations again, so the image holds the
+    // tables of the run before, and the value loads through its save.
+    expect(inPlace.savesRead).toBe(1);
+  }, 120_000);
+
+  it("loaded in place while the story stands at another beat of the same run, holds what its full save holds", async () => {
+    // The last beat's checkpoint, loaded once the story has been put back
+    // at the first checkpoint in place, with the tables of the same run of
+    // the declarations: the load in place is what moves the story.
+    const back = async (throughSave: boolean) => {
+      const h = await createPlayerHarness({
+        files: [{ uri: MAIN_URI, text: SOURCE }],
+        startFrom: { file: MAIN_URI, line: lineOf("The last beat") },
+      });
+      try {
+        await h.compile();
+        const game = h.workerState.gameState.game! as CheckpointGame;
+        const checkpoint = game.newestCheckpoint();
+        expect(game.restoreCheckpoint(0)).toBe(true);
+        expect(held(game).heroHp).toBe(10);
+        const json = game.checkpointJson(checkpoint)!;
+        const read = vi.spyOn(ProgramStory.prototype, "loadSave");
+        expect(
+          throughSave ? game.load(json) : game.loadCheckpoint(checkpoint),
+        ).toBe(true);
+        const savesRead = read.mock.calls.length;
+        read.mockRestore();
+        expect(game.programStory.state.storySeed).toBe(seedOf(json));
+        return { state: held(game), savesRead };
+      } finally {
+        h.dispose();
+      }
+    };
+    const inPlace = await back(false);
+    const throughSave = await back(true);
+    expect(inPlace.savesRead).toBe(0);
+    // The last beat's state.
+    expect(inPlace.state.heroHp).toBe(12);
+    expect(inPlace.state).toEqual(throughSave.state);
   }, 120_000);
 
   it("taken in a program the game no longer holds, loads as its full save does", async () => {

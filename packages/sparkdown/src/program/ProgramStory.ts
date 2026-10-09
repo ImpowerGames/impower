@@ -133,6 +133,10 @@ import {
 } from "./ProgramChunk";
 import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
 
+/** Each image's run of the declarations (`ProgramStory._tableInit`), shared
+ *  by the engines of a game, as its images are. */
+const tableInits = new WeakMap<ProgramImage, object>();
+
 /** The function a symbol names, as the call handlers the two engines share
  *  read it (`FunctionTarget`): where its entry code starts, and what its
  *  entry binds, which the leading `SetVar`s of that code say. */
@@ -542,9 +546,22 @@ export class ProgramStory implements StoryEngine {
   capture(keyframe = false): ProgramImage {
     this.enableImages();
     const image = captureImage(this._state, this._tracker, this, keyframe);
+    if (this._tableInit) {
+      tableInits.set(image, this._tableInit);
+    }
     this.notMovedSince(image);
     return image;
   }
+
+  /** The run of the declarations whose tables the state holds: the
+   *  `VariablesState` a reset built, whose anchors (`InitTableAnchors`) name
+   *  those tables, or the one an image restored was taken with. A reset,
+   *  in this engine or in the one a later program builds, runs the
+   *  declarations again into tables of its own; an image taken before it
+   *  restores the tables of the run it was taken with, which the anchors
+   *  of the current one do not name, where a load of its save fills the
+   *  current run's (#1758, `loadImage`). */
+  protected _tableInit: object | null = null;
 
   // The image the state last was, and whether it has moved since: a step,
   // a choice taken, a path chosen, a call stack reset, or a write the
@@ -667,6 +684,7 @@ export class ProgramStory implements StoryEngine {
     this.notMovedSince(image);
     this._stateIsPristine = false;
     this._state.beatImage = null;
+    this._tableInit = tableInits.get(image) ?? null;
     return true;
   }
 
@@ -930,6 +948,10 @@ export class ProgramStory implements StoryEngine {
     const before = this.capture();
     const records: BeatRecord[] = [];
     let load: ReturnType<typeof readSave>;
+    // A load fills the tables of the declarations' current run, or makes
+    // new ones, so the beats it reads hold that run's tables; a refused load
+    // puts back `before`, and the run it was taken with.
+    this._tableInit = this._state.variablesState;
     try {
       load = readSave(
         this._state,
@@ -990,9 +1012,11 @@ export class ProgramStory implements StoryEngine {
    * image's own record. Answers false, with nothing changed, for an image
    * taken just after a choice, which a load takes again by raising the menu
    * (`loadSave`), for one that names a chunk or a sequence this root does
-   * not hold, which a load places through its saved form, and for one that
-   * holds a table a save writes only part of (`holdsUnsavedFields`): the
-   * caller loads its save instead.
+   * not hold, which a load places through its saved form, for one taken
+   * with tables of another run of the declarations than those the state
+   * holds (`_tableInit`), whose save a load writes into the current run's,
+   * which its anchors name, and for one that holds a table a save writes
+   * only part of (`holdsUnsavedFields`): the caller loads its save instead.
    */
   loadImage(image: ProgramImage): boolean {
     if (this._recursiveContinueCount > 0) {
@@ -1004,6 +1028,7 @@ export class ProgramStory implements StoryEngine {
       !(engine instanceof ProgramStory) ||
       engine.root !== this.root ||
       !this.canRestore(image, false) ||
+      tableInits.get(image) !== this._tableInit ||
       ProgramStory.holdsUnsavedFields(image)
     ) {
       return false;
@@ -1221,6 +1246,8 @@ export class ProgramStory implements StoryEngine {
     };
     this.runDeclarations();
     variablesState.SnapshotDefaultGlobals();
+    // The state holds the tables this run of the declarations made.
+    this._tableInit = variablesState;
     // A global written from outside the story (`variablesState[name] = v`)
     // leaves the state no longer the one this reset built, as the deleted object
     // engine's `VariableStateDidChangeEvent` records (#1692). Registered after
