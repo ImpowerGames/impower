@@ -60,6 +60,22 @@ export const markMemoized = (obj: ParsedObject, memo: object): void => {
   (obj as unknown as { [MEMO]?: object })[MEMO] = memo;
 };
 
+// The objects a block statement's stand-in holds for the parts of its own
+// objects that the passes over the whole story read for what they are
+// (`MemoHolder`, #1683).
+const holders = new WeakSet<ParsedObject>();
+
+/** Marks `obj` as a holder: an object a block statement's stand-in holds in
+ *  place of one of the statement's own objects, a loop's label or local, or
+ *  a `choose` block's named choice or labelled `then` clause, which is never
+ *  generated or resolved as itself. */
+export const markHolder = (obj: ParsedObject): void => {
+  holders.add(obj);
+};
+
+/** Whether `obj` is a holder (`markHolder`). */
+export const isHolder = (obj: ParsedObject): boolean => holders.has(obj);
+
 /** What a stand-in's generation does: the program path's resolver reports
  *  again what the statement's memo recorded (`ResolutionTap.memo`); with no
  *  resolver listening, the pass needs the statement's objects. */

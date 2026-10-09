@@ -992,3 +992,408 @@ describe("the recording of the lowering context", () => {
     expect(readsHold(ctx as never, 0, recording.reads)).toBe(false);
   });
 });
+
+// ---- Loops and nested `choose` blocks (#1683) --------------------------------
+
+/** A clause holding a loop of each form and a `choose` block written in it,
+ *  with a named choice and a labelled `then` clause, among lines no edit
+ *  below touches; `heads` replaces the heads that read `n`. */
+const loopsScript = (
+  heads: Partial<Record<"while" | "for" | "forIn" | "repeat" | "choice", string>> = {},
+  clause: readonly string[] = [],
+) =>
+  clauseScript(
+    [
+      "Line one.",
+      ...clause,
+      ...FILLER,
+      heads.while ?? "while trust < 2 do",
+      "  & trust = trust + 1",
+      "  In the while {trust}.",
+      "  if trust > 5 then",
+      "    break",
+      "  end",
+      "end",
+      heads.for ?? "for i = 1, 2 do",
+      "  In the for {i}.",
+      "  if i > 1 then",
+      "    continue",
+      "  end",
+      "end",
+      heads.forIn ?? "for k, v in { a = 1 } do",
+      "  In the generic for {v}.",
+      "end",
+      "repeat",
+      "  In the repeat.",
+      "  & trust = trust - 1",
+      heads.repeat ?? "until trust <= 0",
+      "choose",
+      heads.choice ?? "  + [Left]",
+      "    You go left.",
+      "  * (right) [Right]",
+      "    You go right.",
+      "then (inner)",
+      "  After the inner choice.",
+      "end",
+      ...FILLER,
+      "Line last.",
+    ],
+    ["store trust = 0", ""],
+  );
+
+describe("a loop or a `choose` block written in a body (#1683)", () => {
+  it("is served when an edit elsewhere in its block lowers the block again, with the statements of its bodies, and keeps its chunk", () => {
+    const s = warmed(loopsScript());
+    const before = new Set(rootChunks(s.root));
+    s.edit("Line one.", "Line one, edited.");
+    // The loops of each form and the `choose` block, with every statement
+    // of their bodies, are served as the lines around them are.
+    expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThanOrEqual(2 * FILLER.length + 5);
+    // The edited line's chunk, and no other: each loop's, the `choose`
+    // block's and their bodies' statements' are the same objects.
+    expect(rootChunks(s.root).filter((chunk) => !before.has(chunk)).length).toBe(1);
+    sameAsCold(s);
+    expect(storyFacts(s.compiler)).toEqual(coldFacts(s.text));
+  });
+
+  it("is served again by a second edit elsewhere, and keeps the chunk it kept", () => {
+    const s = warmed(loopsScript());
+    s.edit("Line one.", "Line one, edited.");
+    const before = new Set(rootChunks(s.root));
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(rootChunks(s.root).filter((chunk) => !before.has(chunk)).length).toBe(1);
+    sameAsCold(s);
+  });
+
+  it("is served when an edit above it moves it, and its program is a cold compile's", () => {
+    const s = warmed(loopsScript());
+    s.edit("    Line one.\n", "    Line one.\n    A line written above them.\n");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    expect(storyFacts(s.compiler)).toEqual(coldFacts(s.text));
+  });
+});
+
+// Each loop form and a `choose` block written in a clause, alone among lines
+// no edit below touches, its head reading a global only it reads.
+const KINDS = {
+  while: { head: "while w < 2 do", body: ["  In the while.", "end"] },
+  for: { head: "for i = 1, f do", body: ["  In the for {i}.", "end"] },
+  "for ... in": { head: "for k, v in g do", body: ["  In the generic for {v}.", "end"] },
+  repeat: { head: "repeat", body: ["  In the repeat.", "until r <= 0"] },
+  choose: {
+    head: "choose",
+    body: ["  * if c > 0 [Left]", "    You go left.", "  + [Right]", "    You go right.", "end"],
+  },
+} as const;
+
+const kindScript = (kind: keyof typeof KINDS) =>
+  clauseScript(
+    ["Line one.", ...FILLER, KINDS[kind].head, ...KINDS[kind].body, ...FILLER, "Line last."],
+    ["store w = 0", "store f = 2", "store g = { a = 1 }", "store r = 0", "store c = 1", ""],
+  );
+
+describe("an edit that changes what a loop or a `choose` block written in a body lowers to (#1683)", () => {
+  const readers = { while: "w", for: "f", "for ... in": "g", repeat: "r", choose: "c" } as const;
+  for (const kind of Object.keys(KINDS) as (keyof typeof KINDS)[]) {
+    it(`lowers again the ${kind} whose own lowering reads a local declared above it, and no other statement`, () => {
+      const s = warmed(kindScript(kind));
+      const before = new Set(rootChunks(s.root));
+      s.edit("    Line one.\n", `    Line one.\n    local ${readers[kind]} = 5\n`);
+      // The block statement, whose head reads the locals declared around
+      // it; the statements of its body, which read no local of the name,
+      // are served inside it.
+      expect(loweredOutside(s)).toEqual([KINDS[kind].head]);
+      // The new local's chunk and the block statement's: the statements of
+      // its body keep theirs.
+      expect(rootChunks(s.root).filter((chunk) => !before.has(chunk)).length).toBeLessThanOrEqual(2);
+      sameAsCold(s);
+      expect(storyFacts(s.compiler)).toEqual(coldFacts(s.text));
+    });
+
+    it(`serves the ${kind} again once the local it read goes`, () => {
+      const s = warmed(kindScript(kind));
+      s.edit("    Line one.\n", `    Line one.\n    local ${readers[kind]} = 5\n`);
+      s.edit(`    local ${readers[kind]} = 5\n`, "");
+      s.edit("Line last.", "Line last, edited.");
+      expect(loweredOutside(s)).toEqual([]);
+      sameAsCold(s);
+    });
+  }
+
+  it("lowers again a loop with the statement of its body whose lowering reads otherwise, and no other statement", () => {
+    try {
+      // A field of the context only the image line in the loop's body reads
+      // (`probe`, above): the loop is lowered again for it, as the line is.
+      probe.value = "one";
+      const s = warmed(
+        clauseScript(["Line one.", ...FILLER, "while w < 2 do", "  [[show backdrop alley]]", "end", ...FILLER], ["store w = 0", ""]),
+      );
+      probe.value = "two";
+      s.edit("Line one.", "Line one, edited.");
+      expect(loweredOutside(s)).toEqual(["[[show backdrop alley]]", "while w < 2 do"]);
+      sameAsCold(s);
+    } finally {
+      probe.value = undefined;
+    }
+  });
+});
+
+describe("a loop or a `choose` block served from its memo, as the rest of the story reads it (#1683)", () => {
+  it("declares again the loop's variables and the locals of its body, which stay in its scope", () => {
+    const s = warmed(
+      clauseScript(
+        [
+          "Line one.",
+          ...FILLER,
+          "for i = 1, 2 do",
+          "  local x = i",
+          "  In the for {x}.",
+          "end",
+          "for k, v in { a = 1 } do",
+          "  In the generic for {k}.",
+          "end",
+          "Read after the loops {i} {x} {k}.",
+          "& i = 3",
+          ...FILLER,
+        ],
+        ["store trust = 0", ""],
+      ),
+    );
+    s.edit("Line one.", "Line one, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    expect(storyFacts(s.compiler)).toEqual(coldFacts(s.text));
+    // A line after the loops lowered anew reads them as a cold compile
+    // does.
+    s.edit("Read after the loops {i} {x} {k}.", "Read after the loops, again, {i} {x} {k}.");
+    sameAsCold(s);
+    expect(storyFacts(s.compiler)).toEqual(coldFacts(s.text));
+  });
+
+  it("names the labels of a `choose` block, which a divert written after it reaches and a line reads the count of", () => {
+    const s = warmed(
+      clauseScript(
+        [
+          "Line one.",
+          ...FILLER,
+          "choose",
+          "  * (left) [Left]",
+          "    You go left.",
+          "  + [Right]",
+          "    You go right.",
+          "then (inner)",
+          "  After the inner choice.",
+          "end",
+          ...FILLER,
+          "Line last.",
+        ],
+      ),
+    );
+    s.edit("Line one.", "Line one, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    s.edit("Line last.", "Seen {left} and {inner}.\n    -> inner");
+    sameAsCold(s);
+    // A label written again in the clause is reported against the label
+    // the block's stand-in names, as a cold compile reports it, and keeps
+    // the program from being built, as it keeps a cold compile's.
+    s.edit("    Line one, edited.\n", "    Line one, edited.\n    label inner\n");
+    const coldProgram = cold({ [MAIN_URI]: s.text });
+    expect(diagnostics(s.program)).toEqual(diagnostics(coldProgram));
+    expect(diagnostics(s.program).join("\n")).toContain("inner");
+    expect(!!s.program.chunks).toBe(!!coldProgram.chunks);
+  });
+
+  it("keeps the count symbols of a `choose` block's choices when it is lowered again after it was served", () => {
+    const text = clauseScript([
+      "Line one.",
+      ...FILLER,
+      "choose",
+      "  * [Left]",
+      "    You go left.",
+      "  * [Right]",
+      "    You go right.",
+      "end",
+      ...FILLER,
+    ]);
+    const s = warmed(text);
+    const choicesOf = () => {
+      const store = s.compiler.chunkStore! as any;
+      for (const block of compiledBlocks(s, "LuauSparkdownChooseBlock")) {
+        for (const body of block.statement?.bodies ?? []) {
+          for (const statement of body.statements) {
+            if (statement.node === "LuauSparkdownChooseBlock") {
+              const chunk = store.chunkOf(statement.memo ?? statement);
+              return store._info.get(chunk)?.choices.map((part: { symbol: number }) => part.symbol);
+            }
+          }
+        }
+      }
+      return undefined;
+    };
+    const symbols = choicesOf();
+    expect(symbols?.length).toBe(2);
+    s.edit("Line one.", "Line one, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(choicesOf()).toEqual(symbols);
+    // An edit of the block lowers it again, and its choices keep their
+    // symbols, as a block lowered again keeps them.
+    s.edit("    You go left.", "    You go left, quickly.");
+    expect(choicesOf()).toEqual(symbols);
+    sameAsCold(s);
+  });
+});
+
+describe("the names a loop's lowering makes from its place (#1683)", () => {
+  /** The number the last compile's numbering of synthetic names gave each
+   *  name a lowering made from its place (`<tag>__$<place>...`). */
+  const placedNames = (compiler: SparkdownCompiler): Map<string, string> =>
+    new Map(
+      [...((compiler as any)._syntheticNamesLastRun as Map<string, string>)].filter(([name]) =>
+        name.includes("$"),
+      ),
+    );
+
+  const coldCompiler = (text: string): SparkdownCompiler => {
+    const c = programCompiler({ [MAIN_URI]: text });
+    quietly(() => c.compile());
+    return c.compiler as SparkdownCompiler;
+  };
+  /** The first line of each statement the last update lowered. */
+  const loweredLines = (s: ReturnType<typeof session>) =>
+    s.stats.loweredAt.map((at) => s.text.slice(at, s.text.indexOf("\n", at)).trim());
+
+  it("are numbered for each part of a served loop as a cold compile numbers them, and for a loop lowered after it", () => {
+    const s = warmed(
+      clauseScript(
+        [
+          "Line one.",
+          ...FILLER,
+          // The `break` names the loop's exit before its `continue` label
+          // does.
+          "repeat",
+          "  break",
+          "until true",
+          "for i = 1, 2 do",
+          "  if i > 1 then",
+          "    while trust < 2 do",
+          "      & trust = trust + 1",
+          "    end",
+          "    break",
+          "  end",
+          "  In the for {i}.",
+          "end",
+          "for k, v in { a = 1 } do",
+          "  if k then",
+          "    continue",
+          "  end",
+          "  for j = 1, 2 do",
+          "    In the inner for {j}.",
+          "  end",
+          "end",
+          ...FILLER,
+          "while trust < 3 do",
+          "  In the last loop.",
+          "end",
+        ],
+        ["store trust = 0", ""],
+      ),
+    );
+    // The last loop is lowered, the loops above it served.
+    s.edit("while trust < 3 do", "while trust < 4 do");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(2 * FILLER.length);
+    const incremental = placedNames(s.compiler);
+    const c = programCompiler({ [MAIN_URI]: s.text });
+    quietly(() => c.compile());
+    const coldNames = placedNames(c.compiler as SparkdownCompiler);
+    // Every name of every loop, the served ones' held again by their
+    // stand-ins: six loops' labels, hidden temporaries and their parts.
+    expect(incremental.size).toBe(coldNames.size);
+    expect(incremental.size).toBeGreaterThan(12);
+    expect([...incremental].sort()).toEqual([...coldNames].sort());
+    sameAsCold(s);
+  });
+
+  it("serve a `break` again once its loop, lowered anew by an edit of its head, is served again", () => {
+    const s = warmed(
+      clauseScript(
+        [
+          "Line one.",
+          ...FILLER,
+          "while trust < 2 do",
+          "  & trust = trust + 1",
+          "  if trust > 5 then",
+          "    break",
+          "  end",
+          "end",
+          ...FILLER,
+        ],
+        ["store trust = 0", ""],
+      ),
+    );
+    // The loop's head is rebuilt and the loop lowered anew; the statements
+    // of its body, the `if` holding the `break` among them, are served
+    // inside it.
+    s.edit("while trust < 2 do", "while trust < 3 do");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(loweredLines(s)).toContain("while trust < 3 do");
+    expect(loweredLines(s)).not.toContain("if trust > 5 then");
+    expect(loweredLines(s)).not.toContain("break");
+    sameAsCold(s);
+    expect([...placedNames(s.compiler)].sort()).toEqual([...placedNames(coldCompiler(s.text))].sort());
+    // An edit elsewhere serves the loop again, with its `break`.
+    s.edit("Line one.", "Line one, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(loweredLines(s)).not.toContain("while trust < 3 do");
+    expect(loweredLines(s)).not.toContain("break");
+    sameAsCold(s);
+    expect([...placedNames(s.compiler)].sort()).toEqual([...placedNames(coldCompiler(s.text))].sort());
+  });
+});
+
+describe("a script whose path holds what a name made from a place holds (#1683)", () => {
+  it("keeps its loops and `choose` blocks served when an edit above moves them", () => {
+    // A path a loop's lowering reads (its labels' document tag), as a line's
+    // lowering reads it, written like the place in such a name: it is a
+    // path, which the recording keeps as it is.
+    const uri = "inmemory:///scripts/chapter__$123.sd";
+    const c = programCompiler({ [uri]: loopsScript() });
+    let text = loopsScript();
+    let version = 1;
+    const edit = (find: string, replace: string) => {
+      const offset = text.indexOf(find);
+      expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+      version += 1;
+      c.compiler.updateDocument({
+        textDocument: { uri, version },
+        contentChanges: [
+          {
+            range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
+            text: replace,
+          },
+        ],
+      });
+      text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      return quietly(() => c.compile(uri).program);
+    };
+    quietly(() => c.compile(uri));
+    edit("Warm line.", "Warm line!");
+    const before = new Set(rootChunks(edit("Line one.", "Line one, edited.").chunks!));
+    const program = edit("    Line one, edited.\n", "    Line one, edited.\n    A line written above them.\n");
+    const stats = c.compiler.memoStats(uri)!;
+    const lines = stats.loweredAt.map((at) => text.slice(at, text.indexOf("\n", at)).trim());
+    // The statement written, and the statements the parse rebuilt with it.
+    expect(lines).not.toContain("while trust < 2 do");
+    expect(lines).not.toContain("for i = 1, 2 do");
+    expect(lines).not.toContain("repeat");
+    expect(lines).not.toContain("choose");
+    expect(stats.served).toBeGreaterThan(2 * FILLER.length);
+    expect(rootChunks(program.chunks!).filter((chunk) => !before.has(chunk)).length).toBeLessThanOrEqual(2);
+    const coldProgram = quietly(() => programCompiler({ [uri]: text }).compile(uri).program);
+    expect(describeRoot(program.chunks!)).toEqual(describeRoot(coldProgram.chunks!));
+    expect(diagnostics(program)).toEqual(diagnostics(coldProgram));
+  });
+});

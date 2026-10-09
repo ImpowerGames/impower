@@ -62,6 +62,12 @@ import {
 import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
+import { isLoopInternal, loopExitOf } from "../lower/utils/statementShape";
+import {
+  IDENTIFIER_FIELDS,
+  NAME_STRING_FIELDS,
+  namesHeldBy,
+} from "../utils/syntheticNameFields";
 import { createProgramTable, reseedProgramTable, type ProgramTable } from "../../program/ProgramTable";
 import { type SceneAssetCapture, type SceneAssets } from "../types/SceneAssets";
 import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
@@ -395,6 +401,55 @@ export type SparkdownCompilerEvents = {
       produced: boolean;
     },
   ) => void;
+};
+
+/**
+ * Whether every name the compile numbers by document order that a memo
+ * candidate's own objects hold (those of the statements of its bodies left
+ * out, which their own memos judge) is one its stand-in names again or no
+ * longer holds (#1683): a label, a local or a local's assignment a loop's
+ * lowering made from its place in the document (`isLoopInternal`), which
+ * the loop's stand-in holds again under the name its lowering gives it where
+ * it stands then (`MemoHolder`), where the compile first meets the name, so
+ * that the compile numbers it as for the loop; and the label a `break` or
+ * `continue` leaves by,
+ * whose loop's lowering names it. A name a statement holds otherwise (a
+ * method call's receiver, a function written as a value), a continuation's
+ * group or a statement's uuid keeps the statement's memo from being served.
+ */
+const ownsItsNumbering = (candidate: MemoCandidate): boolean => {
+  const names = new Set<string>();
+  const own = new Set<string>();
+  let other = false;
+  const visit = (obj: ParsedObject) => {
+    if (candidate.nested?.has(obj)) {
+      return;
+    }
+    if (
+      obj instanceof ContinuationGroup ||
+      ((obj instanceof Statement || obj instanceof Choice) && obj.uuid)
+    ) {
+      other = true;
+    }
+    if (isLoopInternal(obj)) {
+      if (obj instanceof Gather && obj.name) {
+        own.add(obj.name);
+      } else if (obj instanceof ParsedVariableAssignment) {
+        own.add(obj.variableName);
+      }
+    }
+    for (const name of namesHeldBy(obj)) {
+      if (CANONICAL_SYNTH_NAME.test(name)) {
+        names.add(name);
+        if (loopExitOf.has(obj)) {
+          own.add(name);
+        }
+      }
+    }
+    parsedChildren(obj).forEach(visit);
+  };
+  candidate.objects.forEach(visit);
+  return !other && [...names].every((name) => own.has(name));
 };
 
 // Distinguishes the context revisions (#654) of two compilers alive at once.
@@ -774,6 +829,10 @@ export class SparkdownCompiler {
   // because carried nodes keep the names it gave them.
   protected _canonicalSynthIds = new WeakSet<Identifier>();
   protected _canonicalSynthStrings = new WeakMap<object, Set<string>>();
+  // The name its last run gave each name it found (a name it gave before
+  // keeps its own key), which `programStatementMemo.test.ts` compares with a
+  // cold compile's for the names a served loop's holders take (#1683).
+  protected _syntheticNamesLastRun: ReadonlyMap<string, string> = new Map();
   // The canonical-form names its last run found and did not give.
   protected _authoredCanonicalNames: Array<{
     name: string;
@@ -3168,39 +3227,6 @@ export class SparkdownCompiler {
         matchedIds.push({ id, owner });
       }
     };
-    // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
-    // emit runtime variable refs straight from it — `StashAndRereadExpression.tempName`
-    // (the `__mcall_<from>` receiver stash), `StashedTempReadExpression.tempName`
-    // (the method lookup's read of that stash) and `VariablePointerExpression.variableName`.
-    // They share one remap with the Identifier-shaped names renamed above, so a
-    // temp's stash, its reads and any Identifier naming it stay in lockstep.
-    // Only SYNTH-matching values are touched, so user strings/display text are safe.
-    // Only a node's own data property is a plain-string name: `VariableAssignment`
-    // exposes `variableName` as a read-only getter over its identifier, which the
-    // identifier pass already renames, and writing through it throws.
-    const NAME_STRING_FIELDS = ["tempName", "variableName"];
-
-    // Every Identifier-bearing field in the ParsedHierarchy (from the class
-    // declarations): the base `identifier`, Divert/VariableReference
-    // `pathIdentifiers`, VariableReference `unresolvedMember`,
-    // VariableAssignment `variableIdentifier`,
-    // StructDefinition `modifier`/`type`/`name`, List `itemIdentifierList`.
-    // Visiting these directly instead of sweeping `Object.keys(node)` per node
-    // is what keeps this pass cheap (no per-node key-array allocation over the
-    // whole tree). If a new Identifier-valued field is ever added to a parsed
-    // node, it must be listed here — the incremental oracle's synthetic-name
-    // fuzz and the conformance suite are the safety net for a miss.
-    const IDENTIFIER_FIELDS = [
-      "identifier",
-      "pathIdentifiers",
-      "unresolvedMember",
-      "variableIdentifier",
-      "modifier",
-      "type",
-      "name",
-      "itemIdentifierList",
-    ];
-
     // Single walk: assign ordinals in document (pre-order content) traversal
     // order, recording every match for the later targeted rewrite. Per node,
     // Identifier-valued fields are visited before the plain string fields
@@ -3331,6 +3357,7 @@ export class SparkdownCompiler {
         changed = true;
       }
     }
+    this._syntheticNamesLastRun = remap;
     if (!changed) {
       return;
     }
@@ -3611,11 +3638,16 @@ export class SparkdownCompiler {
    * Leaves out of the compile's memo candidates each statement that holds a
    * name the compile numbers by document order, which the last
    * `canonicalizeSyntheticFlowNames` found: a statement served from its memo
-   * would hold the name back from the numbering of the names after it.
+   * would hold the name back from the numbering of the names after it. A
+   * loop's own names, and the label its `break` or `continue` leaves by, are
+   * kept (`ownsItsNumbering`, #1683).
    */
   protected dropNumberedMemos(): void {
     for (const [obj, candidate] of this._memoCandidates) {
-      if (!candidate.objects.every((held) => this.isSynthFree(held))) {
+      if (
+        !candidate.objects.every((held) => this.isSynthFree(held)) &&
+        !ownsItsNumbering(candidate)
+      ) {
         this._memoCandidates.delete(obj);
       }
     }
