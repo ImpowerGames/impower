@@ -10,7 +10,7 @@ import { type ChangedRange, Tree, TreeFragment } from "@lezer/common";
 import { noteLuauDocumentEdit } from "../typecheck/readLuauAst";
 import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
 import { createSparkdownParser } from "../utils/createSparkdownParser";
-import { documentString, documentText } from "../utils/documentString";
+import { documentString, documentText, editedDocumentText } from "../utils/documentString";
 import { profile } from "../utils/profile";
 import {
   type SparkdownAnnotatorConfigs,
@@ -145,7 +145,13 @@ export class SparkdownDocumentRegistry {
         const documentLengthBeforeChange = changeDocument.length;
         changeDocument.update([change], changeDocument.version + 1);
         const documentLengthAfterChange = changeDocument.length;
-        const text = documentText(changeDocument.getText());
+        // Apply the change to the text before it rather than split the
+        // whole document again; a text that does not match the document
+        // before the change is rebuilt from scratch.
+        const text =
+          state.text && state.text.length === documentLengthBeforeChange
+            ? editedDocumentText(state.text, fromA, toA, change.text, changeDocument.getText())
+            : documentText(changeDocument.getText());
         // The Luau readers carry what they read of the text before over to
         // this one outside the change, rather than compare the two.
         if (state.text) {
