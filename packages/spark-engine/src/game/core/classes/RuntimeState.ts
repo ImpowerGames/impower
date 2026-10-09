@@ -47,6 +47,11 @@ export class RuntimeState {
   executedSinceCheckpoint: Set<RecencyEntry> = new Set();
   protected _choiceDrainMark = 0;
   protected _conditionDrainMark = 0;
+  // Whether a checkpoint has drained this record. One that has not is a
+  // record the game started again or loaded since the last checkpoint (an
+  // ordinary continue starts a new record every beat), so the changes it
+  // drains do not extend the record the last checkpoint held (#1701).
+  protected _drained = false;
 
   /** Records the address of a position the story ran. A string beginning
    *  `global ` was the deleted object engine's path of its global
@@ -107,15 +112,21 @@ export class RuntimeState {
     };
   }
 
-  /** The collection changes committed since the last drain, and advance the
-   *  drain marks. Called once per captured beat. */
-  drainDeltas(): RuntimeDelta {
+  /** The collection changes committed since the last drain, or null when
+   *  this record was never drained (it replaced the record the last drain
+   *  read, so it holds no changes to that record), and advance the drain
+   *  marks. Called once per captured beat. */
+  drainDeltas(): RuntimeDelta | null {
     const pe = Array.from(this.executedSinceCheckpoint);
     this.executedSinceCheckpoint.clear();
     const ce = this.choicesEncountered.slice(this._choiceDrainMark);
     this._choiceDrainMark = this.choicesEncountered.length;
     const cde = this.conditionsEncountered.slice(this._conditionDrainMark);
     this._conditionDrainMark = this.conditionsEncountered.length;
+    if (!this._drained) {
+      this._drained = true;
+      return null;
+    }
     return { pe, ce, cde };
   }
 
