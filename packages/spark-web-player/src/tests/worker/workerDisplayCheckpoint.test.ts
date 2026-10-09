@@ -1,6 +1,10 @@
 // The checkpoint a preview compile's route leaves reaches the worker's
 // display without a save being written of it and read back (#1758). The
-// display loads it in place, and holds what a load of its full save holds.
+// display loads it in place and holds the route's state: the beat, the
+// story's position and output, store values, the runtime record and the
+// module state a load of its full save holds, with a define's properties
+// other than store ones and the tables the story shares as the route left
+// them (the maintainer's decision on #1758).
 import type { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -116,6 +120,19 @@ const held = (game: Game) => {
   };
 };
 
+/** What the display must hold as a load of the full save holds it (the
+ *  maintainer's decision on #1758): the save the game writes (the beat, the
+ *  story's position and output, store values and module state), the
+ *  runtime record and the story's history. A define's properties other than
+ *  store ones, and the tables the story shares, follow the route instead. */
+const decided = (state: ReturnType<typeof held>) => ({
+  save: state.save,
+  executed: state.executed,
+  choices: state.choices,
+  conditions: state.conditions,
+  beats: state.beats,
+});
+
 /** The seed of the newest beat a full save holds. */
 const seedOf = (json: string): number => {
   const beats = JSON.parse(JSON.parse(json).story).beats;
@@ -228,7 +245,7 @@ describe("the route's checkpoint, handed to the display", () => {
     }
   }, 120_000);
 
-  it("holds the state a load of its full save holds", async () => {
+  it("holds the beat, story, store values, runtime record and modules a load of its full save holds", async () => {
     // Two games, each walked from its own compile: one loads each
     // checkpoint in place, the other its full save.
     const lines = ["The fourth beat", "Trust is", "The first beat", "The last beat"].map(lineOf);
@@ -247,24 +264,28 @@ describe("the route's checkpoint, handed to the display", () => {
     });
   }, 120_000);
 
-  it("holding an instance property a save leaves out, loads as its full save does", async () => {
+  it("keeps an instance property the route wrote, which a load of the save takes from its class", async () => {
     // The image keeps the title the route wrote; a save does not write it,
-    // and a load of the save makes the instance again without it.
+    // and a load of the save makes the instance again without it. The
+    // display holds the route's title, and the rest as the save holds it.
     const lines = ["The fourth beat", "The first beat", "The last beat"].map(unsavedLineOf);
     const inPlace = await walk(SOURCE_UNSAVED, unsavedLineOf("The last beat"), lines, false);
     const throughSave = await walk(SOURCE_UNSAVED, unsavedLineOf("The last beat"), lines, true);
     expect(inPlace.loads.length).toBe(3);
-    // Each checkpoint after the write loads through its save; the one before
-    // it, at the first beat, holds no such property and loads in place.
-    expect(inPlace.savesRead).toBe(2);
-    expect(inPlace.loads[0]!.heroTitle).toBe("wanderer");
-    expect(inPlace.loads[0]!.heroOwn).toEqual(["hp"]);
+    expect(inPlace.savesRead).toBe(0);
+    // After the write: the route's title in place, the class's through the
+    // save. Before it, at the first beat: the class's in both.
+    expect(inPlace.loads.map((s) => s.heroTitle)).toEqual(["captain", "wanderer", "captain"]);
+    expect(throughSave.loads.map((s) => s.heroTitle)).toEqual(["wanderer", "wanderer", "wanderer"]);
     inPlace.loads.forEach((state, i) => {
-      expect({ load: i, state }).toEqual({ load: i, state: throughSave.loads[i] });
+      expect({ load: i, state: decided(state) }).toEqual({
+        load: i,
+        state: decided(throughSave.loads[i]!),
+      });
     });
   }, 120_000);
 
-  it("loaded while the story stands at another beat, holds what its full save holds", async () => {
+  it("loaded while the story stands at another beat of an earlier run, holds what the display must hold as its full save does", async () => {
     // A display can load a checkpoint its log kept while the game has since
     // run elsewhere (a suggestion shown again, say), so the load is what
     // puts the story there. Two games, each loading the first beat's
@@ -299,10 +320,20 @@ describe("the route's checkpoint, handed to the display", () => {
     const throughSave = await elsewhere(true);
     // The first beat's state: the instance made, with its store default.
     expect(inPlace.state.heroHp).toBe(10);
-    expect(inPlace.state).toEqual(throughSave.state);
-    // The second route ran the declarations again, so the image holds the
-    // tables of the run before, and the value loads through its save.
-    expect(inPlace.savesRead).toBe(1);
+    // A table's anchor names it as a table of the declarations' current
+    // run. The image holds the earlier run's tables, which the save after
+    // the load writes unanchored, where a load of the full save filled the
+    // current run's: table identity, which follows the route.
+    const unanchored = (state: ReturnType<typeof held>) =>
+      JSON.parse(
+        JSON.stringify(decided(state), (key, value) =>
+          key === "anchor" ? undefined : value,
+        ),
+      );
+    expect(unanchored(inPlace.state)).toEqual(unanchored(throughSave.state));
+    // The second route ran the declarations again, and the image, which
+    // holds the tables of the run before, still loads in place.
+    expect(inPlace.savesRead).toBe(0);
   }, 120_000);
 
   it("loaded in place while the story stands at another beat of the same run, holds what its full save holds", async () => {
@@ -317,14 +348,81 @@ describe("the route's checkpoint, handed to the display", () => {
     expect(inPlace.state).toEqual(throughSave.state);
   }, 120_000);
 
-  it("holding a named define's property its declarations no longer give, loads as its full save does", async () => {
+  it("keeps a named define's property the route wrote, which a load of the save leaves as the table holds it", async () => {
     // The image holds the title the route wrote; a load of the save keeps
     // the title the table holds where the story stands, the first beat's.
     const inPlace = await loadedBack(SOURCE_NAMED, false);
     const throughSave = await loadedBack(SOURCE_NAMED, true);
-    expect(inPlace.savesRead).toBe(1);
+    expect(inPlace.savesRead).toBe(0);
+    expect(inPlace.state.guideTitle).toBe("stern");
     expect(throughSave.state.guideTitle).toBe("calm");
-    expect(inPlace.state).toEqual(throughSave.state);
+    expect(decided(inPlace.state)).toEqual(decided(throughSave.state));
+  }, 120_000);
+
+  it("after an edit, keeps a table the story shares as one table", async () => {
+    // `link`'s contents are `bag` itself. An edit gives the game a new
+    // engine, whose declarations run again, and the route resumes from an
+    // image of the engine before; a load of the full save would rebuild the
+    // bag apart from the define's contents (#1758, the maintainer's
+    // decision), where the display keeps the one table the route holds.
+    const text = `store bag = { n = 0 }
+define link with
+  contents = bag
+end
+
+-> start
+
+scene start
+  & bag.n = 7
+  HERO:
+    The first beat.
+
+  HERO:
+    The middle beat.
+
+  HERO:
+    The last beat, {bag.n}.
+end
+`;
+    const last = text.split("\n").findIndex((l) => l.includes("The last beat"));
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text }],
+      startFrom: { file: MAIN_URI, line: last },
+    });
+    try {
+      await h.compile();
+      await settle(40);
+      expect(h.overlay.textContent).toContain("The last beat, 7.");
+      const game = h.workerState.gameState.game!;
+      const engine = game.programStory;
+      const read = vi.spyOn(ProgramStory.prototype, "loadSave");
+      const line = "    The last beat, {bag.n}.";
+      await h.edit([
+        {
+          range: { start: { line: last, character: 0 }, end: { line: last, character: line.length } },
+          text: "    The last beat, edited, {bag.n}.",
+        },
+      ]);
+      await h.compile();
+      await settle(40);
+      expect(h.overlay.textContent).toContain("The last beat, edited, 7.");
+      // The display after the edit ran on the new engine and read no save.
+      expect(game.programStory === engine).toBe(false);
+      expect(read.mock.calls.length).toBe(0);
+      const variables = game.programStory.variablesState;
+      const bag = variables.GetVariableWithName("bag") as unknown as {
+        value: Map<string, { value?: unknown }>;
+      };
+      const link = variables.GetVariableWithName("link") as unknown as {
+        value: Map<string, unknown>;
+      };
+      const contents = link.value.get("contents") as typeof bag;
+      expect(bag.value.get("n")?.value).toBe(7);
+      expect(contents.value.get("n")?.value).toBe(7);
+      expect(contents === bag).toBe(true);
+    } finally {
+      h.dispose();
+    }
   }, 120_000);
 
   it("taken in a program the game no longer holds, loads as its full save does", async () => {
