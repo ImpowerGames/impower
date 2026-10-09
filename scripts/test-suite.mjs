@@ -340,6 +340,10 @@ function validateTestFiles(packageRoot, files) {
   for (const requested of files) {
     const escaped = JSON.stringify(requested)?.replace(/[\u007f-\u009f\u2028\u2029]/g, value => `\\u${value.charCodeAt(0).toString(16).padStart(4, "0")}`);
     const refusal = () => new Error(`Invalid test file ${escaped}: name an existing literal test/spec TS or TSX file within ${JSON.stringify(packageRoot)}`);
+    if (process.platform === "win32" && typeof requested === "string"
+      && requested.startsWith(path.toNamespacedPath("C:/").slice(0, 4))) {
+      throw new Error(`Invalid test file ${escaped}: unsupported Windows namespace syntax for Vitest file filters; use an ordinary relative or absolute path`);
+    }
     if (typeof requested !== "string" || /[\x00-\x1f\u007f-\u009f\u2028\u2029*?]/.test(requested)
       || requested.startsWith("-") || !/\.(test|spec)\.(ts|tsx)$/.test(requested)) throw refusal();
     const resolved = path.resolve(packageRoot, requested);

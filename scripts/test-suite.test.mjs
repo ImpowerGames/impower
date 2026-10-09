@@ -47,7 +47,14 @@ const outsideTests = path.join(packageScratch, "outside-tests");
 fs.mkdirSync(outsideTests);
 fs.writeFileSync(path.join(outsideTests, "outside.test.ts"), "fixture");
 fs.symlinkSync(outsideTests, path.join(literalPackage, "escape"), process.platform === "win32" ? "junction" : "dir");
-for (const invalid of ["missing.test.ts", "valid.test.ts\r", "valid.test.ts\n", "valid.test.ts ", "*.test.ts",
+const namespaceInputs = process.platform === "win32" ? [path.toNamespacedPath(path.join(literalPackage, "valid.test.ts"))] : [];
+for (const requested of namespaceInputs) {
+  assert.equal(fs.statSync(requested).isFile(), true, "namespace refusal covers an existing regular file");
+  assert.equal(fs.realpathSync.native(requested), fs.realpathSync.native(path.join(literalPackage, "valid.test.ts")));
+  await assert.rejects(packageMain(["run", literalPackage, requested], { vitestPath: literalChild, root: literalStore,
+    census: () => { throw new Error("unsupported namespace reached admission"); } }), /unsupported Windows namespace syntax.*ordinary relative or absolute path/);
+}
+for (const invalid of ["missing.test.ts", "valid.test.ts\r", "valid.test.ts\n", "valid.test.ts ", "*.test.ts", "valid?.test.ts", ...namespaceInputs,
   "--passWithNoTests", "directory.test.ts", "../outside.test.ts", "escape/outside.test.ts", "valid.ts", "valid.test.js"]) {
   let literalCensusCalls = 0;
   await assert.rejects(packageMain(["run", literalPackage, "valid.test.ts", invalid], {
