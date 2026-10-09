@@ -52,6 +52,8 @@ How to read it, before trusting the PNG:
 
 Then open the PNG and look at it. The JSON is a convenience, not the gate.
 
+Desktop reports additionally name the explicit `automation` route. CDP checkpoints preserve owning PID/start identity before attach and separate transport-close acknowledgement from OS-confirmed parent/descendant exit; `complete: false` is progress only. Read the [desktop report fields](desktop.md#read-the-evidence), inspect its player PNGs, and retain runtime crashes and product errors even when another surface succeeds.
+
 After a change, rebuild using [build instructions](build.md) and run `verify` again. Each `verify` loads a fresh page, which fetches the extension from disk, so the server does not need restarting. `verify` drives only the server its own record started: a record whose pid is another process by now is refused with `down` then `up`, so a report never describes another worktree's workbench under this worktree's build.
 
 ---

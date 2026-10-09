@@ -10,7 +10,7 @@ Commands run inside the worktree:
 
 Choose the surfaces the ticket requires before running. The web `verify` command checks editor/hover rendering and settled counters; counters alone do not verify exact diagnostics, semantic-token health or Game Preview. Web `debug` exercises the inline adapter's pause, Variables, call stack, evaluation, step and continue. It reports breakpoint binding separately; awaiting-interaction pauses are not breakpoint evidence. Commands and webviews are reachable in the served workbench, so test the requested capability before claiming it requires desktop.
 
-For desktop F5, an external whole project/nested script, exact diagnostics, semantic-token health or Game Preview, read [desktop scenarios](references/desktop.md) and run `desktop`. It launches an isolated owned host, captures logs/artifact fingerprints, and requires visible known story content plus an interaction. A required surface that fails or is unavailable is a failed check; an open window or blank panel never establishes preview success.
+For desktop F5, an external whole project/nested script, exact diagnostics, semantic-token health or Game Preview, read [desktop scenarios](references/desktop.md) and run `desktop` with the evidenced automation route. It launches an isolated owned host, captures logs/artifact fingerprints, and requires visible known story content plus an interaction. A required surface that fails or is unavailable is a failed check; an open window or blank panel never establishes preview success.
 
 ## 1. Build
 

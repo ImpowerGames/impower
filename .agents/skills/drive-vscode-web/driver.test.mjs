@@ -36,8 +36,9 @@ import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs"
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
-import { desktop, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
+import { desktop, launchOwnedCdp, advancePlayer, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
 import { spawnSync } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import {
   DEFAULT_SETTLE_S,
   LOOPBACKS,
@@ -1815,6 +1816,9 @@ await check("unclassified console errors fail verification even when diagnostic 
 await check("desktop admission preserves the full root, refuses escaped paths and isolates F5 from full-build", () => {
   const parsed = desktopOptions(['--code', '/private/Code.exe', '--scenario', 'f5'], '/repo');
   assert.equal(parsed.scenario, 'f5');
+  assert.equal(parsed.automation, 'electron');
+  assert.equal(desktopOptions(['--code', 'Code', '--automation', 'cdp'], '/repo').automation, 'cdp');
+  assert.throws(() => desktopOptions(['--code', 'Code', '--automation', 'attach-existing'], '/repo'));
   assert.equal(path.relative(parsed.project, parsed.script), path.join('project', 'main.sd'));
   for (const args of [[], ['--code', 'Code', '--scenario', 'web'], ['--code', 'Code', '--file', '../outside.sd'], ['--code', 'Code', '--project', '/external'], ['--code', 'Code', '--timeout', '0']]) assert.throws(() => desktopOptions(args));
 });
@@ -1971,6 +1975,86 @@ await check("visible F5 parent cannot verify a missing or crashed development ho
   assert.equal(nativeHostCrash('[main] Extension host with pid 31904 exited with code: 134, signal: unknown.'), '[main] Extension host with pid 31904 exited with code: 134, signal: unknown.');
   assert.equal(nativeHostCrash('[main] Extension host with pid 42 exited with code: 0, signal: unknown.'), undefined);
   assert.equal(nativeHostCrash('Unrelated error code: 134'), undefined);
+});
+
+function cdpFixture({ foreignListener = false, replacement = false, remainingChild = false, noExit = false, killLeavesRunning = false } = {}) {
+  let clock = 0, app, connectCount = 0, killed = false, identityReads = 0;
+  const child = new EventEmitter(); child.pid = 42;
+  const parent = { pid: 42, start: 'parent-start' }, renderer = { pid: 43, parent: 42, start: 'renderer-start' }, worker = { pid: 44, parent: 43, start: 'worker-start' };
+  let rows = [parent, renderer, worker];
+  child.kill = () => { killed = true; if (!killLeavesRunning) { child.emit('exit', 0, null); rows = []; } };
+  const record = {}, persisted = [];
+  const page = {};
+  const browser = { contexts: () => [{ pages: () => [page], on() {} }], async newBrowserCDPSession() { return { send() { if (!noExit) { child.emit('exit', 0, null); rows = remainingChild ? [renderer, worker] : []; } return new Promise(() => {}); } }; }, close: () => new Promise(() => {}) };
+  const deps = { platform: 'win32', port: async () => 45678, spawn: (_exe, args, opts) => {
+    assert.ok(args.includes('--remote-debugging-address=127.0.0.1')); assert.equal(opts.windowsHide, true);
+    assert.equal(opts.env.ELECTRON_RUN_AS_NODE, undefined); assert.equal(opts.env.NODE_OPTIONS, undefined);
+    return child;
+  }, identify: () => ++identityReads > 1 && replacement ? { ...parent, start: 'replacement-start' } : rows.find(row => row.pid === 42) ?? null,
+  processes: () => rows, listeners: () => [{ pid: foreignListener ? 99 : 42, address: '127.0.0.1' }], fetch: async () => ({ ok: true }),
+  chromium: { async connectOverCDP(endpoint) {
+    connectCount++; assert.equal(endpoint, 'http://127.0.0.1:45678');
+    assert.ok(persisted.some(row => row.identity?.start === parent.start), 'identity must be durable before attaching');
+    return browser;
+  } }, record, persist: () => persisted.push(structuredClone(record)), onOwned: owned => { app = owned; }, now: () => clock, sleep: async ms => { clock += ms; } };
+  return { deps, record, get app() { return app; }, get connects() { return connectCount; }, get killed() { return killed; } };
+}
+
+await check("player input stops at the first visible goal and waits before retrying typing completion", async () => {
+  for (const required of [1, 2]) {
+    let clicks = 0, reads = 0, positions = 0;
+    const canvas = { last() { return this; }, async waitFor() {} };
+    const frame = { locator: () => canvas, url: () => 'vscode-webview://player', async evaluate() { return { trusted: true, tag: 'SPAN', gameUI: true }; } };
+    const page = { mouse: { async click() { if (clicks) assert.equal(reads, clicks, 'must wait for the story goal before another click'); clicks++; } } };
+    const result = await advancePlayer(page, frame, 'Second beat', 10000, { firstText: 'First beat', pointer: async () => { positions++; return { bounds: { width: 100, height: 100 }, x: 50, y: 50 }; }, find: async (_page, text) => { if (text === 'Second beat') { reads++; if (clicks < required) throw new Error('First click completed typing'); } else assert.equal(text, 'First beat'); } });
+    assert.equal(clicks, required); assert.equal(positions, required, 'every input needs current visible bounds');
+    assert.equal(result.attempts.length, required); assert.equal(result.result, 'Second beat');
+    if (required === 2) assert.equal(result.attempts[0].intermediate.visible, 'First beat');
+  }
+  let clicks = 0;
+  const frame = { locator: () => ({ last() { return this; }, async waitFor() {} }), url: () => 'vscode-webview://player', async evaluate() { return { trusted: false, tag: 'DIV', gameUI: false }; } };
+  await assert.rejects(advancePlayer({ mouse: { async click() { clicks++; } } }, frame, 'Second beat', 10000, { pointer: async () => ({ x: 1, y: 1 }) }), /did not reach/);
+  assert.equal(clicks, 1, 'untrusted/outside input is a failure, not retry permission');
+});
+const cdpLaunch = { executablePath: '/owned/Code.exe', args: ['--new-window'], cwd: '/owned', timeout: 10000, env: { ELECTRON_RUN_AS_NODE: '1', NODE_OPTIONS: '--inspect', IMPOWER_VSCODE_PROBE_PLAN: '/owned/plan.json' } };
+
+await check("CDP connects only after matching loopback listener and durable process identity", async () => {
+  const good = cdpFixture();
+  const app = await launchOwnedCdp(cdpLaunch, good.deps);
+  assert.deepEqual(good.record.children.map(row => row.pid), [43, 44], 'grandchildren must be recorded');
+  assert.equal(await app.firstWindow({ timeout: 100 }), app.windows()[0]);
+  await app.close();
+  assert.equal(good.record.close.transportAck, false, 'an unsettled transport acknowledgement cannot become an acknowledgement');
+  assert.equal(good.record.close.processExitVerified, true, 'confirmed process exit must survive an unsettled close response');
+  assert.deepEqual(good.record.close.remainingProcesses, []);
+  for (const fixture of [cdpFixture({ foreignListener: true }), cdpFixture({ replacement: true })]) {
+    await assert.rejects(launchOwnedCdp(cdpLaunch, fixture.deps), /loopback listener/);
+    assert.equal(fixture.connects, 0, 'must not attach before ownership is proved');
+    await assert.rejects(fixture.app.close(), /exit was not established|termination/);
+    if (fixture.record.identity.start !== 'replacement-start') assert.equal(fixture.record.close.processExitVerified, false);
+  }
+});
+
+await check("CDP transport closing cannot verify live descendants or an unconfirmed parent exit", async () => {
+  const orphan = cdpFixture({ remainingChild: true });
+  const app = await launchOwnedCdp(cdpLaunch, orphan.deps);
+  await assert.rejects(app.close(), /exit was not established/);
+  assert.equal(orphan.record.close.processExitVerified, false);
+  assert.deepEqual(orphan.record.close.remainingProcesses.map(row => row.pid), [43, 44]);
+  const stalled = cdpFixture({ noExit: true });
+  const other = await launchOwnedCdp(cdpLaunch, stalled.deps);
+  await assert.rejects(other.close(), /required termination/);
+  assert.equal(stalled.killed, true);
+  assert.equal(stalled.record.close.processExitVerified, false, 'forced termination is a reported failure even with confirmed exit');
+  const unconfirmed = cdpFixture({ noExit: true, killLeavesRunning: true });
+  const pending = await launchOwnedCdp(cdpLaunch, unconfirmed.deps);
+  await assert.rejects(pending.close(), /exit was not established/);
+  assert.equal(unconfirmed.record.exit, undefined);
+  assert.equal(unconfirmed.record.close.processExitVerified, false);
+  assert.ok(unconfirmed.record.close.remainingProcesses.some(row => row.pid === 42));
+  let spawned = false;
+  await assert.rejects(launchOwnedCdp(cdpLaunch, { platform: 'linux', spawn: () => { spawned = true; } }), /only on Windows/);
+  assert.equal(spawned, false, 'unsupported platform must be refused before launch');
 });
 
 if (failures) {

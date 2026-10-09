@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import net from 'node:net';
+import { execFileSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { sourceFiles, nearestDirMtime, checkBuild, parseFlags, WORKBENCH_CONSOLE_NOISE, liveDeps, openFile } from './driver.mjs';
 import { consoleLine, partitionConsole } from '../drive-web-editor/driver.mjs';
@@ -11,13 +12,15 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
 const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-export const DESKTOP_FLAGS = { '--code': 'value', '--project': 'value', '--file': 'value', '--scenario': 'value', '--expect': 'value', '--out': 'value', '--first': 'value', '--next': 'value', '--timeout': 'number' };
+export const DESKTOP_FLAGS = { '--code': 'value', '--automation': 'value', '--project': 'value', '--file': 'value', '--scenario': 'value', '--expect': 'value', '--out': 'value', '--first': 'value', '--next': 'value', '--timeout': 'number' };
 
 export function desktopOptions(args, repo = root) {
   const { opts, error } = parseFlags(args, DESKTOP_FLAGS);
   if (error) throw new Error('desktop: ' + error);
   const scenario = opts['--scenario'] ?? 'full-build';
   if (!['full-build', 'f5'].includes(scenario)) throw new Error('--scenario must be full-build or f5');
+  const automation = opts['--automation'] ?? 'electron';
+  if (!['electron', 'cdp'].includes(automation)) throw new Error('--automation must be electron or cdp');
   if (!opts['--code']) throw new Error('--code must name an explicit VS Code executable; the driver never attaches to an existing instance');
   const project = path.resolve(opts['--project'] ?? path.join(repo, '.agents/skills/drive-vscode-web/fixtures/desktop-project'));
   const relative = opts['--file'] ?? 'project/main.sd';
@@ -26,7 +29,134 @@ export function desktopOptions(args, repo = root) {
   const timeoutMs = (opts['--timeout'] ?? 90) * 1000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 10000 || timeoutMs > 300000) throw new Error('--timeout must be 10 to 300 seconds');
   if (opts['--project'] && (!opts['--first'] || !opts['--next'])) throw new Error('External projects require --first and --next expected story text');
-  return { scenario, project, script, code: path.resolve(opts['--code']), timeoutMs, firstText: opts['--first'] ?? 'Verification first beat.', nextText: opts['--next'] ?? 'Verification second beat.', expect: opts['--expect'], out: opts['--out'] ? path.resolve(opts['--out']) : null };
+  return { scenario, automation, project, script, code: path.resolve(opts['--code']), timeoutMs, firstText: opts['--first'] ?? 'Verification first beat.', nextText: opts['--next'] ?? 'Verification second beat.', expect: opts['--expect'], out: opts['--out'] ? path.resolve(opts['--out']) : null };
+}
+
+const sameIdentity = (a, b) => a && b && a.pid === b.pid && a.start === b.start;
+const powershellJson = script => JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$ErrorActionPreference='Stop'; " + script], { windowsHide: true, encoding: 'utf8', timeout: 15000 }) || '[]');
+function windowsProcesses(root, known = []) {
+  const ids = [root, ...known].map(row => row.pid);
+  if (ids.some(pid => !Number.isSafeInteger(pid) || pid < 1)) throw new Error('Invalid owned process identity');
+  // Read the OS parent map, but inspect start identities only for our tree.
+  // Unrelated elevated/system processes must not authorize or block signalling.
+  const rows = powershellJson('$ids=@(' + ids.join(',') + '); $all=@(Get-CimInstance Win32_Process); do { $before=$ids.Count; $ids+=@($all | Where-Object {$_.ParentProcessId -in $ids} | Select-Object -ExpandProperty ProcessId); $ids=@($ids | Select-Object -Unique) } while($ids.Count -ne $before); $all | Where-Object {$_.ProcessId -in $ids} | ForEach-Object { $row=$_; try { $p=Get-Process -Id $row.ProcessId -ErrorAction Stop; [pscustomobject]@{pid=$row.ProcessId; parent=$row.ParentProcessId; start=$p.StartTime.ToUniversalTime().Ticks.ToString()} } catch { if($_.FullyQualifiedErrorId -notlike \'NoProcessFoundForGivenId*\'){throw} } } | ConvertTo-Json -Compress');
+  return Array.isArray(rows) ? rows : [rows];
+}
+function windowsListener(port) {
+  const rows = powershellJson('Get-NetTCPConnection -State Listen -LocalPort ' + port + ' -ErrorAction SilentlyContinue | ForEach-Object { [pscustomobject]@{pid=$_.OwningProcess; address=$_.LocalAddress} } | ConvertTo-Json -Compress');
+  return Array.isArray(rows) ? rows : [rows];
+}
+async function privatePort() {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+  const port = server.address().port;
+  await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  return port;
+}
+
+export function verifyCdpOwnership(owner, current, listeners) {
+  if (!sameIdentity(owner, current) || !listeners.length || listeners.some(row => row.pid !== owner.pid || row.address !== '127.0.0.1')) throw new Error('CDP loopback listener does not belong to the spawned PID and start identity');
+}
+
+export function ownedDescendants(rows, root, known = []) {
+  const owned = new Map([[root.pid, root], ...known.map(row => [row.pid, row])]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const row of rows) {
+      const parent = owned.get(row.parent);
+      if (!owned.has(row.pid) && parent && rows.some(current => sameIdentity(parent, current))) { owned.set(row.pid, row); changed = true; }
+    }
+  }
+  return [...owned.values()];
+}
+
+// CDP drives only the Chromium renderer. It adds no main-process Node inspector.
+// Ownership is established before connecting; the transport cannot prove exit.
+export async function launchOwnedCdp(options, deps = {}) {
+  if ((deps.platform ?? process.platform) !== 'win32') throw new Error('CDP desktop ownership inspection is currently supported only on Windows');
+  const identify = deps.identify ?? (await import('../../../scripts/reviewer-slots.mjs')).processIdentity;
+  const processes = deps.processes ?? windowsProcesses;
+  const listeners = deps.listeners ?? windowsListener, pause = deps.sleep ?? sleep, now = deps.now ?? Date.now;
+  const persist = deps.persist ?? (() => {}), record = deps.record ?? {};
+  const port = await (deps.port ?? privatePort)();
+  const endpoint = 'http://127.0.0.1:' + port;
+  const args = [...options.args, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=' + port];
+  const env = { ...options.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS;
+  Object.assign(record, { endpoint, args, mainNodeInspector: false, environment: { removed: ['ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS'], otherwise: 'inherited environment plus private helper plan' }, children: [] });
+  const child = (deps.spawn ?? spawn)(options.executablePath, args, { cwd: options.cwd, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let browser, context, timer, owner, samplingError;
+  const app = {
+    process: () => child,
+    windows: () => context?.pages() ?? [],
+    on(event, callback) { if (event === 'window') context.on('page', callback); },
+    async firstWindow({ timeout }) {
+      const by = now() + timeout;
+      while (!context.pages().length && now() < by) await pause(100);
+      if (!context.pages().length) throw new Error('No owned CDP workbench window');
+      return context.pages()[0];
+    },
+    async close() {
+      clearInterval(timer);
+      const failed = [], close = record.close = { requestedAt: new Date().toISOString(), transportAck: false, processExitVerified: false };
+      try { sample(); } catch (error) { failed.push('Owned tree snapshot failed: ' + error.message); }
+      persist();
+      if (browser) {
+        await Promise.race([(async () => { const session = await browser.newBrowserCDPSession(); await session.send('Browser.close'); close.transportAck = true; })().catch(error => { close.transportError = error.message; }), pause(3000)]);
+      }
+      const by = now() + 10000;
+      while (!record.exit && now() < by) await pause(100);
+      if (!record.exit) {
+        try {
+          if (sameIdentity(owner, identify(child.pid))) {
+            child.kill(); close.ownedTerminationRequested = true;
+            const until = now() + 5000; while (!record.exit && now() < until) await pause(100);
+            failed.push('Owned process required termination after CDP close');
+          }
+        } catch (error) { failed.push('Owned termination identity was uncertain: ' + error.message); }
+      }
+      try {
+        const rows = processes(owner, record.children);
+        const remaining = ownedDescendants(rows, owner, record.children).filter(owned => rows.some(current => sameIdentity(owned, current)));
+        close.remainingProcesses = remaining;
+        close.processExitVerified = Boolean(record.exit) && remaining.length === 0 && !samplingError && failed.length === 0;
+        if (!close.processExitVerified) failed.push('Owned desktop parent/descendant exit was not established');
+      } catch (error) { failed.push('Owned process exit inspection failed: ' + error.message); }
+      await Promise.race([browser?.close().catch(() => {}), pause(3000)]);
+      close.failed = failed; persist();
+      if (failed.length) throw new Error(failed.join('\n'));
+    },
+  };
+  deps.onOwned?.(app);
+  child.once('exit', (code, signal) => { record.exit = { code, signal }; persist(); });
+  child.once('error', error => { record.spawnError = error.message; persist(); });
+  record.pid = child.pid; persist();
+  owner = identify(child.pid);
+  if (!owner) throw new Error('Spawned desktop process identity was unavailable');
+  record.identity = owner; persist();
+  function sample() {
+    if (!owner) throw new Error('Owned process identity was not established');
+    record.children = ownedDescendants(processes(owner, record.children), owner, record.children).filter(row => row.pid !== owner.pid);
+    persist();
+  }
+  sample();
+  const deadline = now() + options.timeout;
+  while (now() < deadline && !record.exit) {
+    let available = false;
+    try { available = (await (deps.fetch ?? fetch)(endpoint + '/json/version', { signal: AbortSignal.timeout(1000) })).ok; } catch { /* still starting */ }
+    if (available) break;
+    await pause(200);
+  }
+  const bound = listeners(port);
+  verifyCdpOwnership(owner, identify(child.pid), bound);
+  record.listener = bound; persist();
+  const chromium = deps.chromium ?? (await import('playwright')).chromium;
+  browser = await chromium.connectOverCDP(endpoint, { timeout: options.timeout });
+  context = browser.contexts()[0];
+  if (!context) throw new Error('Owned CDP connection has no renderer context');
+  timer = setInterval(() => { try { sample(); } catch (error) { samplingError = record.samplingError = error.message; persist(); } }, 2000);
+  timer.unref();
+  return app;
 }
 
 // The player and its workspace worker are bundled into game-webview.js.
@@ -158,6 +288,34 @@ export async function playerPointer(canvas, timeoutMs, pause = sleep, now = Date
   throw new Error('Visible player canvas geometry did not settle');
 }
 
+export async function advancePlayer(page, frame, nextText, timeoutMs, deps = {}) {
+  const find = deps.find ?? storyFrame, pointerFor = deps.pointer ?? playerPointer;
+  const attempts = [];
+  for (let count = 0; count < 3; count++) {
+    const canvas = frame.locator('canvas').last();
+    await canvas.waitFor({ state: 'visible', timeout: timeoutMs });
+    const pointer = await pointerFor(canvas, timeoutMs);
+    await frame.evaluate(() => {
+      window.__impowerInputEvidence = null;
+      window.addEventListener('pointerdown', event => { window.__impowerInputEvidence = { trusted: event.isTrusted, tag: event.target.tagName, id: event.target.id, className: event.target.className, gameUI: Boolean(event.target.closest('#game-ui')) }; }, { capture: true, once: true });
+    });
+    await page.mouse.click(pointer.x, pointer.y);
+    const event = await frame.evaluate(() => window.__impowerInputEvidence ?? null);
+    const attempt = { ...pointer, frame: frame.url(), event }; attempts.push(attempt); deps.onAttempt?.(attempt, attempts);
+    if (!event?.trusted || !(event.tag === 'CANVAS' || event.gameUI)) throw new Error('Physical pointer input did not reach the player canvas or game UI');
+    try {
+      await find(page, nextText, Math.min(timeoutMs, 3000));
+      return { attempts, result: nextText };
+    } catch {
+      if (!deps.firstText) throw new Error('Player did not show the goal; no expected intermediate story state permits another click');
+      await find(page, deps.firstText, Math.min(timeoutMs, 3000));
+      attempt.intermediate = { visible: deps.firstText, observation: 'Initial beat remained visible after the goal wait; a click may have completed typing' };
+      deps.onAttempt?.(attempt, attempts);
+    }
+  }
+  throw new Error('Game Preview did not reach the requested changed story state after three bounded physical clicks: ' + nextText);
+}
+
 export async function storyFrame(page, text, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -203,7 +361,10 @@ export const DESKTOP_CONSOLE_NOISE = [
 export async function desktop(args, deps = {}) {
   const root = deps.repoRoot ?? path.resolve(here, '../../..');
   const options = desktopOptions(args, root);
-  for (const [file, kind] of [[options.code, 'executable'], [options.project, 'project'], [options.script, 'script']]) if (!fs.existsSync(file)) throw new Error('Missing ' + kind + ': ' + file);
+  for (const [file, kind] of [[options.code, 'executable'], [options.project, 'project'], [options.script, 'script']]) {
+    if (!fs.existsSync(file)) throw new Error('Missing ' + kind + ': ' + file);
+    if (kind === 'project' ? !fs.statSync(file).isDirectory() : !fs.statSync(file).isFile()) throw new Error('Invalid ' + kind + ' path type: ' + file);
+  }
   const expectedDiagnostics = options.expect ? JSON.parse(fs.readFileSync(options.expect, 'utf8')) : [];
   validateExpectedDiagnostics(expectedDiagnostics, options.project);
   const runDir = options.out ?? fs.mkdtempSync(path.join(os.tmpdir(), 'impower-vscode-desktop-'));
@@ -212,7 +373,12 @@ export async function desktop(args, deps = {}) {
   const claim = fs.openSync(path.join(runDir, 'owner.json'), 'wx');
   fs.writeFileSync(claim, JSON.stringify({ pid: process.pid, root, created: new Date().toISOString() }));
   fs.closeSync(claim);
-  const report = { scenario: options.scenario, platform: process.platform, automation: 'Playwright Electron launch of an isolated host', project: options.project, script: options.script, code: options.code, runDir, expectedDiagnostics, failed: [], surfaces: { desktop: 'unavailable', lsp: 'unavailable', preview: 'unavailable' } };
+  const report = { scenario: options.scenario, platform: process.platform, automation: options.automation, complete: false, project: options.project, script: options.script, code: options.code, runDir, expectedDiagnostics, failed: [], surfaces: { desktop: 'unavailable', lsp: 'unavailable', preview: 'unavailable' } };
+  const persist = () => {
+    const file = path.join(runDir, 'report.json');
+    fs.writeFileSync(file + '.tmp', JSON.stringify(report, null, 2)); fs.renameSync(file + '.tmp', file);
+  };
+  persist();
   const before = artifactEvidence(root);
   if (options.scenario === 'f5') {
     report.f5 = { baseline: before, taskEvents: [] };
@@ -232,18 +398,31 @@ export async function desktop(args, deps = {}) {
   fs.writeFileSync(planFile, JSON.stringify(plan));
   const consoleLines = [], hostLines = [];
   let app, closing = false;
+  const owned = launched => {
+    app = launched;
+    const child = app.process();
+    report.process = { pid: child.pid, executableSha256: hash(options.code) };
+    const capture = chunk => {
+      hostLines.push(chunk.toString());
+      if (!closing) report.crash ??= nativeHostCrash(hostLines.join(''));
+    };
+    child.stdout.on('data', capture); child.stderr.on('data', capture);
+    child.once('exit', (code, signal) => { report.process.exit = { code, signal }; if (!closing) report.crash = 'process exited before completion: ' + code + '/' + signal; persist(); });
+    persist();
+  };
   try {
     if (options.scenario === 'full-build') {
       checkBuild({ ...liveDeps, repoRoot: root, extDir: path.join(root, 'vscode-sparkdown'), packagesDir: path.join(root, 'packages'), die: message => { throw new Error(message); } });
       if (before.failed.length) throw new Error(before.failed.join('\n'));
     } else if (before.artifacts.length) throw new Error('F5 scenario requires absent generated outputs in a fresh dedicated checkout; do not delete active builds or prebuild');
-    const electron = deps.electron ?? (await import('playwright'))._electron;
-    app = await electron.launch({ executablePath: options.code, cwd: root, timeout: options.timeoutMs, args: ['--new-window', '--user-data-dir=' + profile, '--extensions-dir=' + extensions, '--skip-welcome', '--skip-release-notes', ...(options.scenario === 'full-build' ? ['--extensionDevelopmentPath=' + plan.extensionPath, options.project] : [root])], env: { ...process.env, IMPOWER_VSCODE_PROBE_PLAN: planFile } });
-    const child = app.process();
-    report.process = { pid: child.pid, executableSha256: hash(options.code) };
-    child.stdout.on('data', chunk => hostLines.push(chunk.toString()));
-    child.stderr.on('data', chunk => hostLines.push(chunk.toString()));
-    child.once('exit', (code, signal) => { report.process.exit = { code, signal }; if (!closing) report.crash = 'process exited before completion: ' + code + '/' + signal; });
+    const launch = { executablePath: options.code, cwd: root, timeout: options.timeoutMs, args: ['--new-window', '--user-data-dir=' + profile, '--extensions-dir=' + extensions, '--skip-welcome', '--skip-release-notes', ...(options.scenario === 'full-build' ? ['--extensionDevelopmentPath=' + plan.extensionPath, options.project] : [root])], env: { ...process.env, IMPOWER_VSCODE_PROBE_PLAN: planFile } };
+    if (options.automation === 'cdp') {
+      report.cdp = {};
+      app = await launchOwnedCdp(launch, { ...deps.cdp, record: report.cdp, persist, onOwned: owned });
+    } else {
+      const electron = deps.electron ?? (await import('playwright'))._electron;
+      owned(await electron.launch(launch));
+    }
     const attach = page => {
       page.on('console', msg => consoleLines.push(consoleLine(msg)));
       page.on('pageerror', error => consoleLines.push('[pageerror] ' + error.message));
@@ -302,23 +481,10 @@ export async function desktop(args, deps = {}) {
     }
     if (!started) throw new Error('Game Preview RUN control did not appear');
     const playing = await storyFrame(visible.page, options.firstText, options.timeoutMs);
-    const canvas = playing.frame.locator('canvas').last();
-    await canvas.waitFor({ state: 'visible', timeout: options.timeoutMs });
-    const pointer = await playerPointer(canvas, options.timeoutMs);
-    report.preview.inputAttempt = { ...pointer, frame: playing.frame.url() };
-    await playing.frame.evaluate(() => {
-      window.addEventListener('pointerdown', event => { window.__impowerInputEvidence = { trusted: event.isTrusted, tag: event.target.tagName, id: event.target.id, className: event.target.className, gameUI: Boolean(event.target.closest('#game-ui')) }; }, { capture: true, once: true });
-    });
-    await visible.page.mouse.click(pointer.x, pointer.y);
-    await sleep(400);
-    await visible.page.mouse.click(pointer.x, pointer.y);
-    report.preview.inputAttempt.event = await playing.frame.evaluate(() => window.__impowerInputEvidence ?? null);
+    const input = await advancePlayer(visible.page, playing.frame, options.nextText, options.timeoutMs, { firstText: options.firstText, onAttempt: (attempt, attempts) => { report.preview.inputAttempt = attempt; report.preview.inputAttempts = [...attempts]; persist(); } });
     await visible.page.screenshot({ path: path.join(runDir, 'interaction-attempt.png') });
-    const input = report.preview.inputAttempt.event;
-    if (!input?.trusted || !(input.tag === 'CANVAS' || input.gameUI)) throw new Error('Physical pointer input did not reach the player canvas or game UI');
-    await storyFrame(visible.page, options.nextText, options.timeoutMs);
     await visible.page.screenshot({ path: afterShot });
-    Object.assign(report.preview, { interaction: { action: 'RUN readiness, then two physical pointer clicks within the visible player frame', result: options.nextText }, afterScreenshot: afterShot });
+    Object.assign(report.preview, { interaction: { action: 'RUN readiness, then bounded physical pointer input with a goal wait after every click', clicks: input.attempts.length, result: input.result }, afterScreenshot: afterShot });
     report.surfaces.preview = 'verified';
   } catch (error) {
     report.failed.push(error.stack ?? error.message);
@@ -339,12 +505,15 @@ export async function desktop(args, deps = {}) {
           if (!fs.existsSync(plan.events + '.stopped')) throw new Error('Task exit evidence did not arrive');
         } catch (error) { report.failed.push('Owned F5 task cleanup could not be confirmed: ' + error.message); }
       }
+      report.preShutdownNativeCrash = nativeHostCrash(hostLines.join(''));
       closing = true;
+      report.shutdownStartedAt = new Date().toISOString(); persist();
+      const shutdownOffset = hostLines.join('').length;
       await app.close().catch(error => report.failed.push('Owned host cleanup failed: ' + error.message));
       if (!report.process?.exit) report.failed.push('Owned desktop process exit was not confirmed');
+      report.shutdownNativeExits = hostLines.join('').slice(shutdownOffset).split(/\r?\n/).filter(line => /Extension host with pid \d+ exited with code:/.test(line));
     }
-    const nativeCrash = nativeHostCrash(hostLines.join(''));
-    if (nativeCrash) report.crash ??= nativeCrash;
+    if (report.preShutdownNativeCrash) report.crash ??= report.preShutdownNativeCrash;
     if (report.crash) report.surfaces.desktop = 'failed';
     fs.writeFileSync(path.join(runDir, 'host-process.log'), hostLines.join(''));
     fs.writeFileSync(path.join(runDir, 'renderer.log'), consoleLines.join('\n'));
@@ -355,7 +524,8 @@ export async function desktop(args, deps = {}) {
     report.logs = { host: path.join(runDir, 'host-process.log'), renderer: path.join(runDir, 'renderer.log'), extensionHostAndLsp: path.join(profile, 'logs') };
     report.failed = desktopFailures(report, options);
     report.verdict = report.failed.length ? 'failed' : 'verified';
-    fs.writeFileSync(path.join(runDir, 'report.json'), JSON.stringify(report, null, 2));
+    report.complete = true;
+    persist();
   }
   console.log(JSON.stringify(report, null, 2));
   return { report, exitCode: report.failed.length ? 1 : 0 };

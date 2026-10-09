@@ -1,6 +1,6 @@
 # Extension build and freshness
 
-Run from the worktree root. Choose the scenario first: desktop `f5` starts with generated outputs absent, before any preparatory full build. See [desktop scenarios](desktop.md).
+Run from the worktree root. Choose the scenario and evidenced automation route first: desktop `f5` starts with generated outputs absent, before any preparatory full build. The exercised portable Windows route uses explicit `--automation cdp`; Electron failures remain separate evidence. See [desktop scenarios](desktop.md).
 
 ## Full build
 

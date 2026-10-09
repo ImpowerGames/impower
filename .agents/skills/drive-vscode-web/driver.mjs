@@ -1528,7 +1528,7 @@ switch (cmd) {
         "  status             is it up? prints the URL and the served folder",
         "  down               stop the server",
         "  verify [options]   open a file in the served workbench, read diagnostics and a hover, screenshot; JSON report",
-        "  desktop --code <exe> --scenario full-build|f5  isolated desktop host, LSP and real Game Preview; see references/desktop.md",
+        "  desktop --code <exe> --automation electron|cdp --scenario full-build|f5  isolated desktop host, LSP and real Game Preview; see references/desktop.md",
         "  debug [--file main.sd] --shot <png>  web Run & Debug: pause, Variables, stack, evaluation, step and continue",
         "",
         "up options (one of --sd or --project):",
