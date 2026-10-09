@@ -1,3 +1,4 @@
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { CoreBuiltins } from "../coreBuiltinDefinitions";
 import type { SystemConfiguration } from "./SystemConfiguration";
 
@@ -11,7 +12,7 @@ export type GameContext<B = any> = {
       simulating?: string;
       /** Whether the game shows a preview, and when it knows one, the
        *  address of the beat it previews (`Game.markPreviewing`). */
-      previewing?: boolean | string | number | null;
+      previewing?: boolean | ProgramAddress | null;
       debugging?: boolean;
       locale?: string;
       uuid: () => string;

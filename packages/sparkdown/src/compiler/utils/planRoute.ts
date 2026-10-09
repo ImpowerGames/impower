@@ -47,7 +47,8 @@ export interface SearchNode {
 }
 
 /**
- * Extend a step-sequence identity with one more path.
+ * Extend a step-sequence identity with one more path: a step's address, or a
+ * string a search keys a fork by (a state's text, an override's site).
  *
  * The identity used to be the paths themselves, joined: `"a|b|c"`. Every step
  * stored the whole running string, and `Game.simulateRoute` then uses each one
@@ -69,7 +70,10 @@ export interface SearchNode {
  * between an earlier plan and a re-plan (which is how checkpoint reuse works),
  * never persisted or parsed.
  */
-export const extendSeq = (seq: string, path: ProgramAddress): string => {
+export const extendSeq = (
+  seq: string,
+  path: ProgramAddress | string,
+): string => {
   let h1 = 0xdeadbeef;
   let h2 = 0x41c6ce57;
   // The characters of `seq`, a separator, then the characters of `path` — the
@@ -871,7 +875,7 @@ const runUntilDecisionOrBranch = (
 
       const previous = positions.previous();
 
-      if (previous !== undefined && previous !== "") {
+      if (previous !== undefined) {
         if (
           stepsEncountered.length === 0 ||
           previous !== stepsEncountered.at(-1)?.address
@@ -997,9 +1001,7 @@ const runUntilDecisionOrBranch = (
       // Ask the engine to pause before evaluating conditions. The program
       // engine asks the simulator by the decision's own address, and runs on
       // through a forced one itself.
-      story.pauseBeforeEvaluatingConditions =
-        typeof previous === "number" ||
-        !simulator.willForceCondition(previous as string);
+      story.pauseBeforeEvaluatingConditions = true;
 
       // One step was charged above. A Luau callback runs all of its steps
       // inside the step that called it, and those count too: the limit stops

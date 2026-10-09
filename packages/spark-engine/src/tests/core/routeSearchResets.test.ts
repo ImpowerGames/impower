@@ -12,8 +12,13 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
+
+/** An address no program here holds: chunk 2^19, far past any chunk id a
+ *  test program is given. */
+const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 const SRC = `store score = 0
 
@@ -166,7 +171,7 @@ describe("route search resets (#650)", () => {
     game.story.ChoosePathString("start");
     game.story.Continue();
 
-    const route = planRoute(game.story, "start", "start.NO_SUCH_PATH", {
+    const route = planRoute(game.story, "start", NO_SUCH_ADDRESS, {
       callerResetsStory: true,
     });
 
@@ -195,7 +200,7 @@ describe("route search resets (#650)", () => {
     };
 
     expect(() =>
-      planRoute(game.story, "start", "start.NO_SUCH_PATH", {
+      planRoute(game.story, "start", NO_SUCH_ADDRESS, {
         callerResetsStory: true,
       }),
     ).toThrow("planted failure inside the search");

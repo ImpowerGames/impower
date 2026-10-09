@@ -529,18 +529,18 @@ describe("the comparison the rest of these tests rest on", () => {
       context: {},
       story: JSON.stringify({ variablesState: { trust: 0 }, storySeed: 41 }),
       runtime: JSON.stringify({
-        pathsExecutedThisFrame: ["act_one.0"],
+        pathsExecutedThisFrame: [0],
         choicesEncountered: [],
         conditionsEncountered: [{ selected: true }],
       }),
       ...over,
     });
   const outcome = (over: Partial<RouteOutcome> = {}): RouteOutcome => ({
-    to: "act_one.9",
+    to: 9,
     checkpoint: save(),
     simulation: "success",
     searchSteps: 0,
-    stepAddresses: ["a", "b", "c"],
+    stepAddresses: [1, 2, 3],
     ...over,
   });
   const differs = (over: Partial<RouteOutcome>) => () =>
@@ -560,7 +560,7 @@ describe("the comparison the rest of these tests rest on", () => {
   test("rejects the recorded conditions differing", () => {
     const other = save({
       runtime: JSON.stringify({
-        pathsExecutedThisFrame: ["act_one.0"],
+        pathsExecutedThisFrame: [0],
         choicesEncountered: [],
         conditionsEncountered: [{ selected: false }],
       }),
@@ -569,21 +569,21 @@ describe("the comparison the rest of these tests rest on", () => {
   });
 
   test("rejects a position the route never visited", () => {
-    expect(differs({ stepAddresses: ["a", "b", "d"] })).toThrow();
+    expect(differs({ stepAddresses: [1, 2, 4] })).toThrow();
   });
 
   test("rejects a route that holds a run of steps once where the other holds it twice", () => {
     expect(() =>
       expectSameAnswer(
-        outcome({ stepAddresses: ["a", "b", "c"], resumedAfter: 1 }),
-        outcome({ stepAddresses: ["a", "b", "a", "b", "c"] }),
+        outcome({ stepAddresses: [1, 2, 3], resumedAfter: 1 }),
+        outcome({ stepAddresses: [1, 2, 1, 2, 3] }),
       ),
     ).toThrow();
   });
 
   test("rejects a route that skipped steps", () => {
     expect(() =>
-      expectSameAnswer(outcome({ stepAddresses: ["a", "d"] }), outcome({ stepAddresses: ["a", "b", "c", "d"] })),
+      expectSameAnswer(outcome({ stepAddresses: [1, 4] }), outcome({ stepAddresses: [1, 2, 3, 4] })),
     ).toThrow();
   });
 });

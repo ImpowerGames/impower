@@ -26,7 +26,10 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
-import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
 
@@ -86,7 +89,7 @@ describe("a route search pays neither per-step cost", () => {
   test("the execution hook is suppressed with null, and restored afterwards", () => {
     const program = compileSrc(SCENE);
     const toPath = targetPathForLine(program, BEATS + 2);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     const game = newGame(program);
     const story = game.story as any;
@@ -133,7 +136,7 @@ describe("a route search pays neither per-step cost", () => {
   const clockReadsForScene = (beats: number) => {
     const program = compileSrc(longScene(beats));
     const toPath = targetPathForLine(program, beats + 2);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
     const game = newGame(program);
 
     const originalGetTime = Date.prototype.getTime;

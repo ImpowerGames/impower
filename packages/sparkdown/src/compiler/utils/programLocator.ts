@@ -40,9 +40,8 @@ import type { SparkProgram } from "../types/SparkProgram";
 export const rootLocator = (root: ProgramRoot): ProgramLocator => ({
   addressAt: (uri, line, query) => root.addressAt(uri, line, query),
   locationOf: (address) =>
-    typeof address === "number" ? root.locationOf(address) : undefined,
-  sceneAt: (address) =>
-    typeof address === "number" ? root.sceneAt(address) : undefined,
+    address == null ? undefined : root.locationOf(address),
+  sceneAt: (address) => (address == null ? undefined : root.sceneAt(address)),
 });
 
 const locators = new WeakMap<object, ProgramLocator>();
@@ -267,7 +266,6 @@ export const beatAt = (
     const location = locator.locationOf(address);
     if (
       root &&
-      typeof address === "number" &&
       location &&
       location.endLine >= from &&
       !isStop(root, address)

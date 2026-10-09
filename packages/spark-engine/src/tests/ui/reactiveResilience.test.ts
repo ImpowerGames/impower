@@ -79,7 +79,7 @@ end
       { reactive: true, autoOpenAll: false },
     );
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     h.reset();
     // Belt: assert the flag explicitly so this test stays about what
     // `openLayout` does with the change-set, independent of which path set the
