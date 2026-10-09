@@ -240,6 +240,11 @@ function lowerNestedNamedFunction(
   // hides a variadic function of its name for the rest of its block.
   shadowSiblingSubFlow(selfName, ctx);
   if (isSelfReferential) {
+    // The body calls the function by its name, so the name is declared
+    // before the closure is built and the closure is assigned after. The
+    // assignment is the declaration's initializer, not a write to the
+    // variable: a data breakpoint on a variable of the same name declared
+    // before it does not hear it (#1720).
     const declareNil = new VariableAssignment({
       variableIdentifier: new Identifier(selfName),
       assignedExpression: new NullExpression(),
@@ -249,6 +254,7 @@ function lowerNestedNamedFunction(
       variableIdentifier: new Identifier(selfName),
       assignedExpression: closureValue,
       isTemporaryNewDeclaration: false,
+      isDeclarationInitializer: true,
     });
     return wrapInWeave([declareNil, assignClosure]);
   }

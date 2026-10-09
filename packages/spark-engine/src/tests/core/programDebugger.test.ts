@@ -707,6 +707,51 @@ describe("the debugger on the program engine", () => {
     ).toMatch(/^n=[1-9]\d*$/);
   });
 
+  // A self-recursive `local function` is lowered as a declaration of its
+  // name and an assignment of its closure, which is the declaration's
+  // initializer (#1720): it binds a new variable, so a data breakpoint on a
+  // variable of the same name declared before it does not stop there, and a
+  // later write to the name does.
+  it("does not fire a data breakpoint on a self-recursive local function's declaration, and fires on a later write", () => {
+    const text = [
+      "-> main", //                       0
+      "scene main", //                    1
+      "  Start.", //                      2
+      "  Got {outer()}.", //              3
+      "  done", //                        4
+      "end", //                           5
+      "function outer()", //              6
+      "  local f = 1", //                 7
+      "  local g = 2", //                 8
+      "  local function f(x)", //         9
+      "    if x > 0 then", //             10
+      "      return f(x - 1)", //         11
+      "    end", //                       12
+      "    return 0", //                  13
+      "  end", //                         14
+      "  local r = f(2)", //              15
+      "  f = 5", //                       16
+      "  return r", //                    17
+      "end", //                           18
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(8);
+    const set = h.game.setDataBreakpoints([{ dataId: "outer.f" }]);
+    expect(set[0]!.verified).toBe(true);
+    // Placed on the first write to the name, which the declaration's
+    // initializer is not.
+    expect(set[0]!.location?.range.start.line).toBe(16);
+    h.game.setBreakpoints([]);
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    expect(h.stoppedAt()).toBe(16);
+    expect(names(h.game.getTempVariables())).toContain("f=5");
+  });
+
   // A closure's frame binds the variable it captured to the cell that
   // outlived the function that declared it; a write in the closure reaches
   // the cell, and only the call that writes it stops.

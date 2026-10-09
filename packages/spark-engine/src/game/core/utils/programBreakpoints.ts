@@ -6,6 +6,7 @@ import { SymbolKind } from "@impower/sparkdown/src/program/ProgramSymbols";
 import {
   Op,
   SET_DECLARE,
+  SET_INITIALIZE,
   flagsOf,
   opOf,
 } from "@impower/sparkdown/src/program/ProgramInstructions";
@@ -239,7 +240,7 @@ const functionBody = (
 /**
  * The `SetVar` instructions that write a name a data breakpoint names, which
  * place the breakpoint in the source: those that assign it and those that
- * declare it. A data id names a global by its name, and a temporary as the
+ * declare it, with a declaration's initializer. A data id names a global by its name, and a temporary as the
  * debugger's variables view names it, by the name of the frame it is a
  * temporary of (`scopeSequences`), a dot and its own name. The instructions
  * are matched by name alone, so for a global they include the writes of a
@@ -270,7 +271,8 @@ export const programAssignmentAddresses = (
           root.table.strings[chunk[HEADER_WORDS + offset + 1]!] === name
         ) {
           const address = addressOf(chunkId(chunk), offset);
-          if (flagsOf(w0) & SET_DECLARE) {
+          // A declaration's initializer is part of the declaration (#1720).
+          if (flagsOf(w0) & (SET_DECLARE | SET_INITIALIZE)) {
             declarations.push(address);
           } else {
             assignments.push(address);
