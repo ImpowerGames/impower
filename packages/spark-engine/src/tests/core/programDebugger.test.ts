@@ -882,6 +882,20 @@ describe("the debugger on the program engine", () => {
       expect(JSON.parse(save).watchedCells).toEqual([
         { dataId, cell: expect.any(Number), tag: expect.any(String) },
       ]);
+      // A save whose note is malformed still loads, and binds the watch to
+      // no cell: the sort's comparator writes after the load do not stop.
+      const parsed = JSON.parse(save);
+      parsed.watchedCells = [
+        { dataId, cell: String(parsed.watchedCells[0].cell), tag: 1 },
+        "nothing",
+      ];
+      const hits = h.of("game/hitBreakpoint").length;
+      expect(h.game.load(JSON.stringify(parsed))).toBe(true);
+      expect(h.game.story.currentText).toBe("First true.\n");
+      h.game.continue();
+      h.game.continue();
+      expect(h.of("game/hitBreakpoint")).toHaveLength(hits);
+      expect(h.game.story.currentText).toBe("After.\n");
     });
   }
 
