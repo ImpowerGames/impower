@@ -70,11 +70,22 @@ for (const control of ["\u007f", "\u0085", "\u2028", "\u2029"]) {
 console.log("PASS: literal test inputs refuse missing, control, filter, option, directory and escaping paths before admission");
 const literalAlias = path.join(packageScratch, "literal-alias");
 fs.symlinkSync(literalPackage, literalAlias, process.platform === "win32" ? "junction" : "dir");
-for (const requested of ["valid.test.ts", path.join(literalPackage, "valid.test.ts"), path.join(literalAlias, "valid.test.ts")]) {
+const additionalAlias = path.join(packageScratch, "additional-alias");
+fs.symlinkSync(literalPackage, additionalAlias, process.platform === "win32" ? "junction" : "dir");
+const validSpellings = ["valid.test.ts", path.join(literalPackage, "valid.test.ts"),
+  path.join(literalAlias, "valid.test.ts"), path.join(additionalAlias, "valid.test.ts")];
+if (process.platform === "win32") {
+  const shortPackage = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
+    { encoding: "utf8", windowsHide: true, env: { ...process.env, IMPOWER_LITERAL_PACKAGE: literalPackage } }).trim();
+  validSpellings.push(path.join(shortPackage, "valid.test.ts"));
+  if (shortPackage === literalPackage) console.log("SKIP: distinct Windows 8.3 spelling unavailable; additional junction alias is covered");
+}
+for (const requested of validSpellings) {
   await assert.rejects(packageMain(["run", literalAlias, requested], {
     vitestPath: literalChild, root: literalStore,
     census: () => { throw new Error("valid alias reached queue admission"); },
-  }), /valid alias reached queue admission/, "valid relative, physical and aliased absolute paths reach admission");
+  }), /valid alias reached queue admission/, "valid relative, physical and additional OS aliases reach admission");
 }
 const file = path.resolve("fixture.test.ts");
 const report = () => ({ success: true, numTotalTestSuites: 1, numPassedTestSuites: 1,
@@ -449,6 +460,16 @@ fs.symlinkSync(scratch, runAlias, process.platform === "win32" ? "junction" : "d
 const aliasFile = path.join(runAlias, "a.test.ts");
 assert.equal(await main(["run", runAlias, aliasFile], seam), 3);
 assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "valid absolute package alias is forwarded unchanged");
+assert.equal(await main(["run", scratch, aliasFile], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "an additional physical alias retains its exact argument");
+if (process.platform === "win32") {
+  const shortRoot = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
+    { encoding: "utf8", windowsHide: true, env: { ...process.env, IMPOWER_LITERAL_PACKAGE: scratch } }).trim();
+  const shortFile = path.join(shortRoot, "a.test.ts");
+  assert.equal(await main(["run", scratch, shortFile], seam), 3);
+  assert.deepEqual(read(fakeRecord).argv, vitestArguments([shortFile]), "Windows short directory spelling is forwarded unchanged");
+}
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 
