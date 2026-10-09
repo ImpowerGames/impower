@@ -1,0 +1,175 @@
+sparkdown [0..78]
+ ├─ ImplicitAction [0..17]
+ │   ├─ ImplicitAction_begin 0
+ │   │   └─ ImplicitAction_begin_c1 0
+ │   │       └─ OptionalWhitespace 0
+ │   ├─ ImplicitAction_content [0..17]
+ │   │   ├─ ActionLineEnd [0..14]
+ │   │   │   ├─ ActionLineEnd_begin 0
+ │   │   │   │   └─ ActionLineEnd_begin_c1 0
+ │   │   │   │       └─ OptionalWhitespace 0
+ │   │   │   ├─ ActionLineEnd_content [0..14]
+ │   │   │   │   └─ TextChunk [0..14]
+ │   │   │   │       ├─ TextChunk_begin 0
+ │   │   │   │       ├─ TextChunk_content [0..14]
+ │   │   │   │       │   ├─ Word [0..3]: "You"
+ │   │   │   │       │   ├─ Space [3..4]: " "
+ │   │   │   │       │   ├─ Word [4..7]: "see"
+ │   │   │   │       │   ├─ Space [7..8]: " "
+ │   │   │   │       │   ├─ Word [8..9]: "a"
+ │   │   │   │       │   ├─ Space [9..10]: " "
+ │   │   │   │       │   └─ Word [10..14]: "door"
+ │   │   │   │       └─ TextChunk_end 14
+ │   │   │   └─ ActionLineEnd_end 14
+ │   │   └─ Tags [14..17]
+ │   │       ├─ Tags_begin 14
+ │   │       ├─ Tags_content [14..17]
+ │   │       │   └─ Tag [14..17]
+ │   │       │       ├─ Tag_c1 14
+ │   │       │       ├─ Tag_c2 [14..15]: "#"
+ │   │       │       └─ Tag_c3 [15..17]
+ │   │       │           └─ TagContent [15..17]
+ │   │       │               ├─ TagContent_begin 15
+ │   │       │               ├─ TagContent_content [15..17]
+ │   │       │               │   └─ TagText [15..17]: " t"
+ │   │       │               └─ TagContent_end 17
+ │   │       └─ Tags_end 17
+ │   └─ ImplicitAction_end 17
+ ├─ Newline [17..18]: "\n"
+ ├─ ImplicitAction [18..30]
+ │   ├─ ImplicitAction_begin 18
+ │   │   └─ ImplicitAction_begin_c1 18
+ │   │       └─ OptionalWhitespace 18
+ │   ├─ ImplicitAction_content [18..30]
+ │   │   └─ ActionLineEnd [18..30]
+ │   │       ├─ ActionLineEnd_begin 18
+ │   │       │   └─ ActionLineEnd_begin_c1 18
+ │   │       │       └─ OptionalWhitespace 18
+ │   │       ├─ ActionLineEnd_content [18..30]
+ │   │       │   └─ TextChunk [18..30]
+ │   │       │       ├─ TextChunk_begin 18
+ │   │       │       ├─ TextChunk_content [18..30]
+ │   │       │       │   ├─ Word [18..21]: "You"
+ │   │       │       │   ├─ Space [21..22]: " "
+ │   │       │       │   ├─ Word [22..25]: "see"
+ │   │       │       │   ├─ Space [25..26]: " "
+ │   │       │       │   ├─ Word [26..27]: "a"
+ │   │       │       │   └─ Glue [27..30]
+ │   │       │       │       ├─ Glue_c1 [27..28]
+ │   │       │       │       │   └─ Whitespace [27..28]: " "
+ │   │       │       │       └─ Glue_c2 [28..30]: ".."
+ │   │       │       └─ TextChunk_end 30
+ │   │       └─ ActionLineEnd_end 30
+ │   └─ ImplicitAction_end 30
+ ├─ Newline [30..31]: "\n"
+ ├─ InlineAction [31..47]
+ │   ├─ InlineAction_begin [31..33]
+ │   │   ├─ InlineAction_begin_c1 31
+ │   │   │   └─ OptionalWhitespace 31
+ │   │   ├─ InlineAction_begin_c2 [31..33]
+ │   │   │   └─ LeadingGlue [31..33]
+ │   │   │       └─ LeadingGlue_c1 [31..33]: ".."
+ │   │   ├─ InlineAction_begin_c3 33
+ │   │   └─ InlineAction_begin_c4 33
+ │   ├─ InlineAction_content [33..47]
+ │   │   ├─ ActionLineEnd [33..40]
+ │   │   │   ├─ ActionLineEnd_begin [33..34]
+ │   │   │   │   └─ ActionLineEnd_begin_c1 [33..34]
+ │   │   │   │       └─ OptionalWhitespace [33..34]: " "
+ │   │   │   ├─ ActionLineEnd_content [34..40]
+ │   │   │   │   └─ TextChunk [34..40]
+ │   │   │   │       ├─ TextChunk_begin 34
+ │   │   │   │       ├─ TextChunk_content [34..40]
+ │   │   │   │       │   └─ Word [34..40]: "window"
+ │   │   │   │       └─ TextChunk_end 40
+ │   │   │   └─ ActionLineEnd_end 40
+ │   │   └─ Tags [40..47]
+ │   │       ├─ Tags_begin 40
+ │   │       ├─ Tags_content [40..47]
+ │   │       │   ├─ Tag [40..44]
+ │   │       │   │   ├─ Tag_c1 40
+ │   │       │   │   ├─ Tag_c2 [40..41]: "#"
+ │   │       │   │   └─ Tag_c3 [41..44]
+ │   │       │   │       └─ TagContent [41..44]
+ │   │       │   │           ├─ TagContent_begin 41
+ │   │       │   │           ├─ TagContent_content [41..44]
+ │   │       │   │           │   └─ TagText [41..44]: " w "
+ │   │       │   │           └─ TagContent_end 44
+ │   │       │   └─ Tag [44..47]
+ │   │       │       ├─ Tag_c1 44
+ │   │       │       ├─ Tag_c2 [44..45]: "#"
+ │   │       │       └─ Tag_c3 [45..47]
+ │   │       │           └─ TagContent [45..47]
+ │   │       │               ├─ TagContent_begin 45
+ │   │       │               ├─ TagContent_content [45..47]
+ │   │       │               │   └─ TagText [45..47]: " x"
+ │   │       │               └─ TagContent_end 47
+ │   │       └─ Tags_end 47
+ │   └─ InlineAction_end 47
+ ├─ Newline [47..48]: "\n"
+ ├─ InlineHeading [48..60]
+ │   ├─ InlineHeading_begin [48..51]
+ │   │   ├─ InlineHeading_begin_c1 48
+ │   │   │   └─ OptionalWhitespace 48
+ │   │   ├─ InlineHeading_begin_c2 [48..49]
+ │   │   │   └─ HeadingMark [48..49]: "$"
+ │   │   ├─ InlineHeading_begin_c3 [49..50]
+ │   │   │   └─ ColonOperator [49..50]: ":"
+ │   │   ├─ InlineHeading_begin_c4 [50..51]
+ │   │   │   └─ RequiredWhitespace [50..51]: " "
+ │   │   └─ InlineHeading_begin_c5 51
+ │   ├─ InlineHeading_content [51..60]
+ │   │   ├─ LineEnd [51..57]
+ │   │   │   ├─ LineEnd_begin 51
+ │   │   │   │   └─ LineEnd_begin_c1 51
+ │   │   │   │       └─ OptionalWhitespace 51
+ │   │   │   ├─ LineEnd_content [51..57]
+ │   │   │   │   └─ TextChunk [51..57]
+ │   │   │   │       ├─ TextChunk_begin 51
+ │   │   │   │       ├─ TextChunk_content [51..57]
+ │   │   │   │       │   ├─ Word [51..52]: "A"
+ │   │   │   │       │   ├─ Space [52..53]: " "
+ │   │   │   │       │   └─ Word [53..57]: "HALL"
+ │   │   │   │       └─ TextChunk_end 57
+ │   │   │   └─ LineEnd_end 57
+ │   │   └─ Tags [57..60]
+ │   │       ├─ Tags_begin 57
+ │   │       ├─ Tags_content [57..60]
+ │   │       │   └─ Tag [57..60]
+ │   │       │       ├─ Tag_c1 57
+ │   │       │       ├─ Tag_c2 [57..58]: "#"
+ │   │       │       └─ Tag_c3 [58..60]
+ │   │       │           └─ TagContent [58..60]
+ │   │       │               ├─ TagContent_begin 58
+ │   │       │               ├─ TagContent_content [58..60]
+ │   │       │               │   └─ TagText [58..60]: " h"
+ │   │       │               └─ TagContent_end 60
+ │   │       └─ Tags_end 60
+ │   └─ InlineHeading_end 60
+ ├─ Newline [60..61]: "\n"
+ ├─ ImplicitAction [61..77]
+ │   ├─ ImplicitAction_begin 61
+ │   │   └─ ImplicitAction_begin_c1 61
+ │   │       └─ OptionalWhitespace 61
+ │   ├─ ImplicitAction_content [61..77]
+ │   │   └─ ActionLineEnd [61..77]
+ │   │       ├─ ActionLineEnd_begin 61
+ │   │       │   └─ ActionLineEnd_begin_c1 61
+ │   │       │       └─ OptionalWhitespace 61
+ │   │       ├─ ActionLineEnd_content [61..77]
+ │   │       │   └─ TextChunk [61..77]
+ │   │       │       ├─ TextChunk_begin 61
+ │   │       │       ├─ TextChunk_content [61..77]
+ │   │       │       │   ├─ Word [61..65]: "Room"
+ │   │       │       │   ├─ Space [65..66]: " "
+ │   │       │       │   ├─ Punctuation [66..67]: "#"
+ │   │       │       │   ├─ Word [67..68]: "1"
+ │   │       │       │   ├─ Space [68..69]: " "
+ │   │       │       │   ├─ Word [69..71]: "is"
+ │   │       │       │   ├─ Space [71..72]: " "
+ │   │       │       │   ├─ Word [72..76]: "here"
+ │   │       │       │   └─ Punctuation [76..77]: "."
+ │   │       │       └─ TextChunk_end 77
+ │   │       └─ ActionLineEnd_end 77
+ │   └─ ImplicitAction_end 77
+ └─ Newline [77..78]: "\n"

@@ -420,6 +420,7 @@
     "IDENTIFIER_END": "[{{IDENTIFIER_END_CHAR}}]*",
     "IDENTIFIER": "(?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}\\b)",
     "TAG_START": "(?:[#]+(?=$|{{WS}}))",
+    "NOT_TAG_HASH": "(?:[#]+[^#\\s])",
     "COMMENT_START": "(?:[-][-])",
     "BREAK_MARK": "(?:[>])",
     "BREAK": "(?:{{WS}}*{{BREAK_MARK}}{{WS}}*)",
@@ -2859,7 +2860,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=(?:[#]+[^#\\s]))"
     },
     "TitleMark": {
       "tag": "definition(punctuation)",
@@ -2993,7 +2994,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=(?:[#]+[^#\\s]))"
     },
     "HeadingMark": {
       "tag": "definition(punctuation)",
@@ -3127,7 +3128,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=(?:[#]+[^#\\s]))"
     },
     "TransitionalMark": {
       "tag": "definition(punctuation)",
@@ -3708,7 +3709,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=(?:[#]+[^#\\s]))"
     },
     "ImplicitAction": {
       "begin": "((?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*(?:end)\\b))(?=\\S)",
@@ -3744,7 +3745,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+      "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=(?:[#]+[^#\\s]))"
     },
     "BlockActionLineContinue": {
       "begin": "((?:[^\\S\\n\\r])*)(?=\\S)((?:[.][.](?![.])))?",
