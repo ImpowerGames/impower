@@ -99,6 +99,20 @@ const NO_STORY_FLOW = `define config with
 end
 `;
 
+/** Top-level content, a scene, and a `define` block after the scene, whose
+ *  lines hold no beat and have none below them. */
+const TOP_LEVEL_THEN_DEFINE = `Top line of the story.
+-> start
+
+scene start
+  First beat of the scene.
+end
+
+define config with
+  value = 1
+end
+`;
+
 /** A scene that diverts back to its own top forever. */
 const ENDLESS_LOOP = `-> start
 
@@ -310,6 +324,20 @@ describe("a game that simulates for itself records the same reason", () => {
     expect(game.startAddress).toBe(TOP_LEVEL_START);
     game.simulate();
     expect(game.simulationFailure).toBe("unroutable");
+  }, 120_000);
+
+  test("a run from a line with no address starts at the top of the top-level content", () => {
+    // A `define` block after the last scene: no line there or below holds a
+    // beat, so the start address is the sentinel, and jumping to it is what
+    // PLAY does after the route search fails.
+    const program = compileSrc(TOP_LEVEL_THEN_DEFINE);
+    const game: any = newGame(program);
+    expect(game.setStartFrom({ file: URI, line: 8 })).toBeNull();
+    expect(game.startAddress).toBe(TOP_LEVEL_START);
+    game.jumpTo(game.startAddress);
+    expect(String(game.story.Continue() ?? "").trim()).toBe(
+      "Top line of the story.",
+    );
   }, 120_000);
 
   test("a route that replays without arriving is recorded as diverged", () => {
