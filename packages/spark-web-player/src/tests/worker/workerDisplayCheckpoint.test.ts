@@ -406,9 +406,8 @@ end
       await h.compile();
       await settle(40);
       expect(h.overlay.textContent).toContain("The last beat, edited, 7.");
-      // The display after the edit ran on the new engine and read no save.
+      // The display after the edit ran on the new engine.
       expect(game.programStory === engine).toBe(false);
-      expect(read.mock.calls.length).toBe(0);
       const variables = game.programStory.variablesState;
       const bag = variables.GetVariableWithName("bag") as unknown as {
         value: Map<string, { value?: unknown }>;
@@ -420,6 +419,8 @@ end
       expect(bag.value.get("n")?.value).toBe(7);
       expect(contents.value.get("n")?.value).toBe(7);
       expect(contents === bag).toBe(true);
+      // And it read no save.
+      expect(read.mock.calls.length).toBe(0);
     } finally {
       h.dispose();
     }
