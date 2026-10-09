@@ -252,6 +252,8 @@ export interface PositionalCopy {
     lineEndPending: boolean;
     addresses: readonly number[];
   } | null;
+  /** The held addresses of a continue in progress (`heldAddresses`). */
+  readonly heldAddresses: readonly number[];
   readonly didSafeExit: boolean;
   readonly turn: number;
   readonly seed: number;
@@ -1591,6 +1593,7 @@ export class ProgramStoryState {
             addresses: this.carried.addresses.slice(),
           }
         : null,
+      heldAddresses: this.heldAddresses.slice(),
       didSafeExit: this.didSafeExit,
       turn: this.currentTurnIndex,
       seed: this.storySeed,
@@ -1755,8 +1758,10 @@ export class ProgramStoryState {
     this.lineEndPending = copy.lineEndPending;
     this.lineJoinable = copy.lineJoinable;
     this.outputCut = copy.outputCut;
-    // A carried step's addresses name the program the image was taken in,
-    // as `previousAddress` does, and go where it goes.
+    // A carried step's addresses, and those a line in progress holds (an
+    // image taken mid-continue, at a breakpoint or by a save that puts the
+    // live state back), name the program the image was taken in, as
+    // `previousAddress` does, and go where it goes.
     this.carried = copy.carried
       ? {
           output: copy.carried.output.slice(),
@@ -1764,7 +1769,7 @@ export class ProgramStoryState {
           addresses: placed.remap ? [] : copy.carried.addresses.slice(),
         }
       : null;
-    this.heldAddresses = [];
+    this.heldAddresses = placed.remap ? [] : copy.heldAddresses.slice();
     this.didSafeExit = copy.didSafeExit;
     this.currentTurnIndex = copy.turn;
     this.storySeed = copy.seed;

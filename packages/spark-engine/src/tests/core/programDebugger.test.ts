@@ -1773,6 +1773,57 @@ describe("a choose block's caption on the program engine", () => {
     });
   });
 
+  // A route to the carried line ends when that line is reported, with the
+  // beat that shows it, so a preview of the line shows the line and not the
+  // caption.
+  it("ends a route to the carried line on the beat that shows it", () => {
+    const sim = debugGame(CAPTION);
+    sim.game.setStartFrom({ file: MAIN, line: 3 });
+    const to = sim.game.startAddress!;
+    const route = Game.planRoute(
+      sim.game.story,
+      sim.program as never,
+      sim.game.routeStartOf(to),
+      to,
+    );
+    expect(route == null).toBe(false);
+    expect(typeof sim.game.patchAndSimulateRoute(route!)).toBe("string");
+    expect(sim.game.story.currentText).toBe("Something shows first.\n");
+  });
+
+  // A save at that breakpoint writes the beat before the line and puts the
+  // line in progress back, with what it holds for the next beat.
+  it("reports the carried step's lines after a save at a breakpoint on the carried line", () => {
+    const h = debugGame(CAPTION);
+    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.start();
+    expect(h.stoppedAt()).toBe(3);
+    expect(typeof h.game.save()).toBe("string");
+    const reports: { text: string | null; lines: unknown; follow: unknown }[] =
+      [];
+    h.game.connection.outgoing.addListener("*", (message) => {
+      const m = message as unknown as Recorded;
+      if (m.method === "game/executed") {
+        reports.push({
+          text: h.game.story.currentText,
+          lines: m.params.executedLines?.[MAIN],
+          follow: m.params.lastLocation?.range?.start?.line,
+        });
+      }
+    });
+    h.game.continue();
+    h.game.continue();
+    expect(reports.map((r) => r.text)).toEqual([
+      "Pick.\n",
+      "Something shows first.\n",
+    ]);
+    expect(reports[1]).toEqual({
+      text: "Something shows first.\n",
+      lines: { ranges: [2, 3], last: 3 },
+      follow: 3,
+    });
+  });
+
   it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
     const h = debugGame(CAPTION);
     h.game.setBreakpoints([{ file: MAIN, line: 3 }]);

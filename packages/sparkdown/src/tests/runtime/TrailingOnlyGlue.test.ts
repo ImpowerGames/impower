@@ -678,6 +678,34 @@ end
     });
   });
 
+  // Every instruction a run executes is logged for exactly one beat, whatever
+  // waited or was carried on the way.
+  test("logs each instruction a run executes for exactly one beat", () => {
+    for (const source of [
+      `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`,
+      `choose\n  Outer.\n  if true then\n    choose\n      Inner.\n      & print("Aside.")\n      * Inner choice\n    end\n  end\n  * Outer choice\nend\n`,
+      `choose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  print("Aside.")\n  print("More.")\nend\n`,
+      `store x = 0\nchoose\n  Pick.\n  if true then\n    & x = 1\n  end\n  * One\nend\n`,
+      `A ..\nif true then\n  .. B\nend\nC.\n`,
+      `Line one. #mood\nLine two.\n`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      const executed: number[] = [];
+      const beat: number[] = [];
+      ctx.story.executedLog = executed;
+      ctx.story.beatLog = beat;
+      for (let turn = 0; turn < 3; turn += 1) {
+        while (ctx.story.canContinue) ctx.story.Continue();
+        if (ctx.story.currentChoices.length === 0) break;
+        ctx.story.ChooseChoiceIndex(0);
+      }
+      const sorted = (a: number[]) => [...a].sort((x, y) => x - y);
+      expect(executed.length).toBeGreaterThan(0);
+      expect(sorted(beat)).toEqual(sorted(executed));
+    }
+  });
+
   // A caption the carried step shows keeps its own newline waiting, through a
   // save too.
   test("carries a caption's own waiting line end", () => {
