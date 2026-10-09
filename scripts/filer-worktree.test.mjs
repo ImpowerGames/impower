@@ -84,6 +84,55 @@ fs.mkdirSync(sibling);
 fs.writeFileSync(path.join(sibling, "plain.txt"), "safe sibling\n");
 fs.mkdirSync(path.join(sibling, "node_modules"));
 fs.writeFileSync(path.join(sibling, "node_modules", "tracked.txt"), "safe local file\n");
+const nestedLocations = [
+  `$dest = '${reproduction}'; Set-Location -LiteralPath $dest; powershell.exe -NoProfile -NonInteractive -Command "Remove-Item -LiteralPath node_modules/tracked.txt -Force"`,
+  `$dest = '${reproduction}'; Set-Location -LiteralPath $dest; Write-Output "$(Remove-Item -LiteralPath node_modules/tracked.txt -Force)"`,
+  `Set-Location -LiteralPath '${reproduction}'; Write-Output "$(Remove-Item -LiteralPath node_modules/tracked.txt -Force)"`,
+];
+for (const command of nestedLocations) {
+  if (process.platform === "win32") {
+    const r = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", command.replaceAll(" -Force", " -Force -WhatIf")], { cwd: main, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /tracked\.txt/); preserved();
+  }
+  assert.ok(cleanup(command, "powershell", main), "nested analysis must retain outer location uncertainty and substitution placement"); preserved();
+  for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command } });
+    const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+  }
+}
+assert.ok(cleanup(`cd "$unknown"; bash -c 'rm -f node_modules/tracked.txt'`, "bash", main), "Bash child inherits unresolved location");
+assert.ok(cleanup(`cd '${reproduction}'; echo "$(rm -f node_modules/tracked.txt)"`, "bash", main), "pre-collected Bash substitution has no invented execution cwd"); preserved();
+assert.ok(cleanup(`Set-Location $unknown; powershell.exe -Command "npm install"`, "powershell", main), "nested setup also inherits unresolved location");
+const safeNested = `$dest = '${reproduction}'; Set-Location -LiteralPath $dest; powershell.exe -NoProfile -NonInteractive -Command "Remove-Item -LiteralPath '${sibling}/plain.txt' -Force"`;
+const safeSubstitution = `$dest = '${reproduction}'; Set-Location -LiteralPath $dest; Write-Output "$(Remove-Item -LiteralPath '${sibling}/plain.txt' -Force)"`;
+const nestShell = (command, levels) => { for (let i = 0; i < levels; i++) command = `powershell.exe -NoProfile -NonInteractive -Command '${command.replaceAll("'", "''")}'`; return command; };
+const deepCleanup = nestShell(`Remove-Item -LiteralPath '${reproduction}/node_modules/tracked.txt' -Force`, 4);
+const deepSubstitution = command => { for (let i = 0; i < 4; i++) command = `Write-Output "$(${command})"`; return command; };
+for (const command of [deepCleanup, deepSubstitution(`Remove-Item -LiteralPath '${reproduction}/node_modules/tracked.txt' -Force`)]) {
+  if (process.platform === "win32") {
+    const actual = command === deepCleanup ? nestShell(`Remove-Item -LiteralPath '${reproduction}/node_modules/tracked.txt' -Force -WhatIf`, 4) : deepSubstitution(`Remove-Item -LiteralPath '${reproduction}/node_modules/tracked.txt' -Force -WhatIf`);
+    const r = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", actual], { cwd: main, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /tracked\.txt/); preserved();
+  }
+  assert.match(cleanup(command, "powershell", main), /nesting exceeded/, "recognized recursion fails closed at its bound"); preserved();
+  for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command } });
+    const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.match(JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason, /nesting exceeded/); preserved();
+  }
+}
+assert.ok(cleanup(nestShell(`Remove-Item -LiteralPath '${reproduction}/node_modules/tracked.txt'`, 3), "powershell", main), "supported boundary still checks the actual target");
+assert.equal(cleanup(nestShell("Write-Output harmless", 3), "powershell", main), null, "shallow benign child shells remain permitted");
+assert.equal(cleanup(`Write-Output '${deepCleanup.replaceAll("'", "''")}'`, "powershell", main), null, "quoted deeply nested prose is not execution");
+for (const command of [safeNested, safeSubstitution, `Set-Location '${sibling}'; powershell.exe -Command "Remove-Item -LiteralPath node_modules/tracked.txt"`, `Write-Output "$(Remove-Item -LiteralPath harmless-relative.txt)"`, `Write-Output '$(Remove-Item unknown)'`]) {
+  assert.equal(cleanup(command, "powershell", main), null, "safe absolute, known child location and quoted prose controls");
+  for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command } });
+    const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout.trim(), ""); preserved();
+  }
+}
 const splat = `$targets=@('${reproduction}/node_modules/tracked.txt'); Remove-Item -LiteralPath @targets -Force`;
 if (process.platform === "win32") {
   const r = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `${splat} -WhatIf`], { cwd: main, encoding: "utf8", windowsHide: true });
@@ -120,11 +169,13 @@ const initialChild = path.join(main, "relative-cwd"), movedChild = path.join(sib
 fs.mkdirSync(initialChild); fs.mkdirSync(movedChild);
 fs.symlinkSync(external, path.join(initialChild, "node_modules"), process.platform === "win32" ? "junction" : "dir");
 assert.ok(cleanup(`Set-Location '${sibling}'; Set-Location relative-cwd; Remove-Item node_modules/tracked.txt`, "powershell", main), "relative locations propagate from every possible prior cwd"); preserved();
+assert.ok(cleanup(`Set-Location '${sibling}'; powershell.exe -Command "Set-Location relative-cwd; Remove-Item node_modules/tracked.txt"`, "powershell", main), "child shell retains every possible prior cwd for its own relative transitions"); preserved();
 fs.unlinkSync(path.join(initialChild, "node_modules"));
 const manyLocations = Array.from({ length: 9 }, (_, i) => {
   const dir = path.join(scratch, `location-state-${i}`); fs.mkdirSync(dir); return `Set-Location '${dir}'`;
 }).join("; ");
 assert.match(cleanup(`${manyLocations}; Remove-Item relative.txt`, "powershell", main), /states.*bound/, "state overflow refuses rather than truncates");
+assert.match(cleanup(`${manyLocations}; powershell.exe -Command "Remove-Item relative.txt"`, "powershell", main), /states.*bound/, "nested shell retains state overflow refusal");
 assert.equal(cleanup(`${manyLocations}; Remove-Item -LiteralPath '${sibling}/plain.txt'`, "powershell", main), null, "verified absolute target is independent of uncertain location states");
 assert.equal(cleanup(`if ($false) { Set-Location '/missing-filer-1766' }; Remove-Item -LiteralPath '${sibling}/plain.txt'`, "powershell", main), null, "safe absolute literal survives unresolved flow");
 assert.ok(cleanup(`Set-Location '/missing-filer-1766'; Remove-Item node_modules/tracked.txt`, "powershell", reproduction)); preserved();

@@ -77,19 +77,20 @@ function literalArguments(tokens, shell, command) {
 // Reuse the established tokenizer; quoted prose/comments are not commands.
 // Indirect runtimes and computed paths outside known repositories remain outside
 // coverage. Literal location changes and shell command strings are recognized.
-function operations(command, shell, cwd, depth = 0) {
-  if (depth > 3) return [];
+function operations(command, shell, cwd, depth = 0, locationState = null) {
+  if (depth > 3) return [{ kind: "analysis-limit", cwd, cwds: locationState?.cwds ?? [cwd], targets: Object.assign([], { error: "Supported cleanup/setup analysis nesting exceeded" }) }];
   const { segments, subs } = readCommand(command, shell), found = [];
-  const possibleCwds = new Set([cwd]);
-  let locationError = null, hasLocation = false;
+  const possibleCwds = new Set(locationState?.cwds ?? [cwd]), substitutionOps = [];
+  let locationError = locationState?.error ?? null, hasLocation = false;
   const addCwd = next => {
     if (possibleCwds.size >= 8 && !possibleCwds.has(next)) locationError = "Possible location states exceed the supported bound";
     else possibleCwds.add(next);
   };
   const emit = op => found.push({ ...op, cwd, cwds: [...possibleCwds], locationError });
   for (const sub of subs) {
-    const nested = operations(sub, shell, cwd, depth + 1);
+    const nested = operations(sub, shell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError });
     found.push(...nested);
+    substitutionOps.push(...nested);
     if (nested.hasLocation) { hasLocation = true; locationError = "Nested location flow cannot be verified"; }
   }
   const locationStack = [];
@@ -99,7 +100,7 @@ function operations(command, shell, cwd, depth = 0) {
       if (token.quoted && isShellCommandString(tokens, i, positions)) {
         const before = programBefore(tokens, i - 1);
         const innerShell = before >= 0 && /^(pwsh|powershell)$/.test(baseName(tokens[before])) ? "powershell" : "bash";
-        for (const possible of possibleCwds) found.push(...operations(token.text, innerShell, possible, depth + 1));
+        found.push(...operations(token.text, innerShell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError }));
       }
       const method = !token.quoted && /(?:\.|::)Delete$/i.test(token.text) && command.slice(token.end).trimStart().startsWith("(");
       if (method) {
@@ -147,6 +148,10 @@ function operations(command, shell, cwd, depth = 0) {
       if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text))) || (name === "npm" && targets.some(text => /^(install|ci)$/i.test(text)))) emit({ kind: "setup", targets });
     }
   }
+  // The tokenizer collects substitutions without their execution positions.
+  // A location transition elsewhere in this command cannot give their relative
+  // mutations an invented known cwd; verified absolute operands stay independent.
+  if (hasLocation) for (const op of substitutionOps) op.locationError ??= "Substitution execution location cannot be verified";
   found.hasLocation = hasLocation;
   return found;
 }

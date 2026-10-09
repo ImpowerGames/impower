@@ -11,6 +11,8 @@ The prompt for one item carries its `file:line`, one sentence on the symptom, th
 
 ## Checked reproduction lifecycle
 
+Recognized child-shell command strings inherit the complete possible-location set and unresolved-location state. Substitutions are collected without execution positions, so relative mutations in them refuse when the surrounding command has location flow; verified absolute operands remain independent. More than three recursive shell-string/substitution levels refuse in a known repository, even for benign execution whose contents exceed that bound. Shallow benign commands and literal prose remain permitted. This is a conservative boundary within the supported recursion, not evaluation of arbitrary shell code or protection for unknown outside-repository execution.
+
 Both routes use `scripts/filer-worktree.mjs` from the main checkout. Include this lifecycle in each item's prompt, including the stable filing session identity as `--owner`:
 
 ```sh
