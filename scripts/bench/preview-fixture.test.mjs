@@ -178,9 +178,12 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
   assert.equal(repositoryPath("../../node_modules/@lezer/common/dist/index.js"), "node_modules/@lezer/common/dist/index.js");
   const bypassOf = (name) => BYPASS.find(([, re]) => re.test(name))?.[0];
   const parsed = "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy/";
-  // The stand-ins where they live (#1683, #1676).
+  // The stand-ins where they live (#1683, #1676); the tooling workflow's
+  // sparse checkout has no packages/, so their existence is checked only
+  // where the sources are.
+  const hierarchy = path.join(HERE, "..", "..", "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy");
   for (const file of ["MemoizedStatement.ts", "Divert/MemoizedDivert.ts", "Gather/MemoizedGather.ts", "Variable/MemoizedAssignment.ts"]) {
-    assert.ok(fs.existsSync(path.join(HERE, "..", "..", "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy", file)), file);
+    if (fs.existsSync(hierarchy)) assert.ok(fs.existsSync(path.join(hierarchy, file)), file);
     assert.match(bypassOf(`${parsed}${file}:Prepare`), /statement memo/, file);
   }
   assert.match(bypassOf(`${parsed}Weave.ts:prepareRoot`), /the weave/);
@@ -224,6 +227,47 @@ await check("profile-shares --gaps says no sample landed only when none did, bef
     const empty = shares(write("a", [[100, 200]]), write("b", [[100, 200]]), "--under", "(root)");
     assert.match(empty, /no profiler sample landed in them/);
     assert.doesNotMatch(empty, /profiles, shares|first profile|garbage collector/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+await check("profile-shares --windows counts only the measured samples, per sample", () => {
+  // Samples every 10 ms from 5 ms, each charged the 10 ms that follows it
+  // (the last nothing). Two measured samples' windows, [10, 30) and
+  // [40, 50) ms, keep the samples at 15 and 45 (`inPhase`) and 25
+  // (`between`); those at 5, 35 and 55 are warm-up (#1712).
+  const profile = {
+    startTime: 0,
+    nodes: [
+      { id: 1, callFrame: { functionName: "(root)" }, children: [2, 3, 4] },
+      { id: 2, callFrame: { functionName: "inPhase" } },
+      { id: 3, callFrame: { functionName: "between" } },
+      { id: 4, callFrame: { functionName: "warmup" } },
+    ],
+    samples: [4, 2, 3, 4, 2, 4],
+    timeDeltas: [5000, 10000, 10000, 10000, 10000, 10000],
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-profile-windows-test-"));
+  try {
+    fs.writeFileSync(path.join(dir, "edit.cpuprofile"), JSON.stringify(profile));
+    fs.writeFileSync(path.join(dir, "edit.windows.json"), JSON.stringify({ samples: [[[10000, 30000]], [[40000, 50000]]] }));
+    const json = path.join(dir, "shares.json");
+    const run = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(dir, "edit.cpuprofile"), "--under", "(root)", "--windows", "--json", json], { encoding: "utf8", windowsHide: true });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.match(run.stdout, /only the measured samples: 15\.0 ms of profiled time under \(root\) per benchmark sample/);
+    const result = JSON.parse(fs.readFileSync(json, "utf8"));
+    assert.equal(result.keptSamples, 3);
+    assert.equal(result.underMs, 30);
+    assert.equal(result.underMsPerSample, 15);
+    assert.deepEqual(
+      result.functions.map((f) => [f.name, +f.share.toFixed(4)]),
+      [["(vm):inPhase", 0.6667], ["(vm):between", 0.3333]],
+    );
+    // Without --windows every sample counts, warm-up included.
+    const all = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(dir, "edit.cpuprofile"), "--under", "(root)", "--json", json], { encoding: "utf8", windowsHide: true });
+    assert.equal(all.status, 0, all.stdout + all.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(json, "utf8")).underMs, 50);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
