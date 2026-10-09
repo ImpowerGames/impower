@@ -230,14 +230,15 @@ export class CallStack {
   }
 
   // `scopeIndex`, when an open cell supplies one, reassigns the binding in
-  // that scope rather than the innermost binding of the name.
+  // that scope rather than the innermost binding of the name. Returns the
+  // block scope written.
   public SetTemporaryVariable(
     name: string,
     value: any,
     declareNew: boolean,
     contextIndex: number = -1,
     scopeIndex: number = -1,
-  ) {
+  ): Map<string, InkObject> {
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
 
     let contextElement = this.callStack[contextIndex - 1];
@@ -289,32 +290,39 @@ export class CallStack {
         );
       }
       inner.set(name, value);
-      return;
+      return inner;
     }
 
-    // An open cell's write goes to the binding it captured.
+    const frame = this.TemporaryScopeOf(name, contextIndex, scopeIndex);
+    if (frame === null) {
+      throw new Error("Could not find temporary variable to set: " + name);
+    }
+    ListValue.RetainListOriginsForAssignment(frame.get(name) ?? null, value);
+    frame.set(name, value);
+    return frame;
+  }
+
+  /** The block scope that holds the temporary `name` a reassignment
+   *  writes in the element `contextIndex` names (1-based; -1 for the
+   *  current one), or null when none holds it. An open cell's write goes to
+   *  the binding it captured, in the scope `scopeIndex` names; any other
+   *  goes to the innermost binding of the name, since reassignment
+   *  introduces no new one. */
+  public TemporaryScopeOf(
+    name: string,
+    contextIndex: number = -1,
+    scopeIndex: number = -1,
+  ): Map<string, InkObject> | null {
+    if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
+    const scopes = this.callStack[contextIndex - 1]?.temporaryScopes;
+    if (!scopes) return null;
     if (scopeIndex >= 0 && scopes[scopeIndex]?.has(name)) {
-      const frame = scopes[scopeIndex]!;
-      ListValue.RetainListOriginsForAssignment(frame.get(name) ?? null, value);
-      frame.set(name, value);
-      return;
+      return scopes[scopeIndex]!;
     }
-
-    // Reassigning an existing `local`. Walk scopes innermost → outermost
-    // to find the frame that declared it, then update there. Luau
-    // reassignment doesn't introduce a new binding.
     for (let i = scopes.length - 1; i >= 0; i--) {
-      const frame = scopes[i]!;
-      if (frame.has(name)) {
-        const oldValue = tryGetValueFromMap(frame, name, null);
-        if (oldValue.exists) {
-          ListValue.RetainListOriginsForAssignment(oldValue.result, value);
-        }
-        frame.set(name, value);
-        return;
-      }
+      if (scopes[i]!.has(name)) return scopes[i]!;
     }
-    throw new Error("Could not find temporary variable to set: " + name);
+    return null;
   }
 
   public ContextForVariableNamed(name: string) {
