@@ -553,3 +553,173 @@ describe("a save written by another process", () => {
     }
   });
 });
+
+// #1728: a scene entered by a divert pushes no frame of its own, and its
+// entry binds the parameters as temporaries of the frame that diverted. A
+// release that changes the scene's parameter list places a save held inside
+// the scene at the scene's start, each parameter bound from the saved
+// argument of the same name, or nil when the old scene had no parameter of
+// that name (a parameter added or renamed), and an old parameter the scene
+// no longer has unbound.
+describe("a save inside a scene entered by a divert", () => {
+  const SCENE = (params: string, line: string) =>
+    [
+      "-> start",
+      "",
+      "scene start",
+      "  -> s(10, 20)",
+      "end",
+      "",
+      `scene s(${params})`,
+      `  First ${line}.`,
+      `  Second ${line}.`,
+      "end",
+      "",
+    ].join("\n");
+
+  // The save, taken at the beat that showed the scene's first line.
+  const saveIn = (params: string, line: string): string => {
+    const story = new ProgramStory(rootOf(SCENE(params, line)), { saveHistory: 1 });
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    story.Continue();
+    expect(shown(story)).toBe("First 10 20.");
+    return story.toSave();
+  };
+
+  // The temporaries of the frame the scene's entry bound, by name: a value's
+  // own value, or null for nil.
+  const bindings = (story: ProgramStory): Record<string, unknown> => {
+    const scope = story.state.callStack.currentThread.callstack[0]!.temporaryScopes[0]!;
+    return Object.fromEntries(
+      [...scope].map(([name, value]) => [name, (value as { value?: unknown } | null)?.value ?? null]),
+    );
+  };
+
+  it("loads in place, exactly, when the scene's parameters did not change", () => {
+    const save = saveIn("a, b", "{a} {b}");
+    const loaded = engine(rootOf(SCENE("a, b", "{a} {b}")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(bindings(loaded)).toEqual({ a: 10, b: 20 });
+    expect(play(loaded)).toEqual(["Second 10 20."]);
+  });
+
+  const RELEASES: {
+    change: string;
+    params: string;
+    line: string;
+    bound: Record<string, unknown>;
+    beats: string[];
+  }[] = [
+    // `c` is new: nil.
+    { change: "added", params: "a, b, c", line: "{a} {b} {c}", bound: { a: 10, b: 20, c: null }, beats: ["First 10 20 nil.", "Second 10 20 nil."] },
+    // `a` is gone: unbound.
+    { change: "removed", params: "b", line: "{b}", bound: { b: 20 }, beats: ["First 20.", "Second 20."] },
+    // `b` became `x`: `x` is a new name, nil, and `b` is gone.
+    { change: "renamed", params: "a, x", line: "{a} {x}", bound: { a: 10, x: null }, beats: ["First 10 nil.", "Second 10 nil."] },
+    // By name, not by position: `a` keeps 10 and `b` keeps 20.
+    { change: "reordered", params: "b, a", line: "{a} {b}", bound: { a: 10, b: 20 }, beats: ["First 10 20.", "Second 10 20."] },
+  ];
+
+  for (const { change, params, line, bound, beats } of RELEASES) {
+    it(`whose parameter list had a parameter ${change} (s(a, b) to s(${params})) is placed at the scene's start with its parameters bound by name`, () => {
+      const save = saveIn("a, b", "{a} {b}");
+      const loaded = engine(rootOf(SCENE(params, line)));
+      loaded.loadSave(save);
+      const report = loaded.loadedSaveReport!;
+      expect(report.exact).toBe(false);
+      expect(report.warnings.join(" ")).toMatch(/'s'.*start/);
+      expect(bindings(loaded)).toEqual(bound);
+      expect(play(loaded)).toEqual(beats);
+    });
+  }
+
+  it("restarts the scene with its parameters bound by name when a checkpoint is restored after an edit within a session", () => {
+    const session = programSession(SCENE("a, b", "{a} {b}"));
+    const game = engine(session.root);
+    game.Continue();
+    expect(shown(game)).toBe("First 10 20.");
+    const checkpoint = game.captureBeat();
+    const edited = session.edit("scene s(a, b)", "scene s(b, a)");
+    const next = new ProgramStory(edited, { images: game.images, history: game.history });
+    next.keepBeatImages = true;
+    next.onError = () => {};
+    expect(next.restore(checkpoint)).toBe(true);
+    expect(bindings(next)).toEqual({ a: 10, b: 20 });
+    expect(play(next)).toEqual(["First 10 20.", "Second 10 20."]);
+  });
+});
+
+// #1728: a scene entered by a thread binds its parameters in the forked
+// thread's frame.
+describe("a save inside a scene entered by a thread", () => {
+  const THREAD = (params: string) =>
+    [
+      "-> start",
+      "",
+      "scene start",
+      "  <- s(10, 20)",
+      "  Main.",
+      "  choose",
+      '    * "Stay"',
+      "      Stayed.",
+      "  end",
+      "end",
+      "",
+      `scene s(${params})`,
+      "  First {a} {b}.",
+      "  Second {a} {b}.",
+      "  choose",
+      '    * "Ask"',
+      "      Asked {a} {b}.",
+      "  end",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+
+  const story = () => {
+    const s = new ProgramStory(rootOf(THREAD("a, b")), { saveHistory: 1 });
+    s.keepBeatImages = true;
+    s.onError = () => {};
+    return s;
+  };
+
+  it("while the fork runs restarts the scene in the fork, which then returns to the thread that forked it", () => {
+    const game = story();
+    game.Continue();
+    expect(shown(game)).toBe("First 10 20.");
+    const save = game.toSave();
+    const same = engine(rootOf(THREAD("a, b")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    expect(play(same)).toEqual(["Second 10 20.", "Main."]);
+    const loaded = engine(rootOf(THREAD("b, a")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'s'.*start/);
+    expect(play(loaded)).toEqual(["First 10 20.", "Second 10 20.", "Main."]);
+    expect(loaded.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Stay"']);
+  });
+
+  it("at a menu drops the choice the fork raised in the scene, which has no start to restart at", () => {
+    const game = story();
+    expect(play(game)).toEqual(["First 10 20.", "Second 10 20.", "Main."]);
+    expect(game.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Stay"']);
+    const save = game.toSave();
+    const same = engine(rootOf(THREAD("a, b")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    expect(play(same)).toEqual([]);
+    expect(same.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Stay"']);
+    const loaded = engine(rootOf(THREAD("b, a")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/choice raised in 's' is dropped/);
+    expect(play(loaded)).toEqual([]);
+    expect(loaded.currentChoices.map((c) => c.text)).toEqual(['"Stay"']);
+  });
+});

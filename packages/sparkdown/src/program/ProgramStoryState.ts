@@ -8,6 +8,8 @@ import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
 import { Tag } from "../runtime/Tag";
 import {
+  MultiValue,
+  NullValue,
   ObjectValue,
   StringValue,
   type VariablePointerValue,
@@ -143,9 +145,24 @@ export interface PositionCopy {
    *  A statement at the position that was emitted again leaves the position
    *  unplaced, as it does with no chunk before it (#699). */
   readonly after: number;
+  /** The id of the entry chunk of the flow the position is in, which binds
+   *  a scene's or a branch's parameters, or -1 for a flow with none. A root
+   *  whose flow has another entry places the position through its saved
+   *  form, which restarts a flow whose entry binds its parameters in other
+   *  code (#1728). */
+  readonly flowEntry: number;
 }
 
+/** The id of the entry chunk (`FlowEntry`) of the flow `sequence` is in, or
+ *  -1 for a flow that has none or a sequence of no flow. */
+const flowEntryOf = (root: ProgramRoot, sequence: SequenceRow): number => {
+  const flow = sequence.flow >= 0 ? root.flow(sequence.flow) : undefined;
+  const entry = flow?.arrays.chunks[0];
+  return entry && flow.arrays.lineStarts[0] === -1 ? chunkId(entry) : -1;
+};
+
 export const copyPosition = (
+  root: ProgramRoot,
   position: ProgramPosition | null,
 ): PositionCopy | null => {
   if (!position) {
@@ -163,6 +180,7 @@ export const copyPosition = (
     offset: position.offset,
     sequence: position.sequence.id,
     after: before ? chunkId(before) : -1,
+    flowEntry: flowEntryOf(root, position.sequence),
   };
 };
 
@@ -276,6 +294,18 @@ export interface ThreadCuts {
   /** When frames are dropped, where the frame below them resumes: after the
    *  statement that called the first one dropped. */
   callerAfter?: ProgramPosition | null;
+  /** When the element that is now the top stands in a scene or a branch
+   *  whose entry binds its parameters in other code (#1728): the flow's
+   *  qualified name, where the element restarts it (past its entry's
+   *  `SetVar`s), the parameters that entry binds, in the order its header
+   *  writes them, and the names of those the saved entry bound. The
+   *  element's parameters are bound by name from the saved ones. */
+  restart?: {
+    flow: string;
+    position: ProgramPosition;
+    params: { name: string; vararg: boolean }[];
+    saved: string[];
+  };
 }
 
 /** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
@@ -1477,7 +1507,7 @@ export class ProgramStoryState {
             borrowed: element.borrowedUpvalues.slice(),
             frame: frame
               ? {
-                  returnTo: copyPosition(frame.returnTo),
+                  returnTo: copyPosition(this._root, frame.returnTo),
                   symbol: frame.symbol,
                   ...(frame.dropResult ? { dropResult: true } : {}),
                 }
@@ -1486,7 +1516,7 @@ export class ProgramStoryState {
         }),
         resume: resume
           ? {
-              position: copyPosition(resume.position),
+              position: copyPosition(this._root, resume.position),
               previousFlow: resume.previousFlow,
             }
           : null,
@@ -1494,7 +1524,7 @@ export class ProgramStoryState {
     };
     const threads = this.callStack._threads;
     const copy: PositionalCopy = {
-      position: copyPosition(this.position),
+      position: copyPosition(this._root, this.position),
       evaluationStack: this.evaluationStack.slice(),
       output: this.outputStream.slice(),
       lineEndPending: this.lineEndPending,
@@ -1526,7 +1556,7 @@ export class ProgramStoryState {
         sourcePath: choice.sourcePath,
         isInvisibleDefault: choice.isInvisibleDefault,
         originalThreadIndex: choice.originalThreadIndex,
-        target: copyPosition(choice.target)!,
+        target: copyPosition(this._root, choice.target)!,
         previousFlow: choice.previousFlow,
         thread: copyThread(choice.threadAtGeneration!, undefined),
       })),
@@ -1571,6 +1601,15 @@ export class ProgramStoryState {
         }
       }
       if (!position || !blockStackOf(root, position.sequence)) {
+        unplaced = true;
+        return null;
+      }
+      // A flow whose entry was emitted again may bind its parameters in
+      // other code, which the saved form's placement checks (#1728).
+      if (
+        saved.flowEntry !== undefined &&
+        flowEntryOf(root, position.sequence) !== saved.flowEntry
+      ) {
         unplaced = true;
         return null;
       }
@@ -1734,6 +1773,12 @@ export class ProgramStoryState {
       after[cuts.dropFrom - 1] = true;
     }
     const t = elements.length - 1;
+    if (cuts.restart) {
+      // The element restarts its flow: its scopes are cut to the flow's
+      // start, and its eval stack at the top of the current thread.
+      position = cuts.restart.position;
+      after[t] = true;
+    }
     for (let i = 0; i <= t; i += 1) {
       if (!after[i]) {
         continue;
@@ -1758,7 +1803,67 @@ export class ProgramStoryState {
         }
       }
     }
+    if (cuts.restart && t >= 0) {
+      this.rebindParameters(elements[t]!, cuts.restart.saved, cuts.restart.params);
+    }
     return position;
+  }
+
+  /**
+   * Binds the parameters of a flow an element restarts (#1728) as its entry
+   * would have: each by name from the value the saved entry bound to that
+   * name (`saved`), so a parameter that was reordered keeps its argument,
+   * and nil for a name the saved entry did not bind, so a parameter that was
+   * added or renamed takes nil, the value a divert that passes no argument
+   * for it binds (an empty `...` for a variadic flow's). Every binding the
+   * saved entry made is replaced as a declaration in the same scope replaces
+   * it: a captured cell closes on its value, and a parameter the flow no
+   * longer has is unbound.
+   */
+  protected rebindParameters(
+    element: CallStack.Element,
+    saved: readonly string[],
+    params: readonly { name: string; vararg: boolean }[],
+  ): void {
+    const scope = element.temporaryScopes[0];
+    if (!scope) {
+      return;
+    }
+    const values = new Map<string, InkObject>();
+    for (const name of saved) {
+      const value = scope.get(name);
+      if (value !== undefined) {
+        values.set(name, value);
+      }
+    }
+    const unbound = new Set(values.keys());
+    if (unbound.size > 0) {
+      const stillOpen: VariablePointerValue[] = [];
+      for (const cell of element.openUpvalues) {
+        if (
+          !cell.isClosed &&
+          unbound.has(cell.variableName) &&
+          element.ScopeIndexOf(cell) === 0
+        ) {
+          this.callStack.cellBarrier?.(cell);
+          cell.closedValue = scope.get(cell.variableName) ?? null;
+          continue;
+        }
+        if (!cell.isClosed) stillOpen.push(cell);
+      }
+      element.openUpvalues = stillOpen;
+      element.ReleaseBorrowedUpvalues(0, (name) => unbound.has(name));
+      for (const name of unbound) {
+        scope.delete(name);
+      }
+    }
+    for (const param of params) {
+      scope.set(
+        param.name,
+        values.get(param.name) ??
+          (param.vararg ? new MultiValue([]) : new NullValue()),
+      );
+    }
   }
 
   /** Restores a state `toJson` wrote. Each position is placed through the
