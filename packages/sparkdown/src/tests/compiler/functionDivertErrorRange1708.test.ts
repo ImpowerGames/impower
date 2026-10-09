@@ -5,6 +5,10 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 // instead of at the divert, so an author could not find the cause.
 const uri = "file:///project/main.sd";
 
+// The one error, which names the function and says how to call it.
+const GREET_MESSAGE =
+  "A function can't be diverted to: call `greet` instead, as `& greet()` on a line of its own or `{greet()}` in a line.";
+
 const compileDiagnostics = (text: string) => {
   const c = new SparkdownCompiler();
   c.configure({
@@ -33,9 +37,10 @@ describe("divert to a function (#1708)", () => {
 
   it("places the error on the divert's line", () => {
     const ds = compileDiagnostics(text);
-    const d = ds.find((x) => x.message.includes("can't be diverted to"));
+    const d = ds.find((x) => x.message.startsWith("A function can't be diverted to: "));
     expect(d, JSON.stringify(ds)).toBeDefined();
     expect(d!.severity).toBe(1);
+    expect(d!.message).toBe(GREET_MESSAGE);
     expect(d!.range.start.line).toBe(4);
     expect(d!.range.end.line).toBe(4);
   });
@@ -54,7 +59,7 @@ describe("divert to a function (#1708)", () => {
     );
     const errors = ds.filter((x) => x.severity === 1);
     expect(errors, JSON.stringify(ds)).toHaveLength(1);
-    expect(errors[0]!.message).toContain("can't be diverted to");
+    expect(errors[0]!.message).toBe(GREET_MESSAGE);
     expect(errors[0]!.range.start.line).toBe(4);
   });
 

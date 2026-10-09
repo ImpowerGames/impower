@@ -446,7 +446,7 @@ describe("the debugger on the program engine", () => {
     expect(errors.filter(([line]) => line === 23)).toEqual([
       [
         23,
-        "add can't be diverted to. It can only be called as a function since it's been marked as such: 'add(...)'",
+        "A function can't be diverted to: call `add` instead, as `& add()` on a line of its own or `{add()}` in a line.",
       ],
     ]);
     expect(program.chunks).toBeUndefined();
