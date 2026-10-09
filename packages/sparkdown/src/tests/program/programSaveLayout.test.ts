@@ -553,3 +553,377 @@ describe("a save written by another process", () => {
     }
   });
 });
+
+// #1728: a scene entered by a divert pushes no frame of its own, and its
+// entry binds the parameters as temporaries of the frame that diverted. A
+// release that changes the scene's parameter list places a save held inside
+// the scene at the scene's start, each parameter bound from the saved
+// argument of the same name, or nil when the old scene had no parameter of
+// that name (a parameter added or renamed), and an old parameter the scene
+// no longer has unbound.
+describe("a save inside a scene entered by a divert", () => {
+  const SCENE = (params: string, line: string) =>
+    [
+      "-> start",
+      "",
+      "scene start",
+      "  -> s(10, 20)",
+      "end",
+      "",
+      `scene s(${params})`,
+      `  First ${line}.`,
+      `  Second ${line}.`,
+      "end",
+      "",
+    ].join("\n");
+
+  // The save, taken at the beat that showed the scene's first line.
+  const saveIn = (params: string, line: string): string => {
+    const story = new ProgramStory(rootOf(SCENE(params, line)), { saveHistory: 1 });
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    story.Continue();
+    expect(shown(story)).toBe("First 10 20.");
+    return story.toSave();
+  };
+
+  // The temporaries of the frame the scene's entry bound, by name: a value's
+  // own value, or null for nil.
+  const bindings = (story: ProgramStory): Record<string, unknown> => {
+    const scope = story.state.callStack.currentThread.callstack[0]!.temporaryScopes[0]!;
+    return Object.fromEntries(
+      [...scope].map(([name, value]) => [name, (value as { value?: unknown } | null)?.value ?? null]),
+    );
+  };
+
+  it("loads in place, exactly, when the scene's parameters did not change", () => {
+    const save = saveIn("a, b", "{a} {b}");
+    const loaded = engine(rootOf(SCENE("a, b", "{a} {b}")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(bindings(loaded)).toEqual({ a: 10, b: 20 });
+    expect(play(loaded)).toEqual(["Second 10 20."]);
+  });
+
+  const RELEASES: {
+    change: string;
+    params: string;
+    line: string;
+    bound: Record<string, unknown>;
+    beats: string[];
+  }[] = [
+    // `c` is new: nil.
+    { change: "added", params: "a, b, c", line: "{a} {b} {c}", bound: { a: 10, b: 20, c: null }, beats: ["First 10 20 nil.", "Second 10 20 nil."] },
+    // `a` is gone: unbound.
+    { change: "removed", params: "b", line: "{b}", bound: { b: 20 }, beats: ["First 20.", "Second 20."] },
+    // `b` became `x`: `x` is a new name, nil, and `b` is gone.
+    { change: "renamed", params: "a, x", line: "{a} {x}", bound: { a: 10, x: null }, beats: ["First 10 nil.", "Second 10 nil."] },
+    // By name, not by position: `a` keeps 10 and `b` keeps 20.
+    { change: "reordered", params: "b, a", line: "{a} {b}", bound: { a: 10, b: 20 }, beats: ["First 10 20.", "Second 10 20."] },
+  ];
+
+  for (const { change, params, line, bound, beats } of RELEASES) {
+    it(`whose parameter list had a parameter ${change} (s(a, b) to s(${params})) is placed at the scene's start with its parameters bound by name`, () => {
+      const save = saveIn("a, b", "{a} {b}");
+      const loaded = engine(rootOf(SCENE(params, line)));
+      loaded.loadSave(save);
+      const report = loaded.loadedSaveReport!;
+      expect(report.exact).toBe(false);
+      expect(report.warnings.join(" ")).toMatch(/'s'.*start/);
+      expect(bindings(loaded)).toEqual(bound);
+      expect(play(loaded)).toEqual(beats);
+    });
+  }
+
+  it("restarts the scene with its parameters bound by name when a checkpoint is restored after an edit within a session", () => {
+    const session = programSession(SCENE("a, b", "{a} {b}"));
+    const game = engine(session.root);
+    game.Continue();
+    expect(shown(game)).toBe("First 10 20.");
+    const checkpoint = game.captureBeat();
+    const edited = session.edit("scene s(a, b)", "scene s(b, a)");
+    const next = new ProgramStory(edited, { images: game.images, history: game.history });
+    next.keepBeatImages = true;
+    next.onError = () => {};
+    expect(next.restore(checkpoint)).toBe(true);
+    expect(bindings(next)).toEqual({ a: 10, b: 20 });
+    expect(play(next)).toEqual(["First 10 20.", "Second 10 20."]);
+  });
+
+  // The save of `text` at the beat that showed `line`.
+  const saveAt = (text: string, line: string): string => {
+    const story = new ProgramStory(rootOf(text), { saveHistory: 1 });
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    while (story.canContinue && shown(story) !== line) story.Continue();
+    expect(shown(story)).toBe(line);
+    return story.toSave();
+  };
+
+  // Round 1 of the review of #1730 (report 6083306813, finding 1): a scene
+  // whose entry goes on to its first branch binds its parameters in the
+  // frame that runs the branch.
+  it("inside the first branch of a scene whose parameters changed restarts the scene, which enters the branch again", () => {
+    const OUTER = (params: string) =>
+      [
+        "-> outer(10, 20)",
+        "",
+        `scene outer(${params})`,
+        "  branch inner",
+        "    First {a} {b}.",
+        "    Second {a} {b}.",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(OUTER("a, b"), "First 10 20.");
+    const level = JSON.parse(save).beats.at(-1).position.st.levels[0];
+    expect(level.flow).toBe("outer.inner");
+    expect(level.params).toEqual([]);
+    expect(level.scene).toEqual(["a", "b"]);
+    const same = engine(rootOf(OUTER("a, b")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    expect(play(same)).toEqual(["Second 10 20."]);
+    const loaded = engine(rootOf(OUTER("b, a")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'outer' resumes at its start/);
+    expect(bindings(loaded)).toEqual({ a: 10, b: 20 });
+    expect(play(loaded)).toEqual(["First 10 20.", "Second 10 20."]);
+    // Within a session: an edit to the scene's header alone keeps the
+    // branch's chunks, and the checkpoint still restarts the scene.
+    const session = programSession(OUTER("a, b"));
+    const game = engine(session.root);
+    while (shown(game) !== "First 10 20.") game.Continue();
+    const checkpoint = game.captureBeat();
+    const edited = session.edit("scene outer(a, b)", "scene outer(b, a)");
+    const next = new ProgramStory(edited, { images: game.images, history: game.history });
+    next.keepBeatImages = true;
+    next.onError = () => {};
+    expect(next.restore(checkpoint)).toBe(true);
+    expect(play(next)).toEqual(["First 10 20.", "Second 10 20."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6083306813, finding 1): a jump
+  // to a label of a scene passes its entry, which binds nothing in the
+  // frame.
+  it("at a label a frame jumped to, past the scene's entry, loads in place when the scene's parameters changed", () => {
+    const LABEL = (params: string) =>
+      [
+        "-> start",
+        "",
+        "scene start",
+        "  -> s.middle",
+        "end",
+        "",
+        `scene s(${params})`,
+        "  Skipped.",
+        "  label middle",
+        "  Middle.",
+        "  After.",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(LABEL("a, b"), "Middle.");
+    const loaded = engine(rootOf(LABEL("b, a")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["After."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6083306813, finding 2): a new
+  // parameter's name the frame already binds, in a local a closure captured.
+  it("closes a captured local that a new parameter of the same name replaces, so the closure keeps its value", () => {
+    const CAPTURE = (params: string) =>
+      [
+        "store keep = nil",
+        "",
+        "-> start",
+        "",
+        "scene start",
+        "  & local c = 30",
+        "  & keep = function() return c end",
+        "  -> s(10)",
+        "end",
+        "",
+        `scene s(${params})`,
+        "  First {a} {keep()}.",
+        "  Second {a} {keep()}.",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(CAPTURE("a"), "First 10 30.");
+    const loaded = engine(rootOf(CAPTURE("a, c")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(bindings(loaded)).toEqual({ a: 10, c: null });
+    expect(play(loaded)).toEqual(["First 10 30.", "Second 10 30."]);
+  });
+
+  // A scene whose content starts with a branch, entered by a divert.
+  const STARTS = (header: string, divert: string) =>
+    [
+      `-> ${divert}`,
+      "",
+      `scene ${header}`,
+      "  branch inner",
+      "    First.",
+      "    Second.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 1): the
+  // scene with no parameters left has no entry and no content of its own,
+  // and is entered at its first branch.
+  it("inside the first branch of a scene that lost its last parameter restarts the scene at that branch", () => {
+    const save = saveAt(STARTS("outer(a)", "outer(10)"), "First.");
+    const loaded = engine(rootOf(STARTS("outer", "outer(10)").replace("-> outer(10)", "-> outer")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'outer' resumes at its start/);
+    expect(bindings(loaded)).toEqual({});
+    expect(play(loaded)).toEqual(["First.", "Second."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 2, rejected):
+  // an entry that bound nothing left nothing in the frame to be stale, and a
+  // frame that ran it cannot be told from one that jumped past it, so the
+  // save loads where it was.
+  it("inside a scene that gained its first parameter loads in place, since its entry bound nothing", () => {
+    const save = saveAt(STARTS("outer", "outer"), "First.");
+    const loaded = engine(rootOf(STARTS("outer(a)", "outer(10)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 3): the
+  // entry's jump to the scene's first branch is no part of its parameters.
+  it("inside a branch of a scene whose parameters did not change loads in place when its branches were reordered", () => {
+    const BRANCHES = (first: string, second: string) =>
+      ["-> outer(10)", "", "scene outer(a)", first, second, "end", ""].join("\n");
+    const ONE = ["  branch one", "    One {a}.", "    -> two", "  end"].join("\n");
+    const TWO = ["  branch two", "    First {a}.", "    Second {a}.", "  end"].join("\n");
+    const save = saveAt(BRANCHES(ONE, TWO), "First 10.");
+    const loaded = engine(rootOf(BRANCHES(TWO, ONE)));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second 10."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6084052356, finding 4): a jump
+  // to a label of a scene that bound nothing, which gains a parameter.
+  it("at a label a frame jumped to loads in place when the scene, which took no parameters, gains one", () => {
+    const LABEL = (header: string) =>
+      [
+        "-> start",
+        "",
+        "scene start",
+        "  -> s.middle",
+        "end",
+        "",
+        `scene ${header}`,
+        "  Skipped.",
+        "  label middle",
+        "  Middle.",
+        "  After.",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(LABEL("s"), "Middle.");
+    const loaded = engine(rootOf(LABEL("s(a)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["After."]);
+  });
+
+  it("inside a variadic scene keeps the saved varargs under the same name when a parameter before them is removed", () => {
+    const VARIADIC = (params: string, line: string) =>
+      ["-> s(10, 20, 30)", "", `scene s(${params})`, `  First ${line}.`, `  Second ${line}.`, "end", ""].join(
+        "\n",
+      );
+    const save = saveAt(VARIADIC("a, ...", '{a} {select("#", ...)}'), "First 10 2.");
+    const loaded = engine(rootOf(VARIADIC("...", '{select("#", ...)}')));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(play(loaded)).toEqual(["First 2.", "Second 2."]);
+  });
+});
+
+// #1728: a scene entered by a thread binds its parameters in the forked
+// thread's frame.
+describe("a save inside a scene entered by a thread", () => {
+  const THREAD = (params: string) =>
+    [
+      "-> start",
+      "",
+      "scene start",
+      "  <- s(10, 20)",
+      "  Main.",
+      "  choose",
+      '    * "Stay"',
+      "      Stayed.",
+      "  end",
+      "end",
+      "",
+      `scene s(${params})`,
+      "  First {a} {b}.",
+      "  Second {a} {b}.",
+      "  choose",
+      '    * "Ask"',
+      "      Asked {a} {b}.",
+      "  end",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+
+  const story = () => {
+    const s = new ProgramStory(rootOf(THREAD("a, b")), { saveHistory: 1 });
+    s.keepBeatImages = true;
+    s.onError = () => {};
+    return s;
+  };
+
+  it("while the fork runs restarts the scene in the fork, which then returns to the thread that forked it", () => {
+    const game = story();
+    game.Continue();
+    expect(shown(game)).toBe("First 10 20.");
+    const save = game.toSave();
+    const same = engine(rootOf(THREAD("a, b")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    expect(play(same)).toEqual(["Second 10 20.", "Main."]);
+    const loaded = engine(rootOf(THREAD("b, a")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'s'.*start/);
+    expect(play(loaded)).toEqual(["First 10 20.", "Second 10 20.", "Main."]);
+    expect(loaded.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Stay"']);
+  });
+
+  it("at a menu drops the choice the fork raised in the scene, which has no start to restart at", () => {
+    const game = story();
+    expect(play(game)).toEqual(["First 10 20.", "Second 10 20.", "Main."]);
+    expect(game.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Stay"']);
+    const save = game.toSave();
+    const same = engine(rootOf(THREAD("a, b")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    expect(play(same)).toEqual([]);
+    expect(same.currentChoices.map((c) => c.text)).toEqual(['"Ask"', '"Stay"']);
+    const loaded = engine(rootOf(THREAD("b, a")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/choice raised in 's' is dropped/);
+    expect(play(loaded)).toEqual([]);
+    expect(loaded.currentChoices.map((c) => c.text)).toEqual(['"Stay"']);
+  });
+});
