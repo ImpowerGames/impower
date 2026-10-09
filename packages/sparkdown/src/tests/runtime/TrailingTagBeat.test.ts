@@ -13,7 +13,11 @@ import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { chunkOfAddress, offsetOfAddress } from "../../program/ProgramChunk";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
-import { compileScript, programSession } from "../program/programHarness";
+import {
+  compileScript,
+  programSession,
+  storyBeats,
+} from "../program/programHarness";
 
 const URI = "inmemory:///main.sd";
 
@@ -133,5 +137,40 @@ describe("a tag written after a line's text", () => {
     const first = root.addressAt(URI, 1)!;
     expect(root.addressAt(URI, 1, { beat: "last" })).toBe(first);
     expect(root.addressAt(URI, 2)).not.toBe(first);
+    // The address's location is the continuation's own line.
+    expect(root.locationOf(first)).toMatchObject({ startLine: 1, endLine: 1 });
+  });
+
+  // Every kind of line that ended at a `#` shows the same beats, tags and
+  // display tables for the touching form as for the spaced one, and a line's
+  // last address is on that line.
+  test("behaves as the spaced form on every kind of display line", () => {
+    for (const [touching, spaced] of [
+      [["^: A TITLE# t"], ["^: A TITLE # t"]],
+      [["$: A HALL# t"], ["$: A HALL # t"]],
+      [["%: CUT TO BLACK# t"], ["%: CUT TO BLACK # t"]],
+      [["@ Hello# t"], ["@ Hello # t"]],
+      [["A > B# t"], ["A > B # t"]],
+      [["A ..", ".. B# t"], ["A ..", ".. B # t"]],
+      [["store n = 8", "Room# pic{n}"], ["store n = 8", "Room # pic{n}"]],
+    ]) {
+      const script = (lines: string[]) => [...lines, "After.", ""].join("\n");
+      const shown = (lines: string[]) =>
+        storyBeats(
+          new ProgramStory(compileScript(script(lines)).program.chunks!),
+        );
+      const label = touching.join(" / ");
+      const expected = shown(spaced);
+      expect(expected.errors, label).toEqual([]);
+      expect(expected.beats.at(-2)?.tags.length, label).toBeGreaterThan(0);
+      expect(shown(touching), label).toEqual(expected);
+      const root = compileScript(script(touching)).program.chunks!;
+      const line = touching.length - 1;
+      const last = root.addressAt(URI, line, { beat: "last" })!;
+      expect(root.locationOf(last), label).toMatchObject({
+        startLine: line,
+        endLine: line,
+      });
+    }
   });
 });
