@@ -628,6 +628,56 @@ end
     expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
+  // What the preview credits a line to: the continue that shows it (#1686).
+  // The step that shows after the caption runs in the caption's continue,
+  // where a breakpoint on its line stops (`executedLog`), and its addresses
+  // are logged for the beat by the next continue, which shows it
+  // (`beatLog`), through a session's state and a durable save.
+  test("reports the lines the carried step ran in the continue that shows them", () => {
+    const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    const lines = (addresses: number[]) => [
+      ...new Set(addresses.map((a) => ctx.root.locationOf(a)?.startLine)),
+    ];
+    const run = (story: RuntimeStory) => {
+      const executed: number[] = [];
+      const beat: number[] = [];
+      story.executedLog = executed;
+      story.beatLog = beat;
+      const text = story.Continue();
+      story.executedLog = null;
+      story.beatLog = null;
+      return { text, ran: lines(executed), beat: lines(beat) };
+    };
+    expect(run(ctx.story)).toEqual({
+      text: "Pick.\n",
+      ran: [1, 2, 3],
+      beat: [1],
+    });
+    const saved = ctx.story.state.ToJson();
+    const durable = ctx.story.toSave();
+    expect(run(ctx.story)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+    const again = testStory(ctx.root);
+    again.state.LoadJson(saved);
+    expect(run(again)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+    const loaded = testStory(ctx.root);
+    loaded.loadSave(durable);
+    expect(run(loaded)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+  });
+
   // A caption the carried step shows keeps its own newline waiting, through a
   // save too.
   test("carries a caption's own waiting line end", () => {

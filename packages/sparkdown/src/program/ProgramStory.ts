@@ -391,9 +391,16 @@ export class ProgramStory implements StoryEngine {
   onExecute: ((address: number) => void) | null = null;
   /** When set, each instruction's address is appended to it as it runs,
    *  the instructions of a Luau callback the step calls included: what a
-   *  game reads after each step it takes to keep the addresses a beat ran
-   *  and to find a breakpoint's, with no call per step (#702). */
+   *  game reads after each step it takes to find a breakpoint's, with no
+   *  call per step (#702). */
   executedLog: number[] | null = null;
+  /** When set, the same addresses are appended to it in the continue whose
+   *  beat shows what they ran: what a game reads to keep the addresses a
+   *  beat ran. An instruction that runs while a line end waits is held
+   *  until the line ends; when something shows first, the cut carries its
+   *  step, and those addresses, to the next continue, which appends them
+   *  as it starts (#1686). */
+  beatLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
 
   /** Formats the message the `error` builtin raises, as the object engine's
@@ -1978,6 +1985,10 @@ export class ProgramStory implements StoryEngine {
       state.ResetOutput(carried?.output ?? null);
       state.lineEndPending = carried?.lineEndPending ?? false;
       state.outputCut = null;
+      // The carried step's instructions ran for this beat. What a continue
+      // that did not end left held is dropped with it.
+      state.TakeHeldAddresses();
+      if (carried) this.logBeat(carried.addresses);
       if (this._recursiveContinueCount == 1) {
         state.variablesState.StartVariableObservation();
       }
@@ -2003,6 +2014,8 @@ export class ProgramStory implements StoryEngine {
           e.useEndLineNumber,
           e.raisedAddress,
         );
+        // The step that raised the error ran for the beat it ends.
+        this.logBeat(state.TakeHeldAddresses());
         break;
       }
       if (this.pausedBeforeCondition !== null || this._asyncContinueActive) {
@@ -2011,6 +2024,12 @@ export class ProgramStory implements StoryEngine {
     }
 
     state.CarryOutputPastCut();
+    // A line end still waiting when the continue ends, as a caption's does
+    // when its choices are raised, ends with this beat, and so does the
+    // step a cut closed with no next continue to carry it to.
+    if (outputStreamEndsInNewline || !this.canContinue) {
+      this.logBeat(state.TakeHeldAddresses());
+    }
 
     // A continue that ended at its newline, or with the flow ended and no
     // choice waiting, leaves the state as it stands as its beat's image; one
@@ -2165,7 +2184,17 @@ export class ProgramStory implements StoryEngine {
     state.previousAddress = address;
     if (this.onExecute !== null) this.onExecute(address);
     if (this.executedLog !== null) this.executedLog.push(address);
+    if (state.holdsAddresses) {
+      state.heldAddresses.push(address);
+    } else if (this.beatLog !== null) {
+      this.beatLog.push(address);
+    }
     this.execute(position, chunk);
+    // A line end that stopped waiting with nothing cut, as a join that
+    // continues the line does, keeps what it held in this beat.
+    if (state.heldAddresses.length > 0 && !state.holdsAddresses) {
+      this.logBeat(state.TakeHeldAddresses());
+    }
     // A statement whose last instruction ran rests at the start of the next.
     const current = state.position;
     if (current) {
@@ -2181,6 +2210,13 @@ export class ProgramStory implements StoryEngine {
   }
 
   // --------------------------------------------------------------- internals
+
+  /** Appends `addresses` to `beatLog`, when it is set. */
+  protected logBeat(addresses: readonly number[]): void {
+    const log = this.beatLog;
+    if (log === null) return;
+    for (const address of addresses) log.push(address);
+  }
 
   /** The chunk the position is in, after moving past the end of each
    *  statement and each body the position has reached the end of, closing
@@ -2911,7 +2947,7 @@ export class ProgramStory implements StoryEngine {
       position: state.position,
       blocks: state.blockStack,
       output: [...state.outputStream],
-      lineEnd: state.SuspendLineEnd(),
+      lineEnd: state.SuspendLineEnd(true),
       pause: this.pauseBeforeEvaluatingConditions,
       running: this._running,
     };
@@ -3330,6 +3366,8 @@ export class ProgramStory implements StoryEngine {
     this.onExecute = null;
     const executedLog = this.executedLog;
     this.executedLog = null;
+    const beatLog = this.beatLog;
+    this.beatLog = null;
     const depth = state.callStack.elements.length;
     for (const chunk of this.root.initialization) {
       const at = this.root.position(chunkId(chunk));
@@ -3383,6 +3421,7 @@ export class ProgramStory implements StoryEngine {
     this.pauseBeforeEvaluatingConditions = pause;
     this.onExecute = onExecute;
     this.executedLog = executedLog;
+    this.beatLog = beatLog;
     state.position = null;
     state.blockStack = [];
     state.previousAddress = -1;
