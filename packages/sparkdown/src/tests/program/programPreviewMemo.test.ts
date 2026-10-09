@@ -102,21 +102,23 @@ function session() {
     get program() {
       return program;
     },
-    preview(at: number, insert: string) {
+    /** Previews replacing `[at, to)` with `insert`. */
+    preview(at: number, insert: string, to = at) {
       previewUpdate = undefined;
       const result = quietly(() =>
         compiler.previewCompile({
           root: { uri: MAIN_URI },
           textDocument: { uri: MAIN_URI, version },
-          contentChanges: [{ range: { start: posAt(text, at), end: posAt(text, at) }, text: insert }],
+          contentChanges: [{ range: { start: posAt(text, at), end: posAt(text, to) }, text: insert }],
         } as never),
       );
       expect(result.outdated ?? false).toBe(false);
       return {
+        program: result.program as SparkProgram,
         update: previewUpdate!,
         memos: previewMemos!,
         memoized: compiler.programResolver!.passesLastResolve.memoized,
-        text: text.slice(0, at) + insert + text.slice(at),
+        text: text.slice(0, at) + insert + text.slice(to),
       };
     },
     /** Replaces `[at, to)` with `insert` for real; does not compile. */
@@ -237,6 +239,42 @@ describe("a preview compile that follows a preview compile", () => {
     s.update(third, " Real.");
     const stats = s.compiler.memoStats(MAIN_URI)!;
     expect(loweredOutside(stats, s.text)).toEqual([]);
+    const { served } = memosHeld(s.compiler);
+    expect(served.size).toBeGreaterThan(80);
+    expect([...served].filter((entry) => !completed.has(entry))).toEqual([]);
+    const program = s.compile();
+    const cold = coldOf(s.text);
+    expect(describeRoot(program.chunks!)).toEqual(describeRoot(cold.chunks!));
+  });
+
+  it("that changes a block statement's own line or the statements' shape compiles as a cold compile does, and so does the real compile after it", () => {
+    const s = session();
+    const at = clauseLineEnd(s.text, 120);
+    s.update(at, " Edit.");
+    s.compile();
+    const completed = new Set<StatementMemoEntry>();
+    for (const entry of [...memosHeld(s.compiler).served, ...memosHeld(s.compiler).lowered]) {
+      if (entry.complete) completed.add(entry);
+    }
+    const condition = s.text.indexOf("    if trust > 16 then");
+    expect(condition).toBeGreaterThan(0);
+    const bound = condition + "    if trust > ".length;
+    const other = clauseLineEnd(s.text, 40);
+    for (const [from, insert, to] of [
+      // The `if` block's own condition, the suggestion on an owner statement.
+      [bound, "17", bound + 2],
+      [bound, "15", bound + 2],
+      // A suggestion that writes a statement of its own after a line, and
+      // one that joins two lines.
+      [other, "\n    A line the suggestion adds.", other],
+      [at, " ", at + 1],
+    ] as const) {
+      const preview = s.preview(from, insert, to);
+      const cold = coldOf(preview.text);
+      expect(describeRoot(preview.program.chunks!)).toEqual(describeRoot(cold.chunks!));
+    }
+    // A real edit at the `if` block's line.
+    s.update(bound, "18", bound + 2);
     const { served } = memosHeld(s.compiler);
     expect(served.size).toBeGreaterThan(80);
     expect([...served].filter((entry) => !completed.has(entry))).toEqual([]);

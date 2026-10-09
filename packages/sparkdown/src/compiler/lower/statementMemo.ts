@@ -507,6 +507,9 @@ export class StatementMemoSession {
   // The nodes of the statements served that hold no block, by where each
   // starts, as `name:to` (`servedWithoutBlocks`).
   protected _withoutBlocks = new Map<number, string>();
+  // The memos this session found for a statement and did not serve it, which
+  // `used` holds although no statement stands for them.
+  protected _declined = new Set<StatementMemoEntry>();
 
   constructor(
     protected readonly host: StatementMemoHost,
@@ -759,6 +762,8 @@ export class StatementMemoSession {
       return undefined;
     }
     this.used.add(entry);
+    // Found and, unless `serve` takes it, not served (`keepPrevious`).
+    this._declined.add(entry);
     if (
       entry.stale ||
       !entry.complete ||
@@ -916,6 +921,7 @@ export class StatementMemoSession {
     ctx: LowerContext,
     shape: StatementShape,
   ): CompiledBlock {
+    this._declined.delete(entry);
     const statement = this.standIn(entry, node.from, to, ctx);
     if (!entry.holdsBlock && to === node.to) {
       this._withoutBlocks.set(node.from, `${node.name}:${node.to}`);
@@ -988,7 +994,7 @@ export class StatementMemoSession {
       return false;
     }
     if (this.host.provisional) {
-      this.keepPrevious(servedShapes);
+      this.keepPrevious();
     }
     for (const pending of this._pending) {
       const entry = remember(pending, inBodies);
@@ -1002,13 +1008,11 @@ export class StatementMemoSession {
 
   /** For a preview's lowering, gives each statement it lowered anew the
    *  complete memo that stood where it stands (`previewKept`): of its
-   *  syntax, or the only one there, when no statement this lowering served
-   *  holds it. */
-  protected keepPrevious(servedShapes: ReadonlySet<StatementShape>): void {
-    const served = new Set<StatementMemoEntry>();
-    for (const shape of servedShapes) {
-      served.add(shape.memo!);
-    }
+   *  syntax, or the only one there, when no statement the update served
+   *  stands for it (`used`, but for the memos found and not served). */
+  protected keepPrevious(): void {
+    const taken = (entry: StatementMemoEntry) =>
+      this.used.has(entry) && !this._declined.has(entry);
     let byPlace: Map<number, StatementMemoEntry[]> | undefined;
     const at = (place: number): StatementMemoEntry[] => {
       if (!byPlace) {
@@ -1031,7 +1035,7 @@ export class StatementMemoSession {
       const previous =
         this.lookup.get(memoKey(pending.syntax, place)) ??
         (there.length === 1 ? there[0] : undefined);
-      if (previous && previous.complete && !previous.stale && !served.has(previous)) {
+      if (previous && previous.complete && !previous.stale && !taken(previous)) {
         previewKept.set(pending.shape, previous);
       }
     }
