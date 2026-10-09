@@ -20,6 +20,7 @@ import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { ProgramAddress } from "../../packages/sparkdown/src/compiler/types/ProgramAddress";
 import { profile, setRetainProfilerEntries } from "../../packages/sparkdown/src/compiler/utils/profile";
+import { ParsedObject } from "../../packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
@@ -32,13 +33,31 @@ interface BenchConfig {
   line: number;
   word: string;
   options: string[];
-  mode: "preview" | "edit";
+  // `cold`: each sample compiles the project on a compiler of its own, with
+  // no game (#1712).
+  mode: "preview" | "edit" | "cold";
   samples: number;
   warmup: number;
   json?: string;
   // Where to write, for profile-shares.mjs --gaps, the stretches of each
   // measured sample's worker time that no phase covers.
   gaps?: string;
+  // Refuse the compiler's parsed-flow reuse (`tryReuseFlowRun`) on every
+  // compile, as `_disableFlowReuseNextCompile` does for one (#1712).
+  noFlowReuse?: boolean;
+  // After the last sample, a heap snapshot at `<heapProbe>.heapsnapshot` and
+  // the parsed classes alive then at `<heapProbe>.parsed.json`, for
+  // heap-retained.mjs (#1712).
+  heapProbe?: string;
+  // Where to write, for profile-shares.mjs --windows, the stretch of each
+  // measured sample's compile, so that a profile leaves out the warm-up and
+  // the first compile (#1712).
+  windows?: string;
+}
+
+function writeWindows(file: string, clockOriginUs: number, windows: [number, number][]) {
+  const us = (t: number) => clockOriginUs + t * 1000;
+  fs.writeFileSync(file, JSON.stringify({ clock: "process.hrtime, microseconds", samples: windows.map(([s, e]) => [[us(s), us(e)]]) }));
 }
 
 const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
@@ -180,7 +199,98 @@ class PageSink {
   }
 }
 
+// The parsed objects alive after full collections, counted by class, and,
+// with `heapProbe`, a heap snapshot beside them: heap-retained.mjs reads the
+// two and measures what only parsed objects hold (#1712). A class's name is
+// its constructor's name in this bundle, which is the name the snapshot gives
+// its instances.
+function probeParsedObjects(): Record<string, unknown> {
+  const gc = (globalThis as { gc?: () => void }).gc;
+  gc?.();
+  gc?.();
+  const byClass: Record<string, number> = {};
+  for (const line of v8.queryObjects(ParsedObject as any, { format: "summary" }) as string[]) {
+    const name = /^[\w$]+/.exec(line)?.[0] ?? "?";
+    byClass[name] = (byClass[name] ?? 0) + 1;
+  }
+  const probe: Record<string, unknown> = {
+    heapUsedMB: Math.round(process.memoryUsage().heapUsed / 104857.6) / 10,
+    // Each class's prototype is listed once among them.
+    parsedObjects: Object.values(byClass).reduce((a, b) => a + b, 0),
+    byClass,
+  };
+  if (config.heapProbe) {
+    fs.writeFileSync(`${config.heapProbe}.parsed.json`, JSON.stringify(probe, null, 2));
+    probe.snapshot = v8.writeHeapSnapshot(`${config.heapProbe}.heapsnapshot`);
+  }
+  return probe;
+}
+
+// A cold compile: a compiler of its own for each sample, configured and
+// compiled as the worker's first compile is, with no game listening.
+async function coldMain() {
+  setRetainProfilerEntries(true);
+  const files = loadProjectFiles(config.project);
+  const startFrom = { file: MAIN_URI, line: Math.max(0, (config.line ?? 1) - 1) };
+  realLog = silenceConsole();
+  takeMeasures();
+  const samples: { wall: number; phases: Record<string, number> }[] = [];
+  const clockOriginUs = Number(process.hrtime.bigint() / 1000n) - performance.now() * 1000;
+  const windows: [number, number][] = [];
+  let compiler: SparkdownCompiler | undefined;
+  for (let i = 0; i < config.warmup + config.samples; i++) {
+    compiler = undefined;
+    (globalThis as { gc?: () => void }).gc?.();
+    takeMeasures();
+    const t0 = performance.now();
+    compiler = new SparkdownCompiler();
+    compiler.profilerId = PROFILER_ID;
+    configurePlayerCompiler(compiler, files, startFrom);
+    compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any);
+    const t1 = performance.now();
+    const { sums } = takeMeasures();
+    if (i < config.warmup) continue;
+    samples.push({ wall: t1 - t0, phases: sums });
+    windows.push([t0, t1]);
+  }
+  if (config.windows) writeWindows(config.windows, clockOriginUs, windows);
+  const probe = probeParsedObjects();
+  const report = {
+    mode: "cold",
+    project: config.project,
+    warmup: config.warmup,
+    samples: samples.length,
+    wall: stats(samples.map((s) => s.wall)),
+    phases: Object.fromEntries(
+      [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
+    ),
+    parsedProbe: probe,
+    perSample: samples,
+  };
+  if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
+  const row = (label: string, s: { min: number; median: number; max: number }) =>
+    `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
+  realLog(
+    [
+      `mode cold: ${report.samples} samples after ${report.warmup} warm-up, a compiler of its own each`,
+      `after the last: ${probe.heapUsedMB} MB after full collections, ${probe.parsedObjects} parsed objects alive`,
+      "",
+      `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
+      row("compile", report.wall),
+      "",
+      `  ${"profiler phases (ms per sample)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
+      ...Object.entries(report.phases)
+        .sort((a: any, b: any) => b[1].median - a[1].median)
+        .filter(([, s]: any) => s.max >= 0.3)
+        .map(([k, s]: any) => row(k, s)),
+    ].join("\n"),
+  );
+  // Held until here, so the probe sees the last compile's objects.
+  void compiler;
+}
+
 async function main() {
+  if (config.mode === "cold") return coldMain();
   setRetainProfilerEntries(true);
   const files = loadProjectFiles(config.project);
   const mainUri = MAIN_URI;
@@ -333,6 +443,8 @@ async function main() {
   // is milliseconds from a later origin on the same clock.
   const clockOriginUs = Number(process.hrtime.bigint() / 1000n) - performance.now() * 1000;
   const gapsBySample: Interval[][] = [];
+  // Each measured sample's compile, game and route, for --windows.
+  const windowsBySample: Interval[] = [];
   let version = 1;
   let current = token;
   let residue: any;
@@ -345,6 +457,7 @@ async function main() {
     // The store counts the declarations' runs over its lifetime; a sample
     // reports the runs its own compile made.
     const runsBefore = compiler.chunkStore?.initializerRuns ?? 0;
+    if (config.noFlowReuse) (compiler as any)._disableFlowReuseNextCompile = true;
     const t0 = performance.now();
     if (config.mode === "preview") {
       compiler.previewCompile({ textDocument: { uri: mainUri, version }, contentChanges, root: { uri: mainUri }, startFrom } as any);
@@ -369,6 +482,7 @@ async function main() {
     if (i < config.warmup) continue;
     const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
     gapsBySample.push(gaps);
+    windowsBySample.push([t0, t1]);
     residue = { calls: CALLS, beforeDisplay: before, afterDisplay: residueOf(game), outsideMessages: { ...sink.outside }, previewed: shown.previewed };
     lastStream = sink.stream;
     samples.push({
@@ -392,6 +506,7 @@ async function main() {
     else if ((i - config.warmup + 1) % 50 === 0) heapEvery50.push(heapNow());
   }
   const heapAtEnd = heapNow();
+  const parsedProbe = config.heapProbe ? probeParsedObjects() : undefined;
 
   const withMessages = samples.filter((s) => s.messages);
   const last = samples.at(-1)?.messages;
@@ -410,6 +525,8 @@ async function main() {
     heapAfterFirstSampleMB: heapAfterFirst,
     heapAfterLastSampleMB: heapAtEnd,
     heapEvery50SamplesMB: heapEvery50,
+    noFlowReuse: Boolean(config.noFlowReuse),
+    ...(parsedProbe ? { parsedProbe } : {}),
     wall: Object.fromEntries(Object.keys(samples[0]?.wall ?? {}).map((k) => [k, stats(samples.map((s) => s.wall[k]))])),
     phases: Object.fromEntries(
       [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
@@ -434,6 +551,7 @@ async function main() {
     const us = (t: number) => clockOriginUs + t * 1000;
     fs.writeFileSync(config.gaps, JSON.stringify({ clock: "process.hrtime, microseconds", samples: gapsBySample.map((gaps) => gaps.map(([s, e]) => [us(s), us(e)])) }));
   }
+  if (config.windows) writeWindows(config.windows, clockOriginUs, windowsBySample);
   if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
   printReport(report);
 }
@@ -445,6 +563,8 @@ function printReport(report: any) {
     `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
+    ...(report.noFlowReuse ? ["parsed-flow reuse refused on every compile (--no-flow-reuse)"] : []),
+    ...(report.parsedProbe ? [`parsed objects alive after the last sample: ${report.parsedProbe.parsedObjects}`] : []),
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
     ...Object.entries(report.wall).map(([k, s]: any) => row(k, s)),

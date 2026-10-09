@@ -988,3 +988,115 @@ The language server's compile per keystroke (#704): the same edit at `main.sd` l
 | Compile, wall clock | 162.1 / 167.2 / 169.5 | 108.0 / 104.4 / 116.8 |
 
 Every sample with chunks emitted one chunk and ran no initializer, and in every round the cold compile's 230 diagnostics and each sample's were the same in both configurations, in order and with ranges. Encoding the program for the language server took about 1 ms in both.
+
+## The bypass profile
+
+#692 deferred lowering from the Lezer tree straight to program chunks, with no parsed object between them, to a profile taken once the current engine was gone (#705). This is that profile (#1712), taken at 14cb575f7: the object engine deleted, statements served from the statement memo inside blocks, loops and nested `choose` blocks included (#656, #1683), the resolver per statement (#1607), and the parsed-flow reuse kept. The recommendation below is the maintainer's to accept.
+
+### How it was measured
+
+```bash
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 3515 --word concerned --mode edit --samples 12 [--no-flow-reuse]
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 1159 --word panicking --mode edit --samples 12 [--no-flow-reuse]
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --mode cold --samples 10 --warmup 2
+node scripts/bench/preview-bench.mjs --fixture --mode edit --samples 12 [--no-flow-reuse]
+node scripts/bench/preview-bench.mjs --fixture --mode cold --samples 10 --warmup 2
+```
+
+Each configuration ran once per round, in that order, in three rounds in one sitting on 2026-10-09 (an Intel i9-13900HX, Windows 10, Node 24.18.0), 4 warm-up samples before the edits' 12; the figures are the medians of the three rounds' medians, in milliseconds. `--mode cold` compiles the project on a compiler of its own for each sample, with no game; `--no-flow-reuse` sets `_disableFlowReuseNextCompile` before every compile. The fixture is the one `scripts/bench/preview-fixture.mjs` writes, edited at its own target line.
+
+The attribution comes from the same commands with `--samples 30` (cold: `--samples 6 --warmup 2`) and `--cpu-prof <dir>`, read with
+
+```bash
+node scripts/bench/profile-shares.mjs <dir>/<mode>.cpuprofile --under <function> --windows --by-path --groups scripts/bench/profile-groups.mjs:BYPASS
+```
+
+for `updateSyntaxTree` (`incrementalParse`, `fullParse`), `lowerTopLevel` (the lowering inside it), `parseIncrementally` (`ink/parse`), `canonicalizeSyntheticFlowNames`, `resolve` (`program/resolve`) and `buildProgramChunks` (`program/chunks`). `--windows` counts only the profiler samples taken during the benchmark's measured samples, and `--by-path` names each function by its source path, which the `BYPASS` groups match by directory: the parsed hierarchy (`inkjs/compiler/Parser/ParsedHierarchy`, the weave apart and the memo's `Memoized*` stand-ins counted with the memo), the lowerers (`compiler/lower`), `SparkdownCompiler.ts`, `ProgramResolver.ts`, the rest of `program/` (the writer, emitter, chunk store and root), the grammar and Lezer, and the rest. A profiled bundle keeps names and runs slower, so each group's share of a phase is applied to that phase's unprofiled median. Self time only: "assemble" is `SparkdownCompiler.ts` and the parsed classes under `parseIncrementally` outside the parse, which holds the flow reuse's scan and the statement records as well as the assembly, so it bounds the assembly from above.
+
+### Where the compile spends its time
+
+| Phase (ms) | Line 3515 | Line 1159 | Cold | Fixture, edit | Fixture, cold |
+| --- | --- | --- | --- | --- | --- |
+| `incrementalParse` or `fullParse` | 28.5 | 25.4 | 1,954.4 | 13.1 | 911.9 |
+| `ink/parse` (cold: with `fullParse` inside it) | 9.9 | 11.2 | 1,996.5 | 3.9 | 937.2 |
+| `ink/canonicalizeSyntheticNames` | 1.0 | 0.5 | 25.3 | 0.4 | 11.4 |
+| `program/resolve` | 3.0 | 2.5 | 94.9 | 2.1 | 43.7 |
+| `program/chunks` | 6.1 | 5.1 | 121.2 | 3.9 | 52.4 |
+| The phases above, together | 48.5 | 44.7 | 2,237.9 | 23.3 | 1,044.7 |
+| Worker compile, game and route (cold: the compile), wall clock | 98.1 | 73.9 | 2,288.3 | 58.1 | 1,070.2 |
+
+Round by round, `incrementalParse` read 28.1 / 28.5 / 28.7 at line 3515 and 25.4 / 26.1 / 22.9 at line 1159, and the cold compile 2,285.0 / 2,352.2 / 2,288.3. Every edit sample at line 3515 replayed 2,085 of the resolver's 2,086 units, generated 319 objects, served 305 statements from their memos and emitted one chunk, as #1683 recorded; at line 1159 it generated 7 to 12 and served none.
+
+The parsed objects' part of those phases:
+
+| Parsed-object work (ms) | Line 3515 | Line 1159 | Cold | Fixture, edit | Fixture, cold |
+| --- | --- | --- | --- | --- | --- |
+| Construct (parsed classes while lowering) | 0.0 | 0.0 | 26.9 | 0.0 | 9.7 |
+| Assemble (story, flows, weaves; bound from above) | 4.9 | 5.6 | 27.3 | 2.5 | 16.3 |
+| Prepare and resolve in parsed classes | 0.6 | 0.3 | 37.0 | 0.3 | 13.2 |
+| Number synthetic names (`canonicalizeSyntheticFlowNames`) | 1.0 | 0.5 | 25.3 | 0.4 | 11.4 |
+| Parsed classes read while writing | 0.0 | 0.0 | 9.2 | 0.1 | 2.4 |
+| Together | 6.5 | 6.5 | 125.8 | 3.2 | 52.9 |
+| Share of the phases | 13.3% | 14.5% | 5.6% | 13.7% | 5.1% |
+
+Against the rest:
+
+| Other work (ms) | Line 3515 | Line 1159 | Cold | Fixture, edit | Fixture, cold |
+| --- | --- | --- | --- | --- | --- |
+| The lowerers' own code | 1.2 | 0.2 | 164.1 | 1.4 | 68.3 |
+| The statement memo | 2.6 | 0.0 | 14.6 | 2.3 | 4.5 |
+| The resolver (`ProgramResolver.ts`) | 2.2 | 1.8 | 51.4 | 1.7 | 25.6 |
+| Writing chunks (writer, emitter, store, root) | 5.5 | 4.3 | 91.3 | 3.3 | 40.6 |
+
+The largest part of every phase is neither: the grammar's tokenizer and the Lezer tree are about 56% of a cold `fullParse`'s profiled time and the other annotators 16%, and on an edit about a third of `incrementalParse` (10.5 of 29.1 profiled ms at line 3515, 10.4 of 27.0 at line 1159) is the Luau lexer reading the whole document again, called from the validation window (`SparkdownCombinedAnnotator.validationWindow`, through `nextSignificantToken` to `tokensAhead` in `readLuauAst.ts`, whose cache is keyed by the document's text).
+
+### What the parsed-flow reuse saves
+
+| With and without the reuse (ms) | Line 3515 | Line 1159 | Fixture, edit |
+| --- | --- | --- | --- |
+| `ink/parse`, rounds | 9.3 / 10.6 / 9.9 against 16.4 / 15.6 / 16.0 | 11.7 / 11.2 / 10.9 against 19.3 / 19.5 / 18.2 | 4.0 / 3.9 / 3.8 against 3.8 / 3.8 / 3.6 |
+| `ink/parse`, median | 9.9 against 16.0 | 11.2 against 19.3 | 3.9 against 3.8 |
+| Worker compile, game and route | 98.1 against 102.8 | 73.9 against 81.8 | 58.1 against 60.1 |
+| Objects resolved outside statements (`outside`) | 29 against 34 | 29 against 34 | 12 against 12 |
+
+The reuse still saves 6 to 8 ms of `ink/parse` on the project, assembling each untouched scene again without it (`SparkdownCompiler.ts`'s own time under `parseIncrementally` doubles, 5.5 to 11.1 profiled ms at line 3515); the other phases and every counter but `outside` are the same either way. The fixture is one scene, which every edit touches, so it reuses nothing.
+
+### What the parsed objects hold
+
+```bash
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --line 3515 --word concerned --mode edit --samples 12 --heap-probe <file>
+node scripts/bench/preview-bench.mjs --project <Raffles and Bunny project> --mode cold --samples 2 --warmup 1 --heap-probe <file>
+node scripts/bench/heap-retained.mjs <file>.edit
+```
+
+`--heap-probe` counts the parsed objects alive after the last sample (`v8.queryObjects` of `ParsedObject`, by class) and writes a heap snapshot; `heap-retained.mjs` finds the same objects in the snapshot by class name and measures what is reachable from the root only through one of them (weak edges followed by nothing), which is the heap a compile with no parsed objects would not hold.
+
+| After the last sample | Line 3515, 12 edits | Cold | Fixture, 12 edits | Fixture, cold |
+| --- | --- | --- | --- | --- |
+| Parsed objects alive | 33,718 | 36,395 | 11,749 | 14,209 |
+| Their own size | 5.7 MB | 6.2 MB | 2.0 MB | 2.4 MB |
+| Held only through them | 33.0 MB | 36.9 MB | 11.5 MB | 14.8 MB |
+| Reachable in the snapshot | 246.5 MB | 213.7 MB | 128.1 MB | 105.4 MB |
+
+The edits hold fewer than a cold compile, partly because a statement served from its memo stands as one object (304 `MemoizedStatement` at line 3515). The carry is bounded: over 200 edits at line 3515 (`--samples 200`), the heap after full collections read 166.1 MB after the first, 169.3, 169.9, 170.0 and 170.6 MB after every 50th and 170.3 MB after the last.
+
+The probe of #1684 (comment 6072116784), re-created on this base in `programStatementMemo.test.ts` and not committed: four compiles of two scenes, the first diverting to the second, whose `then` clause is edited twice. Their stories hold 1,107, 1,107, 389 and 600 parsed objects; after a forced collection 251 distinct objects of the first three are alive, every one held by the last story through the top-level blocks the annotator carried (the 753 #1684 recorded counts each of them once for each earlier story that held it). The existing test "of an earlier compile is reachable after a compile, but the objects this compile's story holds" passes: nothing but the last story keeps an earlier compile's object, so no generation is kept per edit.
+
+### What a bypass would rewrite
+
+Counted at 14cb575f7 under `packages/sparkdown/src` with `find`, `wc -l` and `grep`: a file constructs parsed objects when `grep -E "new (<class>|...)\("` finds one of the 66 classes an `export class` or `export abstract class` in `ParsedHierarchy` declares. The sizes of the services are line spans of their methods.
+
+- `compiler/lower`: 80 files, 20,499 lines (`lowerers/` 37 files and 9,519 lines, `expression/` 4 and 1,984, `utils/` 35 and 5,886, and `context.ts`, `lower.ts`, `recordingContext.ts`, `statementMemo.ts`). 39 files construct parsed objects, 50 distinct classes of them. Of the 41 that construct none, 27 (3,208 lines, mostly validators and source helpers) mention no `ParsedHierarchy` import, `ParsedObject`, `instanceof` or helper that builds a parsed object (`buildDivert`, `wrapIn*`, `buildSparkleBody`, `lowerDivertPath`) and would stay as they are; the other 14 (`context.ts`, `lower.ts`, `recordingContext.ts` and `statementShape.ts` among them) handle parsed objects through those.
+- `ParsedHierarchy`: 67 files, 9,219 lines. The writer emits through the parsed classes: `BinaryProgramWriter.emitObject` calls `EmitProgram` (27 classes) and expressions `EmitExpression` (19 classes), 514 lines of code generation in 42 files, all of which would move to emitters the lowerers call; the chunk store and `programFlows.ts` (1,285 lines) read 12 and 13 parsed classes by `instanceof`.
+- The services the hierarchy gives the compile, each of which needs a replacement that works on chunks or syntax: reference resolution (`ResolveWith` in 23 classes and the divert checks beside it, about 1,040 lines, with `FlowBase.ResolveVariableWithName` and scope lookups, and `ProgramResolver.ts`, 2,522 lines, whose units are parsed objects); naming collisions (`Story.CheckForNamingCollisions` and the flows' own checks, about 455 lines); the weave's gather and choice linking and weave point naming (`Weave.ts`, 282 lines, `FlowBase.SplitWeaveAndSubFlowContent`, and the assembly in `SparkdownCompiler.parseIncrementally`, 1,057 lines); synthetic-name numbering (`canonicalizeSyntheticFlowNames`, 298 lines, and `syntheticNameFields.ts`, which the memo reads too); the `Prepare` passes (35 overrides, 250 lines, and 20 `PrepareIntoContainer`, 132 lines); and the story's tables, globals and locals (`Story.DeclareStoryTables` and its neighbours, about 340 lines, `FlowBase.variableDeclarations`).
+- The statement memo's stand-ins (`MemoizedStatement`, `MemoizedDivert`, `MemoizedAssignment`, `MemoizedGather` and the holders of #1683) are parsed objects, and the parsed-flow reuse (about 540 lines of `SparkdownCompiler.ts`) hands parsed flows on, so both would be redesigned with it.
+
+#692 estimated 61 lowerer files and 15,171 lines; the lowering has grown since, by #656's memo and #1683's holders among others.
+
+### Recommendation
+
+Keep the parsed hierarchy, and do not plan a bypass, now or after preparatory tasks. On an edit the parsed objects cost 6.5 ms of the compile's 45 to 49 ms of phases on the project and 3.2 of 23.3 on the fixture, nearly all of it assembling the story, which a bypass would still do for the program's flows, weaves and names in another form; constructing them while lowering does not register (under 0.05 profiled ms). A cold compile spends 5.6% on them (126 of 2,238 ms) and 7% on the lowerers' own code, which a bypass rewrites rather than removes. What they hold is 33 to 37 MB of the project's 214 to 247 MB, bounded across edits. A bypass would rewrite 39 lowerer files and move 514 lines of code generation and the services above, to save at most those figures. The time is elsewhere: the grammar's tokenizer, the Lezer tree and the other annotators (about two thirds of a cold compile's profiled time), the validation window's lexing of the whole document on every edit (about 10 ms), the writer and the statement memo.
+
+Keep the parsed-flow reuse: it saves 6 to 8 ms per edit on the project.
+
+For #1684, keep the annotator's carry. Retiring it costs either lowering every untouched block again (277.5 ms of `incrementalParse` against 28.7, #1684's measurement) or stand-ins for top-level flows, weave points and `choose` blocks that would rebuild what this profile shows is cheap to keep and give up the flow reuse's saving; and it frees no heap a compile does not rebuild, since the last story's objects are needed by the next compile either way. The property #312 needed, that no generation of parsed objects is kept per edit, holds and is tested by the existing "but the objects this compile's story holds" probe, and the 200-edit heap shows the carry bounded. The recommendation for #1684 is to close it as not planned with this record, unless the maintainer wants the last story built only from the current source for its own sake, in which case top-level stand-ins after #1683 are the route, as a Task of their own.

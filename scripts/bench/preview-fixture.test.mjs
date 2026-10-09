@@ -23,8 +23,8 @@ import { fileURLToPath } from "node:url";
 import { totalLength, uncovered, within } from "./phaseGaps.mjs";
 import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
-import { GAPS } from "./profile-groups.mjs";
-import { parseShareArgs, profileShares } from "./profile-shares.mjs";
+import { BYPASS, GAPS } from "./profile-groups.mjs";
+import { parseShareArgs, profileShares, repositoryPath } from "./profile-shares.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -103,9 +103,14 @@ await check("the benchmark's arguments and default replacements", () => {
   });
   assert.throws(() => parseBenchArgs(["--project", "p"]), /--line and --word/);
   assert.throws(() => parseBenchArgs(["--project", "--fixture"]), /--project needs a value/);
-  assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit, both or coverage/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit, both, coverage or cold/);
   // The coverage report times nothing and edits no line.
   assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "coverage"]), { mode: "coverage", samples: 12, warmup: 4, project: "p" });
+  // A cold compile edits no line either (#1712).
+  assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "cold", "--heap-probe", "h"]), { mode: "cold", samples: 12, warmup: 4, project: "p", heapProbe: "h" });
+  assert.deepEqual(parseBenchArgs(["--fixture", "--mode", "edit", "--no-flow-reuse"]), { mode: "edit", samples: 12, warmup: 4, fixture: true, noFlowReuse: true });
+  assert.throws(() => parseBenchArgs(["--fixture", "--heap-probe"]), /--heap-probe needs a value/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--heap-probe", "h", "--cpu-prof", "p"]), /--heap-probe and --cpu-prof are exclusive/);
   // Every compile builds statement chunks and the game runs the program
   // engine (#705), so there is no switch between engines to pass.
   assert.throws(() => parseBenchArgs(["--fixture", "--chunks"]), /unknown argument --chunks/);
@@ -165,6 +170,21 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
   assert.equal(groupOf("scopeDefineInstances.ts:scopeDefineInstances"), groupOf("SparkdownCompiler.ts:applyBuiltinOverrides"));
   assert.notEqual(groupOf("SparkdownCompiler.ts:populateSceneAssets"), groupOf("SparkdownCompiler.ts:compileStory"));
   assert.equal(groupOf("(vm):(garbage collector)"), "garbage collector");
+  // The bypass profile's groups match a source path from the repository
+  // root (#1712), and the statement memo's stand-ins count with the memo.
+  assert.equal(parseShareArgs(["a.cpuprofile", "--under", "f", "--by-path", "--windows"]).byPath, true);
+  assert.equal(parseShareArgs(["a.cpuprofile", "--under", "f", "--windows"]).windows, true);
+  assert.equal(repositoryPath("../../../../Documents/GitHub/impower.worktrees/docs/x/packages/sparkdown/src/program/ChunkStore.ts"), "packages/sparkdown/src/program/ChunkStore.ts");
+  assert.equal(repositoryPath("../../node_modules/@lezer/common/dist/index.js"), "node_modules/@lezer/common/dist/index.js");
+  const bypassOf = (name) => BYPASS.find(([, re]) => re.test(name))?.[0];
+  const parsed = "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy/";
+  assert.match(bypassOf(`${parsed}MemoizedDivert.ts:Prepare`), /statement memo/);
+  assert.match(bypassOf(`${parsed}Weave.ts:prepareRoot`), /the weave/);
+  assert.match(bypassOf(`${parsed}Divert/Divert.ts:ResolveWith`), /every other class/);
+  assert.match(bypassOf("packages/sparkdown/src/compiler/lower/lowerers/lowerChoice.ts:lowerChoice"), /lowering/);
+  assert.match(bypassOf("packages/sparkdown/src/program/ProgramResolver.ts:resolve"), /program resolver/);
+  assert.match(bypassOf("packages/sparkdown/src/program/BinaryProgramWriter.ts:emitObject"), /writing chunks/);
+  assert.equal(bypassOf("ChunkStore.ts:build"), undefined);
 });
 
 await check("profile-shares --gaps says no sample landed only when none did, before any summary", () => {
@@ -310,6 +330,45 @@ if (!esbuildInstalled) {
       assert.equal(report.fallback ?? null, null);
       assert.deepEqual(report.unsupported, {});
       assert.equal(report.unsupportedStatements, 0);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  // The bypass profile's tools (#1712): a cold compile on a compiler of its
+  // own, the parsed objects it leaves alive and the heap only they hold, and
+  // a profile of the measured samples alone, named by source path.
+  await check("a cold compile counts its parsed objects, the heap only they hold, and profiles by path", () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-cold-"));
+    try {
+      const json = path.join(scratch, "report");
+      const probe = path.join(scratch, "heap");
+      const profiles = path.join(scratch, "profiles");
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "cold", "--samples", "1", "--warmup", "0", "--json", json, "--heap-probe", probe], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      // A profiled bundle names the classes otherwise than its snapshot does.
+      const profiled = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "cold", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(profiled.status, 0, profiled.stdout + profiled.stderr);
+      assert.match(run.stdout, /mode cold: 1 samples after 0 warm-up, a compiler of its own each/);
+      const report = JSON.parse(fs.readFileSync(`${json}.cold.json`, "utf8"));
+      for (const phase of ["fullParse", "ink/parse", "program/resolve", "program/chunks"]) assert.ok(report.phases[phase]?.median > 0, `no ${phase} among ${Object.keys(report.phases).join(", ")}`);
+      // The probe counts the last compile's parsed objects by class.
+      assert.ok(report.parsedProbe.parsedObjects > 1000, `${report.parsedProbe.parsedObjects} parsed objects`);
+      assert.ok(report.parsedProbe.byClass.Knot >= 1 || Object.keys(report.parsedProbe.byClass).some((c) => /Knot/.test(c)), JSON.stringify(report.parsedProbe.byClass));
+      const retained = spawnSync(process.execPath, ["--max-old-space-size=4096", path.join(HERE, "heap-retained.mjs"), `${probe}.cold`], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(retained.status, 0, retained.stdout + retained.stderr);
+      // Every object the probe counted is found in the snapshot under the
+      // same name, and what only they hold is at least their own size.
+      const counted = retained.stdout.match(/parsed objects: (\d+) in the snapshot \((\d+) counted by the probe/);
+      assert.ok(counted && counted[1] === counted[2], retained.stdout);
+      const own = Number(retained.stdout.match(/, ([\d.]+) MB of their own/)[1]);
+      const held = Number(retained.stdout.match(/held only through parsed objects: ([\d.]+) MB/)[1]);
+      assert.ok(own > 0 && held >= own, retained.stdout);
+      const shares = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(profiles, "cold.cpuprofile"), "--under", "buildProgramChunks", "--windows", "--by-path", "--groups", `${path.join(HERE, "profile-groups.mjs")}:BYPASS`], { encoding: "utf8", windowsHide: true });
+      assert.equal(shares.status, 0, shares.stdout + shares.stderr);
+      assert.match(shares.stdout, /only the measured samples: \d+\.\d ms of profiled time under buildProgramChunks per benchmark sample/);
+      assert.match(shares.stdout, /writing chunks: the writer, emitter, chunk store and root/);
+      assert.match(shares.stdout, /packages\/sparkdown\/src\/program\/\w+\.ts:/);
     } finally {
       fs.rmSync(scratch, { recursive: true, force: true });
     }
