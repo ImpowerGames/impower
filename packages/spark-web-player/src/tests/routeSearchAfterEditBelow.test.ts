@@ -52,8 +52,6 @@ const newGame = (program: any) =>
       fn();
       return 0;
     }) as never,
-    incrementalCheckpoints: true,
-    verifyCheckpoints: false,
   } as never);
 
 // Each search targets the edited line: the conditional before the edit, the

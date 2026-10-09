@@ -126,7 +126,6 @@ describe("the checkpoints of a game on the program engine", () => {
     const store = game.checkpoints;
     expect(store.length).toBeGreaterThan(80);
     expect(store.stats.keyframes).toBe(Math.ceil(store.length / 10));
-    expect(store.stats.fallbacks).toBe(0);
     for (let i = 0; i < store.length; i += 1) {
       const image = store.imageAt(i)!.image as ProgramImage;
       expect(image.keyframe === image).toBe(i % 10 === 0);

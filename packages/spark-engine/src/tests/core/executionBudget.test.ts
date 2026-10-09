@@ -58,8 +58,6 @@ function longScene(beats: number): string {
 const newGame = (program: unknown, executionStepLimit?: number) =>
   new Game({
     program: program as any,
-    incrementalCheckpoints: true,
-    verifyCheckpoints: false,
     now: () => performance.now(),
     ...(executionStepLimit ? { executionStepLimit } : {}),
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
@@ -132,8 +130,6 @@ describe("no clock governs execution", () => {
     let calls = 0;
     const game = new Game({
       program: program as any,
-      incrementalCheckpoints: true,
-      verifyCheckpoints: false,
       // Real for a moment, then far past any plausible deadline.
       now: () => (calls++ < 2 ? 0 : 60 * 60 * 1000),
       setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {

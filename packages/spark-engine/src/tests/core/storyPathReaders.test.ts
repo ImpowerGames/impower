@@ -252,8 +252,6 @@ describe("the game's execution report on the program engine", () => {
       fetch: async () => "",
       log: () => {},
       program,
-      incrementalCheckpoints: true,
-      verifyCheckpoints: false,
       startFrom,
     } as never);
     const reports: Record<string, unknown>[] = [];

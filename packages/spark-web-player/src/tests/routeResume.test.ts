@@ -37,8 +37,6 @@ const GAME_OPTIONS = {
   }) as never,
   // What the player's own worker builds. Delta checkpoints are the mode a route
   // replay runs in, so they are the mode a route resume has to work in.
-  incrementalCheckpoints: true,
-  verifyCheckpoints: false,
 };
 
 type Marks = Record<string, number>;

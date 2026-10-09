@@ -66,7 +66,7 @@ function newGame(program: unknown) {
  *  so far. */
 function countGlobalEvaluations(game: Game): () => number {
   const story = game.story as any;
-  const method = game.programStory ? "runDeclarations" : "ResetGlobals";
+  const method = "runDeclarations";
   let count = 0;
   const original = story[method].bind(story);
   story[method] = (...args: unknown[]) => {

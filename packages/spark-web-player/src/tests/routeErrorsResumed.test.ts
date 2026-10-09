@@ -60,8 +60,6 @@ describe("route errors", () => {
             fn();
             return 0;
           }) as never,
-          incrementalCheckpoints: true,
-          verifyCheckpoints: false,
         } as never);
       } else {
         game.updateProgram(program);

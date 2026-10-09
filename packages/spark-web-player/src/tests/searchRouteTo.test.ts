@@ -42,8 +42,6 @@ function routeToLeft() {
       fn();
       return 0;
     }) as never,
-    incrementalCheckpoints: true,
-    verifyCheckpoints: false,
   } as never);
   game.setStartFrom({ file: URI, line: SOURCE.split("\n").indexOf("    You went left.") });
   expect(game.startAddress).toBeTruthy();

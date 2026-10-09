@@ -52,8 +52,6 @@ function createGame(
     fetch: async () => "",
     log: () => {},
     program,
-    incrementalCheckpoints: true,
-    verifyCheckpoints: false,
     startFrom,
   } as never);
 }
