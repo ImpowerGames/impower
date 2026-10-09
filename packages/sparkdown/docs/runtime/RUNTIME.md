@@ -47,6 +47,8 @@ The value layer the engine runs on lives in `runtime/`:
 | [`runtime/ControlCommand.ts`](../../src/runtime/ControlCommand.ts) | The markers the engine writes into its output (`BeginString`, `BeginTag`, `EndTag`) |
 | [`runtime/outputWhitespace.ts`](../../src/runtime/outputWhitespace.ts) | How output text is cleaned (`cleanOutputWhitespace`) |
 
+The layer still holds pieces of ink that no Sparkdown program reaches: the list type (`InkList`, `ListValue`, `ListDefinition`) and the wire objects the engine never emits (`DivertTargetValue`, `Path`, and the control commands other than the output markers and `BeginScope`/`EndScope`). They are not part of the value model, and #1752 and #1753 remove them.
+
 The parsed objects that emit chunks are the classes under `inkjs/compiler/Parser/ParsedHierarchy/`, each with an `EmitProgram` method; `LOWERING.md` covers how the lowerer builds them. A game builds its engine in `packages/spark-engine/src/game/core/classes/Game.ts` (`new ProgramStory(chunks, ...)`, where `chunks` is the compile's `program.chunks`).
 
 ---
@@ -198,7 +200,7 @@ What that means for a caller:
 
 - A continue may complete with no text. After a line, the next continue can run through logic to the choices and raise them with no text, reach the story's end with nothing (`canContinue` false and no choices), or follow a fallback choice into the content after it. The game makes a beat of choices alone and no beat of a continue that brings nothing.
 - A `choose` block's caption shows with its choices because the caption's newline waits. A line written before the block returns alone, and the choices come with the next continue.
-- A host function called between two lines runs in the continue that reaches it; one interpolated into a line runs as that line is built.
+- A function the story calls between two lines (`& tick()` after `First.`) runs in the continue that reaches it, the one after `First.`'s newline; a function interpolated into a line runs as that line is built. A host runs a story function only through `EvaluateFunction`, between continues.
 - A table with `open` writes no newline, so the next display call joins its line, and the line ends where the joined line's newline is.
 
 The waiting newline is four fields of `ProgramStoryState`:
@@ -347,7 +349,7 @@ prints a flow's statements as in §2, with each block's body under it. `flowList
 
 ### 11.2 Running a story in a test
 
-`compileScript` and `storyBeats` / `storyRun` (`tests/program/programHarness.ts`) compile a script and run it from its start: each beat's text, tags and display tables, the errors with their type, and the menus with the choice taken at each. `testCompiler` and `testStory` (`tests/engineUnderTest.ts`) do the same for a test that also binds a function under an `external` name. Run test files only through `node scripts/test-suite.mjs run packages/sparkdown <test-file> --wait <seconds>`, from the repository root.
+`compileScript` and `storyBeats` / `storyRun` (`tests/program/programHarness.ts`) compile a script and run it from its start: each beat's text, tags and display tables, the errors with their type, and the menus with the choice taken at each. `testCompiler` and `testStory` (`tests/engineUnderTest.ts`) serve the ink fixtures ported as tests, which declare `external` functions: a test-only adapter rewrites each `external` line into a Sparkdown function that calls a test builtin, and `TestProgramStory.BindExternalFunction` supplies the JavaScript behind it. The engine itself has no external functions, and a compile outside the tests reports an `external` declaration as an error. Run test files only through `node scripts/test-suite.mjs run packages/sparkdown <test-file> --wait <seconds>`, from the repository root.
 
 ### 11.3 Tracing instructions
 
