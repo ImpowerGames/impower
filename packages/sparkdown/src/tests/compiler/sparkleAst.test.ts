@@ -152,7 +152,7 @@ end
       {
         kind: "binding",
         binding: {
-          exprId: expect.stringMatching(/^__binding_\d+$/),
+          exprId: expect.stringMatching(/^__binding\$\d+$/),
           source: "{hp}",
           span: expect.objectContaining({ from: expect.any(Number) }),
         },
@@ -161,7 +161,7 @@ end
       {
         kind: "binding",
         binding: {
-          exprId: expect.stringMatching(/^__binding_\d+$/),
+          exprId: expect.stringMatching(/^__binding\$\d+$/),
           source: "{max_hp}",
           span: expect.objectContaining({ from: expect.any(Number) }),
         },
@@ -192,7 +192,7 @@ end
       {
         kind: "binding",
         binding: {
-          exprId: expect.stringMatching(/^__binding_\d+$/),
+          exprId: expect.stringMatching(/^__binding\$\d+$/),
           source: "{hp}",
           span: expect.objectContaining({ from: expect.any(Number) }),
         },
@@ -220,7 +220,7 @@ end
         handler: {
           kind: "call",
           binding: {
-            exprId: expect.stringMatching(/^__binding_\d+$/),
+            exprId: expect.stringMatching(/^__binding\$\d+$/),
             source: "take_damage(10)",
             span: expect.objectContaining({ from: expect.any(Number) }),
             // `event` is a reserved evaluator param so the handler can pass it
@@ -246,7 +246,7 @@ end
         handler: {
           kind: "closure",
           binding: {
-            exprId: expect.stringMatching(/^__binding_\d+$/),
+            exprId: expect.stringMatching(/^__binding\$\d+$/),
             // The whole `{ … }` is the closure source; `event` is a reserved
             // param so the body can read the DOM payload (event.value).
             source: "{ name = event.value }",
@@ -282,7 +282,7 @@ end
       color: {
         kind: "binding",
         binding: {
-          exprId: expect.stringMatching(/^__binding_\d+$/),
+          exprId: expect.stringMatching(/^__binding\$\d+$/),
           source: "{team_color}",
           span: expect.objectContaining({ from: expect.any(Number) }),
         },
@@ -555,7 +555,7 @@ end
 `);
     const text = ast.card.children[0];
     const part = text.content.find((p: any) => p.kind === "binding");
-    // `{title}` must compile to `__binding_N(title) return title end` so the
+    // `{title}` must compile to `__binding$N(title) return title end` so the
     // runtime can feed the call-arg value in as `title`.
     expect(part.binding.params).toEqual(["title"]);
   });
@@ -578,7 +578,7 @@ end
     expect(card.params[0]).toEqual({
       kind: "binding",
       binding: {
-        exprId: expect.stringMatching(/^__binding_\d+$/),
+        exprId: expect.stringMatching(/^__binding\$\d+$/),
         source: '"Inventory"',
         span: expect.objectContaining({ from: expect.any(Number) }),
       },
@@ -609,7 +609,7 @@ end
       {
         kind: "binding",
         binding: {
-          exprId: expect.stringMatching(/^__binding_\d+$/),
+          exprId: expect.stringMatching(/^__binding\$\d+$/),
           source: "{score}",
           span: expect.objectContaining({ from: expect.any(Number) }),
         },

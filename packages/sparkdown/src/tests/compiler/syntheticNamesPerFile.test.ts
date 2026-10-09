@@ -58,37 +58,6 @@ function errors(program: any): string[] {
   );
 }
 
-// Each reserved-name error in `source` (the text of `main`) as
-// `<zero-based line>:<name>`, in line order. An error whose range does not
-// cover exactly the name's text shows the text it covers after the name.
-function reservedAt(program: any, source: string): string[] {
-  const lines = source.split("\n");
-  return Object.values(program.diagnostics ?? {})
-    .flatMap((list: any) => list)
-    .filter((d: any) => d.severity === 1)
-    .flatMap((d: any) => {
-      const message =
-        typeof d.message === "string" ? d.message : (d.message?.value ?? "");
-      const m =
-        /^'(__synth_\d+)' is reserved for names the compiler generates$/.exec(
-          message,
-        );
-      if (!m) {
-        return [];
-      }
-      const { start, end } = d.range;
-      const covered =
-        start.line === end.line
-          ? (lines[start.line] ?? "").slice(start.character, end.character)
-          : "<multiline>";
-      return [{ line: start.line as number, name: m[1]!, covered }];
-    })
-    .sort((a, b) => a.line - b.line || a.name.localeCompare(b.name))
-    .map(({ line, name, covered }) =>
-      covered === name ? `${line}:${name}` : `${line}:${name} covers "${covered}"`,
-    );
-}
-
 function globalAfterRun(program: any, name: string): unknown {
   const story = testStory(program.chunks);
   quiet(() => story.ContinueMaximally());
@@ -298,101 +267,49 @@ describe("authored names shaped like synthetic ones", () => {
     expect(globalAfterRun(program, "__mt_1_0")).toBe(6);
   });
 
-  // `__synth_<n>` is the form the compiler gives its own synthetic names, so
-  // an author's name of that shape would join their numbering and be renamed.
-  it("report the canonical synthetic form as reserved", () => {
-    const main = [
+  // The compiler's own names hold a `$` (#1729), so a name an author
+  // writes in the shape an earlier compiler gave its own is an ordinary
+  // name: neither reported nor renamed.
+  it("keep the canonical form of an earlier compiler as an ordinary name", () => {
+    const program = compileOnce({
+      main: [
         "store f = function() return 1 end",
         "store __synth_0 = 9",
-        "store g = __synth_0",
-        "function __synth_4()",
-        "  return 2",
-        "end",
-        "",
-      ].join("\n");
-    const program = compileOnce({ main });
-    expect(reservedAt(program, main)).toEqual([
-      "1:__synth_0",
-      "2:__synth_0",
-      "3:__synth_4",
-    ]);
-    // The store keeps its value for the store that reads it. (The program
-    // renames the reserved name, as the error says, so the value is read
-    // through `g` rather than under `__synth_0`.)
-    expect(globalAfterRun(program, "g")).toBe(9);
-  });
-
-  it("report the canonical synthetic form as reserved in flow names", () => {
-    const main = [
-        "store obj = { add = function(self, n) return self end }",
-        "",
-        "-> __synth_1",
-        "",
-        "scene __synth_1",
-        "  Hello.",
-        "  -> __synth_1.__synth_2",
-        "",
-        "branch __synth_2",
-        "  label __synth_3",
-        "  Bye.",
-        "end",
-        "",
-      ].join("\n");
-    const program = compileOnce({ main });
-    expect(reservedAt(program, main)).toEqual([
-      "2:__synth_1",
-      "4:__synth_1",
-      "6:__synth_1",
-      "6:__synth_2",
-      "8:__synth_2",
-      "9:__synth_3",
-    ]);
-  });
-
-  it("report the canonical synthetic form as reserved in a property read", () => {
-    const main = [
-        "store f = function() return 1 end",
+        "store g = 0",
         'store obj = { ["__synth_1"] = 5 }',
-        "store y = obj.__synth_1",
+        "store y = 0",
+        "store __synth_2 = 0",
         "",
-      ].join("\n");
-    const program = compileOnce({ main });
-    expect(reservedAt(program, main)).toEqual(["2:__synth_1"]);
-  });
-
-  it("report the canonical synthetic form as reserved in a define", () => {
-    const main = [
-        "store f = function() return 1 end",
+        "function __synth_4()",
+        "  __synth_2 = 1",
+        "  __synth_2 += 2",
+        "  return __synth_2",
+        "end",
+        "",
         "define __synth_5 as character with",
         '  name = "Bob"',
         "end",
         "",
-      ].join("\n");
-    const program = compileOnce({ main });
-    expect(reservedAt(program, main)).toEqual(["1:__synth_5"]);
-  });
-
-  it("report the canonical synthetic form as reserved in a reassignment", () => {
-    const main = [
-      "store f = function()",
-      "  __synth_0 = 5",
-      "  return __synth_0",
-      "end",
-      "store __synth_1 = 9",
-      "__synth_1 = 1",
-      "__synth_1 += 2",
-      "& __synth_1 = 3",
-      "",
-    ].join("\n");
-    const program = compileOnce({ main });
-    expect(reservedAt(program, main)).toEqual([
-      "1:__synth_0",
-      "2:__synth_0",
-      "4:__synth_1",
-      "5:__synth_1",
-      "6:__synth_1",
-      "7:__synth_1",
-    ]);
+        "-> __synth_6",
+        "",
+        "scene __synth_6",
+        "  & g = __synth_0",
+        "  & y = obj.__synth_1",
+        "  & __synth_0 = __synth_4()",
+        "  -> __synth_6.__synth_7",
+        "",
+        "branch __synth_7",
+        "  Bye.",
+        "end",
+        "end",
+        "",
+      ].join("\n"),
+    });
+    expect(errors(program)).toEqual([]);
+    expect(globalAfterRun(program, "g")).toBe(9);
+    expect(globalAfterRun(program, "y")).toBe(5);
+    expect(globalAfterRun(program, "__synth_0")).toBe(3);
+    expect(globalAfterRun(program, "__synth_2")).toBe(3);
   });
 
   // These names reach the program as strings the synthetic-name pass never

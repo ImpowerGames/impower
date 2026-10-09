@@ -221,8 +221,11 @@ interface BlockState {
 }
 
 // A name the compiler generates, which it numbers by document order
-// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`).
-const GENERATED_NAME = /^__synth_\d+$/;
+// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`). A chunk names such a
+// temporary by its own count (`__t$<n>`), so an edit that renumbers it
+// leaves the chunk as it was. Both forms hold a `$`, which no identifier can
+// contain, so an author's variable keeps its name whatever its shape.
+const GENERATED_NAME = /^__synth\$\d+$/;
 
 /**
  * `BinaryProgramWriter` emits a statement's chunk from the statement's parsed
