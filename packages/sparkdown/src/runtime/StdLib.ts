@@ -3212,8 +3212,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (flag("continues")) {
         const state = story.state;
         if (state.lineJoinable) {
-          state.lineJoinable = false;
-          state.lineEndPending = false;
+          state.JoinLineEnd();
         } else if (
           state.outputStreamContainsContent &&
           !state.outputStreamEndsInNewline &&

@@ -2189,10 +2189,19 @@ export class ProgramStory implements StoryEngine {
     } else if (this.beatLog !== null) {
       this.beatLog.push(address);
     }
+    state.lineEndJoined = false;
     this.execute(position, chunk);
     // A line end that stopped waiting with nothing cut, as a join that
-    // continues the line does, keeps what it held in this beat.
-    if (state.heldAddresses.length > 0 && !state.holdsAddresses) {
+    // continues the line does, keeps what it held in this beat, the joining
+    // instruction's own address with it, even when the joining line leaves
+    // a line end waiting of its own. Inside a callback a held step calls,
+    // the step's hold decides.
+    if (
+      state.heldAddresses.length > 0 &&
+      state.outputCut === null &&
+      !state.holdsInherited &&
+      (state.lineEndJoined || !state.lineEndPending)
+    ) {
       this.logBeat(state.TakeHeldAddresses());
     }
     // A statement whose last instruction ran rests at the start of the next.

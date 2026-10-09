@@ -388,6 +388,7 @@ export interface SuspendedLineEnd {
   cut: number | null;
   carried: CarriedStep | null;
   holdsInherited: boolean;
+  joined: boolean;
 }
 
 /**
@@ -426,6 +427,10 @@ export class ProgramStoryState {
    *  and the cut carries the step there, or this one's, when the line ends
    *  here (`ProgramStory.beatLog`). Held only within a continue. */
   heldAddresses: number[] = [];
+  /** Whether the instruction running joined a waiting line end
+   *  (`JoinLineEnd`); `ProgramStory.Step` clears it before each instruction
+   *  and reads it after. */
+  lineEndJoined = false;
   /** Whether a callback's step runs inside a step that holds its addresses,
    *  whose own are held with them (`SuspendLineEnd`). */
   protected _holdsInherited = false;
@@ -1040,6 +1045,21 @@ export class ProgramStoryState {
     );
   }
 
+  /** Whether a callback's step runs inside a held step (`SuspendLineEnd`). */
+  get holdsInherited(): boolean {
+    return this._holdsInherited;
+  }
+
+  /** A line that begins with `..` takes the offer of the line before it:
+   *  the waiting line end is dropped and the line continues, so what the
+   *  wait held belongs to this beat, even when the joining line leaves a
+   *  line end waiting of its own (`lineEndJoined`, #1686). */
+  JoinLineEnd(): void {
+    if (this.lineEndPending) this.lineEndJoined = true;
+    this.lineJoinable = false;
+    this.lineEndPending = false;
+  }
+
   /** Hands over the held addresses, and holds none. */
   TakeHeldAddresses(): number[] {
     const held = this.heldAddresses;
@@ -1066,6 +1086,7 @@ export class ProgramStoryState {
       cut: this.outputCut,
       carried: this.carried,
       holdsInherited: this._holdsInherited,
+      joined: this.lineEndJoined,
     };
     this._holdsInherited = inStep && this.holdsAddresses;
     this.lineEndPending = false;
@@ -1081,6 +1102,7 @@ export class ProgramStoryState {
     this.outputCut = suspended.cut;
     this.carried = suspended.carried;
     this._holdsInherited = suspended.holdsInherited;
+    this.lineEndJoined = suspended.joined;
   }
 
   /** Ends the flow, with a fresh frame for the next, as the object engine's

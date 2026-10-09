@@ -678,6 +678,47 @@ end
     });
   });
 
+  // A line that begins with `..` takes up the line end the line before it
+  // left waiting, so what ran while it waited is logged with the beat they
+  // share, even when the joining line ends with `..` and leaves a line end
+  // waiting of its own.
+  test("logs a joined line with the beat it joins", () => {
+    const beats = (source: string) => {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      const out: [string | null, (number | undefined)[]][] = [];
+      while (ctx.story.canContinue) {
+        const beat: number[] = [];
+        ctx.story.beatLog = beat;
+        const text = ctx.story.Continue();
+        ctx.story.beatLog = null;
+        out.push([
+          text,
+          [...new Set(beat.map((a) => ctx.root.locationOf(a)?.startLine))],
+        ]);
+      }
+      return out;
+    };
+    expect(beats(`A ..\n.. B..\nC.\n`)).toEqual([
+      ["A B\n", [0, 1]],
+      ["C.\n", [2]],
+      ["", []],
+    ]);
+    expect(beats(`A ..\n.. B..\n.. C.\nD.\n`)).toEqual([
+      ["A BC.\n", [0, 1, 2]],
+      ["D.\n", [3]],
+      ["", []],
+    ]);
+    expect(
+      beats(
+        `choose\n  Pick ..\n  .. more.\n  if true then\n    Shown.\n  end\n  * One\nend\n`,
+      ).slice(0, 2),
+    ).toEqual([
+      ["Pick more.\n", [1, 2]],
+      ["Shown.\n", [3, 4]],
+    ]);
+  });
+
   // Every instruction a run executes is logged for exactly one beat, whatever
   // waited or was carried on the way.
   test("logs each instruction a run executes for exactly one beat", () => {
