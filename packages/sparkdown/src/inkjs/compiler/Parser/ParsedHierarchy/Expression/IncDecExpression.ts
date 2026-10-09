@@ -1,21 +1,15 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ContentList } from "../ContentList";
 import { Expression } from "./Expression";
 import { FlowBase } from "../Flow/FlowBase";
-import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
-import { IntValue } from "../../../../../runtime/Value";
 import { Story } from "../Story";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../../runtime/VariableAssignment";
-import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Weave } from "../Weave";
 import { Identifier } from "../Identifier";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
 export class IncDecExpression extends Expression {
-  private _runtimeAssignment: RuntimeVariableAssignment | null = null;
-  // Whether preparation on the program path made the assignment, as
-  // `_runtimeAssignment` says generation did; kept as that is.
+  // Whether preparation made the assignment; kept until the next
+  // preparation.
   private _preparedAssignment = false;
 
   public isInc: boolean;
@@ -48,41 +42,6 @@ export class IncDecExpression extends Expression {
     this._preparedAssignment = true;
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    // x = x + y
-    // ^^^ ^ ^ ^
-    //  4  1 3 2
-    // Reverse polish notation: (x 1 +) (assign to x)
-
-    // 1.
-    container.AddContent(
-      new RuntimeVariableReference(this.identifier?.name || null),
-    );
-
-    // 2.
-    // - Expression used in the form ~ x += y
-    // - Simple version: ~ x++
-    if (this.expression) {
-      this.expression.GenerateIntoContainer(container);
-    } else {
-      container.AddContent(new IntValue(1));
-    }
-
-    // 3.
-    container.AddContent(
-      NativeFunctionCall.CallWithName(this.isInc ? "+" : "-"),
-    );
-
-    // 4.
-    this._runtimeAssignment = new RuntimeVariableAssignment(
-      this.identifier?.name || null,
-      false,
-    );
-    container.AddContent(this._runtimeAssignment);
-  };
-
   // The variable, the step (the expression or 1), `+` or `-`, and the
   // variable written back.
   public override EmitExpression(emitter: ProgramEmitter): void {
@@ -97,8 +56,8 @@ export class IncDecExpression extends Expression {
     emitter.emit(Op.SetVar, name);
   }
 
-  public override ResolveWith(context: Story, program: boolean): void {
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
 
     const varResolveResult = context.ResolveVariableWithName(
       this.identifier?.name || "",
@@ -111,12 +70,8 @@ export class IncDecExpression extends Expression {
       );
     }
 
-    if (program ? !this._preparedAssignment : !this._runtimeAssignment) {
+    if (!this._preparedAssignment) {
       throw new Error();
-    }
-
-    if (!program && this._runtimeAssignment) {
-      this._runtimeAssignment.isGlobal = varResolveResult.isGlobal;
     }
 
     if (

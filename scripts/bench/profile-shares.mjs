@@ -2,9 +2,8 @@
 // Reads a V8 CPU profile written by engine-bench.mjs or preview-bench.mjs with
 // --cpu-prof and divides the time spent under one function into shares.
 //
-//   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ContinueAsync --groups scripts/bench/profile-groups.mjs:STEPPING
-//   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ExportRuntime --inclusive ResolveReferences,CheckForNamingCollisions
-//   node scripts/bench/profile-shares.mjs <mode.cpuprofile> --under "(root)" --gaps
+//   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under resolve --inclusive ResolveWith,CheckForNamingCollisions
+//   node scripts/bench/profile-shares.mjs <mode.cpuprofile> --under "(root)" --gaps --groups scripts/bench/profile-groups.mjs:GAPS
 //
 // Several profiles of the same candidate may be named; the group and inclusive
 // shares are then printed as min, median and max over them, and the function

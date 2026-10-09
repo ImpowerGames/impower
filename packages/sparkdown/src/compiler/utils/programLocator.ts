@@ -24,16 +24,14 @@ import {
   lineRowAt,
   lineTableStart,
   offsetOfAddress,
-} from "../../program/StatementChunk";
+} from "../../program/ProgramChunk";
 import type {
   AddressQuery,
   LineBeat,
-  ProgramAddress,
   ProgramLocator,
   SourceLocation,
 } from "../types/ProgramAddress";
-import type { PathLocationTable, SparkProgram } from "../types/SparkProgram";
-import { findPathRow, pathAtRow, pathLocation } from "./pathLocationTable";
+import type { SparkProgram } from "../types/SparkProgram";
 
 /**
  * The accessor (docs/engine/binary-program.md, section 8) on the program
@@ -47,97 +45,26 @@ export const rootLocator = (root: ProgramRoot): ProgramLocator => ({
     typeof address === "number" ? root.sceneAt(address) : undefined,
 });
 
-/**
- * The accessor on the current engine, until it is deleted: its addresses are
- * the runtime paths of the program's path-location table, which is where the
- * current engine's positions are found, and no caller reads them.
- *
- * A line resolves as it always has: to the first row whose range covers it,
- * or the first row after it, among the rows a story can start at (no binding
- * evaluator's and no function's code, unless `functions` is set); with
- * `beat: "last"`, to the last beat that starts on the line; and a row inside a
- * choice's start content to the start of the choice.
- */
-export const pathTableLocator = (
-  table: PathLocationTable | undefined,
-  scripts: readonly string[],
-): ProgramLocator => {
-  const sceneOf = (path: string): string | undefined => {
-    const dot = path.indexOf(".");
-    const head = dot < 0 ? path : path.slice(0, dot);
-    if (!head) {
-      return undefined;
-    }
-    // Root content is index-addressed (`0.3`, `12`); every flow name is not.
-    return /^\d+$/.test(head) ? "0" : head;
-  };
-  return {
-    addressAt(uri: string, line: number, query: AddressQuery = {}) {
-      if (uri == null || line == null) {
-        return undefined;
-      }
-      const row = findPathRow(
-        table,
-        scripts.indexOf(uri),
-        line,
-        !query.functions,
-        query.beat ?? "first",
-      );
-      const path = row < 0 ? undefined : pathAtRow(table, row);
-      if (path === undefined || query.functions) {
-        return path;
-      }
-      const parent = path.split(".").slice(0, -1).join(".");
-      if (parent.endsWith(".$s")) {
-        // Inside a choice's start content: from the start of the choice.
-        return `${parent.split(".").slice(0, -1).join(".")}.0`;
-      }
-      return path;
-    },
-    locationOf(address: ProgramAddress | null | undefined) {
-      if (typeof address !== "string") {
-        return undefined;
-      }
-      const location = pathLocation(table, address);
-      const uri = location ? scripts[location[0]] : undefined;
-      return location && uri !== undefined
-        ? {
-            uri,
-            startLine: location[1],
-            startColumn: location[2],
-            endLine: location[3],
-            endColumn: location[4],
-          }
-        : undefined;
-    },
-    sceneAt(address: ProgramAddress | null | undefined) {
-      return typeof address === "string" && address
-        ? sceneOf(address)
-        : undefined;
-    },
-  };
-};
-
 const locators = new WeakMap<object, ProgramLocator>();
 
 /**
- * The accessor for a program: the root's when the compile built statement
- * chunks (`SparkdownCompilerConfig.programChunks`) and did not fall back, and
- * the path-location table's otherwise. Made once per program.
+ * The accessor for a program: its root's, or one that finds nothing for a
+ * program with no root (a compile that made no program). Made once per
+ * program.
  */
 export const programLocator = (program: SparkProgram): ProgramLocator => {
   let locator = locators.get(program);
   if (!locator) {
-    locator =
-      program.chunks && !program.fallback
-        ? rootLocator(program.chunks)
-        : pathTableLocator(
-            program.pathLocations,
-            Object.keys(program.scripts ?? {}),
-          );
+    locator = program.chunks ? rootLocator(program.chunks) : NO_LOCATIONS;
     locators.set(program, locator);
   }
   return locator;
+};
+
+const NO_LOCATIONS: ProgramLocator = {
+  addressAt: () => undefined,
+  locationOf: () => undefined,
+  sceneAt: () => undefined,
 };
 
 /** The location of an address in the form an editor takes: a uri, and a
@@ -228,7 +155,7 @@ const NOT_A_CONDITION =
  *  A part past a statement's start (a `choose` preamble's assignment or
  *  `if`, which the writer puts in the `choose` statement's own code) is read
  *  by the code of its line table row, as a statement of its own. This is the
- *  set the current engine's path locations stopped at for these constructs,
+ *  set the object engine's path locations stopped at for these constructs,
  *  which the language server's navigation keeps. */
 const isStop = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
@@ -320,7 +247,7 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
  * no address. It is the program's accessor's, but for an address that is no
  * stop (`isStop`): the program engine gives every statement and part an
  * address of its own, which the Game Preview routes to, so such a line takes
- * the beat of the lines below it, as it did on the current engine's path
+ * the beat of the lines below it, as it did on the object engine's path
  * locations.
  */
 export const beatAt = (
@@ -330,7 +257,7 @@ export const beatAt = (
   query?: AddressQuery,
 ): LineBeat | undefined => {
   const locator = programLocator(program);
-  const root = program.chunks && !program.fallback ? program.chunks : undefined;
+  const root = program.chunks;
   let from = line;
   for (;;) {
     const address = locator.addressAt(uri, from, query);

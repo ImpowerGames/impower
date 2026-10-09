@@ -24,7 +24,7 @@ import {
   exportSymbol,
   lineTableStart,
   referenceTableStart,
-} from "../../program/StatementChunk";
+} from "../../program/ProgramChunk";
 
 /** A root's flow sequences in the order of their names. */
 export const flowRows = (root: ProgramRoot) =>

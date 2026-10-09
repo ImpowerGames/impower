@@ -1,6 +1,3 @@
-// Loads the engine's modules in the order that settles their import cycle
-// (see `CompilationAnnotator`).
-import "../inkjs/engine/Container";
 import {
   functionOfBody,
   functionShapeOf,
@@ -31,7 +28,7 @@ import type {
   DeclarationSource,
   DeclaredGlobal,
   FlowSource,
-  ProgramFallback,
+  UnsupportedConstructSite,
   StatementSource,
 } from "./ChunkStore";
 import type { ProgramEmitter } from "./ProgramEmitter";
@@ -97,17 +94,17 @@ export interface ProgramFlowsInput {
   lineCount(uri: string): number;
 }
 
-/** The program's flows as the chunk store builds them, or the construct
- *  that makes the program fall back. */
+/** The program's flows as the chunk store builds them, and the first
+ *  construct among them the writer has no emit path for. */
 export interface ProgramFlows {
   flows: FlowSource[];
   /** The global declarations, one source per run of a declaring statement's
    *  globals, in the order the story initializes them. */
   declarations: DeclarationSource[];
   /** The first placement the build-out has not reached, in program order. */
-  fallback?: ProgramFallback;
+  unsupported?: UnsupportedConstructSite;
   /** Every such placement, counted by the construct it names. */
-  unsupported: Record<string, number>;
+  unsupportedCounts: Record<string, number>;
   /** How many functions the program has: the functions declared at the top
    *  level and those written inside statements. */
   functions: number;
@@ -149,12 +146,12 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   const out: ProgramFlows = {
     flows,
     declarations: [],
-    unsupported: {},
+    unsupportedCounts: {},
     functions: 0,
   };
   const fail = (construct: string, uri: string, line: number) => {
-    out.fallback ??= { construct, uri, line };
-    out.unsupported[construct] = (out.unsupported[construct] ?? 0) + 1;
+    out.unsupported ??= { construct, uri, line };
+    out.unsupportedCounts[construct] = (out.unsupportedCounts[construct] ?? 0) + 1;
   };
   const headerLines: { uri: string; line: number }[] = [];
   // The flows of the functions declared at the top level, which span their
@@ -371,8 +368,8 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
     headerLines.push({ uri: record.uri, line: record.line });
     // A scene whose content starts with a branch enters that branch, as the
-    // current engine's knot diverts to its first stitch
-    // (`FlowBase.GenerateRuntimeObject`): one that takes no parameters by
+    // object engine's knot diverted to its first stitch: one that
+    // takes no parameters by
     // its row in the root, and one that takes some from its entry, after it
     // binds them.
     const first = flow.content?.[0];
@@ -540,10 +537,10 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
  * The code that binds the parameters of a scene or a branch where the flow
  * is entered (docs/engine/binary-program.md, section 1): a `SetVar` with the
  * declare flag per parameter, last first as a divert pushed the arguments,
- * the `...` with the varargs flag, as the current engine's flow container
+ * the `...` with the varargs flag, as the object engine's flow container
  * starts (`FlowBase.GenerateArgumentVariableAssignments`); then, for a scene
  * whose content starts with a branch that takes no parameters, the jump to
- * that branch, as the current engine's knot diverts to its first stitch
+ * that branch, as the object engine's knot diverted to its first stitch
  * after it binds.
  */
 export class FlowEntry extends ParsedObject {
@@ -562,8 +559,6 @@ export class FlowEntry extends ParsedObject {
   protected override Prepare(): boolean {
     return false;
   }
-
-  public readonly GenerateRuntimeObject = () => null;
 
   public override EmitProgram(emitter: ProgramEmitter): void {
     emitter.bindParameters(
@@ -649,11 +644,11 @@ const includeEndName = (flow: string): string => `${flow}$end`;
  * story places it, at the include (`Story.PreProcessTopLevelObjects`): a
  * `JumpSym` to the flow of that content (`includedFlowName`), then the
  * `Visit` of a label of its own, which the chunk exports, for that flow to
- * jump back to when its content has run (`IncludeExit`). The current engine
- * runs the content in place, in the including flow's frame, so the jumps
+ * jump back to when its content has run (`IncludeExit`). The object engine
+ * ran the content in place, in the including flow's frame, so the jumps
  * keep the frame, its temporaries and its call stack as they are. A jump to
  * a label of the content runs on through the rest of it and back, as the
- * content of an include runs everywhere else; the current engine instead
+ * content of an include runs everywhere else; the object engine instead
  * ends the story where the content of an included script that holds a label
  * ends, which the program engine does not copy (docs/engine/binary-program.md,
  * What is built). Neither jump reads a fact of its target.
@@ -671,8 +666,6 @@ export class IncludeEntry extends ParsedObject {
   protected override Prepare(): boolean {
     return false;
   }
-
-  public readonly GenerateRuntimeObject = () => null;
 
   public override EmitProgram(emitter: ProgramEmitter): void {
     const symbol = emitter.targetSymbol(null, this.flow);
@@ -703,8 +696,6 @@ export class IncludeExit extends ParsedObject {
   protected override Prepare(): boolean {
     return false;
   }
-
-  public readonly GenerateRuntimeObject = () => null;
 
   public override EmitProgram(emitter: ProgramEmitter): void {
     for (let n = 0; n < this.newlines; n += 1) {

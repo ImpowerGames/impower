@@ -1,38 +1,17 @@
-// Root-region guard scope: which top-of-file edits keep flow reuse.
-//
-// Reuse is disabled for a whole compile when the root region's STRUCTURE
-// changes — the ordered `include`/`run` targets and `EXTERNAL` signatures —
-// because those decide which files contribute flows and which call sites
-// compile to external calls, neither of which a reused flow re-derives.
-//
-// Everything else up there is deliberately NOT structural: front matter,
-// loose top-level content, and top-level `store`/`var` declarations cannot
-// alter a reused flow's bytecode (top-level flows are name-addressed in
-// `namedOnlyContent`, so their internal paths don't shift, and globals are
-// read through runtime lookups rather than inlined). Constants ARE inlined
-// and keep their own precise guard.
-//
-// This pins BOTH halves. Correctness alone would pass trivially if the guard
-// were re-broadened, so each case also asserts whether reuse actually
-// happened — that is the property under test.
-import "../../inkjs/engine/Container";
+// Edits to the root region, above every flow: front matter, a top-level
+// `store` value, the first scene, and an `external` declaration. Each is
+// applied after a warm-up edit far from the top, and the incremental compile
+// has to build the chunks and report the diagnostics a cold compile of the
+// same text does.
 import { describe, it, expect } from "vitest";
-// The guard is the current engine's flow reuse (`_reusedFlowsThisCompile`),
-// and an `external` declaration makes a program fall back to that engine:
-// these compiles take its compile path until #705's deletion removes or
-// moves this test.
-import { currentEngineCompiler } from "../engineUnderTest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { describeRoot } from "../program/describeRoot";
 
 const URI = "inmemory:///main.sd";
 
 const pick = (p: any) => ({
-  compiled: p.compiled,
+  chunks: p.chunks ? describeRoot(p.chunks) : null,
   diagnostics: p.diagnostics,
-  // The paths in the order the compile emitted them, and their ranges: a
-  // reused flow has to reproduce both. `stable()` sorts object keys, so the
-  // order has to be captured as an array to be compared at all.
-  pathLocationsOrder: p.pathLocations?.paths ?? [],
-  pathLocationValues: [...(p.pathLocations?.values ?? [])],
 });
 
 function stable(value: unknown): string {
@@ -77,7 +56,7 @@ const quiet = <T,>(fn: () => T): T => {
 };
 
 function configured(text: string) {
-  const c = currentEngineCompiler();
+  const c = new SparkdownCompiler();
   c.configure({
     files: [
       {
@@ -113,9 +92,8 @@ function script(): string {
 }
 
 /**
- * Apply one warm-up edit far from the top (so reuse records exist), then the
- * edit under test. Returns how many flows were reused on the edit under test
- * and whether the program matched a cold compile of the same text.
+ * Apply one warm-up edit far from the top, then the edit under test, and
+ * return the incremental program beside a cold compile of the same text.
  */
 function measure(find: string, replace: string) {
   let text = script();
@@ -163,36 +141,29 @@ function measure(find: string, replace: string) {
   const coldProg = (
     configured(text).compile({ textDocument: { uri: URI } } as never) as any
   ).program;
-  return {
-    reused: ((incr as any)._reusedFlowsThisCompile?.size ?? 0) as number,
-    matchesCold: stable(pick(incrProg)) === stable(pick(coldProg)),
-  };
+  return { incremental: stable(pick(incrProg)), cold: stable(pick(coldProg)) };
 }
 
-describe("root-region guard scope", () => {
-  it("front-matter text edits keep flow reuse", () => {
+describe("root-region edits", () => {
+  it("a front-matter text edit compiles as a cold compile does", () => {
     const r = quiet(() => measure("title: Root Region", "title: Root Region X"));
-    expect(r.matchesCold).toBe(true);
-    expect(r.reused).toBeGreaterThan(0);
+    expect(r.incremental).toBe(r.cold);
   });
 
-  it("top-level store VALUE edits keep flow reuse", () => {
+  it("a top-level store VALUE edit compiles as a cold compile does", () => {
     const r = quiet(() => measure("store trust = 0", "store trust = 5"));
-    expect(r.matchesCold).toBe(true);
-    expect(r.reused).toBeGreaterThan(0);
+    expect(r.incremental).toBe(r.cold);
   });
 
-  it("editing the FIRST scene keeps reuse of the others", () => {
+  it("an edit to the FIRST scene compiles as a cold compile does", () => {
     const r = quiet(() => measure("Action in room 0", "Action in room 0!"));
-    expect(r.matchesCold).toBe(true);
-    expect(r.reused).toBeGreaterThan(0);
+    expect(r.incremental).toBe(r.cold);
   });
 
-  it("adding an `external` declaration is structural and disables reuse", () => {
+  it("adding an `external` declaration compiles as a cold compile does", () => {
     const r = quiet(() =>
       measure("store trust = 0", "store trust = 0\nexternal beep(a)"),
     );
-    expect(r.matchesCold).toBe(true);
-    expect(r.reused).toBe(0);
+    expect(r.incremental).toBe(r.cold);
   });
 });

@@ -6,7 +6,6 @@
 // And it must leave nothing of the hypothetical text behind: the document, its
 // version, the verdict on whether the real program is outdated, and the next
 // real compile are all exactly what they would have been without it.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { invertContentChanges } from "../../compiler/utils/invertContentChanges";
@@ -46,7 +45,6 @@ function screenplay(): string {
 // current engine's compiled JSON and path-location table.
 const pick = (p: any) => ({
   chunks: programContent(p.chunks),
-  dataLocations: p.dataLocations,
   functionLocations: p.functionLocations,
   sceneLocations: p.sceneLocations,
   context: p.context,

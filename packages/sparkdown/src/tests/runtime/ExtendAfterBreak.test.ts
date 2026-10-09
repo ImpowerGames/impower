@@ -311,8 +311,8 @@ describe("the preview's lines", () => {
       ],
     });
     const program = compiler.compile({ textDocument: { uri: URI } }).program;
-    const story = testStory(program.compiled as Record<string, any>);
-    const root = rootOf(program.compiled);
+    const story = testStory(program.chunks);
+    const root = rootOf(program.chunks);
     const lines: number[][] = [];
     let ran = new Set<number>();
     // The program engine names each instruction it runs by its address, which

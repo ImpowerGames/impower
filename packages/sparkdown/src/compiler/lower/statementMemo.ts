@@ -34,7 +34,7 @@ import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/O
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
-import type { StatementChunk } from "../../program/StatementChunk";
+import type { ProgramChunk } from "../../program/ProgramChunk";
 import type {
   CompiledBlock,
   InkDiagnostic,
@@ -103,7 +103,7 @@ export class StatementMemoEntry {
   /** What the compile completes the memo with, or nothing while it is not
    *  complete (`complete`). */
   resolution?: MemoResolution;
-  chunk?: StatementChunk;
+  chunk?: ProgramChunk;
   /** The table generation of the chunk's ids, which the store's current
    *  one must be for the memo to be served (`StatementMemoHost.usable`). */
   generation = -1;
@@ -250,9 +250,6 @@ export class StatementMemoRetry extends Error {
   constructor(
     readonly entries: readonly StatementMemoEntry[],
     readonly reason: string,
-    /** Whether the compile needs every statement's objects, so that every
-     *  statement the blocks were served is lowered again. */
-    readonly all = false,
   ) {
     super(`A statement served from its memo has to be lowered again: ${reason}`);
   }
@@ -319,8 +316,10 @@ export const memoKey = (syntax: string, at: number): string => `${syntax}\u0001$
  *  owner or the story's weave reads of a statement's objects: a weave point
  *  (a choice, a gather), a weave the owner unwraps, a divert or a tunnel
  *  return that ends a weave point's content, an author warning, or a flow
- *  (`Weave.ConstructWeaveHierarchyFromIndentation`, `WeavePointHasLooseEnd`,
- *  `ContentThatFollowsWeavePoint`, `lowerSparkdownChooseBlock`). */
+ *  (`Weave.ConstructWeaveHierarchyFromIndentation`,
+ *  `lowerSparkdownChooseBlock`). Before #705 the current engine's loose-end
+ *  check (`Weave.WeavePointHasLooseEnd`, `ContentThatFollowsWeavePoint`)
+ *  read the diverts, tunnel returns and author warnings too. */
 const ownerReads = (obj: ParsedObject, top: boolean): boolean => {
   if (
     obj instanceof Choice ||

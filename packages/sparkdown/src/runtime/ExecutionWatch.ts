@@ -7,16 +7,13 @@
  *  as the calls it gets. */
 export const EXECUTION_WATCH_STEPS = 1_024;
 
-/** A story the watch is called with: the runtime path it last stepped from,
- *  or none from the program engine (`ProgramStory`), which has no runtime
- *  paths. */
-export interface WatchedStory {
-  state: { previousPointer: { path: { toString(): string } | null } };
-}
+/** A story the watch is called with, which a host tells apart by identity
+ *  (`ProgramStory`). */
+export type WatchedStory = object;
 
 /**
- * Where a thread that runs stories hears that one is still running. `Story`
- * and the program engine (`ProgramStory`) call the listener every
+ * Where a thread that runs stories hears that one is still running. The
+ * program engine (`ProgramStory`) calls the listener every
  * {@link EXECUTION_WATCH_STEPS} steps, the steps of Luau callbacks included,
  * so a host can tell a story that has run for a long time without yielding
  * from work that is not a story at all, such as a compile (#679).

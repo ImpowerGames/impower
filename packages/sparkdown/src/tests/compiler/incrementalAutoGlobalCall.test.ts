@@ -5,7 +5,6 @@
 // does: to the function `count`, which a global made that way does not
 // shadow, while a global declared with `store` does, and a global made that
 // way that no flow is named after is the call's target.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -50,7 +49,7 @@ function compiler(text: string) {
   return {
     c,
     compile: () =>
-      testStory(c.compile({ textDocument: { uri: URI } }).program.compiled as Record<string, any>),
+      testStory(c.compile({ textDocument: { uri: URI } }).program.chunks),
   };
 }
 

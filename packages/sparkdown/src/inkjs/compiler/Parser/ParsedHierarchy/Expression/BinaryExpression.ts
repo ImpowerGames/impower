@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -33,44 +31,6 @@ export class BinaryExpression extends Expression {
     this.leftExpression.PrepareIntoContainer();
     this.rightExpression.PrepareIntoContainer();
   }
-
-  public readonly GenerateIntoContainer = (container: RuntimeContainer) => {
-    this.opName = this.NativeNameForOp(this.opName);
-    // Lua `and`/`or` short-circuit: evaluate the LHS, then a
-    // `ShortCircuit` command either keeps it as the result and jumps
-    // over the RHS, or pops it and falls through into the RHS ops.
-    // The RHS is packaged in its own sub-container so the jump is
-    // always exactly ONE content element — counting raw RHS ops would
-    // break when the post-pass `FlattenContainersIn` dissolves
-    // unnamed inner containers and changes element counts. Eager
-    // generation (the non-short-circuit path below) is wrong for
-    // Lua: `t and t.field` must not index a nil `t`, and the untaken
-    // branch of `cond and a or b` must not evaluate at all
-    // (metamethod-bearing operands dispatch `__mul` etc. from the
-    // untaken branch and can recurse forever).
-    if (this.opName === "and" || this.opName === "or") {
-      this.leftExpression.GenerateIntoContainer(container);
-      container.AddContent(ControlCommand.ShortCircuit(this.opName, 1));
-      const rhsContainer = new RuntimeContainer();
-      this.rightExpression.GenerateIntoContainer(rhsContainer);
-      // Operator results adjust to ONE value (Lua): `3 and f()`
-      // where f multi-returns yields only f's FIRST value —
-      // `local a,b = 3 and f()` binds b to nil, not f's second
-      // return (constructs.luau line 137). UnpackTuple(1) truncates
-      // a MultiValue / coerces Void to nil / passes scalars through.
-      // (The LHS-decides path already truncates via the ShortCircuit
-      // handler's peek.)
-      rhsContainer.AddContent(ControlCommand.UnpackTuple(1));
-      container.AddContent(rhsContainer);
-      // Keep the wrapper intact — TryFlattenContainer would inline it
-      // into the parent and break the one-element jump.
-      this.story.DontFlattenContainer(rhsContainer);
-      return;
-    }
-    this.leftExpression.GenerateIntoContainer(container);
-    this.rightExpression.GenerateIntoContainer(container);
-    container.AddContent(NativeFunctionCall.CallWithName(this.opName));
-  };
 
   // `and` and `or` keep the left value and jump past the right when it
   // decides the result, as `ShortCircuit` does, and the right value adjusts

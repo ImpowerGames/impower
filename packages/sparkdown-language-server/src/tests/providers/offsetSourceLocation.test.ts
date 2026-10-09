@@ -3,9 +3,7 @@
 // beat is the first one below the line that starts below it, and the previous
 // one the first one above that starts above it, where a beat is what the
 // accessor gives one address (`ProgramLocator.addressAt`) and starts where
-// `locationOf` says. The same script answers on both engines, from the current
-// engine's path locations and from the program engine's root, and no client
-// holds either.
+// `locationOf` says, from the program engine's root, which no client holds.
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -59,16 +57,11 @@ const script = (uri: string, name: string, text: string) => ({
   languageId: "sparkdown",
 });
 
-const compile = (
-  programChunks: boolean,
-  main = MAIN_SRC,
-  chapter = CHAPTER_SRC,
-): SparkProgram => {
+const compile = (main = MAIN_SRC, chapter = CHAPTER_SRC): SparkProgram => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
-    programChunks,
     files: [script(MAIN, "main", main), script(CHAPTER, "chapter", chapter)],
   } as never);
   const { warn, error } = console;
@@ -84,18 +77,14 @@ const compile = (
 const lineOf = (text: string, needle: string) =>
   text.split(NEWLINE).findIndex((line) => line.includes(needle));
 
-describe.each([
-  { engine: "the current engine", programChunks: false },
-  { engine: "the program engine", programChunks: true },
-])("previous and next beat navigation on $engine", ({ programChunks }) => {
-  const program = compile(programChunks);
+describe("previous and next beat navigation on the program engine", () => {
+  const program = compile();
   const at = (file: string, line: number, offset: number) =>
     getOffsetSourceLocation(program, ownBeats(program), file, line, offset);
   const main = (needle: string) => lineOf(MAIN_SRC, needle);
 
   test("compiles the program the engine runs", () => {
-    expect(program.chunks !== undefined).toBe(programChunks);
-    expect(program.pathLocations !== undefined).toBe(!programChunks);
+    expect(program.chunks).toBeDefined();
   });
 
   test("goes to the next beat from a beat's line, a blank line and a line inside a beat", async () => {
@@ -145,9 +134,8 @@ describe.each([
       file: CHAPTER,
       line: lineOf(CHAPTER_SRC, "Bunny leaves."),
     });
-    // A scene's header is a stop of its own on both engines: a path location
-    // on the current engine, and a header the program lists on the program
-    // engine, whose root gives it no statement (#704).
+    // A scene's header is a stop of its own: a header the program lists,
+    // whose root gives it no statement (#704).
     expect(await at(CHAPTER, bunny, -1)).toEqual({ file: CHAPTER, line: 0 });
     expect(await at(MAIN, 0, -1)).toBeNull();
     expect(await at(MAIN, main("end"), 1)).toBeNull();
@@ -164,11 +152,10 @@ describe.each([
 });
 
 describe("previous and next beat navigation", () => {
-  // The language server answers it from the program engine's root since
-  // #704, where it answered from the current engine's path locations. A
-  // scene's and a branch's header is a stop on both, and a divert, a `done`
-  // or a `fin` at a flow's own level on neither, while one inside a block's
-  // body is a stop on both.
+  // The language server answers it from the program engine's root (#704).
+  // A scene's and a branch's header is a stop, and a divert, a `done` or a
+  // `fin` at a flow's own level is none, while one inside a block's body is
+  // a stop.
   const FLOWS = [
     "store n = 0",
     "",
@@ -198,36 +185,54 @@ describe("previous and next beat navigation", () => {
     "",
   ].join(NEWLINE);
 
-  const differences = async (main: string, chapter: string) => {
-    const current = compile(false, main, chapter);
-    const chunked = compile(true, main, chapter);
-    expect(chunked.fallback).toBeUndefined();
-    const differing: string[] = [];
-    for (const [uri, text] of [
-      [MAIN, main],
-      [CHAPTER, chapter],
-    ] as const) {
-      const lines = text.split(NEWLINE).length;
-      for (let line = 0; line < lines; line++) {
-        for (const offset of [-2, -1, 1, 2]) {
-          const want = await getOffsetSourceLocation(current, ownBeats(current), uri, line, offset);
-          const got = await getOffsetSourceLocation(chunked, ownBeats(chunked), uri, line, offset);
-          if (JSON.stringify(want) !== JSON.stringify(got)) {
-            differing.push(`${uri} line ${line} offset ${offset}: ${JSON.stringify(want)} against ${JSON.stringify(got)}`);
-          }
-        }
+  test("lands on each script's next and previous beat from every line", async () => {
+    const program = compile();
+    const rows = async (uri: string, text: string) => {
+      const out: [number, number | null, number | null][] = [];
+      for (let line = 0; line < text.split(NEWLINE).length; line++) {
+        const at = (offset: number) =>
+          getOffsetSourceLocation(program, ownBeats(program), uri, line, offset);
+        out.push([line, (await at(1))?.line ?? null, (await at(-1))?.line ?? null]);
       }
-    }
-    return differing;
-  };
-
-  test("lands where it lands on the current engine, from every line of every script, on the program engine", async () => {
-    expect(await differences(MAIN_SRC, CHAPTER_SRC)).toEqual([]);
+      return out;
+    };
+    // [line, next, previous], null for nowhere. The stops in the main script
+    // are its first beat (2), the scene's header (4), its beats (5 and 11)
+    // and the dialogue, which starts at its parenthetical (8); the divert at
+    // the scene's own level is none. The chapter's are its header (0) and
+    // its two beats (1 and 3).
+    expect(await rows(MAIN, MAIN_SRC)).toEqual([
+      [0, 2, null],
+      [1, 2, null],
+      [2, 4, null],
+      [3, 4, 2],
+      [4, 5, 2],
+      [5, 8, 4],
+      [6, 8, 5],
+      [7, 8, 5],
+      [8, 11, 5],
+      [9, 11, 8],
+      [10, 11, 8],
+      [11, null, 8],
+      [12, null, 11],
+      [13, null, 11],
+      [14, null, 11],
+      [15, null, 11],
+    ]);
+    expect(await rows(CHAPTER, CHAPTER_SRC)).toEqual([
+      [0, 1, null],
+      [1, 3, 0],
+      [2, 3, 1],
+      [3, null, 1],
+      [4, null, 3],
+      [5, null, 3],
+      [6, null, 3],
+      [7, null, 3],
+    ]);
   });
 
-  test("lands where it lands on the current engine around diverts, `done`, `fin`, branches and functions", async () => {
-    expect(await differences(["include chapter.sd", ""].join(NEWLINE), FLOWS)).toEqual([]);
-    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), FLOWS);
+  test("lands around diverts, `done`, `fin`, branches and functions", async () => {
+    const program = compile(["include chapter.sd", ""].join(NEWLINE), FLOWS);
     const at = (line: number, offset: number) =>
       getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
     // Past a divert at the scene's own level, onto the line below it.
@@ -316,8 +321,8 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
-    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), CHOOSE);
-    expect(program.fallback).toBeUndefined();
+    const program = compile(["include chapter.sd", ""].join(NEWLINE), CHOOSE);
+    expect(program.chunks).toBeDefined();
     const beats = ownBeats(program);
     for (const caption of ["Caption.", "Second caption."]) {
       const beat = await beats.beatAt(CHAPTER, lineOf(CHOOSE, caption));
@@ -333,7 +338,7 @@ describe("previous and next beat navigation", () => {
   // writes as a statement of its own; a tunnel call or return, a label, a
   // choice's own line, an `elseif` or `else` and a loop's header are none
   // (#1677).
-  test("stops where the current engine stops around tunnels, labels, choices, elseif, else and while", async () => {
+  test("stops around tunnels, labels, choices, elseif, else and while", async () => {
     const STOPS = [
       "-> main",
       "scene main",
@@ -368,9 +373,8 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
-    expect(await differences(STOPS, "")).toEqual([]);
-    // Next and previous from every line, as the current engine gives them:
-    // [line, next, previous], null for nowhere.
+    // Next and previous from every line: [line, next, previous], null for
+    // nowhere.
     const expected: [number, number | null, number | null][] = [
       [2, 4, 1],
       [3, 4, 2],
@@ -395,22 +399,20 @@ describe("previous and next beat navigation", () => {
       [29, null, 28],
       [30, null, 28],
     ];
-    for (const engine of [false, true]) {
-      const program = compile(engine, STOPS, "");
-      for (const [line, next, previous] of expected) {
-        const at = (offset: number) =>
-          getOffsetSourceLocation(program, ownBeats(program), MAIN, line, offset);
-        expect((await at(1))?.line ?? null, `chunks ${engine}, line ${line} next`).toBe(next);
-        expect((await at(-1))?.line ?? null, `chunks ${engine}, line ${line} previous`).toBe(previous);
-      }
+    const program = compile(STOPS, "");
+    for (const [line, next, previous] of expected) {
+      const at = (offset: number) =>
+        getOffsetSourceLocation(program, ownBeats(program), MAIN, line, offset);
+      expect((await at(1))?.line ?? null, `line ${line} next`).toBe(next);
+      expect((await at(-1))?.line ?? null, `line ${line} previous`).toBe(previous);
     }
   });
 
   // A `choose` preamble's logic is written into the `choose` statement's own
   // code, so it stands at addresses past the statement's start; an
   // assignment and an `if` there are stops as they are elsewhere, and a
-  // `store` there is none on either engine (round 1 of PR #1680).
-  // Eight compiles, two per script and engine.
+  // `store` there is none (round 1 of PR #1680). Four compiles, one per
+  // script.
   test("stops on an assignment and an if inside a choose preamble", { timeout: 60000 }, async () => {
     const PREAMBLE = [
       "store gate = true",
@@ -488,47 +490,41 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
-    for (const engine of [false, true]) {
-      const afterLoop = compile(engine, AFTER_LOOP, "");
+    {
+      const afterLoop = compile(AFTER_LOOP, "");
       const at = async (line: number, offset: number) =>
         (await getOffsetSourceLocation(afterLoop, ownBeats(afterLoop), MAIN, line, offset))?.line;
-      expect(await at(lineOf(AFTER_LOOP, "First body."), 1), `chunks ${engine}`).toBe(lineOf(AFTER_LOOP, "& n = 2"));
-      expect(await at(lineOf(AFTER_LOOP, "Second body."), -1), `chunks ${engine}`).toBe(lineOf(AFTER_LOOP, "& n = 2"));
+      expect(await at(lineOf(AFTER_LOOP, "First body."), 1)).toBe(lineOf(AFTER_LOOP, "& n = 2"));
+      expect(await at(lineOf(AFTER_LOOP, "Second body."), -1)).toBe(lineOf(AFTER_LOOP, "& n = 2"));
     }
-    for (const engine of [false, true]) {
-      const afterIf = compile(engine, AFTER_IF, "");
+    {
+      const afterIf = compile(AFTER_IF, "");
       const at = async (line: number, offset: number) =>
         (await getOffsetSourceLocation(afterIf, ownBeats(afterIf), MAIN, line, offset))?.line;
-      const label = `chunks ${engine}`;
-      expect(await at(lineOf(AFTER_IF, "Continue body."), 1), label).toBe(lineOf(AFTER_IF, "& gate = false"));
-      expect(await at(lineOf(AFTER_IF, "& gate = false"), 1), label).toBe(lineOf(AFTER_IF, "& gate = false") + 1);
-      // Past the `elseif`, onto the next branch's body. The current engine
-      // stops on a choice's line inside a preamble's `if` (`+ Instead`), a
-      // choice line the program engine never stops on.
-      if (engine) {
-        expect(await at(lineOf(AFTER_IF, "Again body."), 1), label).toBe(lineOf(AFTER_IF, "Instead body."));
-      }
+      expect(await at(lineOf(AFTER_IF, "Continue body."), 1)).toBe(lineOf(AFTER_IF, "& gate = false"));
+      expect(await at(lineOf(AFTER_IF, "& gate = false"), 1)).toBe(lineOf(AFTER_IF, "& gate = false") + 1);
+      // Past the `elseif`, onto the next branch's body: a choice's line
+      // inside a preamble's `if` (`+ Instead`) is no stop.
+      expect(await at(lineOf(AFTER_IF, "Again body."), 1)).toBe(lineOf(AFTER_IF, "Instead body."));
     }
-    for (const engine of [false, true]) {
-      const preamble = compile(engine, PREAMBLE, "");
-      const stored = compile(engine, STORED, "");
+    {
+      const preamble = compile(PREAMBLE, "");
+      const stored = compile(STORED, "");
       const next = async (program: SparkProgram, line: number) =>
         (await getOffsetSourceLocation(program, ownBeats(program), MAIN, line, 1))?.line;
       const previous = async (program: SparkProgram, line: number) =>
         (await getOffsetSourceLocation(program, ownBeats(program), MAIN, line, -1))?.line;
-      const label = `chunks ${engine}`;
-      expect(await next(preamble, lineOf(PREAMBLE, "Start.")), label).toBe(lineOf(PREAMBLE, "& gate"));
-      expect(await next(preamble, lineOf(PREAMBLE, "& gate")), label).toBe(lineOf(PREAMBLE, "if gate"));
-      expect(await previous(preamble, lineOf(PREAMBLE, "if gate")), label).toBe(lineOf(PREAMBLE, "& gate"));
-      expect(await next(preamble, lineOf(PREAMBLE, "Body.")), label).toBe(lineOf(PREAMBLE, "Other body."));
-      expect(await next(stored, lineOf(STORED, "Start.")), label).toBe(lineOf(STORED, "if gate"));
-      expect(await next(stored, lineOf(STORED, "choose")), label).toBe(lineOf(STORED, "if gate"));
+      expect(await next(preamble, lineOf(PREAMBLE, "Start."))).toBe(lineOf(PREAMBLE, "& gate"));
+      expect(await next(preamble, lineOf(PREAMBLE, "& gate"))).toBe(lineOf(PREAMBLE, "if gate"));
+      expect(await previous(preamble, lineOf(PREAMBLE, "if gate"))).toBe(lineOf(PREAMBLE, "& gate"));
+      expect(await next(preamble, lineOf(PREAMBLE, "Body."))).toBe(lineOf(PREAMBLE, "Other body."));
+      expect(await next(stored, lineOf(STORED, "Start."))).toBe(lineOf(STORED, "if gate"));
+      expect(await next(stored, lineOf(STORED, "choose"))).toBe(lineOf(STORED, "if gate"));
     }
   });
 
-  test("lands where it lands on the current engine around diverts that pass arguments", async () => {
-    expect(await differences(["include chapter.sd", ""].join(NEWLINE), ARGS)).toEqual([]);
-    const program = compile(true, ["include chapter.sd", ""].join(NEWLINE), ARGS);
+  test("lands around diverts that pass arguments", async () => {
+    const program = compile(["include chapter.sd", ""].join(NEWLINE), ARGS);
     const at = (line: number, offset: number) =>
       getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
     expect(await at(lineOf(ARGS, "Before."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "After.") });

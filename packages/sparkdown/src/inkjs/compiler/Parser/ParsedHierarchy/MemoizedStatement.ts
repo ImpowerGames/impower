@@ -1,6 +1,4 @@
-import { Container as RuntimeContainer } from "../../../engine/Container";
 import { DebugMetadata } from "../../../../runtime/DebugMetadata";
-import type { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { ParsedObject } from "./Object";
 import { resolutionTap } from "./ResolutionTap";
@@ -74,9 +72,9 @@ export const memoGenerate = (obj: ParsedObject): void => {
 };
 
 /** What a stand-in's resolution does, as `memoGenerate`. */
-export const memoResolve = (obj: ParsedObject, program: boolean): void => {
+export const memoResolve = (obj: ParsedObject): void => {
   const tap = resolutionTap();
-  if (!program || !tap) {
+  if (!tap) {
     throw new MemoizedStatementNeeded(obj);
   }
   tap.memo(obj, "resolve");
@@ -120,13 +118,8 @@ export class MemoizedStatement extends ParsedObject {
     return true;
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
-    memoGenerate(this);
-    return new RuntimeContainer();
-  };
-
-  public override ResolveWith(_context: Story, program: boolean): void {
-    memoResolve(this, program);
+  public override ResolveWith(_context: Story): void {
+    memoResolve(this);
   }
 
   public override EmitProgram(_emitter: ProgramEmitter): void {

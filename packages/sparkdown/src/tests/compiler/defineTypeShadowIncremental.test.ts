@@ -3,7 +3,6 @@
 // elsewhere that adds or removes such a define changes the answer, so the
 // incremental compile has to lower the store's chunk again even when the
 // edit's reparse window does not reach it.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";

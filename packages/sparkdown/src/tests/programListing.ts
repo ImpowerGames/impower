@@ -3,24 +3,18 @@
 // display/1 flags 3`, `JumpSym "two"`), flow by flow. A test that asserted on
 // the current engine's compiled JSON (the containers a flow held, the markers
 // a display table carried) asserts the same of the program's chunks (#705).
-import "../inkjs/engine/Container";
 import { BinaryProgramReader } from "../program/BinaryProgramReader";
 import { describeInstruction } from "../program/BinaryProgramWriter";
 import { ProgramRoot, type SequenceRow } from "../program/ProgramRoot";
 import { SymbolKind } from "../program/ProgramSymbols";
-import { blockCount, type StatementChunk } from "../program/StatementChunk";
-import { testRoot } from "./engineUnderTest";
+import { blockCount, type ProgramChunk } from "../program/ProgramChunk";
 import { describeRoot } from "./program/describeRoot";
 
-/** The root of a test compile's `program.compiled`, or the root itself (a
- *  compile's `program.chunks`); a compile that made no root (one that fell
- *  back, or failed) fails the test that reads it. */
-export function rootOf(compiled: unknown): ProgramRoot {
-  if (compiled instanceof ProgramRoot) {
-    return compiled;
-  }
-  const root = testRoot(compiled);
-  if (!root) {
+/** A compile's root (`program.chunks`); a compile that made no root (one
+ *  with a construct the writer cannot emit, or one that failed) fails the
+ *  test that reads it. */
+export function rootOf(root: ProgramRoot | undefined): ProgramRoot {
+  if (!(root instanceof ProgramRoot)) {
     throw new Error("The compile built no statement chunks.");
   }
   return root;
@@ -31,7 +25,7 @@ export function rootOf(compiled: unknown): ProgramRoot {
 function chunkListing(
   root: ProgramRoot,
   reader: BinaryProgramReader,
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   out: string[],
 ): void {
   for (const { offset } of reader.instructions(chunk)) {
@@ -61,8 +55,8 @@ function sequenceListing(
 /** Each flow's instructions by the flow's qualified name (`""` for the top
  *  level, a scene's name, `scene.branch`, a function's name), with those of
  *  the bodies its statements enter. */
-export function flowListings(compiled: unknown): Map<string, string[]> {
-  const root = rootOf(compiled);
+export function flowListings(chunks: ProgramRoot | undefined): Map<string, string[]> {
+  const root = rootOf(chunks);
   const reader = new BinaryProgramReader(root);
   const listings = new Map<string, string[]>();
   for (const flow of root.flowSequences()) {
@@ -76,10 +70,10 @@ export function flowListings(compiled: unknown): Map<string, string[]> {
 /** Every instruction of the program: its flows', and its declarations' with
  *  the bodies they enter (a `store`'s closure, a `define`'s methods), which
  *  stand in no flow. */
-export function programListing(compiled: unknown): string[] {
-  const root = rootOf(compiled);
+export function programListing(chunks: ProgramRoot | undefined): string[] {
+  const root = rootOf(chunks);
   const reader = new BinaryProgramReader(root);
-  const out = [...flowListings(compiled).values()].flat();
+  const out = [...flowListings(root).values()].flat();
   for (const chunk of root.initialization) {
     chunkListing(root, reader, chunk, out);
   }
@@ -90,8 +84,8 @@ export function programListing(compiled: unknown): string[] {
  *  compile has to build the same of as a cold compile of the same text, as
  *  the current engine's compiled JSON did. Chunk and sequence ids, which
  *  count every chunk a store has made, are left out. */
-export function programContent(compiled: unknown): string[] {
-  return describeRoot(rootOf(compiled));
+export function programContent(chunks: ProgramRoot | undefined): string[] {
+  return describeRoot(rootOf(chunks));
 }
 
 /** The functions declared at the top level of a chunked compile's scripts,
@@ -102,10 +96,9 @@ export function programContent(compiled: unknown): string[] {
  *  function kind, whose row gives its first line and the lines it spans. */
 export function functionSpans(program: {
   chunks?: ProgramRoot;
-  compiled?: unknown;
   scripts: Record<string, number>;
 }): { path: string; lines: [number, number, number] }[] {
-  const root = program.chunks ?? rootOf(program.compiled);
+  const root = rootOf(program.chunks);
   // A script's index is its place among the program's scripts, as a
   // `ScriptLocation` counts it (`program.scripts` maps each to its version).
   const scripts = Object.keys(program.scripts);

@@ -37,7 +37,7 @@ end
     // The record names the instruction that raised it by its address, in
     // the code of `run`, as the current engine's named a path inside it.
     expect(
-      rootOf(ctx.compiledJson).sceneAt(reports[0]!.raised!.address!),
+      rootOf(ctx.root).sceneAt(reports[0]!.raised!.address!),
     ).toBe("run");
   });
 

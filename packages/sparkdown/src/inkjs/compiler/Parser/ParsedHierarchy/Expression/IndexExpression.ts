@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -27,14 +25,6 @@ export class IndexExpression extends Expression {
     this.baseExpression.PrepareIntoContainer();
     this.keyExpression.PrepareIntoContainer();
   }
-
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    this.baseExpression.GenerateIntoContainer(container);
-    this.keyExpression.GenerateIntoContainer(container);
-    container.AddContent(RuntimeControlCommand.IndexValue());
-  };
 
   public override EmitExpression(emitter: ProgramEmitter): void {
     emitter.emitObject(this.baseExpression);

@@ -1209,9 +1209,8 @@ export abstract class SparkdownWorkspace {
    * The accessor of a program this workspace received (`ProgramLocator`),
    * answered by the compiler's worker from the last program it compiled for
    * the same uri (`LocateProgramMessage`). The copy a compile hands the
-   * workspace leaves the statement chunks' root behind, and a program
-   * compiled with them is located by its root, on either engine the same
-   * way. An answer the worker's restart abandoned is none.
+   * workspace leaves the statement chunks' root behind, and a program is
+   * located by its root. An answer the worker's restart abandoned is none.
    */
   locatorOf(program: SparkProgram): AsyncProgramLocator {
     const ask = async (query: LocateQuery) => {

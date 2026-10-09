@@ -1,17 +1,15 @@
 // The language server compiles with the binary program back end (#704): its
-// compiler builds statement chunks whatever its host sends, so its
-// diagnostics come from the program path's resolver and its global
-// initializers run as the declaration sequences, and its program is located
-// by the chunks' root, which stays in the compiler's worker. The copy of the
-// program the language server holds has neither the root nor a path
-// location table, so the address of a line, where an address stands and the
+// compiler builds statement chunks, so its diagnostics come from the program
+// path's resolver and its global initializers run as the declaration
+// sequences, and its program is located by the chunks' root, which stays in
+// the compiler's worker. The copy of the program the language server holds
+// has no root, so the address of a line, where an address stands and the
 // previous and next beat are asked of the worker (`locatorOf`).
 //
 // The workspace is the language server's own, with its compiler's worker
 // (`installSparkdownWorker`) in this process behind a connection that
 // delivers every message as a structured clone, one task later, in order,
 // as a worker's port does.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
@@ -24,10 +22,7 @@ import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSpa
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
-import {
-  getOffsetSourceLocation,
-  ownBeats,
-} from "../../utils/providers/getOffsetSourceLocation";
+import { getOffsetSourceLocation } from "../../utils/providers/getOffsetSourceLocation";
 
 const MAIN = "file:///project/main.sd";
 const NEWLINE = String.fromCharCode(10);
@@ -111,7 +106,6 @@ const scriptFile = (text: string) => ({
 const hostConfig = (text: string) => ({
   files: [scriptFile(text)],
   workspace: "file:///project",
-  emitCompiledProgram: false,
 });
 
 const posAt = (text: string, offset: number) => {
@@ -169,10 +163,10 @@ async function languageServer(initial: string) {
 }
 
 /** A cold compile of `text` with the configuration the language server's
- *  compiler holds, statement chunks on or off. */
-const coldCompile = (text: string, programChunks: boolean) => {
+ *  compiler holds. */
+const coldCompile = (text: string) => {
   const compiler = new SparkdownCompiler();
-  compiler.configure({ ...hostConfig(text), programChunks } as never);
+  compiler.configure(hostConfig(text) as never);
   const { warn, error, log } = console;
   console.warn = console.error = console.log = () => {};
   try {
@@ -228,17 +222,15 @@ const lineOf = (text: string, needle: string) =>
   text.split(NEWLINE).findIndex((line) => line.includes(needle));
 
 describe("the language server's compiler", () => {
-  it("builds statement chunks whatever its host sends", async () => {
+  it("builds statement chunks, which stay in its worker", async () => {
     const ls = await languageServer(BEATS);
-    expect(ls.compiler.config.programChunks).toBe(true);
     // The worker's program runs from its chunks, and the copy the language
-    // server holds carries neither the root nor a path location table.
-    expect(ls.compiled.fallback).toBeUndefined();
+    // server holds carries no root.
+    expect(ls.compiled.chunks).toBeDefined();
     expect(ls.compiled.chunks == null).toBe(false);
     expect(ls.program.chunks == null).toBe(true);
-    expect(ls.program.pathLocations == null).toBe(true);
-    // Its diagnostics are those of the current back end's compile.
-    expect(diagnosticsOf(ls.program)).toEqual(diagnosticsOf(coldCompile(BEATS, false)));
+    // Its diagnostics are those of a cold compile.
+    expect(diagnosticsOf(ls.program)).toEqual(diagnosticsOf(coldCompile(BEATS)));
   });
 });
 
@@ -265,22 +257,9 @@ describe("the language server's locations", () => {
     expect(addresses.every((a) => typeof a === "number")).toBe(true);
   });
 
-  it("give the previous and next beat the current back end gave", async () => {
+  it("give the previous and next beat", async () => {
     const ls = await languageServer(BEATS);
     const remote = ls.workspace.locatorOf(ls.program);
-    // What the language server answered before it compiled with chunks: the
-    // program of the current back end and its path locations.
-    const current = coldCompile(BEATS, false);
-    const before = ownBeats(current);
-    const lines = BEATS.split(NEWLINE).length;
-    for (let line = 0; line < lines; line++) {
-      for (const offset of [-1, 1, 2]) {
-        expect(
-          await getOffsetSourceLocation(ls.program, remote, MAIN, line, offset),
-          `line ${line}, offset ${offset}`,
-        ).toEqual(await getOffsetSourceLocation(current, before, MAIN, line, offset));
-      }
-    }
     const at = (line: number, offset: number) =>
       getOffsetSourceLocation(ls.program, remote, MAIN, line, offset);
     // A dialogue's lines are one beat, which starts where its location
@@ -310,7 +289,7 @@ describe("the language server's locations", () => {
     // later here.
   }, 60_000);
 
-  it("give the previous and next beat the current back end gave around diverts that pass arguments", async () => {
+  it("give the previous and next beat around diverts that pass arguments", async () => {
     const text = [
       "store n = 0",
       "scene A",
@@ -336,18 +315,8 @@ describe("the language server's locations", () => {
       "",
     ].join(NEWLINE);
     const ls = await languageServer(text);
-    expect(ls.compiled.fallback).toBeUndefined();
+    expect(ls.compiled.chunks).toBeDefined();
     const remote = ls.workspace.locatorOf(ls.program);
-    const current = coldCompile(text, false);
-    const lines = text.split(NEWLINE).length;
-    for (let line = 0; line < lines; line++) {
-      for (const offset of [-1, 1]) {
-        expect(
-          await getOffsetSourceLocation(ls.program, remote, MAIN, line, offset),
-          `line ${line}, offset ${offset}`,
-        ).toEqual(await getOffsetSourceLocation(current, ownBeats(current), MAIN, line, offset));
-      }
-    }
     expect(await getOffsetSourceLocation(ls.program, remote, MAIN, lineOf(text, "Before."), 1)).toEqual({
       file: MAIN,
       line: lineOf(text, "After."),
@@ -414,20 +383,20 @@ describe("the language server's global initializers", () => {
     expect(store.initializerRuns).toBe(runs + 1);
     runs = store.initializerRuns;
     expect(globalsOf(ls.compiled, NAMES)).toEqual({ a: 5, b: 6, C: 2, D: 3 });
-    expect(globalsOf(ls.compiled, NAMES)).toEqual(globalsOf(coldCompile(ls.text, true), NAMES));
-    expect(diagnosticsOf(ls.program)).toEqual(diagnosticsOf(coldCompile(ls.text, false)));
+    expect(globalsOf(ls.compiled, NAMES)).toEqual(globalsOf(coldCompile(ls.text), NAMES));
+    expect(diagnosticsOf(ls.program)).toEqual(diagnosticsOf(coldCompile(ls.text)));
 
     await ls.edit("const C = 2", "const C = 7");
     expect(store.initializerRuns).toBe(runs + 1);
     expect(globalsOf(ls.compiled, NAMES)).toEqual({ a: 5, b: 6, C: 7, D: 8 });
-    expect(globalsOf(ls.compiled, NAMES)).toEqual(globalsOf(coldCompile(ls.text, true), NAMES));
+    expect(globalsOf(ls.compiled, NAMES)).toEqual(globalsOf(coldCompile(ls.text), NAMES));
   });
 
   it("report a cold compile's diagnostics when an edit makes a constant that another reads stop being constant", async () => {
     const ls = await languageServer(GLOBALS);
     expect(diagnosticsOf(ls.program)).toEqual([]);
     await ls.edit("const C = 2", "const C = a");
-    const cold = diagnosticsOf(coldCompile(ls.text, false));
+    const cold = diagnosticsOf(coldCompile(ls.text));
     expect(cold.length).toBeGreaterThan(0);
     expect(diagnosticsOf(ls.program)).toEqual(cold);
     await ls.edit("const C = a", "const C = 2");
@@ -436,7 +405,7 @@ describe("the language server's global initializers", () => {
 });
 
 describe("the language server's diagnostics", () => {
-  it("place a bad constant expression and a naming collision on the lines the current back end places them", async () => {
+  it("place a bad constant expression and a naming collision on the lines a cold compile places them", async () => {
     const text = [
       "store gold = 3",
       "const LIMIT = gold * 2",
@@ -453,6 +422,6 @@ describe("the language server's diagnostics", () => {
     const lines = new Set(reported.map((d) => d.range.start.line));
     expect(lines.has(lineOf(text, "const LIMIT"))).toBe(true);
     expect([...lines].some((line) => line === lineOf(text, "store tally = 0") || line === lineOf(text, "store tally = 1"))).toBe(true);
-    expect(reported).toEqual(diagnosticsOf(coldCompile(text, false)));
+    expect(reported).toEqual(diagnosticsOf(coldCompile(text)));
   });
 });

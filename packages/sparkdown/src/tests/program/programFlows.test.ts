@@ -1,9 +1,8 @@
 // Flow on the program engine (#696): scenes and branches, labels, diverts
 // with fixed and variable targets, visit and turn counts, alternators,
-// threads and tunnels run as statement chunks, compared with the current
-// engine; the symbols, the definitions and the counts they rest on; the chunk
+// threads and tunnels run as statement chunks; the symbols, the definitions
+// and the counts they rest on; the chunk
 // store on the compiler's persistent table and its reseed.
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it } from "vitest";
 import { shuffleDraws } from "../../runtime/evaluation";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
@@ -19,8 +18,8 @@ import {
   HEADER_WORDS,
   blockCount,
   chunkId,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import { flowScreenplay } from "./flowScreenplay";
 import {
   compileScript,
@@ -31,8 +30,8 @@ import {
   storyBeats,
 } from "./programHarness";
 
-// The shuffle draws both engines take, from one seeded stream each run, so a
-// shuffle picks the same arms on both (`shuffleDraws`).
+// The shuffle draws the engine takes, from one seeded stream each run, so a
+// shuffle picks the same arms every run (`shuffleDraws`).
 const injectDraws = () => {
   let s = 0x696;
   shuffleDraws.next = () => (s = (s * 1103515245 + 12345) & 0x7fffffff);
@@ -53,19 +52,15 @@ const silence = <T>(run: () => T): T => {
   }
 };
 
-/** What a script shows on each engine, from its top or from scene `from`,
- *  with the same shuffle draws, and the program's root. */
-const bothEngines = (text: string, from?: string) =>
+/** What a script shows, from its top or from scene `from`, with the
+ *  injected shuffle draws, and the program's root. */
+const programBeats = (text: string, from?: string) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
-    const current = compileScript(text);
-    injectDraws();
-    current.story.ResetState();
-    const expected = storyBeats(current.story, from);
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     injectDraws();
     const actual = storyBeats(new ProgramStory(program.chunks!), from);
-    return { expected, actual, root: program.chunks! };
+    return { actual, root: program.chunks! };
   });
 
 /** The texts of a run's beats. */
@@ -86,7 +81,7 @@ const opsOf = (root: ProgramRoot): Set<string> => {
 
 /** The chunks of a root whose code holds instruction `op` with operand
  *  `arg`, when one is given. */
-const chunksWith = (root: ProgramRoot, op: number, arg?: number): StatementChunk[] => {
+const chunksWith = (root: ProgramRoot, op: number, arg?: number): ProgramChunk[] => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).filter((chunk) =>
     [...reader.instructions(chunk)].some(
@@ -116,7 +111,7 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script that an edit replaces `before` with `after`
  *  in, one occurrence, and compiles again. */
 const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   let current = text;
   let version = 1;
   const first = silence(() => c.compile().program);
@@ -147,7 +142,7 @@ const session = (text: string) => {
 
 describe("flows on the program engine", () => {
   it("runs a divert into the middle of a scene from another scene, counting the scene it enters", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "-> A",
         "scene A",
@@ -163,7 +158,6 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["In A 1.", "B's middle 1 1 1."]);
     expect(opsOf(root)).toContain("JumpSym");
     expect(opsOf(root)).toContain("Visit");
@@ -171,7 +165,7 @@ describe("flows on the program engine", () => {
   });
 
   it("runs a divert to the target a variable holds", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "store target = -> there",
         "-> here",
@@ -186,14 +180,13 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["Here.", "There 1."]);
     expect(opsOf(root)).toContain("JumpVar");
     expect(opsOf(root)).toContain("Sym");
   });
 
   it("runs a tunnel that returns, and one that returns onward to a named target", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "-> main",
         "scene main",
@@ -219,14 +212,13 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["Start.", "In back.", "Returned 1.", "In A.", "In B 1 1."]);
     expect(opsOf(root)).toContain("TunnelReturn");
     expect(chunksWith(root, Op.Call).length).toBeGreaterThan(0);
   });
 
   it("runs a thread that forks inside a scene, and resumes the scene when the thread is done", () => {
-    const { expected, actual, root } = bothEngines(
+    const { actual, root } = programBeats(
       [
         "-> main",
         "scene main",
@@ -244,7 +236,6 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["Before.", "In side.", "After 1.", "In side.", "Again 2."]);
     expect(opsOf(root)).toContain("Thread");
     // A state saved while the fork runs holds the thread it suspended, and
@@ -260,7 +251,7 @@ describe("flows on the program engine", () => {
 
   // The thread's `done` ends the thread and not the continue, and a continue
   // returns at its line's newline, so the assignment after the first line
-  // has not run when the first line is returned, on either engine.
+  // has not run when the first line is returned.
   it("returns the first line of two with a thread between them before the assignment after it", () => {
     const text = [
       "store x = 0",
@@ -278,21 +269,17 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
-      const current = compileScript(text).story;
-      current.ResetState();
-      const story = new ProgramStory(program.chunks!);
-      for (const engine of [current, story] as const) {
-        expect(engine.Continue()).toBe("First line.\n");
-        expect(engine.variablesState.$("x")).toBe(0);
-        expect(engine.Continue()).toBe("Second line 1.\n");
-        expect(engine.variablesState.$("x")).toBe(1);
-      }
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
+      const engine = new ProgramStory(program.chunks!);
+      expect(engine.Continue()).toBe("First line.\n");
+      expect(engine.variablesState.$("x")).toBe(0);
+      expect(engine.Continue()).toBe("Second line 1.\n");
+      expect(engine.variablesState.$("x")).toBe(1);
     });
   });
 
-  it("runs every kind of alternator, inline, glued, on one line and as a block, as the current engine does", () => {
+  it("runs every kind of alternator, inline, glued, on one line and as a block", () => {
     const kinds = ["queue", "cycle", "chain", "shuffle queue", "shuffle cycle", "shuffle chain", "shuffle"];
     const lines = ["-> main", "scene main", "  label start", "  & i = i + 1"];
     kinds.forEach((kind, k) => {
@@ -303,9 +290,91 @@ describe("flows on the program engine", () => {
     });
     lines.push("  Tagged .. queue|red # red|blue # blue .. sequence.");
     lines.push("  if i < 5 then", "    -> start", "  end", "  done", "end", "store i = 0", "");
-    const { expected, actual, root } = bothEngines(lines.join("\n"));
-    expect(actual).toEqual(expected);
-    expect(actual.beats.length).toBeGreaterThan(40);
+    const { actual, root } = programBeats(lines.join("\n"));
+    expect(actual.errors).toEqual([]);
+    const shown = texts(actual);
+    /** What kind `k` shows in each form over the five passes. */
+    const forms = (k: number) => ({
+      inline: shown.filter((t) => t.startsWith(`Inline ${k} `)),
+      glued: shown.filter((t) => t.startsWith(`Glued ${k} `)),
+      line: shown.filter((t) => new RegExp(`^(One|Two|Three) ${k}\\.$`).test(t)),
+      block: shown.filter((t) => new RegExp(`^(First|Second) ${k}\\.$`).test(t)),
+    });
+    // The kinds that draw nothing, pass by pass: a queue shows each arm once
+    // and then nothing, a cycle starts again, and a chain stays on its last.
+    expect(forms(0)).toEqual({
+      inline: ["Inline 0 A.", "Inline 0 B.", "Inline 0 C.", "Inline 0 .", "Inline 0 ."],
+      glued: ["Glued 0 A after.", "Glued 0 B after.", "Glued 0 C after.", "Glued 0 after.", "Glued 0 after."],
+      line: ["One 0.", "Two 0.", "Three 0."],
+      block: ["First 0.", "Second 0."],
+    });
+    expect(forms(1)).toEqual({
+      inline: ["Inline 1 A.", "Inline 1 B.", "Inline 1 C.", "Inline 1 A.", "Inline 1 B."],
+      glued: ["Glued 1 A after.", "Glued 1 B after.", "Glued 1 C after.", "Glued 1 A after.", "Glued 1 B after."],
+      line: ["One 1.", "Two 1.", "Three 1.", "One 1.", "Two 1."],
+      block: ["First 1.", "Second 1.", "First 1.", "Second 1.", "First 1."],
+    });
+    expect(forms(2)).toEqual({
+      inline: ["Inline 2 A.", "Inline 2 B.", "Inline 2 C.", "Inline 2 C.", "Inline 2 C."],
+      glued: ["Glued 2 A after.", "Glued 2 B after.", "Glued 2 C after.", "Glued 2 C after.", "Glued 2 C after."],
+      line: ["One 2.", "Two 2.", "Three 2.", "Three 2.", "Three 2."],
+      block: ["First 2.", "Second 2.", "Second 2.", "Second 2.", "Second 2."],
+    });
+    // The kinds that draw: every pass shows one of the arms. The injected
+    // draws come from one stream shared by every alternator of the run
+    // (`injectDraws`), so a draw does not repeat a shuffle's own sequence
+    // and the arms a pass shows are no permutation; what the kind does once
+    // its arms are drawn is still its own: a shuffle queue then shows
+    // nothing, and a shuffle chain stays on the arm it showed last.
+    const arms = {
+      inline: ["A", "B", "C"].map((arm) => (k: number) => `Inline ${k} ${arm}.`),
+      glued: ["A", "B", "C"].map((arm) => (k: number) => `Glued ${k} ${arm} after.`),
+      line: ["One", "Two", "Three"].map((arm) => (k: number) => `${arm} ${k}.`),
+      block: ["First", "Second"].map((arm) => (k: number) => `${arm} ${k}.`),
+    };
+    const drawsArms = (k: number, form: keyof typeof arms, passes: number, drawn = passes) => {
+      const out = forms(k)[form];
+      expect(out, `${form} ${k}`).toHaveLength(passes);
+      for (const text of out.slice(0, drawn)) {
+        expect(arms[form].map((arm) => arm(k)), `${form} ${k}`).toContain(text);
+      }
+      return out;
+    };
+    // shuffle queue: three draws, then nothing.
+    for (const form of ["inline", "glued"] as const) {
+      drawsArms(3, form, 5, 3);
+    }
+    expect(forms(3).inline.slice(3)).toEqual(["Inline 3 .", "Inline 3 ."]);
+    expect(forms(3).glued.slice(3)).toEqual(["Glued 3 after.", "Glued 3 after."]);
+    drawsArms(3, "line", 3);
+    drawsArms(3, "block", 2);
+    // shuffle cycle: a draw every pass.
+    for (const form of ["inline", "glued", "line", "block"] as const) {
+      drawsArms(4, form, 5);
+    }
+    // shuffle chain: its arms drawn, then the last one again.
+    for (const form of ["inline", "glued", "line", "block"] as const) {
+      const out = drawsArms(5, form, 5);
+      const last = form === "block" ? 1 : 2;
+      expect(out.slice(last + 1), `${form} 5`).toEqual(out.slice(last + 1).map(() => out[last]));
+    }
+    // shuffle: a draw every pass. A glued plain `shuffle` is not read as an
+    // alternator and shows its text as written (#1706), so it is left
+    // out here.
+    for (const form of ["inline", "line", "block"] as const) {
+      drawsArms(6, form, 5);
+    }
+    expect(shown.filter((t) => t.startsWith("Tagged"))).toEqual([
+      "Tagged red sequence.",
+      "Tagged blue sequence.",
+      "Tagged sequence.",
+      "Tagged sequence.",
+      "Tagged sequence.",
+    ]);
+    expect(actual.beats.filter((beat) => beat.tags.length).map((beat) => beat.tags)).toEqual([
+      ["red"],
+      ["blue"],
+    ]);
     for (const op of ["Visit", "VisitIndex", "ShuffleIndex", "Tag"]) {
       expect(opsOf(root), op).toContain(op);
     }
@@ -330,7 +399,7 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
+      const { program } = compileScript(text);
       const run = () => {
         const story = new ProgramStory(program.chunks!);
         story.state.storySeed = 3;
@@ -343,8 +412,8 @@ describe("flows on the program engine", () => {
   describe("counts", () => {
     // #653: the bottom line reads one label's count, then the other's.
     for (const label of ["alpha", "beta"]) {
-      it(`agree with the current engine when the bottom line reads {main.${label}}`, () => {
-        const { expected, actual } = bothEngines(
+      it(`count the scene's labels when the bottom line reads {main.${label}}`, () => {
+        const { actual } = programBeats(
           [
             "-> main",
             "scene main",
@@ -365,13 +434,12 @@ describe("flows on the program engine", () => {
             "",
           ].join("\n"),
         );
-        expect(actual).toEqual(expected);
-        expect(texts(actual)).toEqual([`Counted ${label === "alpha" ? 3 : 4}.`]);
+          expect(texts(actual)).toEqual([`Counted ${label === "alpha" ? 3 : 4}.`]);
       });
     }
 
     it("count a flow entered by a jump into its middle", () => {
-      const { expected, actual } = bothEngines(
+      const { actual } = programBeats(
         [
           "-> outside",
           "scene outside",
@@ -386,12 +454,11 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
       expect(texts(actual)).toEqual(["Inside 1, middle 1."]);
     });
 
     it("do not count a flow again for a jump from inside it to its own first statement", () => {
-      const { expected, actual } = bothEngines(
+      const { actual } = programBeats(
         [
           "-> main",
           "scene main",
@@ -406,12 +473,11 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
       expect(texts(actual)).toEqual(["Pass 1: 1.", "Pass 2: 1.", "Pass 3: 1."]);
     });
 
     it("count a label passed once by falling through and once by a jump", () => {
-      const { expected, actual } = bothEngines(
+      const { actual } = programBeats(
         [
           "-> main",
           "scene main",
@@ -427,12 +493,11 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
       expect(texts(actual)).toEqual(["Here 1.", "Here 2."]);
     });
 
     it("count a branch and its scene, a scene that starts with a branch, and turns since, read through the language", () => {
-      const { expected, actual, root } = bothEngines(
+      const { actual, root } = programBeats(
         [
           "store spot = -> hall.lobby",
           "-> hall.lobby ->",
@@ -450,8 +515,12 @@ describe("flows on the program engine", () => {
           "",
         ].join("\n"),
       );
-      expect(actual).toEqual(expected);
-      expect(texts(actual).at(-1)).toBe("Lobby 3, hall 3, turns 0, read 3 3 true.");
+      expect(texts(actual)).toEqual([
+        "In the lobby.",
+        "In the lobby.",
+        "In the lobby.",
+        "Lobby 3, hall 3, turns 0, read 3 3 true.",
+      ]);
       expect(opsOf(root)).toContain("CountOf");
     });
 
@@ -480,8 +549,8 @@ describe("flows on the program engine", () => {
       const saved = game.state.toJson();
       const flowChunks = (root: ProgramRoot) => {
         const flow = root.flowNamed("main")!;
-        const out: StatementChunk[] = [];
-        const walk = (chunks: readonly StatementChunk[]) => {
+        const out: ProgramChunk[] = [];
+        const walk = (chunks: readonly ProgramChunk[]) => {
           for (const chunk of chunks) {
             out.push(chunk);
             for (let k = 0; k < blockCount(chunk); k += 1) {
@@ -493,7 +562,7 @@ describe("flows on the program engine", () => {
         return out;
       };
       const edited = s.edit("  Reader.", "  Reader {main.visit}.");
-      expect(edited.fallback).toBeUndefined();
+      expect(edited.chunks).toBeDefined();
       const after = edited.chunks!;
       // Every chunk of the counted flow is the one the first compile emitted.
       const before = flowChunks(first);
@@ -542,10 +611,10 @@ describe("flows on the program engine", () => {
         "store i = 0",
         "",
         ].join("\n"),
-        { programChunks: true },
+        {},
       ),
     );
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     const root = program.chunks!;
     expect(texts(storyBeats(new ProgramStory(root)))).toEqual([
       "Outer.",
@@ -576,10 +645,10 @@ describe("flows on the program engine", () => {
     expect(depth).toBe(3);
   });
 
-  it("runs a jump to a target the program does not define as the current engine's runtime error, at the jump's line", () => {
+  it("runs a jump to a target the program does not define as a runtime error, at the jump's line", () => {
     const text = ["-> main", "scene main", "  Before.", "  -> nowhere", "end", ""].join("\n");
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const messages = Object.values(program.diagnostics ?? {})
       .flat()
       .map((d: any) => d.message?.value ?? d.message);
@@ -597,7 +666,7 @@ describe("flows on the program engine", () => {
     const referring = chunksWith(s.first.chunks!, Op.JumpSym, symbol);
     expect(referring).toHaveLength(1);
     const gone = s.edit(target, "");
-    expect(gone.fallback).toBeUndefined();
+    expect(gone.chunks).toBeDefined();
     expect(chunksWith(gone.chunks!, Op.JumpSym, symbol)[0]).toBe(referring[0]);
     expect(gone.chunks!.definition(symbol)).toBeUndefined();
     expect(storyBeats(new ProgramStory(gone.chunks!)).errors).toEqual([
@@ -611,7 +680,7 @@ describe("flows on the program engine", () => {
   // Round 1 of the review of #1431: a jump keeps the bindings of the blocks
   // it stays in.
   it("keeps the locals of the blocks a jump stays in", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "-> main",
         "scene main",
@@ -626,14 +695,13 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["Value 7."]);
   });
 
   // Round 1 of the review of #1431: an onward return leaves from the caller
   // the tunnel returned to, so it does not count the caller's flow again.
   it("counts an onward return to the caller's own flow from the caller", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = programBeats(
       [
         "-> main",
         "scene main",
@@ -648,13 +716,12 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["Visits 1."]);
   });
 
-  // Round 1 of the review of #1431: a checkpoint drains visits and turns
-  // apart, and fills the count slots of a state saved without them.
-  it("hands a checkpoint its visit and turn deltas apart, and restores counts it injects into a state saved without them", () => {
+  // Round 1 of the review of #1431: a state's JSON keeps the visits and
+  // turns of each counted symbol, which a load restores.
+  it("restores the visits and turns a state's JSON holds", () => {
     const { program } = silence(() =>
       compileScript(
         [
@@ -671,43 +738,25 @@ describe("flows on the program engine", () => {
           "store n = 0",
           "",
         ].join("\n"),
-        { programChunks: true },
+        {},
       ),
     );
     const root = program.chunks!;
     const story = new ProgramStory(root);
     expect(story.Continue()).toBe("Pass 1, 1.\n");
-    const visits = story.state.DrainVisitCountDeltas();
-    const turns = story.state.DrainTurnIndexDeltas();
-    expect(visits).toContainEqual(["main.top", 1]);
-    expect(turns.map(([key]) => key)).toContain("main.top");
-    expect(story.state.DrainVisitCountDeltas()).toEqual([]);
     expect(story.Continue()).toBe("Pass 2, 2.\n");
-    // As `CheckpointStore.injectCounts` fills a state saved without counts.
-    const bare = story.state.ToJsonWithoutCounts();
-    expect(bare).toContain('"visitCounts":{}');
-    expect(bare).toContain('"turnIndices":{}');
-    const injected = bare
-      .replace(
-        '"visitCounts":{}',
-        `"visitCounts":${JSON.stringify(Object.fromEntries(story.state.GetVisitCountEntries()))}`,
-      )
-      .replace(
-        '"turnIndices":{}',
-        `"turnIndices":${JSON.stringify(Object.fromEntries(story.state.GetTurnIndexEntries()))}`,
-      );
+    expect(story.state.GetVisitCountEntries()).toContainEqual(["main.top", 2]);
     const loaded = new ProgramStory(root);
-    loaded.state.LoadJson(injected);
+    loaded.state.LoadJson(story.state.toJson());
     const top = countIdOf(root.table, symbolOf(root, "main.top"));
     expect(loaded.state.VisitCount(top)).toBe(2);
     expect(loaded.state.TurnsSince(top)).toBe(story.state.TurnsSince(top));
   });
 
-  // Round 1 of the review of #1431: the current engine's weave nests a label
-  // as the first content of the label written right before it, and a jump
-  // to the second counts the first as it enters its container at its start.
-  it("counts the labels written right before the label a jump lands on, as the current engine does", () => {
-    const { expected, actual } = bothEngines(
+  // Round 1 of the review of #1431: a label written right before another
+  // counts with it, so a jump to the second counts the first.
+  it("counts the labels written right before the label a jump lands on", () => {
+    const { actual } = programBeats(
       [
         "-> main.beta",
         "scene main",
@@ -727,15 +776,14 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["Counts 1 1.", "Then 1 1 1 1.", "Then 1 1 2 2."]);
   });
 
   // Round 2 of the review of #1431: a declaration with no code between two
-  // labels is nothing between them, since the current engine makes no runtime
-  // object of it; a line of text, a local or a function is something.
-  it("counts the label above across declarations that run no code, as the current engine does", () => {
-    const { expected, actual } = bothEngines(
+  // labels is nothing between them; a line of text, a local or a function is
+  // something.
+  it("counts the label above across declarations that run no code", () => {
+    const { actual } = programBeats(
       [
         "-> main.beta",
         "scene main",
@@ -765,7 +813,6 @@ describe("flows on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual([
       "Counts 1 1.",
       "Then 1 1 1.",
@@ -788,13 +835,9 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
-      const current = compileScript(text).story;
-      current.ResetState();
-      const expected = current.EvaluateFunction("hall", [], true);
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const actual = new ProgramStory(program.chunks!).EvaluateFunction("hall", [], true);
-      expect(actual).toEqual(expected);
       expect(actual.output).toBe("Lobby 1 0.\n");
     });
   });
@@ -808,7 +851,7 @@ describe("flows on the program engine", () => {
     const store = s.compiler.chunkStore!;
     const before = store.initializerRuns;
     const edited = s.edit("  Line {x}.", "  label extra\n  Line {x}.");
-    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks).toBeDefined();
     expect(chunksWith(edited.chunks!, Op.Visit)).toHaveLength(1);
     expect(store.initializerRuns).toBe(before);
   });
@@ -835,7 +878,7 @@ describe("flows on the program engine", () => {
     expect(texts(storyBeats(new ProgramStory(s.first.chunks!)))).toEqual(["Pass 1.", "Pass 2."]);
     const coldOf = () =>
       silence(() =>
-        programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+        programCompiler({ [MAIN_URI]: s.text }).compile().program,
       );
     const renamed = s.edit("-> A\nscene A", "-> B\nscene B");
     expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(coldOf().chunks!));
@@ -871,13 +914,12 @@ describe("flows on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const { expected, actual } = bothEngines(text);
-    expect(actual).toEqual(expected);
+    const { actual } = programBeats(text);
     expect(texts(actual)).toEqual(["Entered.", "Left 2."]);
     const s = session(text);
     const renamed = s.edit("-> A\nscene A", "-> B\nscene B");
     const cold = silence(
-      () => programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+      () => programCompiler({ [MAIN_URI]: s.text }).compile().program,
     );
     expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(cold.chunks!));
     expect(texts(storyBeats(new ProgramStory(renamed.chunks!)))).toEqual(["Entered.", "Left 2."]);
@@ -926,7 +968,7 @@ describe("flows on the program engine", () => {
     ],
     [
       "the kind of an alternator nested in them",
-      // A string's alternator shows nothing on either engine; the cycle that
+      // A string's alternator shows nothing; the cycle that
       // holds it counts all the same.
       ['    | Pick {cycle|"{cycle|1|2}"|"X"}.', '    | Pick {cycle|"{queue|1|2}"|"X"}.'],
       ["Pick .", "Pick .", "Pick X."],
@@ -1003,14 +1045,12 @@ describe("flows on the program engine", () => {
 
   // Round 3 of the review of #1431: a path chosen without resetting the call
   // stack is entered from the flow the story last ran in, which a save keeps
-  // and a reset clears, as the current engine's previous pointer is. (The
-  // current engine refuses such a choice in the middle of a line, with
-  // "Already in expression evaluation?", so each run ends its flow first.)
+  // and a reset clears. Each run ends its flow first.
   it("counts a path chosen without a reset from the flow a loaded or reset story last ran in", () => {
     const text = ["scene main", "  Visits {main}.", "  done", "end", ""].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const lines = (game: any) => {
         const out: string[] = [];
         while (game.canContinue) {
@@ -1039,9 +1079,7 @@ describe("flows on the program engine", () => {
         const afterReset = lines(game);
         return [first, afterLoad, inSession, afterForcedEnd, afterReset];
       };
-      const current = runs(() => compileScript(text).story);
       const actual = runs(() => new ProgramStory(program.chunks!));
-      expect(actual).toEqual(current);
       expect(actual).toEqual(["Visits 1.", "Visits 1.", "Visits 1.", "Visits 2.", "Visits 1."]);
     });
   });
@@ -1049,9 +1087,8 @@ describe("flows on the program engine", () => {
   // Round 4 of the review of #1431: each thread keeps the flow it last ran
   // in, so the thread a fork suspended resumes with its own, in session and
   // through a save made while the fork runs. It shows only where the resumed
-  // thread runs no instruction of its own before its flow runs out, which the
-  // current engine refuses ("ran out of content"), so this asserts the
-  // program engine alone: `main` is not entered again from itself.
+  // thread runs no instruction of its own before its flow runs out: `main` is
+  // not entered again from itself.
   it("counts a path chosen without a reset from the flow of the thread a fork resumed", () => {
     const text = [
       "scene main",
@@ -1065,8 +1102,8 @@ describe("flows on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
       const lines = (game: ProgramStory) => {
         const out: string[] = [];
         while (game.canContinue) {
@@ -1133,9 +1170,9 @@ describe("flows on the program engine", () => {
     const before = new Set(rootChunks(s.first.chunks!));
     const renamed = s.edit("scene place", "scene spot");
     // The edit leaves the top-level divert without its target.
-    expect(renamed.fallback).toBeUndefined();
+    expect(renamed.chunks).toBeDefined();
     const cold = silence(() =>
-      programCompiler({ [MAIN_URI]: s.text }, { programChunks: true }).compile().program,
+      programCompiler({ [MAIN_URI]: s.text }).compile().program,
     );
     expect(describeRoot(renamed.chunks!)).toEqual(describeRoot(cold.chunks!));
     const emitted = rootChunks(renamed.chunks!).filter((chunk) => !before.has(chunk));
@@ -1169,7 +1206,7 @@ describe("symbols", () => {
           "end",
           "",
         ].join("\n"),
-        { programChunks: true },
+        {},
       ),
     );
     const root = program.chunks!;
@@ -1202,14 +1239,22 @@ describe("symbols", () => {
     expect(isAnonymousSymbol(root.table, door)).toBe(false);
   });
 
-  it("falls back for a label named as another flow's symbol", () => {
+  // A construct the program has no emit path for is a compile error at its
+  // statement, and the compile makes no program (#705).
+  it("reports a label named as another flow's symbol as an error, and makes no program", () => {
     const { program } = silence(() =>
       compileScript(
         ["-> hall", "scene hall", "  label cellar", "  Hall.", "  branch cellar", "    Cellar.", "  end", "end", ""].join("\n"),
-        { programChunks: true },
       ),
     );
-    expect(program.fallback?.construct).toBe("a label named as another");
+    expect(program.chunks).toBeUndefined();
+    const errors = Object.values(program.diagnostics ?? {})
+      .flat()
+      .filter((d) => d.severity === 1)
+      .map((d) => [d.range.start.line, typeof d.message === "string" ? d.message : d.message.value]);
+    expect(errors).toEqual([
+      [2, "This statement cannot be compiled: a label named as another."],
+    ]);
   });
 });
 
@@ -1305,13 +1350,20 @@ describe("the chunk store's table", () => {
 });
 
 describe("the flow screenplay", () => {
-  it("runs each scene as the current engine does", () => {
+  // Each flow scene loops three passes and returns onward to its `after`
+  // branch, which an even scene leaves for the ending and an odd one ends.
+  it("runs each scene", () => {
     const text = flowScreenplay(3);
-    for (const scene of ["FLOW_0", "FLOW_1", "FLOW_2", "ENDING"]) {
-      const { expected, actual } = bothEngines(text, scene);
-      expect(actual).toEqual(expected);
-      expect(expected.beats.length).toBeGreaterThan(0);
-      expect(expected.errors).toEqual([]);
+    for (const [scene, count, first, last] of [
+      ["FLOW_0", 29, "1 time, top 1.", "The end, after 3 passes."],
+      ["FLOW_1", 28, "1 time, top 1.", "After 1, mid 1, k 2."],
+      ["FLOW_2", 29, "1 time, top 1.", "The end, after 3 passes."],
+      ["ENDING", 1, "The end, after 0 passes.", "The end, after 0 passes."],
+    ] as const) {
+      const { actual } = programBeats(text, scene);
+      expect(actual.errors).toEqual([]);
+      const shown = texts(actual);
+      expect([shown.length, shown[0], shown.at(-1)], scene).toEqual([count, first, last]);
     }
   });
 });

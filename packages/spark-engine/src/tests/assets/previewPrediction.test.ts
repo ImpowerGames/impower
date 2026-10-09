@@ -3,11 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
-import {
-  pathTableLocator,
-  programLocator,
-} from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
 import {
   beatIndexIn,
@@ -316,8 +312,6 @@ type Arrival = {
   simulation?: "fail";
   checkpoint?: string;
   prepare?: (game: Game) => void;
-  /** Compile and run on the current engine (`programChunks: false`). */
-  currentEngine?: boolean;
 };
 
 /** A game connected the way the page connects one for a preview at `line`:
@@ -328,7 +322,6 @@ const connected = (story: string, line: number, arrival: Arrival = {}) =>
     assets: ASSETS,
     holdAssets: true,
     loadCheckpoint: arrival.checkpoint,
-    ...(arrival.currentEngine ? { programChunks: false } : {}),
     beforeConnect: (game) => {
       if (arrival.simulation) {
         game.simulation = arrival.simulation;
@@ -435,10 +428,13 @@ describe("preview prediction and gate", () => {
   it("gates exactly what the preview writes, whatever the source shape", async () => {
     // Beat lines: 1, 3, 5 in the alternating and blank shapes; 1, 2, 4 in
     // the consecutive one; 1 and 3 in the hide shape; 2 and 6 with control
-    // flow between. Line 0 is the scene heading. A jump to a line runs from
-    // that line's path, so a backdrop on the line above is not written.
+    // flow between. Line 0 is the scene heading, which holds no beat: the
+    // program's locator answers it with the first beat below it
+    // (`ProgramLocator.addressAt`), so a preview of it shows line 1 and gates
+    // that beat's backdrop. A jump to a line runs from that line's address,
+    // so a backdrop on the line above is not written.
     const cases: Array<[string, number, string[]]> = [
-      ["alternating", 0, []],
+      ["alternating", 0, ["room.png"]],
       ["alternating", 1, ["room.png"]],
       ["alternating", 3, ["bunny.png"]],
       ["alternating", 5, ["hat.png"]],
@@ -475,13 +471,7 @@ describe("preview prediction and gate", () => {
       ],
     ];
     for (const [shape, line, expected] of cases) {
-      // The scene heading's case on the current engine: the program's
-      // locator answers a line with no beat with the first beat below it
-      // (`ProgramLocator.addressAt`), so the program engine previews line 1
-      // there and gates its backdrop.
-      const got = await previewGate(SHAPES[shape]!, line, {
-        currentEngine: shape === "alternating" && line === 0,
-      });
+      const got = await previewGate(SHAPES[shape]!, line);
       expect({ shape, line, gated: got.gated }).toEqual({
         shape,
         line,
@@ -1785,27 +1775,39 @@ Line one.
     });
   });
 
-  it("finds the beat at or before a path", () => {
-    const beats = [{ address: "A.0" }, { address: "A.3" }, { address: "A.7" }];
-    const locations = pathTableLocator(
-      pathLocationTableOf({
-        "A.0": [0, 1, 0, 1, 9],
-        "A.2": [0, 2, 0, 2, 9],
-        "A.3": [0, 3, 0, 3, 9],
-        "A.5": [0, 5, 2, 5, 9],
-        "A.7": [0, 7, 0, 7, 9],
-        "A.9": [0, 9, 0, 9, 9],
-        "B.0": [1, 0, 0, 0, 9],
-      }),
-      ["file:///main.sd", "file:///other.sd"],
-    );
-    expect(beatIndexIn(beats, locations, "A.3")).toBe(1);
-    expect(beatIndexIn(beats, locations, "A.5")).toBe(1);
-    expect(beatIndexIn(beats, locations, "A.2")).toBe(0);
-    expect(beatIndexIn(beats, locations, "A.9")).toBe(2);
+  it("finds the beat at or before an address", () => {
+    const OTHER_URI = "inmemory:///other.sd";
+    const main = [
+      "include other.sd",
+      "scene A",
+      "  Line one.",
+      "  Line two.",
+      "  Line three.",
+      "  Line four.",
+      "  Line five.",
+      "  Line six.",
+      "  Line seven.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    const { program } = compileUI(main, { scripts: { [OTHER_URI]: "Other line.\n" } });
+    const locator = programLocator(program);
+    const at = (line: number, uri = MAIN_URI): ProgramAddress => {
+      const address = locator.addressAt(uri, line);
+      if (address === undefined) {
+        throw new Error(`no address stands on line ${line} of ${uri}`);
+      }
+      return address;
+    };
+    const beats = [2, 4, 7].map((line) => ({ address: at(line) }));
+    expect(beatIndexIn(beats, locator, at(4))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(6))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(3))).toBe(0);
+    expect(beatIndexIn(beats, locator, at(8))).toBe(2);
     // Only the beats in the address's own script precede it.
-    expect(beatIndexIn(beats, locations, "B.0")).toBe(-1);
-    expect(beatIndexIn(beats, locations, "nowhere")).toBe(-1);
-    expect(beatIndexIn(beats, locations, null)).toBe(-1);
+    expect(beatIndexIn(beats, locator, at(0, OTHER_URI))).toBe(-1);
+    expect(beatIndexIn(beats, locator, "nowhere")).toBe(-1);
+    expect(beatIndexIn(beats, locator, null)).toBe(-1);
   });
 });

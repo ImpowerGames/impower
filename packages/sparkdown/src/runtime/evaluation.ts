@@ -19,7 +19,6 @@ import {
   NullValue,
   SymbolValue,
 } from "./Value";
-import { Path } from "./Path";
 import { Void } from "./Void";
 import { oneValue, spreadCallArgs } from "./CallArgs";
 import { Tag } from "./Tag";
@@ -58,12 +57,10 @@ if (!Number.isInteger) {
 }
 
 /**
- * A function a call enters, as the call handlers the two engines share read
- * it: the container of a path on the current engine, and the entry of a
- * symbol on the binary program's (`ProgramStory`). A story that runs the
- * shared handlers gives the function a function value names
- * (`FunctionTargetOf`), and enters one in a new function frame
- * (`EnterFunction`).
+ * A function a call enters, as the call handlers read it: the entry of a
+ * symbol on the binary program's engine (`ProgramStory`). The story gives the
+ * function a function value names (`FunctionTargetOf`), and enters one in a
+ * new function frame (`EnterFunction`).
  */
 export interface FunctionTarget {
   /** Whether the function binds a `...` slot after its fixed parameters. */
@@ -71,44 +68,6 @@ export interface FunctionTarget {
   /** How many values the function's entry binds, its `...` slot
    *  included. */
   readonly bindings: number;
-}
-
-/** The function a container of the current engine's tree is. */
-export class ContainerTarget implements FunctionTarget {
-  constructor(
-    readonly container: any,
-    readonly path: Path | null = null,
-  ) {}
-  get variadic(): boolean {
-    return containerBindings(this.container).variadic;
-  }
-  get bindings(): number {
-    return containerBindings(this.container).bindings;
-  }
-}
-
-// The parameter bindings of each function container a call has entered. A
-// container's content is fixed once generated (a compile that changes the
-// function generates a new container), so every call reads them once.
-const CONTAINER_BINDINGS = new WeakMap<
-  object,
-  { variadic: boolean; bindings: number }
->();
-
-function containerBindings(container: any): {
-  variadic: boolean;
-  bindings: number;
-} {
-  if (!container) return { variadic: false, bindings: 0 };
-  let known = CONTAINER_BINDINGS.get(container);
-  if (!known) {
-    known = {
-      variadic: containerIsVariadic(container),
-      bindings: countLeadingParamBindings(container),
-    };
-    CONTAINER_BINDINGS.set(container, known);
-  }
-  return known;
 }
 
 // If `callTarget` is a closure `ObjectValue` (the shape produced by
@@ -282,8 +241,8 @@ function indexThroughMetatable(
   return null;
 }
 
-/** Whether `v` is a function held by reference: a divert target on the
- *  current engine, or a symbol value on the binary program's. */
+/** Whether `v` is a function held by reference: a symbol value, or a divert
+ *  target. */
 export function isFunctionReference(v: unknown): boolean {
   return v instanceof DivertTargetValue || v instanceof SymbolValue;
 }
@@ -558,37 +517,6 @@ function tryUnaryMetamethod(
   return oneValue((results && results[0]) || new NullValue());
 }
 
-// A function container's content starts with its parameter bindings, one
-// `VariableAssignment` per parameter, which its entry pops off the eval stack
-// (`FlowBase.GenerateArgumentVariableAssignments` writes them before anything
-// else), the vararg slot first for a function that declared `...`. A function
-// with no parameters starts with its body, which can begin with an assignment
-// too (`local t = {}` is a table's commands and then one), so only the run
-// from the first item binds parameters.
-const isParamBinding = (item: unknown): boolean =>
-  typeof (item as { isVarargsSlot?: boolean } | null)?.isVarargsSlot ===
-  "boolean";
-
-// Whether the function declared `...`. Used by the multi-return spread logic
-// to skip spreading for variadic targets (whose extras have already been
-// packed into a `MultiValue` by `PackTuple` at the call site).
-function containerIsVariadic(target: any): boolean {
-  const first = target?._content?.[0];
-  return isParamBinding(first) && first.isVarargsSlot === true;
-}
-
-// How many values the function's entry binds, the `__varargs__` slot of a
-// variadic function included.
-function countLeadingParamBindings(target: any): number {
-  const content = target?._content;
-  if (!Array.isArray(content)) return 0;
-  let n = 0;
-  while (n < content.length && isParamBinding(content[n])) {
-    n++;
-  }
-  return n;
-}
-
 // Spreads the last of the `count` arguments a call site pushed, as Luau
 // passes a call's last argument: a multiple value (a `g()` multi-return)
 // gives each of its values, and a call that returned none (`Void`) gives
@@ -823,7 +751,7 @@ export function spreadLastMultiIfNonVariadic(
 
 // `spreadCallArgs` and `oneValue` (`CallArgs.ts`): a builtin's or a
 // handler's arguments as a call passes them, and a value where Luau takes
-// one, exported here for both engines.
+// one, exported here for the program engine.
 export { oneValue, spreadCallArgs };
 
 // Pushes what a builtin or a function a call ran returned. A JS array is a
@@ -975,17 +903,15 @@ function callThroughHandler(
 }
 
 /**
- * The draws a shuffle takes in place of its seeded generator, when set: the
- * differential run of the binary program injects one stream into both
- * engines, which seed their shuffles from different names (a container's path
- * here, an alternator's symbol there), so that both pick the same arms
- * (docs/engine/binary-program.md, section 3).
+ * The draws a shuffle takes in place of its seeded generator, when set: a
+ * test injects one stream so that a shuffle picks the arms the test expects
+ * (`ShuffleIndex`, docs/engine/binary-program.md, section 3).
  */
 export const shuffleDraws: { next: (() => number) | null } = { next: null };
 
 /**
  * The index a shuffling sequence picks on its `seqCount`th pass over
- * `numElements` arms, as both engines pick it: the arms are drawn without
+ * `numElements` arms, as the program engine picks it: the arms are drawn without
  * replacement from a generator seeded by `seedText`, the loop over the
  * sequence and the story seed, or from `shuffleDraws` when one is injected.
  */
@@ -1027,7 +953,7 @@ export function sequenceShuffleIndex(
 
 /**
  * A call through what the variable `varName` holds, as a divert whose target
- * is a variable runs it on either engine: a builtin iterator steps, a builtin
+ * is a variable runs it: a builtin iterator steps, a builtin
  * runs, and a table whose metatable has `__call` calls its handler, each
  * pushing what the call returns; a closure or a function value gives the
  * function to enter, with its arguments arranged for its entry
@@ -1145,7 +1071,7 @@ export function callVariableTarget(
 
 /**
  * Calls the value on top of the evaluation stack with the arguments below it,
- * as `CallValueAsFunction` does on either engine: a closure, a function value
+ * as `CallValue` does: a closure, a function value
  * or a variadic function is entered in a new function frame, with its
  * arguments padded, cut, spread or packed for its entry; a builtin iterator
  * steps and a builtin runs; a table calls its `__call` handler, and a nil
@@ -1396,9 +1322,9 @@ function newindexThroughMetatable(
   return false;
 }
 
-// The value operations below are the story's own handlers, shared with the
-// binary program's engine (`ProgramStory`), which runs the same values
-// through them. `story` is either engine: what they read of it is its
+// The value operations below are the handlers the binary program's engine
+// (`ProgramStory`) runs its values through. `story` is that engine: what they
+// read of it is its
 // `state` (the globals, the evaluation stack, the output), `Error`,
 // `CallLuauFunction` and `FlowValueNamed`, and the call handlers above read
 // `FunctionTargetOf` and `EnterFunction` besides.
@@ -2072,7 +1998,7 @@ export function popLuauCondition(story: any): boolean {
 /** Ends a tag written inside a capture, as `EndTag` does there: the text
  *  written since its `BeginTag` leaves the output and becomes a tag on the
  *  evaluation stack, which the next choice takes with its text. `clean`
- *  cleans the tag's whitespace. Shared by both engines. */
+ *  cleans the tag's whitespace. */
 export function captureTag(
   story: { state: any; Error(message: string): void },
   clean: (text: string) => string,

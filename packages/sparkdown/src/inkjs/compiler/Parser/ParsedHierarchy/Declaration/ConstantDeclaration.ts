@@ -1,6 +1,5 @@
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";
@@ -65,15 +64,8 @@ export class ConstantDeclaration extends ParsedObject {
     return false;
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
-    // Global declarations don't generate actual procedural
-    // runtime objects, but instead add a global variable to the story itself.
-    // The story then initialises them all in one go at the start of the game.
-    return null;
-  };
-
-  public override ResolveWith(context: Story, program: boolean) {
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: Story) {
+    super.ResolveWith(context);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Var);
 
     // A constant is initialized before every mutable global, so it can only be

@@ -1,6 +1,3 @@
-// Loads the engine's modules in the order that settles their import cycle
-// (see `CompilationAnnotator`).
-import "../inkjs/engine/Container";
 import { NumberExpression } from "../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import { ObjectExpression } from "../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import type { Expression } from "../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";

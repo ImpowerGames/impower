@@ -1,11 +1,11 @@
 // Synthetic names minted from a source offset are unique across files. An
 // offset is a position within one file, so two files each holding a
 // synthetic at the same offset must still get names no other file shares.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { programContent } from "../programListing";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -36,19 +36,15 @@ function quiet<T>(fn: () => T): T {
   }
 }
 
-// These tests read the current engine's compiled JSON for the synthetic names
-// it holds: they compile for the current engine until #705's deletion
-// decides each one.
 function configure(compiler: SparkdownCompiler, project: Project, version: number) {
   compiler.configure({
-    programChunks: false,
     files: Object.entries(project).map(([name, text]) => file(uriOf(name), text, version)),
   });
 }
 
 function compileOnce(project: Project) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     configure(compiler, project, 1);
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
@@ -94,7 +90,7 @@ function reservedAt(program: any, source: string): string[] {
 }
 
 function globalAfterRun(program: any, name: string): unknown {
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   quiet(() => story.ContinueMaximally());
   return story.variablesState.$(name);
 }
@@ -103,7 +99,7 @@ function globalAfterRun(program: any, name: string): unknown {
 // incremental compile of the edited project beside a cold compile of it.
 function incrementalAndCold(project: Project, name: string, insert: string): [any, any] {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     configure(compiler, project, 1);
     compiler.compile({ textDocument: { uri: MAIN_URI } });
     const at = { line: 0, character: 0 };
@@ -112,24 +108,18 @@ function incrementalAndCold(project: Project, name: string, insert: string): [an
       contentChanges: [{ range: { start: at, end: at }, text: insert }],
     });
     const incremental = compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
-    const fresh = new SparkdownCompiler();
+    const fresh = testCompiler();
     configure(fresh, { ...project, [name]: insert + project[name]! }, 2);
     const cold = fresh.compile({ textDocument: { uri: MAIN_URI } }).program;
     return [incremental, cold];
   });
 }
 
-// How many distinct synthetic names a program holds.
-function synthCount(compiled: string): number {
-  return new Set(compiled.match(/__synth_\d+/g) ?? []).size;
-}
-
 // Edits `pre.sd` so it starts with the same code `shared.sd` holds (both
 // wrapped in a function of a same-length name, so the code sits at the same
-// offset of each file), and checks the incremental program against a cold
-// one. `names` is the number of synthetic names the two copies and `main`
-// hold together: each file's copy must keep names of its own.
-function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => string, names: number) {
+// offset of each file), and checks the incremental program's chunks against
+// a cold one's.
+function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => string) {
   const project: Project = {
     main: [...main, "include pre.sd", "include shared.sd", ""].join("\n"),
     pre: ["  Before.", ""].join("\n"),
@@ -138,9 +128,7 @@ function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => str
   const [incremental, cold] = incrementalAndCold(project, "pre", body("pf"));
   expect(errors(incremental)).toEqual([]);
   expect(errors(cold)).toEqual([]);
-  const incrementalText = JSON.stringify(incremental.compiled);
-  expect(synthCount(incrementalText)).toBe(names);
-  expect(incrementalText).toBe(JSON.stringify(cold.compiled));
+  expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
 }
 
 describe("synthetic names in two files", () => {
@@ -171,22 +159,17 @@ describe("synthetic names in two files", () => {
     expectCopiedCodeMatchesCold(
       ["store a = { add = function(self, n) return self end }", "store r = 0"],
       (name) => [`function ${name}()`, "  r = a:add(1):add(2)", "end", ""].join("\n"),
-      5,
     );
   });
 
   it("a numeric for loop copied into another file keeps the cold names after an edit", () => {
-    // Three temps and three labels per loop.
     expectCopiedCodeMatchesCold(
       ["store r = 0"],
       (name) => [`function ${name}()`, "  for i = 1, 2 do", "    r = r + i", "  end", "end", ""].join("\n"),
-      12,
     );
   });
 
   it("while, repeat and generic for loops copied into another file keep the cold names after an edit", () => {
-    // Two labels per `while`, three per `repeat`, and three temps and two
-    // labels per generic `for`.
     expectCopiedCodeMatchesCold(
       ["store r = 0"],
       (name) =>
@@ -204,17 +187,16 @@ describe("synthetic names in two files", () => {
           "end",
           "",
         ].join("\n"),
-      20,
     );
   });
 });
 
 // Compiles `text` in `main`, inserts `insert` at the start of the 0-based
 // `line`, and returns the incremental compile beside a cold compile of the
-// edited text, with the names of the flows the incremental compile carried.
-function editMain(text: string, line: number, insert: string): [any, any, string[]] {
+// edited text.
+function editMain(text: string, line: number, insert: string): [any, any] {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     configure(compiler, { main: text }, 1);
     compiler.compile({ textDocument: { uri: MAIN_URI } });
     const at = { line, character: 0 };
@@ -223,17 +205,16 @@ function editMain(text: string, line: number, insert: string): [any, any, string
       contentChanges: [{ range: { start: at, end: at }, text: insert }],
     });
     const incremental = compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
-    const reused = [...((compiler as any)._reusedFlowsThisCompile ?? [])].map((f: any) => f?.identifier?.name);
     const lines = text.split("\n");
     lines.splice(line, 0, ...insert.split("\n").slice(0, -1));
-    const fresh = new SparkdownCompiler();
+    const fresh = testCompiler();
     configure(fresh, { main: lines.join("\n") }, 2);
-    return [incremental, fresh.compile({ textDocument: { uri: MAIN_URI } }).program, reused];
+    return [incremental, fresh.compile({ textDocument: { uri: MAIN_URI } }).program];
   });
 }
 
 function evaluate(program: any, fn: string): unknown {
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   return quiet(() => story.EvaluateFunction(fn));
 }
 
@@ -253,17 +234,14 @@ describe("assignment temps in a carried chunk", () => {
       "end",
       "",
     ].join("\n");
-    const [incremental, cold, reused] = editMain(text, 4, "  An added line.\n");
-    expect(reused).toContain("f");
+    const [incremental, cold] = editMain(text, 4, "  An added line.\n");
     expect(errors(incremental)).toEqual([]);
     expect(errors(cold)).toEqual([]);
-    const incrementalText = JSON.stringify(incremental.compiled);
-    expect(incrementalText).toBe(JSON.stringify(cold.compiled));
-    expect(incrementalText).not.toMatch(/__pa_|__mt_/);
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
   });
 
-  // An anonymous function added above `f` shifts the ordinal of every
-  // synthetic name after it, so the carried `g` has its loop labels renamed.
+  // An anonymous function added above `f` comes ahead of every generated
+  // name after it, in the carried `g` too.
   it.each([
     ["numeric for", ["  for i = 1, 2 do", "    u.a += i", "  end"]],
     ["numeric for with a multi-target assignment", ["  for i = 1, 2 do", "    local z", "    z, u.a = i, u.a + i", "  end"]],
@@ -291,7 +269,7 @@ describe("assignment temps in a carried chunk", () => {
     ].join("\n");
     const [incremental, cold] = editMain(text, 6, "& h = function() return 9 end\n\n");
     expect(errors(incremental)).toEqual([]);
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
     expect(evaluate(incremental, "g")).toBe(3);
   });
 });
@@ -311,12 +289,13 @@ describe("authored names shaped like synthetic ones", () => {
       ].join("\n"),
     });
     expect(errors(program)).toEqual([]);
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     expect(story.HasFunction("f__redef_x__1")).toBe(true);
     expect(quiet(() => story.EvaluateFunction("f__redef_x__1"))).toBe(7);
-    expect(JSON.stringify(program.compiled)).toContain('"__anon_fn_x__1"');
-    expect(JSON.stringify(program.compiled)).toContain('"__pa_base_1"');
-    expect(JSON.stringify(program.compiled)).toContain('"__mt_1_0"');
+    // Each store keeps its name, and is read under it.
+    expect(globalAfterRun(program, "__anon_fn_x__1")).toBe(4);
+    expect(globalAfterRun(program, "__pa_base_1")).toBe(5);
+    expect(globalAfterRun(program, "__mt_1_0")).toBe(6);
   });
 
   // `__synth_<n>` is the form the compiler gives its own synthetic names, so
@@ -337,8 +316,10 @@ describe("authored names shaped like synthetic ones", () => {
       "2:__synth_0",
       "3:__synth_4",
     ]);
-    // The name keeps its value; the anonymous function is numbered past it.
-    expect(globalAfterRun(program, "__synth_0")).toBe(9);
+    // The store keeps its value for the store that reads it. (The program
+    // renames the reserved name, as the error says, so the value is read
+    // through `g` rather than under `__synth_0`.)
+    expect(globalAfterRun(program, "g")).toBe(9);
   });
 
   it("report the canonical synthetic form as reserved in flow names", () => {

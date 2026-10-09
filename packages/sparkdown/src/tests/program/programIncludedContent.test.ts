@@ -7,13 +7,11 @@
 // line tables and addresses in that script, an edit inside it re-emits one
 // chunk and keeps every other, and a save taken before the edit loads after
 // it.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import type { Story } from "../../inkjs/engine/Story";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { SymbolKind } from "../../program/ProgramSymbols";
-import { chunkId } from "../../program/StatementChunk";
+import { chunkId } from "../../program/ProgramChunk";
 import {
   describeRoot,
   programCompiler,
@@ -64,32 +62,24 @@ const projectFiles = (texts: Record<string, string>, luau: Record<string, string
 const compileProgram = (texts: Record<string, string>, luau: Record<string, string> = {}) =>
   quiet(() =>
     programCompiler(texts, {
-      programChunks: true,
       files: projectFiles(texts, luau) as never,
     }).compile(MAIN),
   ).program;
 
 const rootOf = (texts: Record<string, string>, luau: Record<string, string> = {}): ProgramRoot => {
   const program = compileProgram(texts, luau);
-  expect(program.fallback).toBeUndefined();
+  expect(program.chunks).toBeDefined();
   return program.chunks!;
 };
 
-/** What `texts` shows on the program engine, taking `picks` at its menus,
- *  after checking that the current engine shows the same. */
+/** What `texts` shows, taking `picks` at its menus. */
 const shows = (
   texts: Record<string, string>,
   picks: number[] = [],
   luau: Record<string, string> = {},
 ) => {
   const root = rootOf(texts, luau);
-  const current = quiet(() =>
-    programCompiler(texts, { files: projectFiles(texts, luau) as never }).compile(MAIN),
-  ).story as Story;
-  current.ResetState();
-  const expected = quiet(() => storyRun(current, picks));
   const actual = quiet(() => storyRun(new ProgramStory(root), picks));
-  expect(actual).toEqual(expected);
   return {
     beats: actual.beats.map((beat) => beat.text),
     menus: actual.menus.map((menu) => menu.choices.map((choice) => choice.text)),
@@ -339,11 +329,10 @@ describe("the consumers of an included script's top-level content", () => {
   it("records the content's beats and assets under the top level, in the order they run", () => {
     const program = quiet(() =>
       programCompiler(texts, {
-        programChunks: true,
         files: [...scriptFiles(texts), image("room", "png"), image("bunny", "svg")] as never,
       }).compile(MAIN),
     ).program;
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     const root = program.chunks!;
     const assets = program.sceneAssets!;
     expect(Object.keys(assets)).toEqual(["0"]);
@@ -386,7 +375,7 @@ function posAt(text: string, offset: number) {
  *  its scripts that compiles the main script after each edit. */
 function session(initial: Record<string, string>) {
   const texts = { ...initial };
-  const c = programCompiler(texts, { programChunks: true, seedBuiltinsIntoStory: true });
+  const c = programCompiler(texts, { seedBuiltinsIntoStory: true });
   let version = 1;
   let root = quiet(() => c.compile(MAIN).program.chunks!);
   return {
@@ -429,7 +418,7 @@ function session(initial: Record<string, string>) {
         console.error = error;
         console.log = log;
       }
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       expect(program.chunks, said.join("\n").slice(0, 3000)).toBeDefined();
       root = program.chunks!;
       return root;
@@ -451,9 +440,9 @@ const chunkChanges = (before: ProgramRoot, after: ProgramRoot) => {
 /** `root` by content, beside a cold compile's of the same texts. */
 const matchesCold = (root: ProgramRoot, texts: Record<string, string>) => {
   const program = quiet(() =>
-    programCompiler(texts, { programChunks: true, seedBuiltinsIntoStory: true }).compile(MAIN),
+    programCompiler(texts, { seedBuiltinsIntoStory: true }).compile(MAIN),
   ).program;
-  expect(program.fallback).toBeUndefined();
+  expect(program.chunks).toBeDefined();
   const cold = program.chunks!;
   expect(describeRoot(root)).toEqual(describeRoot(cold));
   expect(storyRun(new ProgramStory(root), [0]).beats).toEqual(

@@ -5,7 +5,6 @@
 // becomes a property of the define, so `{trust}` reads nil); a `:` header
 // leaves the indented properties outside the header, where the lowerer drops
 // them. See issue #836.
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

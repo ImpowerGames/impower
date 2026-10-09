@@ -1,38 +1,18 @@
-// Reuse of the two per-flow caches when content OUTSIDE every flow changes.
+// Incremental compiles when content OUTSIDE every flow changes.
 //
-// Both caches — the serialized-bytecode memo consulted by `computeFlowReuse`
-// and the location/asset cache consulted by `populateAllLocations` — hold a
-// flow's result across compiles and re-serve it when that flow's own source
-// chunks did not change. That is only sound while an unchanged flow's
-// generated shape is stable, so the compiler answers a second question once
-// per compile: can anything this compile have changed the shape of a flow
-// whose own chunks are unchanged?
-//
-// The answer is position-independent. Top-level flows are name-addressed in
-// the runtime's `namedOnlyContent`, so their internal index-addressed paths do
-// not move when content outside them grows or shrinks, and constants and
-// globals are read through runtime variable lookups rather than copied into
-// referencing flows (#309). What does change a flow's shape is a declared
-// NAME entering or leaving the program, a change to the `include`/`run`/
-// `external` structure, or a callee's parameter list — and each of those is
-// detected wherever in the document it is written. (A list definition is the
-// fourth such hazard, and has no test here because authored Sparkdown has no
-// list syntax; see the `_unchangedFlowShapeAtRisk` declaration.)
-//
-// So the tests pair each case with the position it sits at, and there is one
-// per detector a script can actually reach, so a feed that stops arming the
-// guard turns this file red rather than passing quietly. Each asserts the
-// reuse DECISION rather than only that the output matches a cold compile: a
-// flow served from a valid cache and a flow rebuilt from scratch produce the
-// same bytes, so output equality alone cannot tell a working cache from a
-// disabled one.
-import "../../inkjs/engine/Container";
+// An unchanged flow's statements can still compile differently after an edit
+// elsewhere: a declared NAME entering or leaving the program, a change to the
+// `include`/`run`/`external` structure, or a callee's parameter list each
+// changes how call sites in flows whose own source never changed compile.
+// Other edits outside a flow — a constant's value or type, loose prose after
+// the last flow — change no other flow. Each case below is written at the
+// position it is about, and after a warm-up edit inside a scene, the
+// incremental compile has to build the chunks and report the diagnostics a
+// cold compile of the same text does.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { currentEngineCompiler } from "../engineUnderTest";
 import { File } from "../../compiler/types/File";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { servedFlowNames } from "./servedFlows";
+import { describeRoot } from "../program/describeRoot";
 
 const URI = "file://proj/main.sd";
 const SCENES = 12;
@@ -46,46 +26,6 @@ const file = (text: string, version: number): File => ({
   version,
   languageId: "sparkdown",
 });
-
-/**
- * Exposes both reuse decisions, which are made independently.
- *
- * `computeFlowReuse`'s verdict is a set of flow names that never reaches the
- * compiled output, so it is recorded as it is computed. The location and asset
- * guard's verdict is read from the per-flow asset captures: a flow it reused
- * contributes the very object it produced last compile, a recomputed one
- * contributes a new object, so object identity tells the two apart.
- */
-class Probe extends SparkdownCompiler {
-  lastBytecodeReuse?: { reusable: Set<string>; ok: boolean };
-  private previousFlowCache?: Map<string, { value: unknown }>;
-
-  // The caches are the current engine's compile path, which #705's deletion
-  // removes with this test, or moves it.
-  constructor() {
-    super();
-    this.configure({ programChunks: false });
-  }
-
-  captures(): Map<string, unknown> {
-    return new Map(this._flowAssetAccum ?? []);
-  }
-
-  /** The flows the last compile served from the serialized-flow cache. */
-  servedFlows(): string[] {
-    return servedFlowNames(this._flowJsonCache, this.previousFlowCache);
-  }
-
-  protected override computeFlowReuse(story: RuntimeStory) {
-    this.previousFlowCache = this._flowJsonCache;
-    const result = super.computeFlowReuse(story);
-    this.lastBytecodeReuse = {
-      reusable: new Set(result.reusable),
-      ok: result.ok,
-    };
-    return result;
-  }
-}
 
 function posAt(text: string, offset: number) {
   let line = 0;
@@ -112,7 +52,7 @@ function quiet<T>(fn: () => T): T {
   }
 }
 
-/** Key-sorted JSON, so two compiled programs compare structurally. */
+/** Key-sorted JSON, so two programs compare structurally. */
 const stable = (value: unknown): string => {
   const seen = new WeakSet();
   const walk = (x: any): any => {
@@ -159,8 +99,9 @@ function edit(
   return text.slice(0, offset) + replace + text.slice(offset + find.length);
 }
 
-/** The player worker's configuration, which is where reuse actually runs. */
-function configured<T extends SparkdownCompiler>(compiler: T, text: string): T {
+/** The player worker's configuration. */
+function configured(text: string): SparkdownCompiler {
+  const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
@@ -169,25 +110,23 @@ function configured<T extends SparkdownCompiler>(compiler: T, text: string): T {
   return compiler;
 }
 
-function compiledOf(compiler: SparkdownCompiler) {
-  return (compiler.compile({ textDocument: { uri: URI } } as any) as any).program
-    .compiled;
+/** A compile's chunks by content and its diagnostics. */
+function compiledOf(compiler: SparkdownCompiler): string {
+  const program = (compiler.compile({ textDocument: { uri: URI } } as any) as any).program;
+  return stable({
+    chunks: program.chunks ? describeRoot(program.chunks) : null,
+    diagnostics: program.diagnostics,
+  });
 }
 
-function coldCompiledOf(text: string) {
-  return compiledOf(configured(currentEngineCompiler(), text));
+function coldCompiledOf(text: string): string {
+  return compiledOf(configured(text));
 }
 
 /**
  * Twelve five-line scenes with `const LIMIT = 5` on line 0 and the first scene
- * on line 2, so every scene is far enough from the preamble that only the
- * first one is adjacent to it.
- *
- * Every scene READS the constant. That matters: a scene that never mentions
- * `LIMIT` would keep its reuse whatever the constant did, so the constant
- * tests below would pass over dead code. Reading it puts a variable reference
- * in each scene's bytecode, which is what a cached flow would carry across a
- * change to the constant.
+ * on line 2. Every scene READS the constant, so each scene's code refers to
+ * it.
  */
 function fixture(): string {
   const lines: string[] = ["const LIMIT = 5", ""];
@@ -201,132 +140,52 @@ function fixture(): string {
   return lines.join("\n");
 }
 
-type Outcome = {
-  /** Did the bytecode guard allow any reuse at all this compile? */
-  bytecodeGuardOk: boolean;
-  /** Flows the bytecode guard cleared for reuse. */
-  bytecodeReused: number;
-  /** Flows the location and asset guard actually re-served. */
-  locationsReused: number;
-  /** Does the incremental program equal a cold compile of the same text? */
-  matchesCold: boolean;
-};
-
 /**
- * Compile the fixture, warm both caches with one in-scene edit, then apply
- * `second` and report what the next compile reused.
+ * Compile `text`, make the warm-up edit `warm`, then apply each of `steps`,
+ * and require the incremental compile after each step to equal a cold
+ * compile of the same text.
  */
-function measure(second: { find: string; replace: string }): Outcome {
-  return quiet(() => {
-    let text = fixture();
-    const compiler = configured(new Probe(), text);
+function expectMatchesCold(
+  text: string,
+  warm: { find: string; replace: string },
+  ...steps: { find: string; replace: string }[]
+) {
+  quiet(() => {
+    const compiler = configured(text);
     compiler.compile({ textDocument: { uri: URI } } as any);
-
-    text = edit(compiler, text, "Line 3 of", "Line 3 from", 2);
+    text = edit(compiler, text, warm.find, warm.replace, 2);
     compiler.compile({ textDocument: { uri: URI } } as any);
-    const warmCaptures = compiler.captures();
-
-    text = edit(compiler, text, second.find, second.replace, 3);
-    const compiled = compiledOf(compiler);
-    const afterCaptures = compiler.captures();
-
-    let locationsReused = 0;
-    for (const [name, capture] of afterCaptures) {
-      // "0" is the root's pseudo-flow, which is never cached.
-      if (name !== "0" && warmCaptures.get(name) === capture) {
-        locationsReused++;
-      }
-    }
-    const bytecode = compiler.lastBytecodeReuse!;
-    return {
-      bytecodeGuardOk: bytecode.ok,
-      bytecodeReused: bytecode.reusable.size,
-      locationsReused,
-      matchesCold: stable(compiled) === stable(coldCompiledOf(text)),
-    };
+    steps.forEach((step, i) => {
+      text = edit(compiler, text, step.find, step.replace, 3 + i);
+      expect(compiledOf(compiler), `after ${JSON.stringify(step.replace)}`).toBe(
+        coldCompiledOf(text),
+      );
+    });
   });
 }
 
-describe("incremental reuse when content outside a flow changes", () => {
-  // An in-scene edit is the reference point every other case is read against:
-  // it is the shape reuse is designed for, and it reuses everything but the
-  // edited scene.
-  const IN_SCENE_BASELINE = SCENES - 1;
+const WARM = { find: "Line 3 of", replace: "Line 3 from" };
 
-  it("an in-scene edit reuses every other flow in both caches", () => {
-    const outcome = measure({
-      find: "Line 7 of",
-      replace: "Line 7 from",
-    });
-    expect(outcome.bytecodeGuardOk).toBe(true);
-    expect(outcome.bytecodeReused).toBe(IN_SCENE_BASELINE);
-    expect(outcome.locationsReused).toBe(IN_SCENE_BASELINE);
-    expect(outcome.matchesCold).toBe(true);
+describe("incremental compiles when content outside a flow changes", () => {
+  it("an in-scene edit compiles as a cold compile does", () => {
+    expectMatchesCold(fixture(), WARM, { find: "Line 7 of", replace: "Line 7 from" });
   });
 
-  // #309 made a constant an ordinary global initialized once rather than a
-  // value copied into every referencing flow, so its VALUE cannot change any
-  // flow's shape. Editing one above the first scene therefore has to keep
-  // reuse — asserted as a count, because the compiled output of a correctly
-  // reused flow and a rebuilt one are identical.
-  //
-  // The counts are `at least` the in-scene baseline rather than exactly it.
-  // What the case is about is that reuse survives at all, where it used to
-  // drop to zero; whether the scene ADJACENT to the preamble also survives
-  // depends on where the parser happens to end the preamble's chunk, and
-  // pinning that would turn a parser improvement into a red test.
-  it("editing a constant's value above the first flow keeps reuse in both caches", () => {
-    const outcome = measure({
-      find: "const LIMIT = 5",
-      replace: "const LIMIT = 6",
-    });
-    expect(outcome.bytecodeGuardOk).toBe(true);
-    expect(outcome.bytecodeReused).toBeGreaterThanOrEqual(IN_SCENE_BASELINE);
-    expect(outcome.locationsReused).toBeGreaterThanOrEqual(IN_SCENE_BASELINE);
-    expect(outcome.matchesCold).toBe(true);
+  it("editing a constant's value above the first flow compiles as a cold compile does", () => {
+    expectMatchesCold(fixture(), WARM, { find: "const LIMIT = 5", replace: "const LIMIT = 6" });
   });
 
-  // Retyping the constant, not just renumbering it, is the case the guard's
-  // own superseded comment named: a constant used to be inlined at generation
-  // and a string expanded to a different number of runtime objects than a
-  // number, so retyping shifted sibling indices inside untouched flows. Since
-  // #309 the scenes hold a variable reference rather than the value, and the
-  // reference serializes the same whatever the constant's type, so reuse must
-  // survive this too — and the cold comparison is what would catch it if the
-  // type ever leaked back into a cached flow.
-  it("retyping a constant above the first flow keeps reuse in both caches", () => {
-    const outcome = measure({
-      find: "const LIMIT = 5",
-      replace: 'const LIMIT = "five"',
-    });
-    expect(outcome.bytecodeGuardOk).toBe(true);
-    expect(outcome.bytecodeReused).toBeGreaterThanOrEqual(IN_SCENE_BASELINE);
-    expect(outcome.locationsReused).toBeGreaterThanOrEqual(IN_SCENE_BASELINE);
-    expect(outcome.matchesCold).toBe(true);
+  it("retyping a constant above the first flow compiles as a cold compile does", () => {
+    expectMatchesCold(fixture(), WARM, { find: "const LIMIT = 5", replace: 'const LIMIT = "five"' });
   });
 
-  // Loose prose after the last scene is root content: it becomes part of the
-  // root's own positional prefix, which is never cached, and reaches no named
-  // flow. Nothing is invalidated, and unlike the case above not even the
-  // adjacent scene, since the insertion is below every flow's body.
-  it("loose text after the last flow keeps reuse in both caches", () => {
-    const outcome = measure({
+  it("loose text after the last flow compiles as a cold compile does", () => {
+    expectMatchesCold(fixture(), WARM, {
       find: `  -> s0\nend`,
       replace: `  -> s0\nend\n\nA trailing line of prose.`,
     });
-    expect(outcome.bytecodeGuardOk).toBe(true);
-    expect(outcome.bytecodeReused).toBe(SCENES);
-    expect(outcome.locationsReused).toBe(SCENES);
-    expect(outcome.matchesCold).toBe(true);
   });
 
-  // A declared name entering the program is a real hazard: generation
-  // consults `story.variableDeclarations` when resolving call targets, so a
-  // new name can change the codegen of call sites in flows whose own source
-  // did not change. Position must not matter — these three write the same
-  // kind of declaration above the first flow, between two flows, and after
-  // the last flow, and all three must refuse reuse. Remove the invalidation
-  // and the between/after cases start re-serving stale flows.
   for (const [where, step] of [
     [
       "above the first flow",
@@ -341,25 +200,23 @@ describe("incremental reuse when content outside a flow changes", () => {
       { find: `  -> s0\nend`, replace: `  -> s0\nend\n\nstore extra = 1` },
     ],
   ] as const) {
-    it(`declaring a global ${where} refuses reuse in both caches`, () => {
-      const outcome = measure(step);
-      expect(outcome.bytecodeGuardOk).toBe(false);
-      expect(outcome.bytecodeReused).toBe(0);
-      expect(outcome.locationsReused).toBe(0);
-      expect(outcome.matchesCold).toBe(true);
+    it(`declaring a global ${where} compiles as a cold compile does`, () => {
+      expectMatchesCold(fixture(), WARM, step);
     });
   }
+
+  it("changing an external declaration's arity compiles as a cold compile does", () => {
+    expectMatchesCold(
+      fixture().replace("const LIMIT = 5", "const LIMIT = 5\nexternal myAction()"),
+      WARM,
+      { find: "external myAction()", replace: "external myAction(a)" },
+    );
+  });
 });
 
-// The hazard above, made observable in the compiled output rather than only in
-// a reuse count. Every scene calls a flow that takes a parameter; declaring a
-// global with that flow's name shadows it, which flips each call site from
-// knot-call codegen to variable-target codegen. The calling scenes' own source
-// never changes, so a cache that re-serves them emits the pre-shadowing
-// bytecode and the program stops matching a cold compile of the same text.
-//
-// The declaration is written between two scenes on purpose: it is the position
-// a rule that only looks above the first flow cannot see.
+// Every scene calls a flow that takes a parameter; declaring a global with
+// that flow's name shadows it, which changes how each call site compiles
+// though the calling scenes' own source never changes.
 describe("a global that shadows a flow name", () => {
   function shadowFixture(): string {
     const lines: string[] = [];
@@ -377,62 +234,26 @@ describe("a global that shadows a flow name", () => {
     return lines.join("\n");
   }
 
+  const SHADOW_WARM = { find: "Line 3.", replace: "Line 3!" };
+
   for (const where of ["above the first flow", "between two flows"] as const) {
-    it(`declared ${where}, the calling flows are not served from cache`, () => {
-      quiet(() => {
-        let text = shadowFixture();
-        const compiler = configured(new Probe(), text);
-        compiler.compile({ textDocument: { uri: URI } } as any);
-        text = edit(compiler, text, "Line 3.", "Line 3!", 2);
-        compiler.compile({ textDocument: { uri: URI } } as any);
-
-        const anchor = where === "above the first flow" ? "scene s0" : "scene s6";
-        text = edit(compiler, text, anchor, `store helper = 1\n\n${anchor}`, 3);
-        const compiled = compiledOf(compiler);
-
-        expect(compiler.lastBytecodeReuse?.ok).toBe(false);
-        expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
+    it(`declared ${where}, the calling flows compile as a cold compile does`, () => {
+      const anchor = where === "above the first flow" ? "scene s0" : "scene s6";
+      expectMatchesCold(shadowFixture(), SHADOW_WARM, {
+        find: anchor,
+        replace: `store helper = 1\n\n${anchor}`,
       });
     });
   }
 
-  // The callee's parameter list is baked into its CALLERS' bytecode at their
-  // generation time, so changing it has to invalidate flows whose own source
-  // is untouched. That is the flow-signature detector. This test and the
-  // anonymous function's parameter-list test below are the two that reach it:
-  // nothing else here changes a signature, so if its feed into the shape-risk
-  // field were removed, every other test would still pass while the callers
-  // were served pre-change bytecode.
-  it("changing a callee's parameter list refuses reuse for its callers", () => {
-    quiet(() => {
-      let text = shadowFixture();
-      const compiler = configured(new Probe(), text);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      text = edit(compiler, text, "Line 3.", "Line 3!", 2);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      expect(compiler.lastBytecodeReuse?.ok).toBe(true);
-
-      text = edit(
-        compiler,
-        text,
-        "scene helper(n: number)",
-        "scene helper(n: number, m: number)",
-        3,
-      );
-      const compiled = compiledOf(compiler);
-
-      expect(compiler.lastBytecodeReuse?.ok).toBe(false);
-      expect(compiler.lastBytecodeReuse?.reusable.size).toBe(0);
-      expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
+  it("changing a callee's parameter list compiles its callers as a cold compile does", () => {
+    expectMatchesCold(shadowFixture(), SHADOW_WARM, {
+      find: "scene helper(n: number)",
+      replace: "scene helper(n: number, m: number)",
     });
   });
 });
 
-// An anonymous function is lowered under a name derived from its source
-// offset and renamed to `__synth_<n>` before the program is exported. The
-// flow-signature detector has to compare the same name on both sides of an
-// edit, or a function whose parameters never changed reads as a changed
-// callee and every untouched flow is regenerated.
 describe("a script holding an anonymous function", () => {
   const script = () =>
     [
@@ -446,147 +267,15 @@ describe("a script holding an anonymous function", () => {
       "",
       "store f = function(n) return n end",
     ].join("\n");
-  // The scenes the reuse decision names, leaving out the flows the builtins
-  // prelude contributes.
-  const reusedScenes = (compiler: Probe) =>
-    [...compiler.lastBytecodeReuse!.reusable].filter((n) => /^s\d+$/.test(n));
 
-  it("the first edit after a cold compile reuses the untouched flow", () => {
-    quiet(() => {
-      let text = script();
-      const compiler = configured(new Probe(), text);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      const verdicts: { reusable: string[]; served: string[]; ok: boolean }[] = [];
-      for (const version of [2, 3]) {
-        text = edit(compiler, text, "Hi.", "Hi.", version);
-        const compiled = compiledOf(compiler);
-        verdicts.push({
-          reusable: reusedScenes(compiler),
-          served: compiler.servedFlows().filter((n) => /^s\d+$/.test(n)),
-          ok: compiler.lastBytecodeReuse!.ok,
-        });
-        expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
-      }
-      expect(verdicts).toEqual([
-        { reusable: ["s1"], served: ["s1"], ok: true },
-        { reusable: ["s1"], served: ["s1"], ok: true },
-      ]);
-    });
+  it("edits after a cold compile compile as a cold compile does", () => {
+    expectMatchesCold(script(), { find: "Hi.", replace: "Hi." }, { find: "Hi.", replace: "Hi." });
   });
 
-  // The same detector must still see a real change to the function's
-  // parameter list through the rename.
-  it("changing the function's parameter list refuses reuse", () => {
-    quiet(() => {
-      let text = script();
-      const compiler = configured(new Probe(), text);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      text = edit(compiler, text, "Hi.", "Hi!", 2);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      expect(compiler.lastBytecodeReuse?.ok).toBe(true);
-
-      text = edit(compiler, text, "function(n)", "function(n, m)", 3);
-      const compiled = compiledOf(compiler);
-      expect(compiler.lastBytecodeReuse?.ok).toBe(false);
-      expect(compiler.lastBytecodeReuse?.reusable.size).toBe(0);
-      expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
-    });
-  });
-});
-
-// The remaining reachable detectors, one test each, so a feed that stops
-// firing turns this file red rather than passing quietly. (The list detector
-// has no test because authored Sparkdown has no list syntax — see the
-// `_unchangedFlowShapeAtRisk` declaration.)
-describe("the other detectors that arm the shape-risk guard", () => {
-  // An `external` declaration decides whether a call site compiles to an
-  // external call, which a cached flow cannot re-derive. Its name and arity
-  // are the root-region structure descriptor, alongside `include` and `run`
-  // targets. (The keyword is lowercase; ink's uppercase `EXTERNAL` is not
-  // Sparkdown syntax and parses as ordinary content.)
-  //
-  // The edit changes the ARITY and leaves the NAME alone, on purpose. Adding
-  // or removing an external also moves the declared-name census, so a test
-  // that added one would pass on the census detector alone and say nothing
-  // about this one. Only the arity distinguishes them.
-  it("changing an external declaration's arity refuses reuse in both caches", () => {
-    const withExternal = () =>
-      fixture().replace(
-        "const LIMIT = 5",
-        "const LIMIT = 5\nexternal myAction()",
-      );
-    const outcome = quiet(() => {
-      let text = withExternal();
-      const compiler = configured(new Probe(), text);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      text = edit(compiler, text, "Line 3 of", "Line 3 from", 2);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      const warm = compiler.captures();
-      expect(compiler.lastBytecodeReuse?.ok).toBe(true);
-
-      text = edit(compiler, text, "external myAction()", "external myAction(a)", 3);
-      const compiled = compiledOf(compiler);
-      const after = compiler.captures();
-      let locationsReused = 0;
-      for (const [name, capture] of after) {
-        if (name !== "0" && warm.get(name) === capture) {
-          locationsReused++;
-        }
-      }
-      return {
-        ok: compiler.lastBytecodeReuse!.ok,
-        reused: compiler.lastBytecodeReuse!.reusable.size,
-        locationsReused,
-        matchesCold: stable(compiled) === stable(coldCompiledOf(text)),
-      };
-    });
-    expect(outcome.ok).toBe(false);
-    expect(outcome.reused).toBe(0);
-    expect(outcome.locationsReused).toBe(0);
-    expect(outcome.matchesCold).toBe(true);
-  });
-
-  // A compile that throws drops the declared-name census baseline, so the
-  // NEXT compile cannot detect a name change — the signal both caches lean on
-  // hardest. That compile has to refuse them. The throw is injected rather
-  // than provoked from source, because a script that makes the compiler throw
-  // would be a bug worth fixing on its own.
-  //
-  // This pins the BEHAVIOUR, not the mechanism. Deleting the next-compile
-  // latch alone leaves it green, because the same catch block also drops the
-  // root-region descriptor baseline, and that detector then arms the guard on
-  // the next compile by itself. The latch is kept anyway: it states the
-  // requirement where the census is dropped rather than leaving it resting on
-  // a second, unrelated line of cleanup.
-  it("the compile after one that threw refuses reuse in both caches", () => {
-    quiet(() => {
-      let text = fixture();
-      const compiler = configured(new Probe(), text);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      text = edit(compiler, text, "Line 3 of", "Line 3 from", 2);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      expect(compiler.lastBytecodeReuse?.ok).toBe(true);
-
-      // `compile` catches and swallows, so the throw shows up as the compile
-      // running its recovery path rather than as an exception here.
-      const real = compiler.populateAllLocations.bind(compiler);
-      let threw = false;
-      (compiler as any).populateAllLocations = () => {
-        threw = true;
-        throw new Error("injected");
-      };
-      text = edit(compiler, text, "Line 4 of", "Line 4 from", 3);
-      compiler.compile({ textDocument: { uri: URI } } as any);
-      (compiler as any).populateAllLocations = real;
-      expect(threw).toBe(true);
-
-      // The compile after the throw: nothing about its own edit is hazardous,
-      // yet both caches must be refused because the census baseline is gone.
-      text = edit(compiler, text, "Line 5 of", "Line 5 from", 4);
-      const compiled = compiledOf(compiler);
-      expect(compiler.lastBytecodeReuse?.ok).toBe(false);
-      expect(compiler.lastBytecodeReuse?.reusable.size).toBe(0);
-      expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
+  it("changing the function's parameter list compiles as a cold compile does", () => {
+    expectMatchesCold(script(), { find: "Hi.", replace: "Hi!" }, {
+      find: "function(n)",
+      replace: "function(n, m)",
     });
   });
 });

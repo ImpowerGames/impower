@@ -1,4 +1,4 @@
-import type { StatementChunk } from "./StatementChunk";
+import type { ProgramChunk } from "./ProgramChunk";
 
 /** One part of a statement: the fingerprint of the part's own source, by
  *  which a re-emit aligns it (section 2), its anonymous symbol, in the table
@@ -35,7 +35,7 @@ const CHUNK_PART_KINDS: readonly ChunkPartKind[] = [
   "heads",
 ];
 
-const parts = new WeakMap<StatementChunk, ChunkParts>();
+const parts = new WeakMap<ProgramChunk, ChunkParts>();
 
 const copyParts = (list: readonly Partial<ChunkPart>[] | undefined): ChunkPart[] =>
   (list ?? []).map(({ fingerprint, symbol, block }) => ({
@@ -51,7 +51,7 @@ const copyParts = (list: readonly Partial<ChunkPart>[] | undefined): ChunkPart[]
  *  table generation it was emitted in, so its parts are recorded once, as
  *  emitted. */
 export const recordChunkParts = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   record: {
     functions: readonly Partial<ChunkPart>[];
     alternators: readonly Partial<ChunkPart>[];
@@ -71,13 +71,13 @@ export const recordChunkParts = (
 
 /** The parts the chunk store recorded for a chunk, or nothing for a chunk
  *  it did not emit. */
-export const chunkPartsOf = (chunk: StatementChunk): ChunkParts | undefined =>
+export const chunkPartsOf = (chunk: ProgramChunk): ChunkParts | undefined =>
   parts.get(chunk);
 
 /** The part of `chunk` that heads its block `block`: its kind and its
  *  ordinal among the chunk's parts of that kind, or nothing. */
 export const partOfBlock = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   block: number,
 ): { kind: ChunkPartKind; index: number } | undefined => {
   const recorded = parts.get(chunk);

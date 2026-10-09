@@ -12,20 +12,14 @@
 // completes with the choices unless the run shows something first.
 
 import { describe, expect, test } from "vitest";
-import {
-  currentEngineCompiler,
-  testCompiler,
-  testStory,
-} from "../engineUnderTest";
-import { pathLocation } from "../../compiler/utils/pathLocationTable";
-import { Story as CurrentStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory, type TestStory } from "../engineUnderTest";
 import {
   continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 import { programListing, stringCount } from "../programListing";
-type RuntimeStory = CurrentStory;
+type RuntimeStory = TestStory;
 
 type Routing = { target?: string; character?: string };
 
@@ -112,7 +106,7 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
-  const all = programListing(ctx.compiledJson);
+  const all = programListing(ctx.root);
   return {
     display: all.filter((t) => /^CallStd display\/1\b/.test(t)).length,
     open: stringCount(all, "open"),
@@ -516,7 +510,7 @@ end
       { "api.sd": `external ring()\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = testStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     let rings = 0;
     story.BindExternalFunction("ring", () => {
       rings++;
@@ -532,7 +526,7 @@ end
       { "api.sd": `function aside()\n  print("Aside.")\nend\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = testStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     expect(story.Continue()).toBe("Pick.\n");
   });
 
@@ -668,49 +662,6 @@ end
     again.story.state.LoadJson(saved);
     again.story.ChoosePathString("other");
     expect(again.story.Continue()).toBe("Elsewhere.\n");
-  });
-
-  // What the preview credits a line to: the continue that shows it. The line
-  // that shows after the caption ran in the caption's continue, and is
-  // reported in the next one, which shows it.
-  //
-  // This runs on the current engine: the program engine reports the line's
-  // instructions in the caption's continue, where they run, and not in the
-  // continue that shows them (#705 records it; the deletion decides it).
-  test("reports the lines the carried step ran in the continue that shows them", () => {
-    const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
-    const compiler = currentEngineCompiler();
-    compiler.configure({
-      files: [
-        {
-          uri: URI,
-          type: "script" as const,
-          name: "main",
-          ext: "sd",
-          text: source,
-          version: 1,
-          languageId: "sparkdown",
-        },
-      ],
-    });
-    const program = compiler.compile({ textDocument: { uri: URI } }).program;
-    expect(errorsIn(program)).toEqual([]);
-    const story = new CurrentStory(program.compiled as Record<string, any>);
-    const line = source
-      .split("\n")
-      .findIndex((l) => l.includes("Something shows first."));
-    let ran = new Set<number>();
-    story.onExecute = (path) => {
-      const location = pathLocation(program.pathLocations, path);
-      if (location) ran.add(location[1]!);
-    };
-    const caption = source.split("\n").findIndex((l) => l.includes("Pick."));
-    expect(story.Continue()).toBe("Pick.\n");
-    expect(ran.has(line)).toBe(false);
-    expect(ran.has(caption)).toBe(true);
-    ran = new Set();
-    expect(story.Continue()).toBe("Something shows first.\n");
-    expect(ran.has(line)).toBe(true);
   });
 
   test("keeps what it carries through a host's function call", () => {

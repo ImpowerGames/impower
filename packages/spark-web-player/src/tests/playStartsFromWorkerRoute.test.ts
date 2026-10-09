@@ -52,8 +52,8 @@ function recordingGame(startAddress: string | null) {
     state: "initial",
     startAddress,
     simulateFlow: undefined as string | null | undefined,
-    // The flow a route to an address starts from: on the current engine, the
-    // address's top-level flow.
+    // The flow a route to an address starts from: here, the address's first
+    // segment.
     routeStartOf: (address: string) => address.split(".")[0] || "0",
     simulation: undefined as string | undefined,
     // `programIdentity` reads these; `version` is deliberately not part of it.

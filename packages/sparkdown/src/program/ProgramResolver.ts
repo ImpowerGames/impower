@@ -1,6 +1,3 @@
-// Loads the engine's modules in the order that settles their import cycle
-// (see `CompilationAnnotator`).
-import "../inkjs/engine/Container";
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import {
@@ -91,8 +88,8 @@ export function resetSubtreeRuntime(node: ParsedObject): void {
  *  counted the way the chunk store counts its passes. */
 export interface ResolverPasses {
   /** Whether it resolved every statement: the first resolve, one after a
-   *  compile that resolved otherwise (a program that fell back), or one
-   *  after a resolution that stopped. */
+   *  reconfigure (`invalidate`), or one after a resolution or generation
+   *  that stopped. */
   cold: boolean;
   /** The statements the walk of the story listed, a few lookups each: the
    *  objects the compile placed for a block, a flow's header, and a function
@@ -135,8 +132,7 @@ export interface ResolverPasses {
   /** Statements served from their memos (`MemoizedStatement`) whose
    *  diagnostics and reads the resolve repeated where they stand. */
   memoized: number;
-  /** Whether the resolution stopped at an object that threw, as the current
-   *  engine's `ExportRuntime` stops. */
+  /** Whether the resolution stopped at an object that threw. */
   stopped: boolean;
 }
 
@@ -415,9 +411,9 @@ const parametersOf = (flow: FlowBase) =>
  * The resolver of the program path (#1607; docs/engine/binary-program.md,
  * sections 1 and 2, and What is built, The incremental passes).
  *
- * A compile with statement chunks on resolves its references here, in place
- * of the current engine's `ExportRuntime`, and builds no runtime tree. It
- * makes the passes of a cold `ExportRuntime` in its order: it declares the
+ * A compile resolves its references here, and builds no runtime tree. It
+ * makes the passes of a cold `ExportRuntime` in its order, as the deleted object
+ * engine ran them before #705: it declares the
  * story's constants, lists and structs, names each flow's labels, generates
  * the statements (which declares their globals and locals and reports what
  * generation reports), initializes the globals, and resolves every
@@ -560,8 +556,8 @@ export class ProgramResolver {
     };
   }
 
-  /** Makes the next resolve resolve every statement: the story was resolved
-   *  otherwise since (`ExportRuntime`, for a program that fell back). */
+  /** Makes the next resolve resolve every statement: a reconfigure can
+   *  change what any statement resolves to (`SparkdownCompiler.configure`). */
   invalidate(): void {
     this._needsCold = true;
   }
@@ -837,13 +833,12 @@ export class ProgramResolver {
       }
     };
     try {
-      story.BeginResolution(
-        (message, type, metadata) => this.reported(message, type, metadata),
-        true,
+      story.BeginResolution((message, type, metadata) =>
+        this.reported(message, type, metadata),
       );
 
       // The story's constants, lists and structs, which it declares ahead of
-      // every other global (`ExportRuntime`), from each statement's, in the
+      // every other global, from each statement's, in the
       // story's order.
       const consts: ConstantDeclaration[] = [];
       const lists: ListDefinition[] = [];
@@ -917,9 +912,9 @@ export class ProgramResolver {
       // walk of its weave finds them.
       this.nameFlow(story);
 
-      // Generation: every statement generated anew, or what generating it
+      // Preparation: every statement prepared anew, or what preparing it
       // last did done again.
-      story.BeginGeneration(false);
+      story.BeginPreparation();
       this.generateFlow(root);
 
       const implicitParentNames = story.DeclareImplicitParents(structs);
@@ -941,7 +936,7 @@ export class ProgramResolver {
         this.readFacts(unit);
       }
 
-      // Resolution, which a throw stops as it stops `ExportRuntime`.
+      // Resolution, which a throw stops.
       story.BeginReferenceResolution();
       try {
         this.resolveFlow(root);
@@ -952,8 +947,7 @@ export class ProgramResolver {
         this._needsCold = true;
       }
     } catch (e) {
-      // A throw out of generation ends the compile, as one out of
-      // `ExportRuntime` does.
+      // A throw out of generation ends the compile.
       this._needsCold = true;
       throw e;
     } finally {
@@ -1727,7 +1721,7 @@ export class ProgramResolver {
           this.resolveUnit(item.unit);
           break;
         case "loose":
-          resolveChild(item.obj, story, true);
+          resolveChild(item.obj, story);
           break;
         case "flow":
           this.resolveFlow(item.node);
@@ -1746,7 +1740,7 @@ export class ProgramResolver {
     }
     this.record(unit, unit.next!.resolve, () => {
       for (const member of unit.members) {
-        resolveChild(member, this._story, true);
+        resolveChild(member, this._story);
       }
     });
   }

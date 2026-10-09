@@ -7,23 +7,14 @@
 // chunk. The block scopes as Luau does (#1575): a `do` block's local is gone
 // after its `end`, a loop's pass reads its own variables, and a statement
 // after the block's `end` is the preamble's, run before the choices are
-// presented. Where the current engine's weave nests what follows a choice in
-// the choice (#1588), it is wrong, and the differential run lists those
-// fixtures as intended differences.
-import "../../inkjs/engine/Container";
+// presented.
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { afterEach, describe, expect, it } from "vitest";
 import { shuffleDraws } from "../../runtime/evaluation";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
-import {
-  compileScript,
-  describeRoot,
-  rootChunks,
-  MAIN_URI,
-  programCompiler,
-  storyRun,
-} from "./programHarness";
+import { compileScript, describeRoot, errorsOf, MAIN_URI, programCompiler, rootChunks, storyRun } from "./programHarness";
 import {
   expectExactDepth,
   play,
@@ -41,19 +32,15 @@ afterEach(() => {
   shuffleDraws.next = null;
 });
 
-/** What a script shows on each engine when the choices `picks` names are
+/** What a script shows when the choices `picks` names are
  *  taken in turn (the first one at every menu past them). */
-const bothEngines = (text: string, picks: number[]) =>
+const programRun = (text: string, picks: number[]) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
-    const current = compileScript(text);
-    injectDraws();
-    current.story.ResetState();
-    const expected = storyRun(current.story, picks);
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     injectDraws();
     const actual = storyRun(new ProgramStory(program.chunks!), picks);
-    return { expected, actual };
+    return { actual };
   });
 
 /** A script whose only scene holds a `choose` block with `preamble` before
@@ -76,9 +63,9 @@ const scene = (
   ].join("\n");
 
 describe("a do block of a choose block's preamble that offers choices", () => {
-  // The two `do` preambles of the ticket, which the current engine runs as
-  // Luau does: each choice the block offers is compared.
-  const AGREEING: Record<string, readonly string[]> = {
+  // The `do` preambles of the ticket: the block offers its choice with the
+  // outer one, and each is taken.
+  const DO_PREAMBLES: Record<string, readonly string[]> = {
     "a do holding a choose": [
       "    do",
       "      choose",
@@ -106,20 +93,25 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       "    end",
     ],
   };
-  for (const [name, preamble] of Object.entries(AGREEING)) {
-    it(`runs ${name} from chunks as the current engine does`, () => {
+  // The inner choice's text and its body's line in each.
+  const INNER: Record<keyof typeof DO_PREAMBLES, [string, string]> = {
+    "a do holding a choose": ["Inner", "Chose inner."],
+    "a do holding a local and a choice": ["Inner 1", "Chose inner 1."],
+    "a do holding a do with a gated choice": ["Inner 1", "Chose inner 1."],
+  };
+  for (const [name, preamble] of Object.entries(DO_PREAMBLES)) {
+    it(`runs ${name} from chunks`, () => {
       const text = scene(preamble);
-      for (const picks of [[0], [1]]) {
-        const { expected, actual } = bothEngines(text, picks);
-        expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
-      }
-      expect(run(text, [0]).beats[0]).toMatch(/^Inner/);
+      const [choice, body] = INNER[name]!;
+      const menus = [[choice, "Outer"]];
+      expect(run(text, [0])).toEqual({ beats: [choice, body, "After."], menus });
+      expect(run(text, [1])).toEqual({ beats: ["Outer", "Chose outer.", "After."], menus });
     });
   }
 
   it("raises the choice from the choose block's chunk, which holds its entry and no block for the do or the loop", () => {
     for (const preamble of [
-      AGREEING["a do holding a local and a choice"]!,
+      DO_PREAMBLES["a do holding a local and a choice"]!,
       [
         "    for i = 1, 2 do",
         "      local twice = i * 2",
@@ -128,7 +120,7 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       ],
     ]) {
       const { program } = silence(() =>
-        compileScript(scene(preamble), { programChunks: true }),
+        compileScript(scene(preamble)),
       );
       const root = program.chunks!;
       const reader = new BinaryProgramReader(root);
@@ -144,9 +136,8 @@ describe("a do block of a choose block's preamble that offers choices", () => {
     }
   });
 
-  // A label between two choices the body offers makes the current engine
-  // raise the later only once the earlier is taken, as between two choices
-  // an `if` gates: it is named.
+  // A label between two choices the body offers is a compile error at its
+  // line, as between two choices an `if` gates.
   it("names a label between two choices of the do block's body", () => {
     const text = scene([
       "    do",
@@ -155,14 +146,15 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       "      * Second",
       "    end",
     ]);
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    const { program } = silence(() => compileScript(text));
     expect(program.chunks).toBeUndefined();
-    expect(program.fallback?.construct).toBe("a label between choices an if gates");
+    expect(errorsOf(program).map(([, message]) => message)).toContain(
+      unsupportedConstructMessage("a label between choices an if gates"),
+    );
   });
 
   // A statement after the `do` block's `end` is the preamble's: it runs
   // before the choices are presented, and the block's local is gone there.
-  // The current engine's weave nests it in the block's choice (#1588).
   it("runs a statement after the do block's end before the choices, without the block's local", () => {
     const text = scene([
       "    do",
@@ -252,9 +244,7 @@ describe("a do block of a choose block's preamble that offers choices", () => {
 describe("a loop of a choose block's preamble that offers choices", () => {
   // Each loop runs every pass and raises a choice on each, which reads the
   // pass's variables; taking one runs its body and continues at the block's
-  // end. The current engine's weave nests the rest of the pass in the first
-  // choice, or fails at runtime (`repeat`, `for ... in`), so the loops are
-  // intended differences of the differential run.
+  // end.
   const LOOPS: Record<string, readonly string[]> = {
     while: [
       "    local i = 0",
@@ -575,18 +565,14 @@ describe("a loop of a choose block's preamble that offers choices", () => {
       "        break",
       "    end",
     ]);
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
+    const { program } = silence(() => compileScript(text));
     expect(program.chunks).toBeUndefined();
-    expect(program.fallback).toEqual({
-      construct: "a break or continue inside a choice's body",
-      uri: MAIN_URI,
-      line: 5,
-    });
+    expect(errorsOf(program)).toContainEqual([5, unsupportedConstructMessage("a break or continue inside a choice's body")]);
   });
 
   it("emits the same chunks after an edit inside the loop's body as a cold compile", () => {
     const text = scene(LOOPS["while"]!);
-    const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+    const c = programCompiler({ [MAIN_URI]: text });
     silence(() => c.compile());
     const before = "Chose inner {i}.";
     const after = "Took inner {i}.";
@@ -605,9 +591,9 @@ describe("a loop of a choose block's preamble that offers choices", () => {
       ],
     });
     const edited = silence(() => c.compile().program);
-    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks).toBeDefined();
     const cold = silence(() =>
-      compileScript(text.replace(before, after), { programChunks: true }).program,
+      compileScript(text.replace(before, after)).program,
     );
     expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold.chunks!));
     expect(run(text.replace(before, after), [1]).beats).toEqual([
@@ -655,17 +641,20 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
     ],
   };
   for (const [name, preamble] of Object.entries(HELD)) {
-    it(`runs a nested block in the body of a choice ${name} holds from chunks as the current engine does`, () => {
+    it(`runs a nested block in the body of a choice ${name} holds from chunks`, () => {
       const text = scene(preamble);
-      for (const picks of [[0, 0], [1]]) {
-        const { expected, actual } = bothEngines(text, picks);
-        expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
-      }
-      expect(run(text, [0, 0]).beats).toEqual(["A", "X", "Took.", "After."]);
+      expect(run(text, [0, 0])).toEqual({
+        beats: ["A", "X", "Took.", "After."],
+        menus: [["A", "Outer"], ["X"]],
+      });
+      expect(run(text, [1])).toEqual({
+        beats: ["Outer", "Chose outer.", "After."],
+        menus: [["A", "Outer"]],
+      });
     });
   }
 
-  it("runs the ticket's script from chunks as the current engine does", () => {
+  it("runs the ticket's script from chunks", () => {
     const text = [
       "-> main",
       "scene main",
@@ -682,8 +671,7 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
       "end",
       "",
     ].join("\n");
-    const { expected, actual } = bothEngines(text, [0, 0]);
-    expect(actual).toEqual(expected);
+    const { actual } = programRun(text, [0, 0]);
     expect(actual.errors).toEqual([]);
     expect(run(text, [0, 0])).toEqual({
       beats: ["A", "X", "After."],
@@ -691,9 +679,8 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
     });
   });
 
-  // The current engine's weave nests the rest of the pass in the first
-  // choice (#1588), so the loop is checked on the program engine alone, as
-  // the loops above are.
+  // Each pass of a loop raises its own choice, whose body holds the nested
+  // block.
   it("runs a nested block in the body of a choice a loop pass raises from chunks", () => {
     const text = scene([
       "    for i = 1, 2 do",
@@ -731,26 +718,25 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
       "      * Y",
       "    end",
     ]);
-    for (const picks of [[0, 0], [1], [2]]) {
-      const { expected, actual } = bothEngines(text, picks);
-      expect(actual, `picks ${picks.join(",")}`).toEqual(expected);
-    }
-    expect(run(text, [1]).beats).toEqual(["Y", "After."]);
+    const menu = ["A", "Y", "Outer"];
+    expect(run(text, [0, 0])).toEqual({ beats: ["A", "X", "After."], menus: [menu, ["X"]] });
+    expect(run(text, [1])).toEqual({ beats: ["Y", "After."], menus: [menu] });
+    expect(run(text, [2])).toEqual({ beats: ["Outer", "Chose outer.", "After."], menus: [menu] });
     const ungated = scene([
       "    * A",
       "      choose",
       "        * X",
       "      end",
     ]);
-    const { expected, actual } = bothEngines(ungated, [0, 0]);
-    expect(actual).toEqual(expected);
-    expect(run(ungated, [0, 0]).beats).toEqual(["A", "X", "After."]);
+    expect(run(ungated, [0, 0])).toEqual({
+      beats: ["A", "X", "After."],
+      menus: [["A", "Outer"], ["X"]],
+    });
   });
 
   // A nested block that offers no choice ends as any block does: its end runs
-  // on out of it and is no loose end in the current engine's weave, so the
-  // lines after the block are still the choice's body, on both engines, gated
-  // or not.
+  // on out of it, so the lines after the block are still the choice's body,
+  // gated or not.
   it("runs the lines after a nested block that offers no choice in the gated choice's body", () => {
     for (const nested of [
       ["        choose", "          Empty.", "        end"],
@@ -761,10 +747,6 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
         ...nested.map((line) => line.slice(2)),
         "      Took.",
       ]);
-      {
-        const { expected, actual } = bothEngines(ungated, [0]);
-        expect(actual, "ungated").toEqual(expected);
-      }
       const text = scene([
         "    if true then",
         "      * A",
@@ -772,15 +754,12 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
         "        Took.",
         "    end",
       ]);
-      const { expected, actual } = bothEngines(text, [0]);
-      expect(actual).toEqual(expected);
-      expect(run(text, [0]).beats).toEqual([
-        "A",
-        "Empty.",
-        ...(nested.length > 3 ? ["Then."] : []),
-        "Took.",
-        "After.",
-      ]);
+      for (const [label, script] of [["ungated", ungated], ["gated", text]] as const) {
+        expect(run(script, [0]), label).toEqual({
+          beats: ["A", "Empty.", ...(nested.length > 3 ? ["Then."] : []), "Took.", "After."],
+          menus: [["A", "Outer"]],
+        });
+      }
     }
   });
 });

@@ -1,11 +1,12 @@
-// A `# tag` line compiles to a runtime container of its own, so the tags'
-// walker stops at the line's boundary. The container's name depends only on
-// the script's text: two compiles of the same script produce the same
-// program, and an incremental compile equals a cold compile of its text.
-import "../../inkjs/engine/Container";
+// A `# tag` line compiles to a statement of its own. What it compiles to
+// depends only on the script's text: two compiles of the same script produce
+// the same chunks, and an incremental compile's chunks equal a cold compile's
+// of its text (`describeRoot`).
 import { describe, expect, it } from "vitest";
-import { currentEngineCompiler } from "../engineUnderTest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { describeRoot } from "../program/describeRoot";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -34,7 +35,7 @@ function quiet<T>(fn: () => T): T {
 
 function coldCompile(text: string) {
   return quiet(() => {
-    const compiler = currentEngineCompiler();
+    const compiler = new SparkdownCompiler();
     compiler.configure({ files: [file(text, 1)] });
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
@@ -44,7 +45,7 @@ function coldCompile(text: string) {
 // incremental compile of the edited text.
 function incrementalCompile(text: string, line: number, insert: string) {
   return quiet(() => {
-    const compiler = currentEngineCompiler();
+    const compiler = new SparkdownCompiler();
     compiler.configure({ files: [file(text, 1)] });
     compiler.compile({ textDocument: { uri: MAIN_URI } });
     const at = { line, character: 0 };
@@ -62,8 +63,10 @@ function insertLine(text: string, line: number, insert: string): string {
   return lines.join("\n");
 }
 
-function containerNames(program: any): string[] {
-  return [...JSON.stringify(program.compiled).matchAll(/"#n":"(id-[^"]*)"/g)].map((m) => m[1]!);
+/** A compile's chunks by content. */
+function content(program: SparkProgram): string[] {
+  expect(program.chunks, "the compile built statement chunks").toBeDefined();
+  return describeRoot(program.chunks!);
 }
 
 const SCRIPT = `-> s0
@@ -76,12 +79,11 @@ scene s0
 end
 `;
 
-describe("tag line container names", () => {
-  it("two cold compiles of one script produce the same program", () => {
+describe("tag lines", () => {
+  it("two cold compiles of one script produce the same chunks", () => {
     const first = coldCompile(SCRIPT);
     const second = coldCompile(SCRIPT);
-    expect(containerNames(first)).toHaveLength(2);
-    expect(JSON.stringify(second.compiled)).toBe(JSON.stringify(first.compiled));
+    expect(content(second)).toEqual(content(first));
   });
 
   it("an incremental compile equals a cold compile of the edited text", () => {
@@ -89,21 +91,14 @@ describe("tag line container names", () => {
     const edited = insertLine(SCRIPT, 4, insert);
     const incremental = incrementalCompile(SCRIPT, 4, insert);
     const cold = coldCompile(edited);
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(content(incremental)).toEqual(content(cold));
   });
 
-  it("an added tag line above renames the containers as a cold compile does", () => {
+  it("an added tag line above the others compiles as a cold compile does", () => {
     const insert = "  # weather rain\n";
     const edited = insertLine(SCRIPT, 3, insert);
     const incremental = incrementalCompile(SCRIPT, 3, insert);
     const cold = coldCompile(edited);
-    expect(containerNames(cold)).toHaveLength(3);
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
-  });
-
-  it("an edit below a tag line keeps its container's name", () => {
-    const before = containerNames(coldCompile(SCRIPT));
-    const after = containerNames(incrementalCompile(SCRIPT, 7, "  Line 2.\n"));
-    expect(after).toEqual(before);
+    expect(content(incremental)).toEqual(content(cold));
   });
 });

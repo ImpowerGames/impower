@@ -1,11 +1,11 @@
 // The player's worker compiles statement chunks and runs them on the program
-// engine by default (#703), for the preview's game and for PLAY's. A live
-// edit that makes a compile fall back to the current engine (an `external`
-// declaration, which the writer has no emit path for) switches the preview's
-// game to the current engine and the next edit switches it back, with the
-// beat at the cursor on screen throughout (#1663).
+// engine (#703), for the preview's game and for PLAY's. A live edit that
+// holds a construct the program cannot compile (an `external` declaration)
+// is reported as an error at its line and makes no program; the next edit
+// that removes it makes one again, with the beat at the cursor on screen
+// throughout.
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { unsupportedConstructMessage } from "@impower/sparkdown/src/compiler/utils/unsupportedConstructMessage";
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
@@ -31,7 +31,7 @@ const framesForStop = (h: { overlay: HTMLElement }) => {
 };
 
 // A scene with music, a menu on the way to its end and a second scene, for
-// the frames each engine shows.
+// the frames the engine shows.
 const SCENES = `define theme as audio with
   src = "https://example.com/theme.wav"
 end
@@ -64,17 +64,16 @@ end
 const lineIn = (text: string, find: string) =>
   text.split("\n").findIndex((l) => l.includes(find));
 
-/** What the author sees and hears at each step on one engine: a selection,
- *  a highlighted suggestion, a typed edit, a scrub to the other scene and to
- *  a line past a menu, and PLAY from the previewed line with a save made
- *  while it runs. Each frame is the overlay and the sound the page was told
- *  to make since the step before. */
-async function authorSteps(programChunks: boolean) {
+/** What the author sees and hears at each step: a selection, a highlighted
+ *  suggestion, a typed edit, a scrub to the other scene and to a line past a
+ *  menu, and PLAY from the previewed line with a save made while it runs.
+ *  Each frame is the overlay and the sound the page was told to make since
+ *  the step before. */
+async function authorSteps() {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: SCENES }],
     startFrom: { file: MAIN_URI, line: lineIn(SCENES, "The second line.") },
     manualClock: true,
-    programChunks,
   });
   framesForStop(h);
   const frames: { step: string; overlay: unknown; sound: string[] }[] = [];
@@ -156,12 +155,10 @@ async function authorSteps(programChunks: boolean) {
 }
 
 describe("the frames the author sees", () => {
-  it("are the same on the program engine as on the current engine", async () => {
-    const on = await authorSteps(true);
-    const off = await authorSteps(false);
-    // Booleans, not the engines: a failing assertion would print a story.
+  it("show each step's beat on the program engine, and a preview update makes no sound", async () => {
+    const on = await authorSteps();
+    // A boolean, not the engine: a failing assertion would print a story.
     expect(on.engine instanceof ProgramStory).toBe(true);
-    expect(off.engine instanceof ProgramStory).toBe(false);
     const shown = (step: string, text: string) =>
       JSON.stringify(on.frames.find((f) => f.step === step)?.overlay).includes(text);
     expect(shown("select", "The second line.")).toBe(true);
@@ -171,9 +168,6 @@ describe("the frames the author sees", () => {
     expect(shown("scrub to the other scene", "Another scene")).toBe(true);
     expect(shown("scrub past the menu", "The end of the scene.")).toBe(true);
     expect(shown("play", "The second line, edited.")).toBe(true);
-    for (const [i, frame] of on.frames.entries()) {
-      expect(frame, frame.step).toEqual(off.frames[i]);
-    }
     // After the first display, a preview update makes no sound: the music
     // the route started is not started again.
     const updates = on.frames.filter(
@@ -187,48 +181,65 @@ describe("the frames the author sees", () => {
       expect(frame.sound, frame.step).toEqual([]);
     }
     expect(on.movedOn).toBe(true);
-    expect(off.movedOn).toBe(true);
     expect(on.loaded).toBe(true);
-    expect(off.loaded).toBe(true);
   }, 240_000);
 });
 
+/** The errors a program reports, as `[line, message]`. */
+const errorsOf = (program: any) =>
+  Object.values(program?.diagnostics ?? {})
+    .flat()
+    .filter((d: any) => d.severity === 1)
+    .map((d: any) => [d.range.start.line, typeof d.message === "string" ? d.message : d.message.value]);
+
 describe("the player's worker", () => {
-  it("runs the program engine by default, and switches engines as an edit falls back and returns", async () => {
+  it("reports a construct the program cannot compile at its line, keeps the game it has, and runs the program engine again once it is removed", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: SECOND },
     });
     framesForStop(h);
     try {
-      const { compiler } = h.workerState.compilerState;
-      expect(compiler.config.programChunks).toBe(true);
-      // Which engine a game runs, as a name: a failing assertion on the
-      // engine itself would print a whole story.
-      const kind = (story: unknown) =>
-        story instanceof ProgramStory ? "program" : story instanceof Story ? "current" : "none";
-      const engine = () => kind(h.workerState.gameState.game?.story);
+      const compiler = h.workerState.compilerState.compiler as any;
+      // What each compile in the worker made.
+      const compiled: { program: any; produced: boolean }[] = [];
+      compiler.addEventListener("compiler/didCompile", (params: any) => {
+        compiled.push({ program: params.program, produced: params.produced });
+      });
+      // Whether a game runs the program engine, as a boolean: a failing
+      // assertion on the engine itself would print a whole story.
+      const onProgramEngine = (story: unknown) => story instanceof ProgramStory;
 
       expect(await h.compile()).not.toHaveProperty("error");
       await h.select(SECOND);
-      expect(engine()).toBe("program");
+      const game = h.workerState.gameState.game;
+      const program = game?.program;
+      expect(onProgramEngine(game?.story)).toBe(true);
       expect(h.overlay.textContent).toContain("The second line.");
 
-      // An `external` declaration typed at the end: the compile falls back,
-      // and the game runs the current engine.
+      // An `external` declaration typed at the end: the compile reports it at
+      // its line and makes no program.
       const at = { line: END, character: 0 };
       await h.edit([{ range: { start: at, end: at }, text: EXTERNAL }]);
-      const fellBack = await h.compile();
-      expect(fellBack).not.toHaveProperty("error");
+      const unsupported = await h.compile();
+      expect(unsupported).not.toHaveProperty("error");
+      expect(unsupported.program.runnable).toBe(false);
+      const made = compiled.at(-1)!;
+      expect(made.produced).toBe(false);
+      expect(made.program.chunks).toBeUndefined();
+      expect(errorsOf(made.program)).toEqual([[END, unsupportedConstructMessage("external")]]);
+      // The worker keeps the game it has, with the program before, and the
+      // page keeps showing its beat.
       await h.select(SECOND);
-      expect(h.workerState.gameState.game?.program.fallback?.construct).toBeDefined();
-      expect(engine()).toBe("current");
+      expect(h.workerState.gameState.game === game).toBe(true);
+      expect(h.workerState.gameState.game?.program === program).toBe(true);
       expect(h.overlay.textContent).toContain("The second line.");
 
-      // PLAY on the program that fell back runs the current engine.
+      // PLAY runs the program before on the program engine.
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(40);
-      expect(kind(h.playing()?.story)).toBe("current");
+      expect(onProgramEngine(h.playing()?.story)).toBe(true);
+      expect(h.playing()?.program === program).toBe(true);
       await h.controller.stopGame("quit");
       await settle(40);
 
@@ -239,14 +250,14 @@ describe("the player's worker", () => {
       ]);
       expect(await h.compile()).not.toHaveProperty("error");
       await h.select(SECOND);
-      expect(h.workerState.gameState.game?.program.fallback).toBeUndefined();
-      expect(engine()).toBe("program");
+      expect(h.workerState.gameState.game?.program.chunks).toBeDefined();
+      expect(onProgramEngine(h.workerState.gameState.game?.story)).toBe(true);
       expect(h.overlay.textContent).toContain("The second line.");
 
       // PLAY runs the program engine too.
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(40);
-      expect(kind(h.playing()?.story)).toBe("program");
+      expect(onProgramEngine(h.playing()?.story)).toBe(true);
       await h.controller.stopGame("quit");
       await settle(40);
     } finally {

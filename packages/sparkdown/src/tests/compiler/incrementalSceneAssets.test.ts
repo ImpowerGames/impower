@@ -1,12 +1,11 @@
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
 
-// `sceneAssets` rides the incremental per-flow location cache: an edit inside
-// one scene re-walks that scene only, and every other scene contributes the
-// capture object it produced last compile. The oracle is a cold compile of the
-// edited text; the reuse proof is object identity.
+// `sceneAssets` after an incremental compile: an edit inside one scene
+// changes that scene's assets and leaves every other scene's as they were.
+// The oracle is a cold compile of the edited text.
 
 const URI = "file://proj/main.sd";
 
@@ -39,20 +38,6 @@ function fixture(): string {
   return L.join("\n");
 }
 
-// The per-flow location cache is the current engine's compile path, which
-// #705's deletion removes with this test, or moves it; a program's scene
-// assets come from its chunks (`captureProgramAssets`).
-class Probe extends SparkdownCompiler {
-  constructor() {
-    super();
-    this.configure({ programChunks: false });
-  }
-
-  captureOf(name: string) {
-    return this._flowAssetAccum?.get(name);
-  }
-}
-
 function posAt(text: string, offset: number) {
   let line = 0;
   let lineStart = 0;
@@ -65,10 +50,23 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
+/** A program's scene assets with each beat's address read as where it
+ *  stands: an address counts the chunks the compiler has made, so an
+ *  incremental compile's differs from a cold compile's for the same beat. */
+function sceneAssetsOf(program: SparkProgram) {
+  return JSON.parse(
+    JSON.stringify(program.sceneAssets, (key, value) =>
+      key === "address" && typeof value === "number"
+        ? program.chunks!.locationOf(value)
+        : value,
+    ),
+  );
+}
+
 function coldSceneAssets(text: string) {
-  const compiler = new Probe();
+  const compiler = new SparkdownCompiler();
   compiler.configure({ files: [file(text, 1)] });
-  return compiler.compile({ textDocument: { uri: URI } }).program.sceneAssets;
+  return sceneAssetsOf(compiler.compile({ textDocument: { uri: URI } }).program);
 }
 
 function quiet<T>(fn: () => T): T {
@@ -85,16 +83,12 @@ function quiet<T>(fn: () => T): T {
 }
 
 describe("incremental sceneAssets", () => {
-  it("an edit inside one scene recomputes that scene and reuses the others", () => {
+  it("an edit inside one scene changes that scene's assets and leaves the others", () => {
     quiet(() => {
       const base = fixture();
-      const probe = new Probe();
-      probe.configure({ files: [file(base, 1)] });
-      const first = probe.compile({ textDocument: { uri: URI } }).program;
-      const untouchedBefore = probe.captureOf("scene_3");
-      const editedBefore = probe.captureOf("scene_1");
-      expect(untouchedBefore).toBeDefined();
-      expect(editedBefore).toBeDefined();
+      const compiler = new SparkdownCompiler();
+      compiler.configure({ files: [file(base, 1)] });
+      const first = compiler.compile({ textDocument: { uri: URI } }).program;
 
       const find = "location_1]]";
       const replace = "location_1_edited]]";
@@ -105,29 +99,19 @@ describe("incremental sceneAssets", () => {
       const after =
         base.slice(0, offset) + replace + base.slice(offset + find.length);
 
-      probe.updateDocument({
+      compiler.updateDocument({
         textDocument: { uri: URI, version: 2 },
         contentChanges: [{ range: { start, end }, text: replace }],
       });
-      const second = probe.compile({ textDocument: { uri: URI } }).program;
+      const second = compiler.compile({ textDocument: { uri: URI } }).program;
 
-      expect(second.sceneAssets).toEqual(coldSceneAssets(after));
+      expect(sceneAssetsOf(second)).toEqual(coldSceneAssets(after));
       expect(second.sceneAssets!["scene_1"]!.image).toEqual([
         "location_1_edited",
         "face_1~smile",
       ]);
       expect(second.sceneAssets!["scene_1"]!.successors).toEqual(["scene_2"]);
-
-      // Reused: the very same capture object as last compile. Recomputed: a
-      // new one.
-      expect(probe.captureOf("scene_3")).toBe(untouchedBefore);
-      expect(probe.captureOf("scene_1")).not.toBe(editedBefore);
-      // The published beats are a copy of the reused capture, equal in
-      // content and never the cache's own array.
       expect(second.sceneAssets!["scene_3"]!.beats).toEqual(
-        first.sceneAssets!["scene_3"]!.beats,
-      );
-      expect(second.sceneAssets!["scene_3"]!.beats).not.toBe(
         first.sceneAssets!["scene_3"]!.beats,
       );
     });
@@ -136,7 +120,7 @@ describe("incremental sceneAssets", () => {
   it("a recompile with no change keeps sceneAssets on the returned program", () => {
     quiet(() => {
       const text = fixture();
-      const compiler = new Probe();
+      const compiler = new SparkdownCompiler();
       compiler.configure({ files: [file(text, 1)] });
       const first = compiler.compile({ textDocument: { uri: URI } }).program;
       const second = compiler.compile({ textDocument: { uri: URI } }).program;

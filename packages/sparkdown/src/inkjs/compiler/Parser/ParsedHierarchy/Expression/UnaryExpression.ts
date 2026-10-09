@@ -1,6 +1,4 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "./Expression";
-import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
 import { NumberExpression } from "./NumberExpression";
 import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -78,11 +76,6 @@ export class UnaryExpression extends Expression {
   public override PrepareIntoContainer(): void {
     this.innerExpression.PrepareIntoContainer();
   }
-
-  public readonly GenerateIntoContainer = (container: RuntimeContainer) => {
-    this.innerExpression.GenerateIntoContainer(container);
-    container.AddContent(NativeFunctionCall.CallWithName(this.nativeNameForOp));
-  };
 
   public override EmitExpression(emitter: ProgramEmitter): void {
     emitter.emitObject(this.innerExpression);

@@ -1,4 +1,3 @@
-import "../../inkjs/engine/Container";
 import { PerformanceObserver } from "node:perf_hooks";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -41,11 +40,10 @@ const URI = "inmemory:///main.sd";
 
 const SOURCE = ["$:", "  A ROOFTOP", "", "ALICE:", "  Hello.", ""].join("\n");
 
-const newCompiler = (programChunks?: boolean) => {
+const newCompiler = () => {
   const compiler = new SparkdownCompiler();
   compiler.profilerId = "test";
   compiler.configure({
-    ...(programChunks === undefined ? {} : { programChunks }),
     files: [
       {
         uri: URI,
@@ -110,22 +108,23 @@ describe("compiler profiler phases close on every exit path", () => {
     }
   });
 
-  // `ink/parse` is only the first of five phases under that same swallowing
-  // catch. A throw in a later one has to close its phase too — `ink/compile`
-  // (ExportRuntime) is the phase the catch was written for.
+  // `ink/parse` is only the first of the phases under that same swallowing
+  // catch. A throw in a later one has to close its phase too: here
+  // `program/chunks`, which `maybeReseedBinaryTable` runs inside.
   it("emits a measure for a later phase when that phase throws", async () => {
     try {
-      // `populateLocations` runs only on the current engine's compile path,
-      // which #705's deletion removes with this test, or moves it.
-      const compiler = newCompiler(false);
-      (compiler as unknown as Record<string, unknown>)["populateAllLocations"] =
+      const compiler = newCompiler();
+      let threw = false;
+      (compiler as unknown as Record<string, unknown>)["maybeReseedBinaryTable"] =
         () => {
+          threw = true;
           throw new Error("boom");
         };
       const seen = await observeMeasures(() => {
         compiler.compile({ textDocument: { uri: URI } });
       });
-      expect(seen.some((name) => name.includes("populateLocations"))).toBe(
+      expect(threw).toBe(true);
+      expect(seen.some((name) => name.includes("program/chunks"))).toBe(
         true,
       );
     } finally {

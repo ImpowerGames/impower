@@ -8,7 +8,6 @@
 // the `const` in the script would then have no effect for existing players.
 //
 // Both directions are pinned here: never written, and never restored.
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 

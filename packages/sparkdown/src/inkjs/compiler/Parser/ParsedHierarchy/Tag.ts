@@ -1,6 +1,4 @@
 import { ParsedObject } from "./Object";
-import { ControlCommand } from "../../../../runtime/ControlCommand";
-import { InkObject as RuntimeObject } from "../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { Op } from "../../../../program/ProgramInstructions";
 
@@ -20,14 +18,6 @@ export class Tag extends ParsedObject {
   protected override Prepare(): boolean {
     return true;
   }
-
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    if (this.isStart) {
-      return ControlCommand.BeginTag();
-    } else {
-      return ControlCommand.EndTag();
-    }
-  };
 
   public override EmitProgram(emitter: ProgramEmitter): void {
     emitter.emit(this.isStart ? Op.BeginTag : Op.EndTag);

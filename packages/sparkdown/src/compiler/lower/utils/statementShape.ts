@@ -86,7 +86,7 @@ export interface BodyShape {
  * How a loop's lowered objects divide into the loop's own code and its body,
  * which the binary program's writer turns into one chunk whose body is a
  * block (docs/engine/binary-program.md, section 1). The objects are the
- * lowerer's, which the current engine runs as they are.
+ * lowerer's, which the object engine ran as they are.
  */
 export interface LoopShape {
   kind: "while" | "for" | "forIn" | "repeat";
@@ -391,7 +391,7 @@ export const recordChoiceBody = (part: ParsedObject, body: BodyShape): void => {
  * loop's, a nested `if`'s) become the statement's own, and what their
  * lowering read is the statement's. A choice's line is the statement's own
  * code too, and the statements after it up to the next choice, which the
- * current engine's weave nests in the choice, are the choice's body, a block
+ * object engine's weave nested in the choice, are the choice's body, a block
  * of the statement as the body of any other choice is.
  *
  * The body of a `do` block or a loop that offers choices is made the

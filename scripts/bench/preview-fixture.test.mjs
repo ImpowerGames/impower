@@ -106,8 +106,9 @@ await check("the benchmark's arguments and default replacements", () => {
   assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit, both or coverage/);
   // The coverage report times nothing and edits no line.
   assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "coverage"]), { mode: "coverage", samples: 12, warmup: 4, project: "p" });
-  // The compile with the binary program's statement chunks on (#701).
-  assert.deepEqual(parseBenchArgs(["--fixture", "--mode", "edit", "--chunks"]), { mode: "edit", samples: 12, warmup: 4, fixture: true, chunks: true });
+  // Every compile builds statement chunks and the game runs the program
+  // engine (#705), so there is no switch between engines to pass.
+  assert.throws(() => parseBenchArgs(["--fixture", "--chunks"]), /unknown argument --chunks/);
   assert.deepEqual(tokenAround("      [[raffles_concerned:gloves]]", "concerned"), { token: "raffles_concerned", prefix: "raffles_" });
   assert.equal(tokenAround("[[bunny]]", "concerned"), null);
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
@@ -156,10 +157,9 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
   assert.deepEqual(none.functions, []);
   assert.equal(parseShareArgs(["a.cpuprofile", "--under", "(root)", "--gaps"]).gaps, true);
   const groupOf = (name) => GAPS.find(([, re]) => re.test(name))?.[0];
-  // The line lookup goes through the program's accessor on either engine
-  // (#700): the path table's on the current engine, the root's on the
-  // program engine.
-  assert.equal(groupOf("pathLocationTable.ts:(anonymous)"), groupOf("programLocator.ts:addressAt"));
+  // The line lookup goes through the program's accessor (#700), which reads
+  // the root.
+  assert.equal(groupOf("ProgramRoot.ts:addressAt"), groupOf("programLocator.ts:addressAt"));
   assert.equal(groupOf("ProgramRoot.ts:addressAt"), groupOf("Game.ts:setStartFrom"));
   assert.notEqual(groupOf("Game.ts:setStartFrom"), undefined);
   assert.equal(groupOf("scopeDefineInstances.ts:scopeDefineInstances"), groupOf("SparkdownCompiler.ts:applyBuiltinOverrides"));
@@ -223,8 +223,12 @@ if (!esbuildInstalled) {
   await check("the benchmark runs both modes on the fixture and reports route, phases, unattributed time and the display", () => {
     const profiles = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-bench-test-"));
     try {
-      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      const json = path.join(profiles, "report");
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles, "--json", json], { encoding: "utf8", timeout: 600_000, windowsHide: true });
       assert.equal(run.status, 0, run.stdout + run.stderr);
+      // Every phase a mode's samples ran, read from its report: the printed
+      // table leaves out the phases that took under 0.3 ms.
+      const phasesOf = (mode) => Object.keys(JSON.parse(fs.readFileSync(`${json}.${mode}.json`, "utf8")).phases);
       const header = (mode) => `mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`;
       // Up to the next report, so one report's rows cannot answer for another's.
       const sectionOf = (mode) => {
@@ -235,17 +239,20 @@ if (!esbuildInstalled) {
       };
       for (const mode of ["preview", "edit"]) {
         const section = sectionOf(mode);
-        assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
+        assert.match(section, /1 samples after 0 warm-up; route \d{3,} steps/);
         // A warm route is replayed rather than searched, so the replay is the
         // route phase every sample has.
         assert.match(section, /game\/simulateRoute/);
-        assert.match(section, /ink\/compile/);
-        // The compiler emits no compiled story and still certifies the
-        // change as confined, from the walk it times as ink/flowShapes.
-        assert.match(section, /ink\/flowShapes/);
-        assert.doesNotMatch(section, /ink\/json/);
-        assert.match(section, /game\/setStartFrom/);
-        assert.match(section, /scopeDefineInstances/);
+        // The compile builds the statement chunks, and says what changed
+        // against the program before it, which a route resumes against.
+        const phases = phasesOf(mode);
+        for (const phase of ["program/resolve", "program/chunks", "program/changes", "game/setStartFrom", "game/routeResumption", "scopeDefineInstances"]) assert.ok(phases.includes(phase), `${mode}: no ${phase} phase among ${phases.join(", ")}`);
+        // Every mode resumes the route its cold compile planned, and searches
+        // on from the resume point: the edited line's statement is emitted
+        // again, and a route keeps its own steps only while every one still
+        // holds (`Game.routeResumption`, docs/engine/binary-program.md,
+        // section 8), so the steps from that statement on are searched for.
+        assert.ok(phases.includes("game/planRoute"), `${mode}: no onward search among ${phases.join(", ")}`);
         // The worker's time: the unattributed row between 0 and the worker's
         // time, whose gaps profile-shares reads back from beside that
         // report's profile.
@@ -264,22 +271,19 @@ if (!esbuildInstalled) {
         assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
         assert.match(section, /engine calls before each display: game\.endSimulation\(\); fields reset by hand: none/);
       }
-      // Every mode resumes the route its cold compile planned.
-      assert.match(run.stdout, /game\/routeResumption/);
-      assert.doesNotMatch(run.stdout, /game\/planRoute/);
-      assert.match(sectionOf("preview"), /messages it sent outside a display, over the run: \{\}/);
+      assert.match(sectionOf("preview"),/messages it sent outside a display, over the run: \{\}/);
     } finally {
       fs.rmSync(profiles, { recursive: true, force: true });
     }
   });
 
-  // With --chunks the worker's game runs the program engine, as the player's
-  // worker ships (#703): the route is searched and displayed there, the
-  // compile re-emits one chunk, and the heap is read after full collections.
-  await check("the benchmark with --chunks routes and displays on the program engine", () => {
-    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "preview", "--samples", "1", "--warmup", "1", "--chunks"], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+  // The worker's game runs the program engine, as the player's worker ships
+  // (#703): the route is searched and displayed there, the compile re-emits
+  // one chunk, and the heap is read after full collections.
+  await check("the benchmark builds the statement chunks and re-emits one chunk per edit", () => {
+    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "preview", "--samples", "1", "--warmup", "1"], { encoding: "utf8", timeout: 600_000, windowsHide: true });
     assert.equal(run.status, 0, run.stdout + run.stderr);
-    assert.match(run.stdout, /1 samples after 1 warm-up; route \d{3,} steps; heap \d+ MB; the program engine/);
+    assert.match(run.stdout, /1 samples after 1 warm-up; route \d{3,} steps; heap \d+ MB/);
     assert.match(run.stdout, /heap after full collections: \d+(\.\d)? MB after the first sample/);
     assert.match(run.stdout, /program\/chunks/);
     assert.doesNotMatch(run.stdout, /populateLocations/);

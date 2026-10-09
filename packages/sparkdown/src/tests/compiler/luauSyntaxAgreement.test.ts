@@ -19,7 +19,6 @@
 // removes the entry. Integer limitations remain after #1309 closes and require
 // Luau to accept the input while Sparkdown reports its unsupported diagnostic.
 
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
@@ -42,6 +41,10 @@ const NOT_SYNTAX: RegExp[] = [
   /cannot be used for the name of a function because it's a built in function$/,
   /^A variable must be initialized to /,
   /^(?:Scene|Branch) is missing its closing `end` keyword\./,
+  // A construct the program cannot compile (`unsupportedConstructMessage`).
+  /^`external` functions are not supported: /,
+  /^A function can't be diverted to: /,
+  /^This statement cannot be compiled: /,
 ];
 
 function messageOf(d: SparkDiagnostic): string {

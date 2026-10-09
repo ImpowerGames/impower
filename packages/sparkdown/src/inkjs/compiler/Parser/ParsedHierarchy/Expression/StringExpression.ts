@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import { Text } from "../Text";
@@ -36,18 +34,6 @@ export class StringExpression extends Expression {
       c.prepare();
     }
   }
-
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    container.AddContent(RuntimeControlCommand.BeginString());
-
-    for (const c of this.content) {
-      container.AddContent(c.runtimeObject);
-    }
-
-    container.AddContent(RuntimeControlCommand.EndString());
-  };
 
   // A string of text alone is the text its pieces join to, so it is one
   // pushed string: the capture the runtime objects build it in writes its

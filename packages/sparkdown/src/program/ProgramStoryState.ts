@@ -1,6 +1,3 @@
-// Loads the engine's modules in the order that settles their import cycle
-// (see `CompilationAnnotator`).
-import "../inkjs/engine/Container";
 import { ControlCommand } from "../runtime/ControlCommand";
 import type { RaisedError } from "../runtime/Error";
 import { JsonSerialisation } from "../runtime/JsonSerialisation";
@@ -15,7 +12,6 @@ import {
   StringValue,
   type VariablePointerValue,
 } from "../runtime/Value";
-import { Pointer } from "../runtime/Pointer";
 import type { ImageTracker, ProgramImage } from "./ProgramImages";
 import type { VariablesState } from "../runtime/VariablesState";
 import { CallStack } from "../runtime/CallStack";
@@ -34,8 +30,8 @@ import {
   blockScopes,
   chunkId,
   codeWords,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 import { Op, opOf } from "./ProgramInstructions";
 import { Choice } from "../runtime/Choice";
 
@@ -101,14 +97,14 @@ export const blockStackOf = (
 
 /** Where a thread a fork suspended resumes, the blocks it is inside there,
  *  and the flow its last instruction ran in (`previousFlow`), which each
- *  thread of the current engine keeps as its own previous pointer. */
+ *  thread of the object engine kept as its own previous pointer. */
 interface SuspendedThread {
   position: ProgramPosition | null;
   blocks: BlockEntry[];
   previousFlow: number;
 }
 
-/** A choice the program engine raised (`Choice`): as the current engine's
+/** A choice the program engine raised (`Choice`): as the object engine's
  *  choice, with its text, tags, index, whether it is an invisible default and
  *  the thread it holds, and in place of paths, the address of its `Choice`
  *  instruction as `sourcePath`, its identity (docs/engine/binary-program.md,
@@ -119,7 +115,7 @@ export class ProgramChoice extends Choice {
   constructor(
     readonly target: ProgramPosition,
     readonly blocks: BlockEntry[],
-    readonly chunk: StatementChunk,
+    readonly chunk: ProgramChunk,
     readonly previousFlow: number,
   ) {
     super();
@@ -285,7 +281,7 @@ export interface ThreadCuts {
 /** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
  *  its `EndScope`s, read once in order (docs/engine/binary-program.md,
  *  section 1). */
-const scopesBefore = (chunk: StatementChunk, offset: number): number => {
+const scopesBefore = (chunk: ProgramChunk, offset: number): number => {
   let scopes = 0;
   for (let at = 0; at < offset && at < codeWords(chunk); at += 2) {
     const op = opOf(chunk[HEADER_WORDS + at]!);
@@ -343,17 +339,6 @@ export interface SuspendedLineEnd {
   carried: CarriedStep | null;
 }
 
-/** What the program engine's state hands a caller that reads a story's
- *  pointer: it names no runtime path. */
-export const NO_POINTER = Object.freeze({
-  isNull: true,
-  path: null,
-  container: null,
-  copy() {
-    return NO_POINTER;
-  },
-});
-
 /**
  * The state of the program engine: its position and the blocks it is inside,
  * its call frames, the eval stack and output, the errors of the continue in
@@ -363,7 +348,7 @@ export const NO_POINTER = Object.freeze({
  * `VariablesState` reads and writes them. A call pushes an element and the program frame beside it
  * (`frameOf`), and a return pops them.
  *
- * The output is the current engine's, member for member, so that the builtins
+ * The output is the object engine's, member for member, so that the builtins
  * a chunk calls (`display`) read and write it as they read and write a
  * `StoryState`: the newline rule and the splitting of a pushed string's
  * surrounding whitespace (`PushToOutputStreamIndividual`,
@@ -391,12 +376,12 @@ export class ProgramStoryState {
   previousRandom = 0;
   /** The symbol of the flow the current thread's last instruction ran in, or
    *  -1: what a path chosen without resetting the call stack is entered
-   *  from, as the current engine's thread keeps its `previousPointer`. A fork
+   *  from, as the object engine's thread kept its `previousPointer`. A fork
    *  suspends it with the thread it forks, a forced end clears it, and a
    *  save writes it by name, for each thread. */
   previousFlow = -1;
   /** The address of the instruction that ran last, or -1: what a route step
-   *  is known by (docs/engine/binary-program.md, section 8), as the current
+   *  is known by (docs/engine/binary-program.md, section 8), as the deleted object
    *  engine's step is known by its previous pointer. An image copies it with
    *  the position, so a search node restored from one stands where it stood.
    *  A durable save does not hold it, since an address names a chunk of the
@@ -426,11 +411,6 @@ export class ProgramStoryState {
   /** The turn of each counted symbol's last visit, by count id, or
    *  `NEVER_VISITED`. */
   turns: Int32Array = new Int32Array(0);
-  /** The count ids whose visits, and whose turns, changed since each was
-   *  last drained; a checkpoint drains the two apart, as the current
-   *  engine's state keeps them. */
-  protected _changedVisits = new Set<number>();
-  protected _changedTurns = new Set<number>();
 
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
@@ -461,7 +441,7 @@ export class ProgramStoryState {
    *  in: for each thread, where each of its frames returns to and, for a
    *  suspended thread, where it resumes, which runs on into those frames'
    *  returns; then the position (`ProgramStory.stackAddresses`), as the
-   *  current engine's call stack names every thread's elements. */
+   *  object engine's call stack named every thread's elements. */
   stackAddresses(): number[] {
     const out: number[] = [];
     const add = (position: ProgramPosition | null | undefined) => {
@@ -558,8 +538,6 @@ export class ProgramStoryState {
     this.growCounts(id);
     this.visits[id] = this.visits[id]! + 1;
     this.turns[id] = this.currentTurnIndex;
-    this._changedVisits.add(id);
-    this._changedTurns.add(id);
     this.images?.count(id);
   }
 
@@ -584,8 +562,8 @@ export class ProgramStoryState {
   }
 
   /** The turns since count id `id` was last visited, or -1 for never. A
-   *  visit before the first turn records turn -1, as the current engine's
-   *  does, so "never" is a turn of its own (`NEVER_VISITED`). */
+   *  visit before the first turn records turn -1, as the object engine's
+   *  did, so "never" is a turn of its own (`NEVER_VISITED`). */
   TurnsSince(id: number): number {
     const turn = id >= 0 ? (this.turns[id] ?? NEVER_VISITED) : NEVER_VISITED;
     return turn === NEVER_VISITED ? -1 : this.currentTurnIndex - turn;
@@ -694,18 +672,6 @@ export class ProgramStoryState {
     return this.callStack.depth;
   }
 
-  get currentPointer() {
-    return this.position ? { ...NO_POINTER, isNull: false } : NO_POINTER;
-  }
-
-  get previousPointer() {
-    return NO_POINTER;
-  }
-
-  get currentPathString(): string | null {
-    return null;
-  }
-
   // ------------------------------------------------------------- the output
 
   PushEvaluationStack(obj: InkObject): void {
@@ -716,8 +682,8 @@ export class ProgramStoryState {
   PopEvaluationStack(count: number): InkObject[];
   PopEvaluationStack(count?: number): InkObject | InkObject[] {
     if (count === undefined) {
-      // One pop from an empty stack gives null, as the current engine's
-      // does (`StoryState.PopEvaluationStack`): the arm of a `match` whose
+      // One pop from an empty stack gives null, as the object engine's
+      // did (`StoryState.PopEvaluationStack`): the arm of a `match` whose
       // key is not a name compares the value with its own copy and pops the
       // copy the comparison already took.
       return (this.evaluationStack.pop() ?? null) as InkObject;
@@ -1023,7 +989,7 @@ export class ProgramStoryState {
     this.carried = suspended.carried;
   }
 
-  /** Ends the flow, with a fresh frame for the next, as the current engine's
+  /** Ends the flow, with a fresh frame for the next, as the object engine's
    *  `StoryState.ForceEnd` resets its call stack: a `ChoosePathString` that
    *  resets the call stack keeps no temporary, no scope and no function frame
    *  of the flow it left. */
@@ -1139,8 +1105,7 @@ export class ProgramStoryState {
   // ------------------------------------------------------------------- saving
 
   // The counts are keyed outside the engine by their symbol's qualified name,
-  // or `#<id>` for an anonymous symbol of this root's table generation, as
-  // the current engine keys them by path (the checkpoint store's readers).
+  // or `#<id>` for an anonymous symbol of this root's table generation.
 
   /** Each counted symbol that was visited, by its key, with its visits. */
   GetVisitCountEntries(): [string, number][] {
@@ -1151,23 +1116,6 @@ export class ProgramStoryState {
    *  last visit. */
   GetTurnIndexEntries(): [string, number][] {
     return this.countEntries(this.turns, (t) => t !== NEVER_VISITED);
-  }
-
-  DrainVisitCountDeltas(): [string, number][] {
-    const out = this.changedEntries(this.visits, this._changedVisits);
-    this._changedVisits.clear();
-    return out;
-  }
-
-  DrainTurnIndexDeltas(): [string, number][] {
-    const out = this.changedEntries(this.turns, this._changedTurns);
-    this._changedTurns.clear();
-    return out;
-  }
-
-  ResetCountDeltaTracking(): void {
-    this._changedVisits.clear();
-    this._changedTurns.clear();
   }
 
   // The key of each count id of the root's table.
@@ -1203,16 +1151,6 @@ export class ProgramStoryState {
     return out;
   }
 
-  protected changedEntries(
-    values: Uint32Array | Int32Array,
-    changed: ReadonlySet<number>,
-  ): [string, number][] {
-    const keys = this.countKeys();
-    return [...changed]
-      .filter((id) => keys[id] !== undefined)
-      .map((id) => [keys[id]!, values[id]!]);
-  }
-
   /** The count id a saved key names in this root, or -1: a qualified name,
    *  or an anonymous symbol of `generation`, taken through the reseeds since
    *  it (`ProgramRoot.symbolFrom`). A symbol this root does not define has
@@ -1244,21 +1182,21 @@ export class ProgramStoryState {
    *  upvalue cells still open on it and, for a frame a call pushed, the
    *  position its caller resumes at and the symbol of its function; the
    *  threads a fork suspended, each with where it resumes and its frames; and
-   *  unless `withCounts` is false, the visits and turns of the counted
-   *  symbols, keyed by their names (`GetVisitCountEntries`). A position past
+   *  the visits and turns of the counted symbols, keyed by their names
+   *  (`GetVisitCountEntries`). A position past
    *  the last statement of its sequence, where a flow rests after its last
    *  beat, has no chunk: it is written with chunk id -1 and named by its
    *  sequence alone. The blocks a position is inside are not written: they
    *  follow from its sequence. A position holds within a session, for as
    *  long as a root holds its chunk or, past the last statement, its
-   *  sequence. `ToJson` is the same, under the current engine's other name
+   *  sequence. `ToJson` is the same, under the object engine's other name
    *  for it (`StoryState.ToJson`). */
   ToJson(): string {
     return this.toJson();
   }
 
-  toJson(withCounts = true): string {
-    return this.writeState(new SessionCodec(this, withCounts));
+  toJson(): string {
+    return this.writeState(new SessionCodec(this));
   }
 
   /** The state as JSON, with its positions, its frames' functions, its
@@ -1405,12 +1343,6 @@ export class ProgramStoryState {
       : -1;
   }
 
-  /** The state with both count slots empty, which a checkpoint fills with
-   *  the entries it keeps apart (`GetVisitCountEntries`). */
-  ToJsonWithoutCounts(): string {
-    return this.toJson(false);
-  }
-
   // Each element of a thread's call stack: its type, where its function
   // started writing, the eval stack's height it was pushed at, for a frame a
   // call pushed its function's symbol and the position its caller resumes
@@ -1445,7 +1377,7 @@ export class ProgramStoryState {
       w.WriteArrayEnd();
       w.WritePropertyEnd();
       // The cells still open on the frame, by the ids the closures holding
-      // them are written with, as the current engine's frames write them,
+      // them are written with, as the object engine's frames wrote them,
       // and the cells it borrowed, closed or not: a waiting choice's thread
       // borrows the cells of the thread it was copied from, and adopts them
       // when the choice is taken (`CallStack.Element.Copy`).
@@ -1662,11 +1594,7 @@ export class ProgramStoryState {
       const made = new CallStack.Thread();
       made.threadIndex = thread.copy.index;
       thread.copy.elements.forEach((saved, i) => {
-        const element = new CallStack.Element(
-          saved.type,
-          Pointer.Null,
-          saved.inExpression,
-        );
+        const element = new CallStack.Element(saved.type, saved.inExpression);
         element.evaluationStackHeightWhenPushed = saved.height;
         element.functionStartInOutputStream = saved.start;
         element.temporaryScopes = saved.scopes.map((scope) => new Map(scope));
@@ -1830,7 +1758,7 @@ export class ProgramStoryState {
     if (obj["engine"] !== "program") {
       throw new Error("The save was not written by the program engine.");
     }
-    this.readState(obj, new SessionCodec(this, true));
+    this.readState(obj, new SessionCodec(this));
     const previous = obj["previousAddress"];
     this.previousAddress = typeof previous === "number" ? previous : -1;
   }
@@ -1848,7 +1776,6 @@ export class ProgramStoryState {
       this.readTail(obj, codec);
       this.visits = new Uint32Array(0);
       this.turns = new Int32Array(0);
-      this.ResetCountDeltaTracking();
       codec.readCounts(obj);
       this.endLoad();
     } finally {
@@ -2113,10 +2040,7 @@ export interface StateCodec {
  *  `#<id>` for an anonymous symbol of the root's table generation, and a
  *  choice by the address of its `Choice`. */
 class SessionCodec implements StateCodec {
-  constructor(
-    protected _state: ProgramStoryState,
-    protected _withCounts: boolean,
-  ) {}
+  constructor(protected _state: ProgramStoryState) {}
 
   position(writer: SimpleJson.Writer, position: ProgramPosition | null): void {
     writePosition(writer, position);
@@ -2130,17 +2054,14 @@ class SessionCodec implements StateCodec {
     writer.WriteProperty("sourcePath", choice.sourcePath);
   }
 
-  // Without its counts, the state keeps both slots empty, which a
-  // checkpoint fills with the entries it keeps apart
-  // (`CheckpointStore.injectCounts`).
   counts(writer: SimpleJson.Writer): void {
     const state = this._state;
     writer.WriteIntProperty("countGeneration", state.root.generation);
     writer.WriteProperty("visitCounts", (w) =>
-      writeCounts(w, this._withCounts ? state.GetVisitCountEntries() : []),
+      writeCounts(w, state.GetVisitCountEntries()),
     );
     writer.WriteProperty("turnIndices", (w) =>
-      writeCounts(w, this._withCounts ? state.GetTurnIndexEntries() : []),
+      writeCounts(w, state.GetTurnIndexEntries()),
     );
   }
 

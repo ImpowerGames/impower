@@ -5,6 +5,7 @@ import { parseSource } from "./grammarSnapshot";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
+import { flowListings } from "../programListing";
 
 const URI = "file:///main.sd";
 
@@ -63,21 +64,30 @@ test.each(["none", "uniform", "random"])("builtins struct bodies compile identic
     const count = mode === "none" ? 0 : mode === "uniform" ? 4 : seed % 13;
     return " ".repeat(count) + line.trimStart();
   }).join("\n");
-  // Compares the current engine's compiled JSON (`normalizeProgram`). The
-  // program's instruction listing leaves out where a body resumes, and
-  // renaming generated names in it rewrites a tag's text, so it is no
-  // comparison of the program's code yet: #705's deletion has to give this
-  // test one.
+  // Compares the program without its positions (`normalizeProgram`), and its
+  // code: each flow's instructions by the flow's name (`flowListings`). A
+  // binding evaluator's generated name ends with the source offset it was
+  // minted from, so each is numbered in the order of those offsets, which an
+  // indentation change keeps.
   const compile = (source: string) => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
-      programChunks: false,
       useBuiltinsPrelude: false, definitions: { builtins: {} },
       files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }],
     } as any);
-    return normalizeProgram(compiler.compile({ textDocument: { uri: URI } }).program);
+    const program = compiler.compile({ textDocument: { uri: URI } }).program;
+    expect(program.chunks, "the compile built statement chunks").toBeDefined();
+    const listings = [...flowListings(program.chunks)];
+    const offsetOf = (name: string) => Number(/_(\d+)$/.exec(name)?.[1] ?? -1);
+    const generated = [...new Set(JSON.stringify(listings).match(/__binding_\w+/g) ?? [])]
+      .sort((a, b) => offsetOf(a) - offsetOf(b));
+    const rename = (text: string) =>
+      text.replace(/__binding_\w+/g, (name) => `__generated_${generated.indexOf(name)}`);
+    const code = listings
+      .map(([flow, listing]) => [rename(flow), listing.map(rename)] as const)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return { program: normalizeProgram(program), code };
   };
   const original = compile(text);
-  expect(original).toHaveProperty("compiled");
   expect(isDeepStrictEqual(compile(changed), original)).toBe(true);
 });

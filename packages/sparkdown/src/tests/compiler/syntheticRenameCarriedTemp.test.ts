@@ -6,7 +6,6 @@
 // over its identifier, so the plain-string half of the rename must leave it to
 // the identifier pass. Writing through the getter throws, and the compile
 // returns a program with no compiled story.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";

@@ -5,7 +5,6 @@
 // (a first compile, a preview's, the compile after a preview) compares the two
 // whole roots. Either way it equals the whole-root comparison of the root it
 // is measured against and the root the compile built.
-import "../../inkjs/engine/Container";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { ChunkChanges } from "../../compiler/types/ProgramChangeSummary";
@@ -16,7 +15,7 @@ import { rootChanges } from "../../program/rootChanges";
 import { cumulativeEdits } from "./cumulativeEdits";
 import { MAIN_URI, programCompiler } from "./programHarness";
 
-const CONFIG = { programChunks: true, seedBuiltinsIntoStory: true };
+const CONFIG = { seedBuiltinsIntoStory: true };
 
 function quiet<T>(fn: () => T): T {
   const { warn, error } = console;
@@ -116,7 +115,6 @@ describe("the change summary of an edit inside one beat", () => {
       let text = screenplay(60);
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
       const first = c.compile().program;
-      expect(first.fallback ?? null).toBe(null);
       expect(first.chunks).toBeDefined();
       const symbols = first.chunks!.table.symbols.length;
       expect(symbols).toBeGreaterThan(60);

@@ -126,8 +126,8 @@ export function lower(
 
 /**
  * Stamps a statement's objects with the range `[from, to)` it was lowered
- * from, which `program.pathLocations` and the runtime's error positions
- * read.
+ * from, which the line rows of the statement's chunk and the runtime's error
+ * positions read.
  *
  * Trailing whitespace and newlines are clamped off the range, so a beat's
  * `endLineNumber` is its last VISIBLE content line, not a blank or the start
@@ -146,8 +146,8 @@ export function lower(
  * statement the range of its header line, so a diagnostic raised in its
  * condition, such as an unknown name, is reported on that line rather than
  * on the enclosing scene or branch. Only the header: the lines of its arms
- * own their own paths, and a range covering them would make
- * `program.pathLocations` resolve those lines to the statement instead.
+ * own their own addresses, and a range covering them would make those
+ * lines address the statement instead.
  */
 export function stampStatement(
   content: ParsedObject[],

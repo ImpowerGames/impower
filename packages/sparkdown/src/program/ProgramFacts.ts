@@ -29,7 +29,7 @@ export const PARAM_VALUE = "value";
 
 /** The `FACT_PARAMS` of a function whose parameters are `args`: a parameter
  *  declared `ref` takes a pointer, the `...` the rest, and any other its
- *  argument's value, as `Divert.GenerateRuntimeObject` passes them. */
+ *  argument's value, as `Divert.EmitProgram` passes them. */
 export const parameterKinds = (
   args:
     | readonly {

@@ -18,7 +18,7 @@ export interface SparkdownCompilerConfig {
   // defines' inheritance from builtin types (e.g. `as animation` → builtin
   // `timing`) via the runtime `__index` chain. This is how the Game sources its
   // define context (the static `program.defines` channel was retired). Only
-  // affects `program.compiled` — `program.context` still comes from
+  // affects the program's declarations — `program.context` still comes from
   // mergePreludeContext, unchanged. Default OFF (the prelude parse adds cost, so
   // the pure-LSP diagnostics path leaves it off; any compile feeding a Game must
   // turn it on — the player worker and the test harnesses do).
@@ -33,45 +33,6 @@ export interface SparkdownCompilerConfig {
    * filtering depends on the inlined source.
    */
   stripImageData?: boolean;
-  /**
-   * Serialize the compiled program at all (#345).
-   *
-   * Defaults to on. Hosts that never read the bytecode turn it OFF: the
-   * language-server instance relays a slim projection that excludes `compiled`,
-   * so serializing it costs ~25-30ms per keystroke on a large project for data
-   * that is discarded, and the full program still rides the compile response
-   * across the worker boundary.
-   *
-   * Only SERIALIZATION is skipped. `ExportRuntime` still runs, because
-   * generation-time diagnostics come out of it and `populateAllLocations`
-   * walks the runtime tree for `pathLocations`. Orthogonal to
-   * {@link binaryProgram}, which selects the FORM when something is emitted.
-   */
-  emitCompiledProgram?: boolean;
-  /**
-   * Serialize the compiled program to the binary format (#314) instead of a
-   * JSON object tree, exposing it as `program.compiledBuffer`.
-   *
-   * Off by default: the JSON path stays the default and the fallback, so a
-   * regression in the binary path can be bisected without a revert. Not a
-   * speed win — measured, it is a wash end to end and ~10% on payload; it
-   * exists because a binary program is wanted for its own sake (obfuscation,
-   * a self-contained artifact). Ignored when {@link emitCompiledProgram} is
-   * off, since then nothing is emitted in either form.
-   */
-  binaryProgram?: boolean;
-  /**
-   * Compile the program to statement chunks (#692, docs/engine/binary-program.md)
-   * as well as to the runtime story, and hand a game the chunks when every
-   * statement has an emit path.
-   *
-   * Off by default, with no editor setting. With it on, a compile fills the
-   * compiler's chunk store and `program.chunks` refers to the root it built,
-   * and `program.compiled` is not emitted. A program that holds any construct
-   * the writer does not emit falls back as a whole: `program.fallback` names
-   * the construct, and the program is emitted as it is with the field off.
-   */
-  programChunks?: boolean;
   workspace?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<

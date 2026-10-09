@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import type { InkObject as RuntimeObject } from "../../../../../runtime/Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Identifier } from "../Identifier";
 import {
@@ -127,13 +125,8 @@ export class MemoizedMultiAssignment extends MultiVariableAssignment {
     return true;
   }
 
-  public override readonly GenerateRuntimeObject = (): RuntimeObject => {
-    memoGenerate(this);
-    return new RuntimeContainer();
-  };
-
-  public override ResolveWith(_context: Story, program: boolean): void {
-    memoResolve(this, program);
+  public override ResolveWith(_context: Story): void {
+    memoResolve(this);
   }
 
   public override EmitProgram(_emitter: ProgramEmitter): void {
@@ -159,13 +152,8 @@ export class MemoizedAssignment extends VariableAssignment {
     return true;
   }
 
-  public override readonly GenerateRuntimeObject = (): RuntimeObject | null => {
-    memoGenerate(this);
-    return new RuntimeContainer();
-  };
-
-  public override ResolveWith(_context: Story, program: boolean): void {
-    memoResolve(this, program);
+  public override ResolveWith(_context: Story): void {
+    memoResolve(this);
   }
 
   public override EmitProgram(_emitter: ProgramEmitter): void {

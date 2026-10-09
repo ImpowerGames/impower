@@ -20,18 +20,10 @@
 // value, while `xpcall` returns every value its function returns. Each case
 // notes the line
 // Luau shows, but a builtin through a value that raises is compared with the
-// direct call of its builtin. A story compiled before calls recorded their
-// argument count still shows what it showed then.
-import "../../inkjs/engine/Container";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+// direct call of its builtin.
 import { describe, expect, it } from "vitest";
-import { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Functions the cases call: of one parameter, of two, a `__call` handler,
 // variadic (`vf` counts the values of the first value its `...` holds), with
@@ -100,31 +92,19 @@ const inRun = (body: string[], result = T3): string =>
 const topLevel = (body: string[], result = T3): string =>
   [...FUNCTIONS, ...body, `Got {${result}}.`, ""].join("\n");
 
-/** What a script shows, its lines joined, and the errors it reports: on the
- *  current engine, on the program engine, and on the current engine running
- *  the story's JSON, which records each call's argument count. */
+/** What a script shows, its lines joined, and the errors it reports. */
 function shown(text: string) {
   const lines = ({ beats, errors }: ReturnType<typeof storyBeats>) => [
     beats.map((beat) => beat.text.trim()).join(" "),
     ...errors,
   ];
-  const current = compileScript(text);
-  current.story.ResetState();
-  const json = new Story(current.program.compiled as Record<string, unknown>);
-  const { program } = compileScript(text, { programChunks: true });
-  expect(program.fallback).toBeUndefined();
-  return {
-    current: lines(storyBeats(current.story)),
-    program: lines(storyBeats(new ProgramStory(program.chunks!))),
-    json: lines(storyBeats(json)),
-  };
+  const { program } = compileScript(text);
+  expect(program.chunks).toBeDefined();
+  return lines(storyBeats(new ProgramStory(program.chunks!)));
 }
 
 const expectShows = (text: string, line: string) => {
-  const { current, program, json } = shown(text);
-  expect(current).toEqual([line]);
-  expect(program).toEqual([line]);
-  expect(json).toEqual([line]);
+  expect(shown(text)).toEqual([line]);
 };
 
 describe("a call to a function the compile found (#1215)", () => {
@@ -338,16 +318,8 @@ describe("a builtin called through a value", () => {
   });
 
   // Each call through a value runs in a script of as many lines as the one
-  // that calls its builtin directly, so both raise from the same line. The
-  // story's JSON has no lines: its errors name the place in the compiled
-  // code, which differs between the two scripts and is left out.
-  const raisedBy = (text: string) => {
-    const { current, program, json } = shown(text);
-    const unplaced = json.map((line) =>
-      line.replace(/\(Ink Pointer -> [^)]*\)/, "(Ink Pointer)"),
-    );
-    return { current, program, json: unplaced };
-  };
+  // that calls its builtin directly, so both raise from the same line.
+  const raisedBy = (text: string) => shown(text);
   it.each([
     [
       "of numbers raises a missing argument",
@@ -370,9 +342,7 @@ describe("a builtin called through a value", () => {
   ])("%s, as its direct call does", (_name, through, direct, error) => {
     const raised = raisedBy(inRun(through));
     expect(raised).toEqual(raisedBy(inRun(direct)));
-    for (const lines of Object.values(raised)) {
-      expect(lines.slice(1)).toEqual([expect.stringContaining(error)]);
-    }
+    expect(raised.slice(1)).toEqual([expect.stringContaining(error)]);
   });
 });
 
@@ -531,40 +501,8 @@ describe("a function a host evaluates (`EvaluateFunction`)", () => {
     ["returns nothing from a function with no parameters that returns nothing", "noop", [9], null],
     ["leaves a scene the argument it binds no parameter for", "quiet", [4], 4],
   ])("%s", (_name, name, args, result) => {
-    const current = compileScript(HOST);
-    current.story.ResetState();
-    const json = new Story(current.program.compiled as Record<string, unknown>);
-    const { program } = compileScript(HOST, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
-    const stories = {
-      current: current.story,
-      program: new ProgramStory(program.chunks!),
-      json,
-    };
-    for (const [engine, story] of Object.entries(stories)) {
-      expect([engine, story.EvaluateFunction(name, args)]).toEqual([
-        engine,
-        result,
-      ]);
-    }
-  });
-});
-
-describe("a story compiled before calls recorded their argument count", () => {
-  it("shows what it showed then", () => {
-    // Compiled at `writtenBy` from `source`, and run by the engine there to
-    // show `shows`. Its calls record no argument count: a call to a variadic
-    // function packs the values past its parameters where it calls it, and a
-    // call whose last argument returns several values spreads them.
-    const fixture = JSON.parse(
-      readFileSync(join(__dirname, "fixtures", "story-before-argc.json"), "utf8"),
-    );
-    const json = JSON.stringify(fixture.story);
-    expect(json).not.toContain("\"argc\"");
-    expect(json).toContain("1,2,3,\"pack:2\",{\"f()\":\"v1\"}");
-    expect(json).toContain("{\"f()\":\"g2\"},{\"f()\":\"f2\"}");
-    const { beats, errors } = storyBeats(new Story(fixture.story));
-    expect(beats.map((beat) => beat.text.trim())).toEqual(fixture.shows);
-    expect(errors).toEqual([]);
+    const { program } = compileScript(HOST);
+    expect(program.chunks).toBeDefined();
+    expect(new ProgramStory(program.chunks!).EvaluateFunction(name, args)).toEqual(result);
   });
 });

@@ -6,7 +6,7 @@
  * opcode in bits 0 to 7, flags whose meaning belongs to the opcode in bits 8
  * to 15, and an unsigned 16-bit operand `aux` in bits 16 to 31. Word 1 is a
  * signed 32-bit operand `arg`. An operand that does not fit its field is a
- * construct the writer does not emit, and the compile falls back.
+ * construct the writer does not emit, which the compile reports as an error.
  *
  * A jump's `arg` is a signed count of code words relative to the instruction
  * after the jump. A block is an index into the chunk's own block table.
@@ -166,7 +166,7 @@ export const CALL_OPEN = 2;
 export const KEEP_OR = 1;
 
 /** `JumpIfFalse`'s flags. The condition is tested by Luau truthiness, where
- *  only nil and false are false, and otherwise as the current engine tests a
+ *  only nil and false are false, and otherwise as the object engine tested a
  *  conditional divert's condition. */
 export const JUMP_LUAU = 1;
 /** The jump is a decision the route planner can pause at and force, as a
@@ -195,7 +195,7 @@ export const CALL_TUNNEL = 1;
  *  arguments, which its code pushed arranged for the flow it enters. A jump
  *  or a tunnel without it that enters a variadic flow at its start passes
  *  that flow nil for each fixed parameter and an empty `...`, as the
- *  current engine's divert pushes them for a variadic target
+ *  object engine's divert pushed them for a variadic target
  *  (docs/engine/binary-program.md, section 3). */
 export const JUMP_ARGUMENTS = 2;
 
@@ -215,7 +215,7 @@ export const CHOICE_DECISION = 32;
 
 /** `Done`'s flag: it ends a `choose` block's presentation, and stops only
  *  when a choice the block's chunk raised is waiting; a block that raised
- *  none runs on, as the current engine's hold for choices does. */
+ *  none runs on, as the object engine's hold for choices did. */
 export const DONE_HOLD = 1;
 
 export const AUX_MAX = 0xffff;

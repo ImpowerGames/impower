@@ -48,12 +48,10 @@ function steps(source: string, simulator?: Simulator): Step[] {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("glue-join fixture failed to compile");
   }
-  const story = testStory(
-    result.program.compiled as Record<string, any>,
-  );
+  const story = testStory(result.program.chunks);
   const errors: string[] = [];
   story.onError = (m) => errors.push(m);
   story.simulator = simulator ?? null;

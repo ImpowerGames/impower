@@ -6,7 +6,7 @@ export class Identifier {
   public debugMetadata: DebugMetadata | null = null;
 
   // Diagnostic-dedup state stored as compile epochs (see CompileEpoch.ts) so
-  // flags set during a prior `ExportRuntime` go stale automatically on reused
+  // flags set during a prior compile go stale automatically on reused
   // nodes — no per-compile clearing walk. The boolean accessors preserve the
   // upstream inkjs API surface (`ParsedObject.Error` reads/sets these).
   private _errorEpoch: number = 0;

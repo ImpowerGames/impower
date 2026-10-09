@@ -8,7 +8,6 @@
 // comparing the container's content length, and this pins the behaviour:
 // adding anonymous functions into existing scene bodies (including one that
 // shifts every later ordinal) must stay byte-identical to a cold compile.
-import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";

@@ -17,8 +17,8 @@ import {
   blockCount,
   chunkId,
   codeWords,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /** Adds what `from` names to `into`, a record of the same beat, each name
  *  once and in the order the beat names them. */
@@ -43,8 +43,9 @@ const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
  * `program.sceneAssets` is built from it (`SparkdownCompiler.populateSceneAssets`):
  * the asset directives each beat writes, under the address of the beat's
  * `LineStart`, and the flows the flow's jumps, tunnels and calls leave for.
- * The current engine's program gathers the same from the walk of its runtime
- * tree that fills its path locations; a program of chunks has no such walk.
+ * Before #705 the current engine's program gathered the same from the walk
+ * of its runtime tree that filled its path locations; a program of chunks
+ * has no such walk.
  *
  * A top-level flow is the top-level content (`"0"`), a scene with its
  * branches, or a function, and each one's statements are read in the order
@@ -73,7 +74,7 @@ export const captureProgramAssets = (
   // A chunk's code, and each of its bodies where the code enters it, so that
   // a choice's entry and its body come before the next choice's (round 2 of
   // the review of #1618); a body no instruction enters follows the code.
-  const visitChunk = (chunk: StatementChunk, capture: SceneAssetCapture) => {
+  const visitChunk = (chunk: ProgramChunk, capture: SceneAssetCapture) => {
     const id = chunkId(chunk);
     const words = codeWords(chunk);
     const visited = new Set<number>();

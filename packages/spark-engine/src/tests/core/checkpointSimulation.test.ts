@@ -12,60 +12,19 @@
 // not match natural execution — e.g. a forced branch can leave a variable at a
 // value the natural branch wouldn't).
 
-import { beforeEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
-// The same net runs under both checkpoint storage modes. The delta refactor must
-// be behavior-invariant: full-save mode (OFF) is the legacy baseline; delta mode
-// (ON) stores periodic keyframes + per-beat deltas and must reconstruct
-// byte-identically (a small baseInterval forces many delta beats between
-// keyframes so the delta path is actually exercised).
-//
-// Those two modes are the current engine's checkpoint storage, and run there
-// (`programChunks: false`): the program engine's checkpoints are its beat
-// images (`CheckpointStore.capture`'s image branch), which neither mode nor
-// the verifier reaches. The net runs a third time on the program engine, for
-// its images; #705's deletion removes the two current-engine modes.
-const CHECKPOINT_MODES: {
-  label: string;
-  config: Record<string, unknown>;
-  programEngine: boolean;
-}[] = [
-  {
-    label: "full-save checkpoints (flag OFF)",
-    config: { programChunks: false },
-    programEngine: false,
-  },
-  {
-    label: "incremental delta checkpoints (flag ON)",
-    config: {
-      programChunks: false,
-      incrementalCheckpoints: true,
-      verifyCheckpoints: true,
-      checkpointBaseInterval: 3,
-    },
-    programEngine: false,
-  },
-  {
-    label: "the program engine's checkpoint images",
-    config: {},
-    programEngine: true,
-  },
-];
-
-// Set by the outer describe.each iteration; folded into every compile and
-// Game created below.
-let ACTIVE_CHECKPOINT_CONFIG: Record<string, unknown> = {};
-let ACTIVE_PROGRAM_ENGINE = true;
+// The net runs on the program engine, whose checkpoints are its beat images
+// (`CheckpointStore.capture`'s image branch).
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    ...(ACTIVE_PROGRAM_ENGINE ? {} : { programChunks: false }),
     useBuiltinsPrelude: true,
     // The Game sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
@@ -74,10 +33,8 @@ function compileSrc(src: string) {
       { uri: URI, type: "script", name: "main", ext: "sd", text: src, version: 1, languageId: "sparkdown" },
     ],
   });
-  const result = compiler.compile({ textDocument: { uri: URI }, countAllVisits: true });
-  return ACTIVE_PROGRAM_ENGINE
-    ? requireChunks(result.program, "checkpoint fixture")
-    : result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program, "checkpoint fixture");
 }
 
 function newGame(program: unknown) {
@@ -88,7 +45,6 @@ function newGame(program: unknown) {
       fn(...a);
       return 0;
     }) as any,
-    ...ACTIVE_CHECKPOINT_CONFIG,
   } as any);
 }
 
@@ -97,13 +53,11 @@ function fp(game: Game, vars: string[]) {
   const vs: any = game.story.variablesState;
   const o: Record<string, unknown> = {
     text: (game.story.currentText ?? "").trim(),
-    // The program engine's state counts visits by flow name; the current
-    // engine's by path.
-    startVisits: game.programStory
-      ? ((game.story.state as any)
-          .GetVisitCountEntries()
-          .find(([key]: [string, number]) => key === "start")?.[1] ?? 0)
-      : (game.story.state as any).VisitCountAtPathString("start"),
+    // The program engine's state counts visits by flow name.
+    startVisits:
+      (game.story.state as any)
+        .GetVisitCountEntries()
+        .find(([key]: [string, number]) => key === "start")?.[1] ?? 0,
   };
   for (const n of vars) o[n] = vs.$(n);
   return JSON.stringify(o);
@@ -137,15 +91,6 @@ end
 `;
 const LINEAR_T = { first: 6, second: 8, third: 10, fourth: 12 };
 const LINEAR_VARS = ["score", "flag"];
-
-// Run the entire net once per checkpoint storage mode. `beforeEach` installs the
-// mode's Game config (read by `newGame`) at execution time — not collection time
-// — so each test sees its own mode.
-describe.each(CHECKPOINT_MODES)("$label", (mode) => {
-  beforeEach(() => {
-    ACTIVE_CHECKPOINT_CONFIG = mode.config;
-    ACTIVE_PROGRAM_ENGINE = mode.programEngine;
-  });
 
 describe("save / load / simulate (linear)", () => {
   test("simulate() to the last line mutates globals through that point", () => {
@@ -316,4 +261,3 @@ describe("checkpoint round-trip through variable-driven IF routes", () => {
   });
 });
 
-}); // describe.each(CHECKPOINT_MODES)

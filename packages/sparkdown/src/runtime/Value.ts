@@ -403,8 +403,8 @@ export class DivertTargetValue extends Value<Path> {
  * generation the id belongs to, and the symbol's qualified name, or nothing
  * for a function written inside a statement, whose symbol is anonymous. Two
  * refer to one function when they name it, or when they hold its anonymous
- * symbol of one generation. `label` is how it prints, as the current engine
- * prints a function's path.
+ * symbol of one generation. `label` is how it prints, as the deleted object
+ * engine printed a function's path.
  */
 export class SymbolRef {
   constructor(
@@ -432,8 +432,8 @@ export class SymbolRef {
 }
 
 /** A function or flow of a binary program held as a value: what the program
- *  engine holds where the current engine holds a `DivertTargetValue`, with a
- *  symbol in place of a path. It compares and prints as a divert target
+ *  engine holds where the deleted object engine held a `DivertTargetValue`,
+ *  with a symbol in place of a path. It compares and prints as a divert target
  *  does. */
 export class SymbolValue extends Value<SymbolRef> {
   constructor(ref: SymbolRef) {

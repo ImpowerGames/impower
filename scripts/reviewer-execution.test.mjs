@@ -60,7 +60,7 @@ git("add", "."); git("commit", "-m", "fixture");
 const head = git("rev-parse", "HEAD");
 const operations = [
   { id: "tests", kind: "vitest", package: "packages/example", files: ["a.test.ts"] },
-  { id: "engine", kind: "engine-bench", mode: "step", samples: 1, warmup: 0 },
+  { id: "engine", kind: "engine-bench", mode: "program", samples: 1, warmup: 0 },
   { id: "preview", kind: "preview-bench", mode: "both", samples: 1, warmup: 0 },
 ];
 const commands = executionCommands(operations, root);
@@ -195,7 +195,7 @@ assert.equal(executionCommands([operations[1]], root)[0].waitSeconds, undefined,
 assert.throws(() => executionCommands([{ ...operations[0], waitSeconds: 0 }], root), /waitSeconds/);
 assert.throws(() => executionCommands([{ ...operations[0], waitSeconds: 1801 }], root), /waitSeconds/);
 assert.throws(() => executionCommands([{ ...operations[1], waitSeconds: 10 }], root), /Unknown execution operation field/);
-assert.deepEqual(commands[1].args.slice(1), ["--fixture", "--mode", "step", "--samples", "1", "--warmup", "0"]);
+assert.deepEqual(commands[1].args.slice(1), ["--fixture", "--mode", "program", "--samples", "1", "--warmup", "0"]);
 for (const alteration of [ { command: "arbitrary" }, { env: { NODE_OPTIONS: "--import bad" } }, { args: ["--project", "outside"] } ]) {
   assert.throws(() => executionCommands([{ ...operations[0], ...alteration }], root), /Unknown execution operation field/);
 }

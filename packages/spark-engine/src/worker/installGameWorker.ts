@@ -1,6 +1,5 @@
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
@@ -139,7 +138,7 @@ export function installGameWorker(connection: MessageConnection) {
    *  that owns its game gives each game it builds the same settings. Every
    *  game this worker holds is built here. */
   const createGame = (
-    options: { program: SparkProgram; story?: Story } & GameConfiguration,
+    options: { program: SparkProgram } & GameConfiguration,
   ): Game => {
     const game = new Game({
       ...systemConfiguration,

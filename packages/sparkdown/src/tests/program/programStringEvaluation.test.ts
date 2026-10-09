@@ -5,27 +5,23 @@
 // `BeginString` sits before everything the evaluation pushes, so a scan from
 // the end reached it only after the whole stream, and a loop that kept
 // pushing inside `{...}` cost more with every step. The state is driven
-// directly here, with the call stack of an empty story, so that the reads of
-// the stream can be counted.
-import { Container } from "../../inkjs/engine/Container";
+// directly here, with a program's empty call stack, so that the reads of the
+// stream can be counted.
 import { describe, expect, it } from "vitest";
 import { ControlCommand } from "../../runtime/ControlCommand";
 import type { InkObject } from "../../runtime/Object";
-import { Story } from "../../inkjs/engine/Story";
+import { CallStack } from "../../runtime/CallStack";
 import { StringValue } from "../../runtime/Value";
 import { ProgramStoryState } from "../../program/ProgramStoryState";
 
-const newState = () => {
-  const story = new Story(new Container(), null, null);
-  story.ResetState(false);
-  return new ProgramStoryState(
+const newState = () =>
+  new ProgramStoryState(
     null as never,
     null as never,
     (text) => text,
     () => {},
-    story.state.callStack,
+    CallStack.ForProgram(),
   );
-};
 
 /** Counts the entries of `state`'s output stream that are read. */
 const countReads = (state: ProgramStoryState) => {

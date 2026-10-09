@@ -24,7 +24,7 @@ export function buildDebugMetadata(
   // `DebugMetadata.startLineNumber` is **1-based** by the compiler's
   // convention: the diagnostics path builds it as `lineNumberOffset + 1`,
   // the `offsetSource` rebase treats `diagnostic.source.startLineNumber` as
-  // 1-based, and `program.pathLocations` converts back to 0-based with
+  // 1-based, and its readers convert back to 0-based with
   // `startLineNumber - 1`. `ctx.lineNumber` is 0-based (chunk-relative in the
   // annotator, absolute in the snapshot context), so `+ 1` lifts it into that
   // 1-based convention. Without it, every lowerer-stamped entry lands one line

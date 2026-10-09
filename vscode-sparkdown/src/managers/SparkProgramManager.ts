@@ -184,13 +184,10 @@ export class SparkProgramManager {
 
   async compile(uri: vscode.Uri) {
     const client = await this.languageClientReady;
+    // This is the PULL path: whoever called `getOrCompile` wants the whole
+    // program, which the slim per-keystroke notifications leave out.
     const params: CompileProgramParams = {
       textDocument: { uri: uri.toString() },
-      // This is the PULL path: whoever called `getOrCompile` wants the whole
-      // program, bytecode included. Per-keystroke compiles suppress it (see
-      // the initialization options), so it has to be requested here or the
-      // compilation view renders empty (#351).
-      emitCompiledProgram: true,
     };
     const program = await client.sendRequest<SparkProgram>(
       CompileProgramMessage.method,

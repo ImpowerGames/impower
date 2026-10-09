@@ -1,7 +1,6 @@
 // The program engine one instruction at a time (#695): what each instruction
 // left on the eval stack, in the output and on the frame, for the tests of
 // single instructions.
-import "../../inkjs/engine/Container";
 import { ControlCommand } from "../../runtime/ControlCommand";
 import type { InkObject } from "../../runtime/Object";
 import {
@@ -26,7 +25,6 @@ class HandWritten extends ParsedObject {
   constructor(protected _emit: (emitter: ProgramEmitter) => void) {
     super();
   }
-  override readonly GenerateRuntimeObject = () => null;
   override EmitProgram(emitter: ProgramEmitter): void {
     this._emit(emitter);
   }
@@ -37,7 +35,7 @@ class HandWritten extends ParsedObject {
 export function handWrittenProgram(
   emit: (emitter: ProgramEmitter) => void,
 ): ProgramRoot {
-  const { root, fallback } = new ChunkStore().build(
+  const { root, unsupported } = new ChunkStore().build(
     [
       {
         name: "",
@@ -61,7 +59,7 @@ export function handWrittenProgram(
     true,
   );
   if (!root) {
-    throw new Error(`the hand-written statement fell back: ${fallback?.construct}`);
+    throw new Error(`the hand-written statement holds a construct the writer cannot emit: ${unsupported?.construct}`);
   }
   return root;
 }

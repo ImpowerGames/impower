@@ -107,8 +107,8 @@ end
       { $type: "audio", $name: "mus_a_flute" },
     ]);
     // And the story actually compiled + runs (no init throw).
-    expect((result.program as any).compiled).toBeDefined();
-    const story = testStory((result.program as any).compiled);
+    expect(result.program.chunks).toBeDefined();
+    const story = testStory(result.program.chunks);
     const errors: string[] = [];
     story.onError = (m: string) => errors.push(m);
     const out = story.ContinueMaximally();

@@ -35,16 +35,9 @@ import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
-// The tests that measure what only the current engine does run there
-// (`CURRENT`): its step unit, `ContinueSingleStep`, which its reset runs the
-// globals' declarations through, and its async continue's open line, which
-// `ContinueAsync` leaves part-way through a line with output written.
-const CURRENT = true;
-
-function compileSrc(src: string, currentEngine = false) {
+function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    ...(currentEngine ? { programChunks: false } : {}),
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
     files: [
@@ -59,11 +52,8 @@ function compileSrc(src: string, currentEngine = false) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  return currentEngine ? result.program : requireChunks(result.program);
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 /** A story that can always continue and never completes a line: two scenes
@@ -95,14 +85,9 @@ const ORDINARY = [
   "",
 ].join("\n");
 
-const newGame = (
-  program: unknown,
-  executionStepLimit?: number,
-  currentEngine = false,
-) =>
+const newGame = (program: unknown, executionStepLimit?: number) =>
   new Game({
     program: program as any,
-    ...(currentEngine ? { programChunks: false } : {}),
     now: () => performance.now(),
     ...(executionStepLimit ? { executionStepLimit } : {}),
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
@@ -180,11 +165,11 @@ const probe = (game: Game): Probe => {
 
 /** Reproduce the ticket's starting position: run the unfinishable story until
  *  the execution budget stops it, which leaves a line open part-way through. */
-const stoppedMidUnfinishableLine = (currentEngine = false) => {
-  const program = compileSrc(UNFINISHABLE_LINE, currentEngine);
+const stoppedMidUnfinishableLine = () => {
+  const program = compileSrc(UNFINISHABLE_LINE);
   // Small only so the setup is quick; the shipped ceiling reaches the same
   // state, several seconds later.
-  const p = probe(newGame(program, 5_000, currentEngine));
+  const p = probe(newGame(program, 5_000));
   p.game.start();
 
   // The precondition the rest of the file depends on.
@@ -197,10 +182,8 @@ const stoppedMidUnfinishableLine = (currentEngine = false) => {
 /** What a reset costs when there is no open line to deal with: re-declaring the
  *  story's globals, and nothing else. Any advance beyond this is the discard
  *  running the story, which is the thing that must not happen. */
-const resetCostWithNothingOpen = (currentEngine = false) => {
-  const p = probe(
-    newGame(compileSrc(UNFINISHABLE_LINE, currentEngine), 5_000, currentEngine),
-  );
+const resetCostWithNothingOpen = () => {
+  const p = probe(newGame(compileSrc(UNFINISHABLE_LINE), 5_000));
   const before = p.advances();
   p.game.reset();
   expect(p.midLine()).toBe(false);
@@ -217,30 +200,26 @@ const expectDiscardedForFree = (p: Probe) => {
 };
 
 /** Drive an ordinary story one advance at a time — the same unit the engine's
- *  own step loop uses — and stop on the first step that leaves a line open
- *  with output already written, so the line has something to lose. */
-const driveToOpenLine = (currentEngine = false) => {
-  const p = probe(
-    newGame(compileSrc(ORDINARY, currentEngine), undefined, currentEngine),
-  );
+ *  own step loop uses — and stop on the first step that leaves a line open,
+ *  so the line has the steps it ran to lose. */
+const driveToOpenLine = () => {
+  const p = probe(newGame(compileSrc(ORDINARY)));
   const story: any = p.game.story;
   story.ChoosePathString("start");
   for (let i = 0; i < 60 && story.canContinue; i += 1) {
     story.ContinueAsync();
-    if (story.state.outputStream.length > 0 && p.midLine()) {
+    if (p.midLine()) {
       return p;
     }
   }
-  throw new Error("fixture never reached an open line holding output");
+  throw new Error("fixture never reached an open line");
 };
 
 describe("letting go of a line the story cannot finish", () => {
   test("the rewind does not advance the story at all", () => {
-    // On the current engine (`CURRENT`): the baseline is its reset's steps.
-    const baseline = resetCostWithNothingOpen(CURRENT);
-    expect(baseline).toBeGreaterThan(0); // the globals really are re-declared
+    const baseline = resetCostWithNothingOpen();
 
-    const p = stoppedMidUnfinishableLine(CURRENT);
+    const p = stoppedMidUnfinishableLine();
     const before = p.advances();
     // Generous next to the baseline, nowhere near forever. The version that
     // finished the line blows straight through this.
@@ -296,8 +275,7 @@ describe("letting go of a line the story cannot finish", () => {
     // then failing to load leaves the line torn in half with no replacement:
     // the next continue resumes from the middle of it, dropping the text and
     // the `display()` table that decide how the beat is displayed.
-    // On the current engine (`CURRENT`), whose open line this drives to.
-    const p = driveToOpenLine(CURRENT);
+    const p = driveToOpenLine();
     expect(p.midLine()).toBe(true);
 
     expect(p.game.load("{ this is not a save")).toBe(false);
@@ -392,20 +370,21 @@ describe("letting go of an ordinary open line", () => {
   test("loading a save lets go of it", () => {
     // Load replaces the state outright and runs no continue of its own, so
     // it is the path where a discard that left the continue open would show.
-    // On the current engine (`CURRENT`), whose open line this drives to.
-    const save = newGame(compileSrc(ORDINARY, CURRENT), undefined, CURRENT).save();
-    const p = driveToOpenLine(CURRENT);
+    // The program engine's save load ends the line itself
+    // (`ProgramStory.loadSave`), and runs none of it.
+    const save = newGame(compileSrc(ORDINARY)).save();
+    const p = driveToOpenLine();
     p.capAdvances(200_000);
+    const before = p.advances();
 
     expect(p.game.load(save)).toBe(true);
 
     expect(p.midLine()).toBe(false);
-    expectDiscardedForFree(p);
+    expect(p.advances() - before).toBe(0);
   }, 300_000);
 
   test("rewinding lets go of it, and the story still replays correctly", () => {
-    // On the current engine (`CURRENT`), whose open line this drives to.
-    const p = driveToOpenLine(CURRENT);
+    const p = driveToOpenLine();
     p.capAdvances(200_000);
     p.game.reset();
 

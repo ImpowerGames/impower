@@ -6,8 +6,8 @@ import {
   H_LINE_ROWS,
   blockCount,
   codeWords,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /** One instruction as the reader decodes it. */
 export interface Instruction {
@@ -35,7 +35,7 @@ export class BinaryProgramReader {
    *  script (counting from 0). */
   *statements(
     sequence: SequenceRow,
-  ): IterableIterator<{ entry: number; chunk: StatementChunk; line: number }> {
+  ): IterableIterator<{ entry: number; chunk: ProgramChunk; line: number }> {
     const { chunks } = sequence.arrays;
     for (let entry = 0; entry < chunks.length; entry += 1) {
       yield { entry, chunk: chunks[entry]!, line: this.root.lineOf(sequence, entry) };
@@ -43,14 +43,14 @@ export class BinaryProgramReader {
   }
 
   /** The instructions of a chunk's code, in order. */
-  *instructions(chunk: StatementChunk): IterableIterator<Instruction> {
+  *instructions(chunk: ProgramChunk): IterableIterator<Instruction> {
     const words = codeWords(chunk);
     for (let offset = 0; offset < words; offset += 2) {
       yield BinaryProgramReader.instructionAt(chunk, offset);
     }
   }
 
-  static instructionAt(chunk: StatementChunk, offset: number): Instruction {
+  static instructionAt(chunk: ProgramChunk, offset: number): Instruction {
     const w0 = chunk[HEADER_WORDS + offset]!;
     return {
       offset,

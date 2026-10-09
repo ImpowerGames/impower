@@ -19,7 +19,7 @@ function chooseFirst(source: string): {
   afterLoad: string;
   errors: string[];
 } {
-  const { story, errorMessages, compiledJson } =
+  const { story, errorMessages, root } =
     makeRuntimeStoryFromSource(source);
   const errors = errorMessages.map((m) => `[compile] ${m}`);
   story.onError = (m: string) => errors.push(`[straight] ${m}`);
@@ -29,7 +29,7 @@ function chooseFirst(source: string): {
   story.ChooseChoiceIndex(0);
   const afterChoice = story.ContinueMaximally();
 
-  const again = testStory(compiledJson as Record<string, any>);
+  const again = testStory(root);
   again.onError = (m: string) => errors.push(`[after load] ${m}`);
   again.state.LoadJson(savedJson);
   again.ChooseChoiceIndex(0);
@@ -44,7 +44,7 @@ function straightAndRestored(source: string): {
   restored: string;
   errors: string[];
 } {
-  const { story, errorMessages, compiledJson } =
+  const { story, errorMessages, root } =
     makeRuntimeStoryFromSource(source);
   const errors = errorMessages.map((m) => `[compile] ${m}`);
   story.onError = (m: string) => errors.push(`[straight] ${m}`);
@@ -54,7 +54,7 @@ function straightAndRestored(source: string): {
   saving.onError = (m: string) => errors.push(`[before save] ${m}`);
   const first = saving.Continue() ?? "";
   const savedJson = saving.state.ToJson();
-  const again = testStory(compiledJson as Record<string, any>);
+  const again = testStory(root);
   again.onError = (m: string) => errors.push(`[after load] ${m}`);
   again.state.LoadJson(savedJson);
   const restored = first + again.ContinueMaximally();

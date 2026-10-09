@@ -5,10 +5,9 @@
  * it is, and compares two with `===`, because several source lines of one
  * beat share an execution position and that is what a consumer asks about.
  *
- * On the program engine it is one number, a chunk id and an offset, which
- * survives a compile for every statement that was not emitted again. On the
- * current engine, until it is deleted, it is the runtime path the engine
- * names the position by, which no consumer reads.
+ * It is one number, a chunk id and an offset, which survives a compile for
+ * every statement that was not emitted again. Before #705 the current
+ * engine's address was the runtime path it named the position by, a string.
  */
 export type ProgramAddress = number | string;
 
@@ -37,8 +36,8 @@ export interface AddressQuery {
 
 /**
  * The one accessor through which everything outside the engine and the
- * compiler goes from a source line to an execution position and back. It
- * answers from either engine until the current one is deleted.
+ * compiler goes from a source line to an execution position and back. The
+ * program's root answers it (`ProgramRoot.addressAt`, `locationOf`).
  */
 export interface ProgramLocator {
   /** The address of the beat or statement on a line of a script, or of the

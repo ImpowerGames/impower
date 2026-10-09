@@ -15,7 +15,7 @@
  * | 8 to 9 | layout hash of the code and export table |
  * | 10 onwards | the code, then the four tables in the order above |
  */
-export type StatementChunk = Int32Array;
+export type ProgramChunk = Int32Array;
 
 export const HEADER_WORDS = 10;
 
@@ -94,30 +94,30 @@ export const chunkOfAddress = (address: number): number =>
 export const offsetOfAddress = (address: number): number =>
   address % ADDRESS_OFFSETS;
 
-export const codeWords = (chunk: StatementChunk): number =>
+export const codeWords = (chunk: ProgramChunk): number =>
   chunk[H_CODE_WORDS]!;
 
-export const chunkId = (chunk: StatementChunk): number => chunk[H_CHUNK_ID]!;
+export const chunkId = (chunk: ProgramChunk): number => chunk[H_CHUNK_ID]!;
 
-export const lineTableStart = (chunk: StatementChunk): number =>
+export const lineTableStart = (chunk: ProgramChunk): number =>
   HEADER_WORDS + chunk[H_CODE_WORDS]!;
 
-export const exportTableStart = (chunk: StatementChunk): number =>
+export const exportTableStart = (chunk: ProgramChunk): number =>
   lineTableStart(chunk) + chunk[H_LINE_ROWS]! * LINE_ROW_WORDS;
 
-export const blockTableStart = (chunk: StatementChunk): number =>
+export const blockTableStart = (chunk: ProgramChunk): number =>
   exportTableStart(chunk) + chunk[H_EXPORT_ROWS]! * EXPORT_ROW_WORDS;
 
-export const referenceTableStart = (chunk: StatementChunk): number =>
+export const referenceTableStart = (chunk: ProgramChunk): number =>
   blockTableStart(chunk) + chunk[H_BLOCK_ROWS]! * BLOCK_ROW_WORDS;
 
-export const chunkWords = (chunk: StatementChunk): number =>
+export const chunkWords = (chunk: ProgramChunk): number =>
   referenceTableStart(chunk) + chunk[H_REFERENCE_ROWS]! * REFERENCE_ROW_WORDS;
 
 /** The line table row covering the instruction at `offset` (a code word
  *  index), or -1 when the chunk has no row at or before it. Rows are sorted
  *  by offset, and a row covers the code up to the next row. */
-export const lineRowAt = (chunk: StatementChunk, offset: number): number => {
+export const lineRowAt = (chunk: ProgramChunk, offset: number): number => {
   const start = lineTableStart(chunk);
   const rows = chunk[H_LINE_ROWS]!;
   let found = -1;
@@ -133,38 +133,38 @@ export const lineRowAt = (chunk: StatementChunk, offset: number): number => {
 /** One field of line table row `row`: 0 offset, 1 anchor, 2 first line,
  *  3 start column, 4 last line, 5 end column. */
 export const lineRowField = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   row: number,
   field: number,
 ): number => chunk[lineTableStart(chunk) + row * LINE_ROW_WORDS + field]!;
 
 /** How many symbols the chunk exports. */
-export const exportCount = (chunk: StatementChunk): number =>
+export const exportCount = (chunk: ProgramChunk): number =>
   chunk[H_EXPORT_ROWS]!;
 
 /** The symbol export row `row` defines. */
-export const exportSymbol = (chunk: StatementChunk, row: number): number =>
+export const exportSymbol = (chunk: ProgramChunk, row: number): number =>
   chunk[exportTableStart(chunk) + row * EXPORT_ROW_WORDS]!;
 
 /** The offset of the code that defines export row `row`'s symbol. */
-export const exportOffset = (chunk: StatementChunk, row: number): number =>
+export const exportOffset = (chunk: ProgramChunk, row: number): number =>
   chunk[exportTableStart(chunk) + row * EXPORT_ROW_WORDS + 1]!;
 
 /** How many blocks the chunk's statement has. */
-export const blockCount = (chunk: StatementChunk): number =>
+export const blockCount = (chunk: ProgramChunk): number =>
   chunk[H_BLOCK_ROWS]!;
 
 /** One field of block table row `block` (`B_SEQUENCE` and the rest). */
 export const blockField = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   block: number,
   field: number,
 ): number => chunk[blockTableStart(chunk) + block * BLOCK_ROW_WORDS + field]!;
 
 /** The scopes the owner has open where it enters block `block`. */
-export const blockScopes = (chunk: StatementChunk, block: number): number =>
+export const blockScopes = (chunk: ProgramChunk, block: number): number =>
   blockField(chunk, block, B_SCOPES_FLAGS) >>> BLOCK_SCOPE_SHIFT;
 
 /** What block `block`'s body is (`BLOCK_LOOP` and the rest). */
-export const blockFlags = (chunk: StatementChunk, block: number): number =>
+export const blockFlags = (chunk: ProgramChunk, block: number): number =>
   blockField(chunk, block, B_SCOPES_FLAGS) & BLOCK_FLAGS_MASK;

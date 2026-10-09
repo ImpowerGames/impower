@@ -3,8 +3,7 @@
 // whose choices' bodies and `then` clause are blocks, a choice's count is an
 // anonymous symbol the statement owns that goes with the choice when the
 // statement is emitted again, and the engine raises, presents and takes
-// choices as the current engine does.
-import "../../inkjs/engine/Container";
+// choices. Each run is held to the beats and menus its script and picks give.
 import { afterEach, describe, expect, it } from "vitest";
 import { buildPreviewFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -28,8 +27,8 @@ import {
   blockFlags,
   chunkId,
   codeWords,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   compileScript,
   MAIN_URI,
@@ -58,30 +57,20 @@ const silence = <T>(run: () => T): T => {
   }
 };
 
-/** What a script shows on each engine when the choices `picks` names are
- *  taken in turn (the first one at every menu past them), and the program's
- *  root. */
-const bothEngines = (text: string, picks: number[] = [], from?: string) =>
+/** What a script shows when the choices `picks` names are taken in turn
+ *  (the first one at every menu past them), and the program's root. */
+const programRun = (text: string, picks: number[] = [], from?: string) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
-    const current = compileScript(text);
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     injectDraws();
-    current.story.ResetState();
-    const expected = storyRun(current.story, picks, { from });
-    injectDraws();
-    const actual = storyRun(new ProgramStory(program.chunks!), picks, { from });
-    return { expected, actual, root: program.chunks! };
+    const run = storyRun(new ProgramStory(program.chunks!), picks, { from });
+    return { run, root: program.chunks! };
   });
 
-/** Compares a script on both engines for each of `pickLists`, and returns
- *  the runs. */
-const agrees = (text: string, pickLists: number[][], from?: string) =>
-  pickLists.map((picks) => {
-    const run = bothEngines(text, picks, from);
-    expect(run.actual, `picks ${picks.join(",")}`).toEqual(run.expected);
-    return run;
-  });
+/** Runs a script for each of `pickLists` and returns the runs. */
+const runsOf = (text: string, pickLists: number[][], from?: string) =>
+  pickLists.map((picks) => programRun(text, picks, from));
 
 /** The texts of a run's beats, trimmed. */
 const texts = (run: { beats: { text: string }[] }) =>
@@ -106,11 +95,11 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script that an edit replaces `before` with `after`
  *  in, one occurrence, and compiles again. */
 const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   let current = text;
   let version = 1;
   const first = silence(() => c.compile().program);
-  expect(first.fallback).toBeUndefined();
+  expect(first.chunks).toBeDefined();
   return {
     compiler: c.compiler,
     first,
@@ -129,7 +118,7 @@ const session = (text: string) => {
       });
       current = current.slice(0, at) + after + current.slice(at + before.length);
       const program = silence(() => c.compile().program);
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       return program.chunks!;
     },
     get emitted() {
@@ -139,7 +128,7 @@ const session = (text: string) => {
 };
 
 /** The chunks of a root whose code holds a `Choice`: its `choose` blocks. */
-const chooseChunks = (root: ProgramRoot): StatementChunk[] => {
+const chooseChunks = (root: ProgramRoot): ProgramChunk[] => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).filter((chunk) =>
     [...reader.instructions(chunk)].some((i) => i.op === Op.Choice),
@@ -147,7 +136,7 @@ const chooseChunks = (root: ProgramRoot): StatementChunk[] => {
 };
 
 /** The instructions of a chunk's code. */
-const instructionsOf = (chunk: StatementChunk) => {
+const instructionsOf = (chunk: ProgramChunk) => {
   const out = [];
   for (let offset = 0; offset < codeWords(chunk); offset += 2) {
     out.push(BinaryProgramReader.instructionAt(chunk, offset));
@@ -157,7 +146,7 @@ const instructionsOf = (chunk: StatementChunk) => {
 
 /** The `Choice` instructions of a chunk, each with the count symbol its
  *  entry's `Visit` names. */
-const choicesOf = (chunk: StatementChunk) =>
+const choicesOf = (chunk: ProgramChunk) =>
   instructionsOf(chunk)
     .filter((i) => i.op === Op.Choice)
     .map((i) => {
@@ -167,11 +156,11 @@ const choicesOf = (chunk: StatementChunk) =>
     });
 
 /** The sequence of block `k` of `chunk` in `root`. */
-const bodyOf = (root: ProgramRoot, chunk: StatementChunk, k: number): SequenceRow =>
+const bodyOf = (root: ProgramRoot, chunk: ProgramChunk, k: number): SequenceRow =>
   root.body(chunk, k)!;
 
 describe("choose blocks on the program engine", () => {
-  it("raises a block's choices and takes each one as the current engine does", () => {
+  it("raises a block's choices and takes each one", () => {
     const text = [
       "-> main",
       "scene main",
@@ -188,18 +177,18 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [first, second] = agrees(text, [[0], [1]]);
-    expect(menuTexts(first!.expected)).toEqual([["Open the door", "Knock"]]);
+    const [first, second] = runsOf(text, [[0], [1]]);
+    expect(menuTexts(first!.run)).toEqual([["Open the door", "Knock"]]);
     // A choice whose words are all choice-only shows an empty line when
     // taken.
-    expect(texts(first!.actual)).toEqual([
+    expect(texts(first!.run)).toEqual([
       "The door is shut.",
       "",
       "The door swings open.",
       "You step back.",
       "After.",
     ]);
-    expect(texts(second!.actual)).toEqual([
+    expect(texts(second!.run)).toEqual([
       "The door is shut.",
       "Knock",
       "Nobody answers.",
@@ -231,8 +220,8 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [a, b, c] = agrees(text, [[0, 0], [0, 1], [1]]);
-    expect(texts(a!.actual)).toEqual([
+    const [a, b, c] = runsOf(text, [[0, 0], [0, 1], [1]]);
+    expect(texts(a!.run)).toEqual([
       "Outer one",
       "Inside one.",
       "Inner A",
@@ -241,8 +230,8 @@ describe("choose blocks on the program engine", () => {
       "Back in outer one.",
       "Outer then.",
     ]);
-    expect(menuTexts(b!.actual)).toEqual([["Outer one", "Outer two"], ["Inner A", "Inner B"]]);
-    expect(texts(c!.actual)).toEqual(["Outer two", "Outer then."]);
+    expect(menuTexts(b!.run)).toEqual([["Outer one", "Outer two"], ["Inner A", "Inner B"]]);
+    expect(texts(c!.run)).toEqual(["Outer two", "Outer then."]);
   });
 
   it("hides a conditional choice whose condition is false, and an `if` that gates a choice", () => {
@@ -268,10 +257,10 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [pay, beg] = agrees(text, [[0], [1]]);
-    expect(menuTexts(pay!.actual)).toEqual([["Pay", "Beg"]]);
-    expect(texts(pay!.actual)).toEqual(["Pay", "Paid.", "After."]);
-    expect(texts(beg!.actual)).toEqual(["for more", "Begged.", "After."]);
+    const [pay, beg] = runsOf(text, [[0], [1]]);
+    expect(menuTexts(pay!.run)).toEqual([["Pay", "Beg"]]);
+    expect(texts(pay!.run)).toEqual(["Pay", "Paid.", "After."]);
+    expect(texts(beg!.run)).toEqual(["for more", "Begged.", "After."]);
   });
 
   it("hides a once-only choice taken before, and offers a sticky one again", () => {
@@ -294,25 +283,45 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [run] = agrees(text, [[0, 0, 0, 0]]);
-    expect(menuTexts(run!.actual).slice(0, 5)).toEqual([
+    const [run] = runsOf(text, [[0, 0, 0, 0]]);
+    expect(menuTexts(run!.run).slice(0, 5)).toEqual([
       ["Once", "Sticky", "Leave"],
       ["Sticky", "Leave"],
       ["Sticky", "Leave"],
       ["Sticky", "Leave"],
       ["Sticky", "Leave"],
     ]);
-    agrees(text, [[0, 1], [1, 1, 1, 0, 1], [2]]);
+    const [leave, again, away] = runsOf(text, [[0, 1], [1, 1, 1, 0, 1], [2]]);
+    expect(texts(leave!.run)).toEqual(["Once", "Took once.", "Leave", "Out."]);
+    expect(menuTexts(again!.run)).toEqual([
+      ["Once", "Sticky", "Leave"],
+      ["Once", "Sticky", "Leave"],
+      ["Once", "Sticky", "Leave"],
+      ["Once", "Sticky", "Leave"],
+      ["Sticky", "Leave"],
+    ]);
+    expect(texts(again!.run)).toEqual([
+      "Sticky",
+      "Took sticky.",
+      "Sticky",
+      "Took sticky.",
+      "Sticky",
+      "Took sticky.",
+      "Once",
+      "Took once.",
+      "Leave",
+      "Out.",
+    ]);
+    expect(texts(away!.run)).toEqual(["Leave", "Out."]);
   });
 
   // A choice an `if` gates is raised inside the scope its branch opens, which
   // closes where the branch ends, and its entry runs inside it and closes it
   // after the body (#1575): the body reads the branch's locals, through a
   // jump inside the body too, whichever branches before it ran, and the line
-  // after the block no longer sees them. These scripts read no branch's
-  // local outside its branch, so both engines agree on them.
+  // after the block no longer sees them.
   it("keeps the locals of the branch that gates a choice, through a jump inside its body, and drops them after it", () => {
-    agrees(
+    const [a, b] = runsOf(
       [
         "-> main",
         "scene main",
@@ -333,6 +342,8 @@ describe("choose blocks on the program engine", () => {
       ].join("\n"),
       [[0], [1]],
     );
+    expect(texts(a!.run)).toEqual(["A"]);
+    expect(texts(b!.run)).toEqual(["B", "Value 7."]);
     const text = [
       "store flag = true",
       "-> main",
@@ -380,13 +391,23 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const runs = agrees(text, [[0], [1], [1, 2], [2, 0, 1, 2, 3], [0, 1, 2, 3, 4], [4, 3, 2, 1]]);
-    expect(texts(runs[0]!.actual)).toContain("Value A 7 o.");
-    expect(texts(runs[1]!.actual)).toContain("Value B 8.");
-    expect(texts(runs[2]!.actual)).toContain("Deep 9.");
+    const runs = runsOf(text, [[0], [1], [1, 2], [2, 0, 1, 2, 3], [0, 1, 2, 3, 4], [4, 3, 2, 1]]);
+    expect(texts(runs[0]!.run)).toContain("Value A 7 o.");
+    expect(texts(runs[1]!.run)).toContain("Value B 8.");
+    expect(texts(runs[2]!.run)).toContain("Deep 9.");
+    // Each choice taken in turn, in the orders the picks name: a menu takes
+    // a pick modulo its length, and `Deep` is offered from the second pass.
+    expect(runs.map(({ run }) => texts(run))).toEqual([
+      ["A 7", "Value A 7 o.", "B", "Value B 8.", "Deep", "Deep 9.", "Inner one", "Inner 3.", "Inner then 3 1.", "Leave", "Out."],
+      ["B", "Value B 8.", "A 7", "Value A 7 o.", "Deep", "Deep 9.", "Inner one", "Inner 3.", "Inner then 3 1.", "Leave", "Out."],
+      ["B", "Value B 8.", "Inner one", "Inner 3.", "Inner then 3 1.", "A 7", "Value A 7 o.", "Deep", "Deep 9.", "Leave", "Out."],
+      ["Inner one", "Inner 3.", "Inner then 3 1.", "A 7", "Value A 7 o.", "Deep", "Deep 9.", "B", "Value B 8.", "Leave", "Out."],
+      ["A 7", "Value A 7 o.", "Deep", "Deep 9.", "Leave", "Out."],
+      ["A 7", "Value A 7 o.", "Leave", "Out."],
+    ]);
     // A gate before the choice that does not hold opens no scope, and the
     // line after the block reads the global again.
-    const [after] = agrees(
+    const [after] = runsOf(
       [
         "store open = false",
         "-> main",
@@ -409,7 +430,7 @@ describe("choose blocks on the program engine", () => {
       ].join("\n"),
       [[0]],
     );
-    expect(texts(after!.actual)).toEqual(["Pick", "Inside true.", "After false."]);
+    expect(texts(after!.run)).toEqual(["Pick", "Inside true.", "After false."]);
   });
 
   // A gated branch's scope closes where the branch ends, as Luau closes a
@@ -418,7 +439,7 @@ describe("choose blocks on the program engine", () => {
   // the rest of the presentation and finds the local, which is its defect;
   // `programChoiceScopes.test.ts` asserts the rest of the rule.
   it("reads the global in a later choice's condition, not the local of the branch that gated an earlier choice", () => {
-    const { actual } = bothEngines(
+    const { run: actual } = programRun(
       [
         "store open = false",
         "-> main",
@@ -444,6 +465,20 @@ describe("choose blocks on the program engine", () => {
   // weave passes the clause's gather up; three such blocks, one in another's
   // preamble, continue clause after clause.
   it("runs a block written in another block's preamble, with and without a then clause of its own", () => {
+    const WITH_THEN = [
+      ["Caption 1.", "Inner A", "Took inner A.", "Inner then 1.", "Caption 2.", "Leave", "Out."],
+      ["Caption 1.", "Inner B", "Inner then 1.", "Caption 2.", "Leave", "Out."],
+      ["Caption 1.", "Outer", "Took outer.", "Caption 2.", "Inner A", "Took inner A.", "Inner then 1.", "Caption 3.", "Inner B", "Inner then 2.", "Caption 4."],
+      ["Caption 1.", "Inner A", "Took inner A.", "Inner then 1.", "Caption 2.", "Inner B", "Inner then 2.", "Caption 3."],
+    ];
+    // Without a then clause, the inner block's choice continues at the end
+    // of the outer block, which jumps back to `top`.
+    const WITHOUT_THEN = [
+      ["Caption 1.", "Still in the preamble.", "Inner A", "Took inner A.", "Caption 2.", "Still in the preamble.", "Outer", "Took outer.", "Caption 3."],
+      ["Caption 1.", "Still in the preamble.", "Outer", "Took outer.", "Caption 2.", "Still in the preamble.", "Leave", "Out."],
+      ["Caption 1.", "Still in the preamble.", "Leave", "Out."],
+      ["Caption 1.", "Still in the preamble.", "Inner A", "Took inner A.", "Caption 2.", "Still in the preamble.", "Outer", "Took outer.", "Caption 3."],
+    ];
     for (const inner of [
       ["      choose", "        * Inner A", "          Took inner A.", "        * Inner B", "      then (inner_then)", "        Inner then {inner_then}.", "      end"],
       ["      choose", "        * Inner A", "          Took inner A.", "      end", "      Still in the preamble."],
@@ -469,11 +504,17 @@ describe("choose blocks on the program engine", () => {
         "end",
         "",
       ].join("\n");
-      const runs = agrees(text, [[0, 2], [1, 2], [2], [0, 0, 0, 2]]);
-      expect(menuTexts(runs[0]!.actual)[0]).toContain("Inner A");
-      expect(menuTexts(runs[0]!.actual)[0]).toContain("Outer");
+      const runs = runsOf(text, [[0, 2], [1, 2], [2], [0, 0, 0, 2]]);
+      expect(menuTexts(runs[0]!.run)[0]).toContain("Inner A");
+      expect(menuTexts(runs[0]!.run)[0]).toContain("Outer");
+      // The beats each run starts with; a run that takes `Outer` once
+      // `Inner A` is gone keeps taking it until the menu limit.
+      const starts = inner.length === 7 ? WITH_THEN : WITHOUT_THEN;
+      runs.forEach(({ run }, i) => {
+        expect(texts(run).slice(0, starts[i]!.length)).toEqual(starts[i]);
+      });
     }
-    const [inner, middle, outer] = agrees(
+    const [inner, middle, outer] = runsOf(
       [
         "-> main",
         "scene main",
@@ -497,9 +538,9 @@ describe("choose blocks on the program engine", () => {
       ].join("\n"),
       [[0], [1], [2]],
     );
-    expect(texts(inner!.actual)).toEqual(["Inner", "Inner then.", "Middle then.", "Outer then."]);
-    expect(texts(middle!.actual)).toEqual(["Middle", "Middle then.", "Outer then."]);
-    expect(texts(outer!.actual)).toEqual(["Outer", "Outer then."]);
+    expect(texts(inner!.run)).toEqual(["Inner", "Inner then.", "Middle then.", "Outer then."]);
+    expect(texts(middle!.run)).toEqual(["Middle", "Middle then.", "Outer then."]);
+    expect(texts(outer!.run)).toEqual(["Outer", "Outer then."]);
   });
 
   // A block written in another block's preamble whose choices an `if` gates:
@@ -530,7 +571,7 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const program = (text: string, picks: number[]) => bothEngines(text, picks).actual;
+    const program = (text: string, picks: number[]) => programRun(text, picks).run;
     expect(menuTexts(program(nested, [0]))).toEqual([["Inner", "Outer"]]);
     expect(texts(program(nested, [0]))).toEqual([
       "Inner",
@@ -614,7 +655,7 @@ describe("choose blocks on the program engine", () => {
   // block's choices run from chunks as the current engine runs them. A
   // loop's run every pass, which the current engine's weave does not
   // (#1588); `programPreambleBlocks.test.ts` covers them.
-  it("runs a choice inside a do block of a block's preamble from chunks as the current engine does", () => {
+  it("runs a choice inside a do block of a block's preamble from chunks", () => {
     const preambles = [
       ["    do", "      choose", "        * Inner", "          Chose inner.", "      end", "    end"],
       ["    do", "      local x = 1", "      * Inner {x}", "        Chose inner.", "    end"],
@@ -631,13 +672,13 @@ describe("choose blocks on the program engine", () => {
         "end",
         "",
       ].join("\n");
-      const [inner, outer] = agrees(text, [[0], [1]]);
-      expect(texts(inner!.actual)).toEqual([
+      const [inner, outer] = runsOf(text, [[0], [1]]);
+      expect(texts(inner!.run)).toEqual([
         preamble.length === 6 ? "Inner" : "Inner 1",
         "Chose inner.",
         "After.",
       ]);
-      expect(texts(outer!.actual)).toEqual(["Outer", "After."]);
+      expect(texts(outer!.run)).toEqual(["Outer", "After."]);
     }
   });
 
@@ -664,8 +705,8 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [run] = agrees(text, [[0]]);
-    expect(texts(run!.actual)).toEqual([
+    const [run] = runsOf(text, [[0]]);
+    expect(texts(run!.run)).toEqual([
       "Look",
       "Looked.",
       "Given up 1.",
@@ -697,17 +738,17 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [side, hub] = agrees(text, [[0], [1]]);
-    expect(menuTexts(side!.actual)).toEqual([["Side choice", "Hub choice"]]);
+    const [side, hub] = runsOf(text, [[0], [1]]);
+    expect(menuTexts(side!.run)).toEqual([["Side choice", "Hub choice"]]);
     // Taking the side's choice enters the side scene from the hub, where the
     // flow stopped, so the scene counts a second visit.
-    expect(texts(side!.actual)).toEqual([
+    expect(texts(side!.run)).toEqual([
       "Hub 1.",
       "Side choice",
       "In the side 2 1.",
       "Side after.",
     ]);
-    expect(texts(hub!.actual)).toEqual(["Hub 1.", "Hub choice", "In the hub.", "Hub after."]);
+    expect(texts(hub!.run)).toEqual(["Hub 1.", "Hub choice", "In the hub.", "Hub after."]);
   });
 
   it("runs a labelled then clause another scene diverts to, and the scene after the clause", () => {
@@ -731,9 +772,9 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    const [stay, away] = agrees(text, [[0], [1]]);
-    expect(texts(stay!.actual)).toEqual(["Stay", "Stayed.", "Rejoined 1.", "More of the scene."]);
-    expect(texts(away!.actual)).toEqual(["Away", "Away.", "Rejoined 1.", "More of the scene."]);
+    const [stay, away] = runsOf(text, [[0], [1]]);
+    expect(texts(stay!.run)).toEqual(["Stay", "Stayed.", "Rejoined 1.", "More of the scene."]);
+    expect(texts(away!.run)).toEqual(["Away", "Away.", "Rejoined 1.", "More of the scene."]);
   });
 
   it("gives a choice its tags and its text in parts, and a named choice a count that a divert reaches", () => {
@@ -756,7 +797,14 @@ describe("choose blocks on the program engine", () => {
       "end",
       "",
     ].join("\n");
-    agrees(text, [[0], [1], [2], [1, 0, 1]]);
+    const [start, named, wait] = runsOf(text, [[0], [1], [2]]);
+    expect(menuTexts(start!.run)[0]!.slice(0, 2)).toEqual(["Start only", "Named choice"]);
+    expect(start!.run.beats[0]).toMatchObject({ text: "Start after\n", tags: ["first", "second"] });
+    expect(texts(start!.run).slice(0, 4)).toEqual(["Start after", "Took it 0.", "Named", "Named 1."]);
+    expect(texts(named!.run).slice(0, 4)).toEqual(["Named", "Named 1.", "Start after", "Took it 1."]);
+    // The third choice goes out to a scene that diverts to the named choice,
+    // which counts it.
+    expect(texts(wait!.run).slice(1, 5)).toEqual(["Named", "Named 1.", "Start after", "Took it 1."]);
   });
 
   // #696 left this part of its thread criterion to this slice: a thread that
@@ -784,22 +832,18 @@ describe("choose blocks on the program engine", () => {
       "",
     ].join("\n");
     silence(() => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback).toBeUndefined();
-      const current = compileScript(text).story;
-      current.ResetState();
-      const story = new ProgramStory(program.chunks!);
-      for (const engine of [current, story] as const) {
-        expect(engine.Continue()).toBe("First line.\n");
-        expect(engine.variablesState.$("x")).toBe(0);
-        expect(engine.Continue()).toBe("Second line 1.\n");
-        expect(engine.variablesState.$("x")).toBe(1);
-        while (engine.canContinue) engine.Continue();
-        expect(engine.currentChoices.map((c) => c.text)).toEqual(["Side choice"]);
-        engine.ChooseChoiceIndex(0);
-        expect(engine.Continue()).toBe("Side choice\n");
-        expect(engine.Continue()).toBe("Took the side.\n");
-      }
+      const { program } = compileScript(text);
+      expect(program.chunks).toBeDefined();
+      const engine = new ProgramStory(program.chunks!);
+      expect(engine.Continue()).toBe("First line.\n");
+      expect(engine.variablesState.$("x")).toBe(0);
+      expect(engine.Continue()).toBe("Second line 1.\n");
+      expect(engine.variablesState.$("x")).toBe(1);
+      while (engine.canContinue) engine.Continue();
+      expect(engine.currentChoices.map((c) => c.text)).toEqual(["Side choice"]);
+      engine.ChooseChoiceIndex(0);
+      expect(engine.Continue()).toBe("Side choice\n");
+      expect(engine.Continue()).toBe("Took the side.\n");
     });
   });
 });
@@ -825,7 +869,7 @@ describe("the choose chunk", () => {
   ].join("\n");
 
   it("is one chunk whose choices' bodies and then clause are blocks, with a Choice per choice targeting the Visit of its count", () => {
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const root = program.chunks!;
     const [chunk, ...others] = chooseChunks(root);
     expect(others).toEqual([]);
@@ -879,7 +923,7 @@ describe("the choose chunk", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = compileScript(script, { programChunks: true });
+    const { program } = compileScript(script);
     const root = program.chunks!;
     const [chunk] = chooseChunks(root);
     const [enter, wait] = choicesOf(chunk!).map((c) =>
@@ -941,7 +985,7 @@ describe("the choose chunk", () => {
         "end",
         "",
       ].join("\n"),
-      { programChunks: true },
+      {},
     );
     const [chunk] = chooseChunks(program.chunks!);
     const ops = [...new BinaryProgramReader(program.chunks!).instructions(chunk!)];
@@ -978,7 +1022,11 @@ describe("the choose chunk", () => {
       "end",
       "",
     ].join("\n");
-    agrees(gated, [[0], [1], [2], [0, 0]]);
+    expect(runsOf(gated, [[0], [1], [2]]).map(({ run }) => texts(run))).toEqual([
+      ["Before the gated choice.", "Pay", "Paid.", "Paid again.", "After."],
+      ["Before the gated choice.", "Wait", "Waited.", "After."],
+      ["Before the gated choice.", "Leave", "Left.", "After."],
+    ]);
     const s = session(gated);
     const [chunk] = chooseChunks(s.first.chunks!);
     expect(blockCount(chunk!)).toBe(3);
@@ -1199,7 +1247,7 @@ describe("a menu restored from the beat before it", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = compileScript(text, { programChunks: true });
+    const { program } = compileScript(text);
     const root = program.chunks!;
     const story = new ProgramStory(root);
     // Every choice waiting, invisible defaults included, as a menu holds it.
@@ -1272,8 +1320,8 @@ describe("a state saved at a waiting menu", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     const root = program.chunks!;
     for (const pick of [0, 1]) {
       const story = new ProgramStory(root);
@@ -1309,8 +1357,8 @@ describe("large blocks", () => {
     }
     lines.push("  end", "  After.", "end", "");
     const text = lines.join("\n");
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const story = new ProgramStory(program.chunks!);
     expect(story.Continue()).toBe("Pick one.\n");
     while (story.canContinue) story.Continue();
@@ -1326,17 +1374,17 @@ describe("large blocks", () => {
     ]);
   });
 
-  it("runs the preview fixture, whose then clause holds 1,100 lines, without the fallback, as the current engine does", () => {
+  it("runs the preview fixture, whose then clause holds 1,100 lines, from chunks", () => {
     const { files } = buildPreviewFixture();
     const text = files
       .get("main.sd")!
       .replace("include scripts/characters\n", "")
       .replace("include scripts/portraits\n", "");
-    const [first, other] = agrees(text, [[0], [1]], "MAIN");
-    expect(first!.expected.beats.length).toBeGreaterThan(700);
-    expect(texts(first!.expected).at(-1)).toBe("A CRASH of thunder.");
-    expect(first!.expected.menus).toHaveLength(1);
-    expect(other!.actual.menus[0]!.picked).toBe(1);
+    const [first, other] = runsOf(text, [[0], [1]], "MAIN");
+    expect(first!.run.beats.length).toBeGreaterThan(700);
+    expect(texts(first!.run).at(-1)).toBe("A CRASH of thunder.");
+    expect(first!.run.menus).toHaveLength(1);
+    expect(other!.run.menus[0]!.picked).toBe(1);
   });
 });
 
@@ -1372,16 +1420,15 @@ describe("a label in the body of a then clause", () => {
   ].join("\n");
 
   it("is not reported as a duplicate, and the program keeps its chunks", () => {
-    const { program } = silence(() => compileScript(reentered, { programChunks: true }));
+    const { program } = silence(() => compileScript(reentered));
     expect(diagnostics(program)).toEqual([]);
-    expect(program.fallback).toBeUndefined();
     expect(program.chunks).toBeDefined();
     expect(diagnostics(silence(() => compileScript(reentered)).program)).toEqual([]);
   });
 
-  it("is reached by a divert from another scene on both engines", () => {
-    const [run] = agrees(reentered, [[0]]);
-    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+  it("is reached by a divert from another scene", () => {
+    const [run] = runsOf(reentered, [[0]]);
+    expect(texts(run!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
   });
 
   it("keeps both names when the clause names its own label", () => {
@@ -1389,9 +1436,9 @@ describe("a label in the body of a then clause", () => {
       .replace("  then\n", "  then (after)\n")
       .replace("-> main.inner", "-> main.after");
     expect(diagnostics(silence(() => compileScript(named)).program)).toEqual([]);
-    const [run] = agrees(named, [[0]]);
-    expect(texts(run!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
-    const [inner] = agrees(named.replace("-> main.after", "-> main.inner"), [[0]]);
-    expect(texts(inner!.actual)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+    const [run] = runsOf(named, [[0]]);
+    expect(texts(run!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
+    const [inner] = runsOf(named.replace("-> main.after", "-> main.inner"), [[0]]);
+    expect(texts(inner!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
   });
 });

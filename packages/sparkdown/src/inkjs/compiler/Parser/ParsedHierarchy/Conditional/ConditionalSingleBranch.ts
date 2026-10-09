@@ -1,11 +1,5 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
-import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
-import { NativeFunctionCall } from "../../../../../runtime/NativeFunctionCall";
-import { StringValue } from "../../../../../runtime/Value";
 import { Story } from "../Story";
 import { Text } from "../Text";
 import { Weave } from "../Weave";
@@ -17,8 +11,6 @@ import type {
 import { JUMP_DECISION, Op } from "../../../../../program/ProgramInstructions";
 
 export class ConditionalSingleBranch extends ParsedObject {
-  public _contentContainer: RuntimeContainer | null = null;
-  public _conditionalDivert: RuntimeDivert | null = null;
   public _ownExpression: Expression | null = null;
   public _innerWeave: Weave | null = null;
   // bool condition, e.g.:
@@ -57,8 +49,6 @@ export class ConditionalSingleBranch extends ParsedObject {
   public isElse: boolean = false;
   public isInline: boolean = false;
 
-  public returnDivert: RuntimeDivert | null = null;
-
   constructor(content?: ParsedObject[] | null | undefined) {
     super();
 
@@ -73,14 +63,8 @@ export class ConditionalSingleBranch extends ParsedObject {
     return "ConditionalSingleBranch";
   }
 
-  // Runtime content can be summarised as follows:
-  //  - Evaluate an expression if necessary to branch on
-  //  - Branch to a named container if true
-  //       - Divert back to main flow
-  //         (owner Conditional is in control of this target point)
-  /** What `GenerateRuntimeObject` does without the runtime objects: the
-   *  `else:` written as content reported, the branch's test prepared, and
-   *  the branch's weave. */
+  /** The `else:` written as content reported, the branch's test prepared,
+   *  and the branch's weave. */
   protected override Prepare(): boolean {
     this.CheckElseWrittenAsContent();
     if (!this.isTrueBranch && !this.isElse && this.ownExpression) {
@@ -90,9 +74,9 @@ export class ConditionalSingleBranch extends ParsedObject {
     return true;
   }
 
-  /** The check generation and preparation both make first: the common
-   *  mistake of writing "else:" instead of "- else:", which the branch's
-   *  weave holds as content. */
+  /** The check preparation makes first: the common mistake of writing
+   *  "else:" instead of "- else:", which the branch's weave holds as
+   *  content. */
   protected CheckElseWrittenAsContent(): void {
     if (this._innerWeave) {
       for (const c of this._innerWeave.content) {
@@ -107,75 +91,6 @@ export class ConditionalSingleBranch extends ParsedObject {
       }
     }
   }
-
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    this.CheckElseWrittenAsContent();
-
-    const container = new RuntimeContainer();
-
-    // Are we testing against a condition that's used for more than just this
-    // branch? If so, the first thing we need to do is replicate the value that's
-    // on the evaluation stack so that we don't fully consume it, in case other
-    // branches need to use it.
-    const duplicatesStackValue: boolean = this.matchingEquality && !this.isElse;
-
-    if (duplicatesStackValue) {
-      container.AddContent(RuntimeControlCommand.Duplicate());
-    }
-
-    this._conditionalDivert = new RuntimeDivert();
-
-    // else clause is unconditional catch-all, otherwise the divert is conditional
-    this._conditionalDivert.isConditional = !this.isElse;
-
-    // Need extra evaluation?
-    if (!this.isTrueBranch && !this.isElse) {
-      const needsEval: boolean = this.ownExpression !== null;
-      if (needsEval) {
-        container.AddContent(RuntimeControlCommand.EvalStart());
-      }
-
-      if (this.ownExpression) {
-        this.ownExpression.GenerateIntoContainer(container);
-      }
-
-      // Uses existing duplicated value
-      if (this.matchingEquality) {
-        container.AddContent(NativeFunctionCall.CallWithName("=="));
-      }
-
-      if (needsEval) {
-        container.AddContent(RuntimeControlCommand.EvalEnd());
-      }
-    }
-
-    // Will pop from stack if conditional
-    container.AddContent(this._conditionalDivert);
-
-    this._contentContainer = this.GenerateRuntimeForContent();
-    this._contentContainer.name = "$b";
-
-    // Multi-line conditionals get a newline at the start of each branch
-    // (as opposed to the start of the multi-line conditional since the condition
-    //  may evaluate to false.)
-    if (!this.isInline) {
-      this._contentContainer.InsertContent(new StringValue("\n"), 0);
-    }
-
-    if (duplicatesStackValue || (this.isElse && this.matchingEquality)) {
-      this._contentContainer.InsertContent(
-        RuntimeControlCommand.PopEvaluatedValue(),
-        0,
-      );
-    }
-
-    container.AddToNamedContentOnly(this._contentContainer);
-
-    this.returnDivert = new RuntimeDivert();
-    this._contentContainer.AddContent(this.returnDivert);
-
-    return container;
-  };
 
   // One branch of its conditional's chunk: for a switch-like conditional a
   // copy of the value to compare with, the branch's test and a jump past the
@@ -217,33 +132,11 @@ export class ConditionalSingleBranch extends ParsedObject {
     }
   }
 
-  public readonly GenerateRuntimeForContent = (): RuntimeContainer => {
-    // Empty branch - create empty container
-    if (this._innerWeave === null) {
-      return new RuntimeContainer();
-    }
-
-    return this._innerWeave.rootContainer;
-  };
-
-  public override ResolveWith(context: Story, program: boolean): void {
-    if (
-      program
-        ? !this.isPrepared
-        : !this._conditionalDivert || !this._contentContainer
-    ) {
+  public override ResolveWith(context: Story): void {
+    if (!this.isPrepared) {
       throw new Error();
     }
 
-    if (!program) {
-      this._conditionalDivert!.targetPath = this._contentContainer!.path;
-    }
-    super.ResolveWith(context, program);
-  }
-
-  public override OnResetRuntime(): void {
-    this._contentContainer = null;
-    this._conditionalDivert = null;
-    this.returnDivert = null;
+    super.ResolveWith(context);
   }
 }

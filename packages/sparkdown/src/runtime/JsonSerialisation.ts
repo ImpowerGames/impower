@@ -1,4 +1,3 @@
-import { Container } from "../inkjs/engine/Container";
 import {
   Value,
   IntValue,
@@ -16,10 +15,6 @@ import {
   SymbolValue,
 } from "./Value";
 import { ControlCommand } from "./ControlCommand";
-import { PushPopType } from "./PushPop";
-import { Divert } from "../inkjs/engine/Divert";
-import { ChoicePoint } from "../inkjs/engine/ChoicePoint";
-import { VariableReference } from "../inkjs/engine/VariableReference";
 import { VariableAssignment } from "./VariableAssignment";
 import { NativeFunctionCall } from "./NativeFunctionCall";
 import { Void } from "./Void";
@@ -624,70 +619,7 @@ export class JsonSerialisation {
       obj: InkObject,
     ) => boolean,
   ): void {
-    let container = asOrNull(obj, Container);
-    if (container) {
-      this.WriteRuntimeContainer(
-        writer,
-        container,
-        false,
-        onWriteRuntimeObject,
-      );
-      return;
-    }
-
     if (onWriteRuntimeObject && onWriteRuntimeObject(writer, obj)) {
-      return;
-    }
-
-    let divert = asOrNull(obj, Divert);
-    if (divert) {
-      let divTypeKey = "->";
-      if (divert.isExternal) {
-        divTypeKey = "x()";
-      } else if (divert.pushesToStack) {
-        if (divert.stackPushType == PushPopType.Function) {
-          divTypeKey = "f()";
-        } else if (divert.stackPushType == PushPopType.Tunnel) {
-          divTypeKey = "->t->";
-        }
-      }
-
-      let targetStr;
-      if (divert.hasVariableTarget) {
-        targetStr = divert.variableDivertName;
-      } else {
-        targetStr = divert.targetPathString;
-      }
-
-      writer.WriteObjectStart();
-      writer.WriteProperty(divTypeKey, targetStr);
-
-      if (divert.hasVariableTarget) {
-        writer.WriteProperty("var", true);
-      }
-
-      if (divert.isConditional) {
-        writer.WriteProperty("c", true);
-      }
-
-      if (divert.externalArgs > 0) {
-        writer.WriteIntProperty("exArgs", divert.externalArgs);
-      }
-
-      if (divTypeKey === "f()" && divert.callArgCount >= 0) {
-        writer.WriteIntProperty("argc", divert.callArgCount);
-      }
-
-      writer.WriteObjectEnd();
-      return;
-    }
-
-    let choicePoint = asOrNull(obj, ChoicePoint);
-    if (choicePoint) {
-      writer.WriteObjectStart();
-      writer.WriteProperty("*", choicePoint.pathStringOnChoice);
-      writer.WriteIntProperty("flg", choicePoint.flags);
-      writer.WriteObjectEnd();
       return;
     }
 
@@ -951,20 +883,6 @@ export class JsonSerialisation {
       return;
     }
 
-    let varRef = asOrNull(obj, VariableReference);
-    if (varRef) {
-      writer.WriteObjectStart();
-      let readCountPath = varRef.pathStringForCount;
-      if (readCountPath != null) {
-        writer.WriteProperty("CNT?", readCountPath);
-      } else {
-        writer.WriteProperty("VAR?", varRef.name);
-      }
-
-      writer.WriteObjectEnd();
-      return;
-    }
-
     let varAss = asOrNull(obj, VariableAssignment);
     if (varAss) {
       writer.WriteObjectStart();
@@ -1006,111 +924,6 @@ export class JsonSerialisation {
     }
 
     throw new Error("Failed to convert runtime object to Json token: " + obj);
-  }
-
-  // Fingerprint of ONLY a flow's CROSS-FLOW-MUTABLE serialized bits: the `#f`
-  // count flags on every (sub)container and the resolved `targetPath` of every
-  // divert. These are the parts of a flow's serialized bytecode that can change
-  // even when the flow's own SOURCE is unchanged — a remote read-count / TURNS_SINCE
-  // sets this flow's `visitsShouldBeCounted` (changing `#f`), `countAllVisits` flips
-  // all `#f`, and renaming/restructuring a divert target changes the resolved path.
-  //
-  // The incremental ToJson cache (Design B') reuses a flow's serialized JSON iff
-  // its source CHUNK is unchanged (which covers all the OTHER serialized bytes —
-  // string/value/control content) AND this cross-flow fingerprint is unchanged.
-  // Walking only containers+diverts (skipping every string/value/control object and
-  // the JS-tree build) makes this ~7x cheaper than re-serializing. The encoding is
-  // injective (length-prefixed variable text + structural brackets), so equal
-  // fingerprints guarantee equal cross-flow bytes (compared as full strings, no hash).
-  public static FingerprintCrossFlow(container: Container): string {
-    const out: string[] = [];
-    JsonSerialisation.fingerprintCrossFlowInto(container, out);
-    return out.join("");
-  }
-
-  // Reuse precondition: the flow's source CHUNK is unchanged since the cached
-  // compile, so its container STRUCTURE (shape, object order, object kinds, all
-  // OWN-content bytes) is byte-identical — only cross-flow-RESOLVED values can
-  // differ. So the fingerprint records ONLY those values, in pre-order, and emits
-  // NOTHING for pure-content objects (no per-object structural skeleton). Two
-  // same-structure flows therefore align positionally, so a changed cross-flow
-  // value at any position shifts the string. This keeps fingerprints short (a
-  // handful of values, not one marker per object), so building, storing, and
-  // string-comparing them is cheap — the earlier per-object skeleton made the
-  // walk cost ~60% of a full re-serialize, defeating the point.
-  //
-  // `countFlags` is emitted for EVERY container (even 0) so its position in the
-  // pre-order stream is anchored: a remote edit that moves a non-zero `#f` from
-  // one container to another must change the string, which requires every
-  // container to contribute a token.
-  //
-  // Dispatch is written as direct `instanceof` rather than `asOrNull`, and the
-  // contributing types are tested before the fall-through. The walk visits
-  // EVERY object in every flow on every compile, and the common case — string
-  // and control content, which contributes nothing — has to fail every test,
-  // so the per-object constant is the whole cost. `asOrNull` adds two calls per
-  // test on top of the same `instanceof`.
-  private static fingerprintCrossFlowInto(obj: InkObject, out: string[]): void {
-    if (obj instanceof Container) {
-      const container = obj;
-      out.push("f" + container.countFlags);
-      const content = container.content;
-      for (let i = 0; i < content.length; i++) {
-        JsonSerialisation.fingerprintCrossFlowInto(content[i]!, out);
-      }
-      const named = container.namedOnlyContent;
-      if (named != null) {
-        for (const [, value] of named) {
-          JsonSerialisation.fingerprintCrossFlowInto(value, out);
-        }
-      }
-      return;
-    }
-    if (obj instanceof Divert) {
-      const divert = obj;
-      const target = divert.hasVariableTarget
-        ? divert.variableDivertName
-        : divert.targetPathString;
-      const t = target ?? "";
-      out.push("D" + t.length + ":" + t);
-      return;
-    }
-    // VariableReference serializes as {CNT?: readCountPath} when its target is a
-    // counted FLOW, else {VAR?: name}. Whether a bare reference resolves to a
-    // read-count depends on whether the named flow exists — a CROSS-FLOW fact: a
-    // remote edit that adds/removes/renames a scene flips this reference's form
-    // even though the referencing flow's own source is unchanged.
-    if (obj instanceof VariableReference) {
-      const varRef = obj;
-      const cnt = varRef.pathStringForCount;
-      if (cnt != null) {
-        out.push("rC" + cnt.length + ":" + cnt);
-      } else {
-        const n = varRef.name ?? "";
-        out.push("rV" + n.length + ":" + n);
-      }
-      return;
-    }
-    // Resolved divert-target value (`{^->: path}`) and choice target path are
-    // also resolved cross-flow.
-    if (obj instanceof DivertTargetValue) {
-      const p = obj.value?.componentsString ?? "";
-      out.push("T" + p.length + ":" + p);
-      return;
-    }
-    if (obj instanceof ChoicePoint) {
-      const choicePoint = obj;
-      const p = choicePoint.pathStringOnChoice ?? "";
-      out.push("P" + p.length + ":" + p + ":" + choicePoint.flags);
-      return;
-    }
-    if (obj instanceof VariablePointerValue) {
-      const p = obj.value ?? "";
-      out.push("p" + p.length + ":" + p + ":" + obj.contextIndex);
-      return;
-    }
-    // Pure-content object (string/value/control/glue/...): part of the flow's OWN
-    // content, covered by the chunk-unchanged precondition. Emits nothing.
   }
 
   public static JObjectToDictionaryRuntimeObjs(jObject: Record<string, any>) {
@@ -1347,79 +1160,6 @@ export class JsonSerialisation {
         return varPtr;
       }
 
-      // Divert
-      let isDivert = false;
-      let pushesToStack = false;
-      let divPushType = PushPopType.Function;
-      let external = false;
-      // A divert whose target did not resolve at compile time is written with
-      // a null target, so each divert key is tested by presence rather than
-      // truthiness.
-      if ("->" in obj) {
-        propValue = obj["->"];
-        isDivert = true;
-      } else if ("f()" in obj) {
-        propValue = obj["f()"];
-        isDivert = true;
-        pushesToStack = true;
-        divPushType = PushPopType.Function;
-      } else if ("->t->" in obj) {
-        propValue = obj["->t->"];
-        isDivert = true;
-        pushesToStack = true;
-        divPushType = PushPopType.Tunnel;
-      } else if ("x()" in obj) {
-        propValue = obj["x()"];
-        isDivert = true;
-        external = true;
-        pushesToStack = false;
-        divPushType = PushPopType.Function;
-      }
-
-      if (isDivert) {
-        let divert = new Divert();
-        divert.pushesToStack = pushesToStack;
-        divert.stackPushType = divPushType;
-        divert.isExternal = external;
-
-        let target = propValue == null ? null : propValue.toString();
-
-        if ((propValue = obj["var"])) divert.variableDivertName = target;
-        else divert.targetPathString = target;
-
-        divert.isConditional = !!obj["c"];
-
-        if (external) {
-          if ((propValue = obj["exArgs"]))
-            divert.externalArgs = parseInt(propValue);
-        }
-
-        if ("argc" in obj) {
-          divert.callArgCount = parseInt(obj["argc"]);
-        }
-
-        return divert;
-      }
-
-      // Choice
-      if ((propValue = obj["*"])) {
-        let choice = new ChoicePoint();
-        choice.pathStringOnChoice = propValue.toString();
-
-        if ((propValue = obj["flg"])) choice.flags = parseInt(propValue);
-
-        return choice;
-      }
-
-      // Variable reference
-      if ((propValue = obj["VAR?"])) {
-        return new VariableReference(propValue.toString());
-      } else if ((propValue = obj["CNT?"])) {
-        let readCountVarRef = new VariableReference();
-        readCountVarRef.pathStringForCount = propValue.toString();
-        return readCountVarRef;
-      }
-
       // Variable assignment
       let isVarAss = false;
       let isGlobalVar = false;
@@ -1601,11 +1341,6 @@ export class JsonSerialisation {
       if (obj["originalChoicePath"] != null) return this.JObjectToChoice(obj);
     }
 
-    // Array is always a Runtime.Container
-    if (Array.isArray(token)) {
-      return this.JArrayToContainer(token);
-    }
-
     if (token === null || token === undefined) return null;
 
     // MADE JSON SERIALIZATION MORE ERROR TOLERANT
@@ -1626,120 +1361,6 @@ export class JsonSerialisation {
       (k, v) => (removes?.some((r) => r === k) ? undefined : v),
       space,
     );
-  }
-
-  // Serialize a runtime container to a standalone JS value (the array a nested
-  // WriteRuntimeContainer call would produce). Used to memoize a flow subtree.
-  public static serializeContainerToValue(
-    container: Container,
-    onWriteRuntimeObject?: (writer: SimpleJson.Writer, obj: InkObject) => boolean,
-  ): any {
-    const w = new SimpleJson.Writer();
-    JsonSerialisation.WriteRuntimeContainer(w, container, true, onWriteRuntimeObject);
-    return w.toObject();
-  }
-
-  public static WriteRuntimeContainer(
-    writer: SimpleJson.Writer,
-    container: Container | null,
-    withoutName: boolean = false,
-    onWriteRuntimeObject?: (
-      writer: SimpleJson.Writer,
-      obj: InkObject,
-    ) => boolean,
-    // Per-flow memo, consulted ONLY at this (root) level's named-content loop —
-    // never forwarded to recursive calls, so it applies to the story's top-level
-    // named flows only. `resolve` returns the (cached or freshly serialized) JS
-    // value for a named flow; the incremental ToJson cache backs it. A memo MISS
-    // produces output identical to the non-memo path.
-    flowMemo?: {
-      resolve: (
-        name: string,
-        container: Container,
-        serialize: () => any,
-      ) => any;
-    },
-  ) {
-    writer.WriteArrayStart();
-    if (container === null) {
-      return throwNullException("container");
-    }
-    for (let c of container.content)
-      this.WriteRuntimeObject(writer, c, onWriteRuntimeObject);
-
-    let namedOnlyContent = container.namedOnlyContent;
-    let countFlags = container.countFlags;
-    let hasNameProperty = container.name != null && !withoutName;
-
-    let hasTerminator =
-      namedOnlyContent != null || countFlags > 0 || hasNameProperty;
-    if (hasTerminator) {
-      writer.WriteObjectStart();
-    }
-
-    if (namedOnlyContent != null) {
-      for (let [key, value] of namedOnlyContent) {
-        let name = key;
-        let namedContainer = asOrNull(value, Container);
-        writer.WritePropertyStart(name);
-        if (flowMemo && namedContainer) {
-          const v = flowMemo.resolve(name, namedContainer, () =>
-            JsonSerialisation.serializeContainerToValue(
-              namedContainer!,
-              onWriteRuntimeObject,
-            ),
-          );
-          writer.WriteInjected(v);
-        } else {
-          this.WriteRuntimeContainer(
-            writer,
-            namedContainer,
-            true,
-            onWriteRuntimeObject,
-          );
-        }
-        writer.WritePropertyEnd();
-      }
-    }
-
-    if (countFlags > 0) writer.WriteIntProperty("#f", countFlags);
-
-    if (hasNameProperty) writer.WriteProperty("#n", container.name);
-
-    if (hasTerminator) writer.WriteObjectEnd();
-    else writer.WriteNull();
-
-    writer.WriteArrayEnd();
-  }
-
-  public static JArrayToContainer(jArray: any[]) {
-    let container = new Container();
-    container.content = this.JArrayToRuntimeObjList(jArray, true);
-
-    let terminatingObj = jArray[jArray.length - 1] as Record<string, any>;
-    if (terminatingObj != null) {
-      let namedOnlyContent = new Map();
-
-      for (let key in terminatingObj) {
-        if (key == "#f") {
-          container.countFlags = parseInt(terminatingObj[key]);
-        } else if (key == "#n") {
-          container.name = terminatingObj[key].toString();
-        } else {
-          let namedContentItem = this.JTokenToRuntimeObject(
-            terminatingObj[key],
-          );
-          // var namedSubContainer = namedContentItem as Container;
-          let namedSubContainer = asOrNull(namedContentItem, Container);
-          if (namedSubContainer) namedSubContainer.name = key;
-          namedOnlyContent.set(key, namedContentItem);
-        }
-      }
-
-      container.namedOnlyContent = namedOnlyContent;
-    }
-
-    return container;
   }
 
   public static JObjectToChoice(jObj: Record<string, any>) {

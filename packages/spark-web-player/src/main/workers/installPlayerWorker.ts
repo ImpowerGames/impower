@@ -22,7 +22,6 @@ import {
   executionWatch,
   type WatchedStory,
 } from "@impower/sparkdown/src/runtime/ExecutionWatch";
-import type { Story as RuntimeStory } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
@@ -54,25 +53,11 @@ import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
 import { watchExecution } from "./watchExecution";
 
-/** Whether the player's compiler builds statement chunks and its games run
- *  them on the program engine, unless the host says otherwise (#703). */
-export const PROGRAM_CHUNKS = true;
-
-export interface PlayerWorkerOptions {
-  /** Build statement chunks and run them on the program engine
-   *  (`programChunks`); `PROGRAM_CHUNKS` when not given. Every host of the
-   *  worker leaves it unset; a test sets it to compare the engines. */
-  programChunks?: boolean;
-}
-
 /** A program the worker's game can display, and what the route searches run
  *  in it established. */
 interface DisplayableProgram {
   id: string;
   program: SparkProgram;
-  /** The current engine's story of a program that falls back; a program
-   *  with statement chunks has none, its game running the chunks. */
-  story?: RuntimeStory;
   /** Its own: a search run in one program says nothing about another. The
    *  newest real program's is `routeSearches`, whose searches the compiler
    *  remembers the choices of; no other program's are remembered. */
@@ -86,11 +71,7 @@ interface DisplayableProgram {
  * PLAY's game, which runs beside it (`player/play`). The page holds only each
  * program's summary and no game.
  */
-export function installPlayerWorker(
-  connection: MessageConnection,
-  options: PlayerWorkerOptions = {},
-) {
-  const programChunks = options.programChunks ?? PROGRAM_CHUNKS;
+export function installPlayerWorker(connection: MessageConnection) {
   const player = {
     /** How PLAY's game is put at its start point. */
     putAtStartPoint,
@@ -129,27 +110,20 @@ export function installPlayerWorker(
   const gameState = installGameWorker(connection);
   const compiler = compilerState.compiler;
 
-  // P5: the PLAYER's compiler seeds the builtins prelude into the runtime story
-  // VM (source-injection), so the engine can source `define` context from the
+  // P5: the PLAYER's compiler seeds the builtins prelude into the program
+  // (source-injection), so the engine can source `define` context from the
   // live `__def` tables (runtime inheritance: authored `as animation` inherits
   // the builtin `timing`, etc.). This is the player's OWN compiler instance —
   // the editor's LSP diagnostics compiler is separate and stays unseeded, so
   // keystroke latency is unaffected. configure() merges, so later editor
   // configures (files, startFrom, …) leave this flag set.
   //
-  // The page reads no compiled story, so the compiler does not serialize one;
-  // a PLAY writes one out for its own game (`emitCompiledProgramOf`).
-  //
   // The compiler builds statement chunks and the games run them on the
-  // program engine (`programChunks`, #703), for every host of this worker:
-  // the web editor, the VS Code game webview and the player app. A program
-  // that holds a construct the writer does not emit falls back as a whole
-  // to the current engine, which the games run then
-  // (docs/engine/binary-program.md, section 9).
+  // program engine, for every host of this worker: the web editor, the VS
+  // Code game webview and the player app (docs/engine/binary-program.md,
+  // section 9).
   compiler.configure({
     seedBuiltinsIntoStory: true,
-    emitCompiledProgram: false,
-    programChunks,
   });
 
   // The record of what the last route search in the real program the game
@@ -169,17 +143,18 @@ export function installPlayerWorker(
   // ---- The programs the game can display ----------------------------------
   //
   // The page names what it wants displayed and the game shows it from the
-  // story compiled for it: every real program the page can still name,
+  // program compiled for it: every real program the page can still name,
   // which PLAY names too; the two newest suggestions, since the page asks
   // for one after the next may have compiled; the suggestion the page
   // shows, which a return to it displays again without compiling; the one
-  // displayed last, which the page takes as shown once its display answers; and the one the newest display asks for, from when its
-  // request arrives. The compiler keeps each of their stories runnable
-  // across later compiles (`keepStory`), and the story of the program the
-  // game holds, which the game runs until it is given another. Whatever
-  // nothing keeps is released each time that changes: after a compile, a
-  // preview compile, a program the page takes, a display, PLAY, and a
-  // selection that gives the game the real program back.
+  // displayed last, which the page takes as shown once its display answers;
+  // and the one the newest display asks for, from when its request arrives.
+  // The worker keeps each of their programs, whose statement chunks stay as
+  // they were built, and the program the game holds, which the game runs
+  // until it is given another. Whatever nothing keeps is let go each time
+  // that changes: after a compile, a preview compile, a program the page
+  // takes, a display, PLAY, and a selection that gives the game the real
+  // program back.
   const displayable = new Map<string, DisplayableProgram>();
   let canonicalId: string | undefined;
   // The real programs the page can still name, oldest first: the last it
@@ -203,13 +178,6 @@ export function installPlayerWorker(
   };
 
   const retain = (entry: DisplayableProgram) => {
-    const previous = displayable.get(entry.id);
-    if (previous?.story && previous.story !== entry.story) {
-      compiler.releaseStory(previous.story);
-    }
-    if (entry.story) {
-      compiler.keepStory(entry.story);
-    }
     displayable.set(entry.id, entry);
   };
   const releaseUnneeded = () => {
@@ -224,9 +192,6 @@ export function installPlayerWorker(
         id !== requestedId &&
         entry.program !== held
       ) {
-        if (entry.story) {
-          compiler.releaseStory(entry.story);
-        }
         displayable.delete(id);
       }
     }
@@ -238,47 +203,25 @@ export function installPlayerWorker(
   // supersedes the display, however it came: a compile, a suggestion, a
   // selection, a return to the real program, or PLAY taking the program.
   let gameTouches = 0;
-  const updateGameProgram = (
-    game: Game,
-    program: SparkProgram,
-    story: RuntimeStory | undefined,
-  ) => {
+  const updateGameProgram = (game: Game, program: SparkProgram) => {
     gameTouches += 1;
     profile("start", compiler.profilerId + " " + "game/update");
-    game.updateProgram(program, story);
+    game.updateProgram(program);
     profile("end", compiler.profilerId + " " + "game/update");
   };
 
-  const createOrUpdateGame = (
-    program: SparkProgram,
-    story: RuntimeStory | undefined,
-  ) => {
+  const createOrUpdateGame = (program: SparkProgram) => {
     const profilerId = compiler.profilerId;
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
       // Built with what the editor has asked of the preview's debugger so
       // far.
-      gameState.game = gameState.createGame({
-        program,
-        story,
-        // This is the live-preview / HMR route-simulation game: it saves a
-        // checkpoint at every beat while replaying to the edited line, which
-        // is the O(n^2) cost incremental checkpoints exist to remove. Deltas
-        // store periodic full keyframes + per-beat deltas; `verifyCheckpoints:
-        // false` drops the per-beat full-save self-check so capture is bounded
-        // per beat (the full time win). The delta reconstruction is covered by
-        // the byte-identical round-trip tests (incl. the pure-delta path);
-        // flip verify back on if a regression ever needs the self-check's
-        // fall-back-to-full.
-        incrementalCheckpoints: true,
-        verifyCheckpoints: false,
-        programChunks,
-      });
+      gameState.game = gameState.createGame({ program });
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       // A compile that changed nothing serves the program the game already
       // holds, which needs no giving again.
-      updateGameProgram(gameState.game, program, story);
+      updateGameProgram(gameState.game, program);
     }
     return gameState.game;
   };
@@ -296,20 +239,18 @@ export function installPlayerWorker(
       // whose searches still describe it.
       return;
     }
-    const story = params.story;
     // Whatever the last search established was established against the OLD
-    // program and the story it was compiled from, so nothing from before this
+    // program, so nothing from before this
     // compile may be reported for the new one. The old log stays with the old
     // program, which the page can still ask to display until it has taken
     // this one.
     routeSearches = new RouteSearchLog();
     // The route below is replayed on the game.
     gameTouches += 1;
-    const game = createOrUpdateGame(params.program, story);
+    const game = createOrUpdateGame(params.program);
     const entry: DisplayableProgram = {
       id: programIdentity(params.program)!,
       program: params.program,
-      story,
       log: routeSearches,
     };
     canonicalId = entry.id;
@@ -346,10 +287,9 @@ export function installPlayerWorker(
     if (!params.produced) {
       return;
     }
-    const story = params.story;
     // The route below is replayed on the game.
     gameTouches += 1;
-    const game = createOrUpdateGame(params.program, story);
+    const game = createOrUpdateGame(params.program);
     const log = new RouteSearchLog();
     profile("start", profilerId + " " + "game/setStartFrom");
     game.setStartFrom(params.startFrom, "last");
@@ -366,7 +306,6 @@ export function installPlayerWorker(
     const entry: DisplayableProgram = {
       id: programIdentity(params.program)!,
       program: params.program,
-      story,
       log,
     };
     newestSuggestionIds.push(entry.id);
@@ -396,14 +335,11 @@ export function installPlayerWorker(
       // The selection's route is replayed on the game.
       gameTouches += 1;
       // A selection is routed against the real program. The game can be
-      // holding a suggestion it displayed again from its kept story, with no
-      // compile since to give it the real one back.
+      // holding a suggestion it displayed again from its kept program, with
+      // no compile since to give it the real one back.
       const kept = canonicalId ? displayable.get(canonicalId) : undefined;
       if (kept && gameState.game && gameState.game.program !== kept.program) {
-        if (kept.story) {
-          compiler.activateStory(kept.story);
-        }
-        createOrUpdateGame(kept.program, kept.story);
+        createOrUpdateGame(kept.program);
         releaseUnneeded();
       }
     }
@@ -554,13 +490,10 @@ export function installPlayerWorker(
       if (!entry || !game) {
         return { displayed: false, missing: true };
       }
-      if (entry.story) {
-        compiler.activateStory(entry.story);
-      }
       const programChanged =
         fresh || displayedId !== entry.id || game.program !== entry.program;
       if (game.program !== entry.program) {
-        updateGameProgram(game, entry.program, entry.story);
+        updateGameProgram(game, entry.program);
       }
       const touches = gameTouches;
       const route = routeTo(
@@ -622,12 +555,11 @@ export function installPlayerWorker(
 
   // ---- PLAY ---------------------------------------------------------------
   //
-  // PLAY's game is built beside the game above, with its own story, which it
-  // writes out from the compiled program once per PLAY: a compile re-parents
-  // the runtime containers of every flow it reuses into its new story, so a
-  // game that outlives compiles cannot run the compiler's. While it runs, the
-  // page shows it, hears from it and debugs it, and the game above sends the
-  // page nothing (`sendToPage`) and replays no route for a selection.
+  // PLAY's game is built beside the game above, with its own engine over the
+  // program's statement chunks, which no later compile changes. While it
+  // runs, the page shows it, hears from it and debugs it, and the game above
+  // sends the page nothing (`sendToPage`) and replays no route for a
+  // selection.
 
   /** PLAY's game while it runs, with the run the page knows it by, a
    *  settlement that STOP answers everything still waiting on it with, and
@@ -672,9 +604,11 @@ export function installPlayerWorker(
       return { built: false };
     }
     stopPlay({});
-    const program = compiler.emitCompiledProgramOf(entry.story, entry.program);
+    // PLAY's game runs the program's statement chunks, which stay as they
+    // were built however many compiles follow.
+    const program = entry.program;
     if (game.program !== entry.program) {
-      updateGameProgram(game, entry.program, entry.story);
+      updateGameProgram(game, entry.program);
     }
     // PLAY from a line starts at its first beat (#721).
     const route = params.startFrom
@@ -682,12 +616,10 @@ export function installPlayerWorker(
       : {};
     releaseUnneeded();
     profile("start", compiler.profilerId + " " + "play/create");
-    // No story: the game builds its own from the program.
     const running = gameState.createGame({
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
-      programChunks,
     });
     profile("end", compiler.profilerId + " " + "play/create");
     const errors = player.putAtStartPoint(
@@ -753,11 +685,6 @@ export function installPlayerWorker(
     for (const game of [gameState.running, gameState.game]) {
       if (game && (game.story as unknown) === story) {
         return game.program;
-      }
-    }
-    for (const entry of displayable.values()) {
-      if ((entry.story as unknown) === story) {
-        return entry.program;
       }
     }
     return canonicalId ? displayable.get(canonicalId)?.program : undefined;

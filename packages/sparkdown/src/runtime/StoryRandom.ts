@@ -1,7 +1,7 @@
 import { PRNG } from "./PRNG";
 
 /** The state a random draw reads and advances: the story's seed and the
- *  value the draw before it gave. Both engines' states hold them. */
+ *  value the draw before it gave. The story's state holds them. */
 export interface RandomState {
   storySeed: number;
   previousRandom: number;

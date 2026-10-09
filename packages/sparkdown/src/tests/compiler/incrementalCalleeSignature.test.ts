@@ -3,7 +3,8 @@
 //
 // A call site's bytecode is derived from its CALLEE's parameter list at the
 // CALLER's generation time: a trailing `...` makes the caller emit a
-// `PackTuple` to fill the callee's varargs slot (Divert.GenerateRuntimeObject).
+// `PackTuple` to fill the callee's varargs slot (the divert's code
+// generation, deleted in #705).
 // Incremental ExportRuntime reuses a flow whose OWN chunks are unchanged — so
 // without a guard, editing a callee's signature leaves every reused caller
 // emitting argument pushes for the old signature. The callee then pops a
@@ -15,7 +16,6 @@
 // neither "..." nor "," — so neither oracle can construct this. Hence a
 // dedicated fixture: no front matter (zero root blocks) so the root-region
 // guard stays quiet and flow reuse genuinely engages on the edit under test.
-import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";

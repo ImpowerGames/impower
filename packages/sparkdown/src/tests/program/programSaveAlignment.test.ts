@@ -7,13 +7,12 @@
 // cannot be placed. Each fixture states the ordinal the design places the
 // save at, which differs from the ordinal the save names, so that keeping
 // the old ordinal gives another answer.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { SaveRefused } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
 import { countIdOf } from "../../program/ProgramSymbols";
-import { chunkOfAddress } from "../../program/StatementChunk";
+import { chunkOfAddress } from "../../program/ProgramChunk";
 import { compileScript, programSession } from "./programHarness";
 
 const silence = <T>(run: () => T): T => {
@@ -29,8 +28,8 @@ const silence = <T>(run: () => T): T => {
 };
 
 const rootOf = (text: string): ProgramRoot => {
-  const program = silence(() => compileScript(text, { programChunks: true }).program);
-  expect(program.fallback).toBeUndefined();
+  const program = silence(() => compileScript(text).program);
+  expect(program.chunks).toBeDefined();
   return program.chunks!;
 };
 

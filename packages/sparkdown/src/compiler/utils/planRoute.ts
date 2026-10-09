@@ -1,10 +1,10 @@
 import type { Simulator,SimulatorSnapshot } from "../../runtime/Simulator";
 import { ErrorType } from "../../runtime/Error";
-import { Story } from "../../inkjs/engine/Story";
+import type { ProgramStory as Story } from "../../program/ProgramStory";
 import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { chunkOfAddress } from "../../program/StatementChunk";
+import { chunkOfAddress } from "../../program/ProgramChunk";
 import type { ProgramAddress } from "../types/ProgramAddress";
 
 export interface RoutePlan {
@@ -115,34 +115,14 @@ export interface RouteStep {
    *  them, which is what lets a re-plan reuse an earlier plan's checkpoints
    *  (`Game.getCheckpoint`). Not parseable — see {@link extendSeq}. */
   seq: string;
-  /** The address of the position the step stands at: on the program engine
-   *  the address of the instruction that ran last, which survives a compile
-   *  for every statement that was not emitted again, and on the current
-   *  engine the runtime path of the story's previous pointer. */
+  /** The address of the position the step stands at: the address of the
+   *  instruction that ran last, which survives a compile for every statement
+   *  that was not emitted again. */
   address: ProgramAddress;
   /** The index of the latest decision made so far */
   decision: number;
   /** The index of the latest checkpoint made so far */
   checkpoint?: number;
-  /** On the current engine, where this step's path pointed in the program
-   *  it was REPLAYED in: the script, and the location the compiler recorded
-   *  for the path (`Game`'s replay stamps both). A step on the program engine
-   *  needs neither: its address names its statement's chunk, which a later
-   *  root holds exactly when the statement was not emitted again.
-   *
-   *  This is what lets a later compile decide whether the step still means what
-   *  it meant. Two different things can go wrong and both are read from here:
-   *  the author can have edited the text the step came from, and an edit
-   *  elsewhere can have renumbered the path so that it now points at other
-   *  content entirely.
-   *
-   *  `stamped` says the step was reached and looked up, which is what separates
-   *  "the compiler recorded no location for this path" from "nobody has asked".
-   *  An object with no location of its own is ordinary — a beat's control
-   *  objects have none — and a step that acquires one has still moved. */
-  stamped?: boolean;
-  uri?: string;
-  location?: readonly number[];
 }
 
 /**
@@ -310,20 +290,6 @@ interface StoryPositions {
   ): ProgramAddress | null;
 }
 
-/** The program engine's surface for addresses, which the current engine
- *  lacks. */
-interface AddressedStory {
-  readonly root: ProgramRoot;
-  readonly previousAddress: number;
-  readonly currentAddress: number;
-  readonly state: { readonly position: { readonly sequence: SequenceRow } | null };
-  stackAddresses(): number[];
-}
-
-const isAddressed = (story: unknown): story is AddressedStory =>
-  typeof (story as Partial<AddressedStory>).previousAddress === "number" &&
-  typeof (story as Partial<AddressedStory>).stackAddresses === "function";
-
 // The scene each chunk of a root stands in, found once per chunk.
 const chunkScenes = new WeakMap<ProgramRoot, Map<number, string>>();
 
@@ -349,60 +315,39 @@ const sceneOfAddress = (root: ProgramRoot, address: number): string => {
 };
 
 const storyPositions = (story: Story): StoryPositions => {
-  if (isAddressed(story)) {
-    const program = story;
-    // The scene of the sequence the story last stood in, which most steps
-    // share: the scene follows from the sequence alone.
-    let lastSequence: SequenceRow | null = null;
-    let lastScene = "0";
-    return {
-      previous: () => {
-        const address = program.previousAddress;
-        return address >= 0 ? address : undefined;
-      },
-      knot: () => {
-        const sequence = program.state.position?.sequence ?? null;
-        if (!sequence) {
-          return "0";
-        }
-        if (sequence !== lastSequence) {
-          lastSequence = sequence;
-          lastScene = program.root.sceneOf(sequence) ?? "0";
-        }
-        return lastScene;
-      },
-      stackHolds: (knot) =>
-        program
-          .stackAddresses()
-          .some((address) => sceneOfAddress(program.root, address) === knot),
-      // The instruction that raised the error, as the error recorded it: the
-      // story it ended no longer says where it stood.
-      errorAddress: (raised) => {
-        if (raised?.address !== undefined) {
-          return raised.address;
-        }
-        const address = program.previousAddress;
-        return address >= 0 ? address : null;
-      },
-    };
-  }
+  // The scene of the sequence the story last stood in, which most steps
+  // share: the scene follows from the sequence alone.
+  let lastSequence: SequenceRow | null = null;
+  let lastScene = "0";
   return {
-    previous: () => pointerPathString(story.state.previousPointer),
-    knot: () => pointerKnotName(story.state.currentPointer),
-    stackHolds: (knot) => {
-      for (const thread of story.state.callStack._threads) {
-        for (const el of thread.callstack) {
-          const elKnot = el.currentPointer.isNull
-            ? pointerKnotName(el.previousPointer)
-            : pointerKnotName(el.currentPointer);
-          if (elKnot === knot) {
-            return true;
-          }
-        }
-      }
-      return false;
+    previous: () => {
+      const address = story.previousAddress;
+      return address >= 0 ? address : undefined;
     },
-    errorAddress: (raised) => raised?.path ?? null,
+    knot: () => {
+      const sequence = story.state.position?.sequence ?? null;
+      if (!sequence) {
+        return "0";
+      }
+      if (sequence !== lastSequence) {
+        lastSequence = sequence;
+        lastScene = story.root.sceneOf(sequence) ?? "0";
+      }
+      return lastScene;
+    },
+    stackHolds: (knot) =>
+      story
+        .stackAddresses()
+        .some((address) => sceneOfAddress(story.root, address) === knot),
+    // The instruction that raised the error, as the error recorded it: the
+    // story it ended no longer says where it stood.
+    errorAddress: (raised) => {
+      if (raised?.address !== undefined) {
+        return raised.address;
+      }
+      const address = story.previousAddress;
+      return address >= 0 ? address : null;
+    },
   };
 };
 
@@ -413,17 +358,9 @@ interface StatePort {
   restore(state: SearchState): void;
 }
 
-/** The program engine's surface for images, which the current engine
- *  lacks. */
-interface ImageStory {
-  capture(): ProgramImage;
-  restore(image: ProgramImage): boolean;
-}
-
 const statePort = (story: Story, images: boolean): StatePort => {
-  const imaging = story as unknown as Partial<ImageStory>;
-  if (images && typeof imaging.capture === "function") {
-    const program = imaging as ImageStory;
+  if (images) {
+    const program = story;
     return {
       fork: () => {
         const image = program.capture();
@@ -1171,83 +1108,6 @@ const runUntilDecisionOrBranch = (
   };
 };
 
-/**
- * Path strings for the positions the search visits, remembered per position.
- *
- * `Pointer.path` builds a fresh `Path` object every time it is read and joining
- * its components into a string is what the search spends much of its per-step
- * time on — and it reads the same handful of positions over and over, because a
- * route revisits containers and every fork re-runs the steps before it. The
- * answer cannot change: a compiled story's content tree is fixed, so the path
- * of a container and of the item at one of its indexes is fixed with it.
- *
- * Keyed weakly by container, so the entries for a story go away with the story.
- */
-interface PointerPaths {
-  /** Indexed by the pointer's index plus one; slot 0 is the container itself. */
-  paths: (string | undefined)[];
-  /** The knot name of the same position (see {@link knotNameFromPath}). */
-  knots: (string | undefined)[];
-}
-
-const pointerPathCache = new WeakMap<object, PointerPaths>();
-
-const pointerPaths = (container: object): PointerPaths => {
-  let entry = pointerPathCache.get(container);
-  if (!entry) {
-    entry = { paths: [], knots: [] };
-    pointerPathCache.set(container, entry);
-  }
-  return entry;
-};
-
-/** The pointer's path as a string, or undefined for a null pointer: the
- *  current engine's address of a position (`ProgramAddress`). */
-export const pointerPathString = (
-  ptr: {
-    container: unknown;
-    index: number | null;
-    path: { toString(): string } | null;
-  } | null,
-): string | undefined => {
-  if (!ptr || !ptr.container) {
-    return undefined;
-  }
-  const entry = pointerPaths(ptr.container as object);
-  const slot = ptr.index == null ? 0 : ptr.index + 1;
-  const cached = entry.paths[slot];
-  if (cached !== undefined) {
-    return cached;
-  }
-  const computed = ptr.path?.toString();
-  if (computed !== undefined) {
-    entry.paths[slot] = computed;
-  }
-  return computed;
-};
-
-/** The knot the pointer sits in, by the same fallback `knotNameFromPath` uses. */
-const pointerKnotName = (
-  ptr: {
-    container: unknown;
-    index: number | null;
-    path: { toString(): string } | null;
-  } | null,
-): string => {
-  if (!ptr || !ptr.container) {
-    return knotNameFromPath(undefined);
-  }
-  const entry = pointerPaths(ptr.container as object);
-  const slot = ptr.index == null ? 0 : ptr.index + 1;
-  const cached = entry.knots[slot];
-  if (cached !== undefined) {
-    return cached;
-  }
-  const computed = knotNameFromPath(pointerPathString(ptr));
-  entry.knots[slot] = computed;
-  return computed;
-};
-
 const resetStory = (story: Story) => {
   // End any line the story is part-way through rather than running it to its
   // end. `ResetState` below refuses to run while a line is open, but finishing
@@ -1314,9 +1174,6 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   choices: [...resumeFrom.choices],
   overrides: [...resumeFrom.decisions],
 });
-
-const knotNameFromPath = (path: string | undefined): string =>
-  path?.split(".")[0] || "0";
 
 const isRootLevel = (knot: string): boolean =>
   knot === "0" || /^\d+$/.test(knot);

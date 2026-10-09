@@ -4,7 +4,6 @@
 // reads the same, and every fact its reference table records is unchanged.
 // These tests count the chunks a compile emits and compare every other chunk
 // by identity (#694).
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
@@ -53,7 +52,6 @@ function posAt(text: string, offset: number) {
  *  main script that compiles after each edit. */
 function session(texts: Record<string, string>) {
   const c = programCompiler(texts, {
-    programChunks: true,
     seedBuiltinsIntoStory: true,
   });
   let text = texts[MAIN]!;
@@ -91,7 +89,7 @@ function session(texts: Record<string, string>) {
       });
       text = text.slice(0, offset) + replace + text.slice(offset + find.length);
       program = c.compile().program;
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       root = program.chunks!;
       return root;
     },
@@ -139,7 +137,7 @@ describe("an edit inside one beat of the beats fixture", () => {
     );
     const cold = programCompiler(
       { ...beats(), [MAIN]: text },
-      { programChunks: true, seedBuiltinsIntoStory: true },
+      { seedBuiltinsIntoStory: true },
     ).compile().program.chunks!;
     expect(incremental).toEqual(storyBeats(new ProgramStory(cold), "MAIN"));
     expect(incremental.beats.some((b) => b.text.includes("like that, now."))).toBe(true);
@@ -226,7 +224,7 @@ describe("the statements a `done` leaves unreachable", () => {
       const edited = text.replace("Filler line 0.", "Filler line 0!").replace(find, replace);
       const cold = programCompiler(
         { [MAIN]: edited },
-        { programChunks: true, seedBuiltinsIntoStory: true },
+        { seedBuiltinsIntoStory: true },
       ).compile().program;
       expect(hints(s.program)).toEqual(hints(cold));
       expect(describeRoot(after)).toEqual(describeRoot(cold.chunks!));
@@ -260,7 +258,7 @@ describe("a statement that shares its first line with another", () => {
           .replace("Filler line 0.", "Filler line 0!")
           .replace("door in the hall", "door in hall"),
       },
-      { programChunks: true, seedBuiltinsIntoStory: true },
+      { seedBuiltinsIntoStory: true },
     ).compile().program.chunks!;
     expect(describeRoot(after)).toEqual(describeRoot(cold));
   });
@@ -310,62 +308,34 @@ describe("a continuation inside a block", () => {
   const BLOCK_LINE = 1;
   const EDITED_LINE = 12;
 
-  for (const programChunks of [false, true]) {
-    it(`is not lowered again by an edit below it, with statement chunks ${programChunks ? "on" : "off"}`, () => {
-      const c = programCompiler({ [MAIN]: text }, { programChunks });
-      c.compile();
-      const before = blockLines(c.compiler);
-      expect(blockAt(c.compiler, "if x then").reads !== undefined).toBe(programChunks);
-      const find = "Filler line 7.";
-      const offset = text.indexOf(find);
-      c.compiler.updateDocument({
-        textDocument: { uri: MAIN, version: 2 },
-        contentChanges: [
-          {
-            range: {
-              start: posAt(text, offset),
-              end: posAt(text, offset + find.length),
-            },
-            text: "Filler line 7!",
-          },
-        ],
-      });
-      c.compile();
-      // The first lines of the blocks the edit lowered again. The lines are
-      // compared rather than the blocks, whose difference is too large to
-      // print.
-      const lowered = [...blockLines(c.compiler)]
-        .filter(([block]) => !before.has(block))
-        .map(([, line]) => line);
-      expect(lowered).toContain(EDITED_LINE);
-      expect(lowered).not.toContain(BLOCK_LINE);
-    });
-  }
-});
-
-// Statements lowered with statement chunks off hold no reads, so turning them
-// on lowers every statement again, and the next compile builds the root a
-// cold compile builds.
-describe("statement chunks turned on after a compile", () => {
-  it("lower every statement again, with its reads", () => {
-    const text = [
-      "HERO: Wait ..",
-      "// a comment between",
-      ".. right there. > And then more.",
-      "After.",
-      "",
-    ].join("\n");
-    const c = programCompiler({ [MAIN]: text }, { programChunks: false });
+  it("is not lowered again by an edit below it", () => {
+    const c = programCompiler({ [MAIN]: text });
     c.compile();
-    expect(blockAt(c.compiler, ".. right there.").reads).toBeUndefined();
-    c.compiler.configure({ programChunks: true });
-    const { program } = c.compile();
-    expect(blockAt(c.compiler, ".. right there.").reads).toHaveLength(1);
-    const cold = programCompiler({ [MAIN]: text }, { programChunks: true })
-      .compile().program;
-    expect(program.fallback).toBeUndefined();
-    expect(cold.fallback).toBeUndefined();
-    expect(describeRoot(program.chunks!)).toEqual(describeRoot(cold.chunks!));
+    const before = blockLines(c.compiler);
+    expect(blockAt(c.compiler, "if x then").reads).toBeDefined();
+    const find = "Filler line 7.";
+    const offset = text.indexOf(find);
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN, version: 2 },
+      contentChanges: [
+        {
+          range: {
+            start: posAt(text, offset),
+            end: posAt(text, offset + find.length),
+          },
+          text: "Filler line 7!",
+        },
+      ],
+    });
+    c.compile();
+    // The first lines of the blocks the edit lowered again. The lines are
+    // compared rather than the blocks, whose difference is too large to
+    // print.
+    const lowered = [...blockLines(c.compiler)]
+      .filter(([block]) => !before.has(block))
+      .map(([, line]) => line);
+    expect(lowered).toContain(EDITED_LINE);
+    expect(lowered).not.toContain(BLOCK_LINE);
   });
 });
 
@@ -375,7 +345,6 @@ class RefersTo extends ParsedObject {
   constructor(public symbol: number) {
     super();
   }
-  public readonly GenerateRuntimeObject = () => null;
   public override EmitProgram(emitter: ProgramEmitter): void {
     emitter.reference(this.symbol);
     emitter.emit(Op.Done);
@@ -447,7 +416,7 @@ describe("a flow's kind", () => {
       {
         [MAIN]: text.replace("Intro.", "Intro!").replace("scene SAME", "branch SAME"),
       },
-      { programChunks: true, seedBuiltinsIntoStory: true },
+      { seedBuiltinsIntoStory: true },
     ).compile().program.chunks!;
     expect(describeRoot(after)).toEqual(describeRoot(cold));
     expect(describesSameAs(after, SymbolKind.Branch)).toBe(true);
@@ -598,9 +567,9 @@ describe("a block statement", () => {
     const edited = s.edit("  else\n", "   else\n");
     const cold = programCompiler(
       { [MAIN]: text.replace("Before.", "Before!").replace("  else\n", "   else\n") },
-      { programChunks: true, seedBuiltinsIntoStory: true },
+      { seedBuiltinsIntoStory: true },
     ).compile().program;
-    expect(cold.fallback).toBeUndefined();
+    expect(cold.chunks).toBeDefined();
     expect(describeRoot(edited)).toEqual(describeRoot(cold.chunks!));
   });
 
@@ -653,9 +622,9 @@ describe("a block statement written on one line", () => {
       const edited = s.edit(before, after);
       const cold = programCompiler(
         { [MAIN]: scene(after) },
-        { programChunks: true, seedBuiltinsIntoStory: true },
+        { seedBuiltinsIntoStory: true },
       ).compile().program;
-      expect(cold.fallback).toBeUndefined();
+      expect(cold.chunks).toBeDefined();
       expect(storyBeats(new ProgramStory(edited), "MAIN")).toEqual(
         storyBeats(new ProgramStory(cold.chunks!), "MAIN"),
       );
@@ -668,8 +637,8 @@ describe("a name a chunk reads", () => {
   it("emits the chunk again when the name resolves to something else", () => {
     const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
     const text = [...filler, "Seen {extra}.", ...filler, ""].join("\n");
-    const c = programCompiler({ [MAIN]: text }, { programChunks: true });
-    expect(c.compile().program.fallback).toBeUndefined();
+    const c = programCompiler({ [MAIN]: text });
+    expect(c.compile().program.chunks).toBeDefined();
     const added = "scene extra\n  Inside.\nend\n";
     c.compiler.updateDocument({
       textDocument: { uri: MAIN, version: 2 },
@@ -679,10 +648,10 @@ describe("a name a chunk reads", () => {
     });
     const before = c.compiler.chunkStore!.current!;
     const { program } = c.compile();
-    const cold = programCompiler({ [MAIN]: text + added }, { programChunks: true }).compile().program;
+    const cold = programCompiler({ [MAIN]: text + added }).compile().program;
     // The name now reads the scene's count (#696).
-    expect(cold.fallback).toBeUndefined();
-    expect(program.fallback).toBeUndefined();
+    expect(cold.chunks).toBeDefined();
+    expect(program.chunks).toBeDefined();
     expect(describeRoot(program.chunks!)).toEqual(describeRoot(cold.chunks!));
     const reads = (root: ProgramRoot) =>
       describeRoot(root).filter((line) => /GetCount|GetVar extra/.test(line));
@@ -696,7 +665,7 @@ describe("a name a chunk reads", () => {
 const coldRoot = (source: string) =>
   programCompiler(
     { [MAIN]: source },
-    { programChunks: true, seedBuiltinsIntoStory: true },
+    { seedBuiltinsIntoStory: true },
   ).compile().program.chunks!;
 const shows = (root: ProgramRoot) =>
   storyBeats(new ProgramStory(root)).beats.map((beat) => beat.text.trim());
@@ -1005,7 +974,7 @@ describe("a statement an edit moves past the statements that keep their chunks",
     console.warn = console.error = () => {};
     try {
       let text = functionScreenplay(3);
-      const c = programCompiler({ [MAIN]: text }, { programChunks: true });
+      const c = programCompiler({ [MAIN]: text });
       c.compile();
       let keysBefore = uniqueKeys(programStatements(c.compiler));
       const edits = cumulativeEdits(seed, FUNCTION_INSERTS);

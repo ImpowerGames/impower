@@ -31,10 +31,7 @@ const compileProgram = (source: string) => {
       },
     ],
   } as never);
-  const program = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  }).program;
+  const program = compiler.compile({ textDocument: { uri: URI } }).program;
   return requireChunks(program);
 };
 

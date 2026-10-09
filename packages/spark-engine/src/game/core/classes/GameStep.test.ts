@@ -13,8 +13,8 @@ import { Game } from "./Game";
  * flush/wait handoff that is the whole point. Like the save/load suite, that
  * makes this one of the slower files in the package.
  *
- * Every case runs on both engines: the current one, and the program engine
- * a program compiled to statement chunks runs on (`programChunks`, #702).
+ * Every case runs on the program engine, which a program compiled to
+ * statement chunks runs on (#702).
  *
  * Deliberately out of scope: the `in` / `out` / `over` traversal modes and
  * breakpoint stops. Those only engage mid-flow with a debugger attached;
@@ -25,15 +25,7 @@ const THREE_BEATS = ["First beat.", "Second beat.", "Third beat.", ""].join(
   "\n",
 );
 
-const ENGINES = [
-  ["the current engine", false],
-  ["the program engine", true],
-] as const;
-
-// The engine the cases of the block running now run on.
-let programChunks = false;
-
-const compile = (source: string) => compileProgram(source, { programChunks });
+const compile = (source: string) => compileProgram(source);
 
 let program: ReturnType<typeof compileProgram>;
 
@@ -47,7 +39,6 @@ const createGame = (
 ) => {
   const game = new Game({
     program,
-    programChunks,
     now: overrides.now ?? (() => 0),
     executionStepLimit: overrides.executionStepLimit,
     setTimeout: (handler: Function) => {
@@ -76,25 +67,20 @@ const createGame = (
   };
 };
 
-describe.each(ENGINES)("Game flow on %s", (_engine, chunks) => {
+describe("Game flow on the program engine", () => {
   beforeAll(() => {
-    programChunks = chunks;
     program = compile(THREE_BEATS);
   });
 
   it("compiles the fixture without diagnostics", () => {
     expect(program.diagnostics ?? {}).toEqual({});
-    if (chunks) {
-      expect(program.fallback).toBeUndefined();
-      expect(program.chunks).toBeTruthy();
-    } else {
-      expect(program.compiled).toBeTruthy();
-    }
+    expect(program.chunks).toBeDefined();
+    expect(program.chunks).toBeTruthy();
   });
 
-  it("runs on the engine the block names", () => {
+  it("runs on the program engine", () => {
     const { game } = createGame();
-    expect(game.programStory !== null).toBe(chunks);
+    expect(game.programStory !== null).toBe(true);
   });
 
   describe("starting", () => {
@@ -226,7 +212,6 @@ describe.each(ENGINES)("Game flow on %s", (_engine, chunks) => {
       const oneBeat = compile("Only beat.\n");
       const game = new Game({
         program: oneBeat,
-        programChunks,
         now: () => 0,
         setTimeout: (handler: Function) => {
           handler();

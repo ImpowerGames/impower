@@ -59,7 +59,7 @@ function compileScene(beats: number) {
     ],
   } as never);
   return requireChunks(
-    compiler.compile({ textDocument: { uri: URI }, countAllVisits: true } as never)
+    compiler.compile({ textDocument: { uri: URI } } as never)
       .program,
   );
 }
@@ -70,8 +70,6 @@ function retainedBySimulation(beats: number) {
   const program = compileScene(beats);
   const game = new Game({
     program: program as any,
-    incrementalCheckpoints: true,
-    verifyCheckpoints: false,
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
       fn(...a);
       return 0;
@@ -99,22 +97,19 @@ function imageStore() {
   const store = new CheckpointStore(
     {
       captureImage: (keyframe: boolean) => ({ keyframe }),
-      // As `Game.buildSave` writes it: the collections emptied when asked.
-      saveWithoutStory: (omitDeltaState: boolean) =>
+      // As `Game.buildSave` writes it for a checkpoint: the collections
+      // emptied.
+      saveWithoutStory: () =>
         JSON.stringify({
           modules: {},
-          runtime: omitDeltaState
-            ? live.state.toJSONWithoutCollections()
-            : live.state.toJSON(),
+          runtime: live.state.toJSONWithoutCollections(),
         }),
-      save: () => "",
-      saveDeltaBody: () => "",
-      snapshotCounts: () => ({ vc: [], ti: [] }),
-      drainCountDeltas: () => ({ vc: [], ti: [] }),
+      storyOfImage: () => null,
+      durableExecuted: (executed) => executed,
       snapshotRuntime: () => live.state.snapshotFull(),
       drainRuntime: () => live.state.drainDeltas(),
     },
-    { incremental: true, baseInterval: 10 },
+    { baseInterval: 10 },
   );
   const expected: string[] = [];
   const capture = () => {

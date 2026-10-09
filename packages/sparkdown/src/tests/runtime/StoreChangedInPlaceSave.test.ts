@@ -20,13 +20,13 @@ function saveAfterFirstLine(source: string): {
   const previous = VariablesState.dontSaveDefaultValues;
   VariablesState.dontSaveDefaultValues = true;
   try {
-    const { story, compiledJson, errorMessages } =
+    const { story, root, errorMessages } =
       makeRuntimeStoryFromSource(source);
     const errors = [...errorMessages];
     story.onError = (m: string) => errors.push(`[before save] ${m}`);
     const first = story.Continue() ?? "";
     const json = story.state.ToJson();
-    const again = testStory(compiledJson as Record<string, any>);
+    const again = testStory(root);
     again.onError = (m: string) => errors.push(`[after load] ${m}`);
     again.state.LoadJson(json);
     const rest = again.ContinueMaximally();
@@ -193,7 +193,7 @@ scene main
   fin
 end
 `;
-    const { story, compiledJson, errorMessages } =
+    const { story, root, errorMessages } =
       makeRuntimeStoryFromSource(source);
     const errors = [...errorMessages];
     expect(story.Continue()).toBe("First.\n");
@@ -213,7 +213,7 @@ end
     };
     visit(saved);
     expect(changed).toBe(1);
-    const again = testStory(compiledJson as Record<string, any>);
+    const again = testStory(root);
     again.onError = (m: string) => errors.push(m);
     again.state.LoadJson(JSON.stringify(saved));
     expect(again.ContinueMaximally()).toBe("Second 1 1 true.\n");
@@ -259,7 +259,7 @@ end
     const errors = [...before.errorMessages, ...after.errorMessages];
     expect(before.story.Continue()).toBe("First.\n");
     const json = before.story.state.ToJson();
-    const loaded = testStory(after.compiledJson as Record<string, any>);
+    const loaded = testStory(after.root);
     loaded.onError = (m: string) => errors.push(m);
     loaded.state.LoadJson(json);
     expect(loaded.ContinueMaximally()).toBe("Second 2 true.\n");
@@ -296,7 +296,7 @@ end
     const errors = [...before.errorMessages, ...after.errorMessages];
     expect(before.story.Continue()).toBe("First.\n");
     const json = before.story.state.ToJson();
-    const loaded = testStory(after.compiledJson as Record<string, any>);
+    const loaded = testStory(after.root);
     loaded.onError = (m: string) => errors.push(m);
     loaded.state.LoadJson(json);
     expect(loaded.ContinueMaximally()).toBe("Second 2 true.\n");
@@ -316,7 +316,7 @@ scene main
   fin
 end
 `;
-    const { story, compiledJson, errorMessages } =
+    const { story, root, errorMessages } =
       makeRuntimeStoryFromSource(source);
     const errors = [...errorMessages];
     expect(story.Continue()).toBe("First.\n");
@@ -328,7 +328,7 @@ end
     const renamed = saved
       .split(`"anchor":"[\\"a\\"]"`)
       .join(`"anchor":"[\\"Holder\\",\\".alias\\"]"`);
-    const loaded = testStory(compiledJson as Record<string, any>);
+    const loaded = testStory(root);
     loaded.onError = (m: string) => errors.push(m);
     loaded.state.LoadJson(renamed);
     expect(loaded.ContinueMaximally()).toBe("Second 2 true.\n");

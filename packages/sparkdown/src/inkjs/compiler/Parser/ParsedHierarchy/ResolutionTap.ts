@@ -19,8 +19,7 @@ import type { ParsedObject } from "./Object";
  * `already exists on line 4`, reads that position, which an edit above the
  * object moves; the resolver hears those through `DebugMetadata.onPrinted`.)
  *
- * Nothing listens outside the resolver: the current engine's `ExportRuntime`
- * runs with no tap.
+ * Nothing listens outside the resolver.
  */
 export interface ResolutionTap {
   /** A name the resolution in progress looked up. A name that starts with

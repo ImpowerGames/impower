@@ -1,10 +1,9 @@
 // Flow parameters on the program engine (#1436): a scene or a branch that
 // declares parameters binds them where it is entered, and a divert, a tunnel,
-// a thread or an onward return passes them its arguments, compared with the
-// current engine; a jump into the middle of such a flow binds none; and a
+// a thread or an onward return passes them its arguments; a jump into the
+// middle of such a flow binds none; and a
 // change to a flow's parameter list emits again exactly the chunks that pass
 // it arguments.
-import "../../inkjs/engine/Container";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,7 +14,7 @@ import { FACT_PARAMS, PARAM_REFERENCE, PARAM_VALUE } from "../../program/Program
 import { Op } from "../../program/ProgramInstructions";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import type { StatementChunk } from "../../program/StatementChunk";
+import type { ProgramChunk } from "../../program/ProgramChunk";
 import { flowScreenplay } from "./flowScreenplay";
 import {
   compileScript,
@@ -50,26 +49,22 @@ const silence = <T>(run: () => T): T => {
   }
 };
 
-/** What a script shows on each engine from its top, taking the choices
+/** What a script shows from its top, taking the choices
  *  `picks` names at its menus, and the program's root. */
-const bothEngines = (text: string, picks: number[] = []) =>
+const runOf = (text: string, picks: number[] = []) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
-    const current = compileScript(text);
-    injectDraws();
-    current.story.ResetState();
-    const expected = storyRun(current.story, picks);
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     injectDraws();
     const actual = storyRun(new ProgramStory(program.chunks!), picks);
-    return { expected, actual, root: program.chunks! };
+    return { actual, root: program.chunks! };
   });
 
 const texts = (run: { beats: { text: string }[] }) =>
   run.beats.map((beat) => beat.text.trim());
 
 /** The chunks of a root whose code holds instruction `op`. */
-const chunksWith = (root: ProgramRoot, op: number): StatementChunk[] => {
+const chunksWith = (root: ProgramRoot, op: number): ProgramChunk[] => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).filter((chunk) =>
     [...reader.instructions(chunk)].some((i) => i.op === op),
@@ -97,39 +92,39 @@ const session = (
 };
 
 const cold = (text: string) =>
-  silence(() => programCompiler({ [MAIN_URI]: text }, { programChunks: true }).compile().program);
+  silence(() => programCompiler({ [MAIN_URI]: text }).compile().program);
 
 describe("the fixtures that fell back for a flow's parameters", () => {
   // Every shared fixture that declared a flow with parameters fell back,
-  // naming `Argument`, before #1436.
-  for (const fixture of [
-    "builtins/read-count-variable-target.sd",
-    "diverts/complex-tunnels.sd",
-    "diverts/divert-targets-with-parameters.sd",
-    "diverts/tunnel-onwards-divert-after-with-arg.sd",
-    "diverts/tunnel-onwards-variable-target.sd",
-    "diverts/tunnel-onwards-with-param-default-choice.sd",
-    "multiflow/multi-flow-save-load-threads.sd",
-  ]) {
-    it(`runs ${fixture} from its chunks as the current engine does`, () => {
+  // naming `Argument`, before #1436. None offers a choice.
+  for (const [fixture, shown] of [
+    ["builtins/read-count-variable-target.sd", ["Count start - 0 0 0", "1", "2", "3", "Count end - 3 3 3"]],
+    ["diverts/complex-tunnels.sd", ["one (1)", "one and a half (1.5)", "two (2)", "three (3)"]],
+    ["diverts/divert-targets-with-parameters.sd", ["5"]],
+    ["diverts/tunnel-onwards-divert-after-with-arg.sd", ["8"]],
+    ["diverts/tunnel-onwards-variable-target.sd", ["This is outer", "This is the_esc"]],
+    ["diverts/tunnel-onwards-with-param-default-choice.sd", ["8"]],
+    ["multiflow/multi-flow-save-load-threads.sd", ["Default line 1", "Default line 2"]],
+  ] as const) {
+    it(`runs ${fixture} from its chunks`, () => {
       const text = readFileSync(join(FIXTURES, fixture), "utf8");
-      for (const picks of [[], [1], [2]]) {
-        const { expected, actual } = bothEngines(text, picks);
-        expect(actual).toEqual(expected);
-      }
+      const { actual } = runOf(text);
+      expect(actual.menus).toEqual([]);
+      expect(actual.errors).toEqual([]);
+      expect(texts(actual)).toEqual(shown);
     });
   }
 });
 
 describe("a dotted target's arguments (#1642)", () => {
   // A divert, a tunnel, a thread and an onward return to a dotted target
-  // pass their arguments on both engines.
-  it("runs diverts/dotted-divert-targets-with-arguments.sd from its chunks as the current engine does", () => {
+  // pass their arguments.
+  it("runs diverts/dotted-divert-targets-with-arguments.sd from its chunks", () => {
     const text = readFileSync(
       join(FIXTURES, "diverts/dotted-divert-targets-with-arguments.sd"),
       "utf8",
     );
-    const { expected, actual } = bothEngines(text);
+    const { actual } = runOf(text);
     expect(texts(actual)).toEqual([
       "Inner 1.",
       "Visit 2 t.",
@@ -138,13 +133,12 @@ describe("a dotted target's arguments (#1642)", () => {
       "Leave 4.",
       "Last 5.",
     ]);
-    expect(actual).toEqual(expected);
   });
 });
 
 describe("a flow's parameters on the program engine", () => {
   it("binds them for a divert, a tunnel and a thread to the flow, and not for a jump into its middle", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = runOf(
       [
         "-> start",
         "scene start",
@@ -177,7 +171,6 @@ describe("a flow's parameters on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     // The divert binds `how`; the jump to `middle` binds nothing, so the
     // flow's `how` is the one the divert's pass assigned.
     expect(texts(actual)).toEqual([
@@ -190,7 +183,7 @@ describe("a flow's parameters on the program engine", () => {
   });
 
   it("binds a branch's parameters, and a scene's before it enters its first branch", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = runOf(
       [
         "-> outer(1)",
         "scene outer(a)",
@@ -206,12 +199,11 @@ describe("a flow's parameters on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["Inner 1.", "Second 2 b."]);
   });
 
   it("packs a variadic flow's arguments, padding a missing parameter with nil", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = runOf(
       [
         "-> many(1, 2, 3)",
         "scene many(a, ...)",
@@ -229,13 +221,12 @@ describe("a flow's parameters on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     // A thread and a divert that pass nothing pass nil and an empty `...`.
     expect(texts(actual)).toEqual(["Many 1 2.", "None nil 0.", "None nil 0."]);
   });
 
   it("passes an onward return's arguments to the flow it goes on to", () => {
-    const { expected, actual } = bothEngines(
+    const { actual } = runOf(
       [
         "-> start",
         "scene start",
@@ -252,15 +243,12 @@ describe("a flow's parameters on the program engine", () => {
         "",
       ].join("\n"),
     );
-    expect(actual).toEqual(expected);
     expect(texts(actual)).toEqual(["In the tunnel.", "After by onward 2."]);
   });
 });
 
-// The current engine compiles this to no story: its onward return takes the
-// container a divert with arguments generates and pushes an override target
-// a variable never fills. The program engine goes on to the flow the
-// variable holds, with the arguments bound.
+// The onward return goes on to the flow the variable holds, with the
+// arguments bound.
 describe("an onward return to a variable target", () => {
   it("passes its arguments to the flow the variable holds", () => {
     const text = [
@@ -279,8 +267,8 @@ describe("an onward return to a variable target", () => {
       "end",
       "",
     ].join("\n");
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const run = silence(() => storyRun(new ProgramStory(program.chunks!), []));
     expect(texts(run)).toEqual(["In the tunnel.", "After by onward."]);
     expect(run.errors).toEqual([]);
@@ -300,46 +288,31 @@ describe("a host entering a scene that takes parameters", () => {
     "",
   ].join("\n");
 
-  // The current engine passes `ChoosePathString`'s arguments as they are,
-  // for the knot's assignments to bind.
-  it("passes ChoosePathString's arguments for the scene to bind, as the current engine does", () => {
+  it("passes ChoosePathString's arguments for the scene to bind", () => {
     const run = (story: { ChoosePathString(p: string, r?: boolean, a?: any[]): void; Continue(): string | null }) => {
       story.ChoosePathString("pair", true, [1, 2]);
       return story.Continue();
     };
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    expect(program.fallback).toBeUndefined();
-    const current = silence(() => compileScript(text)).story;
-    current.ResetState();
-    const expected = silence(() => run(current as never));
+    const { program } = silence(() => compileScript(text));
+    expect(program.chunks).toBeDefined();
     const actual = silence(() => run(new ProgramStory(program.chunks!)));
-    expect(actual).toBe(expected);
     expect(actual).toBe("Pair 1 2.\n");
   });
 
-  // The current engine arranges `EvaluateFunction`'s arguments for the
-  // knot's parameters when its container binds some.
-  it("arranges EvaluateFunction's arguments for the scene's parameters, as the current engine does", () => {
-    const { program } = silence(() => compileScript(text, { programChunks: true }));
-    const current = silence(() => compileScript(text)).story;
-    current.ResetState();
+  // A scene returns nothing; an extra argument is dropped, a missing one
+  // is nil, and the rest go to `...`.
+  it("arranges EvaluateFunction's arguments for the scene's parameters", () => {
+    const { program } = silence(() => compileScript(text));
     const engine = new ProgramStory(program.chunks!);
-    for (const [name, args] of [
-      ["pair", [1, 2, 3]],
-      ["pair", [1]],
-      ["rest", [1, 2, 3]],
-      ["rest", []],
+    for (const [name, args, output] of [
+      ["pair", [1, 2, 3], "Pair 1 2.\n"],
+      ["pair", [1], "Pair 1 nil.\n"],
+      ["rest", [1, 2, 3], "Rest 1 2.\n"],
+      ["rest", [], "Rest nil 0.\n"],
     ] as const) {
-      const expected = silence(() => current.EvaluateFunction(name, [...args], true));
       const actual = silence(() => engine.EvaluateFunction(name, [...args], true));
-      expect(actual, `${name}(${args.join(", ")})`).toEqual(expected);
+      expect(actual, `${name}(${args.join(", ")})`).toEqual({ returned: null, output });
     }
-    expect(silence(() => engine.EvaluateFunction("pair", [1, 2, 3], true)).output).toBe(
-      "Pair 1 2.\n",
-    );
-    expect(silence(() => engine.EvaluateFunction("rest", [1, 2, 3], true)).output).toBe(
-      "Rest 1 2.\n",
-    );
   });
 });
 
@@ -359,10 +332,10 @@ describe("a flow's entry", () => {
         "",
       ].join("\n"),
     );
-    expect(s.first.fallback).toBeUndefined();
+    expect(s.first.chunks).toBeDefined();
     const entry = s.first.chunks!.flowNamed("outer")!.arrays.chunks[0]!;
     const edited = s.edit("scene outer(a)", "scene outer( a )");
-    expect(edited.fallback).toBeUndefined();
+    expect(edited.chunks).toBeDefined();
     expect(edited.chunks!.flowNamed("outer")!.arrays.chunks[0]).toBe(entry);
     expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold(s.text).chunks!));
   });
@@ -379,7 +352,7 @@ describe("a compile whose builtin call reports its arguments", () => {
     // The edit the flow screenplay's fuzz made (#56 of its per-edit run).
     const text = flowScreenplay(3);
     const s = session(text);
-    expect(s.first.fallback).toBeUndefined();
+    expect(s.first.chunks).toBeDefined();
     const edited = s.edit(
       "Done looping {FLOW_2.side} {count.turns(-> FLOW_2.side)} {READ_COUNT(-",
       "Done looping {FLOW_2.side} {count.turns(-> FLOW_2.side)} {READ_COUNT(--- c",
@@ -425,14 +398,14 @@ describe("a flow's parameter list", () => {
   ] as const) {
     it(`emits again, for ${what}, the chunks that pass the flow arguments and its entry, and no other`, () => {
       const s = session(text);
-      expect(s.first.fallback).toBeUndefined();
+      expect(s.first.chunks).toBeDefined();
       const before = new Set(rootChunks(s.first.chunks!));
       const edited = s.edit("scene target(a)", after);
-      expect(edited.fallback).toBeUndefined();
+      expect(edited.chunks).toBeDefined();
       expect(describeRoot(edited.chunks!)).toEqual(describeRoot(cold(s.text).chunks!));
       const emitted = rootChunks(edited.chunks!).filter((chunk) => !before.has(chunk));
       const reader = new BinaryProgramReader(edited.chunks!);
-      const ops = (chunk: StatementChunk) =>
+      const ops = (chunk: ProgramChunk) =>
         [...reader.instructions(chunk)].map((i) => i.op);
       // The two tunnels that pass arguments, and the entry, which binds the
       // parameters and holds nothing else.
@@ -483,12 +456,12 @@ describe("a flow's parameter list", () => {
       internals._chunkStore = new RefStore(internals._binaryTable);
     });
     const first = s.first;
-    expect(first.fallback).toBeUndefined();
+    expect(first.chunks).toBeDefined();
     const before = new Set(rootChunks(first.chunks!));
     expect(chunksWith(first.chunks!, Op.VarPtr)).toEqual([]);
     kinds = PARAM_REFERENCE;
     const after = s.edit("Plain line.", "Plain line, again.");
-    expect(after.fallback).toBeUndefined();
+    expect(after.chunks).toBeDefined();
     const emitted = rootChunks(after.chunks!).filter((chunk) => !before.has(chunk));
     // The two tunnels that pass the flow arguments, and the edited line.
     expect(emitted).toHaveLength(3);

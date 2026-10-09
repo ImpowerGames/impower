@@ -18,12 +18,12 @@ import {
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import type { TestStory } from "../engineUnderTest";
 
 // Drive `Continue()` one line/beat at a time, collecting each beat's visible
 // text plus the routing of the beat's table, as `target:character`.
 function continueBeats(
-  story: RuntimeStory,
+  story: TestStory,
 ): { text: string; routing: string | null }[] {
   const beats: { text: string; routing: string | null }[] = [];
   while (story.canContinue) {

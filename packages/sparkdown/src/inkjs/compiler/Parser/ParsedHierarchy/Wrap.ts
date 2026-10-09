@@ -20,8 +20,6 @@ export class Wrap<T extends RuntimeObject> extends ParsedObject {
     return this._objToWrap != null;
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => this._objToWrap;
-
   // A block's scope markers are the instructions of the same names, and a
   // legacy tag, which an inline alternator's arm writes inside the string
   // of its line, is `Tag` with its text. Any other wrapped runtime object is

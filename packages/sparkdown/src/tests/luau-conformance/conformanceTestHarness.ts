@@ -13,9 +13,7 @@
 // `story.Error` on falsy), so failures arrive through `story.onError`
 // and end up in `errorMessages` alongside compile-time errors.
 
-import { pathLocation } from "../../compiler/utils/pathLocationTable";
 import { testCompiler, testStory } from "../engineUnderTest";
-import { ProgramStory } from "../../program/ProgramStory";
 
 export interface ConformanceResult {
   /** Compile-time errors surfaced by sparkdown's diagnostics pipeline. */
@@ -141,7 +139,7 @@ export function runConformanceSource(
   // rather than throwing. Tests can decide whether to flag the
   // error or skip — useful while bisecting which features still
   // need lowerer support.
-  if (!program.compiled) {
+  if (!program.chunks) {
     return {
       errorMessages,
       warningMessages,
@@ -150,7 +148,7 @@ export function runConformanceSource(
     };
   }
 
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
 
   // Luau-spec `error(msg)` prepends `<source>:<line>: ` to the
   // message. Sparkdown production hosts (the LSP) intentionally
@@ -162,75 +160,11 @@ export function runConformanceSource(
   //   3. Prepends `<fixtureName>:<userLine>: ` to the message.
   // This lets fixtures like basic.luau line 39 (which expects
   // `"false,basic.luau:39: oops"`) check the format precisely.
-  // Debug metadata is stripped from the runtime story by JSON
-  // serialization — `currentDebugMetadata` returns null even though
-  // the compiler tracked source lines. Bridge the gap via the
-  // compiler's `program.pathLocations` map, keyed by stringified
-  // path (e.g. `"run.0.20.s30.4"`). Look up the current pointer's
-  // path to recover the wrapped-source line, then subtract the
-  // preamble offset to get the user-fixture line.
-  // Debug metadata is stripped from the runtime story by JSON
-  // serialization, so `currentDebugMetadata` returns null. Bridge
-  // the gap via the compiler's `program.pathLocations` map, keyed
-  // by stringified path. The mapping is coarse — the compiler
-  // stamps the ENCLOSING function/knot's start line on every
-  // bytecode command inside it, not the precise statement line —
-  // so the resulting `<file>:<line>:` matches the function's start
-  // line, not the exact error site. Good enough for tests that just
-  // want the format prefix; not granular enough to match upstream
-  // Luau fixtures that hard-code specific lines.
-  const pathLocations = program.pathLocations;
+  // The program engine knows the line of the instruction running from its
+  // chunk's line table.
   const lookupUserLineFromPointer = (): number | null => {
-    // The program engine knows the line of the instruction running from its
-    // chunk's line table.
-    if ((story as unknown) instanceof ProgramStory) {
-      const dm = story.currentDebugMetadata;
-      return dm ? Math.max(1, dm.startLineNumber - PREAMBLE_LINE_COUNT) : null;
-    }
-    const ptr = story.state.currentPointer;
-    const candidates: import("../../runtime/Object").InkObject[] = [];
-    if (ptr && !ptr.isNull) {
-      const resolved = ptr.Resolve();
-      if (resolved) candidates.push(resolved);
-    }
-    for (let i = story.state.callStack.elements.length - 1; i >= 0; i--) {
-      const elPtr = story.state.callStack.elements[i]!.currentPointer;
-      if (elPtr && !elPtr.isNull) {
-        const resolved = elPtr.Resolve();
-        if (resolved) candidates.push(resolved);
-      }
-    }
-    // Prefer the DEEPEST match (most specific path). We collect all
-    // matches along each candidate's parent chain and pick the one
-    // with the highest startLine (closer to the actual call site
-    // than the enclosing container's start). Picking the MAX
-    // recovers something close to the source line of the failing
-    // call even when the leaf object's exact path isn't in the
-    // location table (which only tracks compiler-emitted objects).
-    let best: number | null = null;
-    for (const obj of candidates) {
-      let cur: any = obj;
-      while (cur) {
-        const path = cur.path?.toString?.();
-        const located = path ? pathLocation(pathLocations, path) : undefined;
-        if (located) {
-          const startLine = located[1];
-          if (best === null || startLine > best) best = startLine;
-        }
-        cur = cur.parent;
-      }
-    }
-    if (best === null) return null;
-    // `pathLocations[path][1]` is `metadata.startLineNumber - 1`, and
-    // `metadata.startLineNumber` is now correctly 1-based (see
-    // `buildDebugMetadata` — `ctx.lineNumber` is 0-based, so the builder
-    // adds 1). So `best` is the TRUE 0-based document line. To get the
-    // 1-based user-fixture line:
-    //   user_line = (0-based_doc_line + 1) - PREAMBLE_LINE_COUNT
-    //             = best + 1 - PREAMBLE_LINE_COUNT
-    // Clamp to >= 1 since the compiler's coarse mapping can still
-    // point at the preamble region for inner-knot ControlCommands.
-    return Math.max(1, best + 1 - PREAMBLE_LINE_COUNT);
+    const dm = story.currentDebugMetadata;
+    return dm ? Math.max(1, dm.startLineNumber - PREAMBLE_LINE_COUNT) : null;
   };
   story.errorMessageFormatter = (_story, raw) => {
     const userLine = lookupUserLineFromPointer();

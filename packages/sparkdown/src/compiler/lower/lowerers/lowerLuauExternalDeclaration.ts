@@ -13,7 +13,7 @@ import { findChildByName } from "../utils/alternatorArms";
 // `LuauVariadicParameter` / type annotations). The lowerer extracts the
 // name + parameter names and produces an `ExternalDeclaration`, which
 // inkjs's parsed-hierarchy `Story.AddExternal` collects into
-// `Story.externals` during `GenerateRuntimeObject`. At call sites the
+// `Story.externals` when it is prepared (`RegisterExternal`). At call sites the
 // regular Divert lowering already checks `Story.IsExternal(target)` and
 // flips `runtimeDivert.isExternal = true` — no separate call-site work
 // is needed here.

@@ -1,7 +1,6 @@
 // An engine error thrown out of a story step leaves the continue it came from.
 // The story must stop counting that continue as running, or it can never be
 // cancelled, reset, jumped or loaded again (#473).
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

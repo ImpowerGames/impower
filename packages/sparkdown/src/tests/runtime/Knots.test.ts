@@ -32,16 +32,9 @@ describe("Knots (ported from inkjs)", () => {
     // resolves to the current scene's visit count), and branch-as-stitch
     // (`-> scene.branch` for the explicit stitch divert path).
     //
-    // `countAllVisits: true` forces visit bookkeeping on every container —
-    // without it the compiler only tracks containers that are explicitly
-    // referenced by `READ_COUNT(...)` or `{name}` interpolation, but
-    // self-references inside a knot's own body are tricky for the
-    // compile-time scan.
-    const ctx = makeRuntimeStoryFromFile(
-      "knots",
-      "knot-stitch-gather-counts",
-      { countAllVisits: true },
-    );
+    // The program engine keeps the visits of every scene, branch and label,
+    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
+    const ctx = makeRuntimeStoryFromFile("knots", "knot-stitch-gather-counts");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(
       "1 1\n2 2\n3 3\n1 1\n2 1\n3 1\n1 2\n2 2\n3 2\n1 1\n2 1\n3 1\n1 2\n2 2\n3 2\n",

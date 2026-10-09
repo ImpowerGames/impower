@@ -1,5 +1,5 @@
-import { Choice } from "@impower/sparkdown/src/runtime/Choice";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import type { ProgramChoice } from "@impower/sparkdown/src/program/ProgramStoryState";
+import type { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
 
 export interface SerializableRuntimeState {
@@ -13,7 +13,7 @@ export interface SerializableRuntimeState {
   }[];
 }
 
-/** Per-beat delta of the runtime collections (incremental checkpoints). */
+/** Per-beat delta of the runtime collections (the checkpoints' images). */
 export interface RuntimeDelta {
   // Paths executed this beat, in recency order (delete-then-add semantics).
   pe: RecencyEntry[];
@@ -35,7 +35,7 @@ export class RuntimeState {
     selected: boolean;
   }[] = [];
 
-  // --- Incremental-checkpoint delta tracking ---
+  // --- Checkpoint delta tracking ---
   //
   // `pathsExecutedThisFrame` grows ~1 entry/beat and re-orders on revisit
   // (delete+add), so a full copy per checkpoint is O(n^2). We mirror the
@@ -48,9 +48,10 @@ export class RuntimeState {
   protected _choiceDrainMark = 0;
   protected _conditionDrainMark = 0;
 
-  /** Records the address of a position the story ran: an address of the
-   *  program engine, or a runtime path of the current engine, whose global
-   *  declarations' are none of a beat's. */
+  /** Records the address of a position the story ran. A string beginning
+   *  `global ` was the deleted object engine's path of its global
+   *  declarations, which are none of a beat's; no producer makes one now
+   *  (#1709). */
   recordExecution(address: RecencyEntry) {
     if (typeof address !== "string" || !address.startsWith("global ")) {
       // Both collections keep the most recently executed address last.
@@ -62,7 +63,7 @@ export class RuntimeState {
     }
   }
 
-  recordChoice(story: Story, choice: Choice) {
+  recordChoice(story: ProgramStory, choice: ProgramChoice) {
     this.choicesEncountered.push({
       options: story.currentChoices.map((c) => c.text),
       selected: story.currentChoices.indexOf(choice),

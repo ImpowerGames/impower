@@ -6,7 +6,6 @@
 // nothing; the font heuristic sees child classes, component bodies, and
 // inline props; the loading layout never mounts after its load ended.
 
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
@@ -161,7 +160,7 @@ describe("AssetModule, after review", () => {
           assets.runLoad(beat.load);
         }
         // The address of the step the story ran last (the program engine's
-        // `previousAddress`, for the current engine's previous pointer).
+        // `previousAddress`).
         const previous = (h.game.story as any).previousAddress as number;
         h.game.observeScene(previous >= 0 ? previous : undefined);
         const line = Object.values(beat?.text ?? {})

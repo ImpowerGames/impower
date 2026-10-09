@@ -2,10 +2,8 @@
 // section 7): a capture holds the positional state whole and, past a
 // keyframe, only the keyed state the write barrier marked since the capture
 // before it, and a restore puts an earlier image back in place.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { lastSearchStats, planRoute } from "../../compiler/utils/planRoute";
-import type { Story } from "../../inkjs/engine/Story";
 import { MultiValue, ObjectValue, StringValue } from "../../runtime/Value";
 import {
   MAX_DELTA_DEPTH,
@@ -15,11 +13,11 @@ import {
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { countIdOf } from "../../program/ProgramSymbols";
-import { chunkId } from "../../program/StatementChunk";
+import { chunkId } from "../../program/ProgramChunk";
 import { compileScript, programSession, rootChunks } from "./programHarness";
 
 const story = (text: string) =>
-  new ProgramStory(compileScript(text, { programChunks: true }).program.chunks!);
+  new ProgramStory(compileScript(text).program.chunks!);
 
 /** The text of the next `count` beats. */
 const next = (s: ProgramStory, count: number): string[] => {
@@ -461,11 +459,11 @@ describe("a route search on the program engine", () => {
   ].join("\n");
 
   it("forks images that are deltas, and expands the nodes the JSON round trip expands", () => {
-    const root = compileScript(BRANCHES, { programChunks: true }).program.chunks!;
+    const root = compileScript(BRANCHES).program.chunks!;
     const search = (stateImages: boolean) => {
       const story = new ProgramStory(root);
       const before = { ...story.images.stats };
-      const plan = planRoute(story as unknown as Story, "start", "nowhere", {
+      const plan = planRoute(story, "start", "nowhere", {
         stateImages,
         maxNodes: 2000,
       });

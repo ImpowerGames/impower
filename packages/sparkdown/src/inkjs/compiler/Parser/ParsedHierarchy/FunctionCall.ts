@@ -1,14 +1,10 @@
-import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../runtime/ControlCommand";
 import { lookupStateAwareStdLib } from "../../../../runtime/StdLib";
 import { Divert } from "./Divert/Divert";
-import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
 import { Expression } from "./Expression/Expression";
 import { NativeFunctionCall } from "../../../../runtime/NativeFunctionCall";
 import { Path } from "./Path";
 import { Story } from "./Story";
-import { Void as RuntimeVoid } from "../../../../runtime/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../../runtime/TypeAssertion";
@@ -32,9 +28,8 @@ export class FunctionCall extends Expression {
     return (
       // Legacy per-function ControlCommand builtins that still have
       // compile-time setup not yet migrated to the STDLIB
-      // dispatcher: TURNS_SINCE / READ_COUNT need DivertTarget
-      // container-counting setup in `ResolveReferences`; LIST_*
-      // builtins are list-runtime-native.
+      // dispatcher: TURNS_SINCE / READ_COUNT take their target's
+      // count; LIST_* builtins are list-runtime-native.
       name === "TURNS_SINCE" ||
       name === "READ_COUNT" ||
       name === "LIST_VALUE" ||
@@ -63,10 +58,6 @@ export class FunctionCall extends Expression {
     return this._proxyDivert.args;
   }
 
-  get runtimeDivert(): RuntimeDivert {
-    return this._proxyDivert.runtimeDivert;
-  }
-
   get isTurnsSince(): boolean {
     return this.name === "TURNS_SINCE";
   }
@@ -84,9 +75,9 @@ export class FunctionCall extends Expression {
   }
 
   // True when `this.name` is registered as a state-aware global in
-  // `STDLIB` (StdLib.ts). Used by `GenerateIntoContainer` to
-  // route the call through the generic `RunStdLibFunction` dispatch
-  // instead of treating it as a user-defined knot reference.
+  // `STDLIB` (StdLib.ts). Used by `EmitExpression` to route the call
+  // through the generic `CallStd` dispatch instead of treating it as a
+  // user-defined knot reference.
   get isStateAwareStdLib(): boolean {
     return lookupStateAwareStdLib(this.name) !== null;
   }
@@ -119,20 +110,18 @@ export class FunctionCall extends Expression {
     return "FunctionCall";
   }
 
-  // `GenerateIntoContainer` runs again on every recompile, and the
+  // `PrepareIntoContainer` runs again on every recompile, and the
   // incremental pipeline carries parsed nodes forward by identity, so
-  // anything generation adds to `this.content` must be added at most
+  // anything preparation adds to `this.content` must be added at most
   // once. The counted argument is the same parsed node every pass.
   //
   // Paired with the proxy-divert splice at the end of
-  // `GenerateIntoContainer`: with only one of the two guards in place
+  // `PrepareIntoContainer`: with only one of the two guards in place
   // `content` either grows by one entry per pass or empties entirely.
   private AddContentOnce(subContent: DivertTarget | VariableReference): void {
     if (this.content.includes(subContent)) {
       // Already added by an earlier pass. Still re-assert the parent
-      // link, which is `AddContent`'s other effect and is read by
-      // `DivertTarget.ResolveReferences` to decide whether the target
-      // is counted for turns only or for visits as well.
+      // link, which is `AddContent`'s other effect.
       subContent.parent = this;
       return;
     }
@@ -140,8 +129,8 @@ export class FunctionCall extends Expression {
     this.AddContent(subContent);
   }
 
-  /** What `GenerateIntoContainer` does without the runtime objects: the
-   *  same branch by the call's name, with its diagnostics, the target a read
+  /** The call's preparation: the branch by the call's name, with its
+   *  diagnostics, the target a read
    *  count or turns since counts taken into the call's content, the
    *  arguments prepared, and the proxy divert prepared for a call of a
    *  function and taken out of the content for any other call. */
@@ -184,11 +173,10 @@ export class FunctionCall extends Expression {
     }
   }
 
-  /** The target a read count or turns since counts, which generation and
-   *  preparation both check and take into the call's content: the call's
-   *  one argument, a divert target or a variable's reference. Any other
-   *  arguments are reported and the result is null, which ends the call's
-   *  generation. */
+  /** The target a read count or turns since counts, which preparation
+   *  checks and takes into the call's content: the call's one argument, a
+   *  divert target or a variable's reference. Any other arguments are
+   *  reported and the result is null, which ends the call's preparation. */
   protected TakeCountTarget(): DivertTarget | VariableReference | null {
     const divertTarget = asOrNull(this.args[0], DivertTarget);
     const variableDivertTarget = asOrNull(this.args[0], VariableReference);
@@ -214,7 +202,7 @@ export class FunctionCall extends Expression {
   }
 
   /** The check of a LIST_RANGE's or a LIST_RANDOM's number of arguments,
-   *  which generation and preparation both make. */
+   *  which preparation makes. */
   protected CheckListFunctionArity(): void {
     if (this.isListRange && this.args.length !== 3) {
       this.Error(
@@ -225,8 +213,8 @@ export class FunctionCall extends Expression {
     }
   }
 
-  /** The check of a native call's number of arguments, which generation
-   *  and preparation both make. */
+  /** The check of a native call's number of arguments, which preparation
+   *  makes. */
   protected CheckNativeArity(nativeCall: NativeFunctionCall): void {
     // Variadic natives (currently the `__method_*` builtin-method
     // family) validate arity at runtime inside the method impl, so
@@ -252,136 +240,6 @@ export class FunctionCall extends Expression {
       this.Error(msg, this, true);
     }
   }
-
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    // Which branch below runs is a pure function of `this.name`, which is
-    // fixed at construction (`_proxyDivert` is assigned only in this class's
-    // constructor, `Divert.target` only in `Divert`'s). Every selector is a
-    // name comparison or a static registry lookup — so a parsed node carried
-    // forward by the incremental pipeline always takes the SAME branch, and
-    // in particular `usingProxyDivert` cannot flip between compiles.
-    //
-    // Upstream ink had one selector that read per-compile state, a
-    // `story.ResolveList(this.name)` arm constructing a list value. It is
-    // removed: sparkdown has no LIST type (ink's is replaced by Luau tables —
-    // `tests/runtime/Lists.test.ts` is closed by design, see
-    // docs/runtime/DIVERGENCES.md), no parsed `ListDefinition` is ever
-    // constructed, so `_listDefs` is always empty and that arm was dead. Its
-    // one hazard: it removed `_proxyDivert` from `content` (see the splice
-    // below) without anything re-adding it, so had the branch ever flipped
-    // back to a normal call, the divert would have gone unresolved and
-    // undiagnosed. See #329.
-    let usingProxyDivert: boolean = false;
-
-    if (this.isTurnsSince || this.isReadCount) {
-      const countTarget = this.TakeCountTarget();
-      if (!countTarget) {
-        return;
-      }
-      countTarget.GenerateIntoContainer(container);
-
-      if (this.isTurnsSince) {
-        container.AddContent(RuntimeControlCommand.TurnsSince());
-      } else {
-        container.AddContent(RuntimeControlCommand.ReadCount());
-      }
-    } else if (this.isListRange) {
-      this.CheckListFunctionArity();
-
-      for (let ii = 0; ii < this.args.length; ii += 1) {
-        this.args[ii]!.GenerateIntoContainer(container);
-      }
-
-      container.AddContent(RuntimeControlCommand.ListRange());
-    } else if (this.isListRandom) {
-      this.CheckListFunctionArity();
-
-      this.args[0]!.GenerateIntoContainer(container);
-
-      container.AddContent(RuntimeControlCommand.ListRandom());
-    } else if (this.isStateAwareStdLib) {
-      // Generic state-aware stdlib dispatch. Push args in source
-      // order, then emit a `RunStdLibFunction` ControlCommand
-      // carrying the function name + arity. Runtime pops the args,
-      // looks up `STDLIB[name]`, and calls
-      // `fn(story, args)`. Optional return value is pushed back.
-      //
-      // The `RunStdLibFunction` command carries the ACTUAL arg
-      // count from the call site, so variadic entries (`assert`,
-      // `print`, `select`) and fixed-arity entries alike validate
-      // inside the registered `fn` — no compile-time arity check
-      // needed here.
-      for (const arg of this.args) {
-        arg.GenerateIntoContainer(container);
-      }
-      container.AddContent(
-        RuntimeControlCommand.RunStdLib(this.name, this.args.length),
-      );
-    } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
-      const nativeCall = NativeFunctionCall.CallWithName(this.name);
-      this.CheckNativeArity(nativeCall);
-
-      for (let ii = 0; ii < this.args.length; ii += 1) {
-        this.args[ii]!.GenerateIntoContainer(container);
-      }
-
-      // Under-application of a fixed-arity native (`math.abs()`): the
-      // runtime pops the REGISTERED arity, so an unpadded call site
-      // underflows the eval stack with an untrappable JS "trying to
-      // pop too many objects". Pad the missing slots with `Void`
-      // sentinels — `NativeFunctionCall.Call`'s pure-number-op
-      // validation reports them as Lua's trappable "missing argument
-      // #N to 'abs'" (and any other op fails its own type validation
-      // on the Void rather than corrupting the stack).
-      //
-      // OVER-application discards the extras Lua-style: all args
-      // still EVALUATE (side effects run), then the surplus pops off
-      // the top so the native sees the FIRST N — `math.sin(1,2) ==
-      // math.sin(1)` (calls.luau line 220); without the pops the
-      // native would consume the LAST args and strand the first.
-      if (!nativeCall.isVariadic) {
-        for (let ii = this.args.length; ii < nativeCall.numberOfParameters; ii += 1) {
-          container.AddContent(new RuntimeVoid());
-        }
-        for (let ii = nativeCall.numberOfParameters; ii < this.args.length; ii += 1) {
-          container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
-        }
-      }
-
-      // Pass the call-site arg count so variadic natives (`__method_*`)
-      // know how many parameters to pop off the eval stack. Ignored for
-      // fixed-arity natives — their prototype's arity wins.
-      container.AddContent(
-        NativeFunctionCall.CallWithName(this.name, this.args.length),
-      );
-    } else {
-      // Normal function call
-      container.AddContent(this._proxyDivert.runtimeObject);
-      usingProxyDivert = true;
-    }
-
-    // Don't attempt to resolve as a divert if we're not doing a normal
-    // function call. Remove the proxy divert only when it is actually
-    // present: `splice(indexOf(...), 1)` finding no match splices at -1
-    // and deletes the LAST element rather than nothing, so on a second
-    // generation pass it removes whatever `content` happens to end with.
-    if (!usingProxyDivert) {
-      const proxyIndex = this.content.indexOf(this._proxyDivert);
-      if (proxyIndex >= 0) {
-        this.content.splice(proxyIndex, 1);
-      }
-    }
-
-    // Function calls that are used alone on a tilda-based line:
-    //  ~ func()
-    // Should tidy up any returned value from the evaluation stack,
-    // since it's unused.
-    if (this.shouldPopReturnedValue) {
-      container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
-    }
-  };
 
   // A call of a builtin the program engine dispatches: its arguments, then
   // `CallStd`, whose discard flag stands for the pop after a statement's
@@ -447,8 +305,8 @@ export class FunctionCall extends Expression {
     }
   }
 
-  public override ResolveWith(context: Story, program: boolean): void {
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
 
     // If we aren't using the proxy divert after all (e.g. if
     // it's a native function call), but we still have arguments,
@@ -456,7 +314,7 @@ export class FunctionCall extends Expression {
     // is no longer in the content array.
     if (!this.content.includes(this._proxyDivert) && this.args !== null) {
       for (const arg of this.args) {
-        resolveChild(arg, context, program);
+        resolveChild(arg, context);
       }
     }
 
@@ -476,39 +334,19 @@ export class FunctionCall extends Expression {
         return;
       }
 
-      const targetObject = divert.targetContent;
-      if (targetObject === null) {
-        if (!attemptingTurnCountOfVariableTarget) {
-          this.Error(
-            `Failed to find target for TURNS_SINCE: \`${divert.target}\``,
-          );
-        }
-      } else if (!program) {
-        // The program counts every counted symbol, and the target's
-        // container is another statement's runtime object.
-        if (!targetObject.containerForCounting) {
-          throw new Error();
-        }
-
-        context.MarkCounted(targetObject.containerForCounting, false, true);
+      // The program counts every counted symbol, so a found target needs
+      // nothing more.
+      if (divert.targetContent === null) {
+        this.Error(
+          `Failed to find target for TURNS_SINCE: \`${divert.target}\``,
+        );
       }
     } else if (this._variableReferenceToCount) {
-      const runtimeVarRef = this._variableReferenceToCount.runtimeVarRef;
-      if (
-        program
-          ? !this._variableReferenceToCount.isReferencePrepared
-          : !runtimeVarRef
-      ) {
+      if (!this._variableReferenceToCount.isReferencePrepared) {
         throw new Error();
       }
 
-      // A reference that resolved to a read count: the current engine's
-      // runtime reference holds the count's path, which the program does not
-      // write.
-      const readsCount = program
-        ? this._variableReferenceToCount.resolvedAs === "count"
-        : runtimeVarRef!.pathForCount !== null;
-      if (readsCount) {
+      if (this._variableReferenceToCount.resolvedAs === "count") {
         this.Error(
           `Should be \`${FunctionCall.name}(-> ${this._variableReferenceToCount.name})\`. Usage without \`->\` only makes sense for variable targets.`,
         );

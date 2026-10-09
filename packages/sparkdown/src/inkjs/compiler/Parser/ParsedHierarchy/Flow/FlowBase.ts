@@ -9,10 +9,6 @@ import type { INamedContent } from "../../../../../runtime/INamedContent";
 import { ParsedObject } from "../Object";
 import { ReturnType } from "../ReturnType";
 import { MultiReturnType } from "../MultiReturnType";
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { InkObject as RuntimeObject } from "../../../../../runtime/Object";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../../runtime/VariableAssignment";
 //import { Story } from '../Story';
 import { SymbolType } from "../SymbolType";
 import { VariableAssignment } from "../Variable/VariableAssignment";
@@ -313,8 +309,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // path's resolver knows the flow by it (`ProgramResolver`).
   public _loweredFrom: FlowBase | null = null;
   public _subFlowsByName: Map<string, FlowBase> = this.subFlowTable();
-  public _startingSubFlowDivert: RuntimeDivert | null = null;
-  public _startingSubFlowRuntime: RuntimeObject | null = null;
   public _firstChildFlow: FlowBase | null = null;
   // The object this flow followed in its parent's content when the parent
   // split that content into its weave and its flows. A flow written inside a
@@ -759,8 +753,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
   };
 
-  /** What `GenerateRuntimeObject` does without the runtime containers: the
-   *  flow's checks of its own control flow (a function's diverts, choices
+  /** The flow's checks of its own control flow (a function's diverts, choices
    *  and stitches; a return where a scene, a branch or the file holds it),
    *  then its content prepared in order, a flow written under it reported
    *  when one before it has its name. */
@@ -783,8 +776,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return true;
   }
 
-  /** The checks of the flow's own control flow, which generation and
-   *  preparation both make first: what a function may not contain, and a
+  /** The checks of the flow's own control flow, which preparation makes
+   *  first: what a function may not contain, and a
    *  return a scene, a branch or the file's top level holds. */
   protected CheckOwnControlFlow(): void {
     // A scene also contains its branches, and a weave can hold function
@@ -830,96 +823,10 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    // The checks of the flow's own control flow, which preparation makes
-    // too (`CheckOwnControlFlow`).
-    this.CheckOwnControlFlow();
-
-    const container = new RuntimeContainer();
-    container.name = this.identifier?.name as string;
-
-    if (this.story.countAllVisits) {
-      container.visitsShouldBeCounted = true;
-    }
-
-    this.GenerateArgumentVariableAssignments(container);
-
-    // Run through content defined for this knot/stitch:
-    //  - First of all, any initial content before a sub-stitch
-    //    or any weave content is added to the main content container
-    //  - The first inner knot/stitch is automatically entered, while
-    //    the others are only accessible by an explicit divert
-    //       - The exception to this rule is if the knot/stitch takes
-    //         parameters, in which case it can't be auto-entered.
-    //  - Any Choices and Gathers (i.e. IWeavePoint) found are
-    //    processsed by GenerateFlowContent.
-    let contentIdx: number = 0;
-    while (this.content !== null && contentIdx < this.content.length) {
-      const obj: ParsedObject = this.content[contentIdx]!;
-
-      // Inner knots and stitches
-      if (obj instanceof FlowBase) {
-        const childFlow: FlowBase = obj;
-        const childFlowRuntime = childFlow.runtimeObject;
-
-        // First inner stitch - automatically step into it
-        // 20/09/2016 - let's not auto step into knots
-        if (
-          contentIdx === 0 &&
-          !childFlow.hasParameters &&
-          this.flowLevel === FlowLevel.Knot
-        ) {
-          this._startingSubFlowDivert = new RuntimeDivert();
-          container.AddContent(this._startingSubFlowDivert);
-          this._startingSubFlowRuntime = childFlowRuntime;
-        }
-
-        // Check for duplicate knots/stitches with same name
-        const namedChild = childFlowRuntime as RuntimeObject & INamedContent;
-        const existingChild: INamedContent | null =
-          container.namedContent.get(namedChild.name!) || null;
-
-        if (existingChild) {
-          this.ReportDuplicateChildFlow(
-            childFlow,
-            (existingChild as any as RuntimeObject).debugMetadata,
-          );
-        }
-
-        container.AddToNamedContentOnly(namedChild);
-      } else if (obj) {
-        // Other content (including entire Weaves that were grouped in the constructor)
-        // At the time of writing, all FlowBases have a maximum of one piece of "other content"
-        // and it's always the root Weave
-        container.AddContent(obj.runtimeObject);
-      }
-
-      contentIdx += 1;
-    }
-
-    // CHECK FOR FINAL LOOSE ENDS!
-    // Notes:
-    //  - Functions don't need to terminate - they just implicitly return
-    //  - If return statement was found, don't continue finding warnings for missing control flow,
-    // since it's likely that a return statement has been used instead of a ->-> or something,
-    // or the writer failed to mark the knot as a function.
-    //  - _rootWeave may be null if it's a knot that only has stitches
-    // if (
-    //   this.flowLevel !== FlowLevel.Story &&
-    //   !this.isFunction &&
-    //   this._rootWeave !== null &&
-    //   foundReturn === null
-    // ) {
-    //   this._rootWeave.ValidateTermination(this.WarningInTermination);
-    // }
-
-    return container;
-  };
-
   /** Reports a return written in a scene, a branch or at file scope, which
-   *  only a function body can hold. Generation reports the first such return
-   *  of the flow (`GenerateRuntimeObject`), and the program path's resolver
-   *  the first one its statements recorded. */
+   *  only a function body can hold. Preparation reports the first such
+   *  return of the flow (`CheckOwnControlFlow`), and the program path's
+   *  resolver the first one its statements recorded. */
   public ReportReturnOutsideFunction(foundReturn: ParsedObject): void {
     if (this.flowLevel === FlowLevel.Story) {
       this.Error(
@@ -944,28 +851,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const errorMsg = `Duplicate identifier \`${name}\`. ${this.GetType()} already contains flow named \`${name}\` on ${existing}`;
     this.Error(errorMsg, childFlow?.identifier || childFlow);
   }
-
-  public readonly GenerateArgumentVariableAssignments = (
-    container: RuntimeContainer,
-  ): void => {
-    if (this.args === null || this.args.length === 0) {
-      return;
-    }
-
-    // Assign parameters in reverse since they'll be popped off the evaluation stack
-    // No need to generate EvalStart and EvalEnd since there's nothing being pushed
-    // back onto the evaluation stack.
-    for (let ii = this.args.length - 1; ii >= 0; --ii) {
-      const arg = this.args[ii];
-      const paramName = arg!.identifier?.name || null;
-      const assign = new RuntimeVariableAssignment(
-        paramName,
-        true,
-        !!arg!.isVararg,
-      );
-      container.AddContent(assign);
-    }
-  };
 
   public readonly ContentWithNameAtLevel = (
     name: string,
@@ -1049,19 +934,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return null;
   };
 
-  public override ResolveWith(context: any, program: boolean): void {
-    if (this._startingSubFlowDivert) {
-      if (!this._startingSubFlowRuntime) {
-        throw new Error();
-      }
-
-      if (!program) {
-        this._startingSubFlowDivert.targetPath =
-          this._startingSubFlowRuntime.path;
-      }
-    }
-
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: any): void {
+    super.ResolveWith(context);
 
     this.CheckOwnNames(context);
   }

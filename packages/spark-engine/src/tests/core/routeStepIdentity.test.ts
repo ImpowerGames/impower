@@ -39,10 +39,7 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
+  const result = compiler.compile({ textDocument: { uri: URI } });
   return requireChunks(result.program);
 }
 
@@ -179,8 +176,7 @@ end
     const anyGame = game as any;
 
     // A resume restores the checkpoint (`restoreCheckpoint`): the program
-    // engine puts its beat image back, where the current engine loaded the
-    // checkpoint's save. Counted when it restores.
+    // engine puts its beat image back. Counted when it restores.
     let loads = 0;
     const realRestore = anyGame.restoreCheckpoint.bind(anyGame);
     anyGame.restoreCheckpoint = (...args: unknown[]) => {

@@ -1,58 +1,14 @@
-// How profile-shares.mjs --groups divides a profile's time: the story engine's
-// stepping time (STEPPING, #664) and the preview benchmark's unattributed time
-// (GAPS, #706). Each entry is [group, RegExp over `<source file>:<function>`];
-// the first match wins, and a function no entry matches is listed as
-// unassigned.
-//
-// V8 inlines small functions into their callers, and an inlined function's
-// time is charged to the caller. `Pointer.Resolve` all but disappears into
-// `Story.Step` that way, so the functions that walk the hierarchy and also
-// dispatch content form a group of their own instead of being forced into
-// either side.
-
-const REPRESENTATION = "the program is an object hierarchy";
-const ANY_ENGINE = "work any engine does";
-const MIXED = "both, inseparable after inlining";
-const DRIVER = "neither: cost of driving one step per call";
-
-export const STEPPING = [
-  // Paths and path strings, pointers, resolving a path to a container, looking
-  // a child up by name.
-  [REPRESENTATION, /^Path\.ts:/],
-  [REPRESENTATION, /^Pointer\.ts:/],
-  [REPRESENTATION, /^SearchResult\.ts:/],
-  [REPRESENTATION, /^Container\.ts:/],
-  [REPRESENTATION, /^Object\.ts:/],
-  [REPRESENTATION, /^Story\.ts:(PointerAtPath|ContentAtPath|KnotContainerWithName|VisitChangedContainersDueToDivert|VisitContainer)$/],
-  [REPRESENTATION, /^StoryState\.ts:((get|set) (currentPointer|previousPointer|divertedPointer)|SetChosenPath)$/],
-  // Finding out what a content object is by testing its class.
-  [REPRESENTATION, /^TypeAssertion\.ts:/],
-  // Allocating call stack elements and threads, and value wrappers.
-  [REPRESENTATION, /^CallStack\.ts:/],
-  [REPRESENTATION, /^Value\.ts:(_?[A-Z]\w*Value\d*|Value|Create|get valueObject|get valueType)$/],
-  [REPRESENTATION, /^Void\.ts:/],
-  [REPRESENTATION, /^(Flow|PRNG)\.ts:/],
-  [REPRESENTATION, /^StoryState\.ts:_?StoryState\d*$/],
-  [REPRESENTATION, /^VariablesState\.ts:(_?VariablesState\d*|set callStack)$/],
-
-  [MIXED, /^Story\.ts:(Step|NextContent|IncrementContentPointer|PerformLogicAndFlowControl)$/],
-
-  // The route planner asks for one step per call, and every call runs the
-  // checks that bracket a whole line.
-  [DRIVER, /^Story\.ts:(ContinueAsync|ContinueInternal|ValidateExternalBindings|IfAsyncWeCant|get asyncContinueComplete)$/],
-  [DRIVER, /^(engineBench|bufferStepBench)\.ts:/],
-
-  // Output text, the evaluation stack, variables, builtins, line ends,
-  // choices, errors.
-  [ANY_ENGINE, /^(ControlCommand|TryGetResult|StoryState|VariablesState|Story|StdLib|NativeFunctionCall|StringBuilder|Value|Tag|Choice|ChoicePoint|Divert|VariableAssignment|VariableReference|LuauTruthiness|MethodDispatch|StructDefinition|InkList|planRoute|Simulator)\.ts:/],
-];
+// How profile-shares.mjs --groups divides a profile's time: the preview
+// benchmark's unattributed time (GAPS, #706). Each entry is [group, RegExp
+// over `<source file>:<function>`]; the first match wins, and a function no
+// entry matches is listed as unassigned.
 
 // What fills the preview benchmark's unattributed worker time (#706), for
 // `profile-shares.mjs --gaps --under "(root)"`. Self time only, so a group is
 // the work its functions do themselves; `main.js` is the text document class
 // of vscode-languageserver-textdocument.
 export const GAPS = [
-  ["Game.setStartFrom: the line lookup (the accessor and its indexes)", /^(pathLocationTable|programLocator|ProgramRoot)\.ts:|^Game\.ts:setStartFrom$/],
+  ["Game.setStartFrom: the line lookup (the accessor and its indexes)", /^(programLocator|ProgramRoot)\.ts:|^Game\.ts:setStartFrom$/],
   ["define scoping and builtin overrides", /^scopeDefineInstances\.ts:|^SparkdownCompiler\.ts:applyBuiltinOverrides$/],
   ["populateSceneAssets", /^SparkdownCompiler\.ts:populateSceneAssets$/],
   ["the edited text: inverting and applying the changes", /^invertContentChanges\.ts:|^main\.js:|^SparkdownDocumentRegistry\.ts:/],

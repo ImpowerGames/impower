@@ -1,8 +1,5 @@
-import { InkList as RuntimeInkList } from "../../../../../runtime/InkList";
-import { InkListItem as RuntimeInkListItem } from "../../../../../runtime/InkList";
 import { ListDefinition as RuntimeListDefinition } from "../../../../../runtime/ListDefinition";
 import { ListElementDefinition } from "./ListElementDefinition";
-import { ListValue } from "../../../../../runtime/Value";
 import { ParsedObject } from "../Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
@@ -70,26 +67,8 @@ export class ListDefinition extends ParsedObject {
     return true;
   }
 
-  public readonly GenerateRuntimeObject = (): ListValue => {
-    const initialValues = new RuntimeInkList();
-    for (const itemDef of this.itemDefinitions) {
-      if (itemDef.inInitialList) {
-        const item = new RuntimeInkListItem(
-          this.identifier?.name || null,
-          itemDef.name || null,
-        );
-        initialValues.Add(item, itemDef.seriesValue);
-      }
-    }
-
-    // Set origin name, so
-    initialValues.SetInitialOriginName(this.identifier?.name || "");
-
-    return new ListValue(initialValues);
-  };
-
-  public override ResolveWith(context: Story, program: boolean): void {
-    super.ResolveWith(context, program);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.List);
   }
 }

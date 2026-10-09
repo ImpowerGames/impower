@@ -18,9 +18,4 @@ export class AuthorWarning extends ParsedObject {
     this.Warning(this.warningMessage);
     return false;
   }
-
-  public readonly GenerateRuntimeObject = (): null => {
-    this.Warning(this.warningMessage);
-    return null;
-  };
 }

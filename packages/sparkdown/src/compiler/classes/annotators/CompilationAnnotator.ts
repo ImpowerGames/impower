@@ -1,13 +1,4 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
-// Side-effect import to stabilize the inkjs engine module load order.
-// `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
-// dependency cycle; if `Object.ts` is the first to load, `Value.ts`
-// resolves `InkObject` as undefined when extending it. Forcing
-// `Container.ts` to be the entry point evaluates `Value.ts` (and
-// therefore `Object.ts`) in an order that breaks the cycle cleanly.
-// The now-removed `Compiler` import used to do this implicitly; this
-// explicit import preserves the load order in its place.
-import "../../../inkjs/engine/Container";
 import { type ChangeDesc, Range, type Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import {
@@ -125,8 +116,8 @@ export interface CompilationConfig {
     };
   };
   // Whether a chunk's lowering keeps the reads it makes outside its own
-  // syntax (`CompiledBlock.reads`), which only the binary program's chunk
-  // store needs (`SparkdownCompilerConfig.programChunks`).
+  // syntax (`CompiledBlock.reads`), which the binary program's chunk store
+  // needs; the compiler always sets it.
   recordLoweringReads?: boolean;
   // The statement memo's host, which the compiler gives when statement
   // chunks are on: statements of blocks' bodies are remembered and served

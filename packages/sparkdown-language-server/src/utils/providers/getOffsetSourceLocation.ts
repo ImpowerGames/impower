@@ -45,13 +45,12 @@ const headerLines = (program: SparkProgram, uri: string): Set<number> => {
  * which starts where `locationOf` says: the lines of one beat (a cue, a
  * directive, the dialogue) share it, and a line that holds no statement takes
  * the next beat's. A scene's or a branch's header is a stop of its own, as it
- * is on the current engine, whose path locations give the header one; the
- * program engine's give it none. So the next beat is the first header or
- * beat below the line that starts below it, and the previous beat the first
- * one above that starts above it, which from inside a beat is that beat's
- * start. The program answers from either engine, and no line table reaches
- * the client, and they land on the same lines: a divert, a `done` or a `fin`
- * at a flow's own level is no beat on either (`beatAt`).
+ * was on the object engine (deleted in #705), whose path locations gave the
+ * header one; the program's root gives it none. So the next beat is the first
+ * header or beat below the line that starts below it, and the previous beat
+ * the first one above that starts above it, which from inside a beat is that
+ * beat's start. No line table reaches the client, and a divert, a `done` or a
+ * `fin` at a flow's own level is no beat (`beatAt`).
  *
  * This lives server-side deliberately: the program's locations are large on a
  * feature-length script, and shipping them to the client with every compile

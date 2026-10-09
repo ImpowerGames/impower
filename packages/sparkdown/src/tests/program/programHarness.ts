@@ -1,16 +1,15 @@
-// What the tests of the binary program share: a compile with statement chunks
-// on (#694), the beats of a story on either engine, and a root described by
-// content, which is how two compiles' chunks are compared.
-import "../../inkjs/engine/Container";
+// What the tests of the binary program share: a compile (#694), the beats of
+// a story, and a root described by content, which is how two compiles' chunks
+// are compared.
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../runtime/Value";
 import { ChunkStore } from "../../program/ChunkStore";
+import type { ProgramStory } from "../../program/ProgramStory";
 import { ProgramResolver } from "../../program/ProgramResolver";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { blockCount } from "../../program/StatementChunk";
+import { blockCount } from "../../program/ProgramChunk";
 import { describeRoot, flowRows } from "./describeRoot";
 
 export { describeRoot };
@@ -37,49 +36,21 @@ export const scriptFiles = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
-/** A compiler over `texts`, keyed by uri, as `programCompiler` returns it:
- *  each compile's program with the current engine's story the compile made
- *  (the compile result leaves the story out), which is `S`. */
-export interface ProgramCompiler<S extends Story | undefined> {
-  compiler: SparkdownCompiler;
-  compile(uri?: string): { program: SparkProgram; story: S };
-}
-
-/** A compiler over `texts`, keyed by uri. It compiles for the current engine
- *  unless `config` turns `programChunks` on, so that a test compares the
- *  program engine with it (#705 deletes that engine and these comparisons
- *  with it). A compile for the current engine makes its story. One with
- *  statement chunks makes none unless its program falls back, so its
- *  `story` may be undefined: typed so wherever `programChunks` can be on. */
-export function programCompiler(
-  texts: Record<string, string>,
-  config: SparkdownCompilerConfig & { programChunks: true },
-): ProgramCompiler<Story | undefined>;
-export function programCompiler(
-  texts: Record<string, string>,
-  config?: SparkdownCompilerConfig & { programChunks?: false },
-): ProgramCompiler<Story>;
-export function programCompiler(
-  texts: Record<string, string>,
-  config: SparkdownCompilerConfig,
-): ProgramCompiler<Story | undefined>;
+/** A compiler over `texts`, keyed by uri, and a compile of it: the program,
+ *  checked against what the resolver knows from each statement's syntax
+ *  (`ProgramResolver.verifyFacts`). */
 export function programCompiler(
   texts: Record<string, string>,
   config: SparkdownCompilerConfig = {},
-): ProgramCompiler<Story | undefined> {
+) {
   const compiler = new SparkdownCompiler();
-  const compiled: { story?: Story } = {};
-  compiler.addEventListener("compiler/didCompile", (params) => {
-    compiled.story = params.story as Story | undefined;
-  });
   compiler.configure({
     files: scriptFiles(texts) as never,
-    programChunks: false,
     ...config,
   });
   return {
     compiler,
-    compile(uri = MAIN_URI) {
+    compile(uri = MAIN_URI): { program: SparkProgram } {
       ProgramResolver.factFailures = [];
       const program = compiler.compile({ textDocument: { uri } }).program;
       if (ProgramResolver.factFailures.length > 0) {
@@ -87,29 +58,29 @@ export function programCompiler(
           `ProgramResolver.verifyFacts: ${ProgramResolver.factFailures.join("; ")}`,
         );
       }
-      return { program, story: compiled.story };
+      return { program };
     },
   };
 }
 
-/** `programCompiler` over one script, compiled once: its program, the story
- *  as `programCompiler` gives it, and the compiler. */
-export function compileScript(
-  text: string,
-  config: SparkdownCompilerConfig & { programChunks: true },
-): { program: SparkProgram; story: Story | undefined; compiler: SparkdownCompiler };
-export function compileScript(
-  text: string,
-  config?: SparkdownCompilerConfig & { programChunks?: false },
-): { program: SparkProgram; story: Story; compiler: SparkdownCompiler };
-export function compileScript(
-  text: string,
-  config: SparkdownCompilerConfig,
-): { program: SparkProgram; story: Story | undefined; compiler: SparkdownCompiler };
+/** The errors a compile reported, each as the line it starts on and its
+ *  message, in the order reported. */
+export function errorsOf(program: SparkProgram): [number, string][] {
+  return Object.values(program.diagnostics ?? {})
+    .flat()
+    .filter((d) => d.severity === 1)
+    .map((d) => [
+      d.range.start.line,
+      typeof d.message === "string" ? d.message : d.message.value,
+    ]);
+}
+
+/** `programCompiler` over one script, compiled once: its program and the
+ *  compiler. */
 export function compileScript(
   text: string,
   config: SparkdownCompilerConfig = {},
-): { program: SparkProgram; story: Story | undefined; compiler: SparkdownCompiler } {
+): { program: SparkProgram; compiler: SparkdownCompiler } {
   const c = programCompiler({ [MAIN_URI]: text }, config);
   return { ...c.compile(), compiler: c.compiler };
 }
@@ -125,7 +96,7 @@ export function programSession(
   text: string,
   configure?: (compiler: SparkdownCompiler) => void,
 ) {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   configure?.(c.compiler);
   let current = text;
   let version = 1;
@@ -197,11 +168,10 @@ const tableEntries = (table: ObjectValue): unknown[] =>
 /** A story's beats from its start, or from `from`, until it can no longer
  *  continue: each continue that showed something, with its text, tags and
  *  display tables, the errors and warnings it reported with their type, and
- *  how many continues it took, those that showed nothing included. `story`
- *  is either engine. */
+ *  how many continues it took, those that showed nothing included. */
 export function storyBeats(
   story: Pick<
-    Story,
+    ProgramStory,
     | "canContinue"
     | "Continue"
     | "ChoosePathString"
@@ -253,10 +223,10 @@ export interface Menu {
 /** A story's beats, as `storyBeats` gives them, through its menus: at each
  *  menu the choice `picks` names in turn is taken, wrapped to the number of
  *  choices shown, and past the end of `picks` the first one, until
- *  `maxChoices` choices were taken. `story` is either engine. */
+ *  `maxChoices` choices were taken. */
 export function storyRun(
   story: Pick<
-    Story,
+    ProgramStory,
     | "canContinue"
     | "Continue"
     | "ChoosePathString"

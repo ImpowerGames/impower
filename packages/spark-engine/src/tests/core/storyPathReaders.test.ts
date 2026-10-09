@@ -6,22 +6,19 @@
 // outside the engine and the compiler for the names a reader of story paths
 // uses, with each reader the issue lists going through the accessor; and the
 // game's execution report, which carries no path on the program engine.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { Game } from "../../game/core/classes/Game";
 import { GameExecutedMessage } from "../../game/core/classes/messages/GameExecutedMessage";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..");
 
-/** Where story paths may be read: the compiler, which builds the current
- *  engine's path locations, and the engine and its runtime layer (#705),
- *  which run on them until the current engine is deleted. */
+/** Where story paths may be read: the compiler, the engine and its runtime
+ *  layer. */
 const ENGINE_AND_COMPILER = [
   "packages/sparkdown/src/compiler/",
   "packages/sparkdown/src/program/",
@@ -111,7 +108,6 @@ describe("a search of the sources outside the engine and the compiler", () => {
         "packages/sparkdown-language-server/src/sparkdown-language-server.ts",
         "packages/sparkdown-language-server/src/utils/providers/getOffsetSourceLocation.ts",
         "vscode-sparkdown/src/managers/SparkProgramManager.ts",
-        "vscode-sparkdown/src/utils/activateCompilationView.ts",
         "packages/spark-engine/src/worker/installGameWorker.ts",
         "packages/spark-web-player/src/main/workers/installPlayerWorker.ts",
         "impower-dev/src/modules/spark-editor/components/preview-game/PreviewGame.tsx",
@@ -168,12 +164,8 @@ describe("a search of the sources outside the engine and the compiler", () => {
         '"sparkdown/addressAt"',
         '"sparkdown/locationOf"',
       ),
-      compilationView: uses(
-        "vscode-sparkdown/src/utils/activateCompilationView.ts",
-        ".addressAt(",
-        ".locationOf(",
-        "lastExecutedAddress",
-      ),
+      // The extension's compilation view, which showed the object engine's
+      // compiled JSON, was deleted with that engine (#705).
       // The page holds no program: it shows the locations the game sends.
       playerPage: uses(
         "packages/spark-web-player/src/GamePlayerController.ts",
@@ -186,7 +178,6 @@ describe("a search of the sources outside the engine and the compiler", () => {
       languageServer: [],
       compilerWorker: [],
       programManager: [],
-      compilationView: [],
       playerPage: [],
     });
   });
@@ -218,12 +209,8 @@ const TEXT = [
   "",
 ].join("\n");
 
-function compile(programChunks: boolean, startFrom: { file: string; line: number }) {
+function compile(startFrom: { file: string; line: number }) {
   const compiler = new SparkdownCompiler();
-  let story: Story | undefined;
-  compiler.addEventListener("compiler/didCompile", (params) => {
-    story = params.story as Story | undefined;
-  });
   compiler.configure({
     files: [
       {
@@ -237,45 +224,24 @@ function compile(programChunks: boolean, startFrom: { file: string; line: number
       },
     ] as never,
     seedBuiltinsIntoStory: true,
-    emitCompiledProgram: false,
-    programChunks,
   });
   const { warn, error } = console;
   console.warn = console.error = () => {};
   try {
     const program = compiler.compile({ textDocument: { uri: MAIN }, startFrom } as never)
       .program as SparkProgram;
-    return { program, story: story! };
+    return { program };
   } finally {
     console.warn = warn;
     console.error = error;
   }
 }
 
-/** Every string a value holds, however deep. */
-const strings = (value: unknown, out: string[] = []): string[] => {
-  if (typeof value === "string") {
-    out.push(value);
-  } else if (Array.isArray(value)) {
-    value.forEach((item) => strings(item, out));
-  } else if (value && typeof value === "object") {
-    Object.values(value).forEach((item) => strings(item, out));
-  }
-  return out;
-};
-
 describe("the game's execution report on the program engine", () => {
   it("carries addresses and locations, and no story path", () => {
     const startFrom = { file: MAIN, line: TEXT.split("\n").indexOf("    Come in.") };
-    // The story paths of the same program, which the current engine names
-    // its positions by.
-    const current = compile(false, startFrom).program;
-    const paths = new Set(current.pathLocations!.paths);
-    expect(paths.size).toBeGreaterThan(10);
-
-    const { program, story } = compile(true, startFrom);
+    const { program } = compile(startFrom);
     expect(program.chunks).toBeDefined();
-    expect(program.pathLocations).toBeUndefined();
     const game = new Game({
       now: () => 0,
       setTimeout: (handler: Function) => {
@@ -286,10 +252,6 @@ describe("the game's execution report on the program engine", () => {
       fetch: async () => "",
       log: () => {},
       program,
-      story,
-      incrementalCheckpoints: true,
-      verifyCheckpoints: false,
-      programChunks: true,
       startFrom,
     } as never);
     const reports: Record<string, unknown>[] = [];
@@ -307,7 +269,6 @@ describe("the game's execution report on the program engine", () => {
     expect(reports.length).toBeGreaterThan(1);
     for (const report of reports) {
       expect(Object.keys(report).filter((key) => /path/i.test(key))).toEqual([]);
-      expect(strings(report).filter((value) => paths.has(value))).toEqual([]);
       if (report["lastExecutedAddress"] !== undefined) {
         expect(typeof report["lastExecutedAddress"]).toBe("number");
       }

@@ -1,7 +1,8 @@
 // Runtime test harness — mirrors the role of `inkjs`'s
 // `src/tests/specs/common.ts` for sparkdown. Compiles a `.sd` fixture
 // through the full `SparkdownCompiler` pipeline and returns a runnable
-// `Story` plus the diagnostics surfaced during compilation.
+// story (the program engine's) plus the diagnostics surfaced during
+// compilation.
 //
 // The point of these tests is to verify end-to-end runtime behavior
 // against the ported inkjs test suite, so anything that diverges from
@@ -12,31 +13,19 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { testCompiler, testStory } from "../engineUnderTest";
+import type { ProgramRoot } from "../../program/ProgramRoot";
+import { testCompiler, testStory, type TestStory } from "../engineUnderTest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = join(__dirname, "fixtures");
 
 export interface RuntimeTestContext {
-  story: RuntimeStory;
+  story: TestStory;
   errorMessages: string[];
   warningMessages: string[];
-  compiledJson: unknown;
-}
-
-export interface RuntimeTestOptions {
-  /**
-   * Force visit-count tracking on every container in the compiled story,
-   * the same way the upstream inkjs test harness passes
-   * `countAllVisits: true` to `Compiler`. Required for tests that read
-   * `state.VisitCountAtPathString(name)` on a container that the source
-   * doesn't otherwise reference — without it, the compiler only marks
-   * containers that are the target of a `READ_COUNT` / `{knot}` /
-   * `TURNS_SINCE` expression, and `VisitCountAtPathString` returns 0
-   * even after the container has been visited.
-   */
-  countAllVisits?: boolean;
+  /** The compile's root (`program.chunks`), which `testStory` makes another
+   *  story of. */
+  root: ProgramRoot;
 }
 
 // Load a fixture by feature folder + filename (without extension), compile
@@ -44,15 +33,10 @@ export interface RuntimeTestOptions {
 export function makeRuntimeStoryFromFile(
   feature: string,
   name: string,
-  options: RuntimeTestOptions = {},
 ): RuntimeTestContext {
   const path = join(FIXTURE_ROOT, feature, `${name}.sd`);
   const source = readFileSync(path, "utf8");
-  return makeRuntimeStoryFromSource(
-    source,
-    `inmemory://${feature}/${name}.sd`,
-    options,
-  );
+  return makeRuntimeStoryFromSource(source, `inmemory://${feature}/${name}.sd`);
 }
 
 // Load a multi-file fixture from a directory. The directory layout maps
@@ -72,7 +56,6 @@ export function makeRuntimeStoryFromFile(
 export function makeRuntimeStoryFromDirectory(
   feature: string,
   name: string,
-  options: RuntimeTestOptions = {},
 ): RuntimeTestContext {
   const fixtureRoot = join(FIXTURE_ROOT, feature, name);
   const files = collectSparkdownFiles(fixtureRoot);
@@ -95,7 +78,7 @@ export function makeRuntimeStoryFromDirectory(
     })),
   });
 
-  return runCompiledStory(compiler, mainUri, options);
+  return runCompiledStory(compiler, mainUri);
 }
 
 interface FixtureFile {
@@ -131,7 +114,6 @@ function collectSparkdownFiles(root: string): FixtureFile[] {
 export function makeRuntimeStoryFromSource(
   source: string,
   uri: string = "inmemory:///main.sd",
-  options: RuntimeTestOptions = {},
 ): RuntimeTestContext {
   const compiler = testCompiler();
   // `configure` initializes the internal document registry. Passing the
@@ -150,25 +132,21 @@ export function makeRuntimeStoryFromSource(
       },
     ],
   });
-  return runCompiledStory(compiler, uri, options);
+  return runCompiledStory(compiler, uri);
 }
 
 // Drive the post-`configure` half of the pipeline: run `compile()`, drain
-// diagnostics into error / warning buckets, and construct the runtime
-// Story from the produced JSON. Shared by `makeRuntimeStoryFromSource`
-// and `makeRuntimeStoryFromDirectory`.
+// diagnostics into error / warning buckets, and construct the story from the
+// compile's root. Shared by `makeRuntimeStoryFromSource` and
+// `makeRuntimeStoryFromDirectory`.
 function runCompiledStory(
   compiler: SparkdownCompiler,
   uri: string,
-  options: RuntimeTestOptions,
 ): RuntimeTestContext {
   const errorMessages: string[] = [];
   const warningMessages: string[] = [];
 
-  const result = compiler.compile({
-    textDocument: { uri },
-    countAllVisits: options.countAllVisits,
-  });
+  const result = compiler.compile({ textDocument: { uri } });
   const program = result.program;
 
   // Pull diagnostics out of `program.diagnostics` (keyed by URI) and split by
@@ -213,34 +191,25 @@ function runCompiledStory(
     }
   }
 
-  if (!program.compiled) {
+  if (!program.chunks) {
     throw new Error(
-      `Sparkdown compilation produced no JSON output.\n` +
+      `Sparkdown compilation built no statement chunks.\n` +
         `Errors:\n  ${errorMessages.join("\n  ") || "(none)"}\n` +
         `Warnings:\n  ${warningMessages.join("\n  ") || "(none)"}`,
     );
   }
 
-  // `Story`'s constructor accepts either a serialized JSON string or the
-  // already-parsed JS object directly. `SparkdownCompiler.compile()` deletes
-  // `result.story` before returning (it's not JSON-serializable for the LSP
-  // wire format), but `program.compiled` is the same plain object the
-  // compiler would have stringified — pass it through unchanged. Going
-  // through `JSON.stringify` is wrong because the compiler's `WriteFloat`
-  // marker convention (whole-number floats serialized as `"3.0f"` strings)
-  // only kicks in when the writer is driving the output; here the marker is
-  // already encoded in the object form, so re-stringifying would mangle it.
-  const story = testStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   return {
     story,
     errorMessages,
     warningMessages,
-    compiledJson: program.compiled,
+    root: program.chunks,
   };
 }
 
 // Compile a source string for the sole purpose of collecting diagnostics —
-// doesn't construct a Story or throw when `program.compiled` is empty.
+// doesn't construct a story or throw when `program.chunks` is empty.
 // Mirrors inkjs's `compileStoryWithoutRuntime` helper.
 export function collectDiagnostics(
   source: string,
@@ -291,7 +260,7 @@ export function collectDiagnostics(
  *  the container of that path: on the program engine, the count of the
  *  symbol of that qualified name, which every counted symbol keeps, or 0 for
  *  one never visited. */
-export function visitCountOf(story: RuntimeStory, name: string): number {
+export function visitCountOf(story: TestStory, name: string): number {
   const entries = (
     story.state as unknown as { GetVisitCountEntries(): [string, number][] }
   ).GetVisitCountEntries();
@@ -314,7 +283,7 @@ export function collectDiagnosticsFromFile(
 
 // Convenience: run the story to completion and return the accumulated output.
 // Mirrors inkjs's `story.ContinueMaximally()` flow used in their specs.
-export function runToEnd(story: RuntimeStory): string {
+export function runToEnd(story: TestStory): string {
   return story.ContinueMaximally();
 }
 
@@ -322,7 +291,7 @@ export function runToEnd(story: RuntimeStory): string {
  *  or choices. A continue returns at its line's newline, so the one after a
  *  story's last line completes with nothing, and the game makes no beat of
  *  it; a helper that collects beats skips it the same way. */
-export function continueShowedSomething(story: RuntimeStory): boolean {
+export function continueShowedSomething(story: TestStory): boolean {
   return story.continueShowedSomething;
 }
 
@@ -330,7 +299,7 @@ export function continueShowedSomething(story: RuntimeStory): boolean {
  *  the table's `target` and dialogue `character`, each present only when the
  *  table names it. */
 export function displayRouting(
-  story: RuntimeStory,
+  story: TestStory,
 ): { target?: string; character?: string }[] {
   return story.currentDisplayInstructions.map((table) => {
     const routing: { target?: string; character?: string } = {};

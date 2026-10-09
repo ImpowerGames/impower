@@ -3,9 +3,9 @@
 // the writer emits for each class of the parsed hierarchy, what each
 // instruction does to the eval stack, the output and the frame, a block
 // statement's bodies and the scopes around them, a continue that returns
-// between two lines, a decision the route simulator forces, parity with the
-// current engine, and the fallback, which none of these constructs causes.
-import "../../inkjs/engine/Container";
+// between two lines, a decision the route simulator forces, the beats each
+// script shows (literals read from the script), and the constructs a compile
+// builds or reports.
 import { describe, expect, it } from "vitest";
 import { buildRouteSimulator } from "../../compiler/utils/planRoute";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -32,9 +32,10 @@ import {
   blockField,
   blockFlags,
   blockScopes,
-  type StatementChunk,
-} from "../../program/StatementChunk";
-import { compileScript, MAIN_URI, storyBeats } from "./programHarness";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
+import { compileScript, errorsOf, MAIN_URI, storyBeats } from "./programHarness";
 import {
   handWrittenProgram,
   traceHandWritten,
@@ -43,12 +44,12 @@ import {
 } from "./programTrace";
 
 const chunked = (text: string): ProgramRoot => {
-  const { program } = compileScript(text, { programChunks: true });
-  expect(program.fallback).toBeUndefined();
+  const { program } = compileScript(text);
+  expect(program.chunks).toBeDefined();
   return program.chunks!;
 };
 
-const instructionsOf = (root: ProgramRoot, chunk: StatementChunk): string[] =>
+const instructionsOf = (root: ProgramRoot, chunk: ProgramChunk): string[] =>
   [...new BinaryProgramReader(root).instructions(chunk)].map(({ offset }) =>
     describeInstruction(chunk, offset, root.table),
   );
@@ -770,8 +771,9 @@ describe("a continue that returns between two lines", () => {
   });
 });
 
-// Each script runs from its top on both engines.
-const PARITY: Record<string, string> = {
+// Each script runs from its top (from MAIN when it has one) and shows the
+// lines `SHOWS` names for it.
+const SCRIPTS: Record<string, string> = {
   "nested scopes that shadow a name": [
     "local n = 1",
     "do",
@@ -909,7 +911,7 @@ const PARITY: Record<string, string> = {
     '  name = "Hero"',
     "end",
     "count += LIMIT",
-    "Globals {count} {name} {DOUBLE} {hero.name}.",
+    "Globals {count} {name} {DOUBLE} {character.hero.name}.",
     "",
   ].join("\n"),
   "a generic for over a table": [
@@ -952,21 +954,43 @@ const PARITY: Record<string, string> = {
   ].join("\n"),
 };
 
+const SHOWS: Record<keyof typeof SCRIPTS, string[]> = {
+  "nested scopes that shadow a name": ["Inner 3.", "Middle 2.", "Outer 1."],
+  "a loop that breaks from inside a nested if": ["Pass 1.", "Pass 2.", "After 3."],
+  "a while body's local that shadows an outer one": ["Inner 1.", "Inner 2.", "Inner 3.", "Outer outer after 3."],
+  // 10 + 20 + 40 + 50: the pass that continues adds nothing.
+  "a while body's local across a continue": ["Sum 120 and outer."],
+  "a while body's local across a break from a nested block": ["After outer."],
+  "nested while loops that each shadow a name": ["Seen b1b2a1b1b2a2 and outer."],
+  "a loop that continues from inside a nested if": ["Odd 1.", "Odd 3.", "Repeat 1.", "Repeat 3."],
+  "interpolation of every value type": ["Values 5 2.5 3 s true false nil 1 Infinity -0.5 3 1024 ab."],
+  "operators and coercion": [
+    "Math 9 5 14 3.5 1 3 -7 49.",
+    "Compare false true false false true true true.",
+    "Logic 2 2 false false d.",
+    "Strings n7 4 72.",
+  ],
+  "tables and properties": ["Table 3 30 7 zed 2 1."],
+  "globals of every kind": ["Globals 4 Ann 6 Hero."],
+  "a generic for over a table": ["Item 1 5.", "Item 2 6.", "Total 3."],
+  // A number is no key: `1 = Uno.` is the text of a keyless arm, which the
+  // second match takes.
+  "a match with keyed and keyless arms": ["Bee.", "1 = Uno."],
+  "a scene with logic": ["Visit 1.", "Step 1.", "Step 2."],
+};
+
 describe("the engine", () => {
-  for (const [name, text] of Object.entries(PARITY)) {
-    it(`shows ${name} as the current engine does`, () => {
+  for (const [name, text] of Object.entries(SCRIPTS)) {
+    it(`shows ${name}`, () => {
       const from = text.includes("scene MAIN") ? "MAIN" : undefined;
-      const current = compileScript(text);
-      current.story.ResetState();
-      const expected = storyBeats(current.story, from);
       const actual = storyBeats(new ProgramStory(chunked(text)), from);
-      expect(actual).toEqual(expected);
-      expect(expected.beats.length).toBeGreaterThan(0);
+      expect(actual.beats.map((beat) => beat.text.trim())).toEqual(SHOWS[name]);
+      expect(actual.errors).toEqual([]);
     });
   }
 
   it("ends a while body's local with its pass", () => {
-    const text = PARITY["a while body's local that shadows an outer one"]!;
+    const text = SCRIPTS["a while body's local that shadows an outer one"]!;
     const { beats } = storyBeats(new ProgramStory(chunked(text)));
     expect(beats.map((beat) => beat.text)).toEqual([
       "Inner 1.\n",
@@ -976,21 +1000,13 @@ describe("the engine", () => {
     ]);
   });
 
-  // The current engine's story of a compile has no debug metadata for an
-  // operator, so it names the error's place by its runtime path; the program
-  // engine names the line of its line table row.
-  it("raises a runtime error in an expression as the current engine does, with its line", () => {
+  // The engine names the line of its line table row.
+  it("raises a runtime error in an expression, with its line", () => {
     const text = "local z = nil\nBefore.\nlocal w = z + 1\nAfter.\n";
-    const current = compileScript(text);
-    current.story.ResetState();
-    const expected = storyBeats(current.story);
     const actual = storyBeats(new ProgramStory(chunked(text)));
-    expect(actual.beats).toEqual(expected.beats);
+    expect(actual.beats.map((beat) => beat.text)).toEqual(["Before.\n"]);
     expect(actual.errors).toEqual([
       "1: RUNTIME ERROR: 'main' line 3: Attempting to perform + on a nil value.",
-    ]);
-    expect(expected.errors.map((e) => e.replace(/\(Ink Pointer[^)]*\): /, ""))).toEqual([
-      "1: RUNTIME ERROR: Attempting to perform + on a nil value.",
     ]);
   });
 });
@@ -1023,11 +1039,10 @@ const CONSTRUCTS: Record<string, string> = {
   "a `do` block": "do\n  local a = 1\nend\n",
 };
 
-describe("the fallback", () => {
+describe("the constructs a compile builds", () => {
   for (const [name, text] of Object.entries(CONSTRUCTS)) {
     it(`names no construct for ${name}`, () => {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback?.construct).toBeUndefined();
+      const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
     });
   }
@@ -1041,8 +1056,7 @@ describe("the fallback", () => {
       "store x = true\nif x then\n  function run()\n    return 1\n  end\nend\nHello.\n",
       "while false do\n  function run()\n    return 1\n  end\nend\nHello.\n",
     ]) {
-      const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback?.construct).toBeUndefined();
+      const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
     }
   });
@@ -1094,13 +1108,15 @@ describe("the fallback", () => {
     ).not.toThrow();
   }, 60_000);
 
-  // A builtin's argument count is a 16-bit operand.
-  it("names an operand wider than its field", () => {
+  // A builtin's argument count is a 16-bit operand: a call of more is an
+  // error at its statement, and the compile makes no program (#705).
+  it("reports an operand wider than its field", () => {
     const args = Array.from({ length: 70_000 }, () => "1").join(", ");
-    const { program } = compileScript(`local n = tonumber(${args})\n`, {
-      programChunks: true,
-    });
+    const { program } = compileScript(`local n = tonumber(${args})\n`);
     expect(program.chunks).toBeUndefined();
-    expect(program.fallback?.construct).toBe("an operand of CallStd");
+    expect(errorsOf(program)).toContainEqual([
+      0,
+      unsupportedConstructMessage("an operand of CallStd"),
+    ]);
   }, 60_000);
 });

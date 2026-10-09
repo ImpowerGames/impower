@@ -3,7 +3,6 @@
 // saved form, which loads into a fresh game of the same program, in another
 // process, after the table was reseeded, and which is refused, naming the
 // flow, when a statement it names differs.
-import "../../inkjs/engine/Container";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,7 +31,7 @@ const silence = <T>(run: () => T): T => {
 };
 
 const rootOf = (text: string): ProgramRoot | undefined =>
-  silence(() => compileScript(text, { programChunks: true }).program.chunks);
+  silence(() => compileScript(text).program.chunks);
 
 /** A story that keeps its beats' images, as a game does, sharing the
  *  pristine copies of `images` when given, as the engines of one game do. */

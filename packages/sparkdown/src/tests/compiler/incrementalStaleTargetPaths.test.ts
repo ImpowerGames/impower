@@ -25,7 +25,6 @@
 // the moment a guard is narrowed, and narrowing the guards is exactly the
 // planned follow-up. Isolating them needs a target whose removal does not
 // change the flow set (a labelled gather inside a `choose` block).
-import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";

@@ -8,7 +8,6 @@
 //
 // With `--scenarios`: plays each program of `SAVE_SCENARIOS` for its beats
 // and prints its save after `SCENARIO_MARKER`, its name and a tab (#1429).
-import "../../inkjs/engine/Container";
 import { ProgramStory } from "../../program/ProgramStory";
 import { programSession } from "./programHarness";
 import { LOOP_TUNNEL_SCRIPT, SAVE_MARKER } from "./programSaveScripts";

@@ -76,7 +76,7 @@ import {
 // live runtime global table (a named singleton) AND, when typed
 // (`as T`), a compile-time `StructDefinition` for the engine's
 // character / UI / asset spec system. Both ride ONE VariableAssignment
-// (see VariableAssignment + ParsedHierarchy/Story's ExportRuntime):
+// (see VariableAssignment and `Story.PrepareGlobals`):
 //
 //   define companion as character with     companion = __def({
 //     store trust = 0                         trust = 0,
@@ -515,7 +515,7 @@ export function lowerLuauDefine(
   // Emit the define bound to its BARE name here. Whether it ends up on the bare
   // global or a synthetic `$<type>_<name>` key is decided later, by the
   // whole-program `scopeDefineInstances` post-pass in SparkdownCompiler (before
-  // ExportRuntime): a typed define whose name is NEVER used as a type — not an
+  // resolution): a typed define whose name is NEVER used as a type — not an
   // `as`-parent, not a `new D()` target — is a LEAF INSTANCE and gets scoped so
   // the bare name stays free for user `store`/vars (the `store show` vs builtin
   // `animation show` clash class). That classification is a whole-PROGRAM

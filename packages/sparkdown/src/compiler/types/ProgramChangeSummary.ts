@@ -41,15 +41,15 @@ export interface ProgramChangeSummary {
    */
   confined: boolean;
   /**
-   * What a compile that built statement chunks (`SparkdownCompilerConfig.
-   * programChunks`) changed, derived from the compile itself: the chunks of
+   * What a compile that built statement chunks changed, derived from the
+   * compile itself: the chunks of
    * the root it is measured against that its root no longer holds, the
    * chunks it emitted, the symbols whose definition row moved, and whether a
    * declaration or function chunk was among the chunks emitted or dropped, a
    * chunk held by both roots holds a function's code in one and not the
    * other, or the declarations run in another order
    * (docs/engine/binary-program.md, section 1). It is exact, so a client routing on the program engine reads
-   * it in place of `changedFrom` and `confined`, which answer for the current
+   * it in place of `changedFrom` and `confined`, which answer for the deleted object
    * engine's paths. Absent on a compile that built no chunks.
    */
   chunks?: ChunkChanges;

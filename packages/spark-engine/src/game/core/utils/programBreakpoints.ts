@@ -20,15 +20,13 @@ import {
   chunkOfAddress,
   codeWords,
   offsetOfAddress,
-} from "@impower/sparkdown/src/program/StatementChunk";
+} from "@impower/sparkdown/src/program/ProgramChunk";
 
 /**
- * The breakpoints of a program that runs on the program engine
- * (docs/engine/binary-program.md, section 8): a line's and a function's are
- * sets of addresses, which the game compares with the address of each
- * instruction that runs, and a variable's is placed from the instructions
- * that write it. The current engine's come from the path-location table
- * instead (`possibleBreakpointLines`, `Game.getActual*Breakpoints`).
+ * The breakpoints of a program (docs/engine/binary-program.md, section 8): a
+ * line's and a function's are sets of addresses, which the game compares with
+ * the address of each instruction that runs, and a variable's is placed from
+ * the instructions that write it.
  */
 
 /**
@@ -88,8 +86,8 @@ export const programBreakpointLines = (
         sequence.kind === SymbolKind.Branch) &&
       sequence.firstLine > 0
     ) {
-      // A flow's header, as the current engine offers it: a breakpoint
-      // there stops where the flow's first statement does.
+      // A flow's header: a breakpoint there stops where the flow's first
+      // statement does.
       offer(sequence.firstLine - 1);
     }
     const { chunks } = sequence.arrays;

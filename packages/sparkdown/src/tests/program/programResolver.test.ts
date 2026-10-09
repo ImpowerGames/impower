@@ -7,15 +7,15 @@
 // reported. These tests count what it visited (`ProgramResolver.passesLastResolve`,
 // `visitedLastResolve`), spy on the passes it replaces, and compare its
 // diagnostics with a cold compile's.
-import "../../inkjs/engine/Container";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { parsedChildren, ProgramResolver } from "../../program/ProgramResolver";
-import { describeRoot, MAIN_URI, programCompiler } from "./programHarness";
+import { describeRoot, errorsOf, MAIN_URI, programCompiler } from "./programHarness";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
 
@@ -47,7 +47,7 @@ const quietly = <T>(run: () => T): T => {
  *  server's configuration otherwise, and an editor of its main script that
  *  compiles after each edit. */
 function session(texts: Record<string, string>, config = {}) {
-  const c = programCompiler(texts, { programChunks: true, ...config });
+  const c = programCompiler(texts, { ...config });
   let text = texts[MAIN_URI]!;
   let version = 1;
   let program = quietly(() => c.compile().program);
@@ -84,7 +84,7 @@ function session(texts: Record<string, string>, config = {}) {
 }
 
 const cold = (texts: Record<string, string>, config = {}): SparkProgram =>
-  quietly(() => programCompiler(texts, { programChunks: true, ...config }).compile().program);
+  quietly(() => programCompiler(texts, { ...config }).compile().program);
 
 /** Every diagnostic of a program, by script, in the order it was reported. */
 const diagnostics = (program: SparkProgram): string[] =>
@@ -247,25 +247,20 @@ const resolvedOnlyLoweredAnew = (resolver: ProgramResolver, most: number) => {
 };
 
 describe("a compile with statement chunks on", () => {
-  it("calls neither ExportRuntime nor ResolveReferences, and a program that falls back calls both", () => {
-    // The builtins prelude's context is compiled once per process, by a
-    // compiler of its own with statement chunks off.
-    cold({ [MAIN_URI]: "Line.\n" });
-    const exportRuntime = vi.spyOn(Story.prototype, "ExportRuntime");
-    const resolve = vi.spyOn(ParsedObject.prototype, "ResolveReferences");
+  it("has neither ExportRuntime nor ResolveReferences to call, a program it cannot compile included", () => {
+    // Both were deleted with code generation (#705): no parsed story exports
+    // a runtime story, and no parsed object resolves references for one.
+    expect("ExportRuntime" in Story.prototype).toBe(false);
+    expect("ResolveReferences" in ParsedObject.prototype).toBe(false);
     const s = session(flatScene());
     expect(s.program.chunks).toBeDefined();
     s.edit("The clause runs on, line 27.", "The clause runs on, line 27, slowly.");
     expect(s.program.chunks).toBeDefined();
-    expect(exportRuntime).not.toHaveBeenCalled();
-    expect(resolve).not.toHaveBeenCalled();
-    // An external function makes the program fall back, and the current
-    // engine's story is exported for it.
-    const fallback = cold({ [MAIN_URI]: "external ext(a)\nscene MAIN\n  ~ ext(1)\n  Line.\nend\n" });
-    expect(fallback.chunks).toBeUndefined();
-    expect(fallback.fallback?.construct).toBe("external");
-    expect(exportRuntime).toHaveBeenCalledTimes(1);
-    expect(resolve).toHaveBeenCalled();
+    // An external function is reported at its line, and the compile makes no
+    // program.
+    const external = cold({ [MAIN_URI]: "external ext(a)\nscene MAIN\n  ~ ext(1)\n  Line.\nend\n" });
+    expect(external.chunks).toBeUndefined();
+    expect(errorsOf(external)).toContainEqual([0, unsupportedConstructMessage("external")]);
   });
 });
 
@@ -446,16 +441,14 @@ describe("a constant", () => {
 });
 
 describe("a scene named `kind`", () => {
-  it("is no branch of itself, on either engine", () => {
+  it("is no branch of itself", () => {
     // The story's tables are maps that record the names a resolution reads;
     // `kind`, the name of a table's kind, is no entry of one.
     const text = "scene kind\n  Hello.\nend\n";
-    for (const programChunks of [true, false]) {
-      const collisions = diagnostics(cold({ [MAIN_URI]: text }, { programChunks })).filter((d) =>
-        d.includes("Duplicate identifier"),
-      );
-      expect(collisions, `programChunks ${programChunks}`).toEqual([]);
-    }
+    const collisions = diagnostics(cold({ [MAIN_URI]: text })).filter((d) =>
+      d.includes("Duplicate identifier"),
+    );
+    expect(collisions).toEqual([]);
   });
 });
 

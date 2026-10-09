@@ -5,7 +5,6 @@
 // a restored beat draws again what it drew and re-presents its line, the
 // story keeps the last `rewindBeats` beats, a save's listings stay small,
 // and a save of format 1 loads through its migration.
-import "../../inkjs/engine/Container";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -39,8 +38,8 @@ const silence = <T>(run: () => T): T => {
 };
 
 const rootOf = (text: string): ProgramRoot => {
-  const program = silence(() => compileScript(text, { programChunks: true }).program);
-  expect(program.fallback).toBeUndefined();
+  const program = silence(() => compileScript(text).program);
+  expect(program.chunks).toBeDefined();
   return program.chunks!;
 };
 

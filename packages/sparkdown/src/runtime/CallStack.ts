@@ -1,14 +1,9 @@
 import { PushPopType } from "./PushPop";
-import { Path } from "./Path";
-import { Story } from "../inkjs/engine/Story";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { ListValue, VariablePointerValue } from "./Value";
-import { StringBuilder } from "./StringBuilder";
-import { Pointer } from "./Pointer";
 import { InkObject } from "./Object";
 import { Debug } from "./Debug";
 import { tryGetValueFromMap } from "./TryGetResult";
-import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 
 export class CallStack {
@@ -67,16 +62,10 @@ export class CallStack {
     return new CallStack(null);
   }
 
-  constructor(storyContext: Story | null);
+  constructor(storyContext: null);
   constructor(toCopy: CallStack);
   constructor() {
     if (arguments[0] === null) {
-      this._startOfRoot = Pointer.Null;
-      this.Reset();
-    } else if (arguments[0] instanceof Story) {
-      let storyContext = arguments[0] as Story;
-
-      this._startOfRoot = Pointer.StartOf(storyContext.rootContentContainer);
       this.Reset();
     } else {
       let toCopy = arguments[0] as CallStack;
@@ -86,7 +75,6 @@ export class CallStack {
         this._threads.push(otherThread.Copy());
       }
       this._threadCounter = toCopy._threadCounter;
-      this._startOfRoot = toCopy._startOfRoot.copy();
     }
   }
 
@@ -95,43 +83,8 @@ export class CallStack {
     this._threads.push(new CallStack.Thread());
 
     this._threads[0]!.callstack.push(
-      new CallStack.Element(PushPopType.Tunnel, this._startOfRoot),
+      new CallStack.Element(PushPopType.Tunnel),
     );
-  }
-
-  public SetJsonToken(jObject: Record<string, any>, storyContext: Story) {
-    this._threads.length = 0;
-
-    // TODO: (List<object>) jObject ["threads"];
-    let jThreads: any[] = jObject["threads"];
-
-    for (let jThreadTok of jThreads) {
-      // TODO: var jThreadObj = (Dictionary<string, object>)jThreadTok;
-      let jThreadObj = jThreadTok;
-      let thread = new CallStack.Thread(jThreadObj, storyContext);
-      this._threads.push(thread);
-    }
-
-    // TODO: (int)jObject ["threadCounter"];
-    this._threadCounter = parseInt(jObject["threadCounter"]);
-    this._startOfRoot = Pointer.StartOf(storyContext.rootContentContainer);
-  }
-  public WriteJson(w: SimpleJson.Writer) {
-    w.WriteObject((writer) => {
-      writer.WritePropertyStart("threads");
-      writer.WriteArrayStart();
-
-      for (let thread of this._threads) {
-        thread.WriteJson(writer);
-      }
-
-      writer.WriteArrayEnd();
-      writer.WritePropertyEnd();
-
-      writer.WritePropertyStart("threadCounter");
-      writer.WriteInt(this._threadCounter);
-      writer.WritePropertyEnd();
-    });
   }
 
   public PushThread() {
@@ -173,11 +126,7 @@ export class CallStack {
     externalEvaluationStackHeight: number = 0,
     outputStreamLengthWithPushed: number = 0,
   ) {
-    let element = new CallStack.Element(
-      type,
-      this.currentElement!.currentPointer,
-      false,
-    );
+    let element = new CallStack.Element(type, false);
 
     element.evaluationStackHeightWhenPushed = externalEvaluationStackHeight;
     element.functionStartInOutputStream = outputStreamLengthWithPushed;
@@ -386,39 +335,6 @@ export class CallStack {
     return this.currentThread.callstack;
   }
 
-  get callStackTrace() {
-    let sb = new StringBuilder();
-
-    for (let t = 0; t < this._threads.length; t++) {
-      let thread = this._threads[t];
-      let isCurrent = t == this._threads.length - 1;
-      sb.AppendFormat(
-        "=== THREAD {0}/{1} {2}===\n",
-        t + 1,
-        this._threads.length,
-        isCurrent ? "(current) " : "",
-      );
-
-      for (let i = 0; i < thread!.callstack.length; i++) {
-        if (thread!.callstack[i]!.type == PushPopType.Function)
-          sb.Append("  [FUNCTION] ");
-        else sb.Append("  [TUNNEL] ");
-
-        let pointer = thread!.callstack[i]!.currentPointer;
-        if (!pointer.isNull) {
-          sb.Append("<SOMEWHERE IN ");
-          if (pointer.container === null) {
-            return throwNullException("pointer.container");
-          }
-          sb.Append(pointer.container.path.toString());
-          sb.AppendLine(">");
-        }
-      }
-    }
-
-    return sb.toString();
-  }
-
   public _threads!: CallStack.Thread[]; // Banged because it's initialized in Reset().
   /** Hears each upvalue cell this call stack is about to close, reopen or
    *  write, before it does (docs/engine/binary-program.md, section 7, The
@@ -426,13 +342,10 @@ export class CallStack {
    *  was before its first change. */
   public cellBarrier: ((cell: VariablePointerValue) => void) | null = null;
   public _threadCounter: number = 0;
-  public _startOfRoot: Pointer = Pointer.Null;
 }
 
 export namespace CallStack {
   export class Element {
-    public previousPointer: Pointer = Pointer.Null;
-    public currentPointer: Pointer;
     public inExpressionEvaluation: boolean;
     // Stack of temporary-variable scope frames, innermost-last. The
     // function/tunnel body itself is the outermost frame (index 0);
@@ -470,12 +383,7 @@ export namespace CallStack {
     // redeclares the variable.
     public borrowedUpvalues: VariablePointerValue[] = [];
 
-    constructor(
-      type: PushPopType,
-      pointer: Pointer,
-      inExpressionEvaluation: boolean = false,
-    ) {
-      this.currentPointer = pointer.copy();
+    constructor(type: PushPopType, inExpressionEvaluation: boolean = false) {
       this.inExpressionEvaluation = inExpressionEvaluation;
       this.temporaryScopes = [new Map()];
       this.type = type;
@@ -598,16 +506,11 @@ export namespace CallStack {
     }
 
     public Copy() {
-      let copy = new Element(
-        this.type,
-        this.currentPointer,
-        this.inExpressionEvaluation,
-      );
+      let copy = new Element(this.type, this.inExpressionEvaluation);
       copy.temporaryScopes = this.temporaryScopes.map((m) => new Map(m));
       copy.evaluationStackHeightWhenPushed =
         this.evaluationStackHeightWhenPushed;
       copy.functionStartInOutputStream = this.functionStartInOutputStream;
-      copy.previousPointer = this.previousPointer.copy();
       for (const ptr of this.openUpvalues) {
         if (!ptr.isClosed) copy.BorrowUpvalue(ptr, this);
       }
@@ -638,126 +541,9 @@ export namespace CallStack {
   export class Thread {
     public callstack: Element[];
     public threadIndex: number = 0;
-    public previousPointer: Pointer = Pointer.Null;
 
-    constructor();
-    constructor(jThreadObj: any, storyContext: Story);
     constructor() {
       this.callstack = [];
-
-      if (arguments[0] && arguments[1]) {
-        let jThreadObj: any = arguments[0];
-        let storyContext: Story = arguments[1];
-
-        // TODO: (int) jThreadObj['threadIndex'] can raise;
-        this.threadIndex = parseInt(jThreadObj["threadIndex"]);
-
-        let jThreadCallstack = jThreadObj["callstack"];
-
-        for (let jElTok of jThreadCallstack) {
-          let jElementObj = jElTok;
-
-          // TODO: (int) jElementObj['type'] can raise;
-          let pushPopType: PushPopType = parseInt(jElementObj["type"]);
-
-          let pointer = Pointer.Null;
-
-          let currentContainerPathStr: string;
-          // TODO: jElementObj.TryGetValue ("cPath", out currentContainerPathStrToken);
-          let currentPathStrToken = jElementObj["path"];
-          let currentContainerPathStrToken = jElementObj["cPath"];
-          if (currentPathStrToken) {
-            pointer = storyContext.PointerAtPath(new Path(currentPathStrToken));
-          } else if (typeof currentContainerPathStrToken !== "undefined") {
-            currentContainerPathStr = currentContainerPathStrToken.toString();
-
-            let threadPointerResult = storyContext.ContentAtPath(
-              new Path(currentContainerPathStr),
-            );
-            pointer.container = threadPointerResult.container;
-            pointer.index = parseInt(jElementObj["idx"]);
-
-            if (threadPointerResult.obj == null)
-              throw new Error(
-                "When loading state, internal story location couldn't be found: " +
-                  currentContainerPathStr +
-                  ". Has the story changed since this save data was created?",
-              );
-            else if (threadPointerResult.approximate) {
-              if (pointer.container !== null) {
-                storyContext.Warning(
-                  "When loading state, exact internal story location couldn't be found: '" +
-                    currentContainerPathStr +
-                    "', so it was approximated to '" +
-                    pointer.container.path.toString() +
-                    "' to recover. Has the story changed since this save data was created?",
-                );
-              } else {
-                storyContext.Warning(
-                  "When loading state, exact internal story location couldn't be found: '" +
-                    currentContainerPathStr +
-                    "' and it may not be recoverable. Has the story changed since this save data was created?",
-                );
-              }
-            }
-          }
-
-          let inExpressionEvaluation = !!jElementObj["exp"];
-
-          let el = new Element(pushPopType, pointer, inExpressionEvaluation);
-
-          // Two save-state formats: legacy `temp` is a flat object map
-          // of temp-var name → value (from ink's function-scoped model);
-          // new `temps` is an array of such maps representing the scope
-          // stack innermost-last (sparkdown's Luau block scoping). On
-          // load we detect which form is present and restore
-          // accordingly. New saves always use `temps`.
-          let tempsArr = jElementObj["temps"];
-          if (Array.isArray(tempsArr)) {
-            el.temporaryScopes = tempsArr.map((m: any) =>
-              JsonSerialisation.JObjectToDictionaryRuntimeObjs(m),
-            );
-            if (el.temporaryScopes.length === 0) {
-              el.temporaryScopes = [new Map()];
-            }
-          } else {
-            let temps = jElementObj["temp"];
-            if (typeof temps !== "undefined") {
-              el.temporaryVariables =
-                JsonSerialisation.JObjectToDictionaryRuntimeObjs(temps);
-            } else {
-              el.temporaryVariables.clear();
-            }
-          }
-
-          // The open upvalue cells registered with this element, and the
-          // cells it borrowed, by the same cell ids the closures holding them
-          // were written with.
-          // A cell written before cells recorded their scope takes the
-          // innermost binding of its name here, which is how the engine
-          // that wrote the save resolved it, and keeps it, so a later inner
-          // `local` of the same name doesn't take its place.
-          el.openUpvalues = Thread.ReadUpvalueCells(jElementObj["upvalues"]);
-          for (const cell of el.openUpvalues) {
-            if (cell.scopeIndex < 0) {
-              cell.scopeIndex = el.ScopeIndexBinding(cell.variableName);
-            }
-          }
-          for (const cell of Thread.ReadUpvalueCells(
-            jElementObj["borrowedUpvalues"],
-          )) {
-            el.BorrowUpvalue(cell, el);
-          }
-
-          this.callstack.push(el);
-        }
-
-        let prevContentObjPath = jThreadObj["previousContentObject"];
-        if (typeof prevContentObjPath !== "undefined") {
-          let prevPath = new Path(prevContentObjPath.toString());
-          this.previousPointer = storyContext.PointerAtPath(prevPath);
-        }
-      }
     }
 
     // Writes the cells still open, if any, under `property`.
@@ -797,95 +583,8 @@ export namespace CallStack {
       for (let e of this.callstack) {
         copy.callstack.push(e.Copy());
       }
-      copy.previousPointer = this.previousPointer.copy();
       return copy;
     }
 
-    public WriteJson(writer: SimpleJson.Writer) {
-      writer.WriteObjectStart();
-
-      writer.WritePropertyStart("callstack");
-      writer.WriteArrayStart();
-      for (let el of this.callstack) {
-        writer.WriteObjectStart();
-        if (!el.currentPointer.isNull) {
-          if (el.currentPointer.container === null) {
-            return throwNullException("el.currentPointer.container");
-          }
-          // Positions count from the START of their container. A program
-          // edited below a saved position keeps every index above the edit,
-          // and loading a save into an edited program is only ever done for
-          // a save taken before the first changed statement (the route
-          // search's resume point and the replay's reused checkpoints both
-          // stop there). Counting from the end would move such a position by
-          // however much the edit grew or shrank its container (#751).
-          if (el.currentPointer.path) {
-            writer.WriteProperty(
-              "path",
-              el.currentPointer.path.componentsString,
-            );
-          } else {
-            writer.WriteProperty(
-              "cPath",
-              el.currentPointer.container.path.componentsString,
-            );
-            if (el.currentPointer.index != null) {
-              writer.WriteIntProperty("idx", el.currentPointer.index);
-            }
-          }
-        }
-
-        writer.WriteProperty("exp", el.inExpressionEvaluation);
-        writer.WriteIntProperty("type", el.type);
-
-        // Serialize the full scope stack (`temps`: array of maps,
-        // innermost-last) so block scopes are preserved across saves —
-        // a save mid-block restores with the inner scopes still active.
-        // Empty outer scope with no inner scopes is omitted to keep
-        // most save states compact (the reader treats omitted as
-        // "single empty scope").
-        const scopes = el.temporaryScopes;
-        const hasAnyVars =
-          scopes.length > 1 || (scopes[0] && scopes[0].size > 0);
-        if (hasAnyVars) {
-          writer.WritePropertyStart("temps");
-          writer.WriteArrayStart();
-          for (const frame of scopes) {
-            JsonSerialisation.WriteDictionaryRuntimeObjs(writer, frame);
-          }
-          writer.WriteArrayEnd();
-          writer.WritePropertyEnd();
-        }
-
-        Thread.WriteUpvalueCells(writer, "upvalues", el.openUpvalues);
-        // Borrowed cells are written closed too: the thread they were
-        // borrowed from may have closed them, and a taken choice reopens
-        // them.
-        if (el.borrowedUpvalues.length > 0) {
-          writer.WritePropertyStart("borrowedUpvalues");
-          JsonSerialisation.WriteListRuntimeObjs(writer, el.borrowedUpvalues);
-          writer.WritePropertyEnd();
-        }
-
-        writer.WriteObjectEnd();
-      }
-      writer.WriteArrayEnd();
-      writer.WritePropertyEnd();
-
-      writer.WriteIntProperty("threadIndex", this.threadIndex);
-
-      if (!this.previousPointer.isNull) {
-        let resolvedPointer = this.previousPointer.Resolve();
-        if (resolvedPointer === null) {
-          return throwNullException("this.previousPointer.Resolve()");
-        }
-        writer.WriteProperty(
-          "previousContentObject",
-          resolvedPointer.path.toString(),
-        );
-      }
-
-      writer.WriteObjectEnd();
-    }
   }
 }

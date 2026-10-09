@@ -40,7 +40,7 @@ function saveInsideVarargAndResume(callArgs: string): {
   recorded: unknown[];
   savedJson: string;
 } {
-  const { story: storyA, errorMessages, compiledJson } =
+  const { story: storyA, errorMessages, root } =
     makeRuntimeStoryFromSource(source(callArgs));
   const errors = errorMessages.map((m) => `[compile] ${m}`);
 
@@ -54,7 +54,7 @@ function saveInsideVarargAndResume(callArgs: string): {
   expect(storyA.pausedBeforeCondition).not.toBeNull();
   const savedJson = storyA.state.toJson();
 
-  const storyB = testStory(compiledJson as Record<string, any>);
+  const storyB = testStory(root);
   const recorded: unknown[] = [];
   storyB.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);

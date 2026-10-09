@@ -1,6 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../../runtime/VariableAssignment";
-import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
@@ -39,14 +36,6 @@ export class StashAndRereadExpression extends Expression {
     this.innerExpression.PrepareIntoContainer();
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    this.innerExpression.GenerateIntoContainer(container);
-    container.AddContent(new RuntimeVariableAssignment(this.tempName, true));
-    container.AddContent(new RuntimeVariableReference(this.tempName));
-  };
-
   public override EmitExpression(emitter: ProgramEmitter): void {
     const name = emitter.variable(this.tempName);
     emitter.emitObject(this.innerExpression);
@@ -76,12 +65,6 @@ export class StashedTempReadExpression extends Expression {
   /** Nothing but the read it pushes. */
   public override PrepareIntoContainer(): void {
   }
-
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    container.AddContent(new RuntimeVariableReference(this.tempName));
-  };
 
   public override EmitExpression(emitter: ProgramEmitter): void {
     emitter.emit(Op.GetVar, emitter.variable(this.tempName));
