@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { documentString } from "../../utils/documentString";
 import { type ChangeDesc, Range, type Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import {
@@ -225,7 +226,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   private documentText(): string {
     if (this._documentTextOf !== this.text) {
       this._documentTextOf = this.text;
-      this._documentText = this.text?.toString() ?? "";
+      this._documentText = this.text ? documentString(this.text) : "";
     }
     return this._documentText;
   }

@@ -4,7 +4,7 @@
 import { expect, test, vi } from "vitest";
 import { Text } from "@codemirror/state";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
-import { lexLuauDocumentForTesting, nextLuauToken, readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
+import { lexLuauDocumentForTesting, nextLuauToken, noteLuauDocumentEdit, readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
 
 // The lookups keep the last document's tokens; a lookup in an empty
 // document makes the next one lex its document from the start.
@@ -27,7 +27,11 @@ test.each([
     if (fresh) forget();
     // Without `fresh`, the lookup carries tokens over from the document
     // before, which differs from this one past the body's first line.
-    else nextLuauToken(source.length, source.slice(0, from) + "\n  other ]] -- [[\n");
+    else {
+      const before = source.slice(0, from) + "\n  other ]] -- [[\n";
+      nextLuauToken(before.length, before);
+      noteLuauDocumentEdit(before, source, from, before.length, source.length);
+    }
     const token = nextLuauToken(from, source);
     expect(token).toEqual(expected == null ? null : { text: expected, from: source.lastIndexOf(expected) });
   }
@@ -48,6 +52,7 @@ function scansBelowComments(lines: number) {
   expect(nextLuauToken(source.length, source)).toBeNull();
   const at = head.length + "-- edit".length;
   const edited = `${source.slice(0, at)}s${source.slice(at)}`;
+  noteLuauDocumentEdit(source, edited, at, at, at + 1);
   let scans = 0;
   const startsWith = String.prototype.startsWith;
   const spy = vi.spyOn(String.prototype, "startsWith").mockImplementation(function (this: string, search: string, position?: number) {
@@ -97,7 +102,11 @@ test("lookups after edits read the tokens a lex of the whole edited document giv
   for (let step = 0; step < 200; step++) {
     const at = random(source.length + 1);
     const removed = random(4) === 0 ? random(8) : 0;
-    source = source.slice(0, at) + (random(3) === 0 ? "" : pieces[random(pieces.length)]) + source.slice(at + removed);
+    const inserted = random(3) === 0 ? "" : pieces[random(pieces.length)]!;
+    const before = source;
+    source = source.slice(0, at) + inserted + source.slice(at + removed);
+    // As the registry notes each change it applies (#1750).
+    noteLuauDocumentEdit(before, source, at, Math.min(at + removed, before.length), at + inserted.length);
     // Some lookups near the edit, some anywhere.
     const probes = Array.from({ length: 6 }, (_, i) => i % 2 === 0 ? Math.min(source.length, at + random(80)) : random(source.length + 1));
     const bound = Math.min(source.length, probes[1]! + 40);
