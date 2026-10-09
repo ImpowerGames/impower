@@ -37,6 +37,7 @@ import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs"
 // calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
 import { artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
+import { spawnSync } from 'node:child_process';
 import {
   DEFAULT_SETTLE_S,
   LOOPBACKS,
@@ -1822,6 +1823,10 @@ await check("desktop health requires successful full/range requests, exact diagn
   const options = { project: path.resolve('/project'), script: path.resolve('/project/project/main.sd'), scenario: 'full-build' };
   const healthy = { failed: [], expectedDiagnostics: [], host: { workspaceRoot: options.project, document: { uri: pathToFileURL(options.script).href }, settled: true, diagnostics: [], requests: ['textDocument/semanticTokens/full', 'textDocument/semanticTokens/range', 'textDocument/documentSymbol'].map(method => ({ method, success: true, length: 5 })) }, preview: { initial: 'first', frame: 'vscode-webview://player', inputAttempt: { event: { trusted: true, tag: 'CANVAS' } }, interaction: { result: 'second' }, screenshot: 'before.png', afterScreenshot: 'after.png' }, build: { artifacts: [{}], failed: [] }, consoleErrors: [] };
   assert.deepEqual(desktopFailures(healthy, options), []);
+  const partial = structuredClone(healthy);
+  Object.assign(partial.host, { phase: 'document-opened', complete: false, requests: [], settled: false });
+  assert.ok(desktopFailures(partial, options).some(error => /language request/.test(error)), 'partial host identity cannot establish language health');
+  assert.ok(!desktopFailures(partial, options).some(error => /specified whole project root|requested nested script/.test(error)), 'partial identity must preserve the root/document evidence');
   for (const mutate of [
     report => { report.host.requests[0].success = false; },
     report => { report.host.requests[1].length = 0; },
@@ -1890,6 +1895,51 @@ await check("desktop artifact freshness covers game webview's embedded player/wo
   const font = path.join(scratch, 'vscode-sparkdown/data/courier-prime.ttf');
   fs.mkdirSync(path.dirname(font), { recursive: true }); fs.writeFileSync(font, 'changed font');
   assert.ok(artifactEvidence(scratch).failed.some(error => /Stale copied data/.test(error)));
+});
+
+await check("desktop stamp cannot admit an obsolete replacement game bundle", () => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-replaced-'));
+  const source = path.join(scratch, 'packages/player/src/player.ts');
+  fs.mkdirSync(path.dirname(source), { recursive: true }); fs.writeFileSync(source, 'current player');
+  const sourceTime = new Date(Date.now() - 10000); fs.utimesSync(source, sourceTime, sourceTime);
+  for (const file of desktopArtifacts(scratch)) {
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'current bundle');
+    if (file.includes(path.join('out', 'data'))) { const original = path.join(scratch, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'current bundle'); }
+  }
+  assert.deepEqual(artifactEvidence(scratch).failed, []);
+  const stamp = path.join(scratch, 'vscode-sparkdown/out/.drive-vscode-desktop-build.json');
+  const accepted = fs.readFileSync(stamp, 'utf8');
+  const game = path.join(scratch, 'vscode-sparkdown/out/webviews/game-webview.js');
+  fs.writeFileSync(game, 'obsolete player');
+  const old = new Date(Date.now() - 20000); fs.utimesSync(game, old, old);
+  assert.ok(artifactEvidence(scratch).failed.some(error => /Stale.*game-webview/.test(error)), 'old player bytes were admitted under an unchanged source stamp');
+  assert.equal(fs.readFileSync(stamp, 'utf8'), accepted, 'failure erased the accepted artifact identities');
+});
+
+await check("desktop stamp preserves deleted sources until all affected bundles rebuild", () => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-deleted-'));
+  console.log('Scratch deletion repository: ' + scratch);
+  spawnSync('git', ['init', '--quiet', scratch]);
+  const source = path.join(scratch, 'vscode-sparkdown/webviews/game-webview/src/player.ts');
+  fs.mkdirSync(path.dirname(source), { recursive: true }); fs.writeFileSync(source, 'deleted player feature');
+  const old = new Date(Date.now() - 10000); fs.utimesSync(source, old, old);
+  for (const file of desktopArtifacts(scratch)) {
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'current bundle');
+    if (file.includes(path.join('out', 'data'))) { const original = path.join(scratch, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'current bundle'); }
+  }
+  assert.deepEqual(artifactEvidence(scratch).failed, []);
+  const stamp = path.join(scratch, 'vscode-sparkdown/out/.drive-vscode-desktop-build.json');
+  const accepted = fs.readFileSync(stamp, 'utf8');
+  fs.unlinkSync(source);
+  const deletion = new Date(Date.now() + 1000); fs.utimesSync(path.dirname(source), deletion, deletion);
+  const extension = path.join(scratch, 'vscode-sparkdown/out/extension.js');
+  fs.writeFileSync(extension, 'unrelated extension rebuild');
+  const later = new Date(Date.now() + 2000); fs.utimesSync(extension, later, later);
+  assert.ok(artifactEvidence(scratch).failed.some(error => /source set changed.*game-webview/.test(error)), 'an unrelated rebuild concealed the deleted player source');
+  assert.equal(fs.readFileSync(stamp, 'utf8'), accepted, 'failure erased the deleted source');
+  for (const file of desktopArtifacts(scratch).filter(file => !file.includes(path.join('out', 'data')))) fs.utimesSync(file, later, later);
+  assert.deepEqual(artifactEvidence(scratch).failed, [], 'a complete rebuild after deletion remains usable');
+  assert.ok(!fs.readFileSync(stamp, 'utf8').includes('player.ts'), 'rebuilt stamp retains the obsolete source');
 });
 
 if (failures) {

@@ -56,6 +56,8 @@ exports.activate = async context => {
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(plan.script));
     const editor = await vscode.window.showTextDocument(document, { preview: false });
     report.document = { uri: document.uri.toString(), version: document.version, languageId: document.languageId };
+    // Preserve identity before language readiness, including failed F5 builds.
+    fs.writeFileSync(plan.result + '.progress', JSON.stringify({ runId: plan.runId, ...report, phase: 'document-opened', complete: false }, null, 2));
     if (document.languageId !== 'sparkdown') throw new Error('Requested script is not a Sparkdown document');
     const first = document.getText().split(/\r?\n/).findIndex(line => line.includes(plan.firstText));
     if (first < 0) throw new Error('Expected initial story text is absent from the selected script');

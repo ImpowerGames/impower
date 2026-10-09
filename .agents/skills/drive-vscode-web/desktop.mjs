@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { sourceFiles, checkBuild, parseFlags, WORKBENCH_CONSOLE_NOISE, liveDeps, openFile } from './driver.mjs';
+import { sourceFiles, nearestDirMtime, checkBuild, parseFlags, WORKBENCH_CONSOLE_NOISE, liveDeps, openFile } from './driver.mjs';
 import { consoleLine, partitionConsole } from '../drive-web-editor/driver.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -48,14 +48,25 @@ export function artifactEvidence(repo, io = fs) {
   try { stamp = JSON.parse(io.readFileSync(stampFile, 'utf8')); } catch { /* a first accepted build establishes the stamp */ }
   const sourceHashes = Object.fromEntries(sources.map(file => [path.relative(repo, file.path), crypto.createHash('sha256').update(io.readFileSync(file.path)).digest('hex')]));
   const newest = sources.reduce((best, file) => !best || file.mtimeMs > best.mtimeMs ? file : best, null);
+  const unchangedSources = stamp?.sources && JSON.stringify(sourceHashes) === JSON.stringify(stamp.sources);
+  const changedSet = stamp?.sources ? [...new Set([...Object.keys(sourceHashes), ...Object.keys(stamp.sources)])].filter(file => (file in sourceHashes) !== (file in stamp.sources)) : [];
   for (const file of artifacts) {
     if (!io.existsSync(file) || !io.statSync(file).isFile() || !io.statSync(file).size) { failed.push('Missing scenario artifact: ' + file); continue; }
-    const unchangedSources = stamp && JSON.stringify(sourceHashes) === JSON.stringify(stamp.sources);
-    if (newest && !unchangedSources && !file.includes(path.join('out', 'data')) && io.statSync(file).mtimeMs + 1 < newest.mtimeMs) failed.push('Stale scenario artifact: ' + file + ' is older than ' + newest.path);
-    evidence.push({ file, sha256: crypto.createHash('sha256').update(io.readFileSync(file)).digest('hex'), bytes: io.statSync(file).size, modified: new Date(io.statSync(file).mtimeMs).toISOString() });
+    const identity = { file, sha256: crypto.createHash('sha256').update(io.readFileSync(file)).digest('hex'), bytes: io.statSync(file).size, modified: new Date(io.statSync(file).mtimeMs).toISOString() };
+    evidence.push(identity);
+    if (file.includes(path.join('out', 'data'))) continue;
+    const previous = stamp?.artifacts?.[path.relative(repo, file)];
+    const unchangedArtifact = previous?.sha256 === identity.sha256 && previous?.modified === identity.modified;
+    if (newest && !(unchangedSources && unchangedArtifact) && io.statSync(file).mtimeMs + 1 < newest.mtimeMs) failed.push('Stale scenario artifact: ' + file + ' is older than ' + newest.path);
+    if (stamp?.sources && !unchangedSources && unchangedArtifact) failed.push('Scenario source content or source set changed without rebuilding artifact: ' + file);
+    // Conservatively watch the whole scenario source set for each binary.
+    // Directory times date deletions even when their files are no longer listed.
+    for (const source of changedSet) {
+      const changedAt = nearestDirMtime(path.join(repo, source), repo, io);
+      if (changedAt == null || io.statSync(file).mtimeMs <= changedAt + 1) failed.push('Scenario source set changed without rebuilding artifact: ' + file + ' (' + source + ')');
+    }
   }
   const current = Object.fromEntries(evidence.map(a => [path.relative(repo, a.file), { sha256: a.sha256, modified: a.modified }]));
-  if (stamp && JSON.stringify(sourceHashes) !== JSON.stringify(stamp.sources) && JSON.stringify(current) === JSON.stringify(stamp.artifacts)) failed.push('Scenario source content or source set changed without rebuilding the artifacts');
   // Copied fonts are content-checked, so copied mtimes cannot mask an edit.
   for (const artifact of artifacts.filter(file => file.includes(path.join('out', 'data')))) {
     const source = path.join(repo, 'vscode-sparkdown/data', path.basename(artifact));
@@ -243,7 +254,12 @@ export async function desktop(args, deps = {}) {
     }
     const deadline = Date.now() + options.timeoutMs;
     while (!fs.existsSync(plan.result) && Date.now() < deadline && !report.crash) await sleep(250);
-    if (!fs.existsSync(plan.result)) throw new Error('Timed out awaiting development host evidence; inspect host log, F5 tasks and screenshot');
+    if (!fs.existsSync(plan.result)) {
+      if (fs.existsSync(plan.result + '.progress')) report.host = JSON.parse(fs.readFileSync(plan.result + '.progress', 'utf8'));
+      if (report.host && report.host.runId !== plan.runId) { delete report.host; throw new Error('Host progress belongs to a different run'); }
+      if (report.host?.document) report.surfaces.lsp = 'failed';
+      throw new Error('Timed out awaiting final development host evidence; partial host identity is retained when available');
+    }
     report.host = JSON.parse(fs.readFileSync(plan.result, 'utf8'));
     if (report.host.runId !== plan.runId) throw new Error('Host report belongs to a different run');
     report.failed.push(...(report.host.failed ?? []));
