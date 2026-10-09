@@ -361,7 +361,30 @@ export interface StatementMemoHost {
   /** Whether a complete memo can be served now: its chunk is one the
    *  store's current root holds, of the table's current generation. */
   usable(entry: StatementMemoEntry): boolean;
+  /** Set while a preview compile's updates lower (the suggestion's, its
+   *  compile's and the one that puts the text back), whose memos no compile
+   *  completes: a statement such a lowering lowers anew keeps the complete
+   *  memo that stood where it stands, for the lowerings after it
+   *  (`previewKept`, #1757). */
+  provisional?: boolean;
 }
+
+/**
+ * The complete memo a statement a preview's lowering lowered anew keeps, by
+ * its shape: the memo that stood where the statement stands before that
+ * lowering, of its syntax or, when none is, the only one there (#1757). A
+ * preview compile's root is dropped with it, so what it records itself is
+ * never completed, and without this the memos a real compile completed went
+ * with the shapes the preview's lowering replaced: every statement the
+ * preview's parse rebuilt (the whole block, on the first incremental parse
+ * after a cold one) and the statement the suggestion changed, which the
+ * update that puts the text back lowers again, were lowered again by every
+ * later lowering until a real compile. Only the next lowering's lookup reads
+ * it (`collectMemos`), which serves it as it serves any memo, only when it is
+ * complete and usable and every read it recorded reads the same; the chunk
+ * store and the compile know the statement by its own memo, as before.
+ */
+const previewKept = new WeakMap<StatementShape, StatementMemoEntry>();
 
 /** How many statements inside blocks' bodies the last update of a document
  *  lowered, and how many it served from their memos. */
@@ -403,6 +426,15 @@ export const collectMemos = (
     const entry = statement.memo;
     if (entry && !entry.stale) {
       into.set(memoKey(entry.syntax, base + statement.from), entry);
+    }
+    // The memo a preview's lowering left the statement, under its own
+    // syntax, unless a complete memo is known there already.
+    const kept = previewKept.get(statement);
+    if (kept && kept !== entry && !kept.stale && kept.complete) {
+      const key = memoKey(kept.syntax, base + statement.from);
+      if (!into.get(key)?.complete) {
+        into.set(key, kept);
+      }
     }
   });
 };
@@ -955,6 +987,9 @@ export class StatementMemoSession {
     if (servedShapes.size !== this.served.length) {
       return false;
     }
+    if (this.host.provisional) {
+      this.keepPrevious(servedShapes);
+    }
     for (const pending of this._pending) {
       const entry = remember(pending, inBodies);
       if (entry) {
@@ -963,6 +998,43 @@ export class StatementMemoSession {
     }
     this._pending = [];
     return true;
+  }
+
+  /** For a preview's lowering, gives each statement it lowered anew the
+   *  complete memo that stood where it stands (`previewKept`): of its
+   *  syntax, or the only one there, when no statement this lowering served
+   *  holds it. */
+  protected keepPrevious(servedShapes: ReadonlySet<StatementShape>): void {
+    const served = new Set<StatementMemoEntry>();
+    for (const shape of servedShapes) {
+      served.add(shape.memo!);
+    }
+    let byPlace: Map<number, StatementMemoEntry[]> | undefined;
+    const at = (place: number): StatementMemoEntry[] => {
+      if (!byPlace) {
+        byPlace = new Map();
+        for (const [key, entry] of this.lookup) {
+          const where = Number(key.slice(key.lastIndexOf("\u0001") + 1));
+          const list = byPlace.get(where);
+          if (list) {
+            list.push(entry);
+          } else {
+            byPlace.set(where, [entry]);
+          }
+        }
+      }
+      return byPlace.get(place) ?? [];
+    };
+    for (const pending of this._pending) {
+      const place = this.before(pending.from);
+      const there = at(place);
+      const previous =
+        this.lookup.get(memoKey(pending.syntax, place)) ??
+        (there.length === 1 ? there[0] : undefined);
+      if (previous && previous.complete && !previous.stale && !served.has(previous)) {
+        previewKept.set(pending.shape, previous);
+      }
+    }
   }
 }
 
