@@ -799,14 +799,112 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
   });
 
-  // A known limit: a load reads a captured variable's cell anew, and while
-  // no frame of its closure runs between steps the watch has no way to tell
-  // which new cell is the variable it watched, so it drops the old one and
-  // holds no binding (as the base held none whenever the closure's frame was
-  // not running). A builtin's call of the closure after the load does not
-  // stop; a frame of the closure that runs between steps binds the watch
-  // again.
-  it("drops a captured variable's watch on a load, and binds it again when the closure's frame runs", () => {
+  // A load reads a captured variable's cell anew. A save written while the
+  // watch holds the cell names it by the id the save gave it, and the load
+  // binds the watch to the cell it read under that id, so a builtin's call
+  // of the closure right after the load stops on its write with no frame of
+  // the closure run between steps; another closure of the same function,
+  // with a cell of its own, does not. The cases load a closure init built, whose cell the
+  // save anchors; one a step built and a global holds, whose cell the save
+  // names by an id of its own; and one a step built and a temporary of the
+  // running scene holds.
+  const closures = {
+    "built by init": {
+      lines: ["  Ready.", "  Set."],
+      declarations: ["store less = make()", "store other = make()"],
+    },
+    "a global holds": {
+      lines: ["  & less = make()", "  & other = make()"],
+      declarations: ["store less = nil", "store other = nil"],
+    },
+    "a scene's temporary holds": {
+      lines: ["  local less = make()", "  local other = make()"],
+      declarations: [],
+    },
+  };
+  for (const [held, { lines, declarations }] of Object.entries(closures)) {
+    it(`keeps a captured variable's watch across a load, for a closure ${held}`, () => {
+      const text = [
+        "-> main", //                         0
+        "scene main", //                      1
+        "  Start.", //                        2
+        ...lines, //                          3, 4
+        "  local first = less(1, 2)", //      5
+        "  First {first}.", //                6
+        "  local t = {2, 1}", //              7
+        "  & table.sort(t, other)", //        8
+        "  Between.", //                      9
+        "  local u = {2, 1}", //              10
+        "  & table.sort(u, less)", //         11
+        "  After.", //                        12
+        "  done", //                          13
+        "end", //                             14
+        "function make()", //                 15
+        "  local n = 0", //                   16
+        "  return function(a, b)", //         17
+        "    n = n + 1", //                   18
+        "    return a < b", //                19
+        "  end", //                           20
+        "end", //                             21
+        ...declarations, //                   22, 23
+        "",
+      ].join("\n");
+      const h = debugGame(text);
+      h.game.setBreakpoints([{ file: MAIN, line: 19 }]);
+      h.game.start();
+      h.continueToBreakpoint();
+      expect(h.stoppedAt()).toBe(19);
+      const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+      expect(n.value).toBe("1");
+      const dataId = `${n.scopePath}.${n.name}`;
+      expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
+      h.game.setBreakpoints([]);
+      h.game.continue();
+      expect(h.game.story.currentText).toBe("First true.\n");
+      expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+      // A save of the state, loaded back through `Game.loadProgramSave`.
+      const save = h.game.save();
+      expect(h.game.load(save)).toBe(true);
+      // A second load of the save finds the watch on the cell the first
+      // load bound it to, which the note names too.
+      expect(h.game.load(save)).toBe(true);
+      expect(h.game.story.currentText).toBe("First true.\n");
+      // `other`'s comparator writes its own cell.
+      h.game.continue();
+      expect(h.game.story.currentText).toBe("Between.\n");
+      expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+      // `less`'s comparator writes the cell the load read for the watched
+      // one, inside the sort's step.
+      h.game.continue();
+      expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+      expect(h.stoppedAt()).toBe(19);
+      // The save named the watched cell by its id.
+      expect(JSON.parse(save).watchedCells).toEqual([
+        { dataId, cell: expect.any(Number), tag: expect.any(String) },
+      ]);
+      // A save whose note is malformed still loads, and binds the watch to
+      // no cell: the sort's comparator writes after the load do not stop.
+      const parsed = JSON.parse(save);
+      parsed.watchedCells = [
+        { dataId, cell: String(parsed.watchedCells[0].cell), tag: 1 },
+        "nothing",
+      ];
+      const hits = h.of("game/hitBreakpoint").length;
+      expect(h.game.load(JSON.stringify(parsed))).toBe(true);
+      expect(h.game.story.currentText).toBe("First true.\n");
+      h.game.continue();
+      h.game.continue();
+      expect(h.of("game/hitBreakpoint")).toHaveLength(hits);
+      expect(h.game.story.currentText).toBe("After.\n");
+    });
+  }
+
+  // A save names the cell its watch held when it was written. A watch that
+  // holds another cell at the load, here `other`'s, which the watch bound
+  // when a frame of `other` ran after the save, is not the watch the save
+  // noted, so the load binds it to none: the saved `less`'s comparator, the
+  // cell the save noted for the same data id, does not stop.
+  it("carries no watch that holds another cell since the save to the cell the save noted", () => {
     const text = [
       "-> main", //                         0
       "scene main", //                      1
@@ -814,48 +912,124 @@ describe("the debugger on the program engine", () => {
       "  local first = less(1, 2)", //      3
       "  First {first}.", //                4
       "  local t = {2, 1}", //              5
-      "  & table.sort(t, less)", //         6
-      "  Sorted.", //                       7
-      "  local again = less(3, 4)", //      8
-      "  Again {again}.", //                9
-      "  done", //                          10
-      "end", //                             11
-      "function make()", //                 12
-      "  local n = 0", //                   13
-      "  return function(a, b)", //         14
-      "    n = n + 1", //                   15
-      "    return a < b", //                16
-      "  end", //                           17
-      "end", //                             18
-      "store less = make()", //             19
+      "  & table.sort(t, other)", //        6
+      "  Between.", //                      7
+      "  local u = {2, 1}", //              8
+      "  & table.sort(u, less)", //         9
+      "  After.", //                        10
+      "  local second = other(3, 4)", //    11
+      "  Second {second}.", //              12
+      "  done", //                          13
+      "end", //                             14
+      "function make()", //                 15
+      "  local n = 0", //                   16
+      "  return function(a, b)", //         17
+      "    n = n + 1", //                   18
+      "    return a < b", //                19
+      "  end", //                           20
+      "end", //                             21
+      "store less = make()", //             22
+      "store other = make()", //            23
       "",
     ].join("\n");
     const h = debugGame(text);
-    h.game.setBreakpoints([{ file: MAIN, line: 16 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 19 }]);
     h.game.start();
     h.continueToBreakpoint();
-    expect(h.stoppedAt()).toBe(16);
+    expect(h.stoppedAt()).toBe(19);
     const n = h.game.getTempVariables().find((v) => v.name === "n")!;
     const dataId = `${n.scopePath}.${n.name}`;
     expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
     h.game.continue();
     expect(h.game.story.currentText).toBe("First true.\n");
-    expect(h.game.load(h.game.save())).toBe(true);
-    // The sort's comparator writes the cell the load read.
+    // The save notes `less`'s cell.
+    const save = h.game.save();
+    // `less`'s comparator stops the watch.
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("Between.\n");
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    // Then a frame of `other` binds the watch to `other`'s cell. A stop
+    // inside a step leaves no text to read until the step ends.
+    const shown = () => {
+      try {
+        return h.game.story.currentText;
+      } catch {
+        return null;
+      }
+    };
+    for (let i = 0; i < 8 && shown() !== "Second true.\n"; i += 1) {
+      h.game.continue();
+    }
+    expect(h.game.story.currentText).toBe("Second true.\n");
+    const hits = h.of("game/hitBreakpoint").length;
+    expect(h.game.load(save)).toBe(true);
+    expect(h.game.story.currentText).toBe("First true.\n");
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(hits);
+    expect(h.game.story.currentText).toBe("Between.\n");
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(hits);
+    expect(h.game.story.currentText).toBe("After.\n");
+  });
+
+  // A save written before the watch was set names no cell for it, so a
+  // load binds the watch to none, however the loaded story reaches its
+  // closures: here `less` held another closure when the save was written,
+  // and that closure's comparator write after the load does not stop.
+  it("carries no captured variable's watch to another closure's variable across a load of a save written before the watch", () => {
+    const text = [
+      "-> main", //                         0
+      "scene main", //                      1
+      "  & less = make()", //               2
+      "  & other = make()", //              3
+      "  Start.", //                        4
+      "  local t = {2, 1}", //              5
+      "  & table.sort(t, less)", //         6
+      "  Sorted.", //                       7
+      "  & less = other", //                8
+      "  local first = less(1, 2)", //      9
+      "  First {first}.", //                10
+      "  done", //                          11
+      "end", //                             12
+      "function make()", //                 13
+      "  local n = 0", //                   14
+      "  return function(a, b)", //         15
+      "    n = n + 1", //                   16
+      "    return a < b", //                17
+      "  end", //                           18
+      "end", //                             19
+      "store less = nil", //                20
+      "store other = nil", //               21
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.start();
+    expect(h.game.story.currentText).toBe("Start.\n");
+    const save = h.game.save();
+    expect(JSON.parse(save).watchedCells).toBeUndefined();
     h.game.continue();
     expect(h.game.story.currentText).toBe("Sorted.\n");
-    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-    // A line breakpoint holds the closure's frame between steps, which
-    // binds the watch to that cell, and its next write stops.
-    h.game.setBreakpoints([{ file: MAIN, line: 15 }]);
+    // The call of `less`, which holds `other`'s closure now.
+    h.game.setBreakpoints([{ file: MAIN, line: 17 }]);
     h.continueToBreakpoint();
-    expect(h.stoppedAt()).toBe(15);
+    expect(h.stoppedAt()).toBe(17);
+    const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+    expect(n.value).toBe("1");
+    const dataId = `${n.scopePath}.${n.name}`;
+    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
-    const hits = h.of("game/hitBreakpoint").length;
-    h.continueToBreakpoint();
-    expect(h.of("game/hitBreakpoint")).toHaveLength(hits + 1);
-    expect(h.stoppedAt()).toBe(15);
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("First true.\n");
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.game.load(save)).toBe(true);
+    expect(h.game.story.currentText).toBe("Start.\n");
+    // The loaded `less` is the closure the watch never watched.
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.game.story.currentText).toBe("Sorted.\n");
   });
 
   // While the function that declared the variable still runs, the closure's

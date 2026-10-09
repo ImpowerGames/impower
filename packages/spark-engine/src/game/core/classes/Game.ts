@@ -374,6 +374,8 @@ export class Game<T extends M = {}> {
    *  (`VariablesState.writeWatch`), and a write to the binding noted marks
    *  the watch `written`. */
   protected _dataWatches: {
+    /** The breakpoint's data id, which a save names the watch by. */
+    dataId: string;
     scope?: string;
     name: string;
     /** The block scope a temporary was found in, which the watch keeps
@@ -393,6 +395,22 @@ export class Game<T extends M = {}> {
     last: unknown;
     written: boolean;
   }[] = [];
+
+  /** A tag for each cell a save noted for a data breakpoint, unique to the
+   *  cell across sessions, which the save writes beside the cell's id: a
+   *  load binds a watch to the cell it read under that id only when the
+   *  watch holds the cell the tag names, the cell it held when the save was
+   *  written, or the cell an earlier load of the save bound it to. */
+  protected _cellTags = new WeakMap<VariablePointerValue, string>();
+
+  protected cellTag(cell: VariablePointerValue): string {
+    let tag = this._cellTags.get(cell);
+    if (tag === undefined) {
+      tag = uuid(16);
+      this._cellTags.set(cell, tag);
+    }
+    return tag;
+  }
 
   /** The engine's write watch while a data breakpoint is set: marks each
    *  watch whose binding a write reached. */
@@ -1163,8 +1181,9 @@ export class Game<T extends M = {}> {
       watch.pointerState = variablesState;
     } else if (!watch.pointer || watch.pointerState !== variablesState) {
       // A reset gives the story other variables, which no pointer of the
-      // earlier ones reaches (a load, which keeps them, drops the pointer
-      // itself: `loadProgramSave`).
+      // earlier ones reaches (a load, which keeps them, carries the pointer
+      // to the cell it read for the variable, or drops it:
+      // `loadProgramSave`).
       watch.pointer = null;
       watch.binding = undefined;
       watch.bindingName = watch.name;
@@ -1388,6 +1407,7 @@ export class Game<T extends M = {}> {
         );
       }
       watches.push({
+        dataId: b.dataId,
         scope,
         name,
         blockScope: null,
@@ -2134,10 +2154,38 @@ export class Game<T extends M = {}> {
 
   protected buildSave(omitDeltaState: boolean, withStory = true): string {
     let story = "";
+    let watchedCells: SaveData["watchedCells"];
+    const state = this.programStory.state;
     try {
       if (withStory) {
+        // A data breakpoint on a captured variable notes the id the save
+        // gives the variable's cell, which a load of the save reads the
+        // cell under (`loadProgramSave`).
+        const watched = this._dataWatches.filter(
+          (watch) =>
+            watch.pointer && watch.pointerState === state.variablesState,
+        );
+        if (watched.length > 0) {
+          state.cellsWritten = (cells) => {
+            watchedCells = [];
+            for (const watch of watched) {
+              const cell = cells.get(watch.pointer!);
+              if (cell !== undefined) {
+                watchedCells.push({
+                  dataId: watch.dataId,
+                  cell,
+                  tag: this.cellTag(watch.pointer!),
+                });
+              }
+            }
+          };
+        }
         // The story's durable save of the current beat.
-        story = this._story.toSave(this._version);
+        try {
+          story = this._story.toSave(this._version);
+        } finally {
+          state.cellsWritten = null;
+        }
       }
     } catch (e: any) {
       this.Error(e.message, ErrorType.Error);
@@ -2153,6 +2201,9 @@ export class Game<T extends M = {}> {
       simulatedFrom:
         this._simulation !== "none" ? this._simulateFlow : undefined,
     };
+    if (watchedCells && watchedCells.length > 0) {
+      saveData.watchedCells = watchedCells;
+    }
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
@@ -2208,11 +2259,53 @@ export class Game<T extends M = {}> {
       runtime.pathsExecutedThisFrame = RecencySet.from(
         this.placedExecuted(program.root, runtime.pathsExecutedThisFrame.toArray()),
       );
-      program.loadSave(saveData.story);
-      // A load reads the cells of captured variables anew, so no data
-      // breakpoint's pointer reaches the variable it watched any more.
+      // A load reads the cells of captured variables anew, under the ids
+      // the save gave them, so a data breakpoint that still holds the cell
+      // the save noted for its data id (`buildSave`), which the note's tag
+      // names, binds to the cell the load read under that id, and that cell
+      // takes the tag. A watch of the same data id holding another cell, of
+      // another closure, say, is not the watch the save noted. Any other
+      // watch's pointer reaches no variable of the loaded story, and the
+      // watch holds no binding until a frame named by its scope runs.
+      const noted = new Map<string, { cell: number; tag: string }>();
+      if (Array.isArray(saveData.watchedCells)) {
+        for (const entry of saveData.watchedCells) {
+          if (
+            typeof entry?.dataId === "string" &&
+            Number.isInteger(entry?.cell) &&
+            typeof entry?.tag === "string"
+          ) {
+            noted.set(entry.dataId, { cell: entry.cell, tag: entry.tag });
+          }
+        }
+      }
+      for (const [dataId, note] of noted) {
+        const watch = this._dataWatches.find((w) => w.dataId === dataId);
+        if (!watch?.pointer || this._cellTags.get(watch.pointer) !== note.tag) {
+          noted.delete(dataId);
+        }
+      }
+      const read: { cells: Map<number, VariablePointerValue> | null } = {
+        cells: null,
+      };
+      if (noted.size > 0) {
+        program.state.cellsRead = (cells) => {
+          read.cells = new Map(cells);
+        };
+      }
+      try {
+        program.loadSave(saveData.story);
+      } finally {
+        program.state.cellsRead = null;
+      }
       for (const watch of this._dataWatches) {
-        watch.pointer = null;
+        const note = noted.get(watch.dataId);
+        const cell = note ? read.cells?.get(note.cell) : undefined;
+        if (cell) {
+          this._cellTags.set(cell, note!.tag);
+        }
+        watch.pointer = cell ?? null;
+        watch.pointerState = cell ? program.state.variablesState : null;
       }
       // A preview waiting for its pictures would display its beat over the
       // loaded state, and record a checkpoint of it.

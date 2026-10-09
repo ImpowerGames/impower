@@ -405,6 +405,11 @@ export class JsonSerialisation {
     return cell && !this._loadSessionConstantCells.has(cell) ? cell : null;
   }
 
+  /** Every upvalue cell this load holds, by the id the save gave it. */
+  public static LoadSessionCells(): ReadonlyMap<number, VariablePointerValue> {
+    return this._loadSessionCellsById;
+  }
+
   /** Reads every table and cell definition a saved token holds, so that a
    *  later reference to one resolves to it, without reading anything else
    *  the token holds: a durable save's state that the load does not place,
