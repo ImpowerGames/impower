@@ -26,6 +26,7 @@ import {
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
+import type { CallStack } from "@impower/sparkdown/src/runtime/CallStack";
 import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
 import { InkList } from "@impower/sparkdown/src/runtime/InkList";
@@ -3087,7 +3088,13 @@ export class Game<T extends M = {}> {
         null,
       )?.result;
       if (!listDefinition) {
-        const valueObj = variableState.GetVariableWithName(name);
+        // The global itself: a temporary of the same name shadows it for
+        // the story, and the Temps scope shows that temporary (#1727).
+        const globalObj = variableState.GetGlobalVariableValue(name);
+        const valueObj =
+          globalObj instanceof VariablePointerValue
+            ? variableState.ValueAtVariablePointer(globalObj)
+            : globalObj;
         const value = this.getRuntimeValue(name, valueObj);
         if (value !== undefined) {
           variables.push(
@@ -3178,10 +3185,11 @@ export class Game<T extends M = {}> {
         if (!name.includes("$") && !seen.has(name)) {
           seen.add(name);
           // A temporary bound to a pointer (a variable passed by reference,
-          // or one a closure captured) shows the value it points to.
+          // or one a closure captured) shows the value it points to, in the
+          // frames of the thread it belongs to (#1667).
           const valueObj =
-            scoped instanceof VariablePointerValue
-              ? variableState.ValueAtVariablePointer(scoped)
+            scoped instanceof VariablePointerValue && thread
+              ? this.valueAtPointerInThread(thread, scoped)
               : scoped;
           const value = this.getRuntimeValue(name, valueObj);
           const scopePath = programScope;
@@ -3202,6 +3210,61 @@ export class Game<T extends M = {}> {
       }
     }
     return variables;
+  }
+
+  /**
+   * The value `pointer` leads to, read in the frames of `thread`. A closed
+   * pointer holds its value. An open one names a frame by its
+   * `contextIndex` (1 for the outermost, 0 for the globals, -1 for the
+   * frame on top) and the block scope that binds the name by its
+   * `scopeIndex`, as `VariablesState.ValueAtVariablePointer` reads them;
+   * that reads the frames of the thread that runs, which another thread's
+   * frame at the same index is not (#1667). A pointer that leads to
+   * another is followed.
+   */
+  protected valueAtPointerInThread(
+    thread: CallStack.Thread,
+    pointer: VariablePointerValue,
+  ): InkObject | null {
+    const variableState = this._story.state.variablesState;
+    const visited = new Set<VariablePointerValue>();
+    let at: VariablePointerValue = pointer;
+    while (!visited.has(at)) {
+      visited.add(at);
+      if (at.isClosed) {
+        return at.closedValue;
+      }
+      const name = at.variableName;
+      const contextIndex =
+        at.contextIndex === -1 ? thread.callstack.length : at.contextIndex;
+      const scopes = thread.callstack[contextIndex - 1]?.temporaryScopes;
+      let found: InkObject | null | undefined;
+      if (scopes && name !== null) {
+        const scopeIndex = at.scopeIndex;
+        if (scopeIndex >= 0 && scopes[scopeIndex]?.has(name)) {
+          found = scopes[scopeIndex]!.get(name) ?? null;
+        } else {
+          for (let s = scopes.length - 1; s >= 0 && found === undefined; s -= 1) {
+            if (scopes[s]!.has(name)) {
+              found = scopes[s]!.get(name) ?? null;
+            }
+          }
+        }
+      }
+      if (found === undefined) {
+        // No temporary of the name in that frame: a pointer at the globals,
+        // or at the frame on top, reads the global; one at any other frame
+        // reads nothing, as `VariablesState.GetRawVariableWithName` does.
+        return at.contextIndex <= 0
+          ? variableState.GetVariableWithName(name, 0)
+          : null;
+      }
+      if (!(found instanceof VariablePointerValue)) {
+        return found;
+      }
+      at = found;
+    }
+    return null;
   }
 
   getChildVariables(varRef: number): Variable[] {

@@ -110,9 +110,34 @@ const functionStart = (
   return entry && chunk ? addressOf(chunkId(chunk), entry.offset) : undefined;
 };
 
-/** The address where the function `name` starts, which is where a function
- *  breakpoint on it stops, or nothing when the program defines no such
- *  function. A function declared at the top level is found by its name; one
+/** The address where a function breakpoint on the function `symbol` stops:
+ *  the `EnterBlock` its entry code enters its body by, once it has bound
+ *  every parameter. The game stops after the instruction at a breakpoint's
+ *  address runs, and the entry code binds one parameter an instruction, the
+ *  last first, so a stop at the function's first instruction showed its
+ *  last parameter alone (#1727). The function's start when its entry code
+ *  holds no `EnterBlock`. */
+const functionStop = (
+  root: ProgramRoot,
+  symbol: number,
+): number | undefined => {
+  const entry = root.functionEntry(symbol);
+  const chunk = entry?.sequence.arrays.chunks[entry.entry];
+  if (!entry || !chunk) {
+    return undefined;
+  }
+  const words = codeWords(chunk);
+  for (let offset = entry.offset; offset < words; offset += 2) {
+    if (opOf(chunk[HEADER_WORDS + offset]!) === Op.EnterBlock) {
+      return addressOf(chunkId(chunk), offset);
+    }
+  }
+  return addressOf(chunkId(chunk), entry.offset);
+};
+
+/** The address where a function breakpoint on the function `name` stops,
+ *  once the function has bound its parameters (`functionStop`), or nothing
+ *  when the program defines no such function. A function declared at the top level is found by its name; one
  *  written inside a statement (a `local function` in a function's body) has
  *  an anonymous symbol, and is found from where `declared` says its name is
  *  written (`SparkProgram.functionLocations`): a function's entry spans its
@@ -125,14 +150,14 @@ export const programFunctionAddress = (
   declared?: { uri: string; line: number; column: number },
 ): number | undefined => {
   const symbol = root.table.symbolIds.get(name);
-  const named = symbol === undefined ? undefined : functionStart(root, symbol);
+  const named = symbol === undefined ? undefined : functionStop(root, symbol);
   if (named !== undefined || !declared) {
     return named;
   }
   const { line, column } = declared;
   const before = (l1: number, c1: number, l2: number, c2: number) =>
     l1 < l2 || (l1 === l2 && c1 <= c2);
-  let found: { address: number; line: number; column: number } | undefined;
+  let found: { symbol: number; line: number; column: number } | undefined;
   const symbols = root.table.symbols.length;
   for (let s = 0; s < symbols; s += 1) {
     const address = functionStart(root, s);
@@ -152,10 +177,10 @@ export const programFunctionAddress = (
       !found ||
       !before(at.startLine, at.startColumn, found.line, found.column)
     ) {
-      found = { address, line: at.startLine, column: at.startColumn };
+      found = { symbol: s, line: at.startLine, column: at.startColumn };
     }
   }
-  return found?.address;
+  return found && functionStop(root, found.symbol);
 };
 
 /**
