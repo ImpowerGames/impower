@@ -77,7 +77,7 @@ function retainedBySimulation(beats: number) {
   } as any);
   const anyGame = game as any;
   game.setStartFrom({ file: URI, line: beats + 1 });
-  const to = anyGame.startAddress as string;
+  const to = anyGame.startAddress as number;
   const route = Game.planRoute(game.story, program as any, anyGame.routeStartOf(to), to);
   expect(route).toBeTruthy();
   const before = liveHeap();

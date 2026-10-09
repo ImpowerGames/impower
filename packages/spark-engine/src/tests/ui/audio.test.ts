@@ -39,7 +39,7 @@ function story(body: string) {
 async function runBeat(body: string) {
   const harness = createHarness(story(body));
   await harness.ready;
-  harness.jumpTo("start");
+  harness.jumpToFlow("start");
   harness.reset();
   const beat = harness.nextBeat();
   await harness.display(beat!, /* instant */ false);

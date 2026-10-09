@@ -71,7 +71,7 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
   test("[[open hud]] mounts hud (ui/create only after the directive)", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
     // hud is NOT mounted before the directive runs.
     expect(ui._mountedLayouts.has("hud")).toBe(false);
@@ -99,7 +99,7 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
   test("[[close hud]] destroys it (ui/destroy; its scope no longer refreshes)", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
 
     // Drive beats until hud is open (the [[open hud]] beat), then one more for
@@ -163,7 +163,7 @@ end
       { reactive: true, autoOpenAll: false },
     );
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     h.reset();
     // Non-instant display so the enter animation is emitted (ui/animate).
     const beat = h.nextBeat();
@@ -203,7 +203,7 @@ end
       { reactive: true, autoOpenAll: false },
     );
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     h.reset();
     const beat = h.nextBeat();
     expect(beat).toBeTruthy();
@@ -223,7 +223,7 @@ end
   test("a bare [[open hud]] beat (no clauses) carries no transition clauses", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     h.reset();
     const beat = h.nextBeat();
     const ev = Object.values(beat!.layout ?? {})[0]?.[0] as any;
@@ -284,7 +284,7 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
   test("parses as control=navigate, container=<first>, name=<after `to`>", async () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     await drive(h); // [[open hud]]
     await drive(h); // [[open pause]]
     await drive(h); // "Hello."
@@ -299,7 +299,7 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
   test("closes open screens in the container (except target), leaves others", async () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
 
     await drive(h); // [[open hud]]   (overlay container)
@@ -324,7 +324,7 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
   test("the mounted target records its container (for later navigates)", async () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
     await drive(h); // [[open hud]]
     await drive(h); // [[open pause]]
@@ -359,7 +359,7 @@ end
       { reactive: true, autoOpenAll: false },
     );
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
     await drive(h); // [[open pause]]
     expect(ui._mountedLayouts.has("pause")).toBe(true);
@@ -398,7 +398,7 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
   test("openLayout records the open set into serialized UIState (_state.layout)", async () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
     // Nothing recorded before any [[open]] (main auto-mounts but isn't recorded).
     expect(ui._state.layout ?? []).toEqual([]);
@@ -414,7 +414,7 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     // SOURCE: main + hud (no container). open hud, then close hud.
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
     await drive(h); // [[open hud]]
     expect(ui._state.layout).toEqual([{ name: "hud" }]);
@@ -426,7 +426,7 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
   test("navigate leaves the set as the destination (closed source dropped)", async () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
     await drive(h); // [[open hud]]
     await drive(h); // [[open pause]]
@@ -442,7 +442,7 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
   test("a checkpoint restore re-mounts the open screens (the scrub fix)", async () => {
     const h1 = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h1.ready;
-    h1.jumpTo("start");
+    h1.jumpToFlow("start");
     await drive(h1); // [[open hud]]
     await drive(h1); // [[open pause]]
     const ui1: any = h1.game.module.ui;
@@ -468,7 +468,7 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
   test("restore after navigate shows the destination, not the closed source", async () => {
     const h1 = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h1.ready;
-    h1.jumpTo("start");
+    h1.jumpToFlow("start");
     await drive(h1); // [[open hud]]
     await drive(h1); // [[open pause]]
     await drive(h1); // "Hello."
