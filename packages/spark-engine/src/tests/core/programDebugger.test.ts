@@ -10,6 +10,10 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
+import {
+  IntValue,
+  VariablePointerValue,
+} from "@impower/sparkdown/src/runtime/Value";
 import { Game } from "../../game/core/classes/Game";
 
 const MAIN = "file:///local/main.sd";
@@ -705,6 +709,51 @@ describe("the debugger on the program engine", () => {
         v.startsWith("n="),
       ),
     ).toMatch(/^n=[1-9]\d*$/);
+  });
+
+  // A self-recursive `local function` is lowered as a declaration of its
+  // name and an assignment of its closure, which is the declaration's
+  // initializer (#1720): it binds a new variable, so a data breakpoint on a
+  // variable of the same name declared before it does not stop there, and a
+  // later write to the name does.
+  it("does not fire a data breakpoint on a self-recursive local function's declaration, and fires on a later write", () => {
+    const text = [
+      "-> main", //                       0
+      "scene main", //                    1
+      "  Start.", //                      2
+      "  Got {outer()}.", //              3
+      "  done", //                        4
+      "end", //                           5
+      "function outer()", //              6
+      "  local f = 1", //                 7
+      "  local g = 2", //                 8
+      "  local function f(x)", //         9
+      "    if x > 0 then", //             10
+      "      return f(x - 1)", //         11
+      "    end", //                       12
+      "    return 0", //                  13
+      "  end", //                         14
+      "  local r = f(2)", //              15
+      "  f = 5", //                       16
+      "  return r", //                    17
+      "end", //                           18
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(8);
+    const set = h.game.setDataBreakpoints([{ dataId: "outer.f" }]);
+    expect(set[0]!.verified).toBe(true);
+    // Placed on the first write to the name, which the declaration's
+    // initializer is not.
+    expect(set[0]!.location?.range.start.line).toBe(16);
+    h.game.setBreakpoints([]);
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    expect(h.stoppedAt()).toBe(16);
+    expect(names(h.game.getTempVariables())).toContain("f=5");
   });
 
   // A closure's frame binds the variable it captured to the cell that
@@ -1489,5 +1538,103 @@ describe("the debugger on the program engine", () => {
     expect(names(own)).toEqual(['name="c"', "self={...}"]);
     const again = h.game.getChildVariables(own[1]!.variablesReference);
     expect(names(again)).toEqual(['name="c"', "self={...}"]);
+  });
+});
+
+// The Variables view shows what the frame selected in the Call Stack sees
+// (#1727).
+describe("the variables of a selected frame", () => {
+  // The function's entry code binds one parameter an instruction, the last
+  // first, and the game stops after the instruction at the breakpoint runs.
+  it("shows every parameter of a function where its breakpoint stops", () => {
+    const h = debugGame(NESTED);
+    h.game.setFunctionBreakpoints([{ name: "add" }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(18);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=2", "b=3"]);
+    // The caller's frame, selected below it, shows the caller's.
+    const caller = h.frames().stackFrames.find((f) => f.name === "main")!;
+    expect(names(h.game.getTempVariables(0, caller.id))).toEqual([
+      "mainLoc=111",
+    ]);
+  });
+
+  // A pointer is bound in a function's frame (a captured variable, or one
+  // passed by reference), and a thread forks only in a scene, so no script
+  // leaves one in a frame of a thread another thread suspended; the case
+  // binds it there, to read it as the Variables view would once the client
+  // selects that thread (#1667).
+  it("reads a temporary bound to a pointer in the frames of its own thread, not the running one's", () => {
+    const h = debugGame(
+      [
+        "-> main", //              0
+        "scene main", //           1
+        "  local n = 1", //        2
+        "  Before.", //            3
+        "  <- side", //            4
+        "  After {n}.", //         5
+        "  done", //               6
+        "end", //                  7
+        "scene side", //           8
+        "  In side.", //           9
+        "  done", //               10
+        "end", //                  11
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 9 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(9);
+    expect(h.game.getThreads()).toEqual([
+      { id: 0, name: "main" },
+      { id: 1, name: "side" },
+    ]);
+    const callStack = (h.game.story as unknown as ProgramStory).state
+      .callStack;
+    const suspended = callStack.ThreadWithIndex(0)!;
+    const running = callStack.currentThread;
+    expect(running.threadIndex).toBe(1);
+    // The fork runs with a copy of the frame, whose `n` it changed.
+    running.callstack[0]!.temporaryScopes[0]!.set("n", new IntValue(5));
+    const open = new VariablePointerValue("n", 1);
+    open.scopeIndex = 0;
+    const closed = new VariablePointerValue("n", 1);
+    closed.closedValue = new IntValue(7);
+    suspended.callstack[0]!.temporaryScopes[0]!.set("p", open);
+    suspended.callstack[0]!.temporaryScopes[0]!.set("q", closed);
+    expect(names(h.game.getTempVariables(0)).sort()).toEqual([
+      "n=1",
+      "p=1",
+      "q=7",
+    ]);
+    expect(names(h.game.getTempVariables(1))).toEqual(["n=5"]);
+    // With no thread named, the running thread's frame.
+    expect(names(h.game.getTempVariables())).toEqual(["n=5"]);
+  });
+
+  // The Vars scope shows the globals, and the Temps scope the temporaries:
+  // a temporary of a global's name is shown in the Temps alone.
+  it("shows a global in the Vars scope while a temporary of its name shadows it", () => {
+    const h = debugGame(
+      [
+        "store health = 100", //   0
+        "-> main", //              1
+        "scene main", //           2
+        "  local health = 10", //  3
+        "  First.", //             4
+        "  done", //               5
+        "end", //                  6
+        "",
+      ].join("\n"),
+    );
+    h.game.start();
+    expect(h.game.story.currentText).toBe("First.\n");
+    const vars = names(h.game.getVarVariables());
+    expect(vars.filter((v) => v.startsWith("health="))).toEqual([
+      "health=100",
+    ]);
+    expect(names(h.game.getTempVariables())).toEqual(["health=10"]);
   });
 });

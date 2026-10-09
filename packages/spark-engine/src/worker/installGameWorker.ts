@@ -464,9 +464,12 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        const { scope, variablesReference, value } = message.params;
+        const { scope, variablesReference, value, threadId, frameId } =
+          message.params;
         if (scope === "temps") {
-          const variables = game.getTempVariables();
+          // The frame the debugger selected, or the one that runs when the
+          // request names none.
+          const variables = game.getTempVariables(threadId, frameId);
           return { variables };
         }
         if (scope === "vars") {

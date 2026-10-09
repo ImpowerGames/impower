@@ -6,6 +6,7 @@ import { SymbolKind } from "@impower/sparkdown/src/program/ProgramSymbols";
 import {
   Op,
   SET_DECLARE,
+  SET_INITIALIZE,
   flagsOf,
   opOf,
 } from "@impower/sparkdown/src/program/ProgramInstructions";
@@ -18,6 +19,7 @@ import {
   blockFlags,
   chunkId,
   codeWords,
+  type ProgramChunk,
 } from "@impower/sparkdown/src/program/ProgramChunk";
 
 /**
@@ -110,12 +112,49 @@ const functionStart = (
   return entry && chunk ? addressOf(chunkId(chunk), entry.offset) : undefined;
 };
 
-/** The address where the function `name` starts, which is where a function
- *  breakpoint on it stops, or nothing when the program defines no such
- *  function. A function declared at the top level is found by its name; one
- *  written inside a statement (a `local function` in a function's body) has
- *  an anonymous symbol, and is found from where `declared` says its name is
- *  written (`SparkProgram.functionLocations`): a function's entry spans its
+/** The address where a function breakpoint on the function `symbol` stops:
+ *  the `EnterBlock` its entry code enters its body by, once it has bound
+ *  every parameter. The game stops after the instruction at a breakpoint's
+ *  address runs, and the entry code binds one parameter an instruction, the
+ *  last first, so a stop at the function's first instruction showed its
+ *  last parameter alone (#1727). The function's start when its entry code
+ *  holds no `EnterBlock`. */
+const functionStop = (
+  root: ProgramRoot,
+  symbol: number,
+): number | undefined => {
+  const entry = root.functionEntry(symbol);
+  const chunk = entry?.sequence.arrays.chunks[entry.entry];
+  if (!entry || !chunk) {
+    return undefined;
+  }
+  const enter = enterBlockOffset(chunk, entry.offset);
+  return addressOf(chunkId(chunk), enter ?? entry.offset);
+};
+
+/** The offset of the `EnterBlock` by which the entry code at `entryOffset`
+ *  in `chunk` enters its function's body: the first from that offset, after
+ *  the code that binds the parameters. Nothing when there is none. */
+const enterBlockOffset = (
+  chunk: ProgramChunk,
+  entryOffset: number,
+): number | undefined => {
+  const words = codeWords(chunk);
+  for (let offset = entryOffset; offset < words; offset += 2) {
+    if (opOf(chunk[HEADER_WORDS + offset]!) === Op.EnterBlock) {
+      return offset;
+    }
+  }
+  return undefined;
+};
+
+/** The address where a function breakpoint on the function `name` stops,
+ *  once the function has bound its parameters (`functionStop`), or nothing
+ *  when the program defines no such function. A function declared at the
+ *  top level is found by its name; one written inside a statement (a `local
+ *  function` in a function's body) has an anonymous symbol, and is found
+ *  from where `declared` says its name is written
+ *  (`SparkProgram.functionLocations`): a function's entry spans its
  *  declaration, so it is the innermost function whose entry holds that
  *  position, since the functions that enclose it, which can start on the
  *  same line, hold it too. */
@@ -125,14 +164,14 @@ export const programFunctionAddress = (
   declared?: { uri: string; line: number; column: number },
 ): number | undefined => {
   const symbol = root.table.symbolIds.get(name);
-  const named = symbol === undefined ? undefined : functionStart(root, symbol);
+  const named = symbol === undefined ? undefined : functionStop(root, symbol);
   if (named !== undefined || !declared) {
     return named;
   }
   const { line, column } = declared;
   const before = (l1: number, c1: number, l2: number, c2: number) =>
     l1 < l2 || (l1 === l2 && c1 <= c2);
-  let found: { address: number; line: number; column: number } | undefined;
+  let found: { symbol: number; line: number; column: number } | undefined;
   const symbols = root.table.symbols.length;
   for (let s = 0; s < symbols; s += 1) {
     const address = functionStart(root, s);
@@ -152,10 +191,10 @@ export const programFunctionAddress = (
       !found ||
       !before(at.startLine, at.startColumn, found.line, found.column)
     ) {
-      found = { address, line: at.startLine, column: at.startColumn };
+      found = { symbol: s, line: at.startLine, column: at.startColumn };
     }
   }
-  return found?.address;
+  return found && functionStop(root, found.symbol);
 };
 
 /**
@@ -216,8 +255,8 @@ export const scopeSequences = (
   return [...out.values()];
 };
 
-/** The body a function's entry code enters: the block of the first
- *  `EnterBlock` from the entry's offset. */
+/** The body a function's entry code enters: the block of its `EnterBlock`
+ *  (`enterBlockOffset`). */
 const functionBody = (
   root: ProgramRoot,
   entry: { sequence: SequenceRow; entry: number; offset: number },
@@ -226,20 +265,16 @@ const functionBody = (
   if (!chunk) {
     return undefined;
   }
-  const words = codeWords(chunk);
-  for (let offset = entry.offset; offset < words; offset += 2) {
-    const w0 = chunk[HEADER_WORDS + offset]!;
-    if (opOf(w0) === Op.EnterBlock) {
-      return root.body(chunk, chunk[HEADER_WORDS + offset + 1]!);
-    }
-  }
-  return undefined;
+  const enter = enterBlockOffset(chunk, entry.offset);
+  return enter === undefined
+    ? undefined
+    : root.body(chunk, chunk[HEADER_WORDS + enter + 1]!);
 };
 
 /**
  * The `SetVar` instructions that write a name a data breakpoint names, which
  * place the breakpoint in the source: those that assign it and those that
- * declare it. A data id names a global by its name, and a temporary as the
+ * declare it, with a declaration's initializer. A data id names a global by its name, and a temporary as the
  * debugger's variables view names it, by the name of the frame it is a
  * temporary of (`scopeSequences`), a dot and its own name. The instructions
  * are matched by name alone, so for a global they include the writes of a
@@ -270,7 +305,8 @@ export const programAssignmentAddresses = (
           root.table.strings[chunk[HEADER_WORDS + offset + 1]!] === name
         ) {
           const address = addressOf(chunkId(chunk), offset);
-          if (flagsOf(w0) & SET_DECLARE) {
+          // A declaration's initializer is part of the declaration (#1720).
+          if (flagsOf(w0) & (SET_DECLARE | SET_INITIALIZE)) {
             declarations.push(address);
           } else {
             assignments.push(address);

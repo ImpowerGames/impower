@@ -646,6 +646,10 @@
   "fallback": null,
   "diagnostics": []
  },
+ "sequences/inline-glued-plain-shuffle.sd": {
+  "fallback": null,
+  "diagnostics": []
+ },
  "sequences/inline-glued-plural-french.sd": {
   "fallback": null,
   "diagnostics": []

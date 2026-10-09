@@ -99,9 +99,22 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _connection: Connection;
 
-  private _variableHandles = new Handles<
-    "temps" | "vars" | "lists" | "defines"
-  >(-3);
+  /** What a scope's handle names: the scope, and for the Temps the thread
+   *  and the frame, as the engine numbers them, whose temporaries it shows
+   *  (#1727). */
+  private _variableHandles = new Handles<{
+    scope: "temps" | "vars" | "lists" | "defines";
+    threadId?: number;
+    frameId?: number;
+  }>(-3);
+
+  /** The engine's thread and frame of each frame id given to the client.
+   *  The engine numbers each thread's frames from 0, so frames of two
+   *  threads share a number, and the protocol requires a frame's id to be
+   *  unique across threads: each (thread, frame) pair keeps the id it was
+   *  first given. */
+  private _frames = new Map<number, { threadId: number; frameId: number }>();
+  private _frameIds = new Map<string, number>();
 
   private _valuesInHex = false;
   private _useInvalidatedEvent = false;
@@ -789,6 +802,7 @@ export class SparkDebugSession extends LoggingDebugSession {
                 stackFrame.location.range.end.character,
               ),
             };
+      clientStackFrame.id = this.clientFrameId(args.threadId, stackFrame.id);
       clientStackFrames.push(clientStackFrame);
     }
     response.body = {
@@ -798,17 +812,45 @@ export class SparkDebugSession extends LoggingDebugSession {
     this.sendResponse(response);
   }
 
+  /** The id the client knows the engine's frame `frameId` of thread
+   *  `threadId` by. */
+  protected clientFrameId(threadId: number, frameId: number): number {
+    const key = `${threadId}:${frameId}`;
+    let id = this._frameIds.get(key);
+    if (id === undefined) {
+      id = this._frameIds.size + 1;
+      this._frameIds.set(key, id);
+      this._frames.set(id, { threadId, frameId });
+    }
+    return id;
+  }
+
   protected override scopesRequest(
     response: DebugProtocol.ScopesResponse,
-    _args: DebugProtocol.ScopesArguments,
+    args: DebugProtocol.ScopesArguments,
   ): void {
     // console.log("scopesRequest", args);
+    // The Temps are those of the frame selected in the Call Stack. A frame
+    // id this session never gave reads the frame that runs.
+    const frame = this._frames.get(args.frameId);
     response.body = {
       scopes: [
-        new Scope("Temps", this._variableHandles.create("temps"), false),
-        new Scope("Vars", this._variableHandles.create("vars"), false),
-        new Scope("Lists", this._variableHandles.create("lists"), false),
-        new Scope("Defines", this._variableHandles.create("defines"), true),
+        new Scope(
+          "Temps",
+          this._variableHandles.create({ scope: "temps", ...frame }),
+          false,
+        ),
+        new Scope("Vars", this._variableHandles.create({ scope: "vars" }), false),
+        new Scope(
+          "Lists",
+          this._variableHandles.create({ scope: "lists" }),
+          false,
+        ),
+        new Scope(
+          "Defines",
+          this._variableHandles.create({ scope: "defines" }),
+          true,
+        ),
       ],
     };
     this.sendResponse(response);
@@ -823,11 +865,14 @@ export class SparkDebugSession extends LoggingDebugSession {
 
     let vars: Variable[] = [];
 
-    const scope = this._variableHandles.get(args.variablesReference);
+    const handle = this._variableHandles.get(args.variablesReference);
+    const scope = handle?.scope;
     if (scope === "temps") {
       const { variables } = await this._connection.emit(
         GetGameVariablesMessage.type.request({
           scope: "temps",
+          threadId: handle?.threadId,
+          frameId: handle?.frameId,
         }),
       );
       vars = variables;
@@ -931,11 +976,15 @@ export class SparkDebugSession extends LoggingDebugSession {
     // NOTE: we currently don't support "read" or "readWrite" breakpoints
 
     if (args.variablesReference && args.name) {
-      const scope = this._variableHandles.get(args.variablesReference);
+      const handle = this._variableHandles.get(args.variablesReference);
+      const scope = handle?.scope;
       if (scope === "temps") {
+        // The temporary of the frame the Variables view shows.
         const { variables } = await this._connection.emit(
           GetGameVariablesMessage.type.request({
             scope: "temps",
+            threadId: handle?.threadId,
+            frameId: handle?.frameId,
           }),
         );
         const variable = variables.find((v) => v.name === args.name);
