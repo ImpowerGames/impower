@@ -13,6 +13,7 @@ import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { chunkOfAddress, offsetOfAddress } from "../../program/ProgramChunk";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { compileScript, programSession } from "../program/programHarness";
 
 const URI = "inmemory:///main.sd";
 
@@ -101,6 +102,30 @@ describe("a tag written after a line's text", () => {
     const story = new ProgramStory(root);
     story.ChooseAddress(last);
     expect(beats(story)[0]).toEqual(["You see a door\n", ["t"]]);
+  });
+
+  // An edit that writes the tag against the text, or moves it off, is
+  // compiled again from the edited window, and gives the same beats as a cold
+  // compile of the edited script.
+  test("is the beat's own after an edit that writes it, as on a cold compile", () => {
+    const session = programSession("You see a door\nAfter.\n");
+    for (const [before, after, tags] of [
+      ["door", "door# t", ["t"]],
+      ["door# t", "door # t", ["t"]],
+      [" # t", "# t", ["t"]],
+      ["# t", "", []],
+    ] as const) {
+      const root = session.edit(before, after);
+      const expected = [
+        ["You see a door\n", [...tags]],
+        ["After.\n", []],
+      ];
+      expect(beats(new ProgramStory(root)), session.text).toEqual(expected);
+      const { program } = compileScript(session.text);
+      expect(beats(new ProgramStory(program.chunks!)), session.text).toEqual(
+        expected,
+      );
+    }
   });
 
   test("leaves a continuation one statement, whose last address is its first", () => {
