@@ -32,6 +32,8 @@ For baseline comparison, compare the Test Suite workflow's package results on th
 
 ## Single-file and reproduction runs
 
+The command form is `node scripts/test-suite.mjs run <package-dir> <test-file> [<test-file> ...] --wait <seconds>`. `<package-dir>` is the package directory, such as `packages/sparkdown`, rather than its workspace name. Both `run` and `start` require an existing directory containing a `package.json` file and refuse invalid paths before queue admission.
+
 A sandboxed reviewer whose process census or reservation write is denied can request caller-approved test files through the launcher's [delegated execution service](../../review-pr/HANDOFF.md#delegated-tests-and-benchmarks). The coordinator runs this same `run` command outside the reviewer sandbox, retaining the census, reservation and caps. Inspect its returned output and exit result. Merely reading an absent reservation file is not admission; direct unlocked execution remains unsupported.
 
 Run the test files under work with `run`, naming one or more; it refuses a call with none and a call naming more than eight, with no override, and the package result comes from the Test Suite workflow above. "Under work" means the test file you added or changed and the one or two existing files that exercise the same code; a longer list of existing files is a package run spelled out, and enumerating them does not make it local work. Test paths are relative to the package directory:
