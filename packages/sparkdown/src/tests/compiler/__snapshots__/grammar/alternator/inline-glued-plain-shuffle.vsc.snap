@@ -1,4 +1,4 @@
-text.source.sparkdown [0..161]
+text.source.sparkdown [0..197]
  ├─ string.display.text.chunk.sd [0..1]
  │   └─ markup.raw.text.sd [0..1]: "x"
  ├─ punctuation.whitespace.sd [1..2]: " "
@@ -87,4 +87,32 @@ text.source.sparkdown [0..161]
  │   ├─ markup.raw.text.sd [147..149]: "an"
  │   ├─ markup.raw.space.sd [149..150]: " "
  │   └─ markup.raw.text.sd [150..160]: "alternator"
- └─ Newline [160..161]: "\n"
+ ├─ Newline [160..161]: "\n"
+ ├─ string.display.text.chunk.sd [161..180]
+ │   ├─ markup.raw.text.sd [161..162]: "x"
+ │   ├─ markup.raw.space.sd [162..163]: " "
+ │   ├─ markup.raw.punctuation.sd [163..164]: "."
+ │   ├─ markup.raw.punctuation.sd [164..165]: "."
+ │   ├─ markup.raw.space.sd [165..166]: " "
+ │   ├─ markup.raw.text.sd [166..173]: "shuffle"
+ │   ├─ markup.raw.punctuation.sd [173..174]: ","
+ │   ├─ markup.raw.text.sd [174..175]: "a"
+ │   ├─ markup.raw.punctuation.sd [175..176]: ","
+ │   ├─ markup.raw.text.sd [176..177]: "b"
+ │   └─ meta.glue.sd [177..180]
+ │       ├─ punctuation.whitespace.sd [177..178]: " "
+ │       └─ keyword.other.glue.sd [178..180]: ".."
+ ├─ Newline [180..181]: "\n"
+ ├─ string.display.text.chunk.sd [181..196]
+ │   ├─ markup.raw.text.sd [181..182]: "x"
+ │   ├─ markup.raw.space.sd [182..183]: " "
+ │   ├─ markup.raw.punctuation.sd [183..184]: "."
+ │   ├─ markup.raw.punctuation.sd [184..185]: "."
+ │   ├─ markup.raw.space.sd [185..186]: " "
+ │   ├─ markup.raw.text.sd [186..191]: "queue"
+ │   ├─ markup.raw.punctuation.sd [191..192]: ","
+ │   ├─ markup.raw.text.sd [192..193]: "a"
+ │   └─ meta.glue.sd [193..196]
+ │       ├─ punctuation.whitespace.sd [193..194]: " "
+ │       └─ keyword.other.glue.sd [194..196]: ".."
+ └─ Newline [196..197]: "\n"

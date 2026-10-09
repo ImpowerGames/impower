@@ -1,4 +1,4 @@
-sparkdown [0..161]
+sparkdown [0..197]
  ├─ ImplicitAction [0..21]
  │   ├─ ImplicitAction_begin 0
  │   │   └─ ImplicitAction_begin_c1 0
@@ -258,4 +258,64 @@ sparkdown [0..161]
  │   │       │       └─ TextChunk_end 160
  │   │       └─ ActionLineEnd_end 160
  │   └─ ImplicitAction_end 160
- └─ Newline [160..161]: "\n"
+ ├─ Newline [160..161]: "\n"
+ ├─ ImplicitAction [161..180]
+ │   ├─ ImplicitAction_begin 161
+ │   │   └─ ImplicitAction_begin_c1 161
+ │   │       └─ OptionalWhitespace 161
+ │   ├─ ImplicitAction_content [161..180]
+ │   │   └─ ActionLineEnd [161..180]
+ │   │       ├─ ActionLineEnd_begin 161
+ │   │       │   └─ ActionLineEnd_begin_c1 161
+ │   │       │       └─ OptionalWhitespace 161
+ │   │       ├─ ActionLineEnd_content [161..180]
+ │   │       │   └─ TextChunk [161..180]
+ │   │       │       ├─ TextChunk_begin 161
+ │   │       │       ├─ TextChunk_content [161..180]
+ │   │       │       │   ├─ Word [161..162]: "x"
+ │   │       │       │   ├─ Space [162..163]: " "
+ │   │       │       │   ├─ Punctuation [163..164]: "."
+ │   │       │       │   ├─ Punctuation [164..165]: "."
+ │   │       │       │   ├─ Space [165..166]: " "
+ │   │       │       │   ├─ Word [166..173]: "shuffle"
+ │   │       │       │   ├─ Punctuation [173..174]: ","
+ │   │       │       │   ├─ Word [174..175]: "a"
+ │   │       │       │   ├─ Punctuation [175..176]: ","
+ │   │       │       │   ├─ Word [176..177]: "b"
+ │   │       │       │   └─ Glue [177..180]
+ │   │       │       │       ├─ Glue_c1 [177..178]
+ │   │       │       │       │   └─ Whitespace [177..178]: " "
+ │   │       │       │       └─ Glue_c2 [178..180]: ".."
+ │   │       │       └─ TextChunk_end 180
+ │   │       └─ ActionLineEnd_end 180
+ │   └─ ImplicitAction_end 180
+ ├─ Newline [180..181]: "\n"
+ ├─ ImplicitAction [181..196]
+ │   ├─ ImplicitAction_begin 181
+ │   │   └─ ImplicitAction_begin_c1 181
+ │   │       └─ OptionalWhitespace 181
+ │   ├─ ImplicitAction_content [181..196]
+ │   │   └─ ActionLineEnd [181..196]
+ │   │       ├─ ActionLineEnd_begin 181
+ │   │       │   └─ ActionLineEnd_begin_c1 181
+ │   │       │       └─ OptionalWhitespace 181
+ │   │       ├─ ActionLineEnd_content [181..196]
+ │   │       │   └─ TextChunk [181..196]
+ │   │       │       ├─ TextChunk_begin 181
+ │   │       │       ├─ TextChunk_content [181..196]
+ │   │       │       │   ├─ Word [181..182]: "x"
+ │   │       │       │   ├─ Space [182..183]: " "
+ │   │       │       │   ├─ Punctuation [183..184]: "."
+ │   │       │       │   ├─ Punctuation [184..185]: "."
+ │   │       │       │   ├─ Space [185..186]: " "
+ │   │       │       │   ├─ Word [186..191]: "queue"
+ │   │       │       │   ├─ Punctuation [191..192]: ","
+ │   │       │       │   ├─ Word [192..193]: "a"
+ │   │       │       │   └─ Glue [193..196]
+ │   │       │       │       ├─ Glue_c1 [193..194]
+ │   │       │       │       │   └─ Whitespace [193..194]: " "
+ │   │       │       │       └─ Glue_c2 [194..196]: ".."
+ │   │       │       └─ TextChunk_end 196
+ │   │       └─ ActionLineEnd_end 196
+ │   └─ ImplicitAction_end 196
+ └─ Newline [196..197]: "\n"
