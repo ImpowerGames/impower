@@ -489,7 +489,8 @@ end
     // TypeInfer.test.cpp:700 TEST_CASE_FIXTURE(BuiltinsFixture, "invalide_deprecated_attribute_doesn't_chrash_checker")
     name: "invalide_deprecated_attribute_doesn't_chrash_checker",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 921 }, // an attribute written @[...]
+    // #921 also covers valid attributes; this exact invalid argument is rejected by pinned Luau.
+    malformed: "Only literals can be passed as arguments for attributes; Only constant string allowed as value for 'reason'",
     source: `
 @[deprecated{ reason = reasonString }]
 function hello(x: number, y: number): number
@@ -1029,7 +1030,6 @@ end
   },
   {
     // TypeInfer.test.cpp:1339 TEST_CASE_FIXTURE(Fixture, "bidirectional_checking_of_higher_order_function")
-    // Upstream also checks that the error ends on line 4.
     name: "bidirectional_checking_of_higher_order_function",
     fixture: "Fixture",
     source: `
@@ -1039,7 +1039,7 @@ end
             local e: string = n -- error here.  n /: string
         end)
     `,
-    expect: [{ errors: 1 }, { error: 0, line: 4 }],
+    expect: [{ errors: 1 }, { error: 0, line: 4, endLine: 4 }],
   },
   {
     // TypeInfer.test.cpp:1356 TEST_CASE_FIXTURE(BuiltinsFixture, "it_is_ok_to_have_inconsistent_number_of_return_values_in_nonstrict")
@@ -1910,7 +1910,12 @@ end
     // TypeInfer.test.cpp:2299 TEST_CASE_FIXTURE(Fixture, "self_bound_due_to_compound_assign")
     name: "self_bound_due_to_compound_assign",
     fixture: "Fixture",
-    skip: { notApplicable: "declares extern types, which a Luau host defines in C++ or a definition file; Sparkdown has neither" },
+    definitions: [`
+        declare extern type Camera with
+            CameraType: string
+            CFrame: number
+        end
+    `],
     source: `
         --!strict
         function MT_UPDATE(CAMERA: Camera, Enum: any, totalOffsets: number, focusToCFrame: number, magnitude: number)
@@ -2160,7 +2165,6 @@ end then _._G else ...
     name: "standalone_constraint_solving_incomplete_is_hidden",
     fixture: "Fixture",
     flags: { DebugLuauMagicTypes: true, DebugLuauAlwaysShowConstraintSolvingIncomplete: false },
-    skip: { notApplicable: "uses the debug-only magic type _luau_force_constraint_solving_incomplete (DebugLuauMagicTypes), which forces an internal solver error" },
     source: `
         local function _f(_x: _luau_force_constraint_solving_incomplete) end
     `,
@@ -2171,7 +2175,6 @@ end then _._G else ...
     name: "non_standalone_constraint_solving_incomplete_is_hidden",
     fixture: "Fixture",
     flags: { DebugLuauMagicTypes: true },
-    skip: { notApplicable: "uses the debug-only magic type _luau_force_constraint_solving_incomplete (DebugLuauMagicTypes), which forces an internal solver error" },
     source: `
         local function _f(_x: _luau_force_constraint_solving_incomplete) end
         local x: number = true
@@ -2188,7 +2191,8 @@ end then _._G else ...
     fixture: "BuiltinsFixture",
     checks: [
       {
-        unparsed: { defect: 879 }, // a call to require
+        // Calls to require also depend on #879; check 1 retains that separate blocker.
+        malformed: "Expected 'else' when parsing if then else expression, got ')'",
         source: `
 local _ = {[0]=_,}
 while _ do
