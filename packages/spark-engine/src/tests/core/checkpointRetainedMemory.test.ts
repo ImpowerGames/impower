@@ -167,7 +167,7 @@ describe("a checkpoint's runtime collections are its beat's", () => {
     }
   });
 
-  test("a resumption from a truncated store continues the chain it kept", () => {
+  test("a resumption from a truncated store keeps the checkpoints before it and starts a chain with the loaded record", () => {
     const { live, store, expected, capture, runtimeOf } = imageStore();
     for (let n = 0; n < 33; n += 1) {
       runBeat(live.state, n);
@@ -180,6 +180,9 @@ describe("a checkpoint's runtime collections are its beat's", () => {
       runBeat(live.state, n + 100);
       capture();
     }
+    // The loaded record replaced the one the store drained, so the first
+    // checkpoint after it holds it whole (#1701).
+    expect((store as any)._entries[25].chainStart).toBe(true);
     for (let i = 0; i < store.length; i += 1) {
       expect(runtimeOf(i)).toBe(expected[i]);
     }
