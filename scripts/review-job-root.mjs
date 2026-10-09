@@ -57,3 +57,17 @@ export function assertInsideJobRoot(entries, root, where) {
   const outside = entries.filter(([, p]) => typeof p !== "string" || !isInsideJobRoot(p, root));
   if (outside.length) throw new Error(`Review job paths must lie under ${root} (${where}): ${outside.map(([label, p]) => `${label} ${p}`).join("; ")}`);
 }
+
+// Resolve the existing readable directory without creating it or disturbing
+// permitted pre-launch artifacts. Containment remains the caller's check.
+export function assertReviewerDirectory(directory) {
+  let resolved;
+  try {
+    resolved = fs.realpathSync.native(directory);
+    if (!fs.statSync(resolved).isDirectory()) throw new Error("not a directory");
+    fs.readdirSync(resolved);
+  } catch (error) {
+    throw new Error(`Reviewer directory ${directory} must be an existing readable directory; create a fresh empty directory before building the prompt or launching (${error.message})`);
+  }
+  return resolved;
+}

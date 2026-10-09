@@ -2,13 +2,20 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import fs from "node:fs";
 import { buildReviewPrompt } from "./build-review-prompt.mjs";
-import { reviewJobRoot } from "./review-job-root.mjs";
+import { testScratch } from "./review-job-root.mjs";
 
-// Paths under the real job root are only named, never created: containment
-// resolves a path that does not exist through its nearest existing ancestor.
-const round = path.join(reviewJobRoot(process.cwd()), "pr-521", "round-1");
+const scratch = testScratch("review-prompt", process.cwd());
+console.log(`Review prompt fixtures: ${scratch}`);
+const round = path.join(scratch, "pr-521", "round-1");
+fs.mkdirSync(path.join(round, "reviewer-a-1"), { recursive: true });
+fs.writeFileSync(path.join(round, "diff.patch"), "diff --git a/caf\u00e9 b/caf\u00e9\n+\u2728\n");
 const context = { writer: "writer-1", reviewer: "reviewer-2", invocation: "fresh CLI process with explicit model arguments", issue: 496, pr: 521, round: 1, head: "a".repeat(40), worktree: process.cwd(), diff: path.join(round, "diff.patch"), reviewDir: path.join(round, "reviewer-a-1"), lens: "undirected", previous: "First round.", task: "Authors can blink a portrait's eyes." };
 const prompt = buildReviewPrompt(context);
+const linkedOut = path.join(round, "unsafe-reviewer");
+fs.symlinkSync(process.cwd(), linkedOut, "junction");
+assert.throws(() => buildReviewPrompt({ ...context, reviewDir: linkedOut }), /Review job paths must lie under .*reviewDir .*unsafe-reviewer/);
+assert.throws(() => buildReviewPrompt({ ...context, diff: path.join(linkedOut, "AGENTS.md") }), /Review job paths must lie under .*diff .*unsafe-reviewer/);
+assert.equal(fs.existsSync(path.join(process.cwd(), "AGENTS.md")), true, "unsafe-path refusal preserves its external target");
 // The diff and reviewer directory reach a reviewer only through the prompt, so
 // the builder refuses them outside the job root, naming each.
 assert.throws(() => buildReviewPrompt({ ...context, diff: path.resolve("diff.patch") }), (error) => /Review job paths must lie under .*: diff /.test(error.message) && !/reviewDir/.test(error.message));
@@ -47,10 +54,38 @@ for (const [key, value] of [["writer", "writer-model"], ["reviewer", "reviewer-m
 for (const invocation of ["method: TBD", "see <method>", "Invocation: UNKNOWN."]) assert.throws(() => buildReviewPrompt({ ...context, invocation }), /nonconcrete/);
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, invocation: "Fresh CLI process; the prior report quoted 'method: TBD' as invalid." }));
 const literal = "Quoted #P #N P /P/ HEAD <LENS> \\<LENS\\> $& $$ $` $'";
+fs.mkdirSync(path.join(round, "folder P"));
+fs.writeFileSync(path.join(round, "folder P", "HEAD.patch"), "diff --git a/P b/P\n");
 const literalPrompt = buildReviewPrompt({ ...context, previous: literal, lens: literal, task: literal, diff: path.join(round, "folder P", "HEAD.patch") });
 assert.ok(literalPrompt.includes("is: " + literal + "."), "task tokens and dollar patterns must remain literal");
 assert.ok(literalPrompt.includes(literal + " Record your complete independent first pass"), "previous evidence must remain literal");
 assert.ok(literalPrompt.includes("Your lens is " + literal + ";"), "lens dollar patterns and tokens must remain literal");
 assert.ok(literalPrompt.includes(path.join(round, "folder P", "HEAD.patch")), "paths must remain literal");
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, writer: "o3", reviewer: "provider/model-2" }), "route validation must not assume one naming family");
+
+// Inputs fail on the foreground builder command, before a detached launcher.
+const failures = [];
+const refuses = (label, changed, expected) => {
+  try { assert.throws(() => buildReviewPrompt({ ...context, ...changed }), expected, label); }
+  catch (error) { failures.push(`${label}: ${error.message}`); }
+};
+refuses("missing reviewer directory", { reviewDir: path.join(round, "missing-reviewer") }, /Reviewer directory.*missing-reviewer.*create.*empty/i);
+const nonempty = path.join(round, "nonempty-reviewer");
+fs.mkdirSync(nonempty);
+fs.writeFileSync(path.join(nonempty, "prior-report.md"), "preserve this report");
+assert.doesNotThrow(() => buildReviewPrompt({ ...context, reviewDir: nonempty }), "supported pre-launch artifacts must be preserved");
+refuses("reviewer path is a file", { reviewDir: context.diff }, /Reviewer directory.*diff\.patch.*directory/i);
+refuses("missing diff", { diff: path.join(round, "missing.patch") }, /diff.*missing\.patch.*read/i);
+for (const [name, bytes] of [
+  ["utf16le", Buffer.from([255, 254, 100, 0, 105, 0])],
+  ["utf16be", Buffer.from([254, 255, 0, 100, 0, 105])],
+  ["invalid-utf8", Buffer.from([100, 105, 255, 102])],
+]) {
+  const diff = path.join(round, `${name}.patch`);
+  fs.writeFileSync(diff, bytes);
+  refuses(name, { diff }, /diff.*UTF-8.*git diff.*--output/i);
+}
+assert.equal(fs.readFileSync(path.join(nonempty, "prior-report.md"), "utf8"), "preserve this report");
+assert.equal(fs.existsSync(path.join(round, "missing-reviewer")), false, "a refusal must not create the requested directory");
+assert.deepEqual(failures, [], "every invalid review input must be refused");
 console.log("PASS: concrete review inputs, missing/placeholder rejection, identity comparison and safe prompt substitution");

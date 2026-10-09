@@ -20,7 +20,7 @@ mkdir -p "$JOB"
 Capture the diff once per reviewed head, so reviewers of one head see the same artifact and a reviewer launched after corrections sees the corrected change:
 
 ```bash
-git diff origin/main...HEAD > "$JOB/review-diff-$(git rev-parse --short HEAD).patch"
+git diff origin/main...HEAD --output="$JOB/review-diff-$(git rev-parse --short HEAD).patch"
 ```
 
 (`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.)
@@ -28,12 +28,14 @@ git diff origin/main...HEAD > "$JOB/review-diff-$(git rev-parse --short HEAD).pa
 If the change regenerates a large snapshot or other generated file, exclude it from the patch by path and tell the reviewers the command to inspect it separately; a multi-megabyte patch file wastes a reviewer's context before it reads a line of the actual change (one session's patch came out at 2.6 MB for this reason):
 
 ```bash
-git diff origin/main...HEAD -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap' > "$JOB/review-diff-$(git rev-parse --short HEAD).patch"
+git diff origin/main...HEAD --output="$JOB/review-diff-$(git rev-parse --short HEAD).patch" -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap'
 ```
 
 Never write it into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs, long enough to trip any hook or check that expects a clean tree. Give reviewers the absolute path.
 
 Give each reviewer a subdirectory of `$JOB` that is its own and starts empty. Two reviewers sharing a directory pick up and repoint each other's probe files; one did, found the other's findings in its own file, and had to re-verify everything under fresh names. The [reviewer prompt](reviewer-prompt.md) gives each reviewer that path as REVDIR (`$JOB/reviewer-<reviewer-id>-<attempt>/`, `<attempt>` starting at 1); relaunching a reviewer that died is the same round and the same reviewer, so the relaunch increments `<attempt>` rather than reusing the dead reviewer's directory. The reviewer-id is a stable short assignment label, distinct from the model route; one assignment may combine several lenses.
+
+Create REVDIR before building its prompt. Put the journal in a sibling state directory, `$JOB/launch-<reviewer-id>-<attempt>/journal.jsonl`. The journal's entire parent directory is supervisor state and must neither contain nor be contained by REVDIR, after physical path resolution. For example, create `$JOB/reviewer-a-1/` and `$JOB/launch-a-1/`, initially leave the former empty, and author the plan and prompt in the latter. Initial allocation starts empty; supported supervisor-authored pre-launch artifacts may subsequently occupy REVDIR and remain preserved by the launcher's cleanup snapshot. A final report still needs a fresh path. The builder refuses a missing or unreadable reviewer directory and an unreadable or non-UTF-8 diff; native launch preflight checks the directory again and names any supervisor-state conflict. Git's `--output` writes the patch directly without shell redirection changing the encoding.
 
 Start every local CLI reviewer through the [handoff launcher](../HANDOFF.md); its atomic shared reservation enforces a machine-wide limit of eight participating reviewer processes until confirmed process exit. The launcher runs one reviewer at a time per worktree under its coordinator lock, including a three-reviewer round. The shared ceiling coordinates reviewers in other worktrees. Record the serial reviewer order and assigned lenses in the round state. A posted comment or completion file does not release a slot. Native or remote agent tasks are unsupported for this enforced workflow because the launcher cannot reserve and verify their process lifetime. An unaccountable native or remote review launch blocks the machine-wide capacity guarantee; do not substitute manual counts or claim it is covered by the reservation. Do not launch a local CLI reviewer directly to bypass an occupied or inaccessible slot store.
 
