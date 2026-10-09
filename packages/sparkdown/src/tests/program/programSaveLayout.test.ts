@@ -649,6 +649,117 @@ describe("a save inside a scene entered by a divert", () => {
     expect(bindings(next)).toEqual({ a: 10, b: 20 });
     expect(play(next)).toEqual(["First 10 20.", "Second 10 20."]);
   });
+
+  // The save of `text` at the beat that showed `line`.
+  const saveAt = (text: string, line: string): string => {
+    const story = new ProgramStory(rootOf(text), { saveHistory: 1 });
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    while (story.canContinue && shown(story) !== line) story.Continue();
+    expect(shown(story)).toBe(line);
+    return story.toSave();
+  };
+
+  // Round 1 of the review of #1730 (report 6083306813, finding 1): a scene
+  // whose entry goes on to its first branch binds its parameters in the
+  // frame that runs the branch.
+  it("inside the first branch of a scene whose parameters changed restarts the scene, which enters the branch again", () => {
+    const OUTER = (params: string) =>
+      [
+        "-> outer(10, 20)",
+        "",
+        `scene outer(${params})`,
+        "  branch inner",
+        "    First {a} {b}.",
+        "    Second {a} {b}.",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(OUTER("a, b"), "First 10 20.");
+    const level = JSON.parse(save).beats.at(-1).position.st.levels[0];
+    expect(level.flow).toBe("outer.inner");
+    expect(level.scene.params).toEqual(["a", "b"]);
+    const same = engine(rootOf(OUTER("a, b")));
+    same.loadSave(save);
+    expect(same.loadedSaveReport!.exact).toBe(true);
+    expect(play(same)).toEqual(["Second 10 20."]);
+    const loaded = engine(rootOf(OUTER("b, a")));
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(false);
+    expect(report.warnings.join(" ")).toMatch(/'outer' resumes at its start/);
+    expect(bindings(loaded)).toEqual({ a: 10, b: 20 });
+    expect(play(loaded)).toEqual(["First 10 20.", "Second 10 20."]);
+    // Within a session: an edit to the scene's header alone keeps the
+    // branch's chunks, and the checkpoint still restarts the scene.
+    const session = programSession(OUTER("a, b"));
+    const game = engine(session.root);
+    while (shown(game) !== "First 10 20.") game.Continue();
+    const checkpoint = game.captureBeat();
+    const edited = session.edit("scene outer(a, b)", "scene outer(b, a)");
+    const next = new ProgramStory(edited, { images: game.images, history: game.history });
+    next.keepBeatImages = true;
+    next.onError = () => {};
+    expect(next.restore(checkpoint)).toBe(true);
+    expect(play(next)).toEqual(["First 10 20.", "Second 10 20."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6083306813, finding 1): a jump
+  // to a label of a scene passes its entry, which binds nothing in the
+  // frame.
+  it("at a label a frame jumped to, past the scene's entry, loads in place when the scene's parameters changed", () => {
+    const LABEL = (params: string) =>
+      [
+        "-> start",
+        "",
+        "scene start",
+        "  -> s.middle",
+        "end",
+        "",
+        `scene s(${params})`,
+        "  Skipped.",
+        "  label middle",
+        "  Middle.",
+        "  After.",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(LABEL("a, b"), "Middle.");
+    const loaded = engine(rootOf(LABEL("b, a")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["After."]);
+  });
+
+  // Round 1 of the review of #1730 (report 6083306813, finding 2): a new
+  // parameter's name the frame already binds, in a local a closure captured.
+  it("closes a captured local that a new parameter of the same name replaces, so the closure keeps its value", () => {
+    const CAPTURE = (params: string) =>
+      [
+        "store keep = nil",
+        "",
+        "-> start",
+        "",
+        "scene start",
+        "  & local c = 30",
+        "  & keep = function() return c end",
+        "  -> s(10)",
+        "end",
+        "",
+        `scene s(${params})`,
+        "  First {a} {keep()}.",
+        "  Second {a} {keep()}.",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(CAPTURE("a"), "First 10 30.");
+    const loaded = engine(rootOf(CAPTURE("a, c")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(bindings(loaded)).toEqual({ a: 10, c: null });
+    expect(play(loaded)).toEqual(["First 10 30.", "Second 10 30."]);
+  });
 });
 
 // #1728: a scene entered by a thread binds its parameters in the forked

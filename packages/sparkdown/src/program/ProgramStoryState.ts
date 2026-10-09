@@ -23,7 +23,12 @@ import {
   splitHeadTailWhitespace,
 } from "../runtime/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
-import { UNDEFINED_KIND, countIdOf, isAnonymousSymbol } from "./ProgramSymbols";
+import {
+  SymbolKind,
+  UNDEFINED_KIND,
+  countIdOf,
+  isAnonymousSymbol,
+} from "./ProgramSymbols";
 import {
   BLOCK_FUNCTION,
   HEADER_WORDS,
@@ -146,20 +151,29 @@ export interface PositionCopy {
    *  unplaced, as it does with no chunk before it (#699). */
   readonly after: number;
   /** The id of the entry chunk of the flow the position is in, which binds
-   *  a scene's or a branch's parameters, or -1 for a flow with none. A root
-   *  whose flow has another entry places the position through its saved
+   *  a scene's or a branch's parameters, or -1 for a flow with none; and for
+   *  a branch, the id of its scene's (`sceneEntry`, -1 otherwise). A root
+   *  whose flows have other entries places the position through its saved
    *  form, which restarts a flow whose entry binds its parameters in other
    *  code (#1728). */
   readonly flowEntry: number;
+  readonly sceneEntry: number;
 }
 
-/** The id of the entry chunk (`FlowEntry`) of the flow `sequence` is in, or
- *  -1 for a flow that has none or a sequence of no flow. */
-const flowEntryOf = (root: ProgramRoot, sequence: SequenceRow): number => {
-  const flow = sequence.flow >= 0 ? root.flow(sequence.flow) : undefined;
+/** The id of the entry chunk (`FlowEntry`) of flow `symbol`, or -1 for a
+ *  flow that has none or a symbol of no flow. */
+const entryChunkOf = (root: ProgramRoot, symbol: number): number => {
+  const flow = symbol >= 0 ? root.flow(symbol) : undefined;
   const entry = flow?.arrays.chunks[0];
   return entry && flow.arrays.lineStarts[0] === -1 ? chunkId(entry) : -1;
 };
+
+/** The id of the entry chunk of the scene of the branch `sequence` is in,
+ *  or -1 for a sequence of no branch. */
+const sceneEntryOf = (root: ProgramRoot, sequence: SequenceRow): number =>
+  sequence.flow >= 0 && sequence.kind === SymbolKind.Branch
+    ? entryChunkOf(root, root.parentOf(sequence.flow))
+    : -1;
 
 export const copyPosition = (
   root: ProgramRoot,
@@ -180,7 +194,8 @@ export const copyPosition = (
     offset: position.offset,
     sequence: position.sequence.id,
     after: before ? chunkId(before) : -1,
-    flowEntry: flowEntryOf(root, position.sequence),
+    flowEntry: entryChunkOf(root, position.sequence.flow),
+    sceneEntry: sceneEntryOf(root, position.sequence),
   };
 };
 
@@ -1608,7 +1623,8 @@ export class ProgramStoryState {
       // other code, which the saved form's placement checks (#1728).
       if (
         saved.flowEntry !== undefined &&
-        flowEntryOf(root, position.sequence) !== saved.flowEntry
+        (entryChunkOf(root, position.sequence.flow) !== saved.flowEntry ||
+          sceneEntryOf(root, position.sequence) !== saved.sceneEntry)
       ) {
         unplaced = true;
         return null;
@@ -1816,9 +1832,10 @@ export class ProgramStoryState {
    * and nil for a name the saved entry did not bind, so a parameter that was
    * added or renamed takes nil, the value a divert that passes no argument
    * for it binds (an empty `...` for a variadic flow's). Every binding the
-   * saved entry made is replaced as a declaration in the same scope replaces
-   * it: a captured cell closes on its value, and a parameter the flow no
-   * longer has is unbound.
+   * restart replaces, each saved parameter's and any the frame held under a
+   * new parameter's name, is replaced as a declaration in the same scope
+   * replaces it (`CallStack.SetTemporaryVariable`): a captured cell closes on
+   * its value, and a parameter the flow no longer has is unbound.
    */
   protected rebindParameters(
     element: CallStack.Element,
@@ -1836,7 +1853,12 @@ export class ProgramStoryState {
         values.set(name, value);
       }
     }
-    const unbound = new Set(values.keys());
+    // Every binding the restart replaces: each saved parameter's, and a
+    // binding of a new parameter's name the frame already held (a local of
+    // the code that diverted), which a closure may have captured.
+    const unbound = new Set(
+      [...saved, ...params.map((param) => param.name)].filter((name) => scope.has(name)),
+    );
     if (unbound.size > 0) {
       const stillOpen: VariablePointerValue[] = [];
       for (const cell of element.openUpvalues) {

@@ -220,7 +220,13 @@ const partPrints = (chunk: ProgramChunk, kind: ChunkPartKind): string[] =>
  *  `bindingLayout` gives it) and, when the entry binds anything, the names
  *  of the parameters it bound in the order the header writes them
  *  (`params`), since a flow entered by a divert or a thread binds them as
- *  temporaries of a frame that names no symbol of the flow (#1728). */
+ *  temporaries of a frame that names no symbol of the flow (#1728); a
+ *  position in a branch carries its scene's the same way (`scene`). */
+interface SavedBinding {
+  bound: string;
+  params?: string[];
+}
+
 interface SavedLevel {
   s: number;
   at: number;
@@ -233,6 +239,7 @@ interface SavedLevel {
   loop?: string;
   bound?: string;
   params?: string[];
+  scene?: SavedBinding;
 }
 
 interface SavedStatement {
@@ -396,20 +403,69 @@ const entryParameters = (
 
 type FlowRestart = NonNullable<ThreadCuts["restart"]>;
 
-/** The restart of a position whose first saved level is `level` and which
- *  was placed in `sequence`, when the flow it was placed in is a scene or a
- *  branch whose entry's layout differs from the one the save carries;
- *  nothing when the save carries none (a format 2 save written before
- *  #1728) or the layout is the same. */
-const flowRestart = (
+/** The binding of the entry of scene or branch `symbol`, as a saved level
+ *  carries it (`bound`, `params`), or nothing for a symbol that is neither. */
+const entryBinding = (root: ProgramRoot, symbol: number): SavedBinding | undefined => {
+  const bound = bindingLayout(root, symbol);
+  const flow = bound !== undefined ? root.flow(symbol) : undefined;
+  if (bound === undefined || !flow) {
+    return undefined;
+  }
+  const params = entryParameters(root, flow).map((param) => param.name);
+  return params.length > 0 ? { bound, params } : { bound };
+};
+
+/** The scene a branch `symbol` belongs to, or -1. */
+const sceneOfBranch = (root: ProgramRoot, symbol: number): number => {
+  if (root.kindOf(symbol) !== SymbolKind.Branch) {
+    return -1;
+  }
+  const scene = root.parentOf(symbol);
+  return scene >= 0 && root.kindOf(scene) === SymbolKind.Scene ? scene : -1;
+};
+
+/** The bindings a position in `sequence` carries on its first level: its
+ *  scene's or branch's entry, and for a branch, its scene's entry, whose
+ *  parameters the frame holds too when the scene's entry went on to the
+ *  branch or the scene's body diverted to it (#1728). */
+const positionBindings = (
   root: ProgramRoot,
-  level: Pick<SavedLevel, "bound" | "params"> | undefined,
   sequence: SequenceRow,
-): FlowRestart | undefined => {
-  const bound = level?.bound;
-  const names = level?.params;
+): { bound?: string; params?: string[]; scene?: SavedBinding } => {
   const symbol = bindingFlowOf(root, sequence);
-  if (typeof bound !== "string" || symbol === undefined) {
+  const own = symbol !== undefined ? entryBinding(root, symbol) : undefined;
+  if (symbol === undefined || !own) {
+    return {};
+  }
+  const scene = sceneOfBranch(root, symbol);
+  const outer = scene >= 0 ? entryBinding(root, scene) : undefined;
+  return outer ? { ...own, scene: outer } : own;
+};
+
+/** The restart of flow `symbol` when its entry's layout differs from
+ *  `saved`'s; nothing when the save carries none (a format 2 save written
+ *  before #1728), the layout is the same, or the entry did not bind the
+ *  frame's temporaries: a frame whose outermost scope (`names`, when the
+ *  caller has them) lacks a parameter the saved entry bound jumped past it,
+ *  to a label, and a scene around a branch whose saved entry bound nothing
+ *  cannot be told from one the frame jumped past and leaves nothing to
+ *  rebind (`outer`). */
+const restartOf = (
+  root: ProgramRoot,
+  symbol: number,
+  saved: Partial<SavedBinding> | undefined,
+  names: ReadonlySet<string> | undefined,
+  outer: boolean,
+): FlowRestart | undefined => {
+  const bound = saved?.bound;
+  if (typeof bound !== "string") {
+    return undefined;
+  }
+  const savedNames = Array.isArray(saved?.params) ? saved.params.map(String) : [];
+  if (outer && savedNames.length === 0) {
+    return undefined;
+  }
+  if (names && savedNames.some((name) => !names.has(name))) {
     return undefined;
   }
   const now = bindingLayout(root, symbol);
@@ -425,8 +481,36 @@ const flowRestart = (
   if (params.length > 0 && entry && position.offset >= codeWords(entry)) {
     position = { sequence: flow, entry: 1, offset: 0 };
   }
-  const saved = Array.isArray(names) ? names.map(String) : [];
-  return { flow: root.table.symbols[symbol]!, position, params, saved };
+  return { flow: root.table.symbols[symbol]!, position, params, saved: savedNames };
+};
+
+/** The restart of a position whose first saved level is `level` and which
+ *  was placed in `sequence`, in a frame whose outermost scope binds `names`:
+ *  of the branch's scene when its entry differs, since restarting the scene
+ *  enters the branch again, or else of the scene or branch the position is
+ *  in when its own entry differs. */
+const flowRestart = (
+  root: ProgramRoot,
+  level: Pick<SavedLevel, "bound" | "params" | "scene"> | undefined,
+  sequence: SequenceRow,
+  names?: ReadonlySet<string>,
+): FlowRestart | undefined => {
+  const symbol = bindingFlowOf(root, sequence);
+  if (symbol === undefined) {
+    return undefined;
+  }
+  const scene = sceneOfBranch(root, symbol);
+  return (
+    (scene >= 0 ? restartOf(root, scene, level?.scene, names, true) : undefined) ??
+    restartOf(root, symbol, level, names, false)
+  );
+};
+
+/** The names a saved frame's outermost scope binds, or nothing for a frame
+ *  that holds no temporaries. */
+const savedScopeNames = (frame: Record<string, any> | undefined): Set<string> | undefined => {
+  const scope = Array.isArray(frame?.["temps"]) ? frame["temps"][0] : undefined;
+  return scope && typeof scope === "object" ? new Set(Object.keys(scope)) : undefined;
 };
 
 /** The choices of a chunk whose `Choice` instructions stand one for each
@@ -579,18 +663,12 @@ class FormWriter {
     const { sequence, entry, offset } = position;
     const chunk = sequence.arrays.chunks[entry];
     const st = this.statementForm(sequence, entry);
-    // The binding of the scene or branch the position is in, which a frame
-    // entered by a divert or a thread holds as temporaries (#1728).
+    // The binding of the scene or branch the position is in, and of a
+    // branch's scene, which a frame entered by a divert or a thread holds as
+    // temporaries (#1728).
     const level = st.levels[0]!;
-    const symbol = bindingFlowOf(this.root, sequence);
-    const bound = symbol !== undefined ? bindingLayout(this.root, symbol) : undefined;
-    const flow = bound !== undefined ? this.root.flow(symbol!) : undefined;
-    if (bound !== undefined && flow && level.flow !== undefined) {
-      level.bound = bound;
-      const params = entryParameters(this.root, flow);
-      if (params.length > 0) {
-        level.params = params.map((param) => param.name);
-      }
+    if (level.flow !== undefined) {
+      Object.assign(level, positionBindings(this.root, sequence));
     }
     return {
       st,
@@ -1911,7 +1989,12 @@ class SaveReader {
         },
         (i, at) => {
           const level = (forms(i) as SavedPosition | null | undefined)?.st?.levels?.[0];
-          const restart = flowRestart(this.root, level, at.position.sequence);
+          const restart = flowRestart(
+            this.root,
+            level,
+            at.position.sequence,
+            savedScopeNames(saved[i]),
+          );
           if (restart) {
             restarted = true;
             this._placer.warnings.push(
@@ -2472,19 +2555,20 @@ export const translatePositional = (
   };
   // The restart of an element whose position was in a scene or a branch of
   // `from` and is in one whose entry binds its parameters in other code now
-  // (#1728), read from `from` as a save's first level carries it.
-  const restarts = (saved: PositionCopy | null, at: Placed) => {
+  // (#1728), read from `from` as a save's first level carries it, in a frame
+  // whose outermost scope is `scope`.
+  const restarts = (
+    saved: PositionCopy | null,
+    at: Placed,
+    scope: ReadonlyMap<string, unknown> | undefined,
+  ) => {
     const was = old(saved);
-    const symbol = was ? bindingFlowOf(from, was.sequence) : undefined;
-    const flow = symbol !== undefined ? from.flow(symbol) : undefined;
-    if (symbol === undefined || !flow) return undefined;
+    if (!was) return undefined;
     return flowRestart(
       root,
-      {
-        bound: bindingLayout(from, symbol),
-        params: entryParameters(from, flow).map((param) => param.name),
-      },
+      positionBindings(from, was.sequence),
       at.position.sequence,
+      scope ? new Set(scope.keys()) : undefined,
     );
   };
   const placeThread = (
@@ -2501,7 +2585,7 @@ export const translatePositional = (
       count,
       (i) => drops(elements[i]?.frame?.symbol ?? -1),
       (i) => (placed[i] = place(positionOf(i))),
-      (i, at) => restarts(positionOf(i), at),
+      (i, at) => restarts(positionOf(i), at, elements[i]?.scopes[0]),
     );
     // A choice's thread that restarts its flow is dropped with the choice,
     // as a save's is.
