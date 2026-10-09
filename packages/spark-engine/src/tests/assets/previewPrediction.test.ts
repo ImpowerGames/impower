@@ -1743,7 +1743,7 @@ Line one.
   });
 
   it("divides a scene around an index", () => {
-    const beats = ["a", "b", "c", "d", "e", "f"].map((address) => ({
+    const beats = [1, 2, 3, 4, 5, 6].map((address) => ({
       address,
     }));
     const entry = {
@@ -1759,15 +1759,15 @@ Line one.
     const paths = (list: { address: ProgramAddress }[]) =>
       list.map((b) => b.address);
     let w = previewWindow(entry, 2, 1);
-    expect(paths(w.near)).toEqual(["b", "c", "d"]);
-    expect(paths(w.rest)).toEqual(["e", "f", "a"]);
+    expect(paths(w.near)).toEqual([2, 3, 4]);
+    expect(paths(w.rest)).toEqual([5, 6, 1]);
     w = previewWindow(entry, 0, 2);
-    expect(paths(w.near)).toEqual(["a", "b", "c"]);
-    expect(paths(w.rest)).toEqual(["d", "e", "f"]);
+    expect(paths(w.near)).toEqual([1, 2, 3]);
+    expect(paths(w.rest)).toEqual([4, 5, 6]);
     w = previewWindow(entry, 99, 1);
-    expect(paths(w.near)).toEqual(["e", "f"]);
+    expect(paths(w.near)).toEqual([5, 6]);
     w = previewWindow(entry, 3, 0);
-    expect(paths(w.near)).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(paths(w.near)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(w.rest).toEqual([]);
     expect(previewWindow({ ...entry, beats: [] }, 0, 3)).toEqual({
       near: [],
@@ -1807,7 +1807,8 @@ Line one.
     expect(beatIndexIn(beats, locator, at(8))).toBe(2);
     // Only the beats in the address's own script precede it.
     expect(beatIndexIn(beats, locator, at(0, OTHER_URI))).toBe(-1);
-    expect(beatIndexIn(beats, locator, "nowhere")).toBe(-1);
+    // An address no chunk of the program holds.
+    expect(beatIndexIn(beats, locator, 2 ** 40)).toBe(-1);
     expect(beatIndexIn(beats, locator, null)).toBe(-1);
   });
 });
