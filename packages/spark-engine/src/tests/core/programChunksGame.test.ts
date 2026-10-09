@@ -302,21 +302,22 @@ describe("a game that runs statement chunks", () => {
   });
 });
 
-// A line can hold several beats (a `>` break) and several statements (tags
-// written after inline text). PLAY from a line starts at its first beat and a
-// preview of it at its last (`Game.setStartFrom`).
+// A line can hold several beats (a `>` break). Tags written after a line's
+// text are part of its display statement, so they start no beat of their own
+// (#1710). PLAY from a line starts at its first beat and a preview of it at
+// its last (`Game.setStartFrom`).
 describe("a game started at a line", () => {
   // Each case's script, the line it starts at, the beats PLAY from the line
   // shows with the errors it reports, and the text of the beats from the
   // line's first beat and from its last. PLAY from a continuation's line
   // shows the continuation alone, which the line before it does not join
-  // since it was never shown. `undefined` where the case asserts no text.
+  // since it was never shown.
   const LINES: [
     name: string,
     text: string,
     line: number,
     played: { flushed: Record<string, string>[]; errors: string[] },
-    beats: { first: string[]; last: string[] | undefined },
+    beats: { first: string[]; last: string[] },
   ][] = [
     [
       "a line that a break splits",
@@ -333,7 +334,7 @@ describe("a game started at a line", () => {
       "Intro.\nYou see a ..\n.. door# t\nAfter.\n",
       2,
       { flushed: [{ action: "door" }, { action: "After." }], errors: [UNJOINED] },
-      { first: ["door\n", "After.\n"], last: undefined },
+      { first: ["door\n", "After.\n"], last: ["door\n", "After.\n"] },
     ],
     [
       "a continuation followed by tags in a scene",
@@ -347,7 +348,7 @@ describe("a game started at a line", () => {
         ],
         errors: [UNJOINED],
       },
-      { first: ["door\n", "Wait\n", "After.\n"], last: undefined },
+      { first: ["door\n", "Wait\n", "After.\n"], last: ["door\n", "Wait\n", "After.\n"] },
     ],
   ];
 
@@ -373,11 +374,7 @@ describe("a game started at a line", () => {
         expect(engine).toBeInstanceOf(ProgramStory);
         engine.ChooseAddress(address as number);
         const story = storyBeats(game.story);
-        expect(story.beats.length).toBeGreaterThan(0);
-        const expected = beats[beat];
-        if (expected) {
-          expect(story.beats.map((b) => b.text)).toEqual(expected);
-        }
+        expect(story.beats.map((b) => b.text)).toEqual(beats[beat]);
       });
     }
   }
