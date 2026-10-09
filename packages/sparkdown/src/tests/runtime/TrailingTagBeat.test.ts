@@ -145,7 +145,7 @@ describe("a tag written after a line's text", () => {
   // display tables for the touching form as for the spaced one, and a line's
   // last address is on that line.
   test("behaves as the spaced form on every kind of display line", () => {
-    for (const [touching, spaced] of [
+    const pairs: [touching: string[], spaced: string[]][] = [
       [["^: A TITLE# t"], ["^: A TITLE # t"]],
       [["$: A HALL# t"], ["$: A HALL # t"]],
       [["%: CUT TO BLACK# t"], ["%: CUT TO BLACK # t"]],
@@ -153,7 +153,8 @@ describe("a tag written after a line's text", () => {
       [["A > B# t"], ["A > B # t"]],
       [["A ..", ".. B# t"], ["A ..", ".. B # t"]],
       [["store n = 8", "Room# pic{n}"], ["store n = 8", "Room # pic{n}"]],
-    ]) {
+    ];
+    for (const [touching, spaced] of pairs) {
       const script = (lines: string[]) => [...lines, "After.", ""].join("\n");
       const shown = (lines: string[]) =>
         storyBeats(
