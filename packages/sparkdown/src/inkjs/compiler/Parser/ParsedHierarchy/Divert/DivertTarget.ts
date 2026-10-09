@@ -72,18 +72,23 @@ export class DivertTarget extends Expression {
     this._preparedTarget = true;
   }
 
+  /** Where this target's diagnostics are reported: the target's name, as the
+   *  divert places `target not found` (#1703, #1715). The target holds no
+   *  position of its own, so reported on itself a diagnostic would land at
+   *  line 0 column 0 at the top level or, in a scene, be dropped with the
+   *  scene's position. */
+  private get targetName(): ParsedObject | Identifier {
+    const path = this.divert.pathIdentifiers;
+    return path && path.length > 0 ? new Identifier(...path) : this;
+  }
+
   public override ResolveWith(context: Story): void {
     super.ResolveWith(context);
 
     if (this.divert.isDone || this.divert.isEnd) {
-      // Placed on the target's name, as the divert places `target not
-      // found`: the target holds no position of its own, so reported on
-      // itself it would land on its statement's line or, for a `local` in
-      // a scene, be dropped with the scene's position.
-      const path = this.divert.pathIdentifiers;
       this.Error(
         `Can't use '-> DONE' or '-> END' as variable divert targets`,
-        path && path.length > 0 ? new Identifier(...path) : this,
+        this.targetName,
       );
 
       return;
@@ -158,7 +163,7 @@ export class DivertTarget extends Expression {
         // `CallValueAsFunction` / closure dispatch and get no hint.
         this.Error(
           `Can't use a divert target like that. Did you intend to call \`${this.divert.target}\` as a function: \`likeThis()\`, or check the read count: \`likeThis\`, with no arrows?`,
-          this,
+          this.targetName,
           true,
         );
       }
@@ -188,6 +193,7 @@ export class DivertTarget extends Expression {
 
       this.Error(
         `Since \`${this.divert.target.dotSeparatedComponents}\` is a variable, it shouldn't be preceded by '->' here.`,
+        this.targetName,
       );
     }
 
@@ -213,6 +219,7 @@ export class DivertTarget extends Expression {
           if (arg.isByReference) {
             this.Error(
               `Can't store a divert target to a knot or function that has by-reference arguments (\`${targetFlow.identifier}\` has \`ref ${arg.identifier}\`).`,
+              this.targetName,
             );
           }
         }
