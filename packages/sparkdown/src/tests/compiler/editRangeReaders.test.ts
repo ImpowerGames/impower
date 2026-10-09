@@ -162,6 +162,57 @@ test.each(SHAPES)("after %s the readers give a fresh read's positions and tokens
   expect(readings(edited, probes)).toEqual(fresh(edited, probes));
 });
 
+/** An edit through the registry, as one change; returns the edited text. */
+function applyEdit(registry: SparkdownDocumentRegistry, uri: string, version: number, source: string, { from, to, insert }: Edit) {
+  registry.update({ textDocument: { uri, version }, contentChanges: [{
+    range: { start: position(source, from), end: position(source, to) }, text: insert,
+  }] });
+  return source.slice(0, from) + insert + source.slice(to);
+}
+
+test("two registries holding one document leave the readers a fresh read's positions and tokens", () => {
+  // The language server's workspace and the compiler each keep a registry,
+  // with strings of their own for each version of the same document.
+  const uri = "inmemory:///edit-range-readers-two.sd";
+  let source = Array.from({ length: 12 }, (_, i) => block(i)).join("") + tail;
+  const first = new SparkdownDocumentRegistry([...ANNOTATE]);
+  const second = new SparkdownDocumentRegistry([...ANNOTATE]);
+  forget();
+  for (const registry of [first, second]) {
+    registry.add({ textDocument: { uri, text: source, version: 1, languageId: "sparkdown" } });
+  }
+  const edits: ((s: string) => Edit)[] = [
+    (s) => ({ from: s.indexOf("function f3"), to: s.indexOf("function f3"), insert: "\n\nThe hero waits.\n" }),
+    (s) => ({ from: s.indexOf("-- note 8"), to: s.indexOf("-- note 8") + 2, insert: "--[[" }),
+    (s) => ({ from: s.indexOf("The hero walks on, 1 steps"), to: s.indexOf("function f2"), insert: "" }),
+    (s) => ({ from: s.length, to: s.length, insert: "local tail = 1\n" }),
+  ];
+  edits.forEach((edit, i) => {
+    const change = edit(source);
+    const edited = applyEdit(first, uri, i + 2, source, change);
+    applyEdit(second, uri, i + 2, source, change);
+    source = edited;
+    const probes = Array.from({ length: 24 }, (_, p) => Math.floor((source.length * p) / 24)).concat(source.length);
+    expect(readings(source, probes), `after edit ${i}`).toEqual(fresh(source, probes));
+  });
+});
+
+test("an edit after a deferred set leaves the readers a fresh read's positions and tokens", () => {
+  const uri = "inmemory:///edit-range-readers-deferred.sd";
+  const source = Array.from({ length: 12 }, (_, i) => block(i)).join("") + tail;
+  const registry = new SparkdownDocumentRegistry([...ANNOTATE]);
+  forget();
+  registry.add({ textDocument: { uri, text: source, version: 1, languageId: "sparkdown" } });
+  // A new text arrives deferred, then edits follow before anything reads it.
+  const replaced = source.replace("function f5", "\n\nfunction f5");
+  registry.set({ textDocument: { uri, text: replaced, version: 2, languageId: "sparkdown" } }, { defer: true });
+  let text = applyEdit(registry, uri, 3, replaced, { from: 0, to: 0, insert: "-- top\n" });
+  text = applyEdit(registry, uri, 4, text, { from: text.indexOf("return x9"), to: text.indexOf("return x9"), insert: "\n" });
+  expect(registry.get(uri)!.getText()).toBe(text);
+  const probes = Array.from({ length: 24 }, (_, p) => Math.floor((text.length * p) / 24)).concat(text.length);
+  expect(readings(text, probes)).toEqual(fresh(text, probes));
+});
+
 test("a reader several edits behind carries what it read through all of them", () => {
   // The token lookups run only for some edits, so their last document can be
   // several edits behind the one they are next asked about.
