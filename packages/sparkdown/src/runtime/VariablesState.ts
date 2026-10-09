@@ -577,8 +577,21 @@ export class VariablesState extends VariablesStateAccessor<
     scope: Map<string, InkObject>,
     name: string,
   ): { binding: VariableBinding; name: string } {
-    let binding: VariableBinding = scope;
-    let value = scope.get(name);
+    const value = scope.get(name);
+    return value instanceof VariablePointerValue
+      ? this.BindingThrough(value)
+      : { binding: scope, name };
+  }
+
+  /** The binding a write through `pointer` reaches, and the variable's
+   *  name there (`BindingOf`). */
+  public BindingThrough(pointer: VariablePointerValue): {
+    binding: VariableBinding;
+    name: string;
+  } {
+    let binding: VariableBinding = null;
+    let name = pointer.variableName;
+    let value: InkObject | undefined = pointer;
     while (value instanceof VariablePointerValue) {
       if (value.isClosed) {
         return { binding: value, name: value.variableName };

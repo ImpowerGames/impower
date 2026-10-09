@@ -743,6 +743,126 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables())).toContain("n=2");
   });
 
+  // The watch keeps the cell while no frame of the closure runs, so a later
+  // call of the closure inside a builtin step, which runs and returns
+  // within the step, stops on its write; another closure of the same
+  // function, with a cell of its own, does not.
+  it("fires a data breakpoint on a captured variable's cell when a builtin calls its closure again", () => {
+    const text = [
+      "-> main", //                         0
+      "scene main", //                      1
+      "  Start.", //                        2
+      "  local first = less(1, 2)", //      3
+      "  First {first}.", //                4
+      "  local t = {2, 1}", //              5
+      "  & table.sort(t, other)", //        6
+      "  Between.", //                      7
+      "  local u = {2, 1}", //              8
+      "  & table.sort(u, less)", //         9
+      "  After.", //                        10
+      "  done", //                          11
+      "end", //                             12
+      "function make()", //                 13
+      "  local n = 0", //                   14
+      "  return function(a, b)", //         15
+      "    n = n + 1", //                   16
+      "    return a < b", //                17
+      "  end", //                           18
+      "end", //                             19
+      "store less = make()", //             20
+      "store other = make()", //            21
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.setBreakpoints([{ file: MAIN, line: 17 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(17);
+    const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+    expect(n.value).toBe("1");
+    const dataId = `${n.scopePath}.${n.name}`;
+    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    // The rest of the call returns to the beat that shows it.
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("First true.\n");
+    // `other`'s comparator writes its own cell.
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("Between.\n");
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    // `less`'s comparator writes the watched cell inside the sort's step.
+    h.game.continue();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+  });
+
+  // While the function that declared the variable still runs, the closure's
+  // frame binds it through an open pointer to that function's block scope,
+  // which the watch follows while the closure's frame is gone.
+  it("fires a data breakpoint on a captured variable in its closure's frame when a builtin calls the closure again", () => {
+    const text = [
+      "-> main", //                                0
+      "scene main", //                             1
+      "  Start.", //                               2
+      "  Got {outer()}.", //                       3
+      "  done", //                                 4
+      "end", //                                    5
+      "function outer()", //                       6
+      "  local n = 0", //                          7
+      "  local less = function(a, b)", //          8
+      "    n = n + 1", //                          9
+      "    return a < b", //                       10
+      "  end", //                                  11
+      "  local first = less(1, 2)", //             12
+      "  local t = {2, 1}", //                     13
+      "  table.sort(t, less)", //                  14
+      "  return n", //                             15
+      "end", //                                    16
+      "",
+    ].join("\n");
+    const h = debugGame(text);
+    h.game.setBreakpoints([{ file: MAIN, line: 10 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(10);
+    // The closure's own frame names the variable it captured.
+    const frames = h.frames().stackFrames;
+    expect(frames.map((f) => f.name).slice(-2)).toEqual(["outer", "main"]);
+    expect(frames[0]!.name).not.toBe("outer");
+    const n = h.game.getTempVariables().find((v) => v.name === "n")!;
+    expect(n.value).toBe("1");
+    const dataId = `${n.scopePath}.${n.name}`;
+    expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
+    h.game.setBreakpoints([]);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(2);
+    const outerFrame = h.frames().stackFrames.find((f) => f.name === "outer")!;
+    expect(names(h.game.getTempVariables(0, outerFrame.id))).toContain("n=2");
+  });
+
+  it("fires a global's data breakpoint when a function writes it through _G", () => {
+    const h = debugGame(
+      [
+        "store health = 100", //          0
+        "-> main", //                     1
+        "scene main", //                  2
+        "  First.", //                    3
+        "  & hurt()", //                  4
+        "  Second {health}.", //          5
+        "  done", //                      6
+        "end", //                         7
+        "function hurt()", //             8
+        "  _G.health = health - 1", //    9
+        "end", //                         10
+        "",
+      ].join("\n"),
+    );
+    h.game.start();
+    expect(h.game.setDataBreakpoints([{ dataId: "health" }])[0]!.verified).toBe(true);
+    h.continueToBreakpoint();
+    expect(h.of("game/hitBreakpoint")).toHaveLength(1);
+    expect(h.game.getVarVariables().find((v) => v.name === "health")?.value).toBe("99");
+  });
+
   it("fires a function breakpoint on a named function written inside another function", () => {
     const h = debugGame(
       [

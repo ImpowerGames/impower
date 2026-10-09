@@ -379,6 +379,13 @@ export class Game<T extends M = {}> {
     /** The block scope a temporary was found in, which the watch keeps
      *  while a frame named by its scope holds it. */
     blockScope: Map<string, InkObject> | null;
+    /** The pointer that block scope held for the variable, when the frame
+     *  binds it to one (a variable passed by reference, or one a closure
+     *  captured), which the watch follows while no frame named by its
+     *  scope runs. */
+    pointer: VariablePointerValue | null;
+    /** The story's variables when the pointer was noted. */
+    pointerState: object | null;
     /** Where a write to the variable lands (`VariablesState.BindingOf`),
      *  and its name there; `undefined` when no such variable is in scope. */
     binding: VariableBinding | undefined;
@@ -1150,13 +1157,27 @@ export class Game<T extends M = {}> {
       }
     }
     watch.blockScope = scope;
-    if (!scope) {
+    if (scope) {
+      const bound = scope.get(watch.name);
+      watch.pointer = bound instanceof VariablePointerValue ? bound : null;
+      watch.pointerState = variablesState;
+    } else if (!watch.pointer || watch.pointerState !== variablesState) {
+      // A reset or a load gives the story other variables, which no
+      // pointer of the earlier ones reaches.
+      watch.pointer = null;
       watch.binding = undefined;
       watch.bindingName = watch.name;
       watch.last = undefined;
       return;
     }
-    const { binding, name } = variablesState.BindingOf(scope, watch.name);
+    // A variable the frame captured outlives the frame: while no frame
+    // named by the scope runs, the watch keeps the variable it captured,
+    // through the pointer the frame held, which a later call of the same
+    // closure binds again (inside a builtin step, say, which runs and
+    // returns the call within the step).
+    const { binding, name } = scope
+      ? variablesState.BindingOf(scope, watch.name)
+      : variablesState.BindingThrough(watch.pointer!);
     watch.binding = binding;
     watch.bindingName = name;
     watch.last = this.valueAtBinding(program, binding, name);
@@ -1369,6 +1390,8 @@ export class Game<T extends M = {}> {
         scope,
         name,
         blockScope: null,
+        pointer: null,
+        pointerState: null,
         binding: undefined,
         bindingName: name,
         last: undefined,
