@@ -157,21 +157,26 @@ describe("logic lines own their instructions' addresses (#824)", () => {
     expect(warningsMatching(program, /divert target like that/)).toEqual([]);
   });
 
-  it("an authored divert target misused on a logic line still gets the hint, as a warning on that line", () => {
+  // These two used to pin the warning at column 0, the start of its logic
+  // line, because the divert target had no position of its own and inherited
+  // the line's. Since #1715 it is reported on the target's name, as `target
+  // not found` is, since inside a scene the inherited position was dropped
+  // and the author saw nothing.
+  it("an authored divert target misused on a logic line still gets the hint, as a warning on the target", () => {
     const program = compile(
       `store x = 0\nA\n& x = (-> later) + 1\nC\n-> DONE\n\nscene later\n  B\nend\n`,
     );
     expect(diagnosticsMatching(program, /divert target like that/)).toEqual([
-      { line: 2, character: 0, severity: 2 },
+      { line: 2, character: 10, severity: 2 },
     ]);
   });
 
-  it("a `& local` declaration's warning reaches the editor on its line", () => {
+  it("a `& local` declaration's warning reaches the editor on its target", () => {
     const program = compile(
       `A\n& local x = (-> later) + 1\nC\n-> DONE\n\nscene later\n  B\nend\n`,
     );
     expect(diagnosticsMatching(program, /divert target like that/)).toEqual([
-      { line: 1, character: 0, severity: 2 },
+      { line: 1, character: 16, severity: 2 },
     ]);
   });
 
