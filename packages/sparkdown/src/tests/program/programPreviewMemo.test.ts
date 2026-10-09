@@ -11,6 +11,7 @@ import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler
 import type { MemoStats, StatementMemoEntry } from "../../compiler/lower/statementMemo";
 import { memosOf } from "../../compiler/lower/statementMemo";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { loweredOutsideRebuilt as loweredOutside } from "./memoLowering";
 import { describeRoot, MAIN_URI, programCompiler } from "./programHarness";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
@@ -137,36 +138,6 @@ function session() {
   };
 }
 
-/** Where the statement starting at `at` ends: before the first line after
- *  it, other than a blank one, indented no deeper than its first line, or
- *  past that line when it closes the statement (`end`, `else`), as
- *  `programStatementMemo.test.ts` reads it. */
-const statementEnd = (text: string, at: number): number => {
-  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
-  const indent = (line: string) => line.length - line.trimStart().length;
-  const depth = indent(text.slice(lineStart, text.indexOf("\n", at)));
-  let next = text.indexOf("\n", at) + 1;
-  while (next > 0 && next < text.length) {
-    const end = text.indexOf("\n", next);
-    const line = text.slice(next, end < 0 ? text.length : end);
-    if (line.trim() && indent(line) <= depth) {
-      return /^(end|else|elseif|until)\b/.test(line.trim()) ? (end < 0 ? text.length : end) : next;
-    }
-    next = end + 1;
-  }
-  return text.length;
-};
-
-/** The first lines of the statements an update lowered that the incremental
- *  parse rebuilt none of, in `text`, the text the update made. */
-const loweredOutside = (stats: MemoStats, text: string) => {
-  const rebuilt = stats.rebuilt;
-  const lineAt = (at: number) => text.slice(at, text.indexOf("\n", at)).trim();
-  return stats.loweredAt
-    .filter((at) => !rebuilt || at > rebuilt.to || statementEnd(text, at) <= rebuilt.from)
-    .map(lineAt);
-};
-
 const coldOf = (text: string) =>
   quietly(() => programCompiler({ ...fixture(), [MAIN_URI]: text }).compile().program);
 
@@ -260,16 +231,25 @@ describe("a preview compile that follows a preview compile", () => {
     expect(condition).toBeGreaterThan(0);
     const bound = condition + "    if trust > ".length;
     const other = clauseLineEnd(s.text, 40);
-    for (const [from, insert, to] of [
+    // Two lines of action with a blank line between them, which a
+    // suggestion joins into one.
+    const pair = "and the heat at {heat}.\n\n    The lamp gutters, then steadies.";
+    // The last such pair, which the long `then` clause holds.
+    const join = s.text.lastIndexOf(pair) + "and the heat at {heat}.".length;
+    expect(join).toBeGreaterThan(s.text.lastIndexOf("\n  end", at));
+    const statements = (text: string) => text.split("\n").filter((line) => line.trim()).length;
+    for (const [from, insert, to, added] of [
       // The `if` block's own condition, the suggestion on an owner statement.
-      [bound, "17", bound + 2],
-      [bound, "15", bound + 2],
+      [bound, "17", bound + 2, 0],
+      [bound, "15", bound + 2, 0],
       // A suggestion that writes a statement of its own after a line, and
-      // one that joins two lines.
-      [other, "\n    A line the suggestion adds.", other],
-      [at, " ", at + 1],
+      // one that joins two statements.
+      [other, "\n    A line the suggestion adds.", other, 1],
+      [join, " ", join + "\n\n    ".length, -1],
     ] as const) {
       const preview = s.preview(from, insert, to);
+      expect(preview.text).not.toBe(s.text);
+      expect(statements(preview.text) - statements(s.text)).toBe(added);
       const cold = coldOf(preview.text);
       expect(describeRoot(preview.program.chunks!)).toEqual(describeRoot(cold.chunks!));
     }
