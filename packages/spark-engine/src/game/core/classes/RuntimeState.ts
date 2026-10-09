@@ -35,7 +35,7 @@ export class RuntimeState {
     selected: boolean;
   }[] = [];
 
-  // --- Incremental-checkpoint delta tracking ---
+  // --- Checkpoint delta tracking ---
   //
   // `pathsExecutedThisFrame` grows ~1 entry/beat and re-orders on revisit
   // (delete+add), so a full copy per checkpoint is O(n^2). We mirror the
@@ -48,9 +48,10 @@ export class RuntimeState {
   protected _choiceDrainMark = 0;
   protected _conditionDrainMark = 0;
 
-  /** Records the address of a position the story ran: an address of the
-   *  program engine, or a runtime path of the current engine, whose global
-   *  declarations' are none of a beat's. */
+  /** Records the address of a position the story ran. A string beginning
+   *  `global ` was the deleted object engine's path of its global
+   *  declarations, which are none of a beat's; no producer makes one now
+   *  (#1709). */
   recordExecution(address: RecencyEntry) {
     if (typeof address !== "string" || !address.startsWith("global ")) {
       // Both collections keep the most recently executed address last.

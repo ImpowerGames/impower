@@ -41,8 +41,8 @@ export function installSparkdownWorker(
     encodeProgram: (program: SparkProgram) => transport.encode(program),
   };
   // Whether the compile being answered produced a program that runs (its
-  // statement chunks, or the current engine's story), which a summary
-  // reports in place of the compiled program.
+  // statement chunks), which a summary reports in place of the compiled
+  // program.
   let producedStory = false;
   // The last program compiled for each uri, which a host holding the
   // program's copy asks for its locations (`LocateProgramMessage`): the copy

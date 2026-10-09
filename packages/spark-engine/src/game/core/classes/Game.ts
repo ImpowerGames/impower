@@ -1770,11 +1770,11 @@ export class Game<T extends M = {}> {
    * route runs again in the new program.
    *
    * The steps after the resume point are replaced by copies that carry no
-   * checkpoint and no position. The store is truncated to the resume point, so
-   * an index recorded against the old run would name a state captured by this
-   * one; and the statements those steps came from are exactly the statements
-   * that may have changed, so their old positions are the ones least worth
-   * keeping. The replay re-earns both for every step it actually reaches.
+   * checkpoint: the store is truncated to the resume point, so an index
+   * recorded against the old run would name a state captured by this one. The
+   * copies keep their addresses: the caller replays only a route every step of
+   * which `routeResumption` found valid in the new program (`replayOnly`). The
+   * replay stamps a checkpoint on every step it reaches.
    */
   resumePlannedRoute(stepIndex: number, checkpointIndex: number): string | null {
     const route = this._plannedRoute;

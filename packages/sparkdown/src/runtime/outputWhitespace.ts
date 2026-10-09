@@ -146,7 +146,7 @@ export function splitHeadTailWhitespace(
  * returned: it is trusted only while it still holds a `BeginString`, so any
  * rewrite of the stream in between costs at most one scan.
  *
- * Both engines ask this on every push. Inside an interpolation the
+ * The engine asks this on every push. Inside an interpolation the
  * `BeginString` sits before everything the evaluation pushes, so walking the
  * stream on each call made a loop there cost more with every step (#1134).
  */

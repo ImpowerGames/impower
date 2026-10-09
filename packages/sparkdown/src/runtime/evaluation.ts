@@ -241,8 +241,8 @@ function indexThroughMetatable(
   return null;
 }
 
-/** Whether `v` is a function held by reference: a divert target on the
- *  current engine, or a symbol value on the binary program's. */
+/** Whether `v` is a function held by reference: a symbol value, or a divert
+ *  target. */
 export function isFunctionReference(v: unknown): boolean {
   return v instanceof DivertTargetValue || v instanceof SymbolValue;
 }
