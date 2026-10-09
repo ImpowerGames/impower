@@ -3283,31 +3283,23 @@ export class Game<T extends M = {}> {
         return listValue;
       }
       if (valueObj instanceof ObjectValue) {
-        return this.getTableRecord(valueObj, new Map());
+        return this.getTableRecord(valueObj);
       }
       return valueObj.value;
     }
     return undefined;
   }
 
-  /** A Luau table as the Variables view reads it: a plain record of its
-   *  entries; `_tableRecords` keeps its keys in order, the array part first,
-   *  then its other keys as the table holds them. A nested table
-   *  becomes its own record, and a table reached again (a cycle, or one held
-   *  twice) reuses the record already made, so the conversion ends; the view
-   *  expands one level at a time. */
-  getTableRecord(
-    table: ObjectValue,
-    made: Map<ObjectValue, Record<string, unknown>>,
-  ): Record<string, unknown> {
-    const existing = made.get(table);
-    if (existing) {
-      return existing;
-    }
+  /** One level of a Luau table as the Variables view reads it: a record of
+   *  its entries, with `_tableRecords` keeping its keys in order, the array
+   *  part first, then its other keys as the table holds them. A nested table
+   *  stays the runtime's table until the view shows it (`getVariableInfo`
+   *  converts it then), so a deep or cyclic table costs one level per
+   *  expansion. */
+  getTableRecord(table: ObjectValue): Record<string, unknown> {
     // No prototype, so a key such as `__proto__` is an own entry like any
     // other rather than a call of an inherited setter.
     const record: Record<string, unknown> = Object.create(null);
-    made.set(table, record);
     const entries = table.value ?? new Map<string, unknown>();
     // The array part is the keys 1, 2, 3, ... up to the first hole, as
     // `ipairs` reads it (`arrayPortion` in the runtime's MethodDispatch);
@@ -3332,7 +3324,7 @@ export class Game<T extends M = {}> {
     for (const [key, entry] of entries) {
       record[key] =
         entry instanceof ObjectValue
-          ? this.getTableRecord(entry, made)
+          ? entry
           : entry && typeof entry === "object" && "value" in entry
             ? entry.value
             : entry;
@@ -3346,6 +3338,10 @@ export class Game<T extends M = {}> {
     presentationHint?: VariablePresentationHint,
     scopePath?: string,
   ): Variable {
+    // A table nested in a table shown before is converted as it is shown.
+    if (value instanceof ObjectValue) {
+      value = this.getTableRecord(value);
+    }
     let variablesReference = 0;
     if (typeof value === "object" && value != null) {
       variablesReference = this._nextObjectVariableRef;

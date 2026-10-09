@@ -1449,4 +1449,45 @@ describe("the debugger on the program engine", () => {
       '4="four"',
     ]);
   });
+
+  it("shows a deeply nested table one level at a time, and a table that holds itself", () => {
+    const h = debugGame(
+      [
+        "-> main", //                           0
+        "scene main", //                        1
+        "  Start.", //                          2
+        "  local d = deep()", //                3
+        "  local c = {name = 'c'}", //          4
+        "  c.self = c", //                      5
+        "  After.", //                          6
+        "  done", //                            7
+        "end", //                               8
+        "function deep()", //                   9
+        "  local t = {}", //                    10
+        "  for i = 1, 20000 do", //             11
+        "    t = {child = t}", //               12
+        "  end", //                             13
+        "  return t", //                        14
+        "end", //                               15
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 6 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(6);
+    const temps = h.game.getTempVariables();
+    expect(names(temps).sort()).toEqual(["c={...}", "d={...}"]);
+    const d = temps.find((v) => v.name === "d")!;
+    const child = h.game.getChildVariables(d.variablesReference);
+    expect(names(child)).toEqual(["child={...}"]);
+    expect(
+      names(h.game.getChildVariables(child[0]!.variablesReference)),
+    ).toEqual(["child={...}"]);
+    const c = temps.find((v) => v.name === "c")!;
+    const own = h.game.getChildVariables(c.variablesReference);
+    expect(names(own)).toEqual(['name="c"', "self={...}"]);
+    const again = h.game.getChildVariables(own[1]!.variablesReference);
+    expect(names(again)).toEqual(['name="c"', "self={...}"]);
+  });
 });
