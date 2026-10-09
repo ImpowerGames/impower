@@ -308,6 +308,11 @@ export class Game<T extends M = {}> {
 
   protected _objectVariableRefMap = new Map<number, object>();
 
+  // The records `getTableRecord` made of Luau tables. A table's keys are
+  // all its own entries, so the view reads them without the `$` metadata
+  // conventions of the other records it shows (`$type` of a list).
+  protected _tableRecords = new WeakSet<object>();
+
   protected _startFrom?: {
     file: string;
     line: number;
@@ -3043,7 +3048,7 @@ export class Game<T extends M = {}> {
     for (const name of variableState["_globalVariables"].keys()) {
       const valueObj = variableState.GetVariableWithName(name);
       const value = this.getRuntimeValue(name, valueObj);
-      if (isEvaluable(value)) {
+      if (isEvaluable(value) && !this.isTableRecord(value)) {
         context[name] = value;
       }
     }
@@ -3056,12 +3061,20 @@ export class Game<T extends M = {}> {
         valueObj,
       ] of contextElement?.temporaryVariables.entries()) {
         const value = this.getRuntimeValue(name, valueObj);
-        if (isEvaluable(value)) {
+        if (isEvaluable(value) && !this.isTableRecord(value)) {
           context[name] = value;
         }
       }
     }
     return context;
+  }
+
+  /** Whether `value` is the record `getTableRecord` made of a table, which
+   *  the evaluation context leaves out as it left out the table's `Map`. */
+  isTableRecord(value: unknown): boolean {
+    return (
+      typeof value === "object" && value != null && this._tableRecords.has(value)
+    );
   }
 
   getVarVariables(): Variable[] {
@@ -3203,8 +3216,9 @@ export class Game<T extends M = {}> {
         );
       });
     } else if (typeof value === "object" && value) {
+      const isTable = this._tableRecords.has(value);
       for (const [k, v] of Object.entries(value)) {
-        if (!k.startsWith("$")) {
+        if (isTable || !k.startsWith("$")) {
           variables.push(
             this.getVariableInfo(k, v, {
               kind: "property",
@@ -3286,8 +3300,11 @@ export class Game<T extends M = {}> {
     if (existing) {
       return existing;
     }
-    const record: Record<string, unknown> = {};
+    // No prototype, so a key such as `__proto__` is an own entry like any
+    // other rather than a call of an inherited setter.
+    const record: Record<string, unknown> = Object.create(null);
     made.set(table, record);
+    this._tableRecords.add(record);
     for (const [key, entry] of table.value ?? []) {
       record[key] =
         entry instanceof ObjectValue
@@ -3319,12 +3336,17 @@ export class Game<T extends M = {}> {
       typeof value === "object" && value != null && !Array.isArray(value)
         ? Object.keys(value).length
         : 0;
+    const isTable = this.isTableRecord(value);
     const displayValue =
       value === undefined
         ? "undefined"
         : value === null
           ? "null"
-          : typeof value === "object"
+          : isTable
+            ? Object.keys(value as object).length > 0
+              ? "{...}"
+              : "{}"
+            : typeof value === "object"
             ? Array.isArray(value)
               ? `[${value.length}]`
               : Object.keys(value).filter((k) => !k.startsWith("$")).length > 0
@@ -3342,7 +3364,9 @@ export class Game<T extends M = {}> {
         ? "undefined"
         : value === null
           ? "null"
-          : typeof value === "object"
+          : isTable
+            ? "object"
+            : typeof value === "object"
             ? Array.isArray(value)
               ? `array`
               : "$type" in value && typeof value.$type === "string"

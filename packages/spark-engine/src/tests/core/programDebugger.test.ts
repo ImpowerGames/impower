@@ -1393,5 +1393,33 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getChildVariables(inner.variablesReference))).toEqual([
       "x=1",
     ]);
+    // A table is still left out of the context the editor evaluates against.
+    expect(Object.keys(h.game.getEvaluationContext())).not.toContain("t");
+  });
+
+  it("shows a table's keys that a JavaScript object would take for its own", () => {
+    const h = debugGame(
+      [
+        "-> main", //                                                           0
+        "scene main", //                                                        1
+        "  Start.", //                                                          2
+        "  local k = {['__proto__'] = 1, ['$x'] = 2, ['$type'] = 'list.var'}", // 3
+        "  After.", //                                                          4
+        "  done", //                                                            5
+        "end", //                                                               6
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(4);
+    const k = h.game.getTempVariables().find((v) => v.name === "k")!;
+    expect(`${k.value} ${k.type}`).toBe("{...} object");
+    expect(names(h.game.getChildVariables(k.variablesReference))).toEqual([
+      "__proto__=1",
+      "$x=2",
+      '$type="list.var"',
+    ]);
   });
 });
