@@ -864,9 +864,6 @@ describe("the debugger on the program engine", () => {
       expect(h.of("game/hitBreakpoint")).toHaveLength(1);
       // A save of the state, loaded back through `Game.loadProgramSave`.
       const save = h.game.save();
-      expect(JSON.parse(save).watchedCells).toEqual([
-        { dataId, cell: expect.any(Number) },
-      ]);
       expect(h.game.load(save)).toBe(true);
       expect(h.game.story.currentText).toBe("First true.\n");
       // `other`'s comparator writes its own cell.
@@ -878,6 +875,10 @@ describe("the debugger on the program engine", () => {
       h.game.continue();
       expect(h.of("game/hitBreakpoint")).toHaveLength(2);
       expect(h.stoppedAt()).toBe(19);
+      // The save named the watched cell by its id.
+      expect(JSON.parse(save).watchedCells).toEqual([
+        { dataId, cell: expect.any(Number) },
+      ]);
     });
   }
 
