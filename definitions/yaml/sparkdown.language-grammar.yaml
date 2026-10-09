@@ -425,7 +425,17 @@ variables:
   # The `..` that opens and closes an inline alternator mid-line
   # (`.. queue|a|b ..`).
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))
-  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}+)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}){{WS}}*{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
+  # The heads that `LuauSparkdownInlineGluedSequentialAlternatorBlock` and
+  # `LuauSparkdownInlineGluedConditionalAlternatorBlock` open on, without
+  # captures, so `INLINE_LEADING_GLUE` refuses exactly the `..` they take.
+  #
+  # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})`, `(?=[|])` and
+  # `(?=[(])` repeat those begins' lookaheads, whose comments name the
+  # rival (`TextChunk` and `LeadingGlue`) and why no reordering, `end:` or
+  # tighter variable replaces them. A different test here would let
+  # `INLINE_LEADING_GLUE` take a `..` an alternator opens on, or refuse
+  # one no alternator takes.
+  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}*)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{WS}}*(?=[|])|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
 
   # Newline
   NL: (?:\r\n|\r|\n)
@@ -1460,6 +1470,13 @@ repository:
   #
   #   Here is some text .. queue|a|b|c .. and more text after.
   #
+  # The head takes the same keywords as the other alternator forms: an
+  # optional `shuffle` and an optional `queue`, `cycle` or `chain`, at
+  # least one of them (`.. shuffle|a|b ..` is a plain shuffle, #1706).
+  #
+  # The head is `LuauSparkdownSingleLineSequentialAlternatorBlock`'s:
+  # the first arm separator must follow it.
+  #
   # Required `..` delimiters give the grammar an unambiguous scope.
   # Inside the scope, arm bodies are parsed as display content (text +
   # nested `{interp}`), with `|` separating arms.
@@ -1471,7 +1488,23 @@ repository:
   # for the arms.
 
   LuauSparkdownInlineGluedSequentialAlternatorBlock:
-    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}+))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}"
+    # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})` makes one of the
+    # two optional keywords present, so `.. |a|b ..` opens no alternator;
+    # the captures stay optional so the lowerer reads the modifier and the
+    # keyword from fixed indices. `(?=[|])` leaves the first separator to
+    # `LuauAlternatorSeparator`, the body's first pattern. The rival is the
+    # glued text path (`TextChunk`, and `LeadingGlue` through
+    # `INLINE_LEADING_GLUE`), which takes any `..` this begin refuses.
+    # Without the separator lookahead, keyword-shaped text after `..`
+    # opened a scope: `.. shuffle,a,b ..` became a shuffle over no arms
+    # that the engine cannot run, `.. queue,a ..` emitted nothing, and
+    # backtracking past an optional keyword accepted `.. shuffle queue.x`
+    # and `.. queue.x`. Reordering cannot replace it: this rule is tried
+    # before `TextChunk`, which accepts anything. The parent's `end:`
+    # closes the line, not this begin, and no keyword variable can be
+    # tightened to say what follows the keyword. Fixture
+    # alternator/inline-glued-plain-shuffle changes without it.
+    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)(?=[|])"
     beginCaptures:
       1:
         patterns:
