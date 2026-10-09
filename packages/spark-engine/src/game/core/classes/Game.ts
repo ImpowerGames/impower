@@ -30,7 +30,10 @@ import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
 import { InkList } from "@impower/sparkdown/src/runtime/InkList";
 import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
-import { VariablePointerValue } from "@impower/sparkdown/src/runtime/Value";
+import {
+  ObjectValue,
+  VariablePointerValue,
+} from "@impower/sparkdown/src/runtime/Value";
 import type {
   VariableBinding,
   WriteWatch,
@@ -304,6 +307,12 @@ export class Game<T extends M = {}> {
   protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
   protected _objectVariableRefMap = new Map<number, object>();
+
+  // The records `getTableRecord` made of Luau tables, each with its keys in
+  // the order the view lists them. A table's keys are all its own entries,
+  // so the view reads them without the `$` metadata conventions of the
+  // other records it shows (`$type` of a list).
+  protected _tableRecords = new WeakMap<object, string[]>();
 
   protected _startFrom?: {
     file: string;
@@ -3040,7 +3049,7 @@ export class Game<T extends M = {}> {
     for (const name of variableState["_globalVariables"].keys()) {
       const valueObj = variableState.GetVariableWithName(name);
       const value = this.getRuntimeValue(name, valueObj);
-      if (isEvaluable(value)) {
+      if (isEvaluable(value) && !this.isTableRecord(value)) {
         context[name] = value;
       }
     }
@@ -3053,12 +3062,20 @@ export class Game<T extends M = {}> {
         valueObj,
       ] of contextElement?.temporaryVariables.entries()) {
         const value = this.getRuntimeValue(name, valueObj);
-        if (isEvaluable(value)) {
+        if (isEvaluable(value) && !this.isTableRecord(value)) {
           context[name] = value;
         }
       }
     }
     return context;
+  }
+
+  /** Whether `value` is the record `getTableRecord` made of a table, which
+   *  the evaluation context leaves out as it left out the table's `Map`. */
+  isTableRecord(value: unknown): boolean {
+    return (
+      typeof value === "object" && value != null && this._tableRecords.has(value)
+    );
   }
 
   getVarVariables(): Variable[] {
@@ -3200,10 +3217,14 @@ export class Game<T extends M = {}> {
         );
       });
     } else if (typeof value === "object" && value) {
-      for (const [k, v] of Object.entries(value)) {
-        if (!k.startsWith("$")) {
+      // A table lists its keys in the order `getTableRecord` gave them; a
+      // record's own enumeration would put every integer key first.
+      const tableKeys = this._tableRecords.get(value);
+      const record = value as Record<string, unknown>;
+      for (const k of tableKeys ?? Object.keys(record)) {
+        if (tableKeys || !k.startsWith("$")) {
           variables.push(
-            this.getVariableInfo(k, v, {
+            this.getVariableInfo(k, record[k], {
               kind: "property",
               visibility: "public",
             }),
@@ -3261,9 +3282,54 @@ export class Game<T extends M = {}> {
         }
         return listValue;
       }
+      if (valueObj instanceof ObjectValue) {
+        return this.getTableRecord(valueObj);
+      }
       return valueObj.value;
     }
     return undefined;
+  }
+
+  /** One level of a Luau table as the Variables view reads it: a record of
+   *  its entries, with `_tableRecords` keeping its keys in order, the array
+   *  part first, then its other keys as the table holds them. A nested table
+   *  stays the runtime's table until the view shows it (`getVariableInfo`
+   *  converts it then), so a deep or cyclic table costs one level per
+   *  expansion. */
+  getTableRecord(table: ObjectValue): Record<string, unknown> {
+    // No prototype, so a key such as `__proto__` is an own entry like any
+    // other rather than a call of an inherited setter.
+    const record: Record<string, unknown> = Object.create(null);
+    const entries = table.value ?? new Map<string, unknown>();
+    // The array part is the keys 1, 2, 3, ... up to the first hole, as
+    // `ipairs` reads it (`arrayPortion` in the runtime's MethodDispatch);
+    // every other key follows in the order the table holds them.
+    const keys: string[] = [];
+    for (let i = 1; entries.get(String(i)) != null; i += 1) {
+      keys.push(String(i));
+    }
+    const arrayLength = keys.length;
+    for (const key of entries.keys()) {
+      const index = Number(key);
+      const inArray =
+        Number.isInteger(index) &&
+        index >= 1 &&
+        index <= arrayLength &&
+        String(index) === key;
+      if (!inArray) {
+        keys.push(key);
+      }
+    }
+    this._tableRecords.set(record, keys);
+    for (const [key, entry] of entries) {
+      record[key] =
+        entry instanceof ObjectValue
+          ? entry
+          : entry && typeof entry === "object" && "value" in entry
+            ? entry.value
+            : entry;
+    }
+    return record;
   }
 
   getVariableInfo(
@@ -3272,6 +3338,10 @@ export class Game<T extends M = {}> {
     presentationHint?: VariablePresentationHint,
     scopePath?: string,
   ): Variable {
+    // A table nested in a table shown before is converted as it is shown.
+    if (value instanceof ObjectValue) {
+      value = this.getTableRecord(value);
+    }
     let variablesReference = 0;
     if (typeof value === "object" && value != null) {
       variablesReference = this._nextObjectVariableRef;
@@ -3286,12 +3356,17 @@ export class Game<T extends M = {}> {
       typeof value === "object" && value != null && !Array.isArray(value)
         ? Object.keys(value).length
         : 0;
+    const isTable = this.isTableRecord(value);
     const displayValue =
       value === undefined
         ? "undefined"
         : value === null
           ? "null"
-          : typeof value === "object"
+          : isTable
+            ? Object.keys(value as object).length > 0
+              ? "{...}"
+              : "{}"
+            : typeof value === "object"
             ? Array.isArray(value)
               ? `[${value.length}]`
               : Object.keys(value).filter((k) => !k.startsWith("$")).length > 0
@@ -3309,7 +3384,9 @@ export class Game<T extends M = {}> {
         ? "undefined"
         : value === null
           ? "null"
-          : typeof value === "object"
+          : isTable
+            ? "object"
+            : typeof value === "object"
             ? Array.isArray(value)
               ? `array`
               : "$type" in value && typeof value.$type === "string"

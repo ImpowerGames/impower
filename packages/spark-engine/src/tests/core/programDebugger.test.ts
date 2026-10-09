@@ -1359,4 +1359,135 @@ describe("the debugger on the program engine", () => {
       expect(holds).toBe(true);
     }
   });
+
+  it("shows a table's entries, its array part in order and then its keys, and a nested table's too", () => {
+    const h = debugGame(
+      [
+        "-> main", //                                      0
+        "scene main", //                                   1
+        "  Start.", //                                     2
+        "  local t = {2, 1}", //                           3
+        "  local n = {10, name = 'a', inner = {x = 1}}", // 4
+        "  After.", //                                     5
+        "  done", //                                       6
+        "end", //                                          7
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 5 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(5);
+    const temps = h.game.getTempVariables();
+    expect(names(temps).sort()).toEqual(["n={...}", "t={...}"]);
+    const t = temps.find((v) => v.name === "t")!;
+    expect(t.namedVariables).toBe(2);
+    expect(names(h.game.getChildVariables(t.variablesReference))).toEqual([
+      "1=2",
+      "2=1",
+    ]);
+    const n = temps.find((v) => v.name === "n")!;
+    const entries = h.game.getChildVariables(n.variablesReference);
+    expect(names(entries)).toEqual(["1=10", 'name="a"', "inner={...}"]);
+    const inner = entries.find((v) => v.name === "inner")!;
+    expect(names(h.game.getChildVariables(inner.variablesReference))).toEqual([
+      "x=1",
+    ]);
+    // A table is still left out of the context the editor evaluates against.
+    expect(Object.keys(h.game.getEvaluationContext())).not.toContain("t");
+  });
+
+  it("shows a table's keys that a JavaScript object would take for its own", () => {
+    const h = debugGame(
+      [
+        "-> main", //                                                           0
+        "scene main", //                                                        1
+        "  Start.", //                                                          2
+        "  local k = {['__proto__'] = 1, ['$x'] = 2, ['$type'] = 'list.var'}", // 3
+        "  After.", //                                                          4
+        "  done", //                                                            5
+        "end", //                                                               6
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(4);
+    const k = h.game.getTempVariables().find((v) => v.name === "k")!;
+    expect(`${k.value} ${k.type}`).toBe("{...} object");
+    expect(names(h.game.getChildVariables(k.variablesReference))).toEqual([
+      "__proto__=1",
+      "$x=2",
+      '$type="list.var"',
+    ]);
+  });
+
+  it("lists a table's array part before its other integer keys, up to the first hole", () => {
+    const h = debugGame(
+      [
+        "-> main", //                                                     0
+        "scene main", //                                                  1
+        "  Start.", //                                                    2
+        "  local s = {'one', 'two', name = 'n', [0] = 'zero', [4] = 'four'}", // 3
+        "  After.", //                                                    4
+        "  done", //                                                      5
+        "end", //                                                         6
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(4);
+    const s = h.game.getTempVariables().find((v) => v.name === "s")!;
+    expect(names(h.game.getChildVariables(s.variablesReference))).toEqual([
+      '1="one"',
+      '2="two"',
+      'name="n"',
+      '0="zero"',
+      '4="four"',
+    ]);
+  });
+
+  it("shows a deeply nested table one level at a time, and a table that holds itself", () => {
+    const h = debugGame(
+      [
+        "-> main", //                           0
+        "scene main", //                        1
+        "  Start.", //                          2
+        "  local d = deep()", //                3
+        "  local c = {name = 'c'}", //          4
+        "  c.self = c", //                      5
+        "  After.", //                          6
+        "  done", //                            7
+        "end", //                               8
+        "function deep()", //                   9
+        "  local t = {}", //                    10
+        "  for i = 1, 20000 do", //             11
+        "    t = {child = t}", //               12
+        "  end", //                             13
+        "  return t", //                        14
+        "end", //                               15
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 6 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(6);
+    const temps = h.game.getTempVariables();
+    expect(names(temps).sort()).toEqual(["c={...}", "d={...}"]);
+    const d = temps.find((v) => v.name === "d")!;
+    const child = h.game.getChildVariables(d.variablesReference);
+    expect(names(child)).toEqual(["child={...}"]);
+    expect(
+      names(h.game.getChildVariables(child[0]!.variablesReference)),
+    ).toEqual(["child={...}"]);
+    const c = temps.find((v) => v.name === "c")!;
+    const own = h.game.getChildVariables(c.variablesReference);
+    expect(names(own)).toEqual(['name="c"', "self={...}"]);
+    const again = h.game.getChildVariables(own[1]!.variablesReference);
+    expect(names(again)).toEqual(['name="c"', "self={...}"]);
+  });
 });
