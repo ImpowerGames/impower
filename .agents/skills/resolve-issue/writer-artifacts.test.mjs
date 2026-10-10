@@ -122,6 +122,39 @@ execFileSync('git', ['init', '--quiet', '--bare', bare], { windowsHide: true });
 const bareEntries = fs.readdirSync(bare);
 assert.throws(() => allocateWriterArtifacts({ ...options, parent: bare }), /Git repository/);
 assert.deepEqual(fs.readdirSync(bare), bareEntries, 'bare repository receives no artifacts');
+for (const damage of ['missing-head', 'damaged-head', 'missing-objects', 'missing-refs', 'damaged-config']) {
+  const damagedBare = path.join(scratch, `bare-${damage}`);
+  console.log(`Scratch damaged bare repository: ${damagedBare}`);
+  execFileSync('git', ['init', '--quiet', '--bare', damagedBare], { windowsHide: true });
+  fs.renameSync(path.join(damagedBare, 'HEAD'), path.join(damagedBare, 'HEAD.saved'));
+  if (damage === 'damaged-head') fs.writeFileSync(path.join(damagedBare, 'HEAD'), 'invalid head\n');
+  if (damage === 'missing-objects') fs.renameSync(path.join(damagedBare, 'objects'), path.join(damagedBare, 'objects.saved'));
+  if (damage === 'missing-refs') fs.renameSync(path.join(damagedBare, 'refs'), path.join(damagedBare, 'refs.saved'));
+  if (damage === 'damaged-config') {
+    fs.renameSync(path.join(damagedBare, 'config'), path.join(damagedBare, 'config.saved'));
+    fs.writeFileSync(path.join(damagedBare, 'config'), 'invalid config\n');
+  }
+  const damagedParent = path.join(damagedBare, 'scratch');
+  fs.mkdirSync(damagedParent);
+  assert.throws(() => allocateWriterArtifacts({ ...options, parent: damagedParent }), /Cannot verify/, `${damage} bare metadata refuses before allocation`);
+  assert.deepEqual(fs.readdirSync(damagedParent), [], 'damaged bare storage receives no artifacts');
+}
+const ordinaryNames = path.join(scratch, 'ordinary-metadata-names');
+fs.mkdirSync(ordinaryNames);
+fs.mkdirSync(path.join(ordinaryNames, 'objects'));
+fs.mkdirSync(path.join(ordinaryNames, 'refs'));
+fs.writeFileSync(path.join(ordinaryNames, 'config'), '[application]\nname = ordinary\n');
+assert.ok(allocateWriterArtifacts({ ...options, parent: ordinaryNames }).artifactDir, 'generic config/objects/refs names alone are ordinary storage');
+fs.writeFileSync(path.join(ordinaryNames, 'config'), `[include]\npath = "${path.join(bare, 'config').split(path.sep).join('/')}"\n`);
+assert.ok(allocateWriterArtifacts({ ...options, parent: ordinaryNames }).artifactDir, 'metadata recognition reads only the explicit config without following includes');
+const linkedMetadata = path.join(scratch, 'linked-metadata');
+fs.mkdirSync(linkedMetadata);
+const objectsLink = path.join(linkedMetadata, 'objects');
+fs.symlinkSync(path.join(bare, 'objects'), objectsLink, process.platform === 'win32' ? 'junction' : 'dir');
+const linkedMetadataBefore = fs.readdirSync(linkedMetadata);
+assert.throws(() => allocateWriterArtifacts({ ...options, parent: linkedMetadata }), /Cannot verify/);
+assert.deepEqual(fs.readdirSync(linkedMetadata), linkedMetadataBefore, 'uncertain linked metadata receives no artifacts');
+fs.unlinkSync(objectsLink);
 const linked = path.join(scratch, 'linked');
 fs.symlinkSync(scratch, linked, process.platform === 'win32' ? 'junction' : 'dir');
 assert.throws(() => allocateWriterArtifacts({ ...options, parent: linked }), /linked/);

@@ -22,6 +22,39 @@ function physicalDirectory(directory) {
   return fs.realpathSync.native(directory);
 }
 
+function metadataEntry(file) {
+  try {
+    const stat = fs.lstatSync(file);
+    if (stat.isSymbolicLink()) throw new Error(`Cannot verify linked artifact parent metadata: ${file}`);
+    return stat;
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw new Error(`Cannot verify artifact parent metadata: ${file}`, { cause: error });
+  }
+}
+
+function recognizableAdmin(directory, env) {
+  const config = path.join(directory, 'config');
+  const configStat = metadataEntry(config);
+  const objects = metadataEntry(path.join(directory, 'objects'));
+  const refs = metadataEntry(path.join(directory, 'refs'));
+  if (!objects?.isDirectory() && !refs?.isDirectory()) return false;
+  if (configStat) {
+    if (!configStat.isFile()) throw new Error(`Cannot verify artifact parent metadata: ${config}`);
+    // Establish readability separately: a Git parse error is not proof of absence.
+    fs.readFileSync(config);
+    const read = (type, key) => {
+      const result = spawnSync('git', ['config', '--file', config, '--no-includes', `--type=${type}`, '--get', key], { encoding: 'utf8', windowsHide: true, env });
+      if (result.error) throw new Error(`Cannot verify artifact parent metadata: ${config}`, { cause: result.error });
+      return result.status === 0 ? result.stdout.trim() : null;
+    };
+    if (read('int', 'core.repositoryformatversion') !== null && read('bool', 'core.bare') !== null) return true;
+  }
+  // Corroborate damaged/missing config with the canonical Git storage layout;
+  // generic objects/refs/config names alone do not identify a repository.
+  return ['objects/info', 'objects/pack', 'refs/heads', 'refs/tags'].every(name => metadataEntry(path.join(directory, name))?.isDirectory());
+}
+
 export function allocateWriterArtifacts({ parent, issue, writer, session, worktree = process.cwd() }) {
   if (!Number.isSafeInteger(issue) || issue < 1) throw new Error('A positive issue number is required');
   for (const [name, value] of Object.entries({ writer, session })) {
@@ -45,14 +78,8 @@ export function allocateWriterArtifacts({ parent, issue, writer, session, worktr
   // metadata. Its physical presence still makes this ancestor unverifiable.
   for (let ancestor = directory; ; ancestor = path.dirname(ancestor)) {
     const metadata = path.join(ancestor, '.git');
-    try {
-      fs.lstatSync(metadata);
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw new Error(`Cannot verify artifact parent metadata: ${metadata}`, { cause: error });
-      if (path.dirname(ancestor) === ancestor) break;
-      continue;
-    }
-    throw new Error(`Cannot verify artifact parent with repository metadata: ${metadata}`);
+    if (metadataEntry(metadata) || recognizableAdmin(ancestor, gitEnv)) throw new Error(`Cannot verify artifact parent with repository metadata: ${ancestor}`);
+    if (path.dirname(ancestor) === ancestor) break;
   }
   const artifactDir = fs.mkdtempSync(path.join(directory, `writer-${issue}-`));
   protectPrivatePath(artifactDir);
