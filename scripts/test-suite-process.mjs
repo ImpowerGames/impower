@@ -47,9 +47,18 @@ function unlinkOwned(file, identity) {
   const current = fs.lstatSync(file, { bigint: true });
   // Windows path stats can report dev=0 while handle stats name the volume.
   // The private path stays in one store; require its exact file ID and birth.
-  if (!current.isFile() || current.ino === 0n || current.ino !== identity.ino || current.birthtimeNs !== identity.birthtimeNs
-    || (process.platform !== "win32" && current.dev !== identity.dev)) throw new Error(`Private reservation file ownership changed at ${file}; preserve it for inspection`);
+  if (!sameFile(current, identity)) throw new Error(`Private reservation file ownership changed at ${file}; preserve it for inspection`);
   fs.unlinkSync(file);
+}
+
+const sameFile = (current, identity) => current.isFile() && identity?.isFile() && current.ino !== 0n
+  && current.ino === identity.ino && current.birthtimeNs === identity.birthtimeNs
+  && (process.platform === "win32" || current.dev === identity.dev);
+
+function removeGuard(file, identity) {
+  if (!identity) throw new Error(`Reservation guard identity unavailable at ${file}; preserve it for inspection`);
+  try { unlinkOwned(file, identity); }
+  catch (error) { if (error.code !== "ENOENT") throw error; }
 }
 
 const storeDenied = (root, error) => new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`);
@@ -128,7 +137,7 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   catch (error) { throw denied(error) || error; }
   const guard = path.join(root, "guard.json");
   const deadline = Date.now() + waitMs;
-  let fd;
+  let fd, identity, cause;
   for (;;) {
     try { fd = fs.openSync(guard, "wx"); break; }
     catch (error) {
@@ -141,10 +150,20 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
     }
   }
   try {
+    identity = fs.fstatSync(fd, { bigint: true });
     fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
     fs.fsyncSync(fd);
     return action(path.join(root, "reservation.json"));
-  } finally { fs.closeSync(fd); fs.unlinkSync(guard); }
+  } catch (error) { cause = error; throw error; }
+  finally {
+    fs.closeSync(fd);
+    try { removeGuard(guard, identity); }
+    catch (error) {
+      if (!cause) throw error;
+      cause.guardCleanupError = error.message;
+      console.error(`Reservation guard cleanup failed after ${cause.message}: ${error.message}`);
+    }
+  }
 }
 
 // Rename a guard whose recorded owner (pid and start time, the identity
@@ -154,9 +173,11 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
 //
 // The read, the identity check and the rename run under an exclusive
 // `guard-recovery.json` claim, so two recoverers cannot both judge the same
-// abandoned guard and have the slower one rename the replacement the faster one
-// just took. Only a recoverer can remove a guard whose owner is dead, so under
-// the claim the guard read is the guard renamed. A claim left by a recoverer
+// abandoned guard. Normal transactions may still finish and replace the guard
+// during the process lookup: verify the same file generation AFTER proving its
+// owner dead. That dead owner can no longer remove it, and the claim excludes
+// other recoverers, so no legitimate remover can change it before rename.
+// A claim left by a recoverer
 // that died inside it is never guessed away: no guard is recovered until it is
 // inspected, which is how every abandoned guard behaved before recovery existed.
 function recoverAbandonedGuard(root, guard, identify, admitting = false) {
@@ -176,18 +197,27 @@ function recoverAbandonedGuard(root, guard, identify, admitting = false) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       return false;
     }
-    let owner;
-    try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
+    let owner, identity, guardFd;
+    try {
+      guardFd = fs.openSync(guard, "r");
+      identity = fs.fstatSync(guardFd, { bigint: true });
+      owner = JSON.parse(fs.readFileSync(guardFd, "utf8"))?.owner;
+    }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       return error.code === "ENOENT";
-    }
+    } finally { if (guardFd !== undefined) fs.closeSync(guardFd); }
     if (!owner?.pid || !owner.start) return false;
     // An unreadable process table is not evidence that the owner is gone.
     let current;
     try { current = identify(owner.pid); }
     catch { return false; }
     if (same(owner, current)) return false;
+    try { if (!sameFile(fs.lstatSync(guard, { bigint: true }), identity)) return false; }
+    catch (error) {
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      return error.code === "ENOENT";
+    }
     const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
     try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
     catch (error) {
