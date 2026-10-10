@@ -527,12 +527,14 @@ assert.equal(path.basename(owned.tree), `filer-${ownedRecord.id.replaceAll("-", 
 assert.equal(owned.branch, `repro/filer-${ownedRecord.id}`, "branch identity retains the UUID");
 // Construct the original schema directly; never migrate a real owner record.
 const legacyId = randomUUID(), legacyOwner = "legacy-owner", legacyBranch = `repro/filer-${legacyId}`;
-const legacyTree = path.join(`${main}.worktrees`, "repro", `filer-${legacyId}`);
-const legacyRecordPath = path.join(`${main}.filer-jobs`, legacyId, "owner.json");
+const legacyRoot = ownedRecord.root;
+assert.equal(legacyRoot, fs.realpathSync.native(main), "Legacy records use the helper's canonical root even from a short-path caller");
+const legacyTree = path.join(`${legacyRoot}.worktrees`, "repro", `filer-${legacyId}`);
+const legacyRecordPath = path.join(`${legacyRoot}.filer-jobs`, legacyId, "owner.json");
 git(["worktree", "add", "-b", legacyBranch, legacyTree, "origin/main"]);
 const legacyGitdir = git(["rev-parse", "--absolute-git-dir"], legacyTree);
 fs.mkdirSync(path.dirname(legacyRecordPath), { recursive: true });
-const legacyRecord = { version: 1, id: legacyId, owner: legacyOwner, root: main, tree: legacyTree, branch: legacyBranch, gitdir: legacyGitdir, head: git(["rev-parse", "HEAD"], legacyTree), state: "active", toolingOnly: true, installed: false };
+const legacyRecord = { version: 1, id: legacyId, owner: legacyOwner, root: legacyRoot, tree: legacyTree, branch: legacyBranch, gitdir: legacyGitdir, head: git(["rev-parse", "HEAD"], legacyTree), state: "active", toolingOnly: true, installed: false };
 const legacyMarker = path.join(legacyGitdir, markerName), legacyMarkerBytes = Buffer.from(JSON.stringify({ id: legacyId, owner: legacyOwner, record: legacyRecordPath }) + "\n");
 fs.writeFileSync(legacyMarker, legacyMarkerBytes);
 for (const forged of [{ ...legacyRecord, version: 3 }, { ...legacyRecord, version: 2 }, { ...legacyRecord, tree: owned.tree }]) {
