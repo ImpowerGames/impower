@@ -106,6 +106,8 @@ const validateAssembly=(assembly,directory)=>{
 export function validatePreparedChild(prepared,{env=process.env,consumed=false}={}) {
   if(prepared.version!==1||prepared.status!=='prepared'||!uuid(prepared.attemptId)||!uuid(prepared.launchNonce)
     ||!path.isAbsolute(prepared.directory)||environmentDigest(env)!==prepared.environmentDigest)throw new Error('Prepared supervisor binding is invalid');
+  if(!Number.isSafeInteger(prepared.startupMs)||prepared.startupMs<100||prepared.startupMs>60000
+    ||!Number.isSafeInteger(prepared.cleanupMs)||prepared.cleanupMs<100||prepared.cleanupMs>10000)throw new Error('Invalid attempt startup/cleanup bounds');
   const directory=fs.realpathSync.native(prepared.directory),manifest=path.join(directory,'prepared.json');
   if(directory!==prepared.directory)throw new Error('Prepared attempt directory changed');
   ordinary(manifest);
@@ -128,6 +130,10 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   if(!Number.isSafeInteger(startupMs)||startupMs<100||startupMs>60000
     ||!Number.isSafeInteger(cleanupMs)||cleanupMs<100||cleanupMs>10000)throw new Error('Invalid supervisor startup/cleanup bounds');
   if(!uuid(invocationId)||!path.isAbsolute(directory)||!path.isAbsolute(cwd))throw new Error('Invalid owned-runtime preparation');
+  // One monotonic budget covers compilation AND capability admission. Sync
+  // filesystem/identity work cannot be interrupted here, but cannot renew it.
+  const deadline=performance.now()+startupMs;
+  const remaining=()=>Math.max(0,Math.ceil(deadline-performance.now()));
   directory=fs.realpathSync.native(directory);
   const helper=helperScript??path.join(here,platform==='win32'?'test-suite-child-windows.ps1':'test-suite-child-linux.py');
   const assembly=path.join(directory,'test-suite-child-windows.exe'),bindings=[fileBinding(helper),fileBinding(path.join(here,'detached-launch.mjs'))];
@@ -143,7 +149,9 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   fs.writeFileSync(preparationFile,JSON.stringify(prepared),{flag:'wx'});
   const executable=platform==='win32'?'powershell.exe':'python3';
   const linuxProbeNonce=randomUUID();
-  const launchArgs=platform==='win32'?['-NoProfile','-NonInteractive','-File',helper,preparationFile]:[helper,'--check',linuxProbeNonce,String(startupMs)];
+  if(!remaining())return {...prepared,status:'not-run',exit:null,signal:null,exitConfirmed:true,
+    launchAuthorized:false,preparationTimedOut:true,launchError:'Preparation deadline expired before process launch'};
+  const launchArgs=platform==='win32'?['-NoProfile','-NonInteractive','-File',helper,preparationFile]:[helper,'--check',linuxProbeNonce,String(remaining())];
   const child=spawn(executable,launchArgs,{cwd,env,windowsHide:true,stdio:[platform==='win32'?'ignore':'pipe','pipe','pipe']});
   let diagnostics='',output='',launchError,preparationProcess=null;
   child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
@@ -154,6 +162,7 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
         const row=JSON.parse(output.trim()),actual=identity(row.helper)?identify(row.helper.pid):null;
         if(row.event!=='capable'||row.probeNonce!==linuxProbeNonce||row.helper.pid!==child.pid||!same(row.helper,actual))throw new Error('Linux capability probe identity mismatch');
         preparationProcess=actual;synchronous(onPreparation,{...prepared,preparationProcess});
+        if(!remaining())throw new Error('Preparation deadline expired before capability acknowledgement');
         child.stdin.end(linuxProbeNonce+'\n');
       } catch(error) {launchError=error.message;child.stdin.end();}
     }
@@ -172,7 +181,7 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
     launchError=error.message;
     try {child.kill();} catch(killError) {diagnostics+=killError.message;}
   }
-  let closed=await bounded(actualClose,startupMs);
+  let closed=remaining()?await bounded(actualClose,remaining()):boundary;
   const preparationTimedOut=closed===boundary;
   if(closed===boundary) {
     try {child.kill();} catch(error) {launchError??=error.message;}
@@ -185,7 +194,7 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   if(closed===boundary)evidence.preparationDisposalErrors=disposeUnconfirmed(child);
   try {fs.writeFileSync(path.join(directory,'preparation-result.json'),JSON.stringify(evidence),{flag:'wx'});}
   catch(error) {evidence.preparationPublicationError=error.message;}
-  if(closed===boundary||closed.exit!==0||closed.signal||launchError||evidence.preparationPublicationError) {
+  if(preparationTimedOut||closed===boundary||closed.exit!==0||closed.signal||launchError||evidence.preparationPublicationError) {
     const unknown=platform==='win32'||closed===boundary;
     return {...prepared,...evidence,status:unknown?'unknown':'not-run',exit:null,signal:null,
       exitConfirmed:!unknown,launchAuthorized:false,compilerTreeConfirmed:platform==='win32'?false:undefined};
@@ -195,10 +204,15 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
     if(platform==='win32') {
       validateAssembly(assembly,directory);
       bindings.push(fileBinding(assembly));
+      const expired=()=>({...prepared,...evidence,status:'unknown',exit:null,signal:null,
+        exitConfirmed:false,launchAuthorized:false,preparationTimedOut:true,compilerTreeConfirmed:false,
+        launchError:'Preparation deadline expired before capability admission'});
+      if(!remaining())return expired();
       const probeFile=path.join(directory,'capability-request.json');
       const probeNonce=randomUUID();
-      fs.writeFileSync(probeFile,JSON.stringify({capabilityOnly:true,attemptId:invocationId,launchNonce:probeNonce,startupMs,
+      fs.writeFileSync(probeFile,JSON.stringify({capabilityOnly:true,attemptId:invocationId,launchNonce:probeNonce,startupMs:remaining(),
         logFile:path.join(directory,'capability-output.log')}),{flag:'wx'});
+      if(!remaining())return expired();
       const probe=spawn(assembly,[probeFile],{cwd,env,windowsHide:true,stdio:['pipe','pipe','pipe']});
       let probeOutput='',probeDiagnostics='',probeError,probeIdentity=null;
       probe.stdout.setEncoding('utf8');probe.stderr.setEncoding('utf8');
@@ -210,7 +224,9 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
             const actual=identity(row.helper)?identify(row.helper.pid):null;
             if(row.event!=='capable'||row.attemptId!==invocationId||row.launchNonce!==probeNonce
               ||row.helper.pid!==probe.pid||!same(row.helper,actual))throw new Error('Capability probe identity mismatch');
-            probeIdentity=actual;probe.stdin.end(probeNonce+'\n');
+            probeIdentity=actual;
+            if(!remaining())throw new Error('Preparation deadline expired before capability acknowledgement');
+            probe.stdin.end(probeNonce+'\n');
           } catch(error) {probeError=error.message;probe.stdin.end();}
         }
       });probe.stderr.on('data',chunk=>{probeDiagnostics+=chunk;});
@@ -218,15 +234,16 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
       probe.stdout.on('error',error=>{probeError??=error.message;});probe.stderr.on('error',error=>{probeError??=error.message;});
       probe.on('error',error=>{probeError=error.message;});
       const probeCompletion=new Promise(resolve=>probe.once('close',(exit,signal)=>resolve({exit,signal})));
-      let probeClose=await bounded(probeCompletion,startupMs);
-      const probeTimedOut=probeClose===boundary;
+      let probeClose=remaining()?await bounded(probeCompletion,remaining()):boundary;
+      const probeTimedOut=probeClose===boundary||!remaining();
       if(probeTimedOut) {try {probe.kill();} catch(error) {probeError??=error.message;} probeClose=await bounded(probeCompletion,cleanupMs);}
       const probeEvidence={probeIdentity,probeClose:probeClose===boundary?null:probeClose,probeTimedOut,probeError,probeOutput,probeDiagnostics};
       if(probeClose===boundary)probeEvidence.probeDisposalErrors=disposeUnconfirmed(probe);
       try {fs.writeFileSync(path.join(directory,'capability-result.json'),JSON.stringify(probeEvidence),{flag:'wx'});}
       catch(error) {probeEvidence.capabilityPublicationError=error.message;}
-      if(!identity(probeIdentity)||probeClose===boundary||probeClose.exit!==0||probeClose.signal||probeError||probeEvidence.capabilityPublicationError)
-        return {...prepared,...evidence,...probeEvidence,status:'unknown',exit:null,signal:null,exitConfirmed:false,launchAuthorized:false};
+      if(probeTimedOut||!remaining()||!identity(probeIdentity)||probeClose===boundary||probeClose.exit!==0||probeClose.signal||probeError||probeEvidence.capabilityPublicationError)
+        return {...prepared,...evidence,...probeEvidence,status:'unknown',exit:null,signal:null,exitConfirmed:false,
+          preparationTimedOut:preparationTimedOut||probeTimedOut,launchAuthorized:false};
       const rows=probeOutput.trim().split('\n').map(row=>JSON.parse(row));
       if(rows.length!==1||rows[0].event!=='capable'||rows[0].mechanism!=='windows-job'
         ||rows[0].attemptId!==invocationId||rows[0].launchNonce!==probeNonce||!same(rows[0].helper,probeIdentity))throw new Error('Windows Job/attribute capability was not confirmed');
@@ -236,7 +253,12 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
       if(rows.length!==1||rows[0].event!=='capable'||rows[0].mechanism!=='linux-subreaper'||rows[0].probeNonce!==linuxProbeNonce
         ||!same(rows[0].helper,preparationProcess))throw new Error('Linux Python 3.9+/pidfd/subreaper capability was not confirmed');
     }
+    const expiredPublication=message=>({...prepared,...evidence,status:platform==='win32'?'unknown':'not-run',
+      exit:null,signal:null,exitConfirmed:platform!=='win32',compilerTreeConfirmed:platform==='win32'?false:undefined,
+      launchAuthorized:false,preparationTimedOut:true,launchError:message});
+    if(!remaining())return expiredPublication('Preparation deadline expired before runtime publication');
     fs.writeFileSync(path.join(directory,'runtime.json'),JSON.stringify(prepared),{flag:'wx'});
+    if(!remaining())return expiredPublication('Preparation deadline expired during runtime publication');
     return {...prepared};
   } catch(error) {
     return {...prepared,...evidence,status:'not-run',exit:null,signal:null,exitConfirmed:true,
@@ -266,9 +288,12 @@ export async function prepareOwnedChild({directory,command,args=[],cwd,env=proce
   runtime??=await prepareOwnedRuntime({directory,cwd,env,...options});
   if(runtime.status!=='prepared')return runtime;
   validatePreparedRuntime(runtime,{env});
+  const startupMs=options.startupMs??runtime.startupMs,cleanupMs=options.cleanupMs??runtime.cleanupMs;
+  if(!Number.isSafeInteger(startupMs)||startupMs<100||startupMs>60000
+    ||!Number.isSafeInteger(cleanupMs)||cleanupMs<100||cleanupMs>10000)throw new Error('Invalid attempt startup/cleanup bounds');
   directory=fs.realpathSync.native(directory);
   const prepared={version:1,status:'prepared',directory,attemptId,launchNonce:randomUUID(),
-    command,args:[...args],cwd,timeoutMs,platform:runtime.platform,startupMs:runtime.startupMs,cleanupMs:runtime.cleanupMs,
+    command,args:[...args],cwd,timeoutMs,platform:runtime.platform,startupMs,cleanupMs,
     executable:runtime.executable,helper:runtime.helper,bindings:runtime.bindings,environmentDigest:runtime.environmentDigest,runtime};
   fs.writeFileSync(path.join(directory,'prepared.json'),JSON.stringify(prepared),{flag:'wx'});
   return prepared;
@@ -281,11 +306,16 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
   const {directory,command,args,cwd,timeoutMs,attemptId,platform,startupMs,cleanupMs,executable,helper}=prepared;
   const expected={version:1,directory,attemptId,reservationToken,launchNonce:prepared.launchNonce,platform,
     proofFile:path.join(directory,'tree-proof.json'),logFile:path.join(directory,'output.log')};
+  const startupDeadline=performance.now()+startupMs;
+  const remainingStartup=()=>Math.max(0,Math.ceil(startupDeadline-performance.now()));
+  const requireStartup=()=>{if(!remainingStartup())throw new Error('Supervisor startup deadline expired before launch authorization');};
   const requestFile=path.join(directory,'child-request.json');
   fs.writeFileSync(requestFile,JSON.stringify({...expected,command,args,cwd,timeoutMs,startupMs}),{flag:'wx'});
   const requestBinding=fileBinding(requestFile);
   synchronous(onPreparing,expected);
-  const launchArgs=platform==='win32'?[requestFile]:[helper,requestFile],remainingStartup=startupMs;
+  if(!remainingStartup())return {...expected,status:'not-run',exit:null,signal:null,exitConfirmed:true,
+    launchAuthorized:false,helperLaunched:false,launchError:'Supervisor startup deadline expired before helper launch'};
+  const launchArgs=platform==='win32'?[requestFile]:[helper,requestFile];
   // libuv's ordinary Windows child Job kills the supervisor when Node dies,
   // preventing its EOF cleanup/proof. The central detached launcher keeps
   // a hidden Node wrapper alive until the managed helper exits. Its own Job
@@ -331,7 +361,7 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
     if(!identity(expected.launcher))throw new Error('Supervisor launcher identity unavailable');
     synchronous(onPreparing,expected);
   } catch(error) {coordinationError=error.message;disconnect();}
-  let readyRow=await bounded(ready,remainingStartup);
+  let readyRow=remainingStartup()?await bounded(ready,remainingStartup()):boundary;
   if(readyRow===boundary) {
     protocolError='Supervisor startup deadline expired before launch authorization';
     disconnect();
@@ -340,13 +370,17 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
   } else if(readyRow) {
     try {
       if(protocolError||coordinationError)throw new Error(protocolError??coordinationError);
+      requireStartup();
       expected.helper=identity(readyRow.helper)?identify(readyRow.helper.pid):null;
       if(!same(readyRow.helper,expected.helper))throw new Error('Supervisor OS identity unavailable or mismatched');
       synchronous(onReady,expected);
+      requireStartup();
       validatePreparedChild(prepared,{env,consumed:true});
       validateBindings([requestBinding]);
+      requireStartup();
       authorizationAttempted=true; // a failed callback may already have persisted may-launch
       synchronous(onAuthorize,expected); // persist may-launch before sending the nonce
+      requireStartup(); // synchronous persistence can exhaust the remaining time
       authorized=true;
       child.stdin.write(expected.launchNonce+'\n');
     } catch(error) { coordinationError??=error.message;disconnect(); }

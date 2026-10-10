@@ -194,6 +194,110 @@ test('blocked capability publication preserves live pipe-holder uncertainty',{sk
   } finally {if(owned)await until(()=>processIdentity(owned.pid)===null,25000);}
 });
 
+test('preparation deadline includes forced synchronous identity capture',{skip:process.platform!=='win32',timeout:15000},async()=>{
+  const directory=scratch(),script=path.join(directory,'compile.ps1'),ack=path.join(directory,'compiler-observed.json');
+  let identityCaptures=0;
+  fs.writeFileSync(script,[
+    'param([string]$Configuration)',
+    '$acknowledgement = Join-Path (Split-Path -Parent $Configuration) "compiler-observed.json"',
+    '$deadline = (Get-Date).AddSeconds(10)',
+    'while (-not (Test-Path -LiteralPath $acknowledgement)) { if ((Get-Date) -gt $deadline) { exit 8 }; Start-Sleep -Milliseconds 20 }',
+    'exit 0',
+  ].join('\n'));
+  const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:100,
+    identify(pid) {
+      identityCaptures++;
+      const original=processIdentity(pid);
+      // Deliberately exhaust the authored bound; the child waits on our ack.
+      // This does not depend on compilation speed or ambient machine load.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,250);
+      return original;
+    },onPreparation(value) {fs.writeFileSync(ack,JSON.stringify(value.preparationProcess));}});
+  console.log('Forced identity deadline evidence: '+JSON.stringify({identityCaptures,result}));
+  assert.equal(identityCaptures,1,'Exercise post-launch identity work rather than a prelaunch filesystem cutoff');
+  assert.equal(result.status,'unknown');
+  assert.equal(result.preparationTimedOut,true,'Elapsed startup must not restart after synchronous capture');
+  assert.equal(result.compilerTreeConfirmed,false);
+  assert.ok(result.preparationClose,'Await the original preparation child close');
+  assert.equal(result.launchAuthorized,false);
+  assert.equal(fs.existsSync(path.join(directory,'capability-request.json')),false);
+  assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
+});
+
+for(const phase of ['ready','authorize'])test('attempt startup refuses late '+phase+' persistence',{skip:!supported,timeout:30000},async()=>{
+  const runtimeDirectory=scratch();
+  const runtime=await prepareOwnedRuntime({directory:runtimeDirectory,startupMs:10000,cleanupMs:1000});
+  assert.equal(runtime.status,'prepared',JSON.stringify(runtime));
+    const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
+    const prepared=await prepareOwnedChild({directory,runtime,command:process.execPath,args:[fixture,'exit0',inventory],
+      cwd:directory,timeoutMs:2000,startupMs:3000,cleanupMs:1000});
+    let readyCalls=0,authorizeCalls=0,expected;
+    const result=await runOwnedChild({prepared,reservationToken:randomUUID(),
+      onReady(value) {
+        expected=value;readyCalls++;
+        if(phase==='ready')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,3500);
+      },onAuthorize(value) {
+        expected={...value,mayLaunchPersisted:true};authorizeCalls++;
+        if(phase==='authorize')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,3500);
+      }});
+    console.log('Attempt callback deadline evidence: '+JSON.stringify({phase,readyCalls,authorizeCalls,result}));
+    assert.equal(readyCalls,1,'Exercise the callback boundary, not earlier startup refusal');
+    assert.equal(result.exitConfirmed,true,JSON.stringify(result));
+    assert.ok(result.launcherClose,'Original launcher actually closed');
+    for(const original of [result.launcher,result.helper]) {
+      assert.ok(original?.start);
+      assert.notDeepEqual(processIdentity(original.pid),original,'Original identity absent; PID reuse is allowed');
+    }
+    assert.equal(records(inventory).length,0,'Late callbacks cannot authorize the engine');
+    if(phase==='ready')assert.equal(authorizeCalls,0,'No may-launch callback after startup expiry');
+    else {
+      assert.equal(authorizeCalls,1);
+      const proof=readTreeProof(expected,{close:result.launcherClose});
+      assert.equal(proof.root,null,'Persisted may-launch needs fresh helper-owned no-launch proof');
+      assert.equal(proof.status,'not-run');
+    }
+    assert.equal(result.launchAuthorized,false,'No nonce sent after callback consumed the deadline');
+});
+
+test('native final admission refuses an already queued nonce after a bounded setup pause',{skip:!supported,timeout:30000},async()=>{
+  const runtimeDirectory=scratch();
+  let script;
+  if(process.platform==='win32') {
+    script=path.join(runtimeDirectory,'test-suite-child-windows.ps1');
+    fs.copyFileSync(path.join(here,'test-suite-child-windows.ps1'),script);
+    const source=fs.readFileSync(path.join(here,'test-suite-child-windows.cs'),'utf8');
+    const needle='      if(!authorizationRead.WaitOne(remaining)';
+    assert.equal(source.split(needle).length,2);
+    fs.writeFileSync(path.join(runtimeDirectory,'test-suite-child-windows.cs'),source.replace(needle,
+      '      Event('+JSON.stringify(JSON.stringify({event:'fixture-admission-pause'}))+');\n      Thread.Sleep(3500); // Fixture pauses after calculating remaining.\n'+needle));
+  } else {
+    script=path.join(runtimeDirectory,'test-suite-child-linux.py');
+    const source=fs.readFileSync(path.join(here,'test-suite-child-linux.py'),'utf8');
+    const needle='    os.set_blocking(0, True)';
+    assert.equal(source.split(needle).length,2);
+    fs.writeFileSync(script,source.replace(needle,needle+'\n    emit("fixture-admission-pause")\n    time.sleep(3.5)  # Fixture pauses after exact authorization was read.'));
+  }
+  const runtime=await prepareOwnedRuntime({directory:runtimeDirectory,helperScript:script,startupMs:10000,cleanupMs:1000});
+  assert.equal(runtime.status,'prepared',JSON.stringify(runtime));
+  const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
+  const prepared=await prepareOwnedChild({directory,runtime,command:process.execPath,args:[fixture,'exit0',inventory],
+    cwd:directory,timeoutMs:2000,startupMs:3000,cleanupMs:1000});
+  let pauseReached=false;
+  const result=await runOwnedChild({prepared,reservationToken:randomUUID(),onEvent(row) {if(row.event==='fixture-admission-pause')pauseReached=true;}});
+  console.log('Native paused admission evidence: '+JSON.stringify({pauseReached,result}));
+  assert.equal(pauseReached,true,'Exercise native paused setup, not an earlier refusal');
+  assert.equal(result.launchAuthorized,true,'Coordinator sent the nonce within its own admission budget');
+  assert.equal(result.exitConfirmed,true,JSON.stringify(result));
+  assert.ok(result.launcherClose);
+  for(const original of [result.launcher,result.helper]) {
+    assert.ok(original?.start);assert.notDeepEqual(processIdentity(original.pid),original);
+  }
+  assert.equal(result.status,'not-run','Native setup cannot consume the deadline and still start an engine');
+  assert.equal(result.root,null);
+  assert.equal(records(inventory).length,0);
+  assert.equal(readTreeProof(result,{close:result.launcherClose}).tree.observation,'no-launch');
+});
+
 test('real C# compilation refusal and preparation deadline never enter reservation-stage launch',{skip:process.platform!=='win32',timeout:30000},async()=>{
   for(const deadline of [false,true]) {
     const directory=scratch(),script=path.join(directory,'test-suite-child-windows.ps1');
@@ -202,7 +306,10 @@ test('real C# compilation refusal and preparation deadline never enter reservati
     const changed=deadline?source:source.replace('public static int Main(string[] args)','public static invalid syntax Main(string[] args)');
     if(!deadline)assert.notEqual(changed,source,'Real compiler refusal must mutate the C# syntax');
     fs.writeFileSync(path.join(directory,'test-suite-child-windows.cs'),changed);
-    const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:deadline?100:60000});
+    // Two authored prep bounds (5s and100ms), each with1s close cleanup, fit
+    // the30s fixture. Sync identity/filesystem calls remain uninterruptible.
+    const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:deadline?100:5000,cleanupMs:1000});
+    console.log('Real compiler admission evidence: '+JSON.stringify({deadline,result}));
     assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.launchAuthorized,false);
     assert.equal(result.compilerTreeConfirmed,false);assert.equal(result.preparationTimedOut,deadline);
     if(!deadline)assert.match(result.diagnostics,/Add-Type|Compiler|CS\d+/);
@@ -234,8 +341,13 @@ test('compile success without a fresh executable is refused before helper launch
 
 test('one invocation prepares once; fresh attempts share immutable bytes but never authorization state',{skip:!supported,timeout:30000},async()=>{
   const runtimeDirectory=scratch();let preparations=0;
-  const runtime=await prepareOwnedRuntime({directory:runtimeDirectory,onPreparation(){preparations++;}});
+  const runtime=await prepareOwnedRuntime({directory:runtimeDirectory,startupMs:10000,cleanupMs:1000,onPreparation(){preparations++;}});
   assert.equal(runtime.status,'prepared',JSON.stringify(runtime));
+  for(const bounds of [{startupMs:99},{startupMs:60001},{cleanupMs:99},{cleanupMs:10001}]) {
+    const directory=scratch();
+    await assert.rejects(prepareOwnedChild({runtime,directory,command:process.execPath,args:[],cwd:directory,timeoutMs:1500,...bounds}),/startup\/cleanup bounds/);
+    assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
+  }
   const attempts=[];
   for(let index=0;index<2;index++) {
     const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
@@ -261,7 +373,7 @@ test('Windows capability failure/timeout stays outside reservation and cannot la
       :source.replace('new UIntPtr(0x2000d)','new UIntPtr(0x200ff)');
     assert.notEqual(changed,source,'The negative control must change its intended capability path');
     fs.writeFileSync(path.join(directory,'test-suite-child-windows.cs'),changed);
-    const result=await prepareOwnedRuntime({directory,startupMs:stalled?3000:60000,helperScript:path.join(directory,'test-suite-child-windows.ps1')});
+    const result=await prepareOwnedRuntime({directory,startupMs:stalled?3000:5000,cleanupMs:1000,helperScript:path.join(directory,'test-suite-child-windows.ps1')});
     assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.launchAuthorized,false);
     assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
     assert.equal(fs.existsSync(path.join(directory,'tree-proof.json')),false);
@@ -312,15 +424,21 @@ test('prepared binding is checked again after ready and before authorization',{s
 
 test('helper independently refuses nonce after a stalled synchronous coordinator callback',{skip:!supported,timeout:30000},async()=>{
   const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
+  let readyCalls=0;
   const result=await controlOwned({directory,command:process.execPath,args:[fixture,'loop',inventory],
     cwd:directory,timeoutMs:1500,startupMs:3000,reservationToken:randomUUID(),onReady() {
+      readyCalls++;
       const until=Date.now()+4000;
       while(Date.now()<until) {} // Node timers cannot fire; helper must refuse itself.
     }});
   assert.equal(result.status,'not-run',JSON.stringify(result));
   assert.equal(result.exitConfirmed,true);
-  assert.equal(result.root,null);
-  assert.equal(result.tree.observation,'no-launch');
+  assert.equal(readyCalls,1,'The synchronous callback actually stalled');
+  assert.equal(result.launchAuthorized,false,'Coordinator never sends the expired nonce');
+  const proof=readTreeProof(result,{close:result.launcherClose});
+  assert.equal(proof.root,null);
+  assert.equal(proof.tree.observation,'no-launch');
+  for(const original of [result.launcher,result.helper])assert.notDeepEqual(processIdentity(original.pid),original);
   assert.equal(records(inventory).length,0);
 });
 

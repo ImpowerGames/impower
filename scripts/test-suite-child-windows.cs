@@ -114,7 +114,8 @@ public static class TestSuiteChildWindows {
         var probeReader=new Thread(()=>{try {acknowledgement=Console.ReadLine();} catch {disconnected=true;} finally {received.Set();}});
         probeReader.IsBackground=true;probeReader.Start();
         int probeRemaining=(int)Math.Max(0,Math.Min(60000,request.startupMs)-admission.ElapsedMilliseconds);
-        return received.WaitOne(probeRemaining)&&acknowledgement==token&&!disconnected?0:1;
+        return received.WaitOne(probeRemaining)&&acknowledgement==token&&!disconnected
+          &&admission.ElapsedMilliseconds<Math.Min(60000,request.startupMs)?0:1;
       }
       Event("{\"event\":\"ready\",\"token\":\""+token+"\"}");
       string authorization=null;
@@ -126,12 +127,16 @@ public static class TestSuiteChildWindows {
       });
       reader.IsBackground=true; reader.Start();
       int remaining=(int)Math.Max(0,Math.Min(60000,request.startupMs)-admission.ElapsedMilliseconds);
-      if(!authorizationRead.WaitOne(remaining)||authorization!=token||disconnected) {
+      if(!authorizationRead.WaitOne(remaining)||authorization!=token||disconnected
+        ||admission.ElapsedMilliseconds>=Math.Min(60000,request.startupMs)) {
         Proof("not-run",null,false,"no-launch",disconnected); Event("{\"event\":\"finished\",\"status\":\"not-run\"}"); return 75;
       }
       var startup=new STARTUPINFOEX(); startup.startup.cb=Marshal.SizeOf(startup); startup.attributes=list;
       startup.startup.flags=0x101; startup.startup.show=0; startup.startup.stdin=input; startup.startup.stdout=output; startup.startup.stderr=output;
       var command=new StringBuilder(Quote(executable)); foreach(string arg in args)command.Append(' ').Append(Quote(arg));
+      if(admission.ElapsedMilliseconds>=Math.Min(60000,request.startupMs)||disconnected) {
+        Proof("not-run",null,false,"no-launch",disconnected); Event("{\"event\":\"finished\",\"status\":\"not-run\"}"); return 75;
+      }
       startedAt=Now();
       var elapsed=Stopwatch.StartNew();
       // Inherit the managed helper's hidden console. CREATE_NO_WINDOW would

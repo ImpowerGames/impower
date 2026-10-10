@@ -142,19 +142,26 @@ def main():
         if len(authorization) > 65536:
             break
     os.set_blocking(0, True)
-    if authorization != (request["launchNonce"] + "\n").encode("ascii") or disconnected.is_set():
+    def refuse_launch():
         proof = dict(base, status="not-run", root=None, exit=None, signal=None,
                      timedOut=False, interrupted=True, startedAt=None, finishedAt=timestamp(),
                      tree=dict(mechanism="linux-subreaper", empty=True, observation="no-launch"))
         publish_proof(proof)
         emit("finished", status="not-run")
         return 75
+    if (authorization != (request["launchNonce"] + "\n").encode("ascii")
+            or disconnected.is_set() or time.monotonic() >= admission_deadline):
+        return refuse_launch()
     # The sole waiter is this main loop. No handler/thread or subprocess destructor
     # may reap a child. Reset SIGCHLD above; fork before starting the reader thread.
     started_at = timestamp()
     deadline = time.monotonic() + request["timeoutMs"] / 1000
     error_read, error_write = os.pipe2(os.O_CLOEXEC | os.O_NONBLOCK)
     with open(request["logFile"], "xb", buffering=0) as output:
+        if disconnected.is_set() or time.monotonic() >= admission_deadline:
+            os.close(error_read)
+            os.close(error_write)
+            return refuse_launch()
         child_pid = os.fork()
         if child_pid == 0:
             try:
