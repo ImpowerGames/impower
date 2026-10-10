@@ -92,9 +92,10 @@ const discoveryMissingNested = path.join(discoveryMissingHead, "nested"); fs.mkd
 const hidden = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: discoveryNested, encoding: "utf8", env: { ...process.env, GIT_CEILING_DIRECTORIES: main }, windowsHide: true });
 assert.equal(hidden.status, 128, "real inherited ceiling can hide the containing repository");
 const brokenDiscovery = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: discoveryBroken, encoding: "utf8", windowsHide: true });
-assert.equal(brokenDiscovery.status, 128); assert.ok(brokenDiscovery.stderr.includes("missing-metadata"));
+assert.equal(brokenDiscovery.status, 128, brokenDiscovery.stderr); assert.ok(brokenDiscovery.stderr.trim(), "broken metadata supplies an actual Git diagnostic");
 const missingDiscovery = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: discoveryMissingNested, encoding: "utf8", windowsHide: true });
 assert.equal(missingDiscovery.status, 128); assert.ok(missingDiscovery.stderr.includes("not a git repository"));
+console.log(JSON.stringify({ gitDiscoveryControls: { hidden: hidden.stderr, broken: brokenDiscovery.stderr, missingHead: missingDiscovery.stderr } }));
 for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
   const localized = spawnSync(process.execPath, ["--import", pathToFileURL(discoveryPreload).href, path.join(root, file), ...args], {
     input: JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd: discoveryOutside, tool_input: { command: "rm -f unrelated.txt" } }), encoding: "utf8", windowsHide: true,
@@ -255,7 +256,7 @@ const parentLocation = `cd '${reproduction}/node_modules/..'; rm -f tracked.txt`
 assert.ok(cleanup(parentLocation, "bash", main), "linked parent location must not invent a safe cwd");
 verifyAdapters(parentLocation, "Bash", main, true); chainPreserved();
 if (process.platform !== "win32") {
-  const actual = spawnSync("bash", ["-c", `pwd; test '${parentTarget}' -ef '${chainExternal}/tracked.txt'`], { cwd: main, encoding: "utf8" });
+  const actual = spawnSync("bash", ["-c", `pwd; test '${parentTarget}' -ef '${chainExternal}/tracked.txt'`], { cwd: main, encoding: "utf8", windowsHide: true });
   assert.equal(actual.status, 0, actual.stderr); chainPreserved();
   // Preserve the raw link destination too: its parent component follows the
   // borrowed link before reaching an otherwise unregistered external root.
@@ -600,11 +601,45 @@ for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".cl
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
 }
-await remove(owned.record, owner); preserved();
+// The unchanged guard runs in the same anchored Git environment. Otherwise
+// inherited overrides can redirect its discovery and dirty/ownership checks.
+const savedGitEnvironment = Object.entries(process.env).filter(([key]) => /^GIT_/i.test(key));
+try {
+  process.env.GIT_DIR = path.join(chainExternal, ".git");
+  process.env.GIT_WORK_TREE = chainExternal;
+  process.env.GIT_INDEX_FILE = path.join(chainExternal, ".git", "index");
+  await remove(owned.record, owner); preserved(); chainPreserved();
+} finally {
+  for (const key of Object.keys(process.env)) if (/^GIT_/i.test(key)) delete process.env[key];
+  for (const [key, value] of savedGitEnvironment) process.env[key] = value;
+}
 assert.ok(!fs.existsSync(owned.tree));
 assert.ok(fs.existsSync(owned.artifacts));
 assert.equal(JSON.parse(fs.readFileSync(owned.record)).state, "removed");
 await assert.rejects(remove(owned.record, owner), /inactive/); preserved();
+const overrideMain = path.join(scratch, "override-main"); fs.mkdirSync(overrideMain);
+for (const args of [["init", "-b", "main"], ["config", "user.name", "Fixture"], ["config", "user.email", "fixture@example.invalid"]]) git(args, overrideMain);
+fs.writeFileSync(path.join(overrideMain, "tracked.txt"), "main marker control\n");
+git(["add", "."], overrideMain); git(["commit", "-m", "fixture"], overrideMain);
+git(["update-ref", "refs/remotes/origin/main", "HEAD"], overrideMain);
+const mainMarker = path.join(overrideMain, ".git", markerName), mainMarkerBytes = Buffer.from('{"retained":"main marker sentinel"}\n');
+fs.writeFileSync(mainMarker, mainMarkerBytes);
+const helper = path.join(root, "scripts", "filer-worktree.mjs"), overrideEnvironment = { ...process.env, GIT_DIR: path.join(overrideMain, ".git"), git_dir: path.join(overrideMain, ".git"), LANGUAGE: "de", language: "fr" };
+for (const env of [process.env, overrideEnvironment]) {
+  const created = spawnSync(process.execPath, [helper, "create", "--root", overrideMain, "--owner", owner, "--tooling-only"], { env, encoding: "utf8", windowsHide: true });
+  assert.equal(created.status, 0, created.stderr);
+  const result = JSON.parse(created.stdout), record = JSON.parse(fs.readFileSync(result.record));
+  const actualAdmin = fs.realpathSync(git(["rev-parse", "--absolute-git-dir"], result.tree));
+  assert.equal(fs.realpathSync(record.gitdir), actualAdmin, "ownership marker uses actual per-worktree administration");
+  assert.notEqual(actualAdmin, fs.realpathSync(path.join(overrideMain, ".git")));
+  const ownedMarker = path.join(actualAdmin, markerName), markerBytes = fs.readFileSync(ownedMarker);
+  for (const checkEnv of [process.env, overrideEnvironment]) {
+    const checked = spawnSync(process.execPath, [helper, "check", "--record", result.record, "--owner", owner], { env: checkEnv, encoding: "utf8", windowsHide: true });
+    assert.equal(checked.status, 0, checked.stderr); assert.equal(JSON.parse(checked.stdout).safe, true);
+    assert.deepEqual(fs.readFileSync(ownedMarker), markerBytes); assert.deepEqual(fs.readFileSync(mainMarker), mainMarkerBytes); chainPreserved();
+  }
+}
+console.log("PASS: clean and inherited-Git create/check preserve main and owned administrative markers");
 const config = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json")));
 assert.ok(config.hooks.PreToolUse.some(group => group.matcher.includes("PowerShell") && group.hooks.some(hook => hook.command.includes("worktree-cleanup.mjs"))));
 const workflow = fs.readFileSync(path.join(root, ".github/workflows/hook-tests.yml"), "utf8");

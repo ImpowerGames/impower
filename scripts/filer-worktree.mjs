@@ -14,7 +14,13 @@ function run(executable, args, cwd, env = process.env) {
   if (result.error || result.status !== 0) throw new Error(`${executable} failed: ${result.error?.message ?? result.stderr ?? result.stdout}`);
   return result.stdout.trim();
 }
-const git = (cwd, args) => run("git", args, cwd);
+function gitEnvironment() {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key) && !/^(?:LC_ALL|LANG|LANGUAGE)$/i.test(key)));
+  return { ...env, LC_ALL: "C", LANG: "C", LANGUAGE: "C" };
+}
+// Every repository/ownership query and mutation is anchored to its explicit
+// cwd. Ambient Git settings must not redirect a per-worktree admin marker.
+const git = (cwd, args) => run("git", args, cwd, gitEnvironment());
 function noLinks(p) {
   for (let at = path.resolve(p); ; at = path.dirname(at)) {
     try { if (fs.lstatSync(at).isSymbolicLink()) throw new Error(`Linked path is refused: ${at}`); }
@@ -110,7 +116,7 @@ async function removeOwned(recordPath, owner) {
   const r = owned(recordPath, owner);
   if (git(r.tree, ["rev-parse", "HEAD"]) !== r.head) throw new Error("Filer has committed work; preserve it for a person");
   await checkLinks(r.tree);
-  const result = spawnSync(process.execPath, [guard, "--apply", "--root", r.root, "--remove", r.tree], { cwd: r.root, encoding: "utf8", windowsHide: true });
+  const result = spawnSync(process.execPath, [guard, "--apply", "--root", r.root, "--remove", r.tree], { cwd: r.root, env: gitEnvironment(), encoding: "utf8", windowsHide: true });
   if (result.error || result.status !== 0) throw new Error(`Guarded cleanup refused or failed; preserve ownership and artifacts: ${result.error?.message ?? result.stdout + result.stderr}`);
   if (fs.existsSync(r.tree) || entries(r.root).some(e => same(e.path, r.tree))) throw new Error("Cleanup result could not be verified; preserve ownership and artifacts");
   // Delete only the unchanged owned branch, after verifying no other checkout holds it.
