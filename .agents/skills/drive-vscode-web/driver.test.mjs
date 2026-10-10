@@ -31,6 +31,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import vm from "node:vm";
+import { pathToFileURL } from "node:url";
+import { diagnosticFailures, lspHealth, validateScenario, previewRead, classifyRuntimeErrors, hostCrashes, pollUntil, scriptProvenance, stopDesktop, ensurePreviewVisible } from "./desktop.mjs";
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
@@ -278,6 +281,34 @@ await check("the build rule names what an open editor loads, each with the sourc
   const bare = buildRule(path.join(scratch, "nowhere"), packages);
   assert.deepEqual(bare.map((g) => path.basename(g.artifact)), ["extension.js", "sparkdown-language-server.js"], "the extension bundle and the language server are required even before a first build");
   assert.throws(() => buildRule(ext, path.join(scratch, "nowhere")), /holds no package with a src directory/, "a packages directory with no package source is refused rather than guarded by nothing");
+});
+
+await check("desktop freshness includes the Game Preview runtime, workers and webviews", () => {
+  const groups = buildRule(ext, packages, fs, "desktop");
+  assert.ok(groups.some(g => relOf(g) === "out/webviews/game-webview.js"));
+  assert.ok(groups.some(g => relOf(g) === "out/workers/sparkdown-screenplay-pdf.js"));
+  const game = groups.find(g => relOf(g) === "out/webviews/game-webview.js");
+  assert.ok(game.sources.includes(path.join(packages, "sparkdown", "src")));
+  assert.equal(rebuildCommand([game]), "cd vscode-sparkdown && npm run build");
+  touch(path.join(ext, "webviews/game-webview/game-webview.ts"), T0 + 100);
+  assert.ok(staleNames(groups).includes("out/webviews/game-webview.js"));
+  touch(path.join(ext, "webviews/game-webview/game-webview.ts"), T0 - 5000);
+  const missing = buildFreshness(groups, filesOf).missing;
+  assert.ok(missing.includes(path.join(ext, "out/webviews/screen-webview.js")));
+});
+
+await check("desktop rejects unexpected diagnostics but accepts the exact expected message and source", () => {
+  const diagnostic = { file: path.join(repo, "project/main.sd"), message: "Unknown asset", severity: "warning", source: "sparkdown", line: 4 };
+  const expectation = { ...diagnostic, file: "project/main.sd" };
+  assert.deepEqual(diagnosticFailures([diagnostic], [expectation], repo), { unexpected: [], missing: [] });
+  assert.equal(diagnosticFailures([diagnostic], [], repo).unexpected.length, 1);
+  assert.equal(diagnosticFailures([{ ...diagnostic, source: "other" }], [expectation], repo).unexpected.length, 1);
+  assert.equal(diagnosticFailures([], [expectation], repo).missing.length, 1);
+  const health = lspHealth("[Trace] Received response 'textDocument/semanticTokens/full - (1)' in 20ms.\n[Trace] Received response 'textDocument/semanticTokens/range - (2)' in 20ms. Request failed: Cannot assign to read only property 'name' (-32603).\n[Error] Request textDocument/semanticTokens/range failed.");
+  assert.equal(health.semanticResponses.length, 2);
+  assert.equal(health.semanticResponses[1].failed, true);
+  assert.equal(health.failed.length, 2);
+  assert.throws(() => validateScenario({ file: "main.sd", expectedDiagnostics: [] }), /interaction/);
 });
 
 await check("the rebuild command runs the steps of the artifacts named, each once, the language server's build before the extension's script", () => {
@@ -1468,7 +1499,7 @@ const verifyDeps = (doc, over = {}, readCostMs = 0) => {
     },
     withWorkbench: async (url, opts, fn) => {
       acts.push(["workbench", url, opts.headless]);
-      return fn({ page, consoleLines: ["[error] boom", "[log] fine", "[pageerror] Not Found"] });
+      return fn({ page, consoleLines: ["[log] fine", "[pageerror] Not Found"] });
     },
     readFile: () => "return 1 + 1",
     ...over,
@@ -1477,6 +1508,15 @@ const verifyDeps = (doc, over = {}, readCostMs = 0) => {
 const keys = (deps) => deps.acts.filter((a) => a[0] === "key").map((a) => a[1]);
 const evaluated = (deps) => deps.acts.filter((a) => a[0] === "evaluate").map((a) => a[1]);
 const hoverDoc = (extra = {}) => fakeDocument({ lines: rendered, problems: script([null, "", "0 0", "0 0", "0 2"]), squiggles: { warning: 2 }, cursor: "Ln 5, Col 19", caretX: 100 + 18 * CHAR_W, hover: { text: "Cannot find image named 'missing_backdrop'" }, ...extra });
+
+await check("verify fails on an unclassified console error even when diagnostics settle", async () => {
+  const deps = verifyDeps(hoverDoc());
+  const withWorkbench = deps.withWorkbench;
+  deps.withWorkbench = (url, options, fn) => withWorkbench(url, options, context => fn({ ...context, consoleLines: ["[error] semantic token worker crashed"] }));
+  const result = await verify([], deps);
+  assert.equal(result.exitCode, 1);
+  assert.match(result.report.failed.join("\n"), /semantic token worker crashed/);
+});
 
 await check("verify opens the file, waits for the counter to change and hold, clicks the word, opens the hover by keyboard, screenshots, prints the report and exits 0", async () => {
   const deps = verifyDeps(hoverDoc());
@@ -1499,7 +1539,7 @@ await check("verify opens the file, waits for the counter to change and hold, cl
   assert.equal(report.probe, 2);
   // `[pageerror] Not Found` is one of the lines every run produces, so it is
   // counted rather than listed; what is left in consoleErrors is worth reading.
-  assert.deepEqual(report.consoleErrors, ["[error] boom"]);
+  assert.deepEqual(report.consoleErrors, []);
   assert.equal(report.consoleNoise["Not Found page error"], 1);
   assert.equal(report.consoleNoise["package.nls.json 404"], 0);
   assert.deepEqual(deps.acts.slice(0, 4), [["alias", RECORD.builds], ["workbench", RECORD.url, true], ["wait", ".monaco-workbench"], ["open", "main.sd", 1]], "the row clicked is the file's own at the top level, not the subfolder's file of the same name that comes first in the DOM, nor the name that extends it");
@@ -1514,6 +1554,14 @@ await check("verify opens the file, waits for the counter to change and hold, cl
   assert.deepEqual(keys(deps), ["Control+k", "Control+i"]);
   assert.deepEqual(deps.acts.filter((a) => a[0] === "shot"), [["shot", "[data-drive-hover]", "hover.png"], ["shot", "page", "after.png"]]);
   assert.equal(JSON.parse(deps.logs.at(-1)).settledAfterS, 11, "the report is printed");
+});
+
+await check("served debugging refuses stale complete-runtime artifacts before opening the browser", async () => {
+  const checked = [];
+  const deps = verifyDeps(hoverDoc(), { checkBuild: surface => { checked.push(surface); throw new Refusal("stale game webview"); } });
+  await assert.rejects(verify(["--debug"], deps), /stale game webview/);
+  assert.deepEqual(checked, ["desktop"]);
+  assert.equal(deps.acts.some(a => a[0] === "workbench"), false);
 });
 
 await check("verify refuses a bad option, a hover flag without --hover, a --settle below the floor, and a server it cannot vouch for, before opening a browser", async () => {
@@ -1798,6 +1846,176 @@ await check("the page is 1400 x 900, a record names its own worktree's state fil
   assert.equal(recordFile({ worktree: path.join(FIXTURE_ROOT, "w2") }), path.join(FIXTURE_ROOT, "w2", ".agents", "skills", "drive-vscode-web", ".state.json"));
   assert.equal(path.basename(path.dirname(recordFile({}))), "drive-vscode-web");
   assert.equal(liveDeps.extensionId(), EXT_ID);
+});
+
+await check("desktop preview reads per-character story spans without inventing spaces and excludes hidden content", () => {
+  const saved = globalThis.document;
+  const element = (text, opacity = "1") => ({ textContent: text, opacity, getBoundingClientRect: () => ({ width: 10, height: 10 }), querySelector: () => null });
+  const player = element("");
+  const spans = [..."Story text"].map(c => element(c));
+  spans.push(element("hidden", "0"));
+  const d = { defaultView: { getComputedStyle: el => ({ opacity: el.opacity }) }, querySelector: () => player, querySelectorAll: () => spans, images: [], body: { innerText: "Story text", className: "ready" } };
+  globalThis.document = { getElementById: () => ({ contentDocument: d }) };
+  try { assert.equal(previewRead().text, "Story text"); }
+  finally { if (saved === undefined) delete globalThis.document; else globalThis.document = saved; }
+});
+
+await check("desktop polling fails on host exit or a request that never completes, and captures crashes", async () => {
+  assert.equal(await pollUntil(() => "ready", "timeout", { timeout: 100 }), "ready");
+  await assert.rejects(pollUntil(() => new Promise(() => {}), "request timeout", { timeout: 10 }), /request timeout/);
+  await assert.rejects(pollUntil(() => true, "timeout", { timeout: 100, exited: () => true }), /Owned desktop process exited/);
+  assert.deepEqual(hostCrashes("Extension host with pid 7 exited with code: 0, signal: unknown"), []);
+  assert.equal(hostCrashes("Extension host with pid 7 exited with code: 134, signal: unknown").length, 1);
+});
+
+await check("loaded scripts must match this checkout, including only the exact VS Code CommonJS wrapper", () => {
+  const checkout = path.resolve("fixture");
+  const url = `${pathToFileURL(path.join(checkout, "vscode-sparkdown/out/extension.js")).href}#vscode-extension`;
+  const disk = "module.exports = 42;";
+  const io = { readFileSync: () => disk };
+  const wrapped = `(function anonymous(module,exports,require\n) {\n${disk}\n//# sourceURL=${url}\n})`;
+  assert.equal(scriptProvenance(url, disk, checkout, io).matches, true);
+  assert.equal(scriptProvenance(url, wrapped, checkout, io).matches, true);
+  assert.equal(scriptProvenance(url, wrapped + "changed", checkout, io).matches, false);
+  assert.equal(scriptProvenance(url, disk, path.resolve("other"), io).matches, false);
+  assert.equal(scriptProvenance(url.replace("/vscode-sparkdown/", "-stale/vscode-sparkdown/"), disk, checkout, io).matches, false);
+});
+
+await check("desktop runtime noise classification is exact and version-specific", () => {
+  const known = { error: "%c  ERR color: #f33 Proceeding with EXTRA proposals (authIssuers) because extension is in development mode. Still, this EXTENSION WILL BE BROKEN unless product.json is updated." };
+  assert.equal(classifyRuntimeErrors([known], "1.140.0").noise.length, 1);
+  assert.equal(classifyRuntimeErrors([known], "1.141.0").unexpected.length, 1);
+  assert.equal(classifyRuntimeErrors([{ error: known.error + " changed" }], "1.140.0").unexpected.length, 1);
+  assert.equal(classifyRuntimeErrors([{ error: "Game Preview crashed" }], "1.140.0").unexpected.length, 1);
+});
+
+await check("desktop shutdown requires owned identity, a successful tree stop and observed exit", async () => {
+  const owner = { pid: 42, startedMs: 100 };
+  let alive = true, stops = 0;
+  const deps = { alive: () => alive, started: async () => 100, platform: "win32", stopWindows: () => { stops++; alive = false; }, timeout: 10 };
+  await stopDesktop(owner, deps);
+  assert.equal(stops, 1);
+  await assert.rejects(stopDesktop(owner, deps), /descendant shutdown is unverified/);
+  alive = true;
+  await assert.rejects(stopDesktop(owner, { ...deps, started: async () => 200 }), /PID identity changed/);
+  assert.equal(stops, 1, "a reused PID is never signalled");
+  await assert.rejects(stopDesktop(owner, { ...deps, stopWindows: () => {} }), /did not exit/);
+  await assert.rejects(stopDesktop(owner, { ...deps, stopWindows: () => { throw new Error("denied"); } }), /denied/);
+  await stopDesktop(owner, { ...deps, platform: "linux", stopLinux: async () => { alive = false; } });
+});
+
+await check("desktop preview reveals a covered panel and refuses to read one that remains hidden", async () => {
+  let visible = true, active = false, reveals = 0;
+  const page = {
+    locator: () => ({ isVisible: async () => visible }),
+    getByRole: () => ({ first: () => ({ getAttribute: async () => String(active) }) }),
+  };
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; active = true; }), true, "retained off-screen webviews still need their tab revealed");
+  assert.equal(reveals, 1);
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; }), true);
+  assert.equal(reveals, 1, "an already visible preview is left active");
+  visible = false;
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; }), false);
+});
+
+async function desktopDebugReport(advances) {
+  const commands = new Map();
+  let frameLine = 10, clock = 0, report, ended = false;
+  const session = {
+    id: "scenario-game",
+    type: "game",
+    async customRequest(method) {
+      if (method === "threads") return { threads: [{ id: 1 }] };
+      if (method === "stackTrace") {
+        if (ended) throw new Error("No debugger available");
+        return { stackFrames: [{ id: 1, source: { path: "main.sd" }, line: frameLine, column: 1 }] };
+      }
+      if (method === "scopes") return { scopes: [{ name: "Vars", variablesReference: 1 }] };
+      if (method === "variables") return { variables: [{ name: "driver_score", value: "42" }] };
+      if (method === "evaluate") return { result: "42" };
+      if (method === "next") frameLine = 20;
+      if (method === "continue") {
+        if (advances === "ended") ended = true;
+        else if (advances) frameLine = 30;
+      }
+      return {};
+    },
+  };
+  const vscode = {
+    debug: {
+      activeDebugSession: session, registerDebugConfigurationProvider: () => ({}), stopDebugging: async () => true,
+    },
+    commands: { registerCommand: (id, command) => { commands.set(id, command); return {}; } },
+  };
+  const api = {};
+  vm.runInNewContext(fs.readFileSync(new URL("./desktop-harness/extension.cjs", import.meta.url), "utf8"), {
+    exports: api, process: { env: { IMPOWER_DESKTOP_SCENARIO: "scenario.json" } },
+    Date: { now: () => clock += 1000 }, setTimeout: callback => queueMicrotask(callback),
+    require: name => {
+      if (name === "vscode") return vscode;
+      if (name === "node:path") return path;
+      if (name === "node:fs") return {
+        readFileSync: () => JSON.stringify({ evidence: FIXTURE_ROOT, debug: { expression: "driver_score", result: "42" } }),
+        writeFileSync: (_file, contents) => { report = JSON.parse(contents); },
+      };
+      throw new Error(`Unexpected harness import: ${name}`);
+    },
+  });
+  api.activate({ subscriptions: [] });
+  await commands.get("impower.driver.debug")();
+  return report;
+}
+
+await check("desktop Continue rejects an acknowledged request that leaves execution at the same frame", async () => {
+  const report = await desktopDebugReport(false);
+  assert.ok(report.failed.some(message => /Continue did not advance/.test(message)), "an acknowledgment without execution progress must fail");
+  assert.notEqual(report.continued, true);
+});
+
+await check("desktop Continue accepts execution advancing to another frame", async () => {
+  const report = await desktopDebugReport(true);
+  assert.deepEqual(report.failed, []);
+  assert.equal(report.continued, true);
+});
+
+await check("desktop Continue does not equate a vanished adapter with verified progress", async () => {
+  const failed = await desktopDebugReport("ended");
+  assert.ok(failed.failed.some(message => /No debugger available/.test(message)));
+  assert.notEqual(failed.continued, true);
+});
+
+await check("F5 waits for all runtime producers before starting the worker copier", async () => {
+  const { watchRuntime, runtimeBuilders } = await import("../../../vscode-sparkdown/scripts/f5.mjs");
+  const { EventEmitter } = await import("node:events");
+  const { PassThrough } = await import("node:stream");
+  const children = [], logs = [];
+  const start = (_executable, args, options) => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => { child.killed = true; child.stdout.end(); child.stderr.end(); child.emit("exit", 0); };
+    children.push({ child, args, options });
+    return child;
+  };
+  const promise = watchRuntime(FIXTURE_ROOT, { start, log: line => logs.push(line), io: { readFileSync: () => Buffer.from("current worker"), statSync: () => ({ size: 42 }) } });
+  assert.equal(children.length, 6);
+  assert.equal(runtimeBuilders.length, 6);
+  children[0].child.stdout.write("worker: build failed\n");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(children.length, 6, "failure must not release the copier");
+  for (const { child } of children.slice(0, 5)) child.stdout.write("producer: build finished\n");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(children.length, 6, "last webview is still building");
+  children[5].child.stdout.write("producer: build finished\n");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(children.length, 7);
+  assert.deepEqual(children[6].args, ["scripts/esbuild.ts", "--watch"]);
+  assert.ok(!logs.includes("[watch] F5: build finished"));
+  children[6].child.stdout.write("extension: build finished\n");
+  const watcher = await promise;
+  assert.equal(logs.at(-1), "[watch] F5: build finished");
+  watcher.stop();
+  assert.ok(children.every(({ child }) => child.killed));
 });
 
 if (failures) {

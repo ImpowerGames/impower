@@ -1,0 +1,13 @@
+{
+  "name": "impower-desktop-driver",
+  "publisher": "impower-testing",
+  "version": "1.0.0",
+  "engines": { "vscode": "^1.100.0" },
+  "main": "./extension.cjs",
+  "activationEvents": ["onCommand:impower.driver.run", "onCommand:impower.driver.debug", "onDebugResolve:extensionHost"],
+  "contributes": { "commands": [
+    { "command": "impower.driver.run", "title": "Impower Driver: Run Scenario" },
+    { "command": "impower.driver.debug", "title": "Impower Driver: Verify Debugger" },
+    { "command": "impower.driver.diagnostics", "title": "Impower Driver: Read Final Diagnostics" }
+  ] }
+}
