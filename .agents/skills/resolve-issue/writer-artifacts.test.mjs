@@ -189,4 +189,39 @@ const descendant = path.join(linked, 'descendant');
 fs.mkdirSync(path.join(scratch, 'descendant'));
 assert.throws(() => allocateWriterArtifacts({ ...options, parent: descendant }), /linked/);
 fs.unlinkSync(linked);
+const portableRoot = path.join(scratch, " linked with 'quotes'");
+fs.mkdirSync(portableRoot);
+const originalExecFileSync = childProcess.execFileSync;
+try {
+  childProcess.execFileSync = (executable, args, settings) => {
+    if (executable === 'git' && args.includes('worktree') && args.includes('list')) {
+      return args.includes('-z') ? `worktree ${portableRoot}\0HEAD fixture\0locked reason\nworktree unrelated\0\0` : `worktree ${portableRoot}\nHEAD fixture\n\n`;
+    }
+    return originalExecFileSync(executable, args, settings);
+  };
+  syncBuiltinESMExports();
+  assert.throws(() => allocateWriterArtifacts({ ...options, parent: portableRoot }), /inside a checkout/);
+  assert.deepEqual(fs.readdirSync(portableRoot), [], 'portable NUL-record refusal writes nothing');
+} finally {
+  childProcess.execFileSync = originalExecFileSync;
+  syncBuiltinESMExports();
+}
+const pathnameRepo = path.join(scratch, 'pathname-repo');
+console.log(`Scratch pathname repository: ${pathnameRepo}`);
+execFileSync('git', ['init', '--quiet', pathnameRepo], { windowsHide: true });
+execFileSync('git', ['-C', pathnameRepo, '-c', 'user.name=Artifact test', '-c', 'user.email=artifact@example.invalid', 'commit', '--allow-empty', '--quiet', '-m', 'fixture'], { windowsHide: true });
+const worktreeNames = process.platform === 'win32' ? [" linked with 'quotes'"] : [' linked\nline "quotes" ', ' linked\twith spaces '];
+for (const name of worktreeNames) {
+  const linkedRoot = path.join(scratch, name);
+  if (!fs.existsSync(linkedRoot)) execFileSync('git', ['-C', pathnameRepo, 'worktree', 'add', '--detach', '--quiet', linkedRoot], { windowsHide: true });
+  else execFileSync('git', ['-C', pathnameRepo, 'worktree', 'add', '--detach', '--quiet', '--force', linkedRoot], { windowsHide: true });
+  fs.renameSync(path.join(linkedRoot, '.git'), path.join(linkedRoot, '.git.saved'));
+  const linkedParent = path.join(linkedRoot, 'artifacts');
+  fs.mkdirSync(linkedParent);
+  const listing = execFileSync('git', ['-C', pathnameRepo, 'worktree', 'list', '--porcelain', '-z'], { encoding: 'utf8', windowsHide: true });
+  assert.ok(listing.split('\0').includes(`worktree ${linkedRoot.split(path.sep).join('/')}`), 'real Git preserves the complete worktree pathname');
+  assert.throws(() => allocateWriterArtifacts({ ...options, parent: linkedParent, worktree: pathnameRepo }), /inside a checkout/, 'registered damaged worktree remains refused with unusual pathname');
+  assert.deepEqual(fs.readdirSync(linkedParent), [], 'registered worktree refusal writes nothing');
+}
+console.log(process.platform === 'win32' ? 'LIMITATION: real POSIX newline/trailing-space worktree names cannot execute on Windows' : 'PASS: real POSIX newline/whitespace worktree paths remain registered and refused');
 console.log('PASS: initial artifact paths isolate concurrent writers and retries, record ownership, and refuse unsafe parents/identities');
