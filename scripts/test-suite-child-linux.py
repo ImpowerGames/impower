@@ -87,8 +87,29 @@ def main():
     admission_started = time.monotonic()
     capability()
     if sys.argv[1:] == ["--check"]:
+        # Standalone CI prerequisite diagnostic; invocation admission uses the
+        # identity acknowledgement mode below. Neither mode can fork an engine.
         emit("capable", mechanism="linux-subreaper", helper=identity(os.getpid()))
         return 0
+    if len(sys.argv) == 4 and sys.argv[1] == "--check":
+        nonce = sys.argv[2]
+        emit("capable", mechanism="linux-subreaper", helper=identity(os.getpid()), probeNonce=nonce)
+        # Stay inspectable until the coordinator acknowledges the exact probe.
+        # This branch cannot fork an engine, including on valid acknowledgement.
+        deadline = admission_started + min(int(sys.argv[3]), 60000) / 1000
+        acknowledgement = b""
+        os.set_blocking(0, False)
+        while b"\n" not in acknowledgement and not disconnected.is_set():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not select.select([0], [], [], remaining)[0]:
+                break
+            chunk = os.read(0, 4096)
+            if not chunk:
+                break
+            acknowledgement += chunk
+            if len(acknowledgement) > 65536:
+                break
+        return 0 if acknowledgement == (nonce + "\n").encode("ascii") and not disconnected.is_set() else 1
     with open(sys.argv[1], encoding="utf-8") as source:
         request = json.load(source)
     helper = identity(os.getpid())

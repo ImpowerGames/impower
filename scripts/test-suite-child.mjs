@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {processIdentity} from './reviewer-slots.mjs';
+import {spawnDetached} from './detached-launch.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const identity=value=>value&&Number.isSafeInteger(value.pid)&&value.pid>0&&typeof value.start==='string'&&value.start.length>0;
@@ -30,6 +31,8 @@ const synchronous=(callback,value)=>{
 // Exit ownership and test success are separate. This validator proves only the
 // recorded supervisor lifecycle; callers still verify complete test evidence.
 export function readTreeProof(expected,{identify=processIdentity,close}={}) {
+  if(!identity(expected.launcher))throw new Error('Recorded launcher identity is missing or invalid');
+  if(expected.platform==='linux'&&!same(expected.launcher,expected.helper))throw new Error('Linux launcher/helper identity differs');
   const current=pid=>{
     const value=identify(pid);
     if(value!==null&&!identity(value))throw new Error('Process identity inspection is unknown');
@@ -65,86 +68,223 @@ export function readTreeProof(expected,{identify=processIdentity,close}={}) {
     if(same(proof.root,current(proof.root.pid)))throw new Error('Proof contradicts a live root identity');
   }
   if(same(proof.helper,current(proof.helper.pid)))throw new Error('Supervisor still running; await actual exit');
+  if(same(expected.launcher,current(expected.launcher.pid)))throw new Error('Supervisor launcher still running; await actual exit');
   if(close) {
-    if(close.signal)throw new Error('Supervisor was terminated; final outcome unavailable');
+    if(close.signal)throw new Error('Launcher was terminated; final outcome unavailable');
     const expectedExit=proof.status==='timed-out'?124:proof.status==='interrupted'?125:proof.status==='not-run'?75:proof.exit===0?0:1;
-    if(close.exit!==expectedExit)throw new Error('Supervisor exit contradicts its final proof');
+    if(close.exit!==expectedExit)throw new Error('Launcher exit contradicts its final proof');
   }
   return proof;
 }
 
-export async function runOwnedChild({directory,command,args=[],cwd,env=process.env,timeoutMs,
-  attemptId=randomUUID(),reservationToken,platform=process.platform,startupMs=60000,cleanupMs=10000,
-  identify=processIdentity,onPreparing=()=>{},onReady=()=>{},onAuthorize=()=>{},onStarted=()=>{},
-  onEvent=()=>{},helperScript,helperExecutable}) {
+const digest=value=>createHash('sha256').update(value).digest('hex');
+const environmentDigest=env=>digest(JSON.stringify(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))));
+const fileBinding=file=>{
+  ordinary(file);
+  return {file:fs.realpathSync.native(file),sha256:digest(fs.readFileSync(file))};
+};
+const validateBindings=bindings=>{
+  for(const binding of bindings) {
+    const current=fileBinding(binding.file);
+    if(current.file!==binding.file||current.sha256!==binding.sha256)throw new Error('Prepared supervisor artifact changed');
+  }
+};
+const validateAssembly=(assembly,directory)=>{
+  ordinary(assembly);
+  const descriptor=fs.openSync(assembly,'r'),signature=Buffer.alloc(2);
+  try {fs.readSync(descriptor,signature,0,2,0);} finally {fs.closeSync(descriptor);}
+  if(signature.toString('ascii')!=='MZ'||fs.statSync(assembly).size<256
+    ||path.dirname(fs.realpathSync.native(assembly))!==directory)throw new Error('Fresh supervisor assembly is invalid');
+};
+export function validatePreparedChild(prepared,{env=process.env,consumed=false}={}) {
+  if(prepared.version!==1||prepared.status!=='prepared'||!uuid(prepared.attemptId)||!uuid(prepared.launchNonce)
+    ||!path.isAbsolute(prepared.directory)||environmentDigest(env)!==prepared.environmentDigest)throw new Error('Prepared supervisor binding is invalid');
+  const directory=fs.realpathSync.native(prepared.directory),manifest=path.join(directory,'prepared.json');
+  if(directory!==prepared.directory)throw new Error('Prepared attempt directory changed');
+  ordinary(manifest);
+  if(path.dirname(fs.realpathSync.native(manifest))!==directory
+    ||JSON.stringify(JSON.parse(fs.readFileSync(manifest,'utf8')))!==JSON.stringify(prepared))throw new Error('Prepared supervisor descriptor changed');
+  validateBindings(prepared.bindings);
+  validatePreparedRuntime(prepared.runtime,{env});
+  if(prepared.executable!==prepared.runtime.executable||prepared.platform!==prepared.runtime.platform
+    ||JSON.stringify(prepared.bindings)!==JSON.stringify(prepared.runtime.bindings))throw new Error('Attempt runtime binding changed');
+  if(!consumed&&fs.existsSync(path.join(directory,'child-request.json')))throw new Error('Prepared attempt was already consumed');
+  return prepared;
+}
+
+// This completes before acquiring a machine test reservation. Uncertain
+// compilation/capability processes remain preparation evidence, not test owners.
+export async function prepareOwnedRuntime({directory,cwd=directory,env=process.env,
+  invocationId=randomUUID(),platform=process.platform,startupMs=60000,cleanupMs=10000,
+  identify=processIdentity,helperScript,onPreparation=()=>{}}) {
   if(!['win32','linux'].includes(platform))throw new Error('Owned test children require Windows or Linux');
-  if(!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>7200000)throw new Error('Invalid bounded file timeout');
   if(!Number.isSafeInteger(startupMs)||startupMs<100||startupMs>60000
     ||!Number.isSafeInteger(cleanupMs)||cleanupMs<100||cleanupMs>10000)throw new Error('Invalid supervisor startup/cleanup bounds');
-  if(!uuid(attemptId)||!uuid(reservationToken)||!path.isAbsolute(directory)||!path.isAbsolute(command)
-    ||!Array.isArray(args)||!args.every(arg=>typeof arg==='string'&&!arg.includes('\0')))throw new Error('Invalid owned-child request');
+  if(!uuid(invocationId)||!path.isAbsolute(directory)||!path.isAbsolute(cwd))throw new Error('Invalid owned-runtime preparation');
   directory=fs.realpathSync.native(directory);
-  const expected={version:1,directory,attemptId,reservationToken,launchNonce:randomUUID(),platform,
+  const helper=helperScript??path.join(here,platform==='win32'?'test-suite-child-windows.ps1':'test-suite-child-linux.py');
+  const assembly=path.join(directory,'test-suite-child-windows.exe'),bindings=[fileBinding(helper)];
+  if(platform==='win32') {
+    const source=path.join(path.dirname(helper),'test-suite-child-windows.cs');
+    if(fs.existsSync(source))bindings.push(fileBinding(source));
+    bindings.push(fileBinding(path.join(here,'detached-launch.mjs')));
+  }
+  const prepared={version:1,status:'prepared',directory,invocationId,platform,
+    startupMs,cleanupMs,environmentDigest:environmentDigest(env),
+    executable:platform==='win32'?assembly:'python3',helper,bindings};
+  const preparationFile=path.join(directory,'preparation-request.json');
+  if(fs.existsSync(path.join(directory,'runtime.json'))||fs.existsSync(assembly))throw new Error('Invocation already contains preparation artifacts; never reuse it');
+  fs.writeFileSync(preparationFile,JSON.stringify(prepared),{flag:'wx'});
+  const executable=platform==='win32'?'powershell.exe':'python3';
+  const linuxProbeNonce=randomUUID();
+  const launchArgs=platform==='win32'?['-NoProfile','-NonInteractive','-File',helper,preparationFile]:[helper,'--check',linuxProbeNonce,String(startupMs)];
+  const child=spawn(executable,launchArgs,{cwd,env,windowsHide:true,stdio:[platform==='win32'?'ignore':'pipe','pipe','pipe']});
+  let diagnostics='',output='',launchError,preparationProcess=null;
+  child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
+  child.stdout.on('data',chunk=>{
+    output+=chunk;
+    if(platform==='linux'&&output.includes('\n')) {
+      try {
+        const row=JSON.parse(output.trim()),actual=identity(row.helper)?identify(row.helper.pid):null;
+        if(row.event!=='capable'||row.probeNonce!==linuxProbeNonce||row.helper.pid!==child.pid||!same(row.helper,actual))throw new Error('Linux capability probe identity mismatch');
+        preparationProcess=actual;synchronous(onPreparation,{...prepared,preparationProcess});
+        child.stdin.end(linuxProbeNonce+'\n');
+      } catch(error) {launchError=error.message;child.stdin.end();}
+    }
+  });
+  child.stdin?.on('error',error=>{launchError??=error.message;});
+  child.stderr.on('data',chunk=>{diagnostics+=chunk;});
+  child.stdout.on('error',error=>{diagnostics+=error.message;});
+  child.stderr.on('error',error=>{diagnostics+=error.message;});
+  child.on('error',error=>{launchError=error.message;});
+  const actualClose=new Promise(resolve=>child.once('close',(exit,signal)=>resolve({exit,signal})));
+  try {
+    preparationProcess=child.pid?identify(child.pid):null;
+    if(platform==='win32'&&child.pid&&!identity(preparationProcess))throw new Error('Preparation process identity unavailable');
+    synchronous(onPreparation,{...prepared,preparationProcess});
+  } catch(error) {
+    launchError=error.message;
+    try {child.kill();} catch(killError) {diagnostics+=killError.message;}
+  }
+  let closed=await bounded(actualClose,startupMs);
+  const preparationTimedOut=closed===boundary;
+  if(closed===boundary) {
+    try {child.kill();} catch(error) {launchError??=error.message;}
+    closed=await bounded(actualClose,cleanupMs);
+  }
+  const evidence={preparationProcess,preparationClose:closed===boundary?null:closed,
+    preparationTimedOut,launchError,diagnostics,output};
+  fs.writeFileSync(path.join(directory,'preparation-result.json'),JSON.stringify(evidence),{flag:'wx'});
+  if(closed===boundary||closed.exit!==0||closed.signal||launchError) {
+    if(closed===boundary){child.stdout.destroy();child.stderr.destroy();child.unref();}
+    const unknown=platform==='win32'||closed===boundary;
+    return {...prepared,...evidence,status:unknown?'unknown':'not-run',exit:null,signal:null,
+      exitConfirmed:!unknown,launchAuthorized:false,compilerTreeConfirmed:platform==='win32'?false:undefined};
+  }
+  try {
+    validateBindings(bindings);
+    if(platform==='win32') {
+      validateAssembly(assembly,directory);
+      bindings.push(fileBinding(assembly));
+      const probeFile=path.join(directory,'capability-request.json');
+      const probeNonce=randomUUID();
+      fs.writeFileSync(probeFile,JSON.stringify({capabilityOnly:true,attemptId:invocationId,launchNonce:probeNonce,startupMs,
+        logFile:path.join(directory,'capability-output.log')}),{flag:'wx'});
+      const probe=spawn(assembly,[probeFile],{cwd,env,windowsHide:true,stdio:['pipe','pipe','pipe']});
+      let probeOutput='',probeDiagnostics='',probeError,probeIdentity=null;
+      probe.stdout.setEncoding('utf8');probe.stderr.setEncoding('utf8');
+      probe.stdout.on('data',chunk=>{
+        probeOutput+=chunk;
+        if(probeOutput.includes('\n')&&!probeIdentity) {
+          try {
+            const row=JSON.parse(probeOutput.trim());
+            const actual=identity(row.helper)?identify(row.helper.pid):null;
+            if(row.event!=='capable'||row.attemptId!==invocationId||row.launchNonce!==probeNonce
+              ||row.helper.pid!==probe.pid||!same(row.helper,actual))throw new Error('Capability probe identity mismatch');
+            probeIdentity=actual;probe.stdin.end(probeNonce+'\n');
+          } catch(error) {probeError=error.message;probe.stdin.end();}
+        }
+      });probe.stderr.on('data',chunk=>{probeDiagnostics+=chunk;});
+      probe.stdin.on('error',error=>{probeError??=error.message;});
+      probe.stdout.on('error',error=>{probeError??=error.message;});probe.stderr.on('error',error=>{probeError??=error.message;});
+      probe.on('error',error=>{probeError=error.message;});
+      const probeCompletion=new Promise(resolve=>probe.once('close',(exit,signal)=>resolve({exit,signal})));
+      let probeClose=await bounded(probeCompletion,startupMs);
+      const probeTimedOut=probeClose===boundary;
+      if(probeTimedOut) {try {probe.kill();} catch(error) {probeError??=error.message;} probeClose=await bounded(probeCompletion,cleanupMs);}
+      const probeEvidence={probeIdentity,probeClose:probeClose===boundary?null:probeClose,probeTimedOut,probeError,probeOutput,probeDiagnostics};
+      fs.writeFileSync(path.join(directory,'capability-result.json'),JSON.stringify(probeEvidence),{flag:'wx'});
+      if(probeClose===boundary) {probe.stdout.destroy();probe.stderr.destroy();probe.unref();}
+      if(!identity(probeIdentity)||probeClose===boundary||probeClose.exit!==0||probeClose.signal||probeError)
+        return {...prepared,...evidence,...probeEvidence,status:'unknown',exit:null,signal:null,exitConfirmed:false,launchAuthorized:false};
+      const rows=probeOutput.trim().split('\n').map(row=>JSON.parse(row));
+      if(rows.length!==1||rows[0].event!=='capable'||rows[0].mechanism!=='windows-job'
+        ||rows[0].attemptId!==invocationId||rows[0].launchNonce!==probeNonce||!same(rows[0].helper,probeIdentity))throw new Error('Windows Job/attribute capability was not confirmed');
+      validateBindings(bindings);
+    } else {
+      const rows=output.trim().split('\n').map(row=>JSON.parse(row));
+      if(rows.length!==1||rows[0].event!=='capable'||rows[0].mechanism!=='linux-subreaper'||rows[0].probeNonce!==linuxProbeNonce
+        ||!same(rows[0].helper,preparationProcess))throw new Error('Linux Python 3.9+/pidfd/subreaper capability was not confirmed');
+    }
+    fs.writeFileSync(path.join(directory,'runtime.json'),JSON.stringify(prepared),{flag:'wx'});
+    return {...prepared};
+  } catch(error) {
+    return {...prepared,...evidence,status:'not-run',exit:null,signal:null,exitConfirmed:true,
+      launchAuthorized:false,launchError:error.message};
+  }
+}
+
+export function validatePreparedRuntime(runtime,{env=process.env}={}) {
+  if(runtime?.version!==1||runtime.status!=='prepared'||!uuid(runtime.invocationId)
+    ||!path.isAbsolute(runtime.directory)||environmentDigest(env)!==runtime.environmentDigest)throw new Error('Prepared runtime binding is invalid');
+  const directory=fs.realpathSync.native(runtime.directory),manifest=path.join(directory,'runtime.json');
+  ordinary(manifest);
+  if(directory!==runtime.directory||path.dirname(fs.realpathSync.native(manifest))!==directory
+    ||JSON.stringify(JSON.parse(fs.readFileSync(manifest,'utf8')))!==JSON.stringify(runtime))throw new Error('Prepared runtime descriptor changed');
+  validateBindings(runtime.bindings);
+  if(runtime.platform==='win32')validateAssembly(runtime.executable,directory);
+  return runtime;
+}
+
+// One invocation prepares immutable bytes before acquiring. Reserved discovery
+// and later files each create fresh one-use state without compiling again.
+export async function prepareOwnedChild({directory,command,args=[],cwd,env=process.env,timeoutMs,
+  attemptId=randomUUID(),runtime,...options}) {
+  if(!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>7200000)throw new Error('Invalid bounded file timeout');
+  if(!uuid(attemptId)||!path.isAbsolute(directory)||!path.isAbsolute(command)||!path.isAbsolute(cwd)
+    ||!Array.isArray(args)||!args.every(arg=>typeof arg==='string'&&!arg.includes('\0')))throw new Error('Invalid owned-child preparation');
+  runtime??=await prepareOwnedRuntime({directory,cwd,env,...options});
+  if(runtime.status!=='prepared')return runtime;
+  validatePreparedRuntime(runtime,{env});
+  directory=fs.realpathSync.native(directory);
+  const prepared={version:1,status:'prepared',directory,attemptId,launchNonce:randomUUID(),
+    command,args:[...args],cwd,timeoutMs,platform:runtime.platform,startupMs:runtime.startupMs,cleanupMs:runtime.cleanupMs,
+    executable:runtime.executable,helper:runtime.helper,bindings:runtime.bindings,environmentDigest:runtime.environmentDigest,runtime};
+  fs.writeFileSync(path.join(directory,'prepared.json'),JSON.stringify(prepared),{flag:'wx'});
+  return prepared;
+}
+
+export async function runOwnedChild({prepared,reservationToken,env=process.env,identify=processIdentity,
+  onPreparing=()=>{},onReady=()=>{},onAuthorize=()=>{},onStarted=()=>{},onEvent=()=>{}}) {
+  validatePreparedChild(prepared,{env});
+  if(!uuid(reservationToken))throw new Error('A real reservation token is required after preparation');
+  const {directory,command,args,cwd,timeoutMs,attemptId,platform,startupMs,cleanupMs,executable,helper}=prepared;
+  const expected={version:1,directory,attemptId,reservationToken,launchNonce:prepared.launchNonce,platform,
     proofFile:path.join(directory,'tree-proof.json'),logFile:path.join(directory,'output.log')};
   const requestFile=path.join(directory,'child-request.json');
   fs.writeFileSync(requestFile,JSON.stringify({...expected,command,args,cwd,timeoutMs,startupMs}),{flag:'wx'});
+  const requestBinding=fileBinding(requestFile);
   synchronous(onPreparing,expected);
-  const helper=helperScript??path.join(here,platform==='win32'?'test-suite-child-windows.ps1':'test-suite-child-linux.py');
-  let executable=helperExecutable??'python3';
-  let launchArgs=[helper,requestFile],remainingStartup=startupMs;
-  if(platform==='win32'&&!helperExecutable) {
-    const assembly=path.join(directory,'test-suite-child-windows.exe');
-    if(fs.existsSync(assembly))throw new Error('Attempt already contains a supervisor assembly; never reuse it');
-    const admission=Date.now();
-    const compiler=spawn('powershell.exe',['-NoProfile','-NonInteractive','-File',helper,requestFile],
-      {cwd,env,windowsHide:true,stdio:['ignore','ignore','pipe']});
-    let diagnostics='',launchError;
-    compiler.stderr.setEncoding('utf8');compiler.stderr.on('data',chunk=>{diagnostics+=chunk;});
-    compiler.on('error',error=>{launchError=error.message;});
-    const compilerClose=new Promise(resolve=>compiler.once('close',(exit,signal)=>resolve({exit,signal})));
-    try {
-      expected.compiler=compiler.pid?identify(compiler.pid):null;
-      synchronous(onPreparing,expected);
-    } catch(error) {
-      launchError=error.message;
-      try { compiler.kill(); } catch(killError) { diagnostics+=killError.message; }
-    }
-    compiler.stderr.on('error',error=>{diagnostics+=error.message;});
-    let closed=await bounded(compilerClose,startupMs);
-    const compilerTimedOut=closed===boundary;
-    if(closed===boundary) {
-      try { compiler.kill(); } catch(error) { launchError??=error.message; }
-      closed=await bounded(compilerClose,cleanupMs);
-    }
-    if(closed===boundary||closed.exit!==0||closed.signal||launchError) {
-      if(closed===boundary){compiler.stderr.destroy();compiler.unref();}
-      // We have no compiler-tree supervisor yet. A forced/failed compilation
-      // cannot prove any compiler descendants exited merely from PS close.
-      return {...expected,status:'unknown',exit:null,signal:null,
-        exitConfirmed:false,launchAuthorized:false,launchError,diagnostics,compilerTimedOut,
-        compilerTreeConfirmed:false,
-        compilerClose:closed===boundary?null:closed};
-    }
-    try {
-      ordinary(assembly);
-      const descriptor=fs.openSync(assembly,'r'),signature=Buffer.alloc(2);
-      try {fs.readSync(descriptor,signature,0,2,0);} finally {fs.closeSync(descriptor);}
-      if(signature.toString('ascii')!=='MZ'||fs.statSync(assembly).size<256
-        ||path.dirname(fs.realpathSync.native(assembly))!==directory)throw new Error('Fresh supervisor assembly is invalid');
-    } catch(error) {
-      return {...expected,status:'not-run',exit:null,signal:null,exitConfirmed:true,
-        launchAuthorized:false,launchError:error.message,compilerClose:closed};
-    }
-    remainingStartup=Math.max(1,startupMs-(Date.now()-admission));
-    executable=assembly;
-    launchArgs=[requestFile];
-  } else if(platform==='win32')launchArgs=['-NoProfile','-NonInteractive','-File',helper,requestFile];
+  const launchArgs=platform==='win32'?[requestFile]:[helper,requestFile],remainingStartup=startupMs;
   // libuv's ordinary Windows child Job kills the supervisor when Node dies,
-  // preventing its EOF cleanup/proof. Detach only this helper; keep its pipes
-  // and process handle referenced until actual close. Its own Job owns tests.
-  const child=spawn(executable,launchArgs,{cwd,env,windowsHide:true,detached:platform==='win32',stdio:['pipe','pipe','pipe']});
+  // preventing its EOF cleanup/proof. The central detached launcher keeps
+  // a hidden Node wrapper alive until the managed helper exits. Its own Job
+  // owns tests; keep all pipes and both identities through actual close.
+  const child=platform==='win32'
+    ?spawnDetached(executable,launchArgs,{cwd,env,stdio:['pipe','pipe','pipe']})
+    :spawn(executable,launchArgs,{cwd,env,windowsHide:true,stdio:['pipe','pipe','pipe']});
   child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
-  let launchError,coordinationError,protocolError,buffer='',diagnostics='',authorized=false,readyResolve;
+  let launchError,coordinationError,protocolError,buffer='',diagnostics='',authorized=false,authorizationAttempted=false,readyResolve;
   let startedMetadata=null;
   const completion=new Promise(resolve=>{
     child.once('error',error=>{launchError=error.message;});
@@ -176,6 +316,11 @@ export async function runOwnedChild({directory,command,args=[],cwd,env=process.e
       }
     } catch(error) { protocolError??=error.message;disconnect(); }
   });
+  try {
+    expected.launcher=child.pid?identify(child.pid):null;
+    if(!identity(expected.launcher))throw new Error('Supervisor launcher identity unavailable');
+    synchronous(onPreparing,expected);
+  } catch(error) {coordinationError=error.message;disconnect();}
   let readyRow=await bounded(ready,remainingStartup);
   if(readyRow===boundary) {
     protocolError='Supervisor startup deadline expired before launch authorization';
@@ -184,10 +329,13 @@ export async function runOwnedChild({directory,command,args=[],cwd,env=process.e
     try { child.kill(); } catch(error) { coordinationError??=error.message; }
   } else if(readyRow) {
     try {
-      if(protocolError)throw new Error(protocolError);
-      expected.helper=child.pid?identify(child.pid):null;
+      if(protocolError||coordinationError)throw new Error(protocolError??coordinationError);
+      expected.helper=identity(readyRow.helper)?identify(readyRow.helper.pid):null;
       if(!same(readyRow.helper,expected.helper))throw new Error('Supervisor OS identity unavailable or mismatched');
       synchronous(onReady,expected);
+      validatePreparedChild(prepared,{env,consumed:true});
+      validateBindings([requestBinding]);
+      authorizationAttempted=true; // a failed callback may already have persisted may-launch
       synchronous(onAuthorize,expected); // persist may-launch before sending the nonce
       authorized=true;
       child.stdin.write(expected.launchNonce+'\n');
@@ -203,14 +351,36 @@ export async function runOwnedChild({directory,command,args=[],cwd,env=process.e
     return {...expected,status:'unknown',exit:null,signal:null,exitConfirmed:false,
       launchAuthorized:authorized,launchError,coordinationError,protocolError,diagnostics};
   }
-  if(!authorized)return {...expected,status:'not-run',exit:null,signal:null,exitConfirmed:true,
-    launchAuthorized:false,helperClose:close,launchError,coordinationError,protocolError,diagnostics};
+  if(!authorized) {
+    if(authorizationAttempted) {
+      try {
+        const proof=readTreeProof(expected,{identify,close});
+        if(proof.root!==null||proof.status!=='not-run')throw new Error('Refused authorization lacks fresh no-launch proof');
+        return {...expected,...proof,exitConfirmed:true,launchAuthorized:false,launcherClose:close,
+          helperExitEvidence:{identity:expected.helper,observation:'original-identity-absent'},coordinationError,protocolError,diagnostics};
+      } catch(error) {
+        return {...expected,status:'unknown',exit:null,signal:null,exitConfirmed:false,launchAuthorized:false,
+          launcherClose:close,helperExitEvidence:null,coordinationError,protocolError:error.message,diagnostics};
+      }
+    }
+    const helper=expected.helper??(platform==='linux'?expected.launcher:null);
+    let confirmed=false;
+    try {
+      const helperNow=identity(helper)?identify(helper.pid):undefined;
+      const launcherNow=identity(expected.launcher)?identify(expected.launcher.pid):undefined;
+      confirmed=helperNow===null&&launcherNow===null;
+    } catch(error) {protocolError??=error.message;}
+    return {...expected,status:confirmed?'not-run':'unknown',exit:null,signal:null,exitConfirmed:confirmed,
+      launchAuthorized:false,launcherClose:close,helperExitEvidence:confirmed?{identity:helper,observation:'original-identity-absent'}:null,
+      launchError,coordinationError,protocolError,diagnostics};
+  }
   try {
     const proof=readTreeProof(expected,{identify,close});
-    return {...expected,...proof,exitConfirmed:true,launchAuthorized:true,helperClose:close,
+    return {...expected,...proof,exitConfirmed:true,launchAuthorized:true,launcherClose:close,
+      helperExitEvidence:{identity:expected.helper,observation:'original-identity-absent'},
       launchError:proof.launchError??launchError,coordinationError,protocolError,diagnostics};
   } catch(error) {
     return {...expected,status:'unknown',exit:null,signal:null,exitConfirmed:false,
-      launchAuthorized:true,helperClose:close,coordinationError,protocolError:protocolError??error.message,diagnostics};
+      launchAuthorized:true,launcherClose:close,helperExitEvidence:null,coordinationError,protocolError:protocolError??error.message,diagnostics};
   }
 }

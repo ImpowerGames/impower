@@ -14,6 +14,7 @@ public static class TestSuiteChildWindows {
     public string command, cwd, logFile, proofFile, attemptId, reservationToken, launchNonce;
     public string[] args;
     public int timeoutMs,startupMs;
+    public bool capabilityOnly;
   }
   static readonly JavaScriptSerializer json = new JavaScriptSerializer();
   static Request request;
@@ -75,7 +76,7 @@ public static class TestSuiteChildWindows {
     try {
       var row=json.Deserialize<Dictionary<string,object>>(value);
       row["attemptId"]=request.attemptId;row["launchNonce"]=request.launchNonce;
-      if((string)row["event"]=="ready"){row["helper"]=helper;row["mechanism"]="windows-job";}
+      if((string)row["event"]=="ready"||(string)row["event"]=="capable"){row["helper"]=helper;row["mechanism"]="windows-job";}
       if((string)row["event"]=="started"){row["root"]=root;row["startedAt"]=startedAt;}
       Console.WriteLine(json.Serialize(row)); Console.Out.Flush();
     }
@@ -105,6 +106,16 @@ public static class TestSuiteChildWindows {
       input=CreateFile("NUL",0x80000000,3,ref security,3,0x80,IntPtr.Zero); Check(input!=new IntPtr(-1),"Create input");
       handles=Marshal.AllocHGlobal(IntPtr.Size*2); Marshal.WriteIntPtr(handles,output); Marshal.WriteIntPtr(handles,IntPtr.Size,input);
       Check(UpdateProcThreadAttribute(list,0,new UIntPtr(0x20002),handles,new UIntPtr((uint)(IntPtr.Size*2)),IntPtr.Zero,IntPtr.Zero),"HANDLE_LIST");
+      // Probe only these Job/attribute operations. No authorization reader or
+      // CreateProcess is reachable in capability mode.
+      if(request.capabilityOnly) {
+        Event("{\"event\":\"capable\"}");
+        string acknowledgement=null;var received=new ManualResetEvent(false);
+        var probeReader=new Thread(()=>{try {acknowledgement=Console.ReadLine();} catch {disconnected=true;} finally {received.Set();}});
+        probeReader.IsBackground=true;probeReader.Start();
+        int probeRemaining=(int)Math.Max(0,Math.Min(60000,request.startupMs)-admission.ElapsedMilliseconds);
+        return received.WaitOne(probeRemaining)&&acknowledgement==token&&!disconnected?0:1;
+      }
       Event("{\"event\":\"ready\",\"token\":\""+token+"\"}");
       string authorization=null;
       var authorizationRead=new ManualResetEvent(false);
@@ -123,7 +134,9 @@ public static class TestSuiteChildWindows {
       var command=new StringBuilder(Quote(executable)); foreach(string arg in args)command.Append(' ').Append(Quote(arg));
       startedAt=Now();
       var elapsed=Stopwatch.StartNew();
-      Check(CreateProcess(executable,command,IntPtr.Zero,IntPtr.Zero,true,0x08080000,IntPtr.Zero,cwd,ref startup,out process),"CreateProcess inside Job");
+      // Inherit the managed helper's hidden console. CREATE_NO_WINDOW would
+      // discard it and let ordinary console grandchildren create visible ones.
+      Check(CreateProcess(executable,command,IntPtr.Zero,IntPtr.Zero,true,0x00080000,IntPtr.Zero,cwd,ref startup,out process),"CreateProcess inside Job");
       started=true;
       root=Identity(process.pid,process.process);
       Event("{\"event\":\"started\"}");
@@ -152,6 +165,7 @@ public static class TestSuiteChildWindows {
       }
     } catch(Exception error) {
       try { Console.Error.WriteLine(error.ToString()); } catch { disconnected=true; }
+      if(request.capabilityOnly)return 1;
       if(!started) {
         launchError=error.Message;
         try {
