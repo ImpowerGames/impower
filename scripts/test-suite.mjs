@@ -99,7 +99,16 @@ function loadEvidence(run) {
 
 // Both output streams go directly to one UTF-8 file: surviving children retain
 // their handles after coordinator interruption, with no shell encoding conversion.
-async function childRun(run, mode, file, reservation, save, { enginePath = engine, identify = processIdentity, onReservationError = () => {} } = {}) {
+function settleNoChild(reservation, evidence) {
+  if (reservation.record.phase !== "launching") return;
+  // Spawn has definitely not returned a child. This is a token-checked cleanup
+  // transition, never an admission retry or a claim about any running child.
+  try { reservation.update({ phase: "exited", child: null }); }
+  catch (error) { evidence.reservationCleanupError = error.message; }
+}
+
+async function childRun(run, mode, file, reservation, save, { enginePath = engine, identify = processIdentity, onReservationError = () => {},
+  onJournalError = () => {}, environment = childEnvironment, spawnChild = spawnDetached } = {}) {
   const id = randomUUID();
   const directory = path.join(run.directory, id);
   const attempt = { id, file, mode, directory, status: "unknown", startedAt: now(), owner: reservation.record.owner };
@@ -114,35 +123,60 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
       return false;
     }
   };
-  if (!update({ phase: "launching", attempt: id })) {
+  const logFile = path.join(directory, "output.log"), jsonFile = path.join(directory, "vitest.json");
+  let fd, child, completion;
+  if (!update({ phase: "reserved", attempt: id, child: null })) {
     Object.assign(attempt, { status: "not-run", endedAt: now() });
     return { attempt, report: null };
   }
-  fs.mkdirSync(directory);
-  save();
-  const logFile = path.join(directory, "output.log"), jsonFile = path.join(directory, "vitest.json");
-  const fd = fs.openSync(logFile, "wx");
-  const env = childEnvironment();
-  let child;
-  try { child = spawnDetached(process.execPath, ["--max-old-space-size=1024", enginePath, mode, run.packageRoot, jsonFile, ...(file ? [file] : [])],
-    { cwd: run.packageRoot, env, stdio: ["ignore", fd, fd] }); }
-  finally { fs.closeSync(fd); }
-  // Install exit listeners before synchronous identity probes: fast children
-  // can disappear before inspection but their actual exit event is still required.
-  const completion = new Promise(resolve => {
-    child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
-    child.once("close", (exit, signal) => resolve({ exit, signal }));
-  });
+  try {
+    // No child can exist during preparation. A failure leaves the reservation
+    // reserved (or exited after a previous child), so its owner can release it.
+    fs.mkdirSync(directory);
+    save();
+    fd = fs.openSync(logFile, "wx");
+    const env = environment();
+    if (update({ phase: "launching", attempt: id })) {
+      try { child = spawnChild(process.execPath, ["--max-old-space-size=1024", enginePath, mode, run.packageRoot, jsonFile, ...(file ? [file] : [])],
+        { cwd: run.packageRoot, env, stdio: ["ignore", fd, fd] }); }
+      catch (error) { update({ phase: "exited" }); throw error; }
+      // Attach before closing the parent's log handle or inspecting identity.
+      // Cleanup failure must not abandon a child that actually started.
+      completion = new Promise(resolve => {
+        child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
+        child.once("close", (exit, signal) => resolve({ exit, signal }));
+      });
+    }
+  } catch (error) {
+    attempt.setupError = error.message;
+    // Preparation may have failed after ownership changed. Detect that before
+    // the coordinator's final save; only a proven no-child phase can release.
+    update({ phase: reservation.record.phase, child: null });
+  }
+  finally {
+    if (fd !== undefined) try { fs.closeSync(fd); }
+    catch (error) { attempt.logCleanupError = error.message; }
+  }
+  if (!child) {
+    settleNoChild(reservation, attempt);
+    Object.assign(attempt, { status: "not-run", endedAt: now() });
+    return { attempt, report: null };
+  }
+  const publish = action => {
+    if (attempt.reservationError || attempt.journalError) return;
+    try { action(); }
+    catch (error) { attempt.journalError = error.message; onJournalError(error.message); }
+  };
   attempt.pid = child.pid;
   try {
     attempt.child = child.pid ? identify(child.pid) : null;
     attempt.status = attempt.child ? "running" : "unknown";
   } catch (error) { attempt.identityError = error.message; }
   update({ phase: attempt.child ? "running" : "launching", child: attempt.child });
-  if (!attempt.reservationError) {
+  publish(() => {
     save();
     atomic(path.join(directory, "attempt.json"), attempt);
-  }
+  });
   const progress = setInterval(() => console.log(JSON.stringify({ run: run.directory, file, status: attempt.status, pid: child.pid, waitingForExit: true })), 30000);
   let result;
   try { result = await completion; } finally { clearInterval(progress); }
@@ -150,7 +184,7 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
   // Record actual exit before trying to parse any result. Parsing failures cannot
   // erase evidence that permits safe reconciliation.
   update({ phase: "exited", exit: result.exit, signal: result.signal });
-  if (!attempt.reservationError) atomic(path.join(directory, "attempt.json"), attempt);
+  publish(() => atomic(path.join(directory, "attempt.json"), attempt));
   let report = null;
   try { report = read(jsonFile); } catch (error) { attempt.reportError = error.message; }
   try {
@@ -164,10 +198,10 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
     Object.assign(attempt, { status: "failed", tests: 0, failures: [], skips: [],
       verificationError: error.message, problems: [`Result verification failed: ${error.message}`] });
   }
-  if (!attempt.reservationError) {
+  publish(() => {
     atomic(path.join(directory, "attempt.json"), attempt);
     save();
-  }
+  });
   return { attempt, report };
 }
 
@@ -206,27 +240,33 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   });
   let summary;
   let reservationError;
-  const save = () => { if (!reservationError) atomic(path.join(directory, "run.json"), run); };
-  const childDependencies = { ...dependencies, onReservationError: error => { reservationError = error; } };
+  let journalError, attemptError;
+  const save = () => { if (!reservationError && !journalError) atomic(path.join(directory, "run.json"), run); };
+  const childDependencies = { ...dependencies, onReservationError: error => { reservationError = error; }, onJournalError: error => { journalError = error; } };
   let childAttempted = false;
   const unpersistedAttempts = [];
+  const observedAttempts = [];
   const retain = attempt => {
     childAttempted ||= attempt.status !== "not-run";
-    if (!attempt.reservationError) return false;
-    reservationError = attempt.reservationError;
+    if (attempt.status !== "not-run") observedAttempts.push({ ...attempt });
+    const error = attempt.setupError || attempt.logCleanupError || attempt.journalError || attempt.reservationError;
+    if (!error) return false;
+    attemptError = error;
+    reservationError ||= attempt.reservationError;
     // These observed results are for this invocation only, never reusable
     // durable evidence. After uncertainty, a token read followed by rename
     // would not establish ownership of any shared journal.
-    unpersistedAttempts.push({ ...attempt });
-    console.error(JSON.stringify({ unpersistedAttempt: attempt }));
-    if (!childAttempted) throw Object.assign(new Error(attempt.reservationError), { notRun: true, unpersistedAttempts });
+    if (attempt.reservationError || attempt.journalError) unpersistedAttempts.push({ ...attempt });
+    console.error(JSON.stringify({ attemptError: attempt }));
+    if (!childAttempted) throw Object.assign(new Error(error), { notRun: true, attempt, unpersistedAttempts });
     return true;
   };
   const finish = () => {
     summary = aggregate(run);
-    if (reservationError) {
+    if (reservationError || journalError || attemptError) {
       if (!run.identity) summary.status = "incomplete";
-      Object.assign(summary, { reservationError, unpersistedAttempts });
+      Object.assign(summary, { reservationError, journalError, attemptError, unpersistedAttempts,
+        observedAttempt: run.attempts.at(-1), observedAttempts });
     } else atomic(path.join(directory, "summary.json"), summary);
     return summary;
   };
@@ -288,7 +328,12 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   } finally {
     // Persist while still owning the reservation: a successor may acquire it
     // immediately after release and must never be overwritten by this owner.
-    if (!reservationError && run?.token === reservation.record.token) { run.active = false; save(); }
+    try {
+      if (!reservationError && !journalError && run?.token === reservation.record.token) { run.active = false; save(); }
+    } catch (error) {
+      if (summary) summary.journalError = error.message;
+      console.error(`Final journal save failed before release: ${error.message}`);
+    }
     // A failed release never replaces the summary or the error already in
     // flight. summary.json is already written, and after the release attempt
     // this owner writes nothing more, so the failure goes on the returned summary only.
@@ -319,6 +364,8 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   catch (error) {
     // No spawn was attempted. Preserve uncertain ownership, and distinguish
     // this admission refusal from a failing test; never re-acquire or relaunch.
+    settleNoChild(reservation, error);
+    releaseKeeping(reservation, error);
     throw Object.assign(error, { notRun: true });
   }
   const reservationErrors = [];
