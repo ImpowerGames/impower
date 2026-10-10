@@ -210,7 +210,7 @@ export async function desktop(args) {
     fs.writeFileSync(path.join(profile, "User", "settings.json"), JSON.stringify({
       "security.workspace.trust.enabled": false, "workbench.startupEditor": "none",
       "workbench.enableExperiments": false, "telemetry.telemetryLevel": "off", "update.mode": "none",
-      "extensions.autoUpdate": false, "window.restoreWindows": "none", "files.simpleDialog.enable": true,
+      "extensions.autoUpdate": "off", "window.restoreWindows": "none", "files.simpleDialog.enable": true,
       "extensions.ignoreRecommendations": true,
       "debug.saveBeforeStart": "none",
       "chat.disableAIFeatures": true, "workbench.secondarySideBar.defaultVisibility": "hidden",
