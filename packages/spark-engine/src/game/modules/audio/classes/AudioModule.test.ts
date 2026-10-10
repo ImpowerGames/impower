@@ -18,6 +18,10 @@ import { AudioClockMessage } from "./messages/AudioClockMessage";
 
 /** Exposes the protected resolution path under test. */
 class ProbeAudioModule extends AudioModule {
+  resolveName(name: string) {
+    return this.getAudioData("sound", name);
+  }
+
   resolve(asset: unknown, suffix = "") {
     return (this as any).getData("sound", asset, suffix);
   }
@@ -58,6 +62,14 @@ const SHAPE_ONLY_SYNTH = {
 const ref = (name: string) => ({ $type: "synth", $name: name });
 
 describe("AudioModule synth resolution (#268)", () => {
+  it.each(["ordinary", "toString", "constructor", "hasOwnProperty", "__proto__"])("resolves a synth named %s past empty audio tables", name => {
+    const synth = { ...audioBuiltinDefinitions().synth["character"], $type: "synth", $name: name };
+    const m = new ProbeAudioModule({
+      context: { system: {}, config: {}, audio: {}, layered_audio: {}, synth: { [name]: synth } },
+    } as unknown as Game);
+    expect(m.resolveName(name).map(data => data.synth?.$name)).toEqual([name]);
+  });
+
   describe("partially-authored synths", () => {
     it("attaches a synth authored with only a pitch", () => {
       // The regression itself: this used to be undefined, so nothing played.

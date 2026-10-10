@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { resolveImageLayers } from "../../../../sparkdown/src/compiler/utils/resolveImageLayers";
-import { resolveImageSrcs } from "./resolveImageSrcs";
+import { resolveImageSrcs, rootHasInlinedData } from "./resolveImageSrcs";
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g id='hat' data-name='hat.on'><path/></g><g id='body'><path/></g></svg>`;
 
@@ -86,6 +86,20 @@ const gameSrcs = (ctx: any, name: string) =>
   );
 
 describe("warming the urls the renderer will request", () => {
+  it.each(["ordinary", "toString", "constructor", "hasOwnProperty", "__proto__"])("warms the own image named %s", name => {
+    const src = `/assets/${name}.png`;
+    const ctx = { filtered_image: {}, layered_image: {}, image: { [name]: { $type: "image", $name: name, src } } };
+    expect(resolveImageSrcs(ctx, [name])).toEqual([src]);
+  });
+
+  it.each(["ordinary", "toString", "constructor", "hasOwnProperty", "__proto__"])("follows the own filtered look named %s to its inlined root", name => {
+    const ctx = {
+      image: { root: { data: SVG } },
+      filtered_image: { [name]: { image: { $name: "root" } } },
+    };
+    expect(rootHasInlinedData(ctx, { image: { $name: name } })).toBe(true);
+  });
+
   it("writes nothing onto the program's structs", () => {
     const ctx = context();
     const before = shape(ctx);

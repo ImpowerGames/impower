@@ -379,7 +379,12 @@ const cloneSharingVocabularies = <T>(value: T): T => {
     const out: Record<string, unknown> = {};
     copies.set(v, out);
     for (const k of Object.keys(v)) {
-      out[k] = copy((v as Record<string, unknown>)[k], k);
+      // Assignment would invoke the inherited __proto__ setter instead of
+      // copying that asset name across the compiler/player boundary.
+      Object.defineProperty(out, k, {
+        value: copy((v as Record<string, unknown>)[k], k),
+        writable: true, enumerable: true, configurable: true,
+      });
     }
     return out;
   };
