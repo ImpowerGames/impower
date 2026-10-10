@@ -20,6 +20,8 @@ Every child runs with a heap capped at 1024 MB, one fork and no file parallelism
 
 Keep the complete command-tool result, including session ID and exit status. If the tool yields a session ID, poll that same session until its exit is confirmed; do not forward only its output text. A yield or missing output is neither a timeout nor a pass. Use `status` from another command to read durable progress. Identity checks can take time on a large installation; execution prints progress while scanning.
 
+Resolve-issue writers keep extra captured logs under their [allocated writer attempt directory](../../resolve-issue/SKILL.md#0-preflight). Parent scratch directories can be shared by sibling agents; a fixed root log name can contain another writer's stale result. The runner's own durable per-attempt logs below remain the result evidence.
+
 Each run lives under the worktree's Git directory, outside source discovery. `run.json` saves the manifest and attempts. Each attempt has an independent UTF-8 `output.log`, `vitest.json` and atomically updated `attempt.json`, with PID, OS start identity, actual exit status and signal when observed. Test caches also live there. `summary.json` compares the latest attempts with every manifest file and retains exact failed-test names/messages, skipped/todo names and incomplete files. Prior attempts remain available, including after an explicit failed-file retry. Do not concatenate logs through shell encoding conversions.
 
 Only complete, matching text and structured results with a successful observed child exit can pass. Missing summaries, worker crashes, zero executed tests, malformed/partial reports, failed assertions and missing files fail verification even when an exit code is zero. A suite with unfinished files is incomplete. Read the summary and the relevant attempt logs before reporting counts.
@@ -32,6 +34,8 @@ For baseline comparison, compare the Test Suite workflow's package results on th
 
 ## Single-file and reproduction runs
 
+The command form is `node scripts/test-suite.mjs run <package-dir> <test-file> [<test-file> ...] --wait <seconds>`. `<package-dir>` is the package directory, such as `packages/sparkdown`, rather than its workspace name. Both `run` and `start` require an existing directory containing a `package.json` file and refuse invalid paths before queue admission.
+
 A sandboxed reviewer whose process census or reservation write is denied can request caller-approved test files through the launcher's [delegated execution service](../../review-pr/HANDOFF.md#delegated-tests-and-benchmarks). The coordinator runs this same `run` command outside the reviewer sandbox, retaining the census, reservation and caps. Inspect its returned output and exit result. Merely reading an absent reservation file is not admission; direct unlocked execution remains unsupported.
 
 Run the test files under work with `run`, naming one or more; it refuses a call with none and a call naming more than eight, with no override, and the package result comes from the Test Suite workflow above. "Under work" means the test file you added or changed and the one or two existing files that exercise the same code; a longer list of existing files is a package run spelled out, and enumerating them does not make it local work. Test paths are relative to the package directory:
@@ -39,6 +43,12 @@ Run the test files under work with `run`, naming one or more; it refuses a call 
 ```bash
 node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDeclarationValidity.test.ts --wait 600
 ```
+
+Before queue admission, `run` checks every requested path names an existing literal test/spec TS or TSX file within the package, including its physical link target. Missing files, directories, options, wildcard filters and control characters are refused with the original argument shown escaped. The runner does not trim, drop or repair arguments; one invalid file refuses the entire request before taking a reservation or launching a child. Existing literal punctuation and spaces retain their spelling.
+
+Windows namespace paths are refused: the question mark in their prefix is not a usable native Vitest file filter. Forwarding that spelling unchanged selects no files in Vitest 2.1.9; use an ordinary path spelling. The runner does not silently convert it.
+
+This preflight establishes file existence, not configured execution. Vitest's package includes/excludes and filter semantics still apply. Compare the actual executed file list and `Test Files` summary with every requested file before claiming coverage; a successful exit alone can omit an existing but excluded file.
 
 `run` takes the machine-wide reservation, waits for other Vitest processes to exit while holding it, then runs the package's installed Vitest in the foreground with a 1024 MB heap and `--pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1 --no-file-parallelism`: one worker process with a fresh environment per file, the arrangement the Test Suite workflow uses. `singleFork=true` shares one environment across a package's files and fails jsdom suites such as `packages/spark-web-player` for reasons unrelated to the change under test. The package's own configuration stays in force. Its exit status is Vitest's, and the redgreen driver accepts it as a `--test` command. Require both `Test Files` and `Tests` summaries and inspect the actual assertion. The redgreen diagnostic classifier's separate no-test issue is tracked by #539; this runner does not repair or substitute for that classifier.
 

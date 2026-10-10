@@ -10,6 +10,90 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 assert.ok(fs.existsSync(path.join(root, "test-suite.mjs")),
   "package verification must provide durable status/resume instead of manual log concatenation");
 const { verifyResult, aggregate } = await import("./test-suite.mjs");
+const { main: packageMain } = await import("./test-suite.mjs");
+const packageScratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-package-preflight-"));
+console.log(`Package preflight scratch: ${packageScratch}`);
+const plainFile = path.join(packageScratch, "plain-file");
+fs.writeFileSync(plainFile, "fixture");
+const noManifest = path.join(packageScratch, "no-manifest");
+fs.mkdirSync(noManifest);
+const directoryManifest = path.join(packageScratch, "directory-manifest");
+fs.mkdirSync(path.join(directoryManifest, "package.json"), { recursive: true });
+for (const target of [path.join(packageScratch, "missing"), plainFile, noManifest, directoryManifest]) {
+  for (const command of ["run", "start"]) {
+    let censusCalls = 0;
+    await assert.rejects(packageMain([command, target, ...(command === "run" ? ["fixture.test.ts"] : [])], {
+      vitestPath: plainFile,
+      root: path.join(packageScratch, "reservation"),
+      census: () => { censusCalls++; throw new Error("must not queue"); },
+    }), error => error.message.includes(path.resolve(target)) && error.message.includes("package directory")
+      && error.message.includes("packages/sparkdown"), `${command} explains invalid package path ${target}`);
+    assert.equal(censusCalls, 0, "invalid package paths are refused before queue admission");
+    assert.equal(fs.existsSync(path.join(packageScratch, "reservation")), false);
+  }
+}
+console.log("PASS: run and start explain invalid package directories before queue admission");
+const literalPackage = path.join(packageScratch, "literal-tests");
+fs.mkdirSync(literalPackage);
+fs.writeFileSync(path.join(literalPackage, "package.json"), '{"type":"module"}');
+fs.writeFileSync(path.join(literalPackage, "valid.test.ts"), "fixture");
+const literalStore = path.join(packageScratch, "literal-reservation");
+const literalMarker = path.join(packageScratch, "literal-child-started");
+const literalChild = path.join(packageScratch, "literal-child.mjs");
+fs.writeFileSync(literalChild, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(literalMarker)}, "started");`);
+fs.mkdirSync(path.join(literalPackage, "directory.test.ts"));
+fs.writeFileSync(path.join(packageScratch, "outside.test.ts"), "fixture");
+const outsideTests = path.join(packageScratch, "outside-tests");
+fs.mkdirSync(outsideTests);
+fs.writeFileSync(path.join(outsideTests, "outside.test.ts"), "fixture");
+fs.symlinkSync(outsideTests, path.join(literalPackage, "escape"), process.platform === "win32" ? "junction" : "dir");
+const namespaceInputs = process.platform === "win32" ? [path.toNamespacedPath(path.join(literalPackage, "valid.test.ts"))] : [];
+for (const requested of namespaceInputs) {
+  assert.equal(fs.statSync(requested).isFile(), true, "namespace refusal covers an existing regular file");
+  assert.equal(fs.realpathSync.native(requested), fs.realpathSync.native(path.join(literalPackage, "valid.test.ts")));
+  await assert.rejects(packageMain(["run", literalPackage, requested], { vitestPath: literalChild, root: literalStore,
+    census: () => { throw new Error("unsupported namespace reached admission"); } }), /unsupported Windows namespace syntax.*ordinary relative or absolute path/);
+}
+for (const invalid of ["missing.test.ts", "valid.test.ts\r", "valid.test.ts\n", "valid.test.ts ", "*.test.ts", "valid?.test.ts", ...namespaceInputs,
+  "--passWithNoTests", "directory.test.ts", "../outside.test.ts", "escape/outside.test.ts", "valid.ts", "valid.test.js"]) {
+  let literalCensusCalls = 0;
+  await assert.rejects(packageMain(["run", literalPackage, "valid.test.ts", invalid], {
+    vitestPath: literalChild, root: literalStore,
+    census: () => { literalCensusCalls++; return []; },
+  }), error => error.message.includes(JSON.stringify(invalid)) && error.message.includes("test file")
+    && !/[\r\n]/.test(error.message), "a mixed request refuses its escaped invalid input before queue admission");
+  assert.equal(literalCensusCalls, 0);
+  assert.equal(fs.existsSync(literalStore), false, "invalid files create no reservation store or child");
+  assert.equal(fs.existsSync(literalMarker), false, "a mixed invalid list starts no child");
+}
+for (const control of ["\u007f", "\u0085", "\u2028", "\u2029"]) {
+  const requested = `valid${control}.test.ts`;
+  await assert.rejects(packageMain(["run", literalPackage, requested], { vitestPath: literalChild, root: literalStore }),
+    error => !error.message.includes(control) && error.message.includes(`\\u${control.charCodeAt(0).toString(16).padStart(4, "0")}`),
+    "non-JSON control and line separator diagnostics remain escaped");
+  assert.equal(fs.existsSync(literalStore), false);
+  assert.equal(fs.existsSync(literalMarker), false);
+}
+console.log("PASS: literal test inputs refuse missing, control, filter, option, directory and escaping paths before admission");
+const literalAlias = path.join(packageScratch, "literal-alias");
+fs.symlinkSync(literalPackage, literalAlias, process.platform === "win32" ? "junction" : "dir");
+const additionalAlias = path.join(packageScratch, "additional-alias");
+fs.symlinkSync(literalPackage, additionalAlias, process.platform === "win32" ? "junction" : "dir");
+const validSpellings = ["valid.test.ts", path.join(literalPackage, "valid.test.ts"),
+  path.join(literalAlias, "valid.test.ts"), path.join(additionalAlias, "valid.test.ts")];
+if (process.platform === "win32") {
+  const shortPackage = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
+    { encoding: "utf8", windowsHide: true, env: { ...process.env, IMPOWER_LITERAL_PACKAGE: literalPackage } }).trim();
+  validSpellings.push(path.join(shortPackage, "valid.test.ts"));
+  if (shortPackage === literalPackage) console.log("SKIP: distinct Windows 8.3 spelling unavailable; additional junction alias is covered");
+}
+for (const requested of validSpellings) {
+  await assert.rejects(packageMain(["run", literalAlias, requested], {
+    vitestPath: literalChild, root: literalStore,
+    census: () => { throw new Error("valid alias reached queue admission"); },
+  }), /valid alias reached queue admission/, "valid relative, physical and additional OS aliases reach admission");
+}
 const file = path.resolve("fixture.test.ts");
 const report = () => ({ success: true, numTotalTestSuites: 1, numPassedTestSuites: 1,
   numFailedTestSuites: 0, numPendingTestSuites: 0, numTotalTests: 1,
@@ -330,6 +414,198 @@ const deny = (name, code) => {
 deny("openSync", "EPERM");
 deny("openSync", "EACCES");
 deny("mkdirSync", "EACCES");
+// File-specific Windows access failures are contention when a private probe
+// demonstrates that the store remains writable. Never use the live store.
+if (process.platform === "win32") {
+  const store = fs.mkdtempSync(path.join(os.tmpdir(), "impower-store-contention-"));
+  console.log(`Reservation contention scratch: ${store}`);
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    for (const operation of ["guard", "create", "rename"]) {
+      const method = operation === "rename" ? "renameSync" : "openSync";
+      const original = fs[method];
+      let failures = 0;
+      fs[method] = (target, ...args) => {
+        const affected = operation === "guard" ? target === path.join(store, "guard.json")
+          : operation === "create" ? String(target).startsWith(path.join(store, "reservation.json."))
+          : args[0] === path.join(store, "reservation.json");
+        if (affected && failures++ < 2) throw Object.assign(new Error("scanner holds reservation file"), { code });
+        return original(target, ...args);
+      };
+      const waits = [];
+      let acquired;
+      try { acquired = await acquireWaiting("transient file denial", { root: store, waitMs: 30000, pollMs: 5,
+        census: () => [], onWait: value => waits.push(value.waiting) }); }
+      finally { fs[method] = original; }
+      assert.ok(waits.includes("reservation files"), `${operation} ${code} reports contention`);
+      acquired.release();
+      assert.deepEqual(fs.readdirSync(store), [], "successful retries leave no probe or abandoned temporary file");
+    }
+  }
+  const original = fs.renameSync;
+  let renameBegan;
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) {
+      renameBegan ??= Date.now();
+      throw Object.assign(new Error("persistent scanner contention"), { code: "EPERM" });
+    }
+    return original(source, target);
+  };
+  try { await assert.rejects(acquireWaiting("bounded file denial", { root: store, waitMs: 100, pollMs: 5, census: () => [] }),
+    /Reservation files busy.*EPERM/); }
+  finally { fs.renameSync = original; }
+  assert.ok(Date.now() - renameBegan < 500, "atomic rename does not add its independent one-second retry after admission expires");
+  assert.deepEqual(fs.readdirSync(store), [], "expired admission leaves no ownership or ambiguous temp evidence");
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    fs.writeFileSync(path.join(store, "guard.json"), JSON.stringify({ owner: { pid: 42, start: "dead" } }));
+    const open = fs.openSync;
+    let probes = 0, claims = 0, waits = 0;
+    fs.openSync = (target, ...args) => {
+      if (String(target).startsWith(store + path.sep) && target !== path.join(store, "guard.json")) {
+        if (path.basename(target).startsWith("write-probe-")) probes++;
+        if (path.basename(target) === "guard-recovery.json") claims++;
+        throw Object.assign(new Error("store-wide denial with existing guard"), { code });
+      }
+      return open(target, ...args);
+    };
+    try { await assert.rejects(acquireWaiting("existing guard denied store", { root: store, waitMs: 5000,
+      guardWaitMs: 100, census: () => [], onWait: () => waits++ }),
+      error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
+    finally { fs.openSync = open; }
+    assert.equal(probes, 1);
+    assert.equal(claims, 1, "existing guard store denial refuses on its first recovery claim");
+    assert.equal(waits, 0);
+    assert.deepEqual(fs.readdirSync(store), ["guard.json"]);
+    fs.unlinkSync(path.join(store, "guard.json"));
+  }
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    const open = fs.openSync;
+    let probes = 0, waits = 0;
+    fs.openSync = (target, ...args) => {
+      if (String(target).startsWith(store + path.sep)) {
+        if (path.basename(target).startsWith("write-probe-")) probes++;
+        throw Object.assign(new Error("store-wide denial"), { code });
+      }
+      return open(target, ...args);
+    };
+    try { await assert.rejects(acquireWaiting("denied store", { root: store, waitMs: 5000, census: () => [],
+      onWait: () => waits++ }), error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
+    finally { fs.openSync = open; }
+    assert.equal(probes, 1, "genuine denial probes once and refuses before retrying");
+    assert.equal(waits, 0);
+    assert.deepEqual(fs.readdirSync(store), []);
+  }
+  for (const operation of ["open", "write", "read", "rename"]) {
+    const guard = path.join(store, "guard.json");
+    fs.writeFileSync(guard, JSON.stringify({ owner: { pid: 42, start: "dead" } }));
+    const method = { open: "openSync", write: "writeFileSync", read: "readFileSync", rename: "renameSync" }[operation];
+    const originalMethod = fs[method], open = fs.openSync;
+    let claimFd, denied = 0;
+    fs.openSync = (target, ...args) => {
+      const fd = open(target, ...args);
+      if (target === path.join(store, "guard-recovery.json")) claimFd = fd;
+      return fd;
+    };
+    const dispatch = fs[method];
+    fs[method] = (target, ...args) => {
+      const affected = operation === "open" ? target === path.join(store, "guard-recovery.json")
+        : operation === "write" ? target === claimFd : target === guard;
+      if (affected && denied++ < 1) throw Object.assign(new Error("recovery file contention"), { code: "EBUSY" });
+      return dispatch(target, ...args);
+    };
+    const waits = [];
+    let reservation;
+    try { reservation = await acquireWaiting(`recovery ${operation}`, { root: store, waitMs: 30000, pollMs: 5,
+      census: () => [], identify: pid => pid === 42 ? null : processIdentity(pid), onWait: value => waits.push(value.waiting) }); }
+    finally { fs[method] = originalMethod; fs.openSync = open; }
+    assert.ok(waits.includes("reservation files"), `recovery ${operation} waits using writable proof`);
+    reservation.release();
+    const archive = fs.readdirSync(store);
+    assert.equal(archive.length, 1);
+    assert.ok(archive[0].startsWith("recovered-guard-"));
+    assert.equal(read(path.join(store, archive[0])).owner.start, "dead");
+    fs.unlinkSync(path.join(store, archive[0]));
+  }
+  // A held peer survives file-specific denial, including the probe.
+  const peer = JSON.stringify({ token: "peer", owner: { pid: 42, start: "peer" }, phase: "reserved" });
+  fs.writeFileSync(path.join(store, "reservation.json"), peer);
+  const open = fs.openSync;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EBUSY" });
+    return open(target, ...args);
+  };
+  try { await assert.rejects(acquireWaiting("peer preserved", { root: store, waitMs: 50, pollMs: 5, census: () => [] }), /Reservation files busy/); }
+  finally { fs.openSync = open; }
+  assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  // Failure cleaning the private probe cannot claim writable proof or retry.
+  const unlink = fs.unlinkSync;
+  let cleanupProbe;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
+    return open(target, ...args);
+  };
+  fs.unlinkSync = target => {
+    if (path.basename(target).startsWith("write-probe-")) {
+      cleanupProbe = target;
+      throw Object.assign(new Error("private probe cleanup denied"), { code: "EPERM" });
+    }
+    return unlink(target);
+  };
+  try { await assert.rejects(acquireWaiting("uncertain cleanup", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("uncertain probe cleanup retried") }), /private probe cleanup denied/); }
+  finally { fs.openSync = open; fs.unlinkSync = unlink; }
+  assert.equal(fs.existsSync(path.join(store, "reservation.json")), false);
+  fs.unlinkSync(cleanupProbe);
+  const fstat = fs.fstatSync;
+  let unknownProbe, probeFd;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
+    const fd = open(target, ...args);
+    if (path.basename(target).startsWith("write-probe-")) { unknownProbe = target; probeFd = fd; }
+    return fd;
+  };
+  fs.fstatSync = (fd, ...args) => {
+    if (fd === probeFd) throw new Error("probe identity unavailable");
+    return fstat(fd, ...args);
+  };
+  try { await assert.rejects(acquireWaiting("unknown probe identity", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("unknown probe identity retried") }), /Private reservation probe identity unavailable/); }
+  finally { fs.openSync = open; fs.fstatSync = fstat; }
+  assert.equal(fs.existsSync(unknownProbe), true, "a probe with uncertain identity remains for inspection");
+  fs.unlinkSync(unknownProbe);
+  // A failed atomic replacement preserves old published ownership bytes.
+  fs.writeFileSync(path.join(store, "reservation.json"), peer);
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) throw Object.assign(new Error("replacement denied"), { code: "EACCES" });
+    return original(source, target);
+  };
+  try { await assert.rejects(acquireWaiting("preserve old record", { root: store, waitMs: 1, census: () => [],
+    identify: pid => pid === 42 ? null : processIdentity(pid) }), /Reservation files busy/); }
+  finally { fs.renameSync = original; }
+  assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
+  assert.equal(fs.readdirSync(store).some(name => name.endsWith(".tmp")), false);
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  fs.unlinkSync(path.join(store, "recovered-peer.json"));
+  // Once atomic publication succeeded, a guard cleanup failure must not replay
+  // acquisition, even when its code would otherwise be eligible for contention.
+  let publications = 0;
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) publications++;
+    return original(source, target);
+  };
+  fs.unlinkSync = target => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("published guard cleanup denied"), { code: "EPERM" });
+    return unlink(target);
+  };
+  try { await assert.rejects(acquireWaiting("already published", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("published acquisition replayed") }), /published guard cleanup denied/); }
+  finally { fs.renameSync = original; fs.unlinkSync = unlink; }
+  assert.equal(publications, 1);
+  assert.equal(read(path.join(store, "reservation.json")).run, "already published");
+  fs.unlinkSync(path.join(store, "guard.json"));
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  console.log("PASS: Windows reservation file contention retries within its deadline using clean private probes");
+} else console.log("SKIP: Windows reservation file contention controls require Windows");
 console.log("PASS: a held reservation guard delays release and never replaces the Vitest result");
 const busy = acquire("busy", { root: lockRoot, census: () => [] });
 await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }), /Existing suite running/);
@@ -351,6 +627,8 @@ console.log("PASS: run composes the one-worker flags, caps the heap and holds th
 // the deadline rather than after a full interval.
 const { main } = await import("./test-suite.mjs");
 const seam = { root: lockRoot, census: () => [], vitestPath: fakeVitest, stdio: "ignore" };
+assert.equal(await main(["run", path.relative(process.cwd(), scratch), "a.test.ts"], seam), 3,
+  "valid relative package directories still launch Vitest");
 assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 3, "run returns the Vitest exit status");
 assert.deepEqual(read(fakeRecord).argv, vitestArguments(["a.test.ts"]), "--wait and its value are not passed to Vitest");
 const cliHolder = acquire("cli holder", { root: lockRoot, census: () => [] });
@@ -368,9 +646,29 @@ await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait tak
 await assert.rejects(main(["run", scratch, "--wait", "5"], seam), /Name the test files under work/, "run refuses a whole-package call");
 const { MAX_RUN_FILES } = await import("./test-suite.mjs");
 const manyFiles = Array.from({ length: MAX_RUN_FILES + 1 }, (_, i) => `f${i}.test.ts`);
+for (const name of manyFiles) fs.writeFileSync(path.join(scratch, name), "fixture");
 await assert.rejects(main(["run", scratch, ...manyFiles, "--wait", "5"], seam), new RegExp(`at most ${MAX_RUN_FILES} test files \\(${MAX_RUN_FILES + 1} named\\)`), "run refuses a list wider than the bound");
 assert.equal(await main(["run", scratch, ...manyFiles.slice(1), "--wait", "5"], seam), 3, "run accepts a list at the bound");
 assert.deepEqual(read(fakeRecord).argv, vitestArguments(manyFiles.slice(1)), "every named file at the bound reaches Vitest");
+const literalNames = ["a.test.ts", "b.spec.tsx", "bracket[1]{brace}(group)+@!.test.ts", "space name.test.ts"];
+for (const name of literalNames.slice(2)) fs.writeFileSync(path.join(scratch, name), "fixture");
+assert.equal(await main(["run", scratch, ...literalNames], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments(literalNames), "valid multiple literal files retain exact spelling and order");
+const runAlias = path.join(path.dirname(scratch), path.basename(scratch) + "-literal-run-alias");
+fs.symlinkSync(scratch, runAlias, process.platform === "win32" ? "junction" : "dir");
+const aliasFile = path.join(runAlias, "a.test.ts");
+assert.equal(await main(["run", runAlias, aliasFile], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "valid absolute package alias is forwarded unchanged");
+assert.equal(await main(["run", scratch, aliasFile], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "an additional physical alias retains its exact argument");
+if (process.platform === "win32") {
+  const shortRoot = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
+    { encoding: "utf8", windowsHide: true, env: { ...process.env, IMPOWER_LITERAL_PACKAGE: scratch } }).trim();
+  const shortFile = path.join(shortRoot, "a.test.ts");
+  assert.equal(await main(["run", scratch, shortFile], seam), 3);
+  assert.deepEqual(read(fakeRecord).argv, vitestArguments([shortFile]), "Windows short directory spelling is forwarded unchanged");
+}
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 
