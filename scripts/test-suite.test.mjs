@@ -1147,8 +1147,9 @@ for (const peer of [false, true]) {
     }
     return rename(temp, target);
   };
+  const refuseLaunch = () => { launches++; throw Error("unexpected saved-stale child"); };
   try { await execute({ ...options, directory: resultDirectory, identify: setupIdentify,
-    spawn: () => { launches++; throw Error("unexpected saved-stale child"); } }); }
+    spawnChild: refuseLaunch }); }
   catch (error) { failure = error; }
   finally { fs.renameSync = rename; }
   assert.equal(notRunExit(failure, () => {}), 1);
@@ -1167,6 +1168,10 @@ for (const peer of [false, true]) {
     const next = acquire("after saved stale refusal", { root: lockRoot, census: () => [], identify: setupIdentify });
     next.release();
   }
+  await assert.rejects(execute({ ...options, identify: setupIdentify, spawnChild: refuseLaunch,
+    directory: path.join(scratch, ".git", `saved-stale-spawn-control-${peer}`) }), /unexpected saved-stale child/);
+  assert.equal(launches, 1, "the same no-launch sentinel observes an ordinary discovery admission");
+  assert.equal(fs.existsSync(reservationFile), false);
 }
 console.log("PASS: saved stale refusals preserve old attempts before reconciliation publication");
 
