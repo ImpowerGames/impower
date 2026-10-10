@@ -102,10 +102,22 @@ function loadEvidence(run) {
 async function childRun(run, mode, file, reservation, save, { enginePath = engine, identify = processIdentity } = {}) {
   const id = randomUUID();
   const directory = path.join(run.directory, id);
-  fs.mkdirSync(directory);
   const attempt = { id, file, mode, directory, status: "unknown", startedAt: now(), owner: reservation.record.owner };
   run.attempts.push(attempt);
-  reservation.update({ phase: "launching", attempt: id });
+  const update = value => {
+    if (attempt.reservationError) return false;
+    try { reservation.update(value); return true; }
+    catch (error) {
+      attempt.reservationError = error.message;
+      console.error(`Reservation update failed; retaining only unpersisted attempt evidence: ${error.message}`);
+      return false;
+    }
+  };
+  if (!update({ phase: "launching", attempt: id })) {
+    Object.assign(attempt, { status: "not-run", endedAt: now() });
+    return { attempt, report: null };
+  }
+  fs.mkdirSync(directory);
   save();
   const logFile = path.join(directory, "output.log"), jsonFile = path.join(directory, "vitest.json");
   const fd = fs.openSync(logFile, "wx");
@@ -124,25 +136,29 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
   try {
     attempt.child = child.pid ? identify(child.pid) : null;
     attempt.status = attempt.child ? "running" : "unknown";
-    reservation.update({ phase: attempt.child ? "running" : "launching", child: attempt.child });
   } catch (error) { attempt.identityError = error.message; }
-  save();
-  atomic(path.join(directory, "attempt.json"), attempt);
+  update({ phase: attempt.child ? "running" : "launching", child: attempt.child });
+  if (!attempt.reservationError) {
+    save();
+    atomic(path.join(directory, "attempt.json"), attempt);
+  }
   const progress = setInterval(() => console.log(JSON.stringify({ run: run.directory, file, status: attempt.status, pid: child.pid, waitingForExit: true })), 30000);
   let result;
   try { result = await completion; } finally { clearInterval(progress); }
   Object.assign(attempt, result, { endedAt: now() });
   // Record actual exit before trying to parse any result. Parsing failures cannot
   // erase evidence that permits safe reconciliation.
-  reservation.update({ phase: "exited", exit: result.exit, signal: result.signal });
-  atomic(path.join(directory, "attempt.json"), attempt);
+  update({ phase: "exited", exit: result.exit, signal: result.signal });
+  if (!attempt.reservationError) atomic(path.join(directory, "attempt.json"), attempt);
   let report = null;
   try { report = read(jsonFile); } catch (error) { attempt.reportError = error.message; }
   if (mode === "discover") {
     attempt.status = result.exit === 0 && Array.isArray(report) && report.every(f => typeof f === "string") ? "passed" : "failed";
   } else Object.assign(attempt, verifyResult(file, result.exit, result.signal, report, fs.readFileSync(logFile, "utf8")));
-  atomic(path.join(directory, "attempt.json"), attempt);
-  save();
+  if (!attempt.reservationError) {
+    atomic(path.join(directory, "attempt.json"), attempt);
+    save();
+  }
   return { attempt, report };
 }
 
@@ -181,6 +197,29 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   });
   const save = () => atomic(path.join(directory, "run.json"), run);
   let summary;
+  let reservationError;
+  let childAttempted = false;
+  const unpersistedAttempts = [];
+  const retain = attempt => {
+    childAttempted ||= attempt.status !== "not-run";
+    if (!attempt.reservationError) return false;
+    reservationError = attempt.reservationError;
+    // These observed results are for this invocation only, never reusable
+    // durable evidence. After uncertainty, a token read followed by rename
+    // would not establish ownership of any shared journal.
+    unpersistedAttempts.push({ ...attempt });
+    console.error(JSON.stringify({ unpersistedAttempt: attempt }));
+    if (!childAttempted) throw Object.assign(new Error(attempt.reservationError), { notRun: true, unpersistedAttempts });
+    return true;
+  };
+  const finish = () => {
+    summary = aggregate(run);
+    if (reservationError) {
+      if (!run.identity) summary.status = "incomplete";
+      Object.assign(summary, { reservationError, unpersistedAttempts });
+    } else atomic(path.join(directory, "summary.json"), summary);
+    return summary;
+  };
   try {
     if (fs.existsSync(path.join(directory, "run.json"))) {
       run = read(path.join(directory, "run.json"));
@@ -211,6 +250,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       save();
       const beforeDiscovery = fingerprint(root, []);
       const { attempt, report } = await childRun(run, "discover", null, reservation, save, dependencies);
+      if (retain(attempt)) return finish();
       if (attempt.status !== "passed") throw new Error(`Discovery failed; inspect ${attempt.directory}`);
       const trackedFiles = new Set(tracked(root).map(f => canonicalPath(path.resolve(root, f))));
       run.files = [...new Set(report.map(canonicalPath).filter(f => trackedFiles.has(f)))].sort();
@@ -230,16 +270,15 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       if (previous && (previous.status === "passed" || previous.status === "failed" && !retry.includes(file))) continue;
       if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); throw new Error("Inputs changed during suite; start a new run"); }
       await waitForCensus({ deadline: Date.now() + waitMs, pollMs: dependencies.pollMs, census, onWait: reportWait });
-      await childRun(run, "run", file, reservation, save, dependencies);
+      const { attempt } = await childRun(run, "run", file, reservation, save, dependencies);
+      if (retain(attempt)) return finish();
     }
     if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); }
-    summary = aggregate(run);
-    atomic(path.join(directory, "summary.json"), summary);
-    return summary;
+    return finish();
   } finally {
     // Persist while still owning the reservation: a successor may acquire it
     // immediately after release and must never be overwritten by this owner.
-    if (run?.token === reservation.record.token) { run.active = false; save(); }
+    if (!reservationError && run?.token === reservation.record.token) { run.active = false; save(); }
     // A failed release never replaces the summary or the error already in
     // flight. summary.json is already written, and after the release attempt
     // this owner writes nothing more, so the failure goes on the returned summary only.
@@ -266,13 +305,28 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   const identify = dependencies.identify || processIdentity;
   const reservation = await queue(`vitest run in ${packageRoot}`, { ...dependencies, census, waitMs });
   let child;
-  reservation.update({ phase: "launching" });
+  try { reservation.update({ phase: "launching" }); }
+  catch (error) {
+    // No spawn was attempted. Preserve uncertain ownership, and distinguish
+    // this admission refusal from a failing test; never re-acquire or relaunch.
+    throw Object.assign(error, { notRun: true });
+  }
+  const reservationErrors = [];
+  const noteReservationError = error => {
+    reservationErrors.push(error.message);
+    console.error(`Reservation update failed; awaiting only the original child: ${error.message}`);
+  };
   // Release only while no child can be running; an unconfirmed exit keeps the
   // reservation, as the suite coordinator does.
   try {
     child = spawn(process.execPath, ["--max-old-space-size=1024", vitestPath, ...vitestArguments(files)],
       { cwd: packageRoot, env: childEnvironment(), stdio, windowsHide: true });
-  } catch (error) { reservation.update({ phase: "exited" }); releaseKeeping(reservation, error); throw error; }
+  } catch (error) {
+    try { reservation.update({ phase: "exited" }); }
+    catch (failure) { error.reservationError = failure.message; noteReservationError(failure); }
+    releaseKeeping(reservation, error);
+    throw error;
+  }
   const completion = new Promise(resolve => {
     child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
     child.once("close", (exit, signal) => resolve({ exit, signal }));
@@ -280,9 +334,12 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   let identity = null;
   try { identity = child.pid ? identify(child.pid) : null; }
   catch (error) { console.error(`Child identity unavailable: ${error.message}`); }
-  reservation.update({ phase: identity ? "running" : "launching", child: identity });
+  try { reservation.update({ phase: identity ? "running" : "launching", child: identity }); }
+  catch (error) { noteReservationError(error); }
   const result = await completion;
-  reservation.update({ phase: "exited", exit: result.exit, signal: result.signal });
+  try { reservation.update({ phase: "exited", exit: result.exit, signal: result.signal }); }
+  catch (error) { noteReservationError(error); }
+  if (reservationErrors.length) result.reservationError = reservationErrors.join("; ");
   // The result is known; a failed release is reported beside it, never instead of it.
   try { reservation.release(); }
   catch (error) {

@@ -325,9 +325,10 @@ await assert.rejects(acquireWaiting("timeout", { root: lockRoot, waitMs: 60, pol
 acquire("released after timeout", { root: lockRoot, census: () => [] }).release();
 const ambiguous = acquire("ambiguous", { root: lockRoot, census: () => [], identify: () => owner });
 ambiguous.update({ phase: "launching" });
-const started = Date.now();
-await assert.rejects(acquireWaiting("unknown", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => [], identify: () => null }), /unknown/);
-assert.ok(Date.now() - started < 2000, "an ambiguous reservation refuses without waiting");
+let ambiguousWaits = 0;
+await assert.rejects(acquireWaiting("unknown", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => [], identify: () => null,
+  onWait: () => { ambiguousWaits++; } }), /unknown/);
+assert.equal(ambiguousWaits, 0, "an ambiguous reservation refuses without queue polling, independent of process-lookup latency");
 ambiguous.update({ phase: "exited" }); ambiguous.release();
 console.log("PASS: --wait queues on the reservation, holds it while other Vitest processes exit, and times out by releasing it");
 
@@ -499,16 +500,17 @@ if (process.platform === "win32") {
     fs.writeFileSync(guard, JSON.stringify({ owner: { pid: 42, start: "dead" } }));
     const method = { open: "openSync", write: "writeFileSync", read: "readFileSync", rename: "renameSync" }[operation];
     const originalMethod = fs[method], open = fs.openSync;
-    let claimFd, denied = 0;
+    let claimFd, guardReadFd, denied = 0;
     fs.openSync = (target, ...args) => {
       const fd = open(target, ...args);
       if (target === path.join(store, "guard-recovery.json")) claimFd = fd;
+      if (target === guard && args[0] === "r") guardReadFd = fd;
       return fd;
     };
     const dispatch = fs[method];
     fs[method] = (target, ...args) => {
       const affected = operation === "open" ? target === path.join(store, "guard-recovery.json")
-        : operation === "write" ? target === claimFd : target === guard;
+        : operation === "write" ? target === claimFd : operation === "read" ? target === guard || target === guardReadFd : target === guard;
       if (affected && denied++ < 1) throw Object.assign(new Error("recovery file contention"), { code: "EBUSY" });
       return dispatch(target, ...args);
     };
@@ -756,7 +758,195 @@ assert.equal(fs.readFileSync(guardFile, "utf8"), abandoned, "an unrecovered clai
 assert.equal(fs.existsSync(claimFile), true, "the claim is never removed on another process's behalf");
 fs.unlinkSync(claimFile);
 fs.unlinkSync(guardFile);
+fs.writeFileSync(claimFile, "{}");
+const normalWithClaim = acquire("normal transaction with abandoned recovery claim", { root: lockRoot, census: () => [] });
+normalWithClaim.release();
+assert.equal(fs.readFileSync(claimFile, "utf8"), "{}", "an abandoned recovery claim does not block or change normal transactions");
+fs.unlinkSync(claimFile);
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
+
+// A normal transaction can remove its guard and exit while recovery's process
+// lookup is still in flight. Its successor's live guard is a different file,
+// even if a delayed lookup then confirms the original coordinator is absent.
+{
+  const peerGuard = JSON.stringify({ owner: processIdentity(process.pid), token: "live-successor" });
+  const oldGeneration = path.join(lockRoot, "released-generation.json");
+  fs.writeFileSync(guardFile, abandoned);
+  let crossed = false;
+  const count = recoveredGuards().length;
+  assert.throws(() => acquire("generation race", { root: lockRoot, census: () => [], guardWaitMs: 50,
+    identify: pid => {
+      if (pid !== deadOwner.pid) return processIdentity(pid);
+      if (!crossed) {
+        crossed = true;
+        fs.renameSync(guardFile, oldGeneration);
+        fs.writeFileSync(guardFile, peerGuard);
+      }
+      return null;
+    } }), error => error.guardHeld === true);
+  assert.equal(crossed, true, "the original guard was replaced during its owner's lookup");
+  assert.equal(fs.readFileSync(guardFile, "utf8"), peerGuard, "the live successor guard survives recovery");
+  assert.equal(recoveredGuards().length, count, "a recovery archive never holds the replacement guard");
+  assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "no reservation is admitted through the live successor guard");
+  fs.unlinkSync(guardFile);
+  fs.unlinkSync(oldGeneration);
+  for (const failAction of [false, true]) {
+    assert.throws(() => acquire("cleanup replacement", { root: lockRoot, guardWaitMs: 50,
+      census: () => {
+        fs.renameSync(guardFile, oldGeneration);
+        fs.writeFileSync(guardFile, peerGuard);
+        if (failAction) throw new Error("original admission refusal");
+        return [];
+      } }), failAction ? /original admission refusal/ : /file ownership changed/);
+    assert.equal(fs.readFileSync(guardFile, "utf8"), peerGuard, "cleanup never unlinks another generation");
+    fs.unlinkSync(guardFile);
+    fs.unlinkSync(oldGeneration);
+    if (fs.existsSync(path.join(lockRoot, "reservation.json"))) fs.unlinkSync(path.join(lockRoot, "reservation.json"));
+  }
+  const missing = acquire("already removed guard", { root: lockRoot, census: () => {
+    fs.unlinkSync(guardFile);
+    return [];
+  } });
+  assert.equal(read(path.join(lockRoot, "reservation.json")).token, missing.record.token);
+  missing.release();
+}
+console.log("PASS: recovery and cleanup preserve the observed guard generation, including replacement and absence");
+
+{
+  const marker = path.join(scratch, ".git", "ownership-child-started");
+  const childFile = path.join(scratch, ".git", "ownership-child.mjs");
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=Number(process.argv[2]);`);
+  let refusal;
+  await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: childFile, root: lockRoot, stdio: "ignore",
+    census: () => { atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
+  }), error => (refusal = error, error.notRun === true && /ownership changed/.test(error.message)));
+  assert.equal(notRunExit(refusal, () => {}), 75);
+  assert.equal(fs.existsSync(marker), false, "pre-child ownership loss launches nothing");
+  assert.equal(read(reservationFile).token, "peer-before-child");
+  fs.unlinkSync(reservationFile);
+  for (const timing of ["post-spawn", "terminal"]) for (const exit of [0, 7]) {
+    // The fixture process has its own real observed close; a deterministic
+    // identity seam avoids a fast child disappearing during Windows lookup.
+    fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=${exit};`);
+    const rename = fs.renameSync;
+    let replaced = false;
+    fs.renameSync = (temp, target) => {
+      if (timing === "terminal" && target === reservationFile && read(temp).phase === "running" && !replaced) {
+        replaced = true;
+        fs.writeFileSync(temp, JSON.stringify({ ...read(temp), token: "peer-after-child" }));
+      }
+      return rename(temp, target);
+    };
+    let result;
+    try { result = await runVitest({ packageRoot: scratch, vitestPath: childFile, root: lockRoot, census: () => [], stdio: "ignore",
+      identify: pid => {
+        if (pid === process.pid) return processIdentity(pid);
+        if (timing === "post-spawn" && !replaced) {
+          replaced = true;
+          atomic(reservationFile, { ...read(reservationFile), token: "peer-after-child" });
+        }
+        return { pid, start: "fixture-child" };
+      } }); }
+    finally { fs.renameSync = rename; }
+    assert.equal(replaced, true, `${timing}: ownership was replaced at the intended boundary`);
+    assert.equal(result.exit, exit, `${timing}: retain the original child's actual exit`);
+    assert.equal(result.signal, null);
+    assert.match(result.reservationError, /Reservation ownership changed/);
+    assert.match(result.releaseError, /Reservation ownership changed/);
+    assert.equal(fs.readFileSync(marker, "utf8"), "started\n", "ownership loss never launches a second child");
+    assert.equal(read(reservationFile).token, "peer-after-child", "never release another owner's token");
+    fs.unlinkSync(marker);
+    fs.unlinkSync(reservationFile);
+  }
+}
+console.log("PASS: pre-child ownership loss is not run and post-spawn ownership loss preserves only the original child result");
+
+for (const afterDiscovery of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `before-child-${afterDiscovery}`);
+  const marker = path.join(scratch, ".git", `before-child-${afterDiscovery}.marker`);
+  const fixture = path.join(scratch, ".git", `before-child-${afterDiscovery}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)}, process.argv[2]+"\\n");
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  let censusCalls = 0, failure, result, priorJournal;
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" },
+    census: () => {
+      if (++censusCalls === (afterDiscovery ? 2 : 1)) {
+        atomic(reservationFile, { ...read(reservationFile), token: "peer-before-durable-child" });
+        if (afterDiscovery) priorJournal = fs.readFileSync(path.join(resultDirectory, "run.json"), "utf8");
+      }
+      return [];
+    } }); }
+  catch (error) { failure = error; }
+  if (!afterDiscovery) {
+    assert.equal(notRunExit(failure, () => {}), 75);
+    assert.equal(fs.existsSync(marker), false);
+    assert.equal(failure.unpersistedAttempts[0].status, "not-run");
+  } else {
+    assert.equal(failure, undefined, "a launched discovery is never relabeled wholly not-run");
+    assert.equal(result.status, "incomplete");
+    assert.match(result.reservationError, /ownership changed/);
+    assert.equal(fs.readFileSync(marker, "utf8"), "discover\n");
+    assert.equal(fs.readFileSync(path.join(resultDirectory, "run.json"), "utf8"), priorJournal, "completed discovery evidence survives pre-file refusal");
+  }
+  assert.equal(read(reservationFile).token, "peer-before-durable-child");
+  fs.unlinkSync(reservationFile);
+}
+
+// Lose ownership at the terminal update, after the child's result is observed
+// but before durable publication. A successor journal must remain byte-for-byte
+// intact; returned evidence is explicitly unpersisted and no next file starts.
+for (const boundary of ["discover", "first", "last"]) for (const exit of [0, 7]) {
+  const resultDirectory = path.join(scratch, ".git", `lost-${boundary}-${exit}`);
+  const marker = path.join(scratch, ".git", `lost-${boundary}-${exit}.marker`);
+  const fixture = path.join(scratch, ".git", `lost-${boundary}-${exit}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)}, process.argv[2]+"\\n");
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});
+if(process.argv[2]==="run" || ${JSON.stringify(boundary)}==="discover")process.exitCode=${exit};`);
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  const runFile = path.join(resultDirectory, "run.json");
+  const originalRead = fs.readFileSync;
+  let replaced = false, peerJournal, priorAttempt, attemptFile;
+  fs.readFileSync = function(target, ...args) {
+    if (target === reservationFile && !replaced && fs.existsSync(runFile)) {
+      const journal = JSON.parse(originalRead(runFile, "utf8"));
+      const active = journal.attempts.at(-1);
+      const selected = boundary === "discover" ? active?.mode === "discover"
+        : active?.mode === "run" && active.file.endsWith(boundary === "first" ? "a.test.ts" : "b.spec.tsx");
+      const candidate = active && path.join(active.directory, "attempt.json");
+      if (selected && fs.existsSync(candidate)) {
+        replaced = true;
+        attemptFile = candidate;
+        priorAttempt = originalRead(candidate, "utf8");
+        peerJournal = JSON.stringify({ ...journal, token: "successor-journal", active: true });
+        fs.writeFileSync(runFile, peerJournal);
+        fs.writeFileSync(reservationFile, JSON.stringify({ ...JSON.parse(originalRead(reservationFile, "utf8")), token: "successor-reservation" }));
+      }
+    }
+    return originalRead.call(this, target, ...args);
+  };
+  let result;
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" } }); }
+  finally { fs.readFileSync = originalRead; }
+  assert.equal(replaced, true, `${boundary}: terminal update reached`);
+  assert.match(result.reservationError, /ownership changed/);
+  assert.equal(result.unpersistedAttempts.length, 1);
+  assert.equal(result.unpersistedAttempts[0].exit, exit);
+  assert.equal(result.unpersistedAttempts[0].status, exit === 0 ? "passed" : "failed");
+  assert.equal(result.status, boundary === "last" ? exit === 0 ? "passed" : "failed" : "incomplete");
+  assert.equal(originalRead(runFile, "utf8"), peerJournal, "never overwrite a successor's run journal");
+  assert.equal(originalRead(attemptFile, "utf8"), priorAttempt, "uncertain ownership prevents attempt publication");
+  assert.equal(fs.existsSync(path.join(resultDirectory, "summary.json")), false, "no shared summary after uncertainty");
+  assert.equal(originalRead(marker, "utf8"), boundary === "discover" ? "discover\n" : boundary === "first" ? "discover\nrun\n" : "discover\nrun\nrun\n", "uncertainty stops all later admissions");
+  assert.equal(read(reservationFile).token, "successor-reservation");
+  fs.unlinkSync(reservationFile);
+}
+console.log("PASS: durable ownership loss returns observed results without overwriting peer journals or admitting later files");
 
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
