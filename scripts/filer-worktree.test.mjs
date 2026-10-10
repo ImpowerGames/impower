@@ -1,9 +1,11 @@
+// agent-tooling-timeout-ms: 600000
+// Real Windows/Bash controls and complete adapters exceeded 300s locally.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { decide } from "../.agents/hooks/policy.mjs";
 import { relevantFiles } from "../.github/scripts/changed-paths.mjs";
 
@@ -32,6 +34,16 @@ fs.writeFileSync(path.join(external, "untracked.txt"), "untracked sentinel\n");
 fs.writeFileSync(path.join(external, "ignored.txt"), "ignored sentinel\n");
 const sentinels = ["tracked.txt", "untracked.txt", "ignored.txt"].map(name => [name, fs.readFileSync(path.join(external, name))]);
 function preserved() { for (const [name, bytes] of sentinels) assert.deepEqual(fs.readFileSync(path.join(external, name)), bytes, name); }
+function verifyAdapters(command, shell, cwd, denied, nativeDenied = denied) {
+  for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+    const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: shell, cwd, tool_input: { command } });
+    const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
+    assert.equal(r.status, 0, r.stderr);
+    if (file.startsWith(".agents/") ? nativeDenied : denied) assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny");
+    else assert.equal(r.stdout, "");
+    preserved();
+  }
+}
 const reproduction = path.join(scratch, "repo.worktrees", "borrowed-repro");
 git(["worktree", "add", "-b", "repro-fixture", reproduction]);
 fs.symlinkSync(external, path.join(reproduction, "node_modules"), process.platform === "win32" ? "junction" : "dir");
@@ -40,6 +52,31 @@ const reason = decide({ kind: "shell", command, shell: "powershell", cwd: main }
 preserved();
 assert.ok(reason, "supported direct worktree removal must be refused before deletion");
 console.log("PASS: direct cleanup refusal preserves external tracked, untracked and ignored sentinels");
+
+// Only explicit Git outside-repository status may select the known-source
+// fallback. Inject discovery failures while preserving both complete adapters.
+const discoveryPreload = path.join(scratch, "discovery-preload.mjs");
+fs.writeFileSync(discoveryPreload, `import cp from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
+const actual = cp.spawnSync;
+cp.spawnSync = function(file, args, options) {
+  if (file === 'git' && args?.[0] === 'rev-parse' && args[1] === '--show-toplevel' && options?.cwd === process.env.FILER_DISCOVERY_CWD) {
+    const mode = process.env.FILER_DISCOVERY_FAILURE;
+    if (mode === 'status') return { status: 128, stdout: '', stderr: 'fatal: unreadable checkout metadata' };
+    const error = new Error('spawnSync git ' + mode); error.code = mode;
+    return { error, status: null, signal: null, stdout: '', stderr: '' };
+  }
+  return actual(file, args, options);
+};
+syncBuiltinESMExports();
+`);
+for (const failure of ["ETIMEDOUT", "EACCES", "status"]) for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+  const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: "PowerShell", cwd: main, tool_input: { command: `Remove-Item -Recurse '${reproduction}/node_modules'` } });
+  const result = spawnSync(process.execPath, ["--import", pathToFileURL(discoveryPreload).href, path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true, env: { ...process.env, FILER_DISCOVERY_CWD: main, FILER_DISCOVERY_FAILURE: failure } });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout).hookSpecificOutput;
+  assert.equal(output.permissionDecision, "deny"); assert.match(output.permissionDecisionReason, /repository discovery cannot be checked/); preserved();
+}
 
 const { create, install, checkLinks, remove, markerName } = await import("./filer-worktree.mjs");
 const { decide: cleanup } = await import("../.agents/hooks/worktree-cleanup.mjs");
@@ -94,6 +131,11 @@ for (const program of ["r''m", "'r''m'", "r\\m"]) {
     assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
   }
 }
+for (const command of ["'f''ish' -c 'echo harmless'", "f\\ish -c 'echo harmless'"]) {
+  assert.match(cleanup(command, "bash", main), /command literal cannot be verified/, "prior fish candidate uncertainty refusal remains intact");
+  verifyAdapters(command, "Bash", main, true);
+}
+assert.equal(cleanup("fish -c 'echo harmless'", "bash", main), null, "no new fish child-script analysis is claimed");
 for (const command of [`bash -c 'r''m -f ${bashTarget}'`, `'bash' -c "rm -f '${bashTarget}'"`]) {
   assert.ok(cleanup(command, "bash", main), "literal child invocation cannot invent an unrelated command");
   assert.ok(cleanup(command, undefined, main)); preserved();
@@ -102,6 +144,43 @@ for (const command of [`bash -c 'r''m -f ${bashTarget}'`, `'bash' -c "rm -f '${b
     const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
     assert.equal(r.status, 0, r.stderr); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
   }
+}
+const slashRepro = reproduction.replaceAll(path.sep, "/");
+const wrapperAndSelectorCases = [
+  ["'env' rm --version", `'env' rm -f '${bashTarget}'`],
+  ['"env" rm --version', `"env" rm -f '${bashTarget}'`],
+  ["'command' rm --version", `'command' rm -f '${bashTarget}'`],
+  ["'env' bash -c 'rm --version'", `'env' bash -c "rm -f '${bashTarget}'"`],
+  [`bash -c test\\ -f\\ ${bashTarget}`, `bash -c rm\\ -f\\ ${bashTarget}`],
+  ["bash '-''c' 'rm --version'", `bash '-''c' "rm -f '${bashTarget}'"`],
+  ["bash -\\c 'rm --version'", `bash -\\c "rm -f '${bashTarget}'"`],
+  ["env '-''S' 'rm --version'", `env '-''S' "rm -f '${bashTarget}'"`],
+  [`env -C '${slashRepro}' test -f node_modules/tracked.txt`, `env -C '${slashRepro}' rm -f node_modules/tracked.txt`],
+  [`env --chdir='${slashRepro}' test -f node_modules/tracked.txt`, `env --chdir='${slashRepro}' rm -f node_modules/tracked.txt`],
+  [`env '--ch''dir=${slashRepro}' test -f node_modules/tracked.txt`, `env '--ch''dir=${slashRepro}' rm -f node_modules/tracked.txt`],
+  ["git 'work''tree' list", `git 'work''tree' remove --force '${slashRepro}'`],
+  ["git w\\orktree list", `git w\\orktree remove --force '${slashRepro}'`],
+  ["git worktree 're''move' -h", `git worktree 're''move' --force '${slashRepro}'`, 129],
+  ["git worktree 'ad''d' -h", `git worktree 'ad''d' '${slashRepro}'`, 129],
+  ["ln '-''s' --help", `ln '-''s' '${external}' '${slashRepro}/new-link'`],
+  ["$'rm' --version", `$'rm' -f '${bashTarget}'`],
+  ["$'\\162\\155' --version", `$'\\162\\155' -f '${bashTarget}'`],
+  ["r$'m' --version", `r$'m' -f '${bashTarget}'`],
+  ['$"rm" --version', `$"rm" -f '${bashTarget}'`],
+  ["bash $'-c' 'rm --version'", `bash $'-c' "rm -f '${bashTarget}'"`],
+  ["git $'worktree' list", `git $'worktree' remove --force '${slashRepro}'`],
+  ["git worktree $'remove' -h", `git worktree $'remove' --force '${slashRepro}'`, 129],
+  ["git 'work''tree' $'list'", `git 'work''tree' $'remove' --force '${slashRepro}'`],
+  [`git '-''C' '${main.replaceAll(path.sep, "/")}' $'worktree' list`, `git '-''C' '${main.replaceAll(path.sep, "/")}' $'worktree' remove --force '${slashRepro}'`],
+  ["ln $'-s' --help", `ln $'-s' '${external}' '${slashRepro}/new-link'`],
+];
+for (const [control, mutation, expectedStatus = 0] of wrapperAndSelectorCases) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; ${control}`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, expectedStatus, actual.stderr); preserved();
+  assert.ok(cleanup(mutation, "bash", main), "supported wrapper or selector literal cannot hide a mutation");
+  assert.ok(cleanup(mutation, undefined, main)); preserved();
+  verifyAdapters(mutation, "Bash", main, true);
 }
 for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
   for (const command of [colonCommand, ...additionalLiterals]) {
@@ -127,6 +206,31 @@ fs.writeFileSync(path.join(sibling, "plain.txt"), "safe sibling\n");
 fs.mkdirSync(path.join(sibling, "node_modules"));
 fs.writeFileSync(path.join(sibling, "node_modules", "tracked.txt"), "safe local file\n");
 const safeBashTarget = `${sibling.replaceAll(path.sep, "/")}/plain.txt`;
+for (const command of [
+  `env rm -f '${safeBashTarget}'`, `command rm -f '${safeBashTarget}'`,
+  `env -C '${slashRepro}' rm -f '${safeBashTarget}'`,
+  `env -C '${slashRepro}' true; rm -f tracked.txt`,
+  "env bash -c \"echo 'rm -rf is unsafe'\"", "command echo 'rm -rf is unsafe'",
+  `env -C '${slashRepro}' bash -c "echo 'rm -rf is unsafe'"`,
+  "git status -- 'work''tree'", "git -c note.selector='work''tree' status", "git worktree list --porcelain",
+]) {
+  assert.equal(cleanup(command, "bash", main), null, "literal unquoted wrappers, independent absolute targets and non-operation arguments remain permitted");
+  assert.equal(cleanup(command, undefined, main), null); verifyAdapters(command, "Bash", main, false);
+}
+for (const command of ["bash -c \"echo encoded \\\$'rm' is documentation\"", "env bash -c \"echo encoded \\\$'rm' is documentation\""]) {
+  assert.equal(cleanup(command, "bash", main), null, "authoritative Bash child prose is not an encoded operation selector");
+  assert.ok(cleanup(command, undefined, main), "unknown shell retains the documented ambiguity refusal");
+  verifyAdapters(command, "Bash", main, false, true);
+}
+for (const command of ["'env' echo harmless", "'command' echo harmless", "$'echo' harmless"]) {
+  assert.match(cleanup(command, "bash", main), /Quoted wrapper child traversal|Encoded command literal/, "documented dispatch uncertainty refuses even benign execution in known context");
+  verifyAdapters(command, "Bash", main, true);
+}
+for (const control of [`env -C '${slashRepro}' true; test -f tracked.txt`, "env bash -c \"echo 'rm -rf is unsafe'\"", "git -c note.selector='work''tree' status"]) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; ${control}`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); preserved();
+}
 for (const operand of [`'${safeBashTarget}'`, `"${safeBashTarget}"`, safeBashTarget.replaceAll(" ", "\\ ")]) {
   const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const actual = spawnSync(executable, ["-c", `pwd; printf '%s\n' ${operand}; test -f ${operand}`], { cwd: main, encoding: "utf8", windowsHide: true });
@@ -232,6 +336,7 @@ fs.unlinkSync(path.join(expanded, "node_modules"));
 const safeLocation = `Set-Location -LiteralPath '${sibling}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`;
 const outsideLocation = path.join(scratch, "possible-non-git");
 fs.mkdirSync(outsideLocation);
+verifyAdapters(`Remove-Item -LiteralPath '${sibling}' -Recurse`, "PowerShell", outsideLocation, false);
 fs.symlinkSync(external, path.join(outsideLocation, "node_modules"), process.platform === "win32" ? "junction" : "dir");
 assert.ok(cleanup(`Set-Location '${outsideLocation}'; Remove-Item -LiteralPath node_modules/tracked.txt -Force`, "powershell", main), "all possible cwd targets use the original known registry"); preserved();
 fs.unlinkSync(path.join(outsideLocation, "node_modules"));
@@ -316,6 +421,33 @@ git(["add", "."]); git(["commit", "-m", "local workspace fixture"]);
 git(["update-ref", "refs/remotes/origin/main", "HEAD"]);
 const owner = "test-session-1766";
 const owned = await create({ root: main, owner, toolingOnly: true });
+const npmAliases = ["install", "add", "i", "in", "ins", "inst", "insta", "instal", "isnt", "isnta", "isntal", "isntall", "ci", "clean-install", "ic", "install-clean", "isntall-clean"];
+for (const alias of npmAliases) {
+  assert.ok(cleanup(`npm ${alias}`, "bash", owned.tree), `explicit setup alias ${alias} protects ownership`);
+  assert.ok(cleanup(`npm ${alias}`, undefined, owned.tree)); preserved();
+}
+for (const alias of ["i", "add", "isntall", "ic", "clean-install", "install-clean", "isntall-clean"]) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; npm ${alias} --help`], { cwd: owned.tree, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); assert.match(actual.stdout, /npm (?:install|ci)/); preserved();
+  verifyAdapters(`npm ${alias}`, "Bash", owned.tree, true);
+}
+for (const selector of ["'in''stall'", "'c''i'", "i\\nstall", "$'install'", "$'ci'", "'isn''tall'", "$'ic'"]) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; npm ${selector} --help`], { cwd: owned.tree, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); assert.match(actual.stdout, /npm (?:install|ci)/); preserved();
+  for (const [command, cwd] of [[`npm ${selector}`, owned.tree], [`npm --prefix '${owned.tree}' ${selector}`, main]]) {
+    assert.ok(cleanup(command, "bash", cwd), "literal npm operation selector cannot hide setup");
+    assert.ok(cleanup(command, undefined, cwd)); verifyAdapters(command, "Bash", cwd, true);
+  }
+}
+for (const command of ["npm help 'in''stall' --help", "npm config get 'in''stall'", `npm --cache '${owned.artifacts.replaceAll(path.sep, "/")}/in''stall' --version`, "git status -- 'work''tree'", "git status -- $'worktree'", "npm config get $'install'", "echo \"encoded $'rm' is documentation\""]) {
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", `pwd; ${command}`], { cwd: owned.tree, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr); preserved();
+  assert.equal(cleanup(command, "bash", owned.tree), null, "non-operation literal arguments are not npm/Git setup selectors");
+  assert.equal(cleanup(command, undefined, owned.tree), null); verifyAdapters(command, "Bash", owned.tree, false);
+}
 assert.ok(!fs.existsSync(path.join(owned.tree, "node_modules")));
 await assert.rejects(remove(owned.record, "another-session"), /ownership/); preserved();
 fs.writeFileSync(`${owned.record}.lock`, "uncertain owner");

@@ -7,7 +7,11 @@ import { baseName, isShellCommandString, programBefore, readCommand } from "./ty
 const route = "Use node scripts/filer-worktree.mjs remove --record <absolute-owner.json> --owner <filing-session> for owned filing trees, or the guarded clean-worktrees --remove route for other trees.";
 function git(cwd, args) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", windowsHide: true, timeout: 2000 });
-  if (r.error || r.status !== 0) throw new Error(r.error?.message ?? r.stderr);
+  if (r.error || r.status !== 0) {
+    const error = new Error(r.error?.message ?? r.stderr);
+    error.outsideRepository = !r.error && r.status === 128 && /fatal: not a git repository/i.test(r.stderr);
+    throw error;
+  }
   return r.stdout.trim();
 }
 const under = (p, root) => { const r = path.relative(root, p); return r === "" || (r !== ".." && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r)); };
@@ -44,8 +48,20 @@ const gitValueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--name
 const singlePowerShellLiteral = /^(?:'(?:[^']|'')*'|"[^"$`]*")$/;
 const singleBashLiteral = /^(?:'[^']*'|"(?:[^"$`\\]|\\[^\r\n])*")$/;
 const canonicalCmdlets = new Set(["remove-item", "set-location", "push-location", "pop-location", "new-item"]);
-const shellPrograms = new Set(["bash", "sh", "zsh", "fish", "pwsh", "powershell", "cmd", "env", "eval"]);
-const supportedPrograms = new Set([...shellPrograms, ...canonicalCmdlets, "rm", "rmdir", "rd", "del", "erase", "cd", "pushd", "popd", "git", "npm", "ln", "mklink"]);
+const shellPrograms = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "pwsh", "powershell", "cmd", "env", "eval"]);
+// These are refusal boundaries for the existing reader's wrapper traversal;
+// this policy does not implement another wrapper argument parser.
+const wrappers = new Set(["sudo", "doas", "env", "xargs", "time", "timeout", "nice", "stdbuf", "npx", "nohup", "command", "builtin", "exec", "winpty"]);
+// Preserve fish's existing raw-name uncertainty refusal without claiming that
+// the established shell-string reader analyzes fish child scripts.
+const supportedPrograms = new Set([...shellPrograms, ...wrappers, ...canonicalCmdlets, "fish", "rm", "rmdir", "rd", "del", "erase", "cd", "pushd", "popd", "git", "npm", "ln", "mklink"]);
+const npmValueOptions = new Set(["--prefix", "--workspace", "-w", "--registry", "--cache", "--userconfig", "--globalconfig", "--loglevel"]);
+const npmBooleanOptions = new Set(["--global", "-g", "--silent", "-s", "--yes", "-y", "--no-audit", "--no-fund", "--ignore-scripts"]);
+// Explicit install/ci aliases reported by the installed npm CLI. This is not
+// npm's general abbreviation resolver or recognition of arbitrary scripts.
+const npmSetupSelectors = new Set(["install", "add", "i", "in", "ins", "inst", "insta", "instal", "isnt", "isnta", "isntal", "isntall", "ci", "clean-install", "ic", "install-clean", "isntall-clean"]);
+const rawCandidate = (token, command) => token ? command.slice(token.start, token.end).replace(/["']/g, "").replace(/\\(.)/g, "$1") : "";
+const encodedLiteral = (token, command) => token && /\$['"]/.test(command.slice(token.start, token.end));
 function literalArguments(tokens, shell, command) {
   const values = [];
   for (const token of tokens) {
@@ -88,12 +104,12 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
   if (depth > 3) return [{ kind: "analysis-limit", cwd, cwds: locationState?.cwds ?? [cwd], targets: Object.assign([], { error: "Supported cleanup/setup analysis nesting exceeded" }) }];
   const { segments, subs } = readCommand(command, shell), found = [];
   const possibleCwds = new Set(locationState?.cwds ?? [cwd]), substitutionOps = [];
-  let locationError = locationState?.error ?? null, hasLocation = false;
+  let locationError = locationState?.error ?? null, childLocationError = null, hasLocation = false;
   const addCwd = next => {
     if (possibleCwds.size >= 8 && !possibleCwds.has(next)) locationError = "Possible location states exceed the supported bound";
     else possibleCwds.add(next);
   };
-  const emit = op => found.push({ ...op, cwd, cwds: [...possibleCwds], locationError });
+  const emit = op => found.push({ ...op, cwd, cwds: [...possibleCwds], locationError: locationError ?? childLocationError });
   for (const sub of subs) {
     const nested = operations(sub, shell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError });
     found.push(...nested);
@@ -102,17 +118,18 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
   }
   const locationStack = [];
   for (const { tokens, positions } of segments) {
-    // The shared recognizer deliberately skips quoted wrapper names. Locally
-    // admit only a verified single Bash literal naming a supported wrapper.
+    childLocationError = null;
+    // Let the existing shell-string recognizer inspect verified quoted shell
+    // names. Quoted command wrappers refuse independently below.
     const recognitionTokens = tokens.map((token, i) => shell === "bash" && positions.has(i) && token.quoted && shellPrograms.has(baseName(token)) && !literalArguments([token], shell, command).error ? { ...token, quoted: false } : token);
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i], name = baseName(token);
-      if (token.quoted && isShellCommandString(recognitionTokens, i, positions)) {
+      if (isShellCommandString(recognitionTokens, i, positions)) {
         const literal = literalArguments([token], shell, command);
         if (literal.error) { emit({ kind: "analysis-limit", targets: literal }); continue; }
         const before = programBefore(recognitionTokens, i - 1);
         const innerShell = before >= 0 && /^(pwsh|powershell)$/.test(baseName(tokens[before])) ? "powershell" : "bash";
-        found.push(...operations(token.text, innerShell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError }));
+        found.push(...operations(token.text, innerShell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError ?? childLocationError }));
       }
       const method = !token.quoted && /(?:\.|::)Delete$/i.test(token.text) && command.slice(token.end).trimStart().startsWith("(");
       if (method) {
@@ -123,19 +140,38 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
       }
       if (!positions.has(i)) continue;
       if (shell === "bash") {
+        if (encodedLiteral(token, command)) {
+          emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded command literal cannot be verified" }) });
+          continue;
+        }
         const literal = literalArguments([token], shell, command);
         // This candidate is only a refusal trigger, never a trusted decoded
         // command or pathname. Unsupported computed commands remain excluded.
-        const raw = command.slice(token.start, token.end);
-        const candidate = baseName({ text: raw.replace(/["']/g, "").replace(/\\(.)/g, "$1") });
+        const candidate = baseName({ text: rawCandidate(token, command) });
         if (literal.error && supportedPrograms.has(candidate)) {
           emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Cleanup/setup command literal cannot be verified" }) });
+          continue;
+        }
+        if (token.quoted && wrappers.has(name)) {
+          emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Quoted wrapper child traversal cannot be verified" }) });
           continue;
         }
       }
       const args = tokens.slice(i + 1);
       const argumentShell = canonicalCmdlets.has(name) ? "powershell" : shell;
       const targets = literalArguments(args, argumentShell, command);
+      const childPosition = [...positions].find(position => position > i) ?? tokens.length;
+      if (shell === "bash" && (shellPrograms.has(name) || wrappers.has(name) || name === "ln") && args.some((arg, at) => encodedLiteral(arg, command) && i + at + 1 < childPosition && !isShellCommandString(recognitionTokens, i + at + 1, positions))) {
+        emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded shell or setup selector literal cannot be verified" }) });
+      }
+      if (shellPrograms.has(name) && args.some(arg => {
+        const candidate = rawCandidate(arg, command).toLowerCase();
+        return literalArguments([arg], shell, command).error && (name === "env" ? /^(?:-s|--split-string)$/.test(candidate) : /^(?:\/c|-c|-comm\w*|-[a-z]*c[a-z]*)$/.test(candidate));
+      })) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Shell command-string selector cannot be verified" }) });
+      if (["env", "sudo"].includes(name) && args.some(arg => {
+        const text = shell === "bash" ? rawCandidate(arg, command) : arg.text;
+        return /^--chdir(?:=|$)/.test(text) || (name === "env" ? /^-C/.test(text) : /^-D/.test(text));
+      })) childLocationError = "Wrapper child location cannot be verified";
       if (["popd", "pop-location"].includes(name)) {
         hasLocation = true;
         if (locationStack.length) for (const previous of locationStack.pop()) addCwd(previous);
@@ -167,9 +203,34 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
       if (name === "git") {
         let k = 0;
         while (args[k]?.text.startsWith("-")) { const value = args[k].text; k += gitValueOptions.has(value) ? 2 : 1; }
-        if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) emit({ kind: args[k + 1].text.toLowerCase() === "remove" ? "remove" : "setup", targets });
+        if (shell === "bash" && (encodedLiteral(args[k], command) || (args[k]?.text.toLowerCase() === "worktree" && encodedLiteral(args[k + 1], command)))) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded Git operation selector literal cannot be verified" }) });
+        else if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) emit({ kind: args[k + 1].text.toLowerCase() === "remove" ? "remove" : "setup", targets });
+        else if (shell === "bash") {
+          const candidates = args.map(arg => literalArguments([arg], shell, command).error ? rawCandidate(arg, command) : arg.text);
+          let at = 0;
+          while (candidates[at]?.startsWith("-")) { const value = candidates[at]; at += gitValueOptions.has(value) ? 2 : 1; }
+          if (encodedLiteral(args[at], command) || (candidates[at]?.toLowerCase() === "worktree" && encodedLiteral(args[at + 1], command))) {
+            emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded Git operation selector literal cannot be verified" }) });
+          } else if (candidates[at]?.toLowerCase() === "worktree" && ["remove", "add"].includes(candidates[at + 1]?.toLowerCase())) {
+            emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Git worktree operation selector cannot be verified" }) });
+          }
+        }
       }
-      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text))) || (name === "npm" && targets.some(text => /^(install|ci)$/i.test(text)))) emit({ kind: "setup", targets });
+      if (name === "npm") {
+        let at = 0, uncertain = false;
+        const candidates = args.map(arg => shell === "bash" && literalArguments([arg], shell, command).error ? rawCandidate(arg, command) : arg.text);
+        while (candidates[at]?.startsWith("-")) {
+          const value = candidates[at], flag = value.split("=")[0];
+          if (npmValueOptions.has(flag)) at += value.includes("=") ? 1 : 2;
+          else { if (!npmBooleanOptions.has(flag)) uncertain = true; at++; }
+        }
+        if (shell === "bash" && (encodedLiteral(args[at], command) || (uncertain && args.slice(at).some(arg => encodedLiteral(arg, command))))) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded npm operation selector literal cannot be verified" }) });
+        else if (npmSetupSelectors.has(candidates[at]?.toLowerCase()) || (uncertain && candidates.slice(at).some(text => npmSetupSelectors.has(text.toLowerCase())))) {
+          if (uncertain || args[at]?.text !== candidates[at]) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "npm setup operation selector cannot be verified" }) });
+          else emit({ kind: "setup", targets });
+        }
+      }
+      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text)))) emit({ kind: "setup", targets });
     }
   }
   // The tokenizer collects substitutions without their execution positions.
@@ -183,7 +244,10 @@ function inspectAt(op) {
   if (op.kind === "remove") return `Direct git worktree remove is refused: it can follow dependency junctions. ${route}`;
   let roots, registryCwd = op.contextKnown ? op.registryCwd : op.cwd, fromRepository = true;
   try { git(registryCwd, ["rev-parse", "--show-toplevel"]); }
-  catch { registryCwd = sourceCheckout; fromRepository = false; }
+  catch (error) {
+    if (!error.outsideRepository) return `Cleanup repository discovery cannot be checked: ${error.message}. ${route}`;
+    registryCwd = sourceCheckout; fromRepository = false;
+  }
   try {
     const top = real(git(registryCwd, ["rev-parse", "--show-toplevel"]));
     if (fromRepository && owned(top)) return `Direct setup or cleanup in owned filing checkout ${top} is refused, including ambiguous targets. ${route}`;
@@ -233,7 +297,10 @@ export function decide(command, shell, cwd = process.cwd()) {
       for (const op of ops) { op.contextKnown = true; op.registryCwd = cwd; }
       if (owned(top)) return `Direct setup/cleanup from an owned filing context is refused, including changed or ambiguous locations. ${route}`;
     }
-    catch { /* inspect each operation's explicit location below */ }
+    catch (error) {
+      if (!error.outsideRepository) return `Cleanup repository discovery cannot be checked: ${error.message}. ${route}`;
+      /* inspect each operation's explicit location below */
+    }
   }
   for (const op of ops) { const reason = inspect(op); if (reason) return reason; }
   return null;
