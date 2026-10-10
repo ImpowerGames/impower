@@ -172,6 +172,31 @@ function npmSetupTargets(args, shell, command) {
   }
   return targets;
 }
+function itemLinkTargets(args, targets) {
+  const selectors = args.flatMap((arg, at) => /^-(?:itemtype|type)(?::|$)/i.test(arg.text) ? [at] : []);
+  if (!selectors.length) {
+    // Native parameter abbreviations can dispatch link creation. They are
+    // refusal candidates only; do not invent a verified selector position.
+    const prefixes = new Set(["-i", "-it", "-ite", "-item", "-itemt", "-itemty", "-itemtyp", "-t", "-ty", "-typ"]);
+    if (args.some((arg, at) => prefixes.has(arg.text.split(":")[0].toLowerCase()) && /^(junction|symboliclink)$/i.test(targets[arg.text.includes(":") ? at : at + 1] ?? ""))) {
+      const paths = [...targets]; paths.error = targets.error ?? "Link setup ItemType selector cannot be verified"; return paths;
+    }
+    return null;
+  }
+  const excluded = new Set(), types = [];
+  for (const at of selectors) {
+    excluded.add(at);
+    const inline = args[at].text.includes(":");
+    if (!inline) excluded.add(at + 1);
+    types.push(targets[inline ? at : at + 1]);
+  }
+  const uncertainType = !types[0] || types[0].startsWith("-") || /[`$*?\[]/.test(types[0]);
+  if (!targets.error && selectors.length === 1 && !uncertainType && !/^(junction|symboliclink)$/i.test(types[0])) return null;
+  const paths = targets.filter((_, at) => !excluded.has(at));
+  if (targets.error) paths.error = targets.error;
+  if (selectors.length !== 1 || uncertainType) paths.error = "Link setup ItemType cannot be verified";
+  return paths;
+}
 // Reuse the established tokenizer; quoted prose/comments are not commands.
 // Indirect runtimes and computed paths outside known repositories remain outside
 // coverage. Literal location changes and shell command strings are recognized.
@@ -274,6 +299,9 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
               // Shell logical/physical cd modes can disagree after link/..
               // traversal. Retain uncertainty for relative child mutations.
               if (hasParentComponent(next) && id.traversals.length) throw new Error("linked parent location");
+              // Relative children must retain how this location was reached:
+              // its physical directory can be outside the original inventory.
+              if (id.traversals.length) addCwd(next);
               addCwd(id.physical);
             }
             catch { locationError = `Literal location cannot be verified: ${next}`; }
@@ -312,7 +340,8 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
           else emit({ kind: "setup", targets: npmSetupTargets(args, argumentShell, command) });
         }
       }
-      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text)))) emit({ kind: "setup", targets });
+      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text)))) emit({ kind: "link-setup", targets });
+      if (name === "new-item") { const paths = itemLinkTargets(args, targets); if (paths) emit({ kind: "link-setup", targets: paths }); }
     }
   }
   // The tokenizer collects substitutions without their execution positions.
@@ -350,6 +379,10 @@ function inspectAt(op) {
       const containing = roots.find(tree => under(id.physical, tree));
       const reachesCheckout = containing || roots.some(tree => under(tree, id.physical)) || id.traversals.some(link => roots.some(tree => under(link.source, tree) || under(link.target, tree)));
       if (!reachesCheckout) continue;
+      // The next command can use an alias created by this setup. Hand direct
+      // links touching checkout identity to the lifecycle, not future-state
+      // simulation; unrelated external links and ordinary npm setup stay local.
+      if (op.kind === "link-setup") return `Direct link setup touches registered checkout ${target}. ${route}`;
       if (id.traversals.length) { const link = id.traversals[0]; return `Linked cleanup/setup path refused: ${link.link} -> ${link.target}. ${route}`; }
       if (containing && owned(containing)) return `Direct setup or cleanup targeting owned filing tree ${containing} is refused. ${route}`;
       if (op.kind !== "delete") continue;
@@ -360,7 +393,7 @@ function inspectAt(op) {
   return null;
 }
 function inspect(op) {
-  const relative = op.kind === "setup" || op.targets.some(text => !text.startsWith("-") && !path.isAbsolute(text));
+  const relative = ["setup", "link-setup"].includes(op.kind) || op.targets.some(text => !text.startsWith("-") && !path.isAbsolute(text));
   for (const cwd of relative ? op.cwds : [op.cwd]) {
     const reason = inspectAt({ ...op, cwd, locationError: relative ? op.locationError : null });
     if (reason) return reason;

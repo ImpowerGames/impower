@@ -322,6 +322,94 @@ fs.symlinkSync(chainExternal, unrelatedAlias, process.platform === "win32" ? "ju
 const unrelatedCommand = `Remove-Item -LiteralPath '${unrelatedAlias}/tracked.txt' -Force`;
 assert.equal(cleanup(unrelatedCommand, "powershell", main), null);
 verifyAdapters(unrelatedCommand, "PowerShell", main, false); chainPreserved();
+// Pre-command inspection cannot see a fresh alias created earlier in the
+// compound. Refuse its registered target before any command is executed.
+const freshLink = path.join(scratch, "fresh-checkout-alias").replaceAll(path.sep, "/");
+const setupTree = reproduction.replaceAll(path.sep, "/"), setupExternal = chainExternal.replaceAll(path.sep, "/");
+for (const alias of [freshLink, directAlias.replaceAll(path.sep, "/")]) {
+  for (const [shell, command] of [
+    ["Bash", `ln -s '${setupTree}' '${alias}'; rm -f '${alias}/node_modules/tracked.txt'`],
+    ["PowerShell", `New-Item -ItemType Junction -Path '${alias}' -Target '${setupTree}'; Remove-Item '${alias}/node_modules/tracked.txt'`],
+    ["PowerShell", `New-Item -ItemType:SymbolicLink -Path '${alias}' -Value '${setupTree}'`],
+    ["PowerShell", `cmd /c 'mklink /J "${alias}" "${setupTree}"'`],
+  ]) {
+    assert.ok(cleanup(command, shell.toLowerCase(), main), command);
+    verifyAdapters(command, shell, main, true); chainPreserved();
+  }
+}
+for (const name of ["Junction", "SymbolicLink"]) {
+  const literal = path.join(scratch, name).replaceAll(path.sep, "/"); fs.mkdirSync(literal);
+  for (const [shell, command, denied] of [
+    ["Bash", `ln -s '${setupExternal}' '${literal}/fresh'`, false],
+    ["PowerShell", `New-Item -ItemType Junction -Path '${literal}/fresh' -Target '${setupExternal}'`, false],
+    ["PowerShell", `New-Item -Type SymbolicLink -Path '${freshLink}' -Target '${literal}'`, false],
+    ["PowerShell", `New-Item -ItemType Junction -Path '${setupTree}/${name}' -Target '${setupExternal}'`, true],
+    ["PowerShell", `cmd /c 'mklink /D "${literal}/fresh" "${setupExternal}"'`, false],
+  ]) {
+    assert.equal(Boolean(cleanup(command, shell.toLowerCase(), main)), denied, command);
+    verifyAdapters(command, shell, main, denied); chainPreserved();
+  }
+}
+for (const command of [
+  `New-Item -ItemType $kind -Path '${freshLink}' -Target '${setupTree}'`,
+  `New-Item -ItemType -Path '${freshLink}' -Target '${setupTree}'`,
+  `New-Item -ItemType 'Junc'"tion" -Path '${freshLink}' -Target '${setupTree}'`,
+  `New-Item -ItemT Junction -Path '${freshLink}' -Target '${setupTree}'`,
+  `New-Item -ItemT:SymbolicLink -Path '${freshLink}' -Target '${setupTree}'`,
+]) {
+  assert.ok(cleanup(command, "powershell", main), command);
+  verifyAdapters(command, "PowerShell", main, true); chainPreserved();
+}
+for (const [shell, command] of [
+  ["Bash", `npm --prefix '${setupTree}' install`],
+  ["Bash", `git worktree add '${freshLink}'`],
+  ["PowerShell", `New-Item -ItemType Directory -Path '${setupTree}/Junction'`],
+  ["PowerShell", `New-Item -Path Junction`],
+  ["PowerShell", `New-Item -Path '${freshLink}' -Target Junction`],
+  ["PowerShell", `New-Item -Path '${freshLink}' -Value SymbolicLink`],
+  ["PowerShell", "New-Item Junction"],
+  ["PowerShell", "Write-Output 'New-Item -ItemType Junction'"],
+]) {
+  assert.equal(cleanup(command, shell.toLowerCase(), main), null, command);
+  verifyAdapters(command, shell, main, false); chainPreserved();
+}
+assert.equal(fs.existsSync(freshLink), false, "compound setup/cleanup controls must remain non-destructive decision queries");
+console.log("PASS: direct link setup refuses future/existing checkout aliases through both adapters; literal selector/operand, valid cmd quoting, uncertainty and ordinary setup controls");
+// A verified location must retain its lexical link origin for dependent
+// relative mutations, including nested shells and another relative cd.
+fs.mkdirSync(path.join(main, "sub"));
+const locationLink = borrowedLink.replaceAll(path.sep, "/"), locationAlias = secondAlias.replaceAll(path.sep, "/");
+const locationExternal = chainExternal.replaceAll(path.sep, "/"), locationUnrelated = unrelatedAlias.replaceAll(path.sep, "/");
+for (const [shell, command, denied] of [
+  ["Bash", `cd '${locationLink}'; rm -f tracked.txt`, true],
+  ["Bash", `cd '${locationLink}//'; rm -f tracked.txt`, true],
+  ["PowerShell", `Set-Location -LiteralPath '${locationLink}//'; Remove-Item -LiteralPath tracked.txt`, true],
+  ["Bash", `pushd '${locationAlias}//'; rm -f tracked.txt`, true],
+  ["PowerShell", `Push-Location -LiteralPath '${locationAlias}//'; Remove-Item -LiteralPath tracked.txt`, true],
+  ["Bash", `cd '${locationLink}//'; bash -c 'rm -f tracked.txt'`, true],
+  ["PowerShell", `Set-Location '${locationLink}//'; powershell -Command 'Remove-Item tracked.txt'`, true],
+  ["Bash", `cd '${locationLink}//'; cd sub; rm -f tracked.txt`, true],
+  ["PowerShell", `Set-Location '${locationLink}//'; Set-Location sub; Remove-Item tracked.txt`, true],
+  ["Bash", `cd '${locationUnrelated}//'; rm -f tracked.txt`, false],
+  ["PowerShell", `Set-Location '${locationUnrelated}//'; Remove-Item tracked.txt`, false],
+  ["Bash", `cd '${locationLink}//'; rm -f '${locationExternal}/tracked.txt'`, false],
+  ["PowerShell", `Set-Location '${locationLink}//'; Remove-Item '${locationExternal}/tracked.txt'`, false],
+  ["Bash", `cd '${main.replaceAll(path.sep, "/")}/'; cd .; cd ./; cd ./.; rm -f tracked.txt`, false],
+  ["PowerShell", `Set-Location '${main.replaceAll(path.sep, "/")}/'; Set-Location .; Set-Location ./; Set-Location ./.; Remove-Item tracked.txt`, false],
+]) {
+  assert.equal(Boolean(cleanup(command, shell.toLowerCase(), main)), denied, command);
+  verifyAdapters(command, shell, main, denied); chainPreserved();
+}
+const locationRead = spawnSync("bash", ["-c", `cd '${locationLink}//' && test tracked.txt -ef '${locationExternal}/tracked.txt' && cat tracked.txt`], { cwd: main, encoding: "utf8", windowsHide: true });
+assert.equal(locationRead.status, 0, locationRead.stderr);
+assert.equal(locationRead.stdout, chainSentinels.find(([name]) => name === "tracked.txt")[1].toString());
+if (process.platform === "win32") {
+  const locationRead = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `Set-Location -LiteralPath '${locationLink}//'; Get-Content -Raw -LiteralPath tracked.txt`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(locationRead.status, 0, locationRead.stderr);
+  assert.equal(locationRead.stdout.trim(), chainSentinels.find(([name]) => name === "tracked.txt")[1].toString().trim());
+}
+chainPreserved();
+console.log("PASS: lexical location provenance, nested/push/relative transitions and independent absolute/unrelated controls through both adapters; native location/read-only target dispatch");
 fs.unlinkSync(unrelatedAlias); fs.unlinkSync(secondAlias); fs.unlinkSync(directAlias); fs.unlinkSync(borrowedLink);
 fs.symlinkSync(external, borrowedLink, process.platform === "win32" ? "junction" : "dir");
 for (const [command, shell] of [["Write-Output 'git worktree remove is unsafe'", "powershell"], ["echo 'rm -rf and .Delete() are unsafe'", "bash"], ["# git worktree remove x\ngit status", "bash"], ["Write-Output '[IO.Directory]::Delete(x)'", "powershell"]]) assert.equal(cleanup(command, shell, main), null, command);
