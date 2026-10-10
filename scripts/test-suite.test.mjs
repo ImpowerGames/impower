@@ -456,6 +456,28 @@ if (process.platform === "win32") {
   assert.ok(Date.now() - renameBegan < 500, "atomic rename does not add its independent one-second retry after admission expires");
   assert.deepEqual(fs.readdirSync(store), [], "expired admission leaves no ownership or ambiguous temp evidence");
   for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    fs.writeFileSync(path.join(store, "guard.json"), JSON.stringify({ owner: { pid: 42, start: "dead" } }));
+    const open = fs.openSync;
+    let probes = 0, claims = 0, waits = 0;
+    fs.openSync = (target, ...args) => {
+      if (String(target).startsWith(store + path.sep) && target !== path.join(store, "guard.json")) {
+        if (path.basename(target).startsWith("write-probe-")) probes++;
+        if (path.basename(target) === "guard-recovery.json") claims++;
+        throw Object.assign(new Error("store-wide denial with existing guard"), { code });
+      }
+      return open(target, ...args);
+    };
+    try { await assert.rejects(acquireWaiting("existing guard denied store", { root: store, waitMs: 5000,
+      guardWaitMs: 100, census: () => [], onWait: () => waits++ }),
+      error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
+    finally { fs.openSync = open; }
+    assert.equal(probes, 1);
+    assert.equal(claims, 1, "existing guard store denial refuses on its first recovery claim");
+    assert.equal(waits, 0);
+    assert.deepEqual(fs.readdirSync(store), ["guard.json"]);
+    fs.unlinkSync(path.join(store, "guard.json"));
+  }
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
     const open = fs.openSync;
     let probes = 0, waits = 0;
     fs.openSync = (target, ...args) => {
@@ -471,6 +493,37 @@ if (process.platform === "win32") {
     assert.equal(probes, 1, "genuine denial probes once and refuses before retrying");
     assert.equal(waits, 0);
     assert.deepEqual(fs.readdirSync(store), []);
+  }
+  for (const operation of ["open", "write", "read", "rename"]) {
+    const guard = path.join(store, "guard.json");
+    fs.writeFileSync(guard, JSON.stringify({ owner: { pid: 42, start: "dead" } }));
+    const method = { open: "openSync", write: "writeFileSync", read: "readFileSync", rename: "renameSync" }[operation];
+    const originalMethod = fs[method], open = fs.openSync;
+    let claimFd, denied = 0;
+    fs.openSync = (target, ...args) => {
+      const fd = open(target, ...args);
+      if (target === path.join(store, "guard-recovery.json")) claimFd = fd;
+      return fd;
+    };
+    const dispatch = fs[method];
+    fs[method] = (target, ...args) => {
+      const affected = operation === "open" ? target === path.join(store, "guard-recovery.json")
+        : operation === "write" ? target === claimFd : target === guard;
+      if (affected && denied++ < 1) throw Object.assign(new Error("recovery file contention"), { code: "EBUSY" });
+      return dispatch(target, ...args);
+    };
+    const waits = [];
+    let reservation;
+    try { reservation = await acquireWaiting(`recovery ${operation}`, { root: store, waitMs: 30000, pollMs: 5,
+      census: () => [], identify: pid => pid === 42 ? null : processIdentity(pid), onWait: value => waits.push(value.waiting) }); }
+    finally { fs[method] = originalMethod; fs.openSync = open; }
+    assert.ok(waits.includes("reservation files"), `recovery ${operation} waits using writable proof`);
+    reservation.release();
+    const archive = fs.readdirSync(store);
+    assert.equal(archive.length, 1);
+    assert.ok(archive[0].startsWith("recovered-guard-"));
+    assert.equal(read(path.join(store, archive[0])).owner.start, "dead");
+    fs.unlinkSync(path.join(store, archive[0]));
   }
   // A held peer survives file-specific denial, including the probe.
   const peer = JSON.stringify({ token: "peer", owner: { pid: 42, start: "peer" }, phase: "reserved" });

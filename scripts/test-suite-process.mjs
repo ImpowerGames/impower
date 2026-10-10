@@ -133,7 +133,7 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
     try { fd = fs.openSync(guard, "wx"); break; }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      if (error.code === "EEXIST" && recoverAbandonedGuard(root, guard, identify)) continue;
+      if (error.code === "EEXIST" && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
       if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
       const refusal = denied(error);
       if (refusal) throw refusal;
@@ -159,20 +159,29 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
 // the claim the guard read is the guard renamed. A claim left by a recoverer
 // that died inside it is never guessed away: no guard is recovered until it is
 // inspected, which is how every abandoned guard behaved before recovery existed.
-function recoverAbandonedGuard(root, guard, identify) {
+function recoverAbandonedGuard(root, guard, identify, admitting = false) {
   const claim = path.join(root, "guard-recovery.json");
   let fd;
   try { fd = fs.openSync(claim, "wx"); }
-  catch { return false; }
+  catch (error) {
+    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+    return false;
+  }
   try {
     // Recorded for the inspector of an abandoned claim; nothing reads it back.
     try {
       fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
       fs.fsyncSync(fd);
-    } catch { return false; }
+    } catch (error) {
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      return false;
+    }
     let owner;
     try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
-    catch (error) { return error.code === "ENOENT"; }
+    catch (error) {
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      return error.code === "ENOENT";
+    }
     if (!owner?.pid || !owner.start) return false;
     // An unreadable process table is not evidence that the owner is gone.
     let current;
@@ -181,7 +190,10 @@ function recoverAbandonedGuard(root, guard, identify) {
     if (same(owner, current)) return false;
     const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
     try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
-    catch (error) { return error.code === "ENOENT"; }
+    catch (error) {
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      return error.code === "ENOENT";
+    }
     return true;
   } finally { fs.closeSync(fd); fs.unlinkSync(claim); }
 }
