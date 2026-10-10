@@ -36,7 +36,7 @@ import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs"
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
-import { desktop, launchOwnedCdp, ownedDescendants, advancePlayer, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
+import { desktop, webDebug, launchOwnedCdp, ownedDescendants, advancePlayer, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
 import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import {
@@ -2057,6 +2057,92 @@ await check("ancillary F5 screenshot failure continues and retains late valid pa
       assert.ok(result.report.failed.some(error => /Late partial host progress was not admitted/.test(error)));
     }
   }
+});
+
+function debugFixture({ breakpointLine = 15, source = '/main.sd', continued = 'paused', transient = false } = {}) {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-debug-contract-'));
+  for (const file of desktopArtifacts(repo)) {
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'current bundle');
+    if (file.includes(path.join('out', 'data'))) { const original = path.join(repo, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'current bundle'); }
+  }
+  const doc = hoverDoc(); doc.state.explorer = [{ name: 'main.sd', level: 1 }];
+  const base = fakePage(doc, []);
+  let stage = 'paused', hover = '', clock = 0, f5 = 0, observations = 0, hoverMissed = false;
+  const line = () => stage === 'paused' ? 11 : stage === 'step' || (stage === 'continue' && continued === 'unchanged') ? 12 : stage === 'breakpoint' ? breakpointLine : 14;
+  const empty = () => stage === 'continue' && (!['paused', 'unchanged'].includes(continued) || (transient && observations++ < 2));
+  const generic = { first() { return this; }, last() { return this; }, filter() { return this; }, nth() { return this; }, locator() { return this; }, async waitFor() {}, async click() {}, async fill() {}, async getAttribute() { return 'true'; }, async boundingBox() { return { x: 40, y: 40, width: 20, height: 20 }; }, async evaluateAll() { return 0; } };
+  const row = { ...generic, locator(selector) { return { ...generic, async textContent() { return selector === '.line-number' ? String(line()) + ':1' : 'main.sd'; }, async hover() { hover = stage === 'breakpoint' ? source : '/main.sd'; } }; } };
+  const stack = { ...generic, async count() { return empty() ? 0 : 1; }, nth() { return row; }, async allTextContents() { return empty() ? [] : ['startmain.sd' + line() + ':1']; } };
+  const page = { ...base,
+    locator(selector, options) {
+      if (selector.startsWith('.explorer-folders-view') || selector.startsWith('.tabs-container') || selector === '.label-name') return base.locator(selector, options);
+      if (selector === '.debug-call-stack .monaco-list-row') return stack;
+      if (selector === '.call-stack-state-message') return { ...generic, async allTextContents() { return [stage === 'breakpoint' ? 'Paused on breakpoint' : stage === 'continue' && !['paused', 'unchanged'].includes(continued) ? continued === 'running' ? 'Running' : continued === 'terminated' ? 'Terminated' : '' : 'Paused on awaiting interaction']; } };
+      if (selector.includes('.workbench-hover')) return { ...generic, async waitFor(options) { if (transient && stage === 'step' && options.state === 'visible' && !hoverMissed) { hoverMissed = true; throw new Error('Frame changed while hover was pending'); } }, async textContent() { return hover; } };
+      if (selector === '.debug-variables .monaco-list-row') return { ...generic, async allTextContents() { return ['mood = 0']; } };
+      if (selector === '.debug-breakpoints .monaco-list-row') return { ...generic, async allTextContents() { return ['main.sd15:1']; } };
+      return { ...generic, getByText: () => generic };
+    },
+    mouse: { async click() {}, async move() { hover = ''; } },
+    keyboard: { async type() {}, async press(key) { if (key === 'F10') stage = 'step'; if (key === 'F5') stage = ++f5 === 1 ? 'continue' : 'breakpoint'; } },
+    getByText: () => generic, async screenshot() {},
+  };
+  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null };
+  const hit = { first() { return this; }, isVisible: async () => true, evaluate: async () => true };
+  const frame = { url: () => 'vscode-webview://player', parentFrame: () => main, frameElement: async () => ({ evaluate: async () => true }), getByText: () => hit, locator: () => generic };
+  page.mainFrame = () => main; page.frames = () => [main, frame];
+  return { repoRoot: repo, now: () => clock, sleep: async ms => { clock += ms; }, readState: () => RECORD, recordStands: async () => true, isUp: async () => true, checkBuild() {}, log() {}, withWorkbench: async (_url, _options, callback) => callback({ page, consoleLines: [] }) };
+}
+
+for (const options of [{ breakpointLine: 150 }, { source: '/other/main.sd' }]) {
+  await check("debug refuses breakpoint at " + (options.source ?? 'line ' + options.breakpointLine) + " for /main.sd line 15", async () => {
+    const result = await webDebug(['--breakpoint', '15', '--shot', 'fixture.png'], debugFixture(options));
+    assert.equal(result.report.breakpoint.status, 'unverified');
+    assert.equal(result.report.debugger, 'failed');
+    assert.equal(result.report.verdict, 'failed');
+    assert.equal(result.exitCode, 1);
+  });
+}
+
+await check("debug Continue requires an observed changed paused source frame", async () => {
+  for (const continued of ['empty', 'running', 'terminated', 'unchanged']) {
+    const result = await webDebug(['--shot', 'fixture.png'], debugFixture({ continued }));
+    assert.equal(result.report.debugger, 'failed');
+    assert.equal(result.report.verdict, 'failed');
+    assert.equal(result.exitCode, 1);
+  }
+  const result = await webDebug(['--breakpoint', '15', '--shot', 'fixture.png'], debugFixture({ transient: true }));
+  assert.equal(result.report.debugger, 'verified', JSON.stringify(result.report.failed));
+  assert.equal(result.report.verdict, 'verified');
+  assert.equal(result.report.continueState.state, 'paused-on-awaiting-interaction');
+  assert.equal(result.report.continueState.frames[0].source, '/main.sd');
+  assert.ok(result.report.continueObservations.some(state => !state.frames.length), 'the empty transient must be observed without satisfying Continue');
+  assert.equal(result.report.breakpoint.frames[0].line, 15);
+});
+
+await check("player input keeps observing a revealing goal through its overall deadline", async () => {
+  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null };
+  let clickedAt = 0, clicks = 0;
+  const hit = { first() { return this; }, isVisible: async () => clickedAt > 0, evaluate: async () => Date.now() - clickedAt >= 4000 };
+  const frame = { url: () => 'vscode-webview://player', parentFrame: () => main,
+    getByText: text => text === 'Second beat' ? hit : { first() { return this; }, isVisible: async () => false },
+    frameElement: async () => ({ evaluate: async () => true }),
+    locator: () => ({ last() { return this; }, waitFor: async () => {} }),
+    evaluate: async () => ({ trusted: true, tag: 'CANVAS' }) };
+  const page = { frames: () => [main, frame], mainFrame: () => main, mouse: { async click() { clicks++; clickedAt = Date.now(); } } };
+  const result = await advancePlayer(page, frame, 'Second beat', 10000, { firstText: 'First beat', pointer: async () => ({ x: 50, y: 50 }) });
+  assert.equal(result.result, 'Second beat');
+  assert.equal(clicks, 1, 'A revealing goal must not be advanced again');
+});
+
+await check("player input has one deadline and cannot retry an absent prior beat", async () => {
+  let clock = 0, clicks = 0;
+  const frame = { locator: () => ({ last() { return this; }, async waitFor() {} }), url: () => 'vscode-webview://player', async evaluate() { return { trusted: true, tag: 'CANVAS' }; } };
+  await assert.rejects(advancePlayer({ mouse: { async click() { clicks++; } } }, frame, 'Second beat', 10000, {
+    firstText: 'First beat', now: () => clock, pointer: async () => ({ x: 1, y: 1 }),
+    find: async (_page, _text, budget) => { clock += budget; throw new Error('No fully visible beat'); },
+  }), /overall input deadline/);
+  assert.equal(clock, 10000); assert.equal(clicks, 1);
 });
 
 await check("player input stops at the first visible goal and waits before retrying typing completion", async () => {

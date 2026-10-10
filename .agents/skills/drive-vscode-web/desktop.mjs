@@ -291,30 +291,39 @@ export async function playerPointer(canvas, timeoutMs, pause = sleep, now = Date
 
 export async function advancePlayer(page, frame, nextText, timeoutMs, deps = {}) {
   const find = deps.find ?? storyFrame, pointerFor = deps.pointer ?? playerPointer;
-  const attempts = [];
-  for (let count = 0; count < 3; count++) {
-    const canvas = frame.locator('canvas').last();
-    await canvas.waitFor({ state: 'visible', timeout: timeoutMs });
-    const pointer = await pointerFor(canvas, timeoutMs);
-    await frame.evaluate(() => {
-      window.__impowerInputEvidence = null;
-      window.addEventListener('pointerdown', event => { window.__impowerInputEvidence = { trusted: event.isTrusted, tag: event.target.tagName, id: event.target.id, className: event.target.className, gameUI: Boolean(event.target.closest('#game-ui')) }; }, { capture: true, once: true });
-    });
-    await page.mouse.click(pointer.x, pointer.y);
-    const event = await frame.evaluate(() => window.__impowerInputEvidence ?? null);
-    const attempt = { ...pointer, frame: frame.url(), event }; attempts.push(attempt); deps.onAttempt?.(attempt, attempts);
-    if (!event?.trusted || !(event.tag === 'CANVAS' || event.gameUI)) throw new Error('Physical pointer input did not reach the player canvas or game UI');
+  const now = deps.now ?? Date.now, deadline = now() + timeoutMs;
+  const remaining = () => Math.max(0, deadline - now());
+  const attempts = []; let click = true;
+  while (remaining() > 0) {
+    if (click) {
+      const canvas = frame.locator('canvas').last();
+      await canvas.waitFor({ state: 'visible', timeout: remaining() });
+      const pointer = await pointerFor(canvas, remaining());
+      if (!remaining()) break;
+      await frame.evaluate(() => {
+        window.__impowerInputEvidence = null;
+        window.addEventListener('pointerdown', event => { window.__impowerInputEvidence = { trusted: event.isTrusted, tag: event.target.tagName, id: event.target.id, className: event.target.className, gameUI: Boolean(event.target.closest('#game-ui')) }; }, { capture: true, once: true });
+      });
+      await page.mouse.click(pointer.x, pointer.y);
+      const event = await frame.evaluate(() => window.__impowerInputEvidence ?? null);
+      const attempt = { ...pointer, frame: frame.url(), event }; attempts.push(attempt); deps.onAttempt?.(attempt, attempts);
+      if (!event?.trusted || !(event.tag === 'CANVAS' || event.gameUI)) throw new Error('Physical pointer input did not reach the player canvas or game UI');
+      click = false;
+    }
     try {
-      await find(page, nextText, Math.min(timeoutMs, 3000));
+      await find(page, nextText, Math.min(remaining(), 3000));
       return { attempts, result: nextText };
     } catch {
-      if (!deps.firstText) throw new Error('Player did not show the goal; no expected intermediate story state permits another click');
-      await find(page, deps.firstText, Math.min(timeoutMs, 3000));
-      attempt.intermediate = { visible: deps.firstText, observation: 'Initial beat remained visible after the goal wait; a click may have completed typing' };
-      deps.onAttempt?.(attempt, attempts);
+      if (!deps.firstText || attempts.length >= 3 || !remaining()) continue;
+      try {
+        await find(page, deps.firstText, Math.min(remaining(), 500));
+        attempts.at(-1).intermediate = { visible: deps.firstText, observation: 'The fully revealed initial beat remained visible after the goal wait; another click can advance it' };
+        deps.onAttempt?.(attempts.at(-1), attempts);
+        click = true;
+      } catch { /* A changed or still-revealing beat must keep observing the goal. */ }
     }
   }
-  throw new Error('Game Preview did not reach the requested changed story state after three bounded physical clicks: ' + nextText);
+  throw new Error('Game Preview did not reach the requested changed story state within the overall input deadline: ' + nextText);
 }
 
 export async function storyFrame(page, text, timeoutMs) {
@@ -560,6 +569,36 @@ export async function desktop(args, deps = {}) {
   return { report, exitCode: report.failed.length ? 1 : 0 };
 }
 
+async function debuggerState(page, timeoutMs) {
+  const messages = await page.locator('.call-stack-state-message').allTextContents();
+  const message = messages.join(' ').trim();
+  const state = /paused on awaiting interaction/i.test(message) ? 'paused-on-awaiting-interaction'
+    : /paused on breakpoint/i.test(message) ? 'paused-on-breakpoint'
+      : /paused/i.test(message) ? 'paused-other' : /running/i.test(message) ? 'running'
+        : /terminated/i.test(message) ? 'terminated' : 'unknown';
+  const rows = page.locator('.debug-call-stack .monaco-list-row');
+  const frames = [];
+  for (let index = 0; index < await rows.count(); index++) {
+    const row = rows.nth(index);
+    const file = row.locator('.stack-frame .file');
+    const lineText = (await row.locator('.line-number').textContent())?.trim() ?? '';
+    const match = /^(\d+)(?::(\d+))?$/.exec(lineText);
+    // The visible row gives only a basename. A fresh hover supplies the
+    // mounted source path; keep it distinct from local artifact provenance.
+    const frame = { source: null, line: match ? Number(match[1]) : null, column: match?.[2] ? Number(match[2]) : null };
+    try {
+      await page.mouse.move(0, 0);
+      await page.locator('.workbench-hover:not(.hidden)').waitFor({ state: 'hidden', timeout: timeoutMs });
+      await file.hover({ timeout: timeoutMs });
+      const tooltip = page.locator('.workbench-hover:not(.hidden) .hover-contents').first();
+      await tooltip.waitFor({ state: 'visible', timeout: timeoutMs });
+      frame.source = (await tooltip.textContent())?.trim().replaceAll('\\', '/') ?? '';
+    } catch (error) { frame.sourceError = error.message; }
+    frames.push(frame);
+  }
+  return { state: !frames.length && state === 'unknown' ? 'empty' : state, message, frames };
+}
+
 export async function webDebug(args, deps = liveDeps) {
   const { opts, error } = parseFlags(args, { '--file': 'value', '--shot': 'value', '--first': 'value', '--evaluate': 'value', '--value': 'value', '--breakpoint': 'number' });
   if (error) throw new Error('debug: ' + error);
@@ -568,10 +607,26 @@ export async function webDebug(args, deps = liveDeps) {
   const state = deps.readState();
   if (!state?.url || !(await deps.recordStands(state)) || !(await deps.isUp(state.url))) throw new Error('No owned web workbench; run up first');
   deps.checkBuild();
-  const build = artifactEvidence(root);
+  const build = artifactEvidence(deps.repoRoot ?? root);
   if (build.failed.length) throw new Error(build.failed.join('\n'));
   const report = { surface: 'web-workbench', file: opts['--file'] ?? 'main.sd', build, failed: [], breakpoint: { status: 'unverified', reason: 'This probe uses stopOnEntry and awaiting-interaction pauses; it does not establish breakpoint binding. Earlier builds mapped vscode-test-web sources to file URIs. A breakpoint scenario needs its own verified stop.' } };
   const firstText = opts['--first'] ?? 'The first line.';
+  const expectedSource = '/' + report.file.replaceAll('\\', '/');
+  report.expectedMountedSource = expectedSource;
+  const now = deps.now ?? Date.now, pause = deps.sleep ?? sleep;
+  const exactSource = frame => frame.source === expectedSource && Number.isSafeInteger(frame.line) && frame.line > 0;
+  const movedSource = (snapshot, before) => snapshot.frames.some(frame => exactSource(frame) && !before.frames.some(prior => prior.source === frame.source && prior.line === frame.line && prior.column === frame.column));
+  const observe = async (page, accepts, timeoutMs, record) => {
+    const deadline = now() + timeoutMs;
+    do {
+      const snapshot = await debuggerState(page, Math.min(2000, Math.max(1, deadline - now())));
+      record(snapshot);
+      if (accepts(snapshot)) return snapshot;
+      if (now() >= deadline) break;
+      await pause(Math.min(200, deadline - now()));
+    } while (now() < deadline);
+    throw new Error('Debugger did not reach the required paused mounted-source state');
+  };
   await deps.withWorkbench(state.url, { headless: true }, async ({ page, consoleLines }) => {
     try {
       await page.locator('.monaco-workbench').waitFor({ timeout: 120000 });
@@ -591,7 +646,7 @@ export async function webDebug(args, deps = liveDeps) {
       const line = await rendered.evaluateAll((elements, text) => elements.findIndex(element => element.textContent.replaceAll('\u00a0', ' ').includes(text)), firstText);
       if (line < 0) throw new Error('Known story text is not visible in the source editor');
       await rendered.nth(line).click();
-      await sleep(250);
+      await pause(250);
       await palette(page, 'Sparkdown Debugger: Run & Debug Game');
       await page.locator('.debug-toolbar').waitFor({ timeout: 60000 });
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+D' : 'Control+Shift+D');
@@ -599,14 +654,12 @@ export async function webDebug(args, deps = liveDeps) {
       const player = await storyFrame(page, firstText, 15000);
       const pointer = await playerPointer(player.frame.locator('canvas').last(), 15000);
       await page.mouse.click(pointer.x, pointer.y);
-      await sleep(400);
+      await pause(400);
       await page.mouse.click(pointer.x, pointer.y);
       report.pauseTrigger = 'Run & Debug Game, then real player input to awaiting-interaction pause';
       const stack = page.locator('.debug-call-stack .monaco-list-row');
-      const deadline = Date.now() + 60000;
-      while (!(await stack.allTextContents()).some(text => text.includes(report.file)) && Date.now() < deadline) await sleep(200);
+      await observe(page, snapshot => snapshot.state === 'paused-on-awaiting-interaction' && snapshot.frames.some(exactSource), 60000, snapshot => { report.pauseState = snapshot; });
       report.callStack = await stack.allTextContents();
-      if (!report.callStack.some(text => text.includes(report.file))) throw new Error('Debugger did not pause with a source frame');
       report.paused = true;
       const variables = page.locator('.debug-variables [aria-label="Scope Vars"]');
       await variables.waitFor({ timeout: 15000 });
@@ -617,10 +670,8 @@ export async function webDebug(args, deps = liveDeps) {
       await page.screenshot({ path: opts['--shot'] });
       report.screenshot = path.resolve(opts['--shot']);
       await page.keyboard.press('F10');
-      const stepBy = Date.now() + 15000;
-      while (JSON.stringify(await stack.allTextContents()) === JSON.stringify(report.callStack) && Date.now() < stepBy) await sleep(200);
+      await observe(page, snapshot => snapshot.state.startsWith('paused-') && movedSource(snapshot, report.pauseState), 15000, snapshot => { report.stepState = snapshot; });
       report.step = await stack.allTextContents();
-      if (JSON.stringify(report.step) === JSON.stringify(report.callStack) || !report.step.length) throw new Error('Step did not move the paused stack');
       await palette(page, 'Focus on Debug Console');
       // Current Monaco uses EditContext and a readonly IME textarea. Send
       // real keyboard input to the console focus established by its command.
@@ -630,18 +681,20 @@ export async function webDebug(args, deps = liveDeps) {
       await page.locator('.repl').getByText(value, { exact: true }).last().waitFor({ timeout: 15000 });
       report.evaluation = { expression: opts['--evaluate'] ?? 'mood', value };
       await page.keyboard.press('F5');
-      const continuedBy = Date.now() + 15000;
-      while (JSON.stringify(await stack.allTextContents()) === JSON.stringify(report.step) && Date.now() < continuedBy) await sleep(200);
+      report.continueObservations = [];
+      await observe(page, snapshot => snapshot.state === 'paused-on-awaiting-interaction' && movedSource(snapshot, report.stepState), 15000, snapshot => {
+        report.continueState = snapshot;
+        if (JSON.stringify(snapshot) !== JSON.stringify(report.continueObservations.at(-1))) report.continueObservations.push(snapshot);
+      });
       report.continue = await stack.allTextContents();
-      if (JSON.stringify(report.continue) === JSON.stringify(report.step)) throw new Error('Continue left the stack unchanged');
+      report.continueVerified = true;
       await page.screenshot({ path: opts['--shot'] + '.continued.png' });
       if (opts['--breakpoint']) {
         report.breakpoint.rows = await page.locator('.debug-breakpoints .monaco-list-row').allTextContents();
         await page.keyboard.press('F5');
-        await page.locator('.call-stack-state-message').filter({ hasText: /breakpoint/i }).waitFor({ timeout: 15000 });
+        await observe(page, snapshot => snapshot.state === 'paused-on-breakpoint' && snapshot.frames.some(frame => exactSource(frame) && frame.line === opts['--breakpoint']), 15000, snapshot => { report.breakpoint.observed = snapshot; });
         const frames = await stack.allTextContents();
-        if (!frames.some(frame => frame.includes(report.file) && frame.includes(String(opts['--breakpoint'])))) throw new Error('Breakpoint pause did not identify the requested source line');
-        Object.assign(report.breakpoint, { status: 'verified', reason: 'Paused on breakpoint at the requested source line', callStack: frames });
+        Object.assign(report.breakpoint, { status: 'verified', reason: 'Paused on breakpoint at the exact requested mounted source path and line', callStack: frames, frames: report.breakpoint.observed.frames });
         await page.screenshot({ path: opts['--shot'] + '.breakpoint.png' });
       }
     } catch (error) { report.failed.push(error.stack ?? error.message); }
@@ -651,7 +704,8 @@ export async function webDebug(args, deps = liveDeps) {
     report.failed.push(...captured.errors.map(error => 'Unclassified console error: ' + error));
     await page.screenshot({ path: opts['--shot'] + '.final.png' }).catch(() => {});
   });
-  report.debugger = report.paused && report.variables?.length && report.step?.length && report.evaluation && report.continue?.length ? 'verified' : 'failed';
+  report.debugger = report.paused && report.variables?.length && report.stepState?.frames.some(exactSource) && report.evaluation && report.continueVerified && (!opts['--breakpoint'] || report.breakpoint.status === 'verified') ? 'verified' : 'failed';
+  if (report.debugger !== 'verified') report.failed.push('Debugger transcript was not verified');
   report.verdict = report.failed.length ? 'failed' : 'verified';
   deps.log(JSON.stringify(report, null, 2));
   return { report, exitCode: report.failed.length ? 1 : 0 };
