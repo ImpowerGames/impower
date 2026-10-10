@@ -494,23 +494,31 @@ function compileVisibilityFixture() {
     '[DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateProcess(IntPtr process,uint code);',
     '[DllImport("kernel32.dll")] static extern uint WaitForSingleObject(IntPtr handle,uint milliseconds);',
     '[DllImport("kernel32.dll")] static extern bool GetExitCodeProcess(IntPtr process,out uint code);',
+    '[DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(IntPtr process,out long creation,out long exit,out long kernel,out long user);',
     '[DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);',
-    'static object Observe(long wanted) { bool observed=false; EnumWindows((window,argument)=>{if(window.ToInt64()==wanted)observed=true;return true;},IntPtr.Zero); return new {observed,exists=IsWindow(new IntPtr(wanted)),visible=IsWindowVisible(new IntPtr(wanted))}; }',
+    'public class Observation { public bool observed,exists,visible; }',
+    'static Observation Observe(long wanted) { bool observed=false; EnumWindows((window,argument)=>{if(window.ToInt64()==wanted)observed=true;return true;},IntPtr.Zero); return new Observation {observed=observed,exists=IsWindow(new IntPtr(wanted)),visible=IsWindowVisible(new IntPtr(wanted))}; }',
     'public static int Main(string[] args) {',
     'var json=new JavaScriptSerializer();',
-    'if(args[0]=="record") { var process=Process.GetCurrentProcess(); File.WriteAllText(args[1],json.Serialize(new {pid=process.Id,start=process.StartTime.ToUniversalTime().Ticks.ToString(),handle=GetConsoleWindow().ToInt64()})); Thread.Sleep(15000); return 0; }',
+    'if(args[0]=="record") { var process=Process.GetCurrentProcess(); var temporary=args[1]+".tmp"; File.WriteAllText(temporary,json.Serialize(new {pid=process.Id,start=process.StartTime.ToUniversalTime().Ticks.ToString(),handle=GetConsoleWindow().ToInt64()})); File.Move(temporary,args[1]); Thread.Sleep(15000); return 0; }',
     'if(args[0]=="calibrate") {',
     'var startup=new Startup {cb=Marshal.SizeOf(typeof(Startup)),flags=1,show=5}; Child child;',
     'var executable=Process.GetCurrentProcess().MainModule.FileName; var quote=((char)34).ToString();',
     'var command=new StringBuilder(quote+executable+quote+" record "+quote+args[1]+quote);',
     'if(!CreateProcess(executable,command,IntPtr.Zero,IntPtr.Zero,false,16,IntPtr.Zero,null,ref startup,out child))throw new Exception("Visible control create failed: "+Marshal.GetLastWin32Error());',
-    'object marker=null,observation=null; uint exitCode=259;',
+    'object marker=null; Observation observation=null; uint exitCode=259;',
     'try {',
     'var deadline=Stopwatch.StartNew(); while(!File.Exists(args[1])&&deadline.ElapsedMilliseconds<5000)Thread.Sleep(25);',
     'if(!File.Exists(args[1]))throw new Exception("Visible control marker missing");',
     'var row=json.DeserializeObject(File.ReadAllText(args[1])) as System.Collections.Generic.Dictionary<string,object>;',
-    'if(Convert.ToInt32(row["pid"])!=child.pid||WaitForSingleObject(child.process,0)!=258)throw new Exception("Visible control identity/execution changed");',
-    'marker=row; observation=Observe(Convert.ToInt64(row["handle"]));',
+    'long creation,exited,kernel,user;',
+    'if(Convert.ToInt32(row["pid"])!=child.pid||!GetProcessTimes(child.process,out creation,out exited,out kernel,out user)||DateTime.FromFileTimeUtc(creation).Ticks.ToString()!=Convert.ToString(row["start"])||WaitForSingleObject(child.process,0)!=258)throw new Exception("Visible control identity/execution changed");',
+    'marker=row; var settle=Stopwatch.StartNew();',
+    'do {',
+    'if(WaitForSingleObject(child.process,0)!=258)throw new Exception("Visible control exited before observation");',
+    'observation=Observe(Convert.ToInt64(row["handle"])); if(observation.exists&&observation.observed&&observation.visible)break;',
+    'Thread.Sleep(25);',
+    '} while(settle.ElapsedMilliseconds<2000);',
     '} finally {',
     'try {',
     'if(WaitForSingleObject(child.process,0)==258&&!TerminateProcess(child.process,0))throw new Exception("Visible control termination refused");',
@@ -545,7 +553,9 @@ test('Windows CI visibility observer calibrates with a retained native visible-c
   fs.writeFileSync(path.join(probeDirectory,'calibration-observation.json'),JSON.stringify(result));
   console.log('Independent CI visible observer calibration: '+JSON.stringify(result));
   assert.equal(result.childExitConfirmed,true,'Retained native child handle must reach actual exit');
-  assert.equal(processIdentity(result.marker.pid),null,'The original calibration child has exited');
+  const original={pid:result.marker.pid,start:result.marker.start},current=processIdentity(original.pid);
+  assert.ok(current===null||current&&Number.isSafeInteger(current.pid)&&typeof current.start==='string','Inspect original calibration identity independently');
+  assert.notDeepEqual(current,original,'The original calibration child has exited; numeric PID reuse is allowed');
   if(!result.observation.exists||!result.observation.observed||!result.observation.visible) {
     t.skip('Hosted desktop cannot observe the explicit visible control; visibility remains unverified');return;
   }
