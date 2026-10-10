@@ -151,7 +151,7 @@ assert.equal(reservationState({ owner, phase: "launching" }, () => null), "unkno
 assert.equal(reservationState({ owner, phase: "running", child }, () => ({ pid: 43, start: "reused" })), "interrupted");
 assert.throws(() => reservationState({ owner, phase: "running", child }, () => { throw new Error("denied"); }), /denied/);
 
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-"));
+const scratch = canonicalPath(fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-")));
 console.log(`Scratch repository: ${scratch}`);
 const git = (...args) => {
   const result = spawnSync("git", args, { cwd: scratch, windowsHide: true, encoding: "utf8" });
@@ -994,6 +994,71 @@ if(process.argv[2]==="run") { await new Promise(r=>setTimeout(r,80)); process.ex
   assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false);
 }
 console.log("PASS: setup failures release without launching and post-launch cleanup/publication failures await original results");
+
+for (const boundary of ["initial-directory", "initial-journal", "manifest", "summary", "final-save"])
+for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `publication-${boundary}-${peer}`);
+  const marker = path.join(scratch, ".git", `publication-${boundary}-${peer}.marker`);
+  const fixture = path.join(scratch, ".git", `publication-${boundary}-${peer}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10));
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const runFile = path.join(resultDirectory, "run.json"), reservationFile = path.join(lockRoot, "reservation.json");
+  const peerBytes = JSON.stringify({ token: "publication-peer-journal", preserved: true });
+  const mkdir = fs.mkdirSync, rename = fs.renameSync;
+  let injected = false, result, failure, attemptBytes = [];
+  const fail = () => {
+    injected = true;
+    if (peer) {
+      fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "publication-peer" }));
+      mkdir(resultDirectory, { recursive: true });
+      for (const item of fs.readdirSync(resultDirectory, { withFileTypes: true }).filter(item => item.isDirectory())) {
+        const file = path.join(resultDirectory, item.name, "attempt.json");
+        if (fs.existsSync(file)) attemptBytes.push([file, fs.readFileSync(file, "utf8")]);
+      }
+      fs.writeFileSync(runFile, peerBytes);
+    }
+    throw Object.assign(new Error(`controlled coordinator ${boundary}`), { code: "EIO" });
+  };
+  fs.mkdirSync = (target, ...args) => boundary === "initial-directory" && target === resultDirectory && !injected ? fail() : mkdir(target, ...args);
+  fs.renameSync = (temp, target) => {
+    if (!injected && target === path.join(resultDirectory, "summary.json") && boundary === "summary") return fail();
+    if (!injected && target === runFile) {
+      const value = read(temp);
+      if (boundary === "initial-journal" && !value.attempts.length
+        || boundary === "manifest" && value.files.length && !value.identity
+        || boundary === "final-save" && value.active === false) return fail();
+    }
+    return rename(temp, target);
+  };
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture, identify: setupIdentify }); }
+  catch (error) { failure = error; }
+  finally { fs.mkdirSync = mkdir; fs.renameSync = rename; }
+  assert.equal(injected, true, `${boundary}: intended coordinator boundary reached`);
+  if (boundary.startsWith("initial-")) {
+    assert.equal(fs.existsSync(marker), false, "initial publication failure launches no child");
+    assert.equal(notRunExit(failure, () => {}), 75);
+    assert.match(failure.message, /controlled coordinator/);
+  } else {
+    assert.equal(failure, undefined);
+    assert.equal(result.status, boundary === "manifest" ? "incomplete" : "passed");
+    assert.match(result.journalError, /controlled coordinator/);
+    assert.equal(result.observedAttempts[0].exit, 0, "discovery result survives coordinator publication failure");
+    assert.equal(fs.readFileSync(marker, "utf8"), boundary === "manifest" ? "discover\n" : "discover\nrun\nrun\n");
+    if (boundary !== "manifest") assert.equal(result.observedAttempts.at(-1).exit, 0);
+  }
+  if (peer) {
+    assert.equal(read(reservationFile).token, "publication-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
+    for (const [file, bytes] of attemptBytes) assert.equal(fs.readFileSync(file, "utf8"), bytes);
+    fs.unlinkSync(reservationFile);
+  } else {
+    assert.equal(fs.existsSync(reservationFile), false);
+    const next = acquire("after coordinator publication", { root: lockRoot, census: () => [], identify: setupIdentify });
+    next.release();
+  }
+}
+console.log("PASS: coordinator preparation/publication retains admission and observed results without peer writes");
 
 for (const peer of [false, true]) {
   const reservationFile = path.join(lockRoot, "reservation.json"), rename = fs.renameSync;

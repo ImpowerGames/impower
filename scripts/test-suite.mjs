@@ -240,8 +240,12 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   });
   let summary;
   let reservationError;
-  let journalError, attemptError;
-  const save = () => { if (!reservationError && !journalError) atomic(path.join(directory, "run.json"), run); };
+  let journalError, attemptError, failureInFlight;
+  const publish = action => {
+    try { return action(); }
+    catch (error) { journalError ||= error.message; throw error; }
+  };
+  const save = () => { if (!reservationError && !journalError) publish(() => atomic(path.join(directory, "run.json"), run)); };
   const childDependencies = { ...dependencies, onReservationError: error => { reservationError = error; }, onJournalError: error => { journalError = error; } };
   let childAttempted = false;
   const unpersistedAttempts = [];
@@ -263,11 +267,15 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   };
   const finish = () => {
     summary = aggregate(run);
+    if (!reservationError && !journalError && !attemptError) {
+      try { publish(() => atomic(path.join(directory, "summary.json"), summary)); }
+      catch { /* The original outcome remains returned beside journalError. */ }
+    }
     if (reservationError || journalError || attemptError) {
       if (!run.identity) summary.status = "incomplete";
       Object.assign(summary, { reservationError, journalError, attemptError, unpersistedAttempts,
         observedAttempt: run.attempts.at(-1), observedAttempts });
-    } else atomic(path.join(directory, "summary.json"), summary);
+    }
     return summary;
   };
   try {
@@ -279,7 +287,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       for (const attempt of run.attempts) if (!["passed", "failed", "interrupted"].includes(attempt.status)) {
         attempt.status = "interrupted";
         attempt.reconciledAt = now();
-        atomic(path.join(attempt.directory, "attempt.json"), attempt);
+        publish(() => atomic(path.join(attempt.directory, "attempt.json"), attempt));
       }
       if (run.stale || run.manifestHash !== manifestHash(run.files) || run.identity !== fingerprint(run.root, [])) {
         run.stale = true; save();
@@ -325,13 +333,23 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     }
     if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); }
     return finish();
+  } catch (error) {
+    // Coordinator publication can fail between children or after aggregation.
+    // Stop admission and retain every result this invocation already observed.
+    if (journalError && childAttempted) return finish();
+    failureInFlight = error;
+    Object.assign(error, { observedAttempts, unpersistedAttempts });
+    if (!childAttempted && (journalError || error.code)) error.notRun = true;
+    throw error;
   } finally {
     // Persist while still owning the reservation: a successor may acquire it
     // immediately after release and must never be overwritten by this owner.
     try {
       if (!reservationError && !journalError && run?.token === reservation.record.token) { run.active = false; save(); }
     } catch (error) {
-      if (summary) summary.journalError = error.message;
+      if (summary) Object.assign(summary, { journalError: error.message, observedAttempts,
+        observedAttempt: run.attempts.at(-1), unpersistedAttempts });
+      if (failureInFlight) failureInFlight.journalError = error.message;
       console.error(`Final journal save failed before release: ${error.message}`);
     }
     // A failed release never replaces the summary or the error already in
@@ -340,6 +358,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     try { reservation.release(); }
     catch (error) {
       if (summary) summary.releaseError = error.message;
+      if (failureInFlight) failureInFlight.releaseError = error.message;
       console.error(`Reservation not released; the next acquirer recovers it: ${error.message}`);
     }
   }
