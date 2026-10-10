@@ -67,8 +67,8 @@ export function allocateWriterArtifacts({ parent, issue, writer, session, worktr
   // config injection, ceilings or mount boundaries. Keep ordinary PATH/auth.
   const gitEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(?:GIT_.*|LC_ALL|LANG|LANGUAGE)$/i.test(name)));
   Object.assign(gitEnv, { LC_ALL: 'C', LANG: 'C', LANGUAGE: 'C', GIT_DISCOVERY_ACROSS_FILESYSTEM: '1' });
-  const git = (args) => execFileSync('git', ['-C', worktree, ...args], { encoding: 'utf8', windowsHide: true, env: gitEnv }).trim();
-  const roots = git(['worktree', 'list', '--porcelain']).split('\n').filter(line => line.startsWith('worktree ')).map(line => line.slice(9));
+  const git = (args) => execFileSync('git', ['-C', worktree, ...args], { encoding: 'utf8', windowsHide: true, env: gitEnv });
+  const roots = git(['worktree', 'list', '--porcelain', '-z']).split('\0').filter(record => record.startsWith('worktree ')).map(record => record.slice(9));
   for (const root of roots) {
     if (fs.existsSync(root) && within(fs.realpathSync.native(root), directory)) throw new Error(`Artifact parent is inside a checkout: ${root}`);
   }
