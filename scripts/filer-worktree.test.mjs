@@ -786,6 +786,39 @@ for (const env of [process.env, overrideEnvironment]) {
 console.log("PASS: clean and inherited-Git create/check preserve main and owned administrative markers");
 const config = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json")));
 assert.ok(config.hooks.PreToolUse.some(group => group.matcher.includes("PowerShell") && group.hooks.some(hook => hook.command.includes("worktree-cleanup.mjs"))));
+const cleanupHook = config.hooks.PreToolUse.flatMap(group => group.hooks).find(hook => hook.command.includes("worktree-cleanup.mjs"));
+assert.equal(cleanupHook.onFailure, "block", "Claude >=2.1.295 must block host startup/timeout/output failures");
+const launcherScratch = path.join(scratch, "hook launcher");
+const launcherHooks = path.join(launcherScratch, ".claude", "hooks");
+fs.mkdirSync(launcherHooks, { recursive: true });
+const launcherAdapter = path.join(launcherHooks, "worktree-cleanup.mjs");
+const launcherBash = process.platform === "win32" ? bash : "/bin/bash";
+function dispatchHook(command, env = process.env) {
+  return spawnSync(launcherBash, ["--noprofile", "--norc", "-c", command], {
+    cwd: launcherScratch, env: { ...env, CLAUDE_PROJECT_DIR: launcherScratch },
+    input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "git status" }, cwd: launcherScratch }),
+    encoding: "utf8", windowsHide: true, timeout: 10000,
+  });
+}
+for (const mode of ["adapter-missing", "node-missing", "import-failure", "crash", "allow", "deny"]) {
+  if (mode !== "adapter-missing") fs.writeFileSync(launcherAdapter,
+    mode === "import-failure" ? "import './missing-import.mjs';\n" :
+    mode === "crash" ? "process.exit(1);\n" :
+    mode === "deny" ? 'console.log(JSON.stringify({hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:"scratch refusal"}}));\n' : "process.exit(0);\n");
+  const env = mode === "node-missing"
+    ? { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "path")), PATH: "/nonexistent" }
+    : process.env;
+  const actual = dispatchHook(cleanupHook.command, env);
+  assert.equal(actual.status, ["allow", "deny"].includes(mode) ? 0 : 2, `${mode}: configured launcher must fail closed: ${actual.stderr}`);
+  if (mode === "allow") assert.equal(actual.stdout.trim(), "");
+  if (mode === "deny") assert.equal(JSON.parse(actual.stdout).hookSpecificOutput.permissionDecision, "deny");
+  if (["import-failure", "crash"].includes(mode)) {
+    const unwrapped = dispatchHook('node "${CLAUDE_PROJECT_DIR}/.claude/hooks/worktree-cleanup.mjs"', env);
+    assert.equal(unwrapped.status, 1, `${mode}: removing the wrapper reproduces nonblocking ordinary failure`);
+  }
+  preserved();
+}
+console.log("PASS: actual configured cleanup launcher blocks missing runtime/adapter/import/crash and preserves benign success/deny JSON; host timeout requires Claude >=2.1.295");
 const workflow = fs.readFileSync(path.join(root, ".github/workflows/hook-tests.yml"), "utf8");
 const driverPatterns = workflow.match(/  driver-changes:[\s\S]*?patterns: \|\r?\n([\s\S]*?)(?=\r?\n  \w)/)?.[1].trim().split(/\r?\n/).map(line => line.trim());
 assert.ok(driverPatterns, "driver selection must be readable");
