@@ -27,6 +27,12 @@ const synchronous=(callback,value)=>{
     throw new Error('Supervisor persistence callbacks must complete synchronously');
   }
 };
+const disposeUnconfirmed=child=>{
+  const errors=[];
+  for(const stream of [child.stdin,child.stdout,child.stderr])try {stream?.destroy();} catch(error) {errors.push(error.message);}
+  try {child.unref();} catch(error) {errors.push(error.message);}
+  return errors;
+};
 
 // Exit ownership and test success are separate. This validator proves only the
 // recorded supervisor lifecycle; callers still verify complete test evidence.
@@ -123,11 +129,10 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   if(!uuid(invocationId)||!path.isAbsolute(directory)||!path.isAbsolute(cwd))throw new Error('Invalid owned-runtime preparation');
   directory=fs.realpathSync.native(directory);
   const helper=helperScript??path.join(here,platform==='win32'?'test-suite-child-windows.ps1':'test-suite-child-linux.py');
-  const assembly=path.join(directory,'test-suite-child-windows.exe'),bindings=[fileBinding(helper)];
+  const assembly=path.join(directory,'test-suite-child-windows.exe'),bindings=[fileBinding(helper),fileBinding(path.join(here,'detached-launch.mjs'))];
   if(platform==='win32') {
     const source=path.join(path.dirname(helper),'test-suite-child-windows.cs');
     if(fs.existsSync(source))bindings.push(fileBinding(source));
-    bindings.push(fileBinding(path.join(here,'detached-launch.mjs')));
   }
   const prepared={version:1,status:'prepared',directory,invocationId,platform,
     startupMs,cleanupMs,environmentDigest:environmentDigest(env),
@@ -161,7 +166,7 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   try {
     preparationProcess=child.pid?identify(child.pid):null;
     if(platform==='win32'&&child.pid&&!identity(preparationProcess))throw new Error('Preparation process identity unavailable');
-    synchronous(onPreparation,{...prepared,preparationProcess});
+    if(platform==='win32')synchronous(onPreparation,{...prepared,preparationProcess});
   } catch(error) {
     launchError=error.message;
     try {child.kill();} catch(killError) {diagnostics+=killError.message;}
@@ -174,9 +179,12 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   }
   const evidence={preparationProcess,preparationClose:closed===boundary?null:closed,
     preparationTimedOut,launchError,diagnostics,output};
-  fs.writeFileSync(path.join(directory,'preparation-result.json'),JSON.stringify(evidence),{flag:'wx'});
-  if(closed===boundary||closed.exit!==0||closed.signal||launchError) {
-    if(closed===boundary){child.stdout.destroy();child.stderr.destroy();child.unref();}
+  // Disposition precedes publication. A write failure cannot leave live pipes
+  // referenced or turn an unobserved close into confirmed process/tree exit.
+  if(closed===boundary)evidence.preparationDisposalErrors=disposeUnconfirmed(child);
+  try {fs.writeFileSync(path.join(directory,'preparation-result.json'),JSON.stringify(evidence),{flag:'wx'});}
+  catch(error) {evidence.preparationPublicationError=error.message;}
+  if(closed===boundary||closed.exit!==0||closed.signal||launchError||evidence.preparationPublicationError) {
     const unknown=platform==='win32'||closed===boundary;
     return {...prepared,...evidence,status:unknown?'unknown':'not-run',exit:null,signal:null,
       exitConfirmed:!unknown,launchAuthorized:false,compilerTreeConfirmed:platform==='win32'?false:undefined};
@@ -213,9 +221,10 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
       const probeTimedOut=probeClose===boundary;
       if(probeTimedOut) {try {probe.kill();} catch(error) {probeError??=error.message;} probeClose=await bounded(probeCompletion,cleanupMs);}
       const probeEvidence={probeIdentity,probeClose:probeClose===boundary?null:probeClose,probeTimedOut,probeError,probeOutput,probeDiagnostics};
-      fs.writeFileSync(path.join(directory,'capability-result.json'),JSON.stringify(probeEvidence),{flag:'wx'});
-      if(probeClose===boundary) {probe.stdout.destroy();probe.stderr.destroy();probe.unref();}
-      if(!identity(probeIdentity)||probeClose===boundary||probeClose.exit!==0||probeClose.signal||probeError)
+      if(probeClose===boundary)probeEvidence.probeDisposalErrors=disposeUnconfirmed(probe);
+      try {fs.writeFileSync(path.join(directory,'capability-result.json'),JSON.stringify(probeEvidence),{flag:'wx'});}
+      catch(error) {probeEvidence.capabilityPublicationError=error.message;}
+      if(!identity(probeIdentity)||probeClose===boundary||probeClose.exit!==0||probeClose.signal||probeError||probeEvidence.capabilityPublicationError)
         return {...prepared,...evidence,...probeEvidence,status:'unknown',exit:null,signal:null,exitConfirmed:false,launchAuthorized:false};
       const rows=probeOutput.trim().split('\n').map(row=>JSON.parse(row));
       if(rows.length!==1||rows[0].event!=='capable'||rows[0].mechanism!=='windows-job'
@@ -280,9 +289,9 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
   // preventing its EOF cleanup/proof. The central detached launcher keeps
   // a hidden Node wrapper alive until the managed helper exits. Its own Job
   // owns tests; keep all pipes and both identities through actual close.
-  const child=platform==='win32'
-    ?spawnDetached(executable,launchArgs,{cwd,env,stdio:['pipe','pipe','pipe']})
-    :spawn(executable,launchArgs,{cwd,env,windowsHide:true,stdio:['pipe','pipe','pipe']});
+  // Linux also needs its own session: an outer coordinator-group cancellation
+  // must leave the subreaper alive to own EOF cleanup and final proof.
+  const child=spawnDetached(executable,launchArgs,{cwd,env,stdio:['pipe','pipe','pipe']});
   child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
   let launchError,coordinationError,protocolError,buffer='',diagnostics='',authorized=false,authorizationAttempted=false,readyResolve;
   let startedMetadata=null;

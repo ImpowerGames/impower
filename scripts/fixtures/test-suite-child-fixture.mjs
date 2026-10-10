@@ -5,7 +5,7 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {processIdentity} from '../reviewer-slots.mjs';
 const [mode, inventory] = process.argv.slice(2);
-if(mode==='coordinator-death') {
+if(mode==='coordinator-death'||mode==='coordinator-held') {
   const {runOwnedChild,prepareOwnedChild}=await import('../test-suite-child.mjs');
   const directory=path.dirname(inventory);
   const persist=value=>fs.writeFileSync(path.join(directory,'expected.json'),JSON.stringify(value));
@@ -13,7 +13,7 @@ if(mode==='coordinator-death') {
     cwd:directory,timeoutMs:15000,reservationToken:randomUUID(),onReady:persist,onStarted(value) {
       persist(value);
       const watch=setInterval(()=>{
-        if(fs.existsSync(inventory)&&fs.readFileSync(inventory,'utf8').trim().split('\n').length===3)process.exit(29);
+        if(mode==='coordinator-death'&&fs.existsSync(inventory)&&fs.readFileSync(inventory,'utf8').trim().split('\n').length===3)process.exit(29);
       },10);
       watch.unref();
     }};

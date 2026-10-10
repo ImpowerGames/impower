@@ -7,6 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
 import {processIdentity} from './reviewer-slots.mjs';
+import {spawnDetached} from './detached-launch.mjs';
 import {readTreeProof,runOwnedChild,prepareOwnedChild,prepareOwnedRuntime} from './test-suite-child.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
@@ -122,13 +123,92 @@ test('compile failure/timeout retains partial output and never authorizes a help
   }
 });
 
+test('blocked preparation publication preserves live pipe-holder uncertainty',{skip:process.platform!=='win32',timeout:40000},async()=>{
+  const directory=scratch(),inventory=path.join(directory,'pids.jsonl'),script=path.join(directory,'compile.ps1');
+  fs.mkdirSync(path.join(directory,'preparation-result.json'));
+  const literal=value=>"'"+value.replaceAll("'","''")+"'";
+  fs.writeFileSync(script,[
+    'param([string]$Configuration)',
+    `$worker = Start-Process -FilePath ${literal(process.execPath)} -ArgumentList ${literal('"'+fixture+'"')}, 'sleep', ${literal('"'+inventory+'"')} -NoNewWindow -PassThru`,
+    'Start-Sleep -Seconds 30',
+  ].join('\n'));
+  let owned;
+  const running=prepareOwnedRuntime({directory,helperScript:script,startupMs:2000,cleanupMs:100});
+  try {
+    await until(()=>records(inventory).length===1,10000);owned=processIdentity(records(inventory)[0].pid);
+    assert.ok(owned,'Pin the live bounded fixture identity');
+    fs.writeFileSync(path.join(directory,'publication-fixture-identity.json'),JSON.stringify(owned),{flag:'wx'});
+    const result=await running;
+    fs.writeFileSync(path.join(directory,'publication-observation.json'),JSON.stringify({result,liveHolder:processIdentity(owned.pid)}),{flag:'wx'});
+    assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.exitConfirmed,false);
+    assert.equal(result.preparationClose,null,'Inherited pipe remains open beyond direct helper exit');
+    assert.equal(processIdentity(result.preparationProcess.pid),null,'Original preparation process exited while its pipe holder remains live');
+    assert.equal(typeof result.preparationPublicationError,'string');
+    assert.deepEqual(processIdentity(owned.pid),owned,'Publication failure does not manufacture descendant exit');
+    assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
+  } finally {if(owned)await until(()=>processIdentity(owned.pid)===null,25000);}
+});
+
+test('blocked capability publication preserves live pipe-holder uncertainty',{skip:process.platform!=='win32',timeout:40000},async()=>{
+  const directory=scratch(),inventory=path.join(directory,'pids.jsonl'),script=path.join(directory,'test-suite-child-windows.ps1');
+  fs.mkdirSync(path.join(directory,'capability-result.json'));
+  fs.copyFileSync(path.join(here,'test-suite-child-windows.ps1'),script);
+  const source=fs.readFileSync(path.join(here,'test-suite-child-windows.cs'),'utf8');
+  const marker='Event("{\\"event\\":\\"capable\\"}");';
+  assert.ok(source.includes(marker));
+  const child=`var fixtureChild=new Process();fixtureChild.StartInfo=new ProcessStartInfo(${JSON.stringify(process.execPath)});fixtureChild.StartInfo.UseShellExecute=false;fixtureChild.StartInfo.CreateNoWindow=true;fixtureChild.StartInfo.Arguments=Quote(${JSON.stringify(fixture)})+" sleep "+Quote(${JSON.stringify(inventory)});fixtureChild.Start();`;
+  fs.writeFileSync(path.join(directory,'test-suite-child-windows.cs'),source.replace(marker,child+marker+'Thread.Sleep(30000);'));
+  let owned;
+  const running=prepareOwnedRuntime({directory,helperScript:script,startupMs:3000,cleanupMs:100});
+  try {
+    await until(()=>records(inventory).length===1,10000);owned=processIdentity(records(inventory)[0].pid);
+    assert.ok(owned,'Pin the live bounded fixture identity');
+    fs.writeFileSync(path.join(directory,'publication-fixture-identity.json'),JSON.stringify(owned),{flag:'wx'});
+    const result=await running;
+    fs.writeFileSync(path.join(directory,'publication-observation.json'),JSON.stringify({result,liveHolder:processIdentity(owned.pid)}),{flag:'wx'});
+    assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.exitConfirmed,false);
+    assert.equal(result.probeClose,null,'Inherited pipe remains open beyond direct helper exit');
+    assert.equal(processIdentity(result.probeIdentity.pid),null,'Original capability process exited while its pipe holder remains live');
+    assert.equal(typeof result.capabilityPublicationError,'string');
+    assert.deepEqual(processIdentity(owned.pid),owned,'Publication failure does not manufacture descendant exit');
+    assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
+  } finally {if(owned)await until(()=>processIdentity(owned.pid)===null,25000);}
+});
+
+test('real C# compilation refusal and preparation deadline never enter reservation-stage launch',{skip:process.platform!=='win32',timeout:30000},async()=>{
+  for(const deadline of [false,true]) {
+    const directory=scratch(),script=path.join(directory,'test-suite-child-windows.ps1');
+    fs.copyFileSync(path.join(here,'test-suite-child-windows.ps1'),script);
+    const source=fs.readFileSync(path.join(here,'test-suite-child-windows.cs'),'utf8');
+    const changed=deadline?source:source.replace('public static int Main(string[] args)','public static invalid syntax Main(string[] args)');
+    if(!deadline)assert.notEqual(changed,source,'Real compiler refusal must mutate the C# syntax');
+    fs.writeFileSync(path.join(directory,'test-suite-child-windows.cs'),changed);
+    const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:deadline?100:60000});
+    assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.launchAuthorized,false);
+    assert.equal(result.compilerTreeConfirmed,false);assert.equal(result.preparationTimedOut,deadline);
+    if(!deadline)assert.match(result.diagnostics,/Add-Type|Compiler|CS\d+/);
+    assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
+    assert.equal(fs.existsSync(path.join(directory,'runtime.json')),false);
+    assert.equal(fs.existsSync(path.join(directory,'tree-proof.json')),false);
+  }
+});
+
 test('compile success without a fresh executable is refused before helper launch',{skip:process.platform!=='win32',timeout:30000},async()=>{
-  const directory=scratch(),script=path.join(directory,'compile.ps1');
-  fs.writeFileSync(script,'exit 0');
+  const directory=scratch(),script=path.join(directory,'compile.ps1'),observed=path.join(directory,'compiler-observed.json');
+  fs.writeFileSync(script,[
+    'param([string]$Configuration)',
+    '$acknowledgement = Join-Path (Split-Path -Parent $Configuration) "compiler-observed.json"',
+    '$deadline = (Get-Date).AddSeconds(10)',
+    'while (-not (Test-Path -LiteralPath $acknowledgement)) { if ((Get-Date) -gt $deadline) { exit 8 }; Start-Sleep -Milliseconds 20 }',
+    'exit 0',
+  ].join('\n'));
   const result=await controlOwned({directory,command:process.execPath,args:[],cwd:directory,
-    timeoutMs:1500,reservationToken:randomUUID(),helperScript:script});
+    timeoutMs:1500,reservationToken:randomUUID(),helperScript:script,onPreparation(value) {
+      assert.deepEqual(processIdentity(value.preparationProcess.pid),value.preparationProcess);
+      fs.writeFileSync(observed,JSON.stringify(value.preparationProcess),{flag:'wx'});
+    }});
   assert.equal(result.launchAuthorized,false);
-  assert.equal(result.status,'not-run');
+  assert.equal(result.status,'not-run',JSON.stringify(result));
   assert.equal(result.exitConfirmed,true);
   assert.match(result.launchError,/ENOENT/);
 });
@@ -252,13 +332,40 @@ test('actual coordinator death closes both pipes and leaves independently recove
   absence(inventory);
 });
 
+test('Linux coordinator process-group death leaves the independently detached subreaper to prove exit',{skip:process.platform!=='linux',timeout:40000},async()=>{
+  const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
+  const coordinator=spawnDetached(process.execPath,[fixture,'coordinator-held',inventory],{stdio:['ignore','ignore','pipe']});
+  const close=new Promise(resolve=>coordinator.once('close',(exit,signal)=>resolve({exit,signal})));
+  let diagnostics='';coordinator.stderr.setEncoding('utf8');coordinator.stderr.on('data',chunk=>{diagnostics+=chunk;});
+  const coordinatorIdentity=processIdentity(coordinator.pid);
+  let expected;
+  try {
+    await until(()=>records(inventory).length===3&&fs.existsSync(path.join(directory,'expected.json')),10000);
+    expected=JSON.parse(fs.readFileSync(path.join(directory,'expected.json'),'utf8'));
+    const stat=fs.readFileSync(`/proc/${expected.helper.pid}/stat`,'utf8');
+    const fields=stat.slice(stat.lastIndexOf(')')+2).split(' ');
+    assert.equal(Number(fields[2]),expected.helper.pid,'Supervisor owns a separate process group');
+    assert.notEqual(expected.helper.pid,coordinator.pid);
+    assert.deepEqual(processIdentity(coordinator.pid),coordinatorIdentity,'Kill only the still-owned fixture group');
+    process.kill(-coordinator.pid,'SIGKILL');
+    assert.deepEqual(await close,{exit:null,signal:'SIGKILL'});
+    await until(()=>processIdentity(expected.helper.pid)===null&&processIdentity(expected.launcher.pid)===null,15000);
+    assert.equal(readTreeProof(expected).status,'interrupted');absence(inventory);
+  } finally {
+    if(coordinator.exitCode===null&&coordinator.signalCode===null)coordinator.kill('SIGKILL');
+    await close;
+    if(expected)await until(()=>processIdentity(expected.helper.pid)===null,15000);
+    fs.writeFileSync(path.join(directory,'coordinator-stderr.log'),diagnostics);
+  }
+});
+
 test('partially persisted authorization requires fresh proof even when no nonce was sent',{skip:!supported,timeout:30000},async()=>{
   const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
   const result=await controlOwned({directory,command:process.execPath,args:[fixture,'loop',inventory],cwd:directory,
     timeoutMs:1500,reservationToken:randomUUID(),onAuthorize(expected) {
       fs.writeFileSync(path.join(directory,'may-launch.json'),JSON.stringify(expected),{flag:'wx'});
       assert.deepEqual(processIdentity(expected.helper.pid),expected.helper);
-      process.kill(expected.helper.pid);
+      process.kill(expected.helper.pid,'SIGKILL');
       throw new Error('Persistence failed after may-launch was written');
     }});
   assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.exitConfirmed,false);
