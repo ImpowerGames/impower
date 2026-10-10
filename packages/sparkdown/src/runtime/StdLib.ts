@@ -6148,7 +6148,12 @@ export function lookupStdLibBuiltin(
   // unified STDLIB pick those up below. (`count.turns(0)` falls
   // through to STDLIB["count.turns"]; `count.turns(1, t)` resolves
   // to "TURNS_SINCE" here.)
-  const alias = INK_BUILTIN_ALIASES[receiverName]?.[methodName];
+  const aliases = Object.hasOwn(INK_BUILTIN_ALIASES, receiverName)
+    ? INK_BUILTIN_ALIASES[receiverName]
+    : undefined;
+  const alias = aliases && Object.hasOwn(aliases, methodName)
+    ? aliases[methodName]
+    : undefined;
   if (alias != null) {
     const resolved = typeof alias === "string" ? alias : alias(argCount);
     if (resolved !== null) return resolved;
@@ -6159,7 +6164,7 @@ export function lookupStdLibBuiltin(
   // NativeFunctionCall (auto-registered at engine init), state-aware
   // entries through `RunStdLibFunction`.
   const fullName = `${receiverName}.${methodName}`;
-  if (STDLIB[fullName] != null) {
+  if (lookupAnyStdLib(fullName) != null) {
     return fullName;
   }
   return null;
@@ -6174,7 +6179,7 @@ export function lookupGlobalStdLibBuiltin(
   name: string,
   _argCount: number,
 ): string | null {
-  return STDLIB[name] != null ? name : null;
+  return lookupAnyStdLib(name) != null ? name : null;
 }
 
 // Stdlib constants — identifiers that evaluate to a fixed value at
@@ -6211,7 +6216,7 @@ export const STDLIB_CONSTANTS: Record<string, number | string | boolean> = {
 export function lookupStdLibConstant(
   name: string,
 ): number | string | boolean | undefined {
-  return STDLIB_CONSTANTS[name];
+  return Object.hasOwn(STDLIB_CONSTANTS, name) ? STDLIB_CONSTANTS[name] : undefined;
 }
 
 // Direct registry lookup for state-aware builtins. Returns the
@@ -6223,7 +6228,7 @@ export function lookupStdLibConstant(
 // generic dispatcher in Story.ts (runtime) to route only the non-pure
 // entries through the generic path.
 export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
-  const entry = STDLIB[name];
+  const entry = lookupAnyStdLib(name);
   if (entry == null || entry.pure) return null;
   return entry;
 }
@@ -6232,7 +6237,7 @@ export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
 // Used by the runtime variable-lookup fallback to push a callable
 // sentinel for `type(type) == 'function'`-style references.
 export function isStdLibFunctionName(name: string): boolean {
-  return STDLIB[name] != null;
+  return lookupAnyStdLib(name) != null;
 }
 
 // True when `name` is a stdlib NAMESPACE root (`math`, `string`,
@@ -6260,7 +6265,7 @@ export function isStdLibNamespaceName(name: string): boolean {
 // errors ("missing argument #1 to 'abs'" / "invalid argument #1 to
 // 'abs'").
 export function isPureNumberStdLibOp(name: string): boolean {
-  const entry = STDLIB[name];
+  const entry = lookupAnyStdLib(name);
   if (!entry) return false;
   const types = pureStdLibTypes(entry);
   return !!types && types.length === 1 && types[0] === "number";
@@ -6273,7 +6278,7 @@ export function isPureNumberStdLibOp(name: string): boolean {
 // state-aware, just that it's a Luau stdlib callable. Returns null if
 // `name` isn't registered.
 export function lookupAnyStdLib(name: string): StdLibEntry | null {
-  return STDLIB[name] ?? null;
+  return Object.hasOwn(STDLIB, name) ? STDLIB[name] ?? null : null;
 }
 
 // Normalize an entry's `pure` field to a concrete list of operand
@@ -6341,7 +6346,7 @@ export function unwrapArgsForPureStdLibFn(
 // runtime still dispatches the call — the diagnostic is purely an
 // editor-side hint.
 export function lookupStdLibDeprecation(name: string): string | null {
-  const entry = STDLIB[name];
+  const entry = lookupAnyStdLib(name);
   return entry?.deprecated ?? null;
 }
 
