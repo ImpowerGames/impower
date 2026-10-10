@@ -414,6 +414,145 @@ const deny = (name, code) => {
 deny("openSync", "EPERM");
 deny("openSync", "EACCES");
 deny("mkdirSync", "EACCES");
+// File-specific Windows access failures are contention when a private probe
+// demonstrates that the store remains writable. Never use the live store.
+if (process.platform === "win32") {
+  const store = fs.mkdtempSync(path.join(os.tmpdir(), "impower-store-contention-"));
+  console.log(`Reservation contention scratch: ${store}`);
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    for (const operation of ["guard", "create", "rename"]) {
+      const method = operation === "rename" ? "renameSync" : "openSync";
+      const original = fs[method];
+      let failures = 0;
+      fs[method] = (target, ...args) => {
+        const affected = operation === "guard" ? target === path.join(store, "guard.json")
+          : operation === "create" ? String(target).startsWith(path.join(store, "reservation.json."))
+          : args[0] === path.join(store, "reservation.json");
+        if (affected && failures++ < 2) throw Object.assign(new Error("scanner holds reservation file"), { code });
+        return original(target, ...args);
+      };
+      const waits = [];
+      let acquired;
+      try { acquired = await acquireWaiting("transient file denial", { root: store, waitMs: 30000, pollMs: 5,
+        census: () => [], onWait: value => waits.push(value.waiting) }); }
+      finally { fs[method] = original; }
+      assert.ok(waits.includes("reservation files"), `${operation} ${code} reports contention`);
+      acquired.release();
+      assert.deepEqual(fs.readdirSync(store), [], "successful retries leave no probe or abandoned temporary file");
+    }
+  }
+  const original = fs.renameSync;
+  let renameBegan;
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) {
+      renameBegan ??= Date.now();
+      throw Object.assign(new Error("persistent scanner contention"), { code: "EPERM" });
+    }
+    return original(source, target);
+  };
+  try { await assert.rejects(acquireWaiting("bounded file denial", { root: store, waitMs: 100, pollMs: 5, census: () => [] }),
+    /Reservation files busy.*EPERM/); }
+  finally { fs.renameSync = original; }
+  assert.ok(Date.now() - renameBegan < 500, "atomic rename does not add its independent one-second retry after admission expires");
+  assert.deepEqual(fs.readdirSync(store), [], "expired admission leaves no ownership or ambiguous temp evidence");
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    const open = fs.openSync;
+    let probes = 0, waits = 0;
+    fs.openSync = (target, ...args) => {
+      if (String(target).startsWith(store + path.sep)) {
+        if (path.basename(target).startsWith("write-probe-")) probes++;
+        throw Object.assign(new Error("store-wide denial"), { code });
+      }
+      return open(target, ...args);
+    };
+    try { await assert.rejects(acquireWaiting("denied store", { root: store, waitMs: 5000, census: () => [],
+      onWait: () => waits++ }), error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
+    finally { fs.openSync = open; }
+    assert.equal(probes, 1, "genuine denial probes once and refuses before retrying");
+    assert.equal(waits, 0);
+    assert.deepEqual(fs.readdirSync(store), []);
+  }
+  // A held peer survives file-specific denial, including the probe.
+  const peer = JSON.stringify({ token: "peer", owner: { pid: 42, start: "peer" }, phase: "reserved" });
+  fs.writeFileSync(path.join(store, "reservation.json"), peer);
+  const open = fs.openSync;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EBUSY" });
+    return open(target, ...args);
+  };
+  try { await assert.rejects(acquireWaiting("peer preserved", { root: store, waitMs: 50, pollMs: 5, census: () => [] }), /Reservation files busy/); }
+  finally { fs.openSync = open; }
+  assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  // Failure cleaning the private probe cannot claim writable proof or retry.
+  const unlink = fs.unlinkSync;
+  let cleanupProbe;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
+    return open(target, ...args);
+  };
+  fs.unlinkSync = target => {
+    if (path.basename(target).startsWith("write-probe-")) {
+      cleanupProbe = target;
+      throw Object.assign(new Error("private probe cleanup denied"), { code: "EPERM" });
+    }
+    return unlink(target);
+  };
+  try { await assert.rejects(acquireWaiting("uncertain cleanup", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("uncertain probe cleanup retried") }), /private probe cleanup denied/); }
+  finally { fs.openSync = open; fs.unlinkSync = unlink; }
+  assert.equal(fs.existsSync(path.join(store, "reservation.json")), false);
+  fs.unlinkSync(cleanupProbe);
+  const fstat = fs.fstatSync;
+  let unknownProbe, probeFd;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
+    const fd = open(target, ...args);
+    if (path.basename(target).startsWith("write-probe-")) { unknownProbe = target; probeFd = fd; }
+    return fd;
+  };
+  fs.fstatSync = (fd, ...args) => {
+    if (fd === probeFd) throw new Error("probe identity unavailable");
+    return fstat(fd, ...args);
+  };
+  try { await assert.rejects(acquireWaiting("unknown probe identity", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("unknown probe identity retried") }), /Private reservation probe identity unavailable/); }
+  finally { fs.openSync = open; fs.fstatSync = fstat; }
+  assert.equal(fs.existsSync(unknownProbe), true, "a probe with uncertain identity remains for inspection");
+  fs.unlinkSync(unknownProbe);
+  // A failed atomic replacement preserves old published ownership bytes.
+  fs.writeFileSync(path.join(store, "reservation.json"), peer);
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) throw Object.assign(new Error("replacement denied"), { code: "EACCES" });
+    return original(source, target);
+  };
+  try { await assert.rejects(acquireWaiting("preserve old record", { root: store, waitMs: 1, census: () => [],
+    identify: pid => pid === 42 ? null : processIdentity(pid) }), /Reservation files busy/); }
+  finally { fs.renameSync = original; }
+  assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
+  assert.equal(fs.readdirSync(store).some(name => name.endsWith(".tmp")), false);
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  fs.unlinkSync(path.join(store, "recovered-peer.json"));
+  // Once atomic publication succeeded, a guard cleanup failure must not replay
+  // acquisition, even when its code would otherwise be eligible for contention.
+  let publications = 0;
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) publications++;
+    return original(source, target);
+  };
+  fs.unlinkSync = target => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("published guard cleanup denied"), { code: "EPERM" });
+    return unlink(target);
+  };
+  try { await assert.rejects(acquireWaiting("already published", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("published acquisition replayed") }), /published guard cleanup denied/); }
+  finally { fs.renameSync = original; fs.unlinkSync = unlink; }
+  assert.equal(publications, 1);
+  assert.equal(read(path.join(store, "reservation.json")).run, "already published");
+  fs.unlinkSync(path.join(store, "guard.json"));
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  console.log("PASS: Windows reservation file contention retries within its deadline using clean private probes");
+} else console.log("SKIP: Windows reservation file contention controls require Windows");
 console.log("PASS: a held reservation guard delays release and never replaces the Vitest result");
 const busy = acquire("busy", { root: lockRoot, census: () => [] });
 await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }), /Existing suite running/);
