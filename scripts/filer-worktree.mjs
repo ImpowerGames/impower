@@ -52,10 +52,10 @@ export async function checkLinks(tree) {
 function owned(recordPath, owner) {
   recordPath = absolute(recordPath);
   const r = read(recordPath);
-  if (r.version !== 1 || !owner || r.owner !== owner || r.state !== "active" || typeof r.id !== "string" || !/^[a-f0-9-]{36}$/.test(r.id)) throw new Error("Missing, inactive or ambiguous filer ownership");
+  if (![1, 2].includes(r.version) || !owner || r.owner !== owner || r.state !== "active" || typeof r.id !== "string" || !/^[a-f0-9-]{36}$/.test(r.id)) throw new Error("Missing, inactive or ambiguous filer ownership");
   const root = mainRoot(r.root);
   const expectedRecord = path.join(jobs(root), r.id, "owner.json");
-  const tree = path.join(`${root}.worktrees`, "repro", `filer-${r.id}`);
+  const tree = path.join(`${root}.worktrees`, "repro", `filer-${r.version === 1 ? r.id : r.id.replaceAll("-", "")}`);
   if (!same(expectedRecord, recordPath) || !same(tree, r.tree) || r.branch !== `repro/filer-${r.id}`) throw new Error("Ownership path or branch identity changed");
   noLinks(tree);
   const match = entries(root).filter(e => same(e.path, tree));
@@ -67,14 +67,14 @@ function owned(recordPath, owner) {
 export async function create({ root, owner, toolingOnly = false }) {
   root = mainRoot(root);
   if (typeof owner !== "string" || !owner.trim() || owner.length > 500) throw new Error("Supply the stable filing session identity as --owner");
-  const id = randomUUID(), branch = `repro/filer-${id}`, tree = path.join(`${root}.worktrees`, "repro", `filer-${id}`);
+  const id = randomUUID(), branch = `repro/filer-${id}`, tree = path.join(`${root}.worktrees`, "repro", `filer-${id.replaceAll("-", "")}`);
   const artifacts = path.join(jobs(root), id), recordPath = path.join(artifacts, "owner.json");
   noLinks(tree); noLinks(artifacts);
   if (entries(root).some(e => same(e.path, tree) || under(tree, e.path) || under(e.path, tree))) throw new Error("Proposed filer tree overlaps a registered checkout");
   fs.mkdirSync(artifacts, { recursive: true });
   git(root, ["worktree", "add", "-b", branch, tree, "origin/main"]);
   const gitdir = absolute(git(tree, ["rev-parse", "--absolute-git-dir"]));
-  const record = { version: 1, id, owner, root, tree, branch, gitdir, head: git(tree, ["rev-parse", "HEAD"]), state: "active", toolingOnly, installed: false };
+  const record = { version: 2, id, owner, root, tree, branch, gitdir, head: git(tree, ["rev-parse", "HEAD"]), state: "active", toolingOnly, installed: false };
   fs.writeFileSync(recordPath, JSON.stringify(record, null, 2) + "\n", { flag: "wx" });
   fs.writeFileSync(marker(tree), JSON.stringify({ id, owner, record: recordPath }) + "\n", { flag: "wx" });
   if (!toolingOnly) {
@@ -110,8 +110,12 @@ async function installOwned(recordPath, owner) {
   // registry/auth configuration. CLI mode flags keep the operation local/real.
   const env = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^npm_config_(?:global|location|dry[-_]run|package[-_]lock[-_]only)$/i.test(key))), PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" };
   const flags = ["--global=false", "--location=project", "--dry-run=false", "--package-lock-only=false"];
-  const localPrefix = run(process.execPath, [cli, "prefix", ...flags], r.tree, env);
-  if (!path.isAbsolute(localPrefix) || !same(fs.realpathSync.native(localPrefix), r.tree)) throw new Error("npm local prefix is not the exact owned checkout; repair npm configuration before retrying the supported helper");
+  try {
+    const localPrefix = run(process.execPath, [cli, "prefix", ...flags], r.tree, env);
+    if (!path.isAbsolute(localPrefix) || !same(fs.realpathSync.native(localPrefix), r.tree)) throw new Error("npm local prefix is not the exact owned checkout");
+  } catch (cause) {
+    throw new Error(`npm local prefix cannot be verified; preserve the owned record and repair the path/configuration before retrying the supported helper: ${cause.message}`, { cause });
+  }
   let globalPrefix;
   try { globalPrefix = run(process.execPath, [cli, "config", "get", "prefix", ...flags], r.tree, env); }
   catch (cause) { throw new Error(`npm global prefix cannot be verified; repair npm configuration while preserving registry/auth settings, then retry the supported helper: ${cause.message}`, { cause }); }

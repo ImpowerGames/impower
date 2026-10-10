@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { decide } from "../.agents/hooks/policy.mjs";
@@ -113,7 +114,7 @@ for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".cl
   }
 }
 
-const { create, install, checkLinks, remove, markerName } = await import("./filer-worktree.mjs");
+const { create, install, checkLinks, remove, markerName, main: lifecycle } = await import("./filer-worktree.mjs");
 const { decide: cleanup } = await import("../.agents/hooks/worktree-cleanup.mjs");
 const colonCommand = `Remove-Item -LiteralPath:'${reproduction}/node_modules/untracked.txt' -Force`;
 const additionalLiterals = [
@@ -520,6 +521,30 @@ git(["add", "."]); git(["commit", "-m", "local workspace fixture"]);
 git(["update-ref", "refs/remotes/origin/main", "HEAD"]);
 const owner = "test-session-1766";
 const owned = await create({ root: main, owner, toolingOnly: true });
+const ownedRecord = JSON.parse(fs.readFileSync(owned.record));
+assert.equal(ownedRecord.version, 2);
+assert.equal(path.basename(owned.tree), `filer-${ownedRecord.id.replaceAll("-", "")}`);
+assert.equal(owned.branch, `repro/filer-${ownedRecord.id}`, "branch identity retains the UUID");
+// Construct the original schema directly; never migrate a real owner record.
+const legacyId = randomUUID(), legacyOwner = "legacy-owner", legacyBranch = `repro/filer-${legacyId}`;
+const legacyTree = path.join(`${main}.worktrees`, "repro", `filer-${legacyId}`);
+const legacyRecordPath = path.join(`${main}.filer-jobs`, legacyId, "owner.json");
+git(["worktree", "add", "-b", legacyBranch, legacyTree, "origin/main"]);
+const legacyGitdir = git(["rev-parse", "--absolute-git-dir"], legacyTree);
+fs.mkdirSync(path.dirname(legacyRecordPath), { recursive: true });
+const legacyRecord = { version: 1, id: legacyId, owner: legacyOwner, root: main, tree: legacyTree, branch: legacyBranch, gitdir: legacyGitdir, head: git(["rev-parse", "HEAD"], legacyTree), state: "active", toolingOnly: true, installed: false };
+const legacyMarker = path.join(legacyGitdir, markerName), legacyMarkerBytes = Buffer.from(JSON.stringify({ id: legacyId, owner: legacyOwner, record: legacyRecordPath }) + "\n");
+fs.writeFileSync(legacyMarker, legacyMarkerBytes);
+for (const forged of [{ ...legacyRecord, version: 3 }, { ...legacyRecord, version: 2 }, { ...legacyRecord, tree: owned.tree }]) {
+  fs.writeFileSync(legacyRecordPath, JSON.stringify(forged));
+  await assert.rejects(remove(legacyRecordPath, legacyOwner), /ownership|identity/);
+  assert.ok(fs.existsSync(legacyTree)); assert.deepEqual(fs.readFileSync(legacyMarker), legacyMarkerBytes); preserved();
+}
+fs.writeFileSync(legacyRecordPath, JSON.stringify(legacyRecord));
+assert.equal((await lifecycle(["check", "--record", legacyRecordPath, "--owner", legacyOwner])).safe, true);
+await remove(legacyRecordPath, legacyOwner);
+assert.ok(!fs.existsSync(legacyTree));
+assert.equal(JSON.parse(fs.readFileSync(legacyRecordPath)).state, "removed"); preserved();
 const npmBorrowed = path.join(owned.tree, "prefix-borrowed");
 fs.symlinkSync(external, npmBorrowed, process.platform === "win32" ? "junction" : "dir");
 for (const [target, denied] of [[owned.tree, true], [npmBorrowed, true], [sibling, false]]) {
@@ -652,8 +677,7 @@ try {
       fs.writeFileSync(config, source === "user" ? `prefix=${fresh.tree}\n` : ""); fs.writeFileSync(globalConfig, "");
       if (source === "project") fs.writeFileSync(path.join(fresh.tree, ".npmrc"), `prefix=${fresh.tree}\n`);
       Object.assign(process.env, { npm_config_userconfig: config, npm_config_globalconfig: globalConfig, npm_config_cache: path.join(fresh.artifacts, "npm-cache") });
-      // npm versions can redact UUID-valued prefixes before exposing them.
-      // Either refusal must happen before any installation or marker change.
+      // Compact destination values must still refuse local/globalTop equality.
       await assert.rejects(install(fresh.record, freshOwner), /global prefix (?:collides|cannot be verified)/);
       assert.equal(JSON.parse(fs.readFileSync(fresh.record)).installed, false);
       assert.ok(!fs.existsSync(path.join(fresh.tree, "node_modules")));
@@ -679,6 +703,18 @@ try {
       preserved();
     } finally { fs.unlinkSync(globalAlias); }
   } else console.log("SKIP: Windows npm local/globalTop equality controls");
+  for (const key of Object.keys(process.env)) if (npmFixtureEnvironment.test(key)) delete process.env[key];
+  const protectedOwner = "protected-global-prefix", protectedTree = await create({ root: main, owner: protectedOwner, toolingOnly: true });
+  const protectedManifest = fs.readFileSync(path.join(protectedTree.tree, "package.json"));
+  const protectedMarker = path.join(git(["rev-parse", "--absolute-git-dir"], protectedTree.tree), markerName), protectedMarkerBytes = fs.readFileSync(protectedMarker);
+  const protectedConfig = path.join(protectedTree.artifacts, "protected.npmrc"), protectedGlobalConfig = path.join(protectedTree.artifacts, "global.npmrc");
+  fs.writeFileSync(protectedConfig, `prefix=${path.join(scratch, randomUUID())}\n`); fs.writeFileSync(protectedGlobalConfig, "");
+  Object.assign(process.env, { npm_config_userconfig: protectedConfig, npm_config_globalconfig: protectedGlobalConfig, npm_config_cache: path.join(protectedTree.artifacts, "npm-cache") });
+  await assert.rejects(install(protectedTree.record, protectedOwner), /global prefix cannot be verified/, "protected config is not physical collision coverage");
+  assert.equal(JSON.parse(fs.readFileSync(protectedTree.record)).installed, false);
+  assert.ok(!fs.existsSync(path.join(protectedTree.tree, "node_modules")));
+  assert.deepEqual(fs.readFileSync(path.join(protectedTree.tree, "package.json")), protectedManifest);
+  assert.deepEqual(fs.readFileSync(protectedMarker), protectedMarkerBytes); preserved();
 } finally {
   for (const key of Object.keys(process.env)) if (npmFixtureEnvironment.test(key)) delete process.env[key];
   for (const [key, value] of savedNpmDestinationEnvironment) process.env[key] = value;

@@ -1,5 +1,7 @@
 # Delegated filing routes
 
+New lifecycle records use version 2: the checkout leaf contains the ownership UUID without hyphens; the record, branch and marker retain the UUID identity. Version 1 records retain their original UUID leaf and strict ownership/removal checks, without migration or renaming. npm can protect a legacy UUID path or an ancestor in its prefix output; installation then refuses before mutation and preserves the record. Create a fresh supported reproduction only when its parent path is queryable: changing the leaf does not repair an unqueryable ancestor. Never decode protected output or relax physical identity verification.
+
 The resolve-issue [outstanding work](../resolve-issue/references/follow-ups.md) sweep hands each out-of-scope item to a cheap filing route instead of reproducing it in the writer's own context. The route runs the file-bug or file-task skill in its own worktree and reports the ticket number.
 
 | Runner      | Launch                                                                                                                                                             |
