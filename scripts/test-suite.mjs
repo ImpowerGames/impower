@@ -1,11 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { spawn } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { spawnDetached } from "./detached-launch.mjs";
 import { acquireWaiting, releaseKeeping, waitForCensus, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
 import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 import { prepareOwnedRuntime, prepareOwnedChild, runOwnedChild, readTreeProof, assertAttemptBinding } from "./test-suite-child.mjs";
@@ -122,7 +120,9 @@ function loadEvidence(run, identify = processIdentity) {
           timedOut: proof.timedOut === true, endedAt: proof.finishedAt });
         if (proof.status !== "exited") attempt.status = proof.status;
         else if (attempt.mode === "discover") {
-          const report = read(path.join(attempt.directory, "vitest.json"));
+          let report;
+          try { report = read(path.join(attempt.directory, "vitest.json")); }
+          catch (error) { attempt.reportError = error.message; }
           attempt.status = proof.exit === 0 && Array.isArray(report) && report.every(value => typeof value === "string") ? "passed" : "failed";
         } else if (proof.exit === 75) {
           const selection = read(path.join(attempt.directory, "selection.json"));
@@ -507,12 +507,6 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   }
 }
 
-// One worker process with a fresh environment per file. `singleFork` would
-// share one environment across a package's files, which fails jsdom suites
-// for reasons unrelated to the change under test.
-export const vitestArguments = files => ["run", ...files, "--pool=forks",
-  "--poolOptions.forks.minForks=1", "--poolOptions.forks.maxForks=1", "--no-file-parallelism"];
-
 // A direct Vitest run under the machine-wide reservation, so single-file runs
 // and suites queue behind each other instead of racing.
 export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "inherit", ...dependencies }) {
@@ -678,7 +672,7 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
   const summary = aggregate(run);
   if (live) summary.status = "running";
   else if (unknown) summary.status = "unknown";
-  else if (!run.identity) summary.status = "interrupted";
+  else if (!run.identity && !["timed-out", "stale"].includes(summary.status) && !summary.unitFailures.length) summary.status = "interrupted";
   return { run: run.directory, ...summary, identityChecked: !live && !unknown && !!run.identity, attempts: run.attempts };
 }
 

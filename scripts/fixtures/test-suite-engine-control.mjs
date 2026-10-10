@@ -13,7 +13,8 @@ const specifications = names.map(name => ({ file: fs.realpathSync.native(path.jo
 const result = value => fs.writeFileSync(output, JSON.stringify(value));
 if (mode === "discover") {
   if (control.discoverDelayMs) await new Promise(resolve => setTimeout(resolve, control.discoverDelayMs));
-  result(specifications.map(spec => spec.file));
+  if (!control.discoverMissingReport) result(specifications.map(spec => spec.file));
+  process.exitCode = control.discoverExit || 0;
 }
 else if (mode === "select") result({ version: 1, specifications, coverage: { enabled: false } });
 else if (mode === "merge") {

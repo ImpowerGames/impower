@@ -12,7 +12,7 @@ import { processIdentity } from "./test-suite-process.mjs";
 
 if (process.argv.includes("--progress-boundaries") || process.argv.includes("--progress-first")) {
   await ownedProgressBoundaries();
-} else if (process.argv.includes("--owned-boundaries") || process.argv.includes("--waiting-holder")) {
+} else if (process.argv.includes("--owned-boundaries") || process.argv.includes("--waiting-holder") || process.argv.includes("--discovery-status")) {
   await ownedBoundaries();
 } else {
 // Journal/admission tests use an explicit coordinator protocol adapter. Its
@@ -333,7 +333,7 @@ uncertain.update({phase:"exited"}); uncertain.release();
 // A waiting run queues on a live reservation, then holds it while other
 // Vitest processes finish, so a third run queues behind it rather than racing.
 const { acquireWaiting } = await import("./test-suite-process.mjs");
-const { runVitest, vitestArguments } = await import("./test-suite.mjs");
+const { runVitest } = await import("./test-suite.mjs");
 // Each wait signal advances the scenario one step, and a constant identity
 // keeps every attempt cheap, so no step depends on timers or machine load.
 const live = { root: lockRoot, identify: () => owner };
@@ -366,8 +366,6 @@ assert.equal(ambiguousWaits, 0, "an ambiguous reservation refuses without queue 
 ambiguous.update({ phase: "exited" }); ambiguous.release();
 console.log("PASS: --wait queues on the reservation, holds it while other Vitest processes exit, and times out by releasing it");
 
-assert.deepEqual(vitestArguments(["src/a.test.ts"]), ["run", "src/a.test.ts", "--pool=forks", "--poolOptions.forks.minForks=1", "--poolOptions.forks.maxForks=1", "--no-file-parallelism"]);
-assert.ok(!vitestArguments([]).some(a => /singleFork/.test(a)), "singleFork shares one environment across files");
 const fakeVitest = path.join(scratch, ".git", "fake-vitest.mjs");
 const fakeRecord = path.join(scratch, ".git", "fake-vitest.json");
 fs.writeFileSync(fakeVitest, `import fs from "node:fs";
@@ -690,7 +688,7 @@ busy.release();
   assert.ok(lines.includes(reservationAcquiredLine), "an acquired reservation is announced");
   assert.equal(reservationAcquiredLine, '{"status":"acquired"}');
 }
-console.log("PASS: run composes the one-worker flags, caps the heap and holds the reservation");
+console.log("PASS: run retains exact arguments, heap/environment, cwd and reservation ownership (coordinator adapter)");
 
 // The command line parses --wait and dispatches run, start and resume through
 // the same waiting reservation. A long poll interval shows the sleep stops at
@@ -1645,11 +1643,13 @@ await ownedBoundaries();
 }
 
 async function ownedBoundaries() {
-  const { runVitest, execute, notRunExit } = await import("./test-suite.mjs");
+  const { runVitest, execute, notRunExit, status } = await import("./test-suite.mjs");
   const { runOwnedChild, readTreeProof } = await import("./test-suite-child.mjs");
   const { read, acquire, acquireWaiting } = await import("./test-suite-process.mjs");
   const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "impower-owned-boundaries-")));
   console.log("Owned boundary scratch repository: " + base);
+  const discoveryOnly = process.argv.includes("--discovery-status");
+  if (!discoveryOnly) {
   const holderRoot = path.join(base, "waiting-reservation"), rows = [];
   const holder = acquire("real waiting holder", { root: holderRoot, census: () => [] });
   const progressAt = new Date().toISOString();
@@ -1669,6 +1669,7 @@ async function ownedBoundaries() {
   } finally { holder.release(); }
   console.log("PASS: reached waiting rows advance holder/unit/progress age without inventing progress");
   if (process.argv.includes("--waiting-holder")) return;
+  }
   const enginePath = fileURLToPath(new URL("./fixtures/test-suite-engine-control.mjs", import.meta.url));
   const fixture = name => {
     const packageRoot = path.join(base, name); fs.mkdirSync(packageRoot);
@@ -1690,7 +1691,7 @@ async function ownedBoundaries() {
     for (const attempt of result.observedAttempts || []) if (attempt.containment?.exitConfirmed)
       readTreeProof(attempt.supervision, { close: attempt.supervision.launcherClose });
   };
-  for (const fault of [true, false]) {
+  for (const fault of discoveryOnly ? [] : [true, false]) {
     const options = fixture("initial-admission-" + fault), rename = fs.renameSync;
     let reached = 0, helpers = 0;
     fs.renameSync = (from, to) => {
@@ -1713,7 +1714,7 @@ async function ownedBoundaries() {
     verifyProofs(result);
     console.log("PASS: definite first-unit refusal/same-route sensitivity=" + fault);
   }
-  for (const expected of [0, 1, 124]) {
+  for (const expected of discoveryOnly ? [] : [0, 1, 124]) {
     for (const fault of ["post-start", "final-publication", "release"]) {
       const options = fixture("known-" + expected + "-" + fault);
       if (expected === 1) fs.writeFileSync(path.join(options.packageRoot, ".git", "engine-control.json"), '{"exit":7}');
@@ -1763,12 +1764,56 @@ async function ownedBoundaries() {
   const original = read(path.join(directory, "run.json")), attempt = original.attempts[0];
   assert.equal(attempt.status, "timed-out");
   readTreeProof(attempt.supervision, { close: attempt.supervision.launcherClose });
+  const timedOutStatus = status(directory, { fingerprint: options.fingerprint });
+  assert.equal(timedOutStatus.status, "timed-out", "Public status preserves authenticated discovery timeout without a manifest");
+  assert.equal(timedOutStatus.unitTimeouts[0].mode, "discover");
+  const publicStatus = spawnSync(process.execPath, [fileURLToPath(new URL("./test-suite.mjs", import.meta.url)), "status", directory],
+    { encoding: "utf8", windowsHide: true, timeout: 30000 });
+  assert.equal(publicStatus.status, 124, publicStatus.stderr);
+  assert.equal(JSON.parse(publicStatus.stdout).status, "timed-out");
   const before = events(options).length;
   await assert.rejects(execute({ ...options, directory }), error => /new run/.test(error.message) && !error.notRun);
   assert.equal(events(options).length, before, "Incomplete discovery resume never relaunches an engine");
   assert.equal(read(path.join(directory, "run.json")).attempts[0].status, "timed-out");
+  assert.equal(status(directory, { fingerprint: options.fingerprint }).status, "stale",
+    "The reached semantic resume refusal remains stale without a reusable manifest");
   console.log("PASS: owned discovery timeout124 and explicit no-relaunch resume refusal");
-  await ownedProgressBoundaries();
+  // Journal-only variations reuse the authentic native proof; no fabricated
+  // terminal evidence or process identity supplies containment credit.
+  const journalFile = path.join(directory, "run.json"), originalBytes = fs.readFileSync(journalFile);
+  try {
+    const live = structuredClone(original);
+    live.active = true; live.owner = processIdentity(process.pid); live.stale = true;
+    fs.writeFileSync(journalFile, JSON.stringify(live));
+    assert.equal(status(directory, { fingerprint: options.fingerprint }).status, "running");
+    const unknown = structuredClone(original);
+    unknown.active = false; unknown.owner = null; unknown.stale = true;
+    unknown.attempts[0].supervision.attemptId = "00000000-0000-0000-0000-000000000000";
+    fs.writeFileSync(journalFile, JSON.stringify(unknown));
+    assert.equal(status(directory, { fingerprint: options.fingerprint }).status, "unknown");
+    const missing = structuredClone(original);
+    missing.attempts = []; missing.active = false; missing.owner = null;
+    fs.writeFileSync(journalFile, JSON.stringify(missing));
+    assert.equal(status(directory, { fingerprint: options.fingerprint }).status, "interrupted",
+      "Missing manifest and absent terminal evidence cannot manufacture a pass");
+  } finally { fs.writeFileSync(journalFile, originalBytes); }
+  for (const [exit, missingReport] of [[7, false], [7, true], [0, true]]) {
+    const failedOptions = fixture("discovery-failure-" + exit + "-" + missingReport);
+    const failedDirectory = path.join(failedOptions.packageRoot, ".git", "test-suites", "failed");
+    fs.writeFileSync(path.join(failedOptions.packageRoot, ".git", "engine-control.json"),
+      JSON.stringify({ discoverExit: exit, discoverMissingReport: missingReport }));
+    await assert.rejects(execute({ ...failedOptions, directory: failedDirectory }), /Discovery failed/);
+    const failedStatus = status(failedDirectory, { fingerprint: failedOptions.fingerprint });
+    assert.equal(failedStatus.status, "failed", "Authenticated discovery failure stays distinct from interruption/unknown");
+    assert.equal(failedStatus.unitFailures[0].mode, "discover");
+    const failedAttempt = failedStatus.attempts[0];
+    const proof = readTreeProof(failedAttempt.supervision, { close: failedAttempt.supervision.launcherClose });
+    assert.equal(proof.exit, exit);
+    assert.equal(proof.status, "exited");
+    if (missingReport) assert.match(failedAttempt.reportError, /ENOENT/);
+  }
+  console.log("PASS: discovery status preserves failed outcomes and live/unknown/missing-manifest precedence");
+  if (!discoveryOnly) await ownedProgressBoundaries();
 }
 
 async function ownedProgressBoundaries() {
