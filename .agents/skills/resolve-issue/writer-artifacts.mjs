@@ -41,6 +41,19 @@ export function allocateWriterArtifacts({ parent, issue, writer, session, worktr
   const probe = spawnSync('git', ['-C', directory, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true, env: gitEnv });
   if (probe.status === 0) throw new Error(`Artifact parent is inside a Git repository: ${directory}`);
   if (probe.error || probe.status !== 128 || probe.stderr.trim() !== 'fatal: not a git repository (or any of the parent directories): .git') throw new Error(`Cannot verify artifact parent is outside Git repositories: ${directory}`);
+  // Git can emit the ordinary no-repository diagnostic for incomplete .git
+  // metadata. Its physical presence still makes this ancestor unverifiable.
+  for (let ancestor = directory; ; ancestor = path.dirname(ancestor)) {
+    const metadata = path.join(ancestor, '.git');
+    try {
+      fs.lstatSync(metadata);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw new Error(`Cannot verify artifact parent metadata: ${metadata}`, { cause: error });
+      if (path.dirname(ancestor) === ancestor) break;
+      continue;
+    }
+    throw new Error(`Cannot verify artifact parent with repository metadata: ${metadata}`);
+  }
   const artifactDir = fs.mkdtempSync(path.join(directory, `writer-${issue}-`));
   protectPrivatePath(artifactDir);
   const result = { artifactDir, commitMessage: path.join(artifactDir, 'commit-msg.txt'), prBody: path.join(artifactDir, 'pr-body.md'), ownerFile: path.join(artifactDir, 'owner.json') };
