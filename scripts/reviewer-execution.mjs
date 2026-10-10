@@ -8,6 +8,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
 import { processIdentity } from "./reviewer-slots.mjs";
 import { createEditorSession, editorImages, editorRequestBytes, validateEditorRequest, executionPassed } from "./reviewer-editor.mjs";
+import { createReceiptDescriptor, awaitReceiptDisposition } from "./test-suite-receipt.mjs";
 
 const git = (root, args) => execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true }).trim();
 const inside = (root, file) => { const relative = path.relative(root, file); return relative && !relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative); };
@@ -106,14 +107,14 @@ function execute(command, root, directory) {
   fs.writeFileSync(started, JSON.stringify({ command, root, phase: "launching", coordinator: processIdentity(process.pid) }), { flag: "wx" });
   const fd = fs.openSync(log, "wx");
   const child = spawn(fs.realpathSync.native(process.execPath), command.args, { cwd: root, env: { ...executionEnvironment(), ...command.environment }, windowsHide: true, detached: process.platform !== "win32", stdio: ["ignore", fd, fd] });
-  fs.closeSync(fd);
   return new Promise(resolve => {
-    let timedOut = false, launchError, stopError;
+    let timedOut = false, launchError, stopError, originalIdentity;
     const stop = () => {
       timedOut = true;
       try {
         if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
-        if (process.platform === "win32") execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "pipe", timeout: 10000 });
+        if (command.kind === "vitest") child.kill();
+        else if (process.platform === "win32") execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "pipe", timeout: 10000 });
         else process.kill(-child.pid, "SIGKILL");
       } catch (error) { stopError = error.message; }
       // Keep awaiting actual close. Unconfirmed exit cannot release the review
@@ -137,13 +138,24 @@ function execute(command, root, directory) {
       }, 100);
     }
     child.once("error", error => { launchError = error.message; });
-    child.once("close", (exit, signal) => {
+    child.once("close", async (exit, signal) => {
       clearTimeout(timer);
       clearInterval(poll);
-      const result = { id: command.id, exit, signal, timedOut, launchError, stopError, log };
+      const result = { id: command.id, exit, signal, timedOut, launchError, stopError, log, coordinator: originalIdentity };
+      if (command.kind === "vitest") {
+        const disposition = command.receipt ? await awaitReceiptDisposition(command.receipt, { coordinator: originalIdentity })
+          : { confirmed: false, error: "Caller-authored receipt is absent" };
+        result.containmentConfirmed = disposition.confirmed;
+        result.receipt = command.receipt?.file;
+        if (!disposition.confirmed) result.containmentError = disposition.error;
+      }
       resolve(result);
     });
-    try { fs.writeFileSync(started, JSON.stringify({ command, root, phase: "running", pid: child.pid, identity: child.pid ? processIdentity(child.pid) : null })); }
+    try { fs.closeSync(fd); } catch (error) { stopError = "Owned execution log descriptor cleanup failed: " + error.message; }
+    try {
+      originalIdentity = child.pid ? processIdentity(child.pid) : null;
+      fs.writeFileSync(started, JSON.stringify({ command, root, phase: "running", pid: child.pid, identity: originalIdentity }));
+    }
     catch (error) { stopError = `Execution ownership record unavailable: ${error.message}`; }
   });
 }
@@ -199,13 +211,26 @@ export async function startExecutionService({ operations, root, directory, head 
       if (editorRequest) requests.set(key, JSON.stringify(request));
       results.set(key, { id: command.id, requestId: editorRequest || undefined, state: "running", head });
       pending = Promise.resolve().then(() => {
-        if (!editorRequest) return run(command, root, directory);
+        if (!editorRequest) {
+          if (command.kind === "vitest") {
+            const receiptDirectory = fs.mkdtempSync(path.join(directory, command.id + "-supervision-"));
+            const waitIndex = command.args.indexOf("--wait");
+            const receipt = createReceiptDescriptor({ directory: receiptDirectory, operation: command.id, head,
+              runnerRoot: root, packageRoot: command.args[2], files: command.args.slice(3, waitIndex),
+              waitMs: command.waitSeconds * 1000, outerTimeoutMs: command.timeoutSeconds * 1000 });
+            return run({ ...command, receipt, args: [...command.args, "--internal-receipt", receipt.file] }, root, directory);
+          }
+          return run(command, root, directory);
+        }
         if (!editors.has(command.id)) editors.set(command.id, createEditorSession(command, root, directory, run));
         return editors.get(command.id).run(request);
       }).then(result => {
         frozen();
+        if (command.kind === "vitest" && result.containmentConfirmed !== true)
+          failure = result.containmentError || "Vitest owned cleanup remains unconfirmed; preserve execution evidence";
         const notRun = command.kind === "vitest" && vitestNotRun(result);
-        const terminal = { ...result, id: command.id, head, state: "complete", passed: !notRun && executionPassed(result), ...(notRun ? { notRun: true } : {}) };
+        const terminal = { ...result, id: command.id, head, state: "complete",
+          passed: !failure && !notRun && executionPassed(result), ...(notRun ? { notRun: true } : {}) };
         const resultFile = editorRequest ? path.join(path.dirname(result.log), "result.json") : path.join(directory, `${command.id}.json`);
         fs.writeFileSync(resultFile, JSON.stringify(terminal, null, 2));
         results.set(key, terminal);

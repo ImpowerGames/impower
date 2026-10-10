@@ -144,7 +144,7 @@ def main():
     os.set_blocking(0, True)
     def refuse_launch():
         proof = dict(base, status="not-run", root=None, exit=None, signal=None,
-                     timedOut=False, interrupted=True, startedAt=None, finishedAt=timestamp(),
+                     timedOut=False, interrupted=disconnected.is_set(), startedAt=None, finishedAt=timestamp(),
                      tree=dict(mechanism="linux-subreaper", empty=True, observation="no-launch"))
         publish_proof(proof)
         emit("finished", status="not-run")
@@ -157,7 +157,20 @@ def main():
     started_at = timestamp()
     deadline = time.monotonic() + request["timeoutMs"] / 1000
     error_read, error_write = os.pipe2(os.O_CLOEXEC | os.O_NONBLOCK)
-    with open(request["logFile"], "xb", buffering=0) as output:
+    try:
+        output = open(request["logFile"], "xb", buffering=0)
+    except OSError as error:
+        # No fork has occurred. Only this pre-root open boundary may claim
+        # no-launch; later parent/close failures retain their real ancestry.
+        os.close(error_read)
+        os.close(error_write)
+        base["launchError"] = str(error)
+        try:
+            print(type(error).__name__ + ": " + str(error), file=sys.stderr)
+        except OSError:
+            disconnected.set()
+        return refuse_launch()
+    with output:
         if disconnected.is_set() or time.monotonic() >= admission_deadline:
             os.close(error_read)
             os.close(error_write)

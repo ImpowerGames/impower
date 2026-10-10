@@ -1,3 +1,6 @@
+// agent-tooling-timeout-ms: 900000
+// Current sparse check measured538124ms;254s is a conservative historical
+// whole-check allowance for the installed branch, plus about108s margin.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -5,11 +8,25 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { processIdentity } from "./test-suite-process.mjs";
 
+if (process.argv.includes("--progress-boundaries") || process.argv.includes("--progress-first")) {
+  await ownedProgressBoundaries();
+} else if (process.argv.includes("--owned-boundaries") || process.argv.includes("--waiting-holder")) {
+  await ownedBoundaries();
+} else {
+// Journal/admission tests use an explicit coordinator protocol adapter. Its
+// synthetic proofs carry no containment credit; actual helpers run below in
+// ownedBoundaries and in the separate cross-platform helper/API checks.
+const coordinatorAdapter = await import("./fixtures/test-suite-coordinator-adapter.mjs");
+const coordinatorDependencies = { prepareRuntime: coordinatorAdapter.prepareRuntime,
+  prepareChild: coordinatorAdapter.prepareChild, ownedChild: coordinatorAdapter.ownedChild,
+  // Unit protocol identities are synthetic. Native/API cases omit this seam.
+  identify:pid=>pid===process.pid?processIdentity(pid):null };
 const root = path.dirname(fileURLToPath(import.meta.url));
 assert.ok(fs.existsSync(path.join(root, "test-suite.mjs")),
   "package verification must provide durable status/resume instead of manual log concatenation");
-const { verifyResult, aggregate } = await import("./test-suite.mjs");
+const { verifyResult, aggregate, directTerminalSummary } = await import("./test-suite.mjs");
 const { main: packageMain } = await import("./test-suite.mjs");
 const packageScratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-package-preflight-"));
 console.log(`Package preflight scratch: ${packageScratch}`);
@@ -81,6 +98,8 @@ const additionalAlias = path.join(packageScratch, "additional-alias");
 fs.symlinkSync(literalPackage, additionalAlias, process.platform === "win32" ? "junction" : "dir");
 const validSpellings = ["valid.test.ts", path.join(literalPackage, "valid.test.ts"),
   path.join(literalAlias, "valid.test.ts"), path.join(additionalAlias, "valid.test.ts")];
+fs.mkdirSync(path.join(literalPackage, "node_modules", "vitest"), { recursive: true });
+fs.writeFileSync(path.join(literalPackage, "node_modules", "vitest", "package.json"), '{"version":"2.1.9"}');
 if (process.platform === "win32") {
   const shortPackage = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
     "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
@@ -90,7 +109,7 @@ if (process.platform === "win32") {
 }
 for (const requested of validSpellings) {
   await assert.rejects(packageMain(["run", literalAlias, requested], {
-    vitestPath: literalChild, root: literalStore,
+    ...coordinatorDependencies, enginePath: literalChild, root: literalStore,
     census: () => { throw new Error("valid alias reached queue admission"); },
   }), /valid alias reached queue admission/, "valid relative, physical and additional OS aliases reach admission");
 }
@@ -126,8 +145,20 @@ assert.notEqual(aggregate({ files: [file, "unfinished.test.ts"], attempts: [
   { file, status: "passed", failures: [], skips: [], tests: 1 },
 ] }).status, "passed");
 console.log("PASS: durable runner rejects incomplete suite and exit-zero partial evidence");
+const failedFinalizer=aggregate({files:[file],attempts:[{file,status:"passed",tests:1},
+  {id:"finalizer",file:"aggregate-request.json",mode:"merge",status:"failed",problems:["Reporter failed"]}]});
+assert.equal(failedFinalizer.status,"failed");assert.deepEqual(failedFinalizer.failed,[]);
+assert.deepEqual(failedFinalizer.completed,[file]);assert.equal(failedFinalizer.unitFailures[0].mode,"merge");
+console.log("PASS: non-file unit failure cannot label a completed aggregate passed");
+const unknownDiagnostic=directTerminalSummary({exit:1,status:"unknown",directory:"fixture-run-evidence",
+  observedAttempts:[{id:"unknown-unit",mode:"run-direct",status:"unknown",directory:"fixture-attempt-evidence",
+    containmentError:"Owned helper proof is missing"}]},5000);
+assert.equal(unknownDiagnostic.status,"unknown");assert.equal(unknownDiagnostic.evidence,"fixture-run-evidence");
+assert.equal(unknownDiagnostic.attemptDiagnostics[0].containmentError,"Owned helper proof is missing");
+assert.equal(unknownDiagnostic.attemptDiagnostics[0].evidence,"fixture-attempt-evidence");
+console.log("PASS: terminal formatter retains unknown containment reason and both evidence paths (unit only)");
 
-const { acquire, reservationState, processIdentity, read, atomic, windowsVitestProcesses, vitestProcesses } = await import("./test-suite-process.mjs");
+const { acquire, reservationState, read, atomic, windowsVitestProcesses, vitestProcesses } = await import("./test-suite-process.mjs");
 const { execute, status } = await import("./test-suite.mjs");
 const { fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } = await import("./test-suite-identity.mjs");
 assert.equal(isWithinDirectory("C:\\repo\\.git","D:\\journal",path.win32),false,"cross-volume journals are outside the Git directory");
@@ -212,6 +243,9 @@ else {
 }`);
 const lockRoot = path.join(scratch, ".git", "machine");
 const options = { packageRoot: scratch, enginePath, root: lockRoot, census: () => [], fingerprint: () => "unchanged" };
+Object.assign(options, coordinatorDependencies);
+fs.mkdirSync(path.join(scratch, "node_modules", "vitest"), { recursive: true });
+fs.writeFileSync(path.join(scratch, "node_modules", "vitest", "package.json"), '{"version":"2.1.9"}');
 const outsideDirectory=path.join(scratch,"outside-journal");
 await assert.rejects(execute({...options,directory:outsideDirectory}),/below this worktree's Git directory/);
 assert.equal(fs.existsSync(outsideDirectory),false,"reject journal destinations before creating them");
@@ -227,7 +261,7 @@ assert.equal(read(path.join(directory, "run.json")).attempts.length, initial.att
 fs.unlinkSync(path.join(scratch, ".git", "fail"));
 assert.equal((await execute({ ...options, directory, retry: [path.join(scratch, "b.spec.tsx")] })).status, "passed");
 assert.equal(read(path.join(directory, "run.json")).attempts.length, initial.attempts.length + 1);
-assert.equal(status(directory, { fingerprint: () => "changed" }).status, "stale");
+assert.equal(status(directory, { identify:coordinatorDependencies.identify,fingerprint: () => "changed" }).status, "stale");
 await assert.rejects(execute({ ...options, directory, fingerprint: () => "changed" }), /identity changed/);
 
 // Let a separate coordinator finish a retry at the precise ownership handoff.
@@ -261,7 +295,7 @@ fs.writeFileSync(path.join(scratch,"local-options.ts"),'export default {test:{in
 const ignoredDirectory=path.join(scratch,".git","ignored-config-run");
 assert.equal((await execute({...options,directory:ignoredDirectory,fingerprint:fingerprinter()})).status,"passed");
 fs.appendFileSync(path.join(scratch,"vitest.config.ts"),"\n// changed configuration\n");
-assert.equal(status(ignoredDirectory).status,"stale","ignored configuration changes invalidate evidence");
+assert.equal(status(ignoredDirectory,{identify:coordinatorDependencies.identify}).status,"stale","ignored configuration changes invalidate evidence");
 await assert.rejects(execute({...options,directory:ignoredDirectory,fingerprint:fingerprinter()}),/identity changed/);
 const ignoredHelperBefore=fingerprinter()(scratch,[]);
 fs.appendFileSync(path.join(scratch,"local-options.ts"),"\n// changed imported configuration\n");
@@ -271,7 +305,7 @@ fs.writeFileSync(path.join(scratch,"fixture.txt"),"expected");
 const assetDirectory=path.join(scratch,".git","ignored-asset-run");
 assert.equal((await execute({...options,directory:assetDirectory,fingerprint:fingerprinter()})).status,"passed");
 fs.writeFileSync(path.join(scratch,"fixture.txt"),"unexpected");
-assert.equal(status(assetDirectory).status,"stale","ignored assets invalidate reusable evidence regardless of extension");
+assert.equal(status(assetDirectory,{identify:coordinatorDependencies.identify}).status,"stale","ignored assets invalidate reusable evidence regardless of extension");
 await assert.rejects(execute({...options,directory:assetDirectory,fingerprint:fingerprinter()}),/identity changed/);
 fs.mkdirSync(path.join(scratch,"local","node_modules","dep"),{recursive:true});
 fs.writeFileSync(path.join(scratch,"local","package.json"),"{}");
@@ -280,7 +314,7 @@ fs.writeFileSync(nestedDependency,"first");
 const nestedDirectory=path.join(scratch,".git","ignored-nested-dependency-run");
 assert.equal((await execute({...options,directory:nestedDirectory,fingerprint:fingerprinter()})).status,"passed");
 fs.writeFileSync(nestedDependency,"a deliberately longer dependency");
-assert.equal(status(nestedDirectory).status,"stale","ignored nested package dependencies participate with native paths");
+assert.equal(status(nestedDirectory,{identify:coordinatorDependencies.identify}).status,"stale","ignored nested package dependencies participate with native paths");
 await assert.rejects(execute({...options,directory:nestedDirectory,fingerprint:fingerprinter()}),/identity changed/);
 console.log("PASS: release-boundary retries retain evidence and ignored configuration invalidates reuse");
 
@@ -337,15 +371,20 @@ assert.ok(!vitestArguments([]).some(a => /singleFork/.test(a)), "singleFork shar
 const fakeVitest = path.join(scratch, ".git", "fake-vitest.mjs");
 const fakeRecord = path.join(scratch, ".git", "fake-vitest.json");
 fs.writeFileSync(fakeVitest, `import fs from "node:fs";
+if(process.argv[2]==="run-direct") {
 const read = () => JSON.parse(fs.readFileSync(${JSON.stringify(path.join(lockRoot, "reservation.json"))}, "utf8"));
 let reservation = read();
 for (const deadline = Date.now() + 20000; !reservation.child && Date.now() < deadline; reservation = read()) await new Promise(r => setTimeout(r, 50));
 fs.writeFileSync(${JSON.stringify(fakeRecord)}, JSON.stringify({ argv: process.argv.slice(2), execArgv: process.execArgv, nodeOptions: process.env.NODE_OPTIONS, cwd: process.cwd(), phase: reservation.phase, child: reservation.child?.pid === process.pid }));
-process.exitCode = 3;`);
-const ran = await runVitest({ packageRoot: scratch, files: ["a.test.ts"], vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" });
-assert.equal(ran.exit, 3, "the Vitest exit status is returned");
+}
+await import(${JSON.stringify(new URL("./fixtures/test-suite-engine-control.mjs", import.meta.url).href)});
+if(process.argv[2]==="run-direct")process.exitCode=3;`);
+const ran = await runVitest({ ...options, files: ["a.test.ts"], enginePath: fakeVitest, stdio: "ignore" });
+assert.equal(ran.exit, 1, "the public aggregate reports ordinary test failure");
+assert.equal(ran.observedAttempts.find(attempt=>attempt.mode==="run-direct").exit, 3, "raw unit exit remains observed evidence");
 const recorded = read(fakeRecord);
-assert.deepEqual(recorded.argv, vitestArguments(["a.test.ts"]));
+assert.equal(recorded.argv[0], "run-direct");
+assert.equal(recorded.argv[3], path.join(scratch,"a.test.ts"));
 assert.ok(recorded.execArgv.includes("--max-old-space-size=1024"));
 assert.equal(recorded.nodeOptions, "--max-old-space-size=1024", "forked workers inherit the heap cap");
 assert.equal(canonicalPath(recorded.cwd), canonicalPath(scratch));
@@ -360,15 +399,39 @@ const guardFile = path.join(lockRoot, "guard.json");
 const freeGuard = path.join(scratch, ".git", "free-guard");
 const guardHolder = path.join(scratch, ".git", "hold-guard.mjs");
 fs.writeFileSync(guardHolder, `import fs from "node:fs";
+import {processIdentity} from ${JSON.stringify(new URL("./test-suite-process.mjs",import.meta.url).href)};
 const fd = fs.openSync(${JSON.stringify(guardFile)}, "wx");
-fs.writeFileSync(fd, "{}");
-while (!fs.existsSync(${JSON.stringify(freeGuard)})) await new Promise(r => setTimeout(r, 10));
+fs.writeFileSync(fd, JSON.stringify({owner:processIdentity(process.pid)}));
+const deadline=Date.now()+15000;
+while (!fs.existsSync(${JSON.stringify(freeGuard)}) && Date.now()<deadline) await new Promise(r => setTimeout(r, 10));
 fs.closeSync(fd); fs.unlinkSync(${JSON.stringify(guardFile)});`);
-const heldVitest = path.join(scratch, ".git", "held-vitest.mjs");
-fs.writeFileSync(heldVitest, `import fs from "node:fs";
-import { spawn } from "node:child_process";
-spawn(process.execPath, [${JSON.stringify(guardHolder)}], { detached: true, stdio: "ignore", windowsHide: true }).unref();
-while (!fs.existsSync(${JSON.stringify(guardFile)})) await new Promise(r => setTimeout(r, 5));`);
+// This coordinator-owned fixture is outside the managed engine ancestry. A
+// retained original handle, identity and actual close bound its guard lifetime.
+const guardHolders = [];
+const holdAfterFinalizer = async value => {
+  const result = await coordinatorAdapter.ownedChild(value);
+  if (value.prepared.args[2] === "merge") {
+    const child = spawn(process.execPath, [guardHolder], { windowsHide: true, stdio: "ignore" });
+    const close = new Promise(resolve => child.once("close", (exit, signal) => resolve({exit,signal})));
+    let launchError;
+    child.on("error", error => { launchError=error; });
+    const timer = setTimeout(() => child.kill(), 17000);
+    close.finally(() => clearTimeout(timer));
+    const original = processIdentity(child.pid);
+    guardHolders.push({child,close,original});
+    const deadline = Date.now()+5000;
+    while (Date.now()<deadline) {
+      try { if(read(guardFile).owner?.start) break; } catch {}
+      if(launchError) {await close;throw launchError;}
+      assert.equal(child.exitCode,null); await new Promise(resolve=>setTimeout(resolve,20));
+    }
+    assert.deepEqual(read(guardFile).owner,original,"guard records the retained original process identity");
+  }
+  return result;
+};
+const heldOptions = {...options,files:["a.test.ts"],stdio:"ignore",ownedChild:holdAfterFinalizer,
+  identify:processIdentity,
+  enginePath:fileURLToPath(new URL("./fixtures/test-suite-engine-control.mjs",import.meta.url))};
 const openFile = fs.openSync;
 let refusedGuard = 0;
 let freeOnFirstRefusal = false;
@@ -381,20 +444,25 @@ fs.openSync = function(target, ...args) {
 };
 try {
   freeOnFirstRefusal = true;
-  const briefly = await runVitest({ packageRoot: scratch, vitestPath: heldVitest, root: lockRoot, census: () => [], stdio: "ignore" });
+  const briefly = await runVitest(heldOptions);
   assert.ok(refusedGuard >= 1, "release met the held guard");
   assert.equal(briefly.exit, 0, "a briefly held guard delays release instead of failing the run");
   assert.equal(briefly.releaseError, undefined);
   assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "the reservation is released once the guard frees");
   for (const deadline = Date.now() + 5000; fs.existsSync(guardFile) && Date.now() < deadline;) await new Promise(r => setTimeout(r, 20));
+  assert.deepEqual(await guardHolders[0].close,{exit:0,signal:null});
   fs.unlinkSync(freeGuard);
   refusedGuard = 0;
   freeOnFirstRefusal = false;
-  const stuck = await runVitest({ packageRoot: scratch, vitestPath: heldVitest, root: lockRoot, census: () => [], stdio: "ignore", guardWaitMs: 200 });
+  const stuck = await runVitest({...heldOptions,guardWaitMs:200});
   assert.ok(refusedGuard >= 1, "release met the held guard");
   assert.equal(stuck.exit, 0, "the test result survives a release that cannot complete");
   assert.match(stuck.releaseError, /Reservation transaction unavailable.*guard\.json/, "the unreleased reservation is reported separately");
-} finally { fs.openSync = openFile; fs.writeFileSync(freeGuard, ""); }
+} finally {
+  fs.openSync = openFile; fs.writeFileSync(freeGuard, "");
+  for(const holder of guardHolders)assert.deepEqual(await holder.close,{exit:0,signal:null});
+}
+for (const holder of guardHolders) assert.deepEqual(await holder.close,{exit:0,signal:null});
 for (const deadline = Date.now() + 5000; fs.existsSync(guardFile) && Date.now() < deadline;) await new Promise(r => setTimeout(r, 20));
 assert.equal(read(path.join(lockRoot, "reservation.json")).phase, "exited", "an unreleased reservation stays recoverable");
 fs.unlinkSync(path.join(lockRoot, "reservation.json"));
@@ -610,14 +678,14 @@ if (process.platform === "win32") {
 } else console.log("SKIP: Windows reservation file contention controls require Windows");
 console.log("PASS: a held reservation guard delays release and never replaces the Vitest result");
 const busy = acquire("busy", { root: lockRoot, census: () => [] });
-await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }), /Existing suite running/);
+await assert.rejects(runVitest({ ...options,files:["a.test.ts"],enginePath:fakeVitest,stdio:"ignore" }), /Existing suite running/);
 busy.release();
 {
   // The reviewer execution service starts a delegated run's timeout from this line.
   const { reservationAcquiredLine } = await import("./test-suite.mjs");
   const lines = [], log = console.log;
   console.log = (...args) => { lines.push(args.join(" ")); };
-  try { await runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }); }
+  try { await runVitest({ ...options,files:["a.test.ts"],enginePath:fakeVitest,stdio:"ignore" }); }
   finally { console.log = log; }
   assert.ok(lines.includes(reservationAcquiredLine), "an acquired reservation is announced");
   assert.equal(reservationAcquiredLine, '{"status":"acquired"}');
@@ -628,11 +696,11 @@ console.log("PASS: run composes the one-worker flags, caps the heap and holds th
 // the same waiting reservation. A long poll interval shows the sleep stops at
 // the deadline rather than after a full interval.
 const { main } = await import("./test-suite.mjs");
-const seam = { root: lockRoot, census: () => [], vitestPath: fakeVitest, stdio: "ignore" };
-assert.equal(await main(["run", path.relative(process.cwd(), scratch), "a.test.ts"], seam), 3,
+const seam = { ...options,enginePath:fakeVitest,stdio:"ignore" };
+assert.equal(await main(["run", path.relative(process.cwd(), scratch), "a.test.ts"], seam), 1,
   "valid relative package directories still launch Vitest");
-assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 3, "run returns the Vitest exit status");
-assert.deepEqual(read(fakeRecord).argv, vitestArguments(["a.test.ts"]), "--wait and its value are not passed to Vitest");
+assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 1, "run reports aggregate failure while retaining raw unit exit");
+assert.ok(!read(fakeRecord).argv.includes("--wait"),"--wait and its value are not passed to the engine");
 const cliHolder = acquire("cli holder", { root: lockRoot, census: () => [] });
 for (const argv of [["run", scratch, "a.test.ts", "--wait", "3"], ["start", scratch, "--wait", "3"], ["resume", directory, "--wait", "3"]]) {
   const began = Date.now();
@@ -650,26 +718,27 @@ const { MAX_RUN_FILES } = await import("./test-suite.mjs");
 const manyFiles = Array.from({ length: MAX_RUN_FILES + 1 }, (_, i) => `f${i}.test.ts`);
 for (const name of manyFiles) fs.writeFileSync(path.join(scratch, name), "fixture");
 await assert.rejects(main(["run", scratch, ...manyFiles, "--wait", "5"], seam), new RegExp(`at most ${MAX_RUN_FILES} test files \\(${MAX_RUN_FILES + 1} named\\)`), "run refuses a list wider than the bound");
-assert.equal(await main(["run", scratch, ...manyFiles.slice(1), "--wait", "5"], seam), 3, "run accepts a list at the bound");
-assert.deepEqual(read(fakeRecord).argv, vitestArguments(manyFiles.slice(1)), "every named file at the bound reaches Vitest");
+assert.equal(await main(["run", scratch, ...manyFiles.slice(1), "--wait", "5"], seam), 1, "run accepts a list at the bound");
+const fixtureRunFiles=()=>fs.readFileSync(path.join(scratch,".git","engine-control-events.jsonl"),"utf8").trim().split("\n").map(JSON.parse).filter(value=>value.mode==="run-direct").map(value=>value.file);
+assert.deepEqual(fixtureRunFiles().slice(-MAX_RUN_FILES),manyFiles.slice(1).map(file=>path.join(scratch,file)),"every named file at the bound reaches its exact engine unit");
 const literalNames = ["a.test.ts", "b.spec.tsx", "bracket[1]{brace}(group)+@!.test.ts", "space name.test.ts"];
 for (const name of literalNames.slice(2)) fs.writeFileSync(path.join(scratch, name), "fixture");
-assert.equal(await main(["run", scratch, ...literalNames], seam), 3);
-assert.deepEqual(read(fakeRecord).argv, vitestArguments(literalNames), "valid multiple literal files retain exact spelling and order");
+assert.equal(await main(["run", scratch, ...literalNames], seam), 1);
+assert.deepEqual(fixtureRunFiles().slice(-literalNames.length),literalNames.map(file=>path.join(scratch,file)),"valid multiple literal files execute canonical identities in requested order");
 const runAlias = path.join(path.dirname(scratch), path.basename(scratch) + "-literal-run-alias");
 fs.symlinkSync(scratch, runAlias, process.platform === "win32" ? "junction" : "dir");
 const aliasFile = path.join(runAlias, "a.test.ts");
-assert.equal(await main(["run", runAlias, aliasFile], seam), 3);
-assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "valid absolute package alias is forwarded unchanged");
-assert.equal(await main(["run", scratch, aliasFile], seam), 3);
-assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "an additional physical alias retains its exact argument");
+assert.equal(await main(["run", runAlias, aliasFile], seam), 1);
+assert.equal(read(fakeRecord).argv[3],path.join(scratch,"a.test.ts"),"valid absolute package alias resolves to its exact configured identity");
+assert.equal(await main(["run", scratch, aliasFile], seam), 1);
+assert.equal(read(fakeRecord).argv[3],path.join(scratch,"a.test.ts"),"an additional alias resolves to the same exact configured identity");
 if (process.platform === "win32") {
   const shortRoot = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
     "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
     { encoding: "utf8", windowsHide: true, env: { ...process.env, IMPOWER_LITERAL_PACKAGE: scratch } }).trim();
   const shortFile = path.join(shortRoot, "a.test.ts");
-  assert.equal(await main(["run", scratch, shortFile], seam), 3);
-  assert.deepEqual(read(fakeRecord).argv, vitestArguments([shortFile]), "Windows short directory spelling is forwarded unchanged");
+  assert.equal(await main(["run", scratch, shortFile], seam), 1);
+  assert.equal(read(fakeRecord).argv[3],path.join(scratch,"a.test.ts"),"Windows short spelling resolves to its canonical configured identity");
 }
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
@@ -817,40 +886,37 @@ console.log("PASS: recovery and cleanup preserve the observed guard generation, 
   const childFile = path.join(scratch, ".git", "ownership-child.mjs");
   const reservationFile = path.join(lockRoot, "reservation.json");
   fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=Number(process.argv[2]);`);
-  let refusal;
-  await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: childFile, root: lockRoot, stdio: "ignore",
+  const refusal = await runVitest({ ...options,files:["a.test.ts"],enginePath:childFile,stdio:"ignore",
     census: () => { atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
-  }), error => (refusal = error, error.notRun === true && /ownership changed/.test(error.message)));
-  assert.equal(notRunExit(refusal, () => {}), 75);
+  });
+  assert.equal(refusal.exit,75);
+  assert.match(refusal.reservationError,/ownership changed/);
   assert.equal(fs.existsSync(marker), false, "pre-child ownership loss launches nothing");
   assert.equal(read(reservationFile).token, "peer-before-child");
   fs.unlinkSync(reservationFile);
   for (const timing of ["post-spawn", "terminal"]) for (const exit of [0, 7]) {
     // The fixture process has its own real observed close; a deterministic
     // identity seam avoids a fast child disappearing during Windows lookup.
-    fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=${exit};`);
+    fs.writeFileSync(childFile, `import fs from "node:fs";
+if(process.argv[2]==="run-direct")fs.appendFileSync(${JSON.stringify(marker)},"started\\n");
+await import(${JSON.stringify(new URL("./fixtures/test-suite-engine-control.mjs",import.meta.url).href)});
+if(process.argv[2]==="run-direct")process.exitCode=${exit};`);
     const rename = fs.renameSync;
     let replaced = false;
     fs.renameSync = (temp, target) => {
-      if (timing === "terminal" && target === reservationFile && read(temp).phase === "running" && !replaced) {
+      const value=target===reservationFile?read(temp):null;
+      if (value?.mode==="run-direct" && value.phase===(timing==="terminal"?"exited":"running") && !replaced) {
         replaced = true;
         fs.writeFileSync(temp, JSON.stringify({ ...read(temp), token: "peer-after-child" }));
       }
       return rename(temp, target);
     };
     let result;
-    try { result = await runVitest({ packageRoot: scratch, vitestPath: childFile, root: lockRoot, census: () => [], stdio: "ignore",
-      identify: pid => {
-        if (pid === process.pid) return processIdentity(pid);
-        if (timing === "post-spawn" && !replaced) {
-          replaced = true;
-          atomic(reservationFile, { ...read(reservationFile), token: "peer-after-child" });
-        }
-        return { pid, start: "fixture-child" };
-      } }); }
+    try { result = await runVitest({ ...options,files:["a.test.ts"],enginePath:childFile,stdio:"ignore" }); }
     finally { fs.renameSync = rename; }
     assert.equal(replaced, true, `${timing}: ownership was replaced at the intended boundary`);
-    assert.equal(result.exit, exit, `${timing}: retain the original child's actual exit`);
+    assert.equal(result.exit,1,`${timing}: blocked finalization makes the public result incomplete`);
+    assert.equal(result.observedAttempts.find(value=>value.mode==="run-direct").exit,exit,`${timing}: retain the original child's actual exit`);
     assert.equal(result.signal, null);
     assert.match(result.reservationError, /Reservation ownership changed/);
     assert.match(result.releaseError, /Reservation ownership changed/);
@@ -861,6 +927,47 @@ console.log("PASS: recovery and cleanup preserve the observed guard generation, 
   }
 }
 console.log("PASS: pre-child ownership loss is not run and post-spawn ownership loss preserves only the original child result");
+
+// Coordinator decision controls: synthetic protocol identities deliberately
+// provide no native containment credit. Actual ownership controls run below.
+for(const boundary of ["refused","positive","abandoned"]) {
+  const reservationFile=path.join(lockRoot,"reservation.json"),rename=fs.renameSync;
+  let entered=0,injected=false,entryRecord;
+  if(boundary==="refused")fs.renameSync=(temp,target)=>{
+    const value=target===reservationFile?read(temp):null;
+    if(value?.supervision?.helperLaunchPhase==="may-start"&&!injected){injected=true;throw new Error("controlled before helper entry");}
+    return rename(temp,target);
+  };
+  let result;
+  try {result=await runVitest({...options,files:["a.test.ts"],stdio:"ignore",
+    enginePath:fileURLToPath(new URL("./fixtures/test-suite-engine-control.mjs",import.meta.url)),
+    ownedChild:async value=>{
+      entered++;entryRecord=read(reservationFile);
+      assert.equal(entryRecord.phase,"launching");
+      assert.equal(entryRecord.supervision.helperLaunchPhase,"may-start");
+      assert.equal(entryRecord.supervision.reservationToken,entryRecord.token);
+      assert.equal(entryRecord.supervision.launchNonce,value.prepared.launchNonce);
+      assert.equal(entryRecord.supervision.attemptId,value.prepared.attemptId);
+      if(boundary==="abandoned")throw new Error("controlled lost helper entry result");
+      return coordinatorAdapter.ownedChild(value);
+    }});}finally{fs.renameSync=rename;}
+  if(boundary==="refused") {
+    assert.equal(injected,true);assert.equal(entered,0);assert.equal(result.exit,75);
+    assert.equal(fs.existsSync(reservationFile),false);
+  } else if(boundary==="positive") {assert.equal(entered,3);assert.equal(result.exit,0);assert.equal(fs.existsSync(reservationFile),false);}
+  else {
+    assert.equal(entered,1);assert.equal(result.exit,1);
+    assert.equal(result.observedAttempts[0].status,"unknown");
+    const bytes=fs.readFileSync(reservationFile,"utf8");
+    assert.equal(reservationState(read(reservationFile),()=>null),"unknown","Abandoned possible launch without identities/proof cannot reclaim");
+    assert.throws(()=>acquire("after abandoned entry",{root:lockRoot,census:()=>[],identify:()=>null}),/unknown/);
+    assert.equal(fs.readFileSync(reservationFile,"utf8"),bytes);
+    // This unit callback never launches anything. Its own synthetic reservation
+    // is removed only after asserting the production recovery refusal.
+    fs.unlinkSync(reservationFile);
+  }
+}
+console.log("PASS: possible helper entry is durably bound before invocation and abandoned entry remains unknown");
 
 const setupOwner = processIdentity(process.pid);
 const setupIdentify = pid => pid === process.pid ? setupOwner : { pid, start: "fixture-child" };
@@ -881,7 +988,7 @@ for (const mode of ["mkdir", "save", "open", "environment", "spawn", "launch-upd
   fs.openSync = (target, ...args) => typeof target === "string" && path.basename(target) === "output.log" && mode === "open" ? fail() : open(target, ...args);
   try { await execute({ ...options, directory: resultDirectory, identify: setupIdentify,
     environment: mode === "environment" ? fail : undefined,
-    spawnChild: () => { launched++; return fail(); } }); }
+    prepareChild: mode === "spawn" ? () => { launched++; return fail(); } : coordinatorAdapter.prepareChild }); }
   catch (error) { failure = error; }
   finally { fs.mkdirSync = mkdir; fs.renameSync = rename; fs.openSync = open; }
   assert.equal(injected, true, `${mode}: intended setup step reached`);
@@ -934,9 +1041,12 @@ for (const afterDiscovery of [false, true]) for (const peer of [false, true]) {
   fs.writeFileSync(fixture, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10)); await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
   const rename = fs.renameSync, reservationFile = path.join(lockRoot, "reservation.json"), runFile = path.join(resultDirectory, "run.json");
   const peerBytes = JSON.stringify({ token: "launch-peer-journal", preserved: true });
-  let launches = 0, injected = false, result, failure;
+  let injected = false, result, failure;
   fs.renameSync = (temp, target) => {
-    const selected = target === reservationFile && read(temp).phase === "launching" && ++launches === (afterDiscovery ? 2 : 1);
+    const valueBeingSaved=target===reservationFile?read(temp):null;
+    const selected = !injected && valueBeingSaved?.phase === "launching"
+      && valueBeingSaved.mode === (afterDiscovery ? "run" : "discover")
+      && valueBeingSaved.supervision?.helperLaunchPhase === "may-start" && !valueBeingSaved.supervision.launcher;
     const value = rename(temp, target);
     if (selected && !injected) {
       injected = true;
@@ -961,7 +1071,10 @@ for (const afterDiscovery of [false, true]) for (const peer of [false, true]) {
   } else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next launch", { root: lockRoot, census: () => [], identify: setupIdentify }); next.release(); }
 }
 
-for (const boundary of ["close", "running-save"]) for (const exit of [0, 7]) {
+// Parent log-close ownership moved into the native helper. Its reached real
+// log-open refusal and actual helper exit live in test-suite-child.test.mjs;
+// this coordinator unit retains the running-publication fault assertion.
+for (const boundary of ["running-save"]) for (const exit of [0, 7]) {
   const resultDirectory = path.join(scratch, ".git", `post-launch-${boundary}-${exit}`);
   const marker = path.join(scratch, ".git", `post-launch-${boundary}-${exit}.marker`);
   const fixture = path.join(scratch, ".git", `post-launch-${boundary}-${exit}.mjs`);
@@ -969,14 +1082,8 @@ for (const boundary of ["close", "running-save"]) for (const exit of [0, 7]) {
 fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10));
 await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});
 if(process.argv[2]==="run") { await new Promise(r=>setTimeout(r,80)); process.exitCode=${exit}; }`);
-  const open = fs.openSync, close = fs.closeSync, rename = fs.renameSync;
-  let logs = 0, selectedFd, injected = false;
-  fs.openSync = (target, ...args) => {
-    const fd = open(target, ...args);
-    if (typeof target === "string" && path.basename(target) === "output.log" && ++logs === 2) selectedFd = fd;
-    return fd;
-  };
-  fs.closeSync = fd => { const result = close(fd); if (boundary === "close" && fd === selectedFd && !injected) { injected = true; throw new Error("controlled parent log close"); } return result; };
+  const rename = fs.renameSync;
+  let injected = false;
   fs.renameSync = (temp, target) => {
     if (boundary === "running-save" && target === path.join(resultDirectory, "run.json") && read(temp).attempts.at(-1)?.mode === "run" && read(temp).attempts.at(-1)?.pid && !injected) {
       injected = true; throw new Error("controlled running journal save");
@@ -986,7 +1093,7 @@ if(process.argv[2]==="run") { await new Promise(r=>setTimeout(r,80)); process.ex
   let result;
   try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
     identify: setupIdentify }); }
-  finally { fs.openSync = open; fs.closeSync = close; fs.renameSync = rename; }
+  finally { fs.renameSync = rename; }
   assert.equal(injected, true);
   assert.equal(result.observedAttempt.exit, exit, "cleanup/publication failure still awaits original child close");
   assert.match(result.attemptError, /controlled/);
@@ -1149,7 +1256,7 @@ for (const peer of [false, true]) {
   };
   const refuseLaunch = () => { launches++; throw Error("unexpected saved-stale child"); };
   try { await execute({ ...options, directory: resultDirectory, identify: setupIdentify,
-    spawnChild: refuseLaunch }); }
+    prepareChild: refuseLaunch }); }
   catch (error) { failure = error; }
   finally { fs.renameSync = rename; }
   assert.equal(notRunExit(failure, () => {}), 1);
@@ -1168,7 +1275,7 @@ for (const peer of [false, true]) {
     const next = acquire("after saved stale refusal", { root: lockRoot, census: () => [], identify: setupIdentify });
     next.release();
   }
-  await assert.rejects(execute({ ...options, identify: setupIdentify, spawnChild: refuseLaunch,
+  await assert.rejects(execute({ ...options, identify: setupIdentify, prepareChild: refuseLaunch,
     directory: path.join(scratch, ".git", `saved-stale-spawn-control-${peer}`) }), /unexpected saved-stale child/);
   assert.equal(launches, 1, "the same no-launch sentinel observes an ordinary discovery admission");
   assert.equal(fs.existsSync(reservationFile), false);
@@ -1180,7 +1287,7 @@ for (const peer of [false, true]) {
   const marker = path.join(scratch, ".git", `direct-launch-${peer}.marker`);
   const fixture = path.join(scratch, ".git", `direct-launch-${peer}.mjs`);
   fs.writeFileSync(fixture, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(marker)},"started");`);
-  let injected = false, failure;
+  let injected = false, result;
   fs.renameSync = (temp, target) => {
     const selected = target === reservationFile && read(temp).phase === "launching";
     const result = rename(temp, target);
@@ -1191,12 +1298,11 @@ for (const peer of [false, true]) {
     }
     return result;
   };
-  try { await runVitest({ ...options, vitestPath: fixture, stdio: "ignore", identify: setupIdentify }); }
-  catch (error) { failure = error; }
+  try { result = await runVitest({ ...options, files:["a.test.ts"], enginePath: fixture, stdio: "ignore", identify: setupIdentify }); }
   finally { fs.renameSync = rename; }
-  assert.equal(injected, true); assert.equal(notRunExit(failure, () => {}), 75); assert.equal(fs.existsSync(marker), false);
-  assert.match(failure.message, /controlled direct/);
-  if (peer) { assert.match(failure.reservationCleanupError, /ownership changed/); assert.equal(read(reservationFile).token, "direct-launch-peer"); fs.unlinkSync(reservationFile); }
+  assert.equal(injected, true); assert.equal(result.exit,75); assert.equal(fs.existsSync(marker), false);
+  assert.match(result.reservationError, /controlled direct/);
+  if (peer) { assert.match(result.releaseError, /ownership changed/); assert.equal(read(reservationFile).token, "direct-launch-peer"); fs.unlinkSync(reservationFile); }
   else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next direct", { root: lockRoot, census: () => [], identify: setupIdentify }); next.release(); }
 }
 
@@ -1249,8 +1355,9 @@ if(process.argv[2]==="run" || ${JSON.stringify(boundary)}==="discover")process.e
   const runFile = path.join(resultDirectory, "run.json");
   const originalRead = fs.readFileSync;
   let replaced = false, peerJournal, priorAttempt, attemptFile;
-  fs.readFileSync = function(target, ...args) {
-    if (target === reservationFile && !replaced && fs.existsSync(runFile)) {
+  const terminalOwnedChild=async value=>{
+    const result=await coordinatorAdapter.ownedChild(value);
+    if (!replaced && fs.existsSync(runFile)) {
       const journal = JSON.parse(originalRead(runFile, "utf8"));
       const active = journal.attempts.at(-1);
       const selected = boundary === "discover" ? active?.mode === "discover"
@@ -1265,12 +1372,12 @@ if(process.argv[2]==="run" || ${JSON.stringify(boundary)}==="discover")process.e
         fs.writeFileSync(reservationFile, JSON.stringify({ ...JSON.parse(originalRead(reservationFile, "utf8")), token: "successor-reservation" }));
       }
     }
-    return originalRead.call(this, target, ...args);
+    return result;
   };
   let result;
-  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture, ownedChild:terminalOwnedChild,
     identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" } }); }
-  finally { fs.readFileSync = originalRead; }
+  finally { /* The adapter returns only after its original fixture-child close. */ }
   assert.equal(replaced, true, `${boundary}: terminal update reached`);
   assert.match(result.reservationError, /ownership changed/);
   assert.equal(result.unpersistedAttempts.length, 1);
@@ -1304,7 +1411,9 @@ if(process.argv[2]==="run" && ${JSON.stringify(mode)}==="malformed") {
   const originalRead = fs.readFileSync, rename = fs.renameSync;
   let running = 0, injected = false, attemptFile, priorAttempt;
   fs.renameSync = (temp, target) => {
-    if (target === reservationFile && read(temp).phase === "running" && ++running === 2) {
+    const value=target===reservationFile?read(temp):null;
+    if (value?.mode === "run" && value.phase === "running" && running === 0) {
+      running=2;
       fs.writeFileSync(temp, JSON.stringify({ ...read(temp), token: "peer-verification-reservation" }));
     }
     return rename(temp, target);
@@ -1345,9 +1454,7 @@ await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, "
 fs.writeFileSync(path.join(scratch, ".git", "slow"), "");
 const coordinatorLog=path.join(scratch,".git","coordinator.log");
 const coordinatorOutput=fs.openSync(coordinatorLog,"wx");
-const launched = spawn(process.execPath, [coordinator], { stdio: ["ignore",coordinatorOutput,coordinatorOutput], windowsHide: true });
-fs.closeSync(coordinatorOutput);
-const exited = new Promise(resolve => launched.once("close", resolve));
+let launched,exited,coordinatorIdentity,coordinatorOutputClosed=false,interruptionFailure;
 const interrupted = path.join(scratch, ".git", "interrupted");
 const until = async (check, message) => {
   const end = Date.now() + 30000;
@@ -1355,6 +1462,15 @@ const until = async (check, message) => {
   assert.fail(message);
 };
 let active;
+const {readTreeProof:readInterruptedProof}=await import("./test-suite-child.mjs");
+let interruptionProof;
+try {
+launched = spawn(process.execPath, [coordinator], { stdio: ["ignore",coordinatorOutput,coordinatorOutput], windowsHide: true });
+exited = new Promise(resolve => launched.once("close", (exit,signal)=>resolve({exit,signal})));
+launched.on("error",error=>{interruptionFailure ||= error;});
+fs.closeSync(coordinatorOutput);coordinatorOutputClosed=true;
+coordinatorIdentity=processIdentity(launched.pid);
+assert.ok(coordinatorIdentity?.start);
 await until(() => {
   assert.equal(launched.exitCode,null,fs.readFileSync(coordinatorLog,"utf8"));
   try { active = read(path.join(interrupted, "run.json")).attempts.at(-1); return active.file?.endsWith("b.spec.tsx") && active.status === "running"; }
@@ -1362,15 +1478,40 @@ await until(() => {
 }, "second file running");
 assert.equal(status(interrupted, { fingerprint: () => "unchanged" }).unfinished[0].status, "running", "yield remains observable");
 assert.equal(status(interrupted, { fingerprint: () => { throw Error("live status must not scan inputs"); } }).status, "running");
-await assert.rejects(execute({ ...options, directory: interrupted }), /running/);
+await assert.rejects(execute({packageRoot:scratch,enginePath,root:lockRoot,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted}), /running/);
 launched.kill();
 await exited;
-assert.equal(status(interrupted, { fingerprint: () => "unchanged" }).unfinished[0].status, "running", "surviving child remains running");
-await assert.rejects(execute({ ...options, directory: interrupted }), /running/);
+assert.notDeepEqual(processIdentity(coordinatorIdentity.pid),coordinatorIdentity);
+// Pipe loss cancels native-owned ancestry. Coordinator close alone cannot
+// establish that disposition; wait for independently bound fresh tree proof.
+await until(()=>{try{interruptionProof=readInterruptedProof(active.supervision);return interruptionProof.tree.empty;}catch{return false;}},"owned helper published empty-tree proof after coordinator cancellation");
+assert.equal(interruptionProof.interrupted,true);
+assert.deepEqual(interruptionProof.root,active.child);
 fs.unlinkSync(path.join(scratch, ".git", "slow"));
-await until(() => !processIdentity(active.child.pid), "surviving child exited");
+assert.notDeepEqual(processIdentity(active.child.pid),active.child,"Original root identity is absent");
+} catch(error) {interruptionFailure ||= error;throw error;} finally {
+  let cleanupError;
+  if(!coordinatorOutputClosed)try{fs.closeSync(coordinatorOutput);}catch(error){cleanupError=error.message;}
+  if(launched?.exitCode===null&&launched.signalCode===null)launched.kill();
+  let cleanupClose,timer;
+  if(exited)try {cleanupClose=await Promise.race([exited,new Promise(resolve=>{timer=setTimeout(()=>resolve(null),15000);})]);}
+    finally{clearTimeout(timer);}
+  if(launched&&!cleanupClose){cleanupError="Original coordinator close was not observed within15s";launched.unref();}
+  if(!active)try{active=read(path.join(interrupted,"run.json")).attempts.at(-1);}catch{}
+  if(active?.supervision) {
+    const deadline=Date.now()+30000;
+    let proofError;
+    do {try{interruptionProof=readInterruptedProof(active.supervision);proofError=null;break;}catch(error){proofError=error.message;}
+      await new Promise(resolve=>setTimeout(resolve,100));}while(Date.now()<deadline);
+    cleanupError ||= proofError;
+  } else cleanupError ||= "Attempt identity was not observed before fixture cancellation";
+  cleanupError ??= null;
+  fs.writeFileSync(path.join(scratch,".git","coordinator-cleanup.json"),JSON.stringify({coordinator:coordinatorIdentity,
+    close:cleanupClose,proof:interruptionProof,unknown:cleanupError,originalFailure:interruptionFailure?.message}));
+  if(!interruptionFailure)assert.equal(cleanupError,null,"Failed fixture must retain unknown rather than advance without owned disposition");
+}
 assert.equal(status(interrupted, { fingerprint: () => "unchanged" }).unfinished[0].status, "interrupted");
-assert.equal((await execute({ ...options, directory: interrupted })).status, "passed");
+assert.equal((await execute({packageRoot:scratch,enginePath,root:lockRoot,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted})).status,"passed");
 const resumed = read(path.join(interrupted, "run.json"));
 assert.equal(resumed.attempts.filter(a => a.file?.endsWith("a.test.ts")).length, 1, "completed file retained");
 assert.equal(resumed.attempts.filter(a => a.file?.endsWith("b.spec.tsx")).length, 2, "incomplete file retried once");
@@ -1393,7 +1534,7 @@ assert.equal((await execute(identityOptions)).expected,2);
 const membershipBefore=fingerprinter()(scratch,[]);
 git("add","c.test.ts");
 assert.notEqual(fingerprinter()(scratch,[]),membershipBefore,"tracked membership contributes to identity");
-assert.equal(status(identityOptions.directory).status,"stale");
+assert.equal(status(identityOptions.directory,{identify:coordinatorDependencies.identify}).status,"stale");
 await assert.rejects(execute(identityOptions),/identity changed/);
 
 const environmentDirectory=path.join(scratch,".git","environment");
@@ -1405,7 +1546,7 @@ try {
   assert.equal((await execute({...identityOptions,directory:environmentDirectory})).status,"passed");
   process.env[flag]="on";
   assert.notEqual(fingerprinter()(scratch,[]),environmentBefore,"forwarded environment contributes to identity");
-  assert.equal(status(environmentDirectory).status,"stale");
+  assert.equal(status(environmentDirectory,{identify:coordinatorDependencies.identify}).status,"stale");
   await assert.rejects(execute({...identityOptions,directory:environmentDirectory}),/identity changed/);
 } finally { if(originalFlag===undefined)delete process.env[flag]; else process.env[flag]=originalFlag; }
 
@@ -1494,7 +1635,183 @@ await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href
   fs.mkdirSync(path.join(real,"shared"));
   const leak=`import {it,expect} from "vitest"; it("fresh document",()=>{expect(document.body.dataset.seen).toBeUndefined();document.body.dataset.seen="1";expect(globalThis.leaked).toBeUndefined();globalThis.leaked=true;});`;
   for(const name of ["first.test.ts","second.test.ts"]) fs.writeFileSync(path.join(real,"shared",name),leak);
-  const shared=await runVitest({packageRoot:real,root:path.join(real,".git","reservation"),census:()=>vitestProcesses({within:real}),stdio:"ignore"});
+  const shared=await runVitest({packageRoot:real,files:["shared/first.test.ts","shared/second.test.ts"],root:path.join(real,".git","reservation"),census:()=>vitestProcesses({within:real}),stdio:"ignore"});
   assert.equal(shared.exit,0,"each file gets a fresh environment in the one worker");
   console.log("PASS: run gives each file a fresh jsdom environment in one worker");
+}
+// Required default inventory coverage, including sparse CI with no Vitest
+// installation. These controls use the real native ownership mechanisms.
+await ownedBoundaries();
+}
+
+async function ownedBoundaries() {
+  const { runVitest, execute, notRunExit } = await import("./test-suite.mjs");
+  const { runOwnedChild, readTreeProof } = await import("./test-suite-child.mjs");
+  const { read, acquire, acquireWaiting } = await import("./test-suite-process.mjs");
+  const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "impower-owned-boundaries-")));
+  console.log("Owned boundary scratch repository: " + base);
+  const holderRoot = path.join(base, "waiting-reservation"), rows = [];
+  const holder = acquire("real waiting holder", { root: holderRoot, census: () => [] });
+  const progressAt = new Date().toISOString();
+  holder.update({ unitStartedAt: progressAt, progress: { at: progressAt, event: "collected" } });
+  try {
+    await assert.rejects(acquireWaiting("queued observer", { root: holderRoot, census: () => [],
+      // Guard creation itself records a fresh OS identity. Five seconds allows
+      // repeated real Windows CIM transactions without replacing that boundary.
+      waitMs: 5000, pollMs: 100, onWait: value => rows.push(value) }), /Existing suite running/);
+    console.log(JSON.stringify({ waitingRows: rows }));
+    assert.ok(rows.length >= 2, "The actual waiting-row route was reached repeatedly");
+    assert.ok(rows.at(-1).holder.heldAgeMs > rows[0].holder.heldAgeMs);
+    assert.ok(rows.at(-1).holder.unitElapsedMs > rows[0].holder.unitElapsedMs);
+    assert.ok(rows.at(-1).holder.lastProgressAgeMs > rows[0].holder.lastProgressAgeMs);
+    assert.ok(rows.every(row => row.holder.progress.at === progressAt), "Waiting never advances genuine progress");
+    assert.equal(read(path.join(holderRoot, "reservation.json")).progress.at, progressAt);
+  } finally { holder.release(); }
+  console.log("PASS: reached waiting rows advance holder/unit/progress age without inventing progress");
+  if (process.argv.includes("--waiting-holder")) return;
+  const enginePath = fileURLToPath(new URL("./fixtures/test-suite-engine-control.mjs", import.meta.url));
+  const fixture = name => {
+    const packageRoot = path.join(base, name); fs.mkdirSync(packageRoot);
+    execFileSync("git", ["init", "--quiet", packageRoot], { windowsHide: true });
+    fs.writeFileSync(path.join(packageRoot, "package.json"), '{}');
+    fs.writeFileSync(path.join(packageRoot, "a.test.ts"), 'bounded tooling fixture');
+    fs.mkdirSync(path.join(packageRoot, "node_modules", "vitest"), { recursive: true });
+    fs.writeFileSync(path.join(packageRoot, "node_modules", "vitest", "package.json"), '{"version":"2.1.9"}');
+    fs.writeFileSync(path.join(packageRoot, ".gitignore"), 'node_modules/');
+    execFileSync("git", ["-C", packageRoot, "add", "package.json", "a.test.ts", ".gitignore"], { windowsHide: true });
+    return { packageRoot, root: path.join(packageRoot, ".git", "reservation"), files: ["a.test.ts"],
+      enginePath, stdio: "ignore", census: () => [], fingerprint: () => "unchanged" };
+  };
+  const events = options => {
+    try { return fs.readFileSync(path.join(options.packageRoot, ".git", "engine-control-events.jsonl"), "utf8").trim().split("\n").map(JSON.parse); }
+    catch (error) { if (error.code === "ENOENT") return []; throw error; }
+  };
+  const verifyProofs = result => {
+    for (const attempt of result.observedAttempts || []) if (attempt.containment?.exitConfirmed)
+      readTreeProof(attempt.supervision, { close: attempt.supervision.launcherClose });
+  };
+  for (const fault of [true, false]) {
+    const options = fixture("initial-admission-" + fault), rename = fs.renameSync;
+    let reached = 0, helpers = 0;
+    fs.renameSync = (from, to) => {
+      if (to === path.join(options.root, "reservation.json")) {
+        const value = read(from);
+        if (value.phase === "reserved" && value.attempt) {
+          reached++;
+          if (fault) throw Object.assign(new Error("initial admission publication refused"), { code: "EIO" });
+        }
+      }
+      return rename(from, to);
+    };
+    let result;
+    try { result = await runVitest({ ...options, ownedChild: value => { helpers++; return runOwnedChild(value); } }); }
+    finally { fs.renameSync = rename; }
+    assert.ok(reached > 0, "The same actual first-unit update injection reached the admission boundary");
+    assert.equal(result.exit, fault ? 75 : 0);
+    assert.equal(helpers, fault ? 0 : 3, "Positive sensitivity uses the same actual admission callback");
+    if (fault) assert.deepEqual(events(options), []);
+    verifyProofs(result);
+    console.log("PASS: definite first-unit refusal/same-route sensitivity=" + fault);
+  }
+  for (const expected of [0, 1, 124]) {
+    for (const fault of ["post-start", "final-publication", "release"]) {
+      const options = fixture("known-" + expected + "-" + fault);
+      if (expected === 1) fs.writeFileSync(path.join(options.packageRoot, ".git", "engine-control.json"), '{"exit":7}');
+      if (expected === 124) fs.writeFileSync(path.join(options.packageRoot, ".git", "engine-control.json"), '{"delayMs":2500}');
+      const rename = fs.renameSync, unlink = fs.unlinkSync;
+      let reached = 0;
+      fs.renameSync = (from, to) => {
+        if (to === path.join(options.root, "reservation.json")) {
+          const value = read(from);
+          const target = expected === 124 ? "run-direct" : "merge";
+          if (value.mode === target && (fault === "post-start" && value.phase === "running"
+            || fault === "final-publication" && value.phase === "exited") && reached++ === 0) {
+            rename(from, to); // retain the genuine post-rename publication fault
+            throw Object.assign(new Error("confirmed unit publication refused"), { code: "EIO" });
+          }
+        }
+        return rename(from, to);
+      };
+      fs.unlinkSync = file => {
+        if (fault === "release" && file === path.join(options.root, "reservation.json") && reached++ === 0)
+          throw Object.assign(new Error("confirmed release refused"), { code: "EIO" });
+        return unlink(file);
+      };
+      let result;
+      try { result = await runVitest({ ...options, fileTimeoutMs: expected === 124 ? 1000 : 1800000 }); }
+      finally { fs.renameSync = rename; fs.unlinkSync = unlink; }
+      assert.ok(reached > 0, "The named actual start/terminal/release boundary was reached");
+      assert.equal(result.exit, expected, "Known aggregate survives final availability diagnostics");
+      verifyProofs(result);
+      const target = result.observedAttempts.findLast(value => value.mode === (expected === 124 ? "run-direct" : "merge"));
+      assert.ok(target.containment.exitConfirmed);
+      if (expected !== 124) assert.equal(target.exit, 0, "Post-start fault did not cancel the original successful finalizer");
+      else assert.equal(target.timedOut, true);
+      if (expected === 1) assert.equal(result.observedAttempts.find(value => value.mode === "run-direct").exit, 7,
+        "Raw child failure remains evidence while public aggregate is1");
+      assert.ok(result.reservationError || result.releaseError);
+      console.log("PASS: known " + expected + " after " + fault);
+    }
+  }
+  const options = fixture("discovery-timeout"), directory = path.join(options.packageRoot, ".git", "test-suites", "timeout");
+  fs.writeFileSync(path.join(options.packageRoot, ".git", "engine-control.json"), '{"discoverDelayMs":2500}');
+  let failure;
+  try { await execute({ ...options, directory, fileTimeoutMs: 1000 }); }
+  catch (error) { failure = error; }
+  assert.ok(failure, "The intended discovery unit must time out");
+  assert.equal(notRunExit(failure, () => {}), 124);
+  const original = read(path.join(directory, "run.json")), attempt = original.attempts[0];
+  assert.equal(attempt.status, "timed-out");
+  readTreeProof(attempt.supervision, { close: attempt.supervision.launcherClose });
+  const before = events(options).length;
+  await assert.rejects(execute({ ...options, directory }), error => /new run/.test(error.message) && !error.notRun);
+  assert.equal(events(options).length, before, "Incomplete discovery resume never relaunches an engine");
+  assert.equal(read(path.join(directory, "run.json")).attempts[0].status, "timed-out");
+  console.log("PASS: owned discovery timeout124 and explicit no-relaunch resume refusal");
+  await ownedProgressBoundaries();
+}
+
+async function ownedProgressBoundaries() {
+  const {runVitest}=await import("./test-suite.mjs");
+  const {readTreeProof}=await import("./test-suite-child.mjs");
+  const {read}=await import("./test-suite-process.mjs");
+  const base=fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(),"impower-owned-progress-")));
+  console.log("Owned progress scratch repository: "+base);
+  for(const outcome of [0,7,124])for(const boundary of ["reservation","journal"]) {
+    const packageRoot=path.join(base,outcome+"-"+boundary);fs.mkdirSync(packageRoot);
+    execFileSync("git",["init","--quiet",packageRoot],{windowsHide:true});
+    fs.writeFileSync(path.join(packageRoot,"package.json"),'{}');
+    fs.writeFileSync(path.join(packageRoot,"a.test.ts"),'bounded fixture');
+    fs.writeFileSync(path.join(packageRoot,".gitignore"),'node_modules/');
+    fs.mkdirSync(path.join(packageRoot,"node_modules","vitest"),{recursive:true});
+    fs.writeFileSync(path.join(packageRoot,"node_modules","vitest","package.json"),'{"version":"2.1.9"}');
+    execFileSync("git",["-C",packageRoot,"add","package.json","a.test.ts",".gitignore"],{windowsHide:true});
+    fs.writeFileSync(path.join(packageRoot,".git","engine-control.json"),JSON.stringify({progress:true,
+      delayMs:outcome===124?5000:4000,exit:outcome===7?7:0}));
+    const root=path.join(packageRoot,".git","reservation"),rename=fs.renameSync;
+    let reached=false;
+    fs.renameSync=(from,to)=>{
+      const value=read(from);
+      if(!reached&&(boundary==="reservation"&&to===path.join(root,"reservation.json")&&value.mode==="run-direct"&&value.progress?.sequence===1
+        ||boundary==="journal"&&path.basename(to)==="run.json"&&value.attempts?.at(-1)?.mode==="run-direct"&&value.progress?.sequence===1)) {
+        reached=true;throw Object.assign(new Error("controlled mid-run progress publication refused"),{code:"EIO"});
+      }
+      return rename(from,to);
+    };
+    let result;
+    try {result=await runVitest({packageRoot,files:["a.test.ts"],root,census:()=>[],stdio:"ignore",
+      enginePath:fileURLToPath(new URL("./fixtures/test-suite-engine-control.mjs",import.meta.url)),
+      fileTimeoutMs:outcome===124?2500:1800000});}
+    finally {fs.renameSync=rename;}
+    assert.equal(reached,true,"The genuine mid-run progress persistence boundary was reached");
+    assert.equal(result.exit,outcome===124?124:1,"Incomplete finalization fails; confirmed timeout retains124");
+    const attempt=result.observedAttempts.find(value=>value.mode==="run-direct");
+    readTreeProof(attempt.supervision,{close:attempt.supervision.launcherClose});
+    if(outcome===124)assert.equal(attempt.timedOut,true);
+    else assert.equal(attempt.exit,outcome,"Availability failure must not cancel the original bounded root");
+    assert.deepEqual(result.observedAttempts.map(value=>value.mode),["select","run-direct"],"No successor follows the progress fault");
+    assert.ok(result.reservationError||result.journalError);
+    console.log("PASS: original "+outcome+" after reached "+boundary+" progress publication fault");
+    if(process.argv.includes("--progress-first"))return;
+  }
 }

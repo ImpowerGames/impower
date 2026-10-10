@@ -62,6 +62,13 @@ public static class TestSuiteChildWindows {
   static volatile bool disconnected;
   static string communicationFailure;
   static void Check(bool okay,string operation) { if(!okay)throw new Win32Exception(Marshal.GetLastWin32Error(),operation); }
+  static void OpenHandles(string log,IntPtr list,ref IntPtr handles,ref IntPtr output,ref IntPtr input) {
+    var security=new SECURITY_ATTRIBUTES(); security.length=Marshal.SizeOf(security); security.inherit=1;
+    output=CreateFile(log,0x40000000,3,ref security,1,0x80,IntPtr.Zero); Check(output!=new IntPtr(-1),"Create output");
+    input=CreateFile("NUL",0x80000000,3,ref security,3,0x80,IntPtr.Zero); Check(input!=new IntPtr(-1),"Create input");
+    handles=Marshal.AllocHGlobal(IntPtr.Size*2); Marshal.WriteIntPtr(handles,output); Marshal.WriteIntPtr(handles,IntPtr.Size,input);
+    Check(UpdateProcThreadAttribute(list,0,new UIntPtr(0x20002),handles,new UIntPtr((uint)(IntPtr.Size*2)),IntPtr.Zero,IntPtr.Zero),"HANDLE_LIST");
+  }
   public static string Quote(string argument) {
     var text=new StringBuilder("\""); int slashes=0;
     foreach(char ch in argument) {
@@ -101,14 +108,10 @@ public static class TestSuiteChildWindows {
       Check(InitializeProcThreadAttributeList(list,2,0,ref size),"InitializeProcThreadAttributeList"); initialized=true;
       jobValue=Marshal.AllocHGlobal(IntPtr.Size); Marshal.WriteIntPtr(jobValue,job);
       Check(UpdateProcThreadAttribute(list,0,new UIntPtr(0x2000d),jobValue,new UIntPtr((uint)IntPtr.Size),IntPtr.Zero,IntPtr.Zero),"JOB_LIST");
-      var security=new SECURITY_ATTRIBUTES(); security.length=Marshal.SizeOf(security); security.inherit=1;
-      output=CreateFile(log,0x40000000,3,ref security,1,0x80,IntPtr.Zero); Check(output!=new IntPtr(-1),"Create output");
-      input=CreateFile("NUL",0x80000000,3,ref security,3,0x80,IntPtr.Zero); Check(input!=new IntPtr(-1),"Create input");
-      handles=Marshal.AllocHGlobal(IntPtr.Size*2); Marshal.WriteIntPtr(handles,output); Marshal.WriteIntPtr(handles,IntPtr.Size,input);
-      Check(UpdateProcThreadAttribute(list,0,new UIntPtr(0x20002),handles,new UIntPtr((uint)(IntPtr.Size*2)),IntPtr.Zero,IntPtr.Zero),"HANDLE_LIST");
       // Probe only these Job/attribute operations. No authorization reader or
       // CreateProcess is reachable in capability mode.
       if(request.capabilityOnly) {
+        OpenHandles(log,list,ref handles,ref output,ref input);
         Event("{\"event\":\"capable\"}");
         string acknowledgement=null;var received=new ManualResetEvent(false);
         var probeReader=new Thread(()=>{try {acknowledgement=Console.ReadLine();} catch {disconnected=true;} finally {received.Set();}});
@@ -131,6 +134,10 @@ public static class TestSuiteChildWindows {
         ||admission.ElapsedMilliseconds>=Math.Min(60000,request.startupMs)) {
         Proof("not-run",null,false,"no-launch",disconnected); Event("{\"event\":\"finished\",\"status\":\"not-run\"}"); return 75;
       }
+      // The coordinator has captured this helper's exact ready identity before
+      // authorizing. A native log refusal can now carry authenticated no-launch
+      // proof instead of exiting before the identity handshake.
+      OpenHandles(log,list,ref handles,ref output,ref input);
       var startup=new STARTUPINFOEX(); startup.startup.cb=Marshal.SizeOf(startup); startup.attributes=list;
       startup.startup.flags=0x101; startup.startup.show=0; startup.startup.stdin=input; startup.startup.stdout=output; startup.startup.stderr=output;
       var command=new StringBuilder(Quote(executable)); foreach(string arg in args)command.Append(' ').Append(Quote(arg));

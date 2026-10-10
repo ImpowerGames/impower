@@ -8,7 +8,8 @@ import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
 import {processIdentity} from './reviewer-slots.mjs';
 import {spawnDetached} from './detached-launch.mjs';
-import {readTreeProof,runOwnedChild,prepareOwnedChild,prepareOwnedRuntime} from './test-suite-child.mjs';
+import {readTreeProof,runOwnedChild,prepareOwnedChild,prepareOwnedRuntime,assertAttemptBinding} from './test-suite-child.mjs';
+import {reservationState} from './test-suite-process.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const fixture=path.join(here,'fixtures','test-suite-child-fixture.mjs');
@@ -20,6 +21,26 @@ const controlOwned=async request=>{
 };
 // Preserve failed evidence; every test uses a private fresh attempt.
 const scratch=()=>fs.mkdtempSync(path.join(os.tmpdir(),'test-suite-child-'));
+test('native output-log open refusal has authenticated no-launch proof',{skip:!supported,timeout:30000},async()=>{
+  const runtimeDirectory=scratch(),directory=scratch(),marker=path.join(directory,'engine-marker');
+  console.log('Native log refusal scratch: '+directory);
+  const runtime=await prepareOwnedRuntime({directory:runtimeDirectory,startupMs:10000,cleanupMs:1000});
+  assert.equal(runtime.status,'prepared','Real preparation must reach the native log admission boundary');
+  const prepared=await prepareOwnedChild({runtime,directory,attemptId:randomUUID(),command:process.execPath,
+    args:['-e','require("node:fs").writeFileSync(process.argv[1],"started")',marker],cwd:directory,timeoutMs:2000});
+  fs.mkdirSync(path.join(directory,'output.log'));
+  let ready=false,authorized=false;
+  const result=await runOwnedChild({prepared,reservationToken:randomUUID(),onReady:()=>{ready=true;},onAuthorize:()=>{authorized=true;}});
+  console.log(JSON.stringify({nativeLogRefusal:{ready,authorized,result}}));
+  assert.match(result.diagnostics,/Create output|(?:IsADirectoryError|FileExistsError):.*output\.log/,'Actual authored native log open failed');
+  assert.equal(fs.existsSync(marker),false);
+  assert.equal(result.exitConfirmed,true,'Native pre-root refusal must retain authenticated absence');
+  const proof=readTreeProof(result,{close:result.launcherClose});
+  assert.equal(proof.root,null);assert.equal(proof.status,'not-run');
+  assert.equal(proof.tree.observation,'no-launch');assert.ok(proof.launchError);
+  assert.equal(proof.interrupted,false,'Ordinary log refusal does not manufacture a disconnect');
+  assert.equal(ready,true);assert.equal(authorized,true,'The already-bound helper owns the native setup refusal');
+});
 function records(file) {
   return fs.existsSync(file)?fs.readFileSync(file,'utf8').trim().split('\n').filter(Boolean).map(row=>JSON.parse(row)):[];
 }
@@ -63,6 +84,25 @@ test('tree proof requires matching identities, terminal evidence, and actual hel
     {...proof,exit:null},
     {...proof,root:null,status:'not-run',tree:{...proof.tree,observation:'no-launch'}},
   ]) { write(replacement);assert.throws(()=>readTreeProof(expected,{identify:()=>null})); }
+});
+
+test('enclosing attempt and reservation cannot borrow another valid proof',{skip:!supported},()=>{
+  // Synthetic lifecycle unit control; actual native proof envelope controls
+  // run separately through the installed public API fixtures.
+  const run=fs.realpathSync.native(scratch()),id=randomUUID(),directory=path.join(run,id);
+  fs.mkdirSync(directory);
+  const {expected,proof}=expectedProof(directory);
+  expected.attemptId=proof.attemptId=id;
+  fs.writeFileSync(expected.proofFile,JSON.stringify(proof));
+  const attempt={id:expected.attemptId,directory:expected.directory};
+  assert.doesNotThrow(()=>assertAttemptBinding(expected,attempt));
+  assert.throws(()=>assertAttemptBinding(expected,{...attempt,id:randomUUID()}),/enclosing attempt/);
+  assert.throws(()=>assertAttemptBinding(expected,{...attempt,directory:path.join(expected.directory,'other')}),/enclosing attempt/);
+  const record={version:2,run,owner:{pid:800004,start:'coordinator'},phase:'running',
+    attempt:attempt.id,token:expected.reservationToken,supervision:expected};
+  assert.equal(reservationState(record,()=>null),'interrupted');
+  assert.equal(reservationState({...record,attempt:randomUUID()},()=>null),'unknown');
+  assert.equal(reservationState({...record,run:path.join(run,'foreign-run')},()=>null),'unknown');
 });
 
 test('tree proof refuses a replaced physical attempt root',{skip:!supported},()=>{

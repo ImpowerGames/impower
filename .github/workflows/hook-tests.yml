@@ -220,9 +220,21 @@ jobs:
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/install-*.json
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/install.*.log
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/public-run*
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/supervision-*/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/execution/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/native-evidence/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/aggregate-validation/**
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/markers.jsonl
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/coverage/coverage-final.json
-            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/run.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/summary.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/attempt.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/tree-proof.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/prepared.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/vitest.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/selection.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/progress.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/output.log
 
   # The required status check. `always()` keeps it reporting when the checks
   # were skipped or when detection failed; the step then decides.
