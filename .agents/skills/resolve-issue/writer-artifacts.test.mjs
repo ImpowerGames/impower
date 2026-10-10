@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawn } from 'node:child_process';
+import childProcess, { execFileSync, spawn } from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -46,6 +47,33 @@ for (const [index, allocation] of allocations.entries()) {
 }
 const retry = allocateWriterArtifacts(options);
 assert.ok(allocations.every(allocation => allocation.artifactDir !== retry.artifactDir));
+const originalSpawnSync = childProcess.spawnSync;
+const localeNames = Object.keys(process.env).filter(name => /^(?:LC_ALL|LANG|LANGUAGE)$/i.test(name));
+const originalLocale = Object.fromEntries(localeNames.map(name => [name, process.env[name]]));
+try {
+  for (const name of localeNames) delete process.env[name];
+  process.env.LC_ALL = 'de_DE.UTF-8';
+  process.env.LANG = 'de_DE.UTF-8';
+  process.env.LANGUAGE = 'de';
+  childProcess.spawnSync = (executable, args, settings) => {
+    assert.equal(executable, 'git');
+    assert.deepEqual(args.slice(-2), ['rev-parse', '--is-inside-work-tree']);
+    const locale = settings.env ?? process.env;
+    return { status: 128, stderr: locale.LC_ALL === 'C' && locale.LANGUAGE === 'C' ? 'fatal: not a git repository' : 'fatal: Kein Git-Repository' };
+  };
+  syncBuiltinESMExports();
+  assert.ok(allocateWriterArtifacts(options).artifactDir, 'a localized nonrepository parent remains allocatable');
+  const beforeUnknown = fs.readdirSync(scratch);
+  childProcess.spawnSync = () => ({ status: 128, stderr: 'fatal: unable to read configuration' });
+  syncBuiltinESMExports();
+  assert.throws(() => allocateWriterArtifacts(options), /Cannot verify/);
+  assert.deepEqual(fs.readdirSync(scratch), beforeUnknown, 'unknown probe failure remains fail-closed before allocation');
+} finally {
+  childProcess.spawnSync = originalSpawnSync;
+  syncBuiltinESMExports();
+  for (const name of Object.keys(process.env).filter(name => /^(?:LC_ALL|LANG|LANGUAGE)$/i.test(name))) delete process.env[name];
+  Object.assign(process.env, originalLocale);
+}
 const beforeRefusals = fs.readdirSync(scratch);
 for (const invalid of [{ writer: '' }, { session: '' }, { issue: 0 }, { parent: '.' }, { parent: root }, { parent: path.join(scratch, 'missing') }]) assert.throws(() => allocateWriterArtifacts({ ...options, ...invalid }));
 assert.deepEqual(fs.readdirSync(scratch), beforeRefusals, 'refused inputs allocate nothing');

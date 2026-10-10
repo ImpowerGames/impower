@@ -34,7 +34,11 @@ export function allocateWriterArtifacts({ parent, issue, writer, session, worktr
     if (fs.existsSync(root) && within(fs.realpathSync.native(root), directory)) throw new Error(`Artifact parent is inside a checkout: ${root}`);
   }
   // Also reject an unrelated repository, not only this repository's worktrees.
-  const probe = spawnSync('git', ['-C', directory, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true });
+  // Match only Git's known nonrepository diagnostic, in a deterministic locale.
+  // Remove case aliases before adding locale keys for Windows environment lookup.
+  const probeEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(?:LC_ALL|LANG|LANGUAGE)$/i.test(name)));
+  Object.assign(probeEnv, { LC_ALL: 'C', LANG: 'C', LANGUAGE: 'C' });
+  const probe = spawnSync('git', ['-C', directory, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true, env: probeEnv });
   if (probe.status === 0) throw new Error(`Artifact parent is inside a Git repository: ${directory}`);
   if (probe.error || probe.status !== 128 || !probe.stderr.includes('not a git repository')) throw new Error(`Cannot verify artifact parent is outside Git repositories: ${directory}`);
   const artifactDir = fs.mkdtempSync(path.join(directory, `writer-${issue}-`));
