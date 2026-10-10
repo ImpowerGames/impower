@@ -31,7 +31,8 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   catch (error) { throw new Error(`Review diff ${context.diff} must be readable before building the prompt (${error.message})`); }
   try {
     if ((diffBytes[0] === 255 && diffBytes[1] === 254) || (diffBytes[0] === 254 && diffBytes[1] === 255)) throw new Error("UTF-16 BOM");
-    new TextDecoder("utf-8", { fatal: true }).decode(diffBytes);
+    const diffText = new TextDecoder("utf-8", { fatal: true }).decode(diffBytes);
+    if (diffText.includes(String.fromCharCode(0))) throw new Error("raw NUL bytes (including BOM-less UTF-16) are not a textual patch");
   } catch (error) {
     throw new Error(`Review diff ${context.diff} must be UTF-8 (${error.message}); capture it with git diff <range> --output=<absolute-path> so the shell does not re-encode it`);
   }
