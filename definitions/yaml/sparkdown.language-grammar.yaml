@@ -486,14 +486,60 @@ variables:
   # the reassignment reads its values with `LuauExpression`, so a statement
   # this list misses would be read as a value.
   LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\b{{WS}}+{{LUAU_IDENTIFIER}})
-  # Where a reassignment ends on its own line (see `LuauReassignment`).
-  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$"
-  # The start of a reassignment statement: its targets (a name with `.field`,
-  # `[index]` or `(call)` suffixes, or several names separated by commas) and
-  # an assignment operator. `LuauReassignment` begins here, and the rules that
-  # end before a following reassignment look ahead for it. An index may hold
-  # one level of brackets (`t[k[1]].x`).
-  LUAU_REASSIGNMENT_START: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_REASSIGNMENT_INDEX}}|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}'
+  # The start of a line that begins at column 0 with anything a reassignment
+  # does not read on to: not a clause keyword of an if expression (`then`,
+  # `else`, `elseif`), a continuation, a comment, or a closing bracket or
+  # separator. A reassignment that one of its parts carried onto such a line
+  # ends there, so the line is read on its own: an if expression whose
+  # condition, `then`, then arm or `else` ends its line (`x = if c then 1`,
+  # then `print(x)`) takes the line break and ends at the start of the next
+  # line (`LuauTernaryExpression`), and the reassignment ends there too
+  # rather than reading that line into itself. Anchored at the start of the
+  # line, it is decided on that line alone, as VS Code's line-at-a-time
+  # tokenizer and the web editor decide it.
+  #
+  # lookaround: the `(?!…)` leaves the line to the rules that read on to
+  # it: `LuauThenExpression` and `LuauTernaryExpression` read a line that
+  # begins with `then`, `else` or `elseif`, `LuauLineContinuation` a
+  # continued value, `LuauComment` a comment, and the enclosing bracket
+  # rule or separator its closer. Every other line belongs to the body
+  # around the reassignment, whose dispatcher reads it as the next
+  # statement or story line. The structural alternatives do not reach it:
+  # an end is tried before the reassignment's patterns, so no ordering of
+  # them lets the clause, continuation or comment rules claim the line
+  # first; splitting the reassignment would not change which rule stands at
+  # the line start; the body's own end cannot run while the reassignment is
+  # open; and the excluded starts cannot be folded into a tighter positive
+  # variable, since a positive alternative cannot name "any other line".
+  LUAU_COLUMN_0_LINE_START: ^(?=\S)(?!{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;])
+  # Where a reassignment ends: on its own line (see `LuauReassignment`), or
+  # at the start of a column-0 line that one of its parts carried it onto
+  # (`LUAU_COLUMN_0_LINE_START`). The reassignment rules begin by consuming
+  # their targets, so a reassignment never stands at the start of a line
+  # where it opens, and this end cannot close it there; a rule whose begin
+  # matched no text would open again at that position until the parser's
+  # empty-match limit stopped it. A comma that ends the line carries a
+  # target or value list onto the next line (`LuauCommaLineBreak`), and an
+  # unindented line after it ends the reassignment too, as an unindented
+  # line ends a declaration (`a,` then `g = 1, 2`): the converter reads that
+  # line as the rest of the statement, as Luau does.
+  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|{{LUAU_COLUMN_0_LINE_START}}"
+  # The start of a reassignment statement: its targets and an assignment
+  # operator. The rules that end before a following reassignment look ahead
+  # for it.
+  LUAU_REASSIGNMENT_START: '{{LUAU_REASSIGNMENT_TARGETS}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}'
+  # A reassignment's targets: a name with `.field`, `[index]` or `(call)`
+  # suffixes, or several such names separated by commas. An index may hold
+  # one level of brackets (`t[k[1]].x`). The reassignment rules begin by
+  # consuming them.
+  LUAU_REASSIGNMENT_TARGETS: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_REASSIGNMENT_INDEX}}|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*'
+  # What follows a reassignment's targets in Luau code and in a marked (`&`)
+  # statement: the assignment operator, or a comma before the end of the
+  # line or a comment (`a,` then `g = 1, 2`). No other statement in Luau
+  # code starts with a name followed by a comma, so `LuauReassignment`
+  # begins at such a target list too, and its `LuauCommaLineBreak` carries
+  # the list onto the next line.
+  LUAU_REASSIGNMENT_TARGETS_END: (?:{{LUAU_ASSIGNMENT_OPERATORS}}|,{{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
   # A target's `[index]`, holding at most one level of nested brackets. A
   # string inside it is read whole, in any of Luau's three quotes, so a
   # bracket or another quote in a key (`t["["]`, `t["]"]`, ``t[`don't`]``)
@@ -503,31 +549,11 @@ variables:
   # line break, or a whole string on one line in double quotes, single
   # quotes or backticks.
   LUAU_REASSIGNMENT_INDEX_TEXT: (?:[^\[\]\n"'`]|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\\n]|\\.)*`)
-  # The start of a reassignment in Luau code whose target list ends its line
-  # with a comma (`a,` then `g = 1, 2`): targets, then a comma before the end
-  # of the line or a comment. No other statement in Luau code starts with a
-  # name followed by a comma, so `LuauReassignment` begins here too, and its
-  # `LuauCommaLineBreak` carries the target list onto the next line.
-  LUAU_REASSIGNMENT_TARGETS_CONTINUED: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_REASSIGNMENT_INDEX}}|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*,{{WS}}*(?:$|{{LUAU_COMMENT_START}})'
-  # Just before the line break of an if expression's line when the next line
-  # begins at column 0 with anything an if expression does not read on to:
-  # not a clause keyword (`then`, `else`, `elseif`), a continuation, a
-  # comment, or a closing bracket or separator. Such a line ends the
-  # expression anyway, so the expression stops before the line break instead
-  # of taking it, and a statement it is part of, such as a `LuauReassignment`
-  # (which has nothing at a line start that ends it), ends at the end of its
-  # own line rather than reading the next line (`x = 6`, `print(x)`,
-  # `local y = 1`) into itself. The `\S` keeps it from matching at the end of
-  # a line that a line-by-line tokenizer (VS Code) sees with nothing after.
-  BEFORE_LUAU_COLUMN_0_LINE: (?={{NL}}(?=\S)(?!(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;]))
-  # The same, for an `else` that ends its line: its arm takes a column-0 value
-  # from the next line (`else` then `"c"`), so it stops only before a column-0
-  # line that cannot be a value, one that begins a statement
-  # (`LUAU_STATEMENT_LINE_START`) or a reassignment (`x = 6`, `a.b += 1`).
-  BEFORE_LUAU_COLUMN_0_STATEMENT: (?={{NL}}(?:{{LUAU_STATEMENT_LINE_START}}|(?!(?:then|else|elseif)\b){{LUAU_REASSIGNMENT_START}}))
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
+  # The end of the line, or the start of a comment.
+  LUAU_LINE_END_OR_COMMENT: (?:$|{{LUAU_COMMENT_START}})
   LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
   # Style/UI property names follow CSS/sparkle spelling — hyphens are
   # allowed (e.g. `bg-color`, `corner-top-left`, `c-tl`). This is
@@ -4188,30 +4214,35 @@ repository:
   # statement-bearing contexts that also accept Sparkdown display lines
   # (if/else bodies, scene bodies) would parse `x = 5` as ImplicitAction text.
   #
-  # The lookahead approximates Lua's "suffixed expression then `=`" rule:
+  # The begin approximates Lua's "suffixed expression then `=`" rule:
   # identifier, then any number of `.<ident>` segments or one-level `[…]`
   # brackets, then an assignment operator. Deeply nested bracket targets that
-  # the lookahead can't recognize fall through to the lowerer's sibling-pair
+  # the begin can't recognize fall through to the lowerer's sibling-pair
   # detection in `lowerStatements`, so this rule is a disambiguator of
   # convenience — the lowerer is the real source of truth.
   # ----------------------------------------------------------------------------
 
   LuauReassignment:
-    # The lookahead (`LUAU_REASSIGNMENT_START`) approximates Lua's
-    # "suffixed expression then `=`" rule. An access path may include
-    # dot-accessors (`a.b`), bracket indexers (`a[k]`), OR a multi-target
-    # comma list (`a, b`). The `,{{WS}}*{{LUAU_IDENTIFIER}}` alternative
-    # captures the multi-target case so `a, b = 10, 20` parses as a single
-    # reassignment. `LuauCommaSeparator` is added to the inner patterns so
-    # commas between targets AND between RHS expressions can be consumed.
-    # In Luau code a target list may also end its line with a comma
-    # (`LUAU_REASSIGNMENT_TARGETS_CONTINUED`, `a,` then `g = 1, 2`); the
-    # narrative rule does not begin there, since `a,` is prose in a scene.
-    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}}|{{LUAU_REASSIGNMENT_TARGETS_CONTINUED}})
+    # The begin consumes the targets (`LUAU_REASSIGNMENT_TARGETS`) and looks
+    # ahead for the assignment operator, which `LuauAssignmentOperation`
+    # reads with the first value. A target may include dot-accessors
+    # (`a.b`), bracket indexers (`a[k]`), OR a multi-target comma list
+    # (`a, b`), so `a, b = 10, 20` parses as a single reassignment.
+    # `LuauCommaSeparator` is in the inner patterns too, for the commas
+    # between RHS expressions. In Luau code a target list may also end its
+    # line with a comma (`a,` then `g = 1, 2`); the narrative rule does not
+    # begin there, since `a,` is prose in a scene. Consuming the targets
+    # keeps the reassignment from standing at the start of a line where it
+    # opens, so its column-0 end (`LUAU_REASSIGNMENT_END`) never closes it
+    # there.
+    begin: ({{WS}}*)({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*{{LUAU_REASSIGNMENT_TARGETS_END}})
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauReassignmentTargets" }
     # End (`LUAU_REASSIGNMENT_END`) at: next BEAT (scene/branch), end of line, an upcoming
     # statement-boundary keyword (`if`, `while`, `for`, `repeat`, `do`,
     # `function`, `end`, `return`, `local`, `break`, `continue`,
@@ -4269,6 +4300,10 @@ repository:
     # the comma before it is left without a value (the lowerer reports it,
     # as Luau does). A narrative body reassigns with
     # `LuauSparkdownReassignment`, which ends at its line.
+    #
+    # Both rules end at the start of a column-0 line that an if expression
+    # carried them onto (`x = if c then 1` then `print(x)`; see
+    # `LUAU_COLUMN_0_LINE_START`).
     patterns:
       - { include: "#LuauCommaLineBreak" }
       - { include: "#LuauValueTrailingBlockComment" }
@@ -4287,11 +4322,14 @@ repository:
   # end are otherwise `LuauReassignment`'s; `reassignmentRules.test.ts`
   # holds the two rules together.
   LuauSparkdownReassignment:
-    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}})
+    begin: ({{WS}}*)({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*(?:{{LUAU_ASSIGNMENT_OPERATORS}}))
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauReassignmentTargets" }
     patterns:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -4301,6 +4339,19 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
     end: "{{LUAU_REASSIGNMENT_END}}"
+
+  # A reassignment's targets, which its begin consumes, read as its content
+  # would read them. A capture is tokenized on its own text, so the rules
+  # here see nothing after the last target: a first target named `scene` or
+  # `branch` (`scene = "none"`) looks like a header there (`BEAT`), which
+  # `LuauAccessPath` does not begin at, so `LuauVariable` reads the name.
+  LuauReassignmentTargets:
+    patterns:
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauVariable" }
+      - { include: "#ExtraWhitespace" }
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -8288,7 +8339,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
-    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\\b|{{BEFORE_LUAU_COLUMN_0_LINE}}|$"
+    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\\b|$"
     endCaptures:
       1:
         emit: true
@@ -8743,7 +8794,7 @@ repository:
     # cannot take an else/elseif or value from the next story line.
     # lookaround: LuauElseExpression owns the next clause; the then arm opens at then and yields before else or a following statement clause.
     # See bounded-exit rationale above for the structural alternatives.
-    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}|$"
+    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|$"
 
   LuauSparkdownExplicitConditionalAlternatorBlock:
     begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}"
@@ -8907,23 +8958,25 @@ repository:
     end: "(?!{{WS}}*{{LUAU_SHARED_PROPERTY_CHAIN_START}})|$"
 
   LuauSparkdownExplicitReassignment:
-    # The lookahead (`LUAU_REASSIGNMENT_START`) approximates Lua's
-    # "suffixed expression then `=`" rule. An access path may include
-    # dot-accessors (`a.b`), bracket indexers (`a[k]`), OR a multi-target
-    # comma list (`a, b`). The `,{{WS}}*{{LUAU_IDENTIFIER}}` alternative
-    # captures the multi-target case so `a, b = 10, 20` parses as a single
-    # reassignment. `LuauCommaSeparator` is added to the inner patterns so
-    # commas between targets AND between RHS expressions can be consumed.
+    # The begin is `LuauReassignment`'s: it consumes the targets
+    # (`LUAU_REASSIGNMENT_TARGETS`) and looks ahead for the assignment
+    # operator. A target may include dot-accessors (`a.b`), bracket indexers
+    # (`a[k]`), OR a multi-target comma list (`a, b`), so `a, b = 10, 20`
+    # parses as a single reassignment. `LuauCommaSeparator` is in the inner
+    # patterns too, for the commas between RHS expressions.
     # The marked opener recognizes a trailing target comma, but its bounded
     # children cannot obtain another target from the next story line.
     # Genuine Luau contexts use the original rule for multiline target lists.
     # lookaround: LuauVariableDefinition owns declarations; this reassignment opens only at identifier bindings followed by an assignment and ends before unrelated content.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}}|{{LUAU_REASSIGNMENT_TARGETS_CONTINUED}})
+    begin: ({{WS}}*)({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*{{LUAU_REASSIGNMENT_TARGETS_END}})
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauSparkdownExplicitReassignmentTargets" }
     # End (`LUAU_REASSIGNMENT_END`) at: next BEAT (scene/branch), end of line, an upcoming
     # statement-boundary keyword (`if`, `while`, `for`, `repeat`, `do`,
     # `function`, `end`, `return`, `local`, `break`, `continue`,
@@ -8988,6 +9041,16 @@ repository:
     # lookaround: LuauVariableDefinition owns declarations; this reassignment opens only at identifier bindings followed by an assignment and ends before unrelated content.
     # See bounded-exit rationale above for the structural alternatives.
     end: "{{LUAU_REASSIGNMENT_END}}|(?<=^{{WS}}*)(?={{LUAU_LIST_LINE_START_STATEMENT}})|$"
+
+  # The marked reassignment's targets, read as `LuauReassignmentTargets`
+  # reads them, with the bounded access path and expression.
+  LuauSparkdownExplicitReassignmentTargets:
+    patterns:
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSparkdownExplicitAccessPath" }
+      - { include: "#LuauSparkdownExplicitExpression" }
+      - { include: "#LuauVariable" }
+      - { include: "#ExtraWhitespace" }
 
   LuauSparkdownExplicitExpression:
     patterns:
@@ -10312,7 +10375,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\\b|{{BEFORE_LUAU_COLUMN_0_LINE}}"
+    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\\b"
     endCaptures:
       1:
         emit: true
@@ -10406,7 +10469,7 @@ repository:
   # keeps a comment line in the break, where `LuauComment` reads it, rather
   # than beginning the condition with it.
   LuauConditionLeadingBreak:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)(?={{WS}}*(?:$|{{LUAU_COMMENT_START}}))
+    begin: (?<=\b(?:else)?if\b{{WS}}*)(?={{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
@@ -10658,12 +10721,10 @@ repository:
     # this expression with it. `ValidationAnnotator` reports the missing
     # clause or value.
     #
-    # When the next line starts at column 0, the condition, the then arm and
-    # the `then` keyword instead stop before the line break
-    # (`BEFORE_LUAU_COLUMN_0_LINE`), and the `else` keyword stops there only
-    # before a line that cannot be its value (`BEFORE_LUAU_COLUMN_0_STATEMENT`),
-    # so the statement the expression belongs to ends with its own line and
-    # the next line is read on its own.
+    # The statement the expression belongs to ends at the start of that
+    # line too when it is unindented, so the line is read on its own: a
+    # reassignment ends at a column-0 line (`LUAU_REASSIGNMENT_END`), and a
+    # declaration at the start of any line it reaches.
     #
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
@@ -10682,14 +10743,8 @@ repository:
     # `LuauThenExpression` opens and its `LuauThenOperator` reads the line
     # break. Reordering the patterns cannot help, since the end is tried
     # first, and the condition cannot leave the `then` to the arm (see
-    # `LuauThenExpression`). Right after a `then` before a column-0 line,
-    # the arm and its operator end at once through
-    # `BEFORE_LUAU_COLUMN_0_LINE`, so this end takes the same alternative
-    # there: without it the arm would open again at that position. It is
-    # the line-end decision those rules already make, not a new one, and like
-    # theirs it matches nothing in a line-by-line tokenizer, which reads the
-    # next line through the operator's `Newline` instead.
-    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}"
+    # `LuauThenExpression`).
+    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -10727,7 +10782,7 @@ repository:
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}"
+    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # The `then` of an if expression's then arm and the whitespace and line
   # break after it. The second `begin` alternative is the arm's own `then`
@@ -10777,7 +10832,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}}|--)|{{BEFORE_LUAU_COLUMN_0_LINE}}
+    end: (?={{BEAT}})|(?!$|{{WS}}|--)
 
   LuauElseExpression:
     begin: (?=(?:else)\b)
@@ -10792,8 +10847,21 @@ repository:
     # interpolation / paren / index rule. The glued alternative closes the
     # arm before the `then` or `do` of the statement whose condition it
     # ends (see `LuauTernaryExpression`'s `end`). After an `else` that ends
-    # its line, a next line that begins a statement ends the arm empty.
-    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    # its line, a next line that begins a statement ends the arm empty, and
+    # so does a reassignment at column 0 (`else` then `y = 6`), which the
+    # reassignment around the expression then ends before.
+    #
+    # lookaround: the `(?!…)` in the column-0 reassignment end leaves a
+    # clause keyword to `LuauElseOperator` and `LuauTernaryExpression`.
+    # This rule's begin takes no text, so at a column-0 `else` it opens where
+    # that end is tried, and `LUAU_REASSIGNMENT_START` reads `else = 2` as a
+    # target and an operator; without the exclusion the end would close the
+    # arm as it opens and the arm would open again at the same position until
+    # the parser's empty-match limit stopped it. Ordering the patterns cannot
+    # help, since the end is tried before them; the parent's end cannot carry
+    # the boundary while this arm is open; and the begin cannot take the
+    # keyword, which `LuauElseOperator` reads with the line break after it.
+    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)
@@ -10818,7 +10886,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}}|--)|{{BEFORE_LUAU_COLUMN_0_STATEMENT}}
+    end: (?={{BEAT}})|(?!$|{{WS}}|--)
 
   # ----------------------------------------------------------------------------
   # Alternator Blocks
