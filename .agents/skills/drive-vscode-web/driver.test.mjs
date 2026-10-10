@@ -28,6 +28,7 @@
 // rest are pure or stubbed. Node's built-in assert only.
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -296,6 +297,46 @@ await check("desktop freshness includes the Game Preview runtime, workers and we
   const missing = buildFreshness(groups, filesOf).missing;
   assert.ok(missing.includes(path.join(ext, "out/webviews/screen-webview.js")));
 });
+
+for (const configRelative of [
+  "packages/spark-web-player/tsconfig.json",
+  "packages/sparkdown-language-server/tsconfig.json",
+  "packages/sparkdown-screenplay-pdf/tsconfig.json",
+  "vscode-sparkdown/tsconfig.json",
+  "vscode-sparkdown/webviews/game-webview/tsconfig.json",
+]) {
+  await check(`desktop freshness refuses unchanged outputs after changing ${configRelative}`, () => {
+    const configRepo = path.join(scratch, "consumed-config", configRelative.replaceAll("/", "-"));
+    console.log("Scratch freshness fixture: " + configRepo);
+    const configExt = path.join(configRepo, "vscode-sparkdown");
+    const configPackages = path.join(configRepo, "packages");
+    const configFile = path.join(configRepo, configRelative);
+    const originalConfig = JSON.stringify({ compilerOptions: { useDefineForClassFields: true } });
+    at(path.join(configPackages, "spark-web-player/src/Player.ts"), T0 - 10000, "export class Player { scene = 'known'; }");
+    at(path.join(configExt, "src/extension.ts"), T0 - 10000, "export const active = true;");
+    at(configFile, T0 - 10000, originalConfig);
+    const groups = buildRule(configExt, configPackages, fs, "desktop");
+    for (const group of groups) at(group.artifact, T0, "original runtime");
+    const configDeps = { repoRoot: configRepo, extDir: configExt, packagesDir: configPackages, surface: "desktop", die(message) { throw new Refusal(message); } };
+    const configStamp = path.join(configExt, "out/.drive-vscode-desktop-build.json");
+    const accepted = checkBuild(configDeps);
+    const stamped = fs.readFileSync(configStamp, "utf8");
+    assert.equal(accepted.artifacts, 7);
+    // A newer timestamp with the same content is a legitimate checkout/restore.
+    touch(configFile, T0 + 10000);
+    assert.deepEqual(checkBuild(configDeps), accepted);
+    assert.equal(fs.readFileSync(configStamp, "utf8"), stamped);
+    at(configFile, T0 + 20000, JSON.stringify({ compilerOptions: { useDefineForClassFields: false } }));
+    assert.throws(() => checkBuild(configDeps), err => err instanceof Refusal && /older than/.test(err.message), "a consumed tsconfig changed but every runtime artifact is still the accepted old build");
+    assert.equal(fs.readFileSync(configStamp, "utf8"), stamped, "refusal must preserve the accepted config/artifact identities");
+    // Rebuilding a different artifact cannot bless the unchanged player bundle.
+    at(path.join(configExt, "out/extension.js"), T0 + 30000, "rebuilt extension");
+    assert.throws(() => checkBuild(configDeps), err => err instanceof Refusal && /older than/.test(err.message));
+    for (const group of groups) at(group.artifact, T0 + 30000, "rebuilt runtime");
+    assert.equal(checkBuild(configDeps).artifacts, 7, "outputs rebuilt after the changed configuration remain usable");
+    assert.equal(JSON.parse(fs.readFileSync(configStamp, "utf8")).sources[configRelative], createHash("sha1").update(fs.readFileSync(configFile)).digest("hex"));
+  });
+}
 
 await check("desktop rejects unexpected diagnostics but accepts the exact expected message and source", () => {
   const diagnostic = { file: path.join(repo, "project/main.sd"), message: "Unknown asset", severity: "warning", source: "sparkdown", line: 4 };
