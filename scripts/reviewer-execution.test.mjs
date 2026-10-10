@@ -4,16 +4,25 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { executionCommands, executionEnvironment, startExecutionService, validateExecutionShape, executionClientCommand } from "./reviewer-execution.mjs";
 import { requestExecution } from "./reviewer-execution-client.mjs";
 import { runHandoff } from "./agent-handoff.mjs";
 import { createReviewJob } from "./review-supervisor.mjs";
+import {createReceiptDescriptor,openReceipt,readReceiptDisposition} from "./test-suite-receipt.mjs";
 
 // A reviewer must be able to author its own UI attempts without receiving
 // arbitrary coordinator commands or widening its filesystem permissions.
 assert.doesNotThrow(() => validateExecutionShape({ role: "review", execution: [
   { id: "author", kind: "editor", maxRequests: 20, timeoutSeconds: 600 },
 ] }), "the launcher accepts a bounded editor delegation");
+const vitestBoundary = files => ({ role: "review", execution: [
+  { id: "boundary", kind: "vitest", package: "packages/example", files },
+] });
+const eightFiles = Array.from({ length: 8 }, (_, index) => `file-${index}.test.ts`);
+assert.doesNotThrow(() => validateExecutionShape(vitestBoundary(eightFiles)), "eight authored test files fit the public runner limit");
+assert.throws(() => validateExecutionShape(vitestBoundary([...eightFiles, "file-8.test.ts"])), /1\.\.8 test files/, "reject nine files at delegation admission, before any coordinator launch");
+console.log("PASS: delegated Vitest admission accepts eight files and rejects nine (schema only, no engine)");
 // Keep the base-facing assertion above imports that did not exist on the base.
 const { saveScreenshots } = await import("./reviewer-execution-client.mjs");
 const { validateEditorRequest } = await import("./reviewer-editor.mjs");
@@ -35,7 +44,28 @@ const write = (name, body) => { const file = path.join(root, name); fs.mkdirSync
 git("init");
 write("packages/example/package.json", "{}");
 write("packages/example/a.test.ts", "// fixture\n");
-write("scripts/test-suite.mjs", `console.log(JSON.stringify({ args: process.argv.slice(2), token: process.env.IMPOWER_REVIEW_EXECUTION_TOKEN, gh: process.env.GH_TOKEN })); console.log("Test Files  1 passed (1)\\nTests  2 passed (2)");`);
+// This runner tests transport and its queue clock, not Vitest behavior. Its
+// independently validated receipt proves real compiler/capability exit and
+// that no engine was authorized. Real cancellation is covered separately by
+// the required installed API integration check.
+const transportRunner = (queueMs = 0, runMs = 0) => `
+import fs from "node:fs"; import path from "node:path";
+import { openReceipt } from ${JSON.stringify(new URL("./test-suite-receipt.mjs", import.meta.url).href)};
+import { prepareOwnedRuntime } from ${JSON.stringify(new URL("./test-suite-child.mjs", import.meta.url).href)};
+const args=process.argv.slice(2), waitIndex=args.indexOf("--wait"), receiptIndex=args.indexOf("--internal-receipt");
+const packageRoot=args[1], files=args.slice(2,waitIndex), waitMs=Number(args[waitIndex+1])*1000;
+const receipt=openReceipt(args[receiptIndex+1],{packageRoot,files,waitMs,fileTimeoutMs:1800000});
+const directory=fs.mkdtempSync(path.join(receipt.descriptor.directory,"prepared-"));
+const runtime=await prepareOwnedRuntime({directory,onLifecycle:value=>receipt.preparation(value)});
+receipt.runtime(runtime);
+if(runtime.status!=="prepared")throw new Error("Transport fixture preparation refused");
+console.log(JSON.stringify({ args, token: process.env.IMPOWER_REVIEW_EXECUTION_TOKEN, gh: process.env.GH_TOKEN }));
+await new Promise(resolve=>setTimeout(resolve,${queueMs}));
+console.log(JSON.stringify({status:"acquired"}));
+await new Promise(resolve=>setTimeout(resolve,${runMs}));
+receipt.finished({exit:0,transportOnly:true,engineAuthorized:false});
+console.log("Test Files  1 passed (1)\\nTests  2 passed (2)");`;
+write("scripts/test-suite.mjs", transportRunner());
 write("scripts/bench/engine-bench.mjs", `console.log("measured fixture"); process.exitCode=3;`);
 write("scripts/bench/preview-bench.mjs", `console.log("started"); setTimeout(()=>console.log("finished"), 250);`);
 // A process fixture exercises the real transport, argv, files and cleanup.
@@ -58,8 +88,66 @@ if(args.includes("--sd")) console.log(fs.readFileSync(args[args.indexOf("--sd")+
 `);
 git("add", "."); git("commit", "-m", "fixture");
 const head = git("rev-parse", "HEAD");
+// Receipt/transport control only: no supervisor or engine is launched here.
+for(const files of [["a.test.ts"],["a.test.ts","./a.test.ts"]]) {
+  const directory=fs.mkdtempSync(path.join(scratch,"receipt-alias-"));
+  const packageRoot=path.join(root,"packages/example");
+  const descriptor=createReceiptDescriptor({directory,operation:"alias",head,runnerRoot:root,packageRoot,files,
+    waitMs:1000,outerTimeoutMs:20000});
+  const opened=openReceipt(descriptor.file,{packageRoot,files,waitMs:1000,fileTimeoutMs:1800000});
+  assert.deepEqual(opened.descriptor.files,[fs.realpathSync.native(path.join(packageRoot,"a.test.ts"))]);
+}
+console.log("PASS: repeated/aliased authored files retain canonical receipt binding (no engine)");
+// Validator-only synthetic Linux metadata. Native capability refusal and real
+// same-service successor execution are covered by required Linux API CI.
+{
+  const directory=fs.realpathSync.native(fs.mkdtempSync(path.join(scratch,"receipt-refusal-")));
+  const packageRoot=path.join(root,"packages/example"),authored=createReceiptDescriptor({directory,operation:"refusal",head,
+    runnerRoot:root,packageRoot,files:["a.test.ts"],waitMs:0,outerTimeoutMs:10000});
+  const receipt=openReceipt(authored.file,{packageRoot,files:["a.test.ts"],waitMs:0,fileTimeoutMs:1800000});
+  const runtimeDirectory=path.join(directory,"runtime");fs.mkdirSync(runtimeDirectory);
+  const helper=path.join(runtimeDirectory,"helper.py");fs.writeFileSync(helper,"# synthetic validator binding");
+  const request={version:1,status:"prepared",directory:runtimeDirectory,invocationId:"validator",platform:"linux",startupMs:5000,cleanupMs:1000,
+    environmentDigest:"validator",executable:"python3",helper,bindings:[{file:helper,sha256:createHash("sha256").update(fs.readFileSync(helper)).digest("hex")}]};
+  const process={pid:800001,start:"synthetic-original-probe"},evidence={preparationProcess:process,preparationClose:{exit:1,signal:null},
+    preparationTimedOut:false,launchError:"Linux capability probe identity mismatch",diagnostics:"Missing required interface",
+    output:JSON.stringify({event:"unknown",reason:"Missing required interface"})+"\n"};
+  const requestFile=path.join(runtimeDirectory,"preparation-request.json"),resultFile=path.join(runtimeDirectory,"preparation-result.json");
+  fs.writeFileSync(requestFile,JSON.stringify(request));fs.writeFileSync(resultFile,JSON.stringify(evidence));
+  receipt.preparation({kind:"linux-capability",phase:"launch-may-start",directory:runtimeDirectory,invocationId:"validator"});
+  receipt.preparation({kind:"linux-capability",phase:"closed",process,close:evidence.preparationClose,timedOut:false});
+  receipt.runtime({...request,...evidence,status:"not-run",exit:null,signal:null,exitConfirmed:true,launchAuthorized:false});
+  const validate=(options={})=>readReceiptDisposition(authored,{coordinator:receipt.record.coordinator,identify:()=>null,...options});
+  assert.equal(validate().confirmed,true,"Confirmed capability refusal is reusable only with matching original evidence");
+  const target=authored.descriptor.receiptFile,bytes=fs.readFileSync(target),record=JSON.parse(bytes);
+  try {
+    for(const patch of [{phase:"preparing"},{reservationToken:null},{reservationToken:false},{attempts:[{id:"later"}]},{preparation:[]},
+      {preparation:[{...record.preparation[0],phase:"unknown"}]},{preparation:[{...record.preparation[0],process:undefined}]},
+      {preparation:[{...record.preparation[0],close:{exit:null,signal:"SIGTERM"}}]},
+      ...[{status:"unknown"},{platform:"win32"},{exitConfirmed:false},{launchAuthorized:true},{preparationTimedOut:true},
+        {preparationProcess:{...process,start:"wrong"}},{preparationPublicationError:"failed"},
+        {root:{pid:800002,start:"possible-engine"}},{engineAuthorized:true},{authorizationPhase:"may-launch"}].map(value=>({runtime:{...record.runtime,...value}}))]) {
+      fs.writeFileSync(target,JSON.stringify({...record,...patch}));assert.equal(validate().confirmed,false);
+    }
+  } finally {fs.writeFileSync(target,bytes);}
+  assert.equal(validate({coordinator:{...record.coordinator,start:"wrong"}}).confirmed,false);
+  assert.equal(validate({identify:()=>undefined}).confirmed,false);
+  assert.equal(validate({identify:()=>record.coordinator}).confirmed,false);
+  for(const [file,changed] of [[requestFile,{...request,helper:"foreign"}],[resultFile,{...evidence,preparationClose:{exit:0,signal:null}}],
+    [requestFile,{status:"prepared",platform:"linux",executable:"python3",bindings:request.bindings}],[resultFile,{...evidence,output:JSON.stringify({event:"capable"})}]]) {
+    const original=fs.readFileSync(file);
+    try {fs.writeFileSync(file,JSON.stringify(changed));assert.equal(validate().confirmed,false);}
+    finally {fs.writeFileSync(file,original);}
+  }
+  const original=fs.readFileSync(helper);
+  try {fs.appendFileSync(helper,"\n# changed");assert.equal(validate().confirmed,false);}finally{fs.writeFileSync(helper,original);}
+  const admitted=path.join(runtimeDirectory,"runtime.json");fs.writeFileSync(admitted,JSON.stringify(request));
+  try {assert.equal(validate().confirmed,false,"Late expiry after runtime publication is unresolved");}finally{fs.unlinkSync(admitted);}
+  assert.equal(validate().confirmed,true);
+  console.log("PASS: Linux refusal receipt validates exact artifacts/identity; partial, later-launch and Windows uncertainty remain unknown (validator only)");
+}
 const operations = [
-  { id: "tests", kind: "vitest", package: "packages/example", files: ["a.test.ts"] },
+  { id: "tests", kind: "vitest", package: "packages/example", files: ["a.test.ts","./a.test.ts"] },
   { id: "engine", kind: "engine-bench", mode: "program", samples: 1, warmup: 0 },
   { id: "preview", kind: "preview-bench", mode: "both", samples: 1, warmup: 0 },
 ];
@@ -283,7 +371,8 @@ for (const [label, exit, line] of [["exit 75", 75, marker], ["marker with exit 0
   const notRunDirectory = fs.mkdtempSync(path.join(scratch, "not-run-"));
   const notRunLog = path.join(notRunDirectory, "tests.log");
   fs.writeFileSync(notRunLog, `{"status":"waiting"}\n${line}`);
-  const waiting = await startExecutionService({ operations: [operations[0]], root, directory: notRunDirectory, head }, { run: async command => ({ id: command.id, exit, signal: null, log: notRunLog }) });
+  // This injected executor isolates classification; it is not containment evidence.
+  const waiting = await startExecutionService({ operations: [operations[0]], root, directory: notRunDirectory, head }, { run: async command => ({ id: command.id, exit, signal: null, log: notRunLog, containmentConfirmed: true }) });
   try {
     const result = await requestExecution("tests", { env: waiting.environment, pollMs: 10 });
     assert.equal(result.passed, false, label);
@@ -293,12 +382,28 @@ for (const [label, exit, line] of [["exit 75", 75, marker], ["marker with exit 0
 const ranDirectory = fs.mkdtempSync(path.join(scratch, "ran-"));
 const ranLog = path.join(ranDirectory, "tests.log");
 fs.writeFileSync(ranLog, "1 failed\n");
-const ran = await startExecutionService({ operations: [operations[0]], root, directory: ranDirectory, head }, { run: async command => ({ id: command.id, exit: 1, signal: null, log: ranLog }) });
+const ran = await startExecutionService({ operations: [operations[0]], root, directory: ranDirectory, head }, { run: async command => ({ id: command.id, exit: 1, signal: null, log: ranLog, containmentConfirmed: true }) });
 try {
   const result = await requestExecution("tests", { env: ran.environment, pollMs: 10 });
   assert.equal(result.passed, false);
   assert.notEqual(result.notRun, true, "a real failure is not a not-run");
 } finally { await ran.close(); }
+
+// A normally fulfilled executor result still freezes the service if its owned
+// disposition is unknown. This is a service-latch unit control; no child starts.
+for (const containmentConfirmed of [false, undefined]) {
+  const directory = fs.mkdtempSync(path.join(scratch, "unknown-disposition-"));
+  let admissions = 0;
+  const unknown = await startExecutionService({ operations, root, directory, head }, {
+    run: async command => { admissions++; return { id: command.id, exit: 0, signal: null,
+      containmentConfirmed, containmentError: "controlled unknown owned disposition" }; },
+  });
+  const result = await requestExecution("tests", { env: unknown.environment, pollMs: 10 });
+  assert.equal(result.passed, false);
+  await assert.rejects(requestExecution("preview", { env: unknown.environment, pollMs: 10 }), /unknown owned disposition/);
+  await assert.rejects(unknown.close(), /unknown owned disposition/);
+  assert.equal(admissions, 1, "unknown fulfilled result blocks the next operation and service release");
+}
 
 // A real owned child timeout cannot be a pass.
 write("scripts/bench/preview-bench.mjs", `console.log("waiting"); setTimeout(()=>{}, 30000);`);
@@ -318,7 +423,7 @@ try {
 // The runner prints its acquired line once it holds the reservation; the run's
 // timeout starts there, so a run that starts at once cannot spend the wait.
 const acquired = JSON.stringify({ status: "acquired" });
-const queueFixture = (queueMs, runMs) => `setTimeout(() => { console.log(${JSON.stringify(acquired)}); setTimeout(() => { console.log("Test Files  1 passed (1)"); }, ${runMs}); }, ${queueMs});`;
+const queueFixture = transportRunner;
 for (const [label, queueMs, runMs, timedOut] of [["queued past timeoutSeconds, then a short run", 1500, 300, false], ["started at once, then a run past timeoutSeconds", 0, 2500, true]]) {
   write("scripts/test-suite.mjs", queueFixture(queueMs, runMs));
   git("add", "."); git("commit", "-m", `queued suite fixture: ${label}`);

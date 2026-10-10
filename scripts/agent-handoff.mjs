@@ -380,7 +380,7 @@ export async function runHandoff(configFile, options = {}) {
   finally { withheld.restore(); }
 }
 
-async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs, editorPreflight = driverPreflight } = {}, withheld) {
+async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs, editorPreflight = driverPreflight, probeCleanup = removeProbeCheckouts } = {}, withheld) {
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   applyLensEditorGrant(config);
   validatePlanShape(config);
@@ -642,13 +642,13 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
       // The report is validated and the exit confirmed: the reviewer's probe
-      // clones and installs are no longer evidence, and concurrent rounds fill
-      // a shared disk with them. A failure here never voids the validated review.
+      // clones and installs can be removed unless suite ownership still needs
+      // their canonical proof. Skipped/failed cleanup never voids the review.
       if (reviewerHad) {
         try {
           const kept = args[args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg)) + 1];
-          const { files, links } = removeProbeCheckouts(step.permissions.cwd, { preserve: reviewerHad, keep: [kept] });
-          append({ event: "probe-checkouts-removed", index, step: current, directory: step.permissions.cwd, files, links });
+          const cleanup = probeCleanup(step.permissions.cwd, { preserve: reviewerHad, keep: [kept] });
+          append({ event: cleanup.skipped ? "probe-cleanup-skipped" : "probe-checkouts-removed", index, step: current, directory: step.permissions.cwd, ...cleanup });
         } catch (error) { append({ event: "probe-cleanup-failed", index, step: current, directory: step.permissions.cwd, reason: error.message }); }
       }
       if (step.role === "review") {

@@ -37,6 +37,8 @@ jobs:
         .gitignore
         package.json
         vscode-sparkdown/package.json
+        vscode-sparkdown/scripts/f5.mjs
+        .vscode/tasks.json
         .github/scripts/**
         .github/workflows/test-suite.yml
         .github/PULL_REQUEST_TEMPLATE.md
@@ -67,6 +69,8 @@ jobs:
         .gitignore
         package.json
         vscode-sparkdown/package.json
+        vscode-sparkdown/scripts/f5.mjs
+        .vscode/tasks.json
         .github/workflows/test-suite.yml
         .github/workflows/hook-tests.yml
         .github/workflows/changed-paths.yml
@@ -99,6 +103,7 @@ jobs:
             /.gitignore
             /package.json
             /vscode-sparkdown/package.json
+            /vscode-sparkdown/scripts/f5.mjs
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
@@ -139,12 +144,16 @@ jobs:
             /.gitignore
             /package.json
             /vscode-sparkdown/package.json
+            /vscode-sparkdown/scripts/f5.mjs
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - name: Install skills links
         run: node scripts/link-agent-skills.mjs
+      - name: Confirm Linux supervisor capability
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 scripts/test-suite-child-linux.py --check
       - name: Run the drivers tier of the standalone agent tooling checks
         run: node scripts/check-agent-tooling.mjs --tier drivers
       - name: Verify Linux fixture regression control
@@ -171,10 +180,80 @@ jobs:
             if (fs.existsSync(file)) fs.unlinkSync(file);
           }
 
+  # Private pinned dependencies exercise the real API separately from the
+  # dependency-free sparse driver checks. Missing admission is a failure.
+  vitest-api-integration:
+    needs: driver-changes
+    if: needs.driver-changes.outputs.relevant == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        vitest: ['2.1.9', '3.2.6']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /.agents/
+            /.claude/
+            /.codex/
+            /scripts/
+            /.github/scripts/
+            /.github/workflows/test-suite.yml
+            /.github/PULL_REQUEST_TEMPLATE.md
+            /AGENTS.md
+            /CLAUDE.md
+            /.gitignore
+            /package.json
+            /vscode-sparkdown/package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install skills links
+        run: node scripts/link-agent-skills.mjs
+      - name: Prepare fresh private matching Vitest and coverage-v8 dependencies
+        timeout-minutes: 6
+        run: node scripts/fixtures/test-suite-vitest-dependencies.mjs "${{ runner.temp }}" "${{ matrix.vitest }}"
+      - name: Require actual configured API and coverage integration
+        env:
+          IMPOWER_REQUIRE_VITEST_INTEGRATION: '1'
+          IMPOWER_TEST_VITEST_VERSION: ${{ matrix.vitest }}
+        run: node scripts/check-agent-tooling.mjs --only scripts/test-suite-api-integration.test.mjs
+      - name: Retain admitted dependency and actual API evidence
+        if: always() && env.IMPOWER_TEST_VITEST_DEPENDENCIES != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-api-evidence-${{ matrix.os }}-${{ matrix.vitest }}
+          include-hidden-files: true
+          path: |
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/package.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/package-lock.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/install-*.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/install.*.log
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/public-run*
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/supervision-*/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/execution/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/native-evidence/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/aggregate-validation/**
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/markers.jsonl
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/coverage/coverage-final.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/run.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/summary.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/attempt.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/tree-proof.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/prepared.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/vitest.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/selection.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/progress.json
+            ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/output.log
+
   # The required status check. `always()` keeps it reporting when the checks
   # were skipped or when detection failed; the step then decides.
   hook-tests:
-    needs: [changes, driver-changes, skills-checks, driver-checks]
+    needs: [changes, driver-changes, skills-checks, driver-checks, vitest-api-integration]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -185,6 +264,7 @@ jobs:
           DRIVER_CHANGES: ${{ needs.driver-changes.result }}
           SKILLS: ${{ needs.skills-checks.result }}
           DRIVERS: ${{ needs.driver-checks.result }}
+          VITEST_API: ${{ needs.vitest-api-integration.result }}
         run: |
           test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
           test "$DRIVER_CHANGES" = "success" || { echo "Driver change detection did not succeed: $DRIVER_CHANGES"; exit 1; }
@@ -198,5 +278,10 @@ jobs:
             success) echo "Drivers tier passed on both platforms";;
             skipped) echo "Drivers tier skipped: the change touches nothing it covers";;
             *) echo "Drivers tier did not pass: $DRIVERS"; status=1;;
+          esac
+          case "$VITEST_API" in
+            success) echo "Pinned Vitest API integration passed on both platforms";;
+            skipped) echo "Pinned Vitest API integration skipped: the change touches nothing it covers";;
+            *) echo "Pinned Vitest API integration did not pass: $VITEST_API"; status=1;;
           esac
           exit "$status"

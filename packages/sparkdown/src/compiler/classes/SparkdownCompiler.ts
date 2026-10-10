@@ -89,6 +89,8 @@ import { profile } from "../utils/profile";
 import { readProperty } from "../utils/readProperty";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { resolveSelector } from "../utils/resolveSelector";
+import { getContextEntry } from "../utils/getContextEntry";
+import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
 import {
   CompiledProgramMessage,
@@ -379,7 +381,12 @@ const cloneSharingVocabularies = <T>(value: T): T => {
     const out: Record<string, unknown> = {};
     copies.set(v, out);
     for (const k of Object.keys(v)) {
-      out[k] = copy((v as Record<string, unknown>)[k], k);
+      // Assignment would invoke the inherited __proto__ setter instead of
+      // copying that asset name across the compiler/player boundary.
+      Object.defineProperty(out, k, {
+        value: copy((v as Record<string, unknown>)[k], k),
+        writable: true, enumerable: true, configurable: true,
+      });
     }
     return out;
   };
@@ -4189,12 +4196,12 @@ export class SparkdownCompiler {
         Record<string, any>,
       ][]) {
         for (const [name, struct] of Object.entries(structs)) {
-          context[type] ??= {};
-          const existing = context[type][name];
-          context[type][name] =
+          const existing = getContextEntry(context, type, name);
+          setContextEntry(context, type, name,
             existing && !REPLACE_TYPES.has(type)
               ? this.inheritDefaults(existing, struct)
-              : struct;
+              : struct,
+          );
         }
       }
     }
@@ -4236,7 +4243,7 @@ export class SparkdownCompiler {
     build: () => any,
   ): boolean {
     const context = (program.context ??= {});
-    if (context[type]?.[name]) {
+    if (getContextEntry(context, type, name)) {
       return false;
     }
     const key = `${type}/${name}`;
@@ -4261,7 +4268,7 @@ export class SparkdownCompiler {
       context[type] = { ...context[type] };
       layerTypes.add(type);
     }
-    context[type]![name] = struct;
+    setContextEntry(context, type, name, struct);
     (this._contextLayerAdded ??= []).push(key);
     return true;
   }
@@ -4662,7 +4669,7 @@ export class SparkdownCompiler {
         const rasterFile = isRasterLayerFile(file);
         const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
         const rasterFolder = rasterPath.split("/").at(-2) ?? "";
-        const explicitRaster = rasterFile && state.structDefinitions?.["layered_image"]?.[rasterFolder] !== undefined;
+        const explicitRaster = rasterFile && getContextEntry(state.structDefinitions, "layered_image", rasterFolder) !== undefined;
         // Preserve existing numbered image names when unambiguous. Repeated
         // layer names across portraits stay private to their folder instead
         // of flooding the project with irrelevant flat-name collisions.
@@ -4695,8 +4702,20 @@ export class SparkdownCompiler {
           }
         }
         program.context[type] ??= {};
-        program.context[type][name] ??= { $type: type, $name: name };
-        const definedFile = state.structDefinitions?.[type]?.[name];
+        // File names are dictionary keys, including names such as toString
+        // and __proto__. Never reuse or mutate an inherited native object.
+        if (!Object.hasOwn(program.context[type], name)) {
+          Object.defineProperty(program.context[type], name, {
+            value: { $type: type, $name: name },
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          });
+        }
+        const definitions = state.structDefinitions?.[type];
+        const definedFile = definitions && Object.hasOwn(definitions, name)
+          ? definitions[name]
+          : undefined;
         const contextFile = program.context[type][name] || {};
         // Set $type and $name
         if (contextFile["$type"] === undefined) {
@@ -4785,7 +4804,7 @@ export class SparkdownCompiler {
     const raster = createRasterImageDefinitions([...this.files.all()]);
     Object.assign(program.context["image"] ??= {}, raster.images);
     for (const diagnostic of raster.diagnostics) {
-      if (state.structDefinitions?.["layered_image"]?.[diagnostic.folder]) continue;
+      if (getContextEntry(state.structDefinitions, "layered_image", diagnostic.folder)) continue;
       const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
       ((program.diagnostics ??= {})[diagnostic.uri] ??= []).push({
         range, severity: DiagnosticSeverity.Warning,
@@ -4793,20 +4812,20 @@ export class SparkdownCompiler {
       });
     }
     for (const { name, firstUri, otherUri } of raster.collisions) {
-      if (state.structDefinitions?.["layered_image"]?.[name]) continue;
+      if (getContextEntry(state.structDefinitions, "layered_image", name)) continue;
       this.pushAssetCollisionDiagnostic(program, firstUri, otherUri, "layered_image", name);
       this.pushAssetCollisionDiagnostic(program, otherUri, firstUri, "layered_image", name);
     }
     for (const [name, image] of Object.entries(raster.layeredImages)) {
-      const ordinary = program.context["image"]?.[name];
-      if (ordinary && !state.structDefinitions?.["layered_image"]?.[name]) {
+      const ordinary = getContextEntry(program.context, "image", name);
+      if (ordinary && !getContextEntry(state.structDefinitions, "layered_image", name)) {
         const firstUri = raster.origins[name]!;
         const otherUri = ordinary.uri ?? program.uri;
         this.pushAssetCollisionDiagnostic(program, firstUri, otherUri, "image", name);
         this.pushAssetCollisionDiagnostic(program, otherUri, firstUri, "image", name);
       }
-      if (!program.context["image"]?.[name] && !program.context["layered_image"]?.[name]) {
-        (program.context["layered_image"] ??= {})[name] = image;
+      if (!ordinary && !getContextEntry(program.context, "layered_image", name)) {
+        setContextEntry(program.context, "layered_image", name, image);
       }
     }
     const characters = new Map<string, any[]>();
@@ -4880,14 +4899,13 @@ export class SparkdownCompiler {
           const name = image["$name"];
           const implicitType = "filtered_image";
           program.context ??= {};
-          program.context[implicitType] ??= {};
-          if (!program.context[implicitType][name]) {
-            program.context[implicitType][name] = {
+          if (!getContextEntry(program.context, implicitType, name)) {
+            setContextEntry(program.context, implicitType, name, {
               $type: implicitType,
               $name: name,
               image: { $type: type, $name: name },
               attributes: [],
-            };
+            });
           }
         }
       }
@@ -5154,7 +5172,7 @@ export class SparkdownCompiler {
     const artworkUri = (image: any, path?: string): string | undefined => {
       if (image?.$type === "layered_image") {
         const reference: any = image.assets?.[path ?? "0"] ?? Object.values(image.assets ?? {})[0];
-        const source = reference?.$name ? program.context?.["image"]?.[reference.$name] : undefined;
+        const source = reference?.$name ? getContextEntry(program.context, "image", reference.$name) : undefined;
         if (source?.uri) return source.uri;
       }
       return image?.uri;
@@ -5207,7 +5225,7 @@ export class SparkdownCompiler {
       while (references.value) {
         for (const selector of references.value.type.selectors ?? []) {
           if (selector.name && selector.types?.some((type) => ["image", "filtered_image", "layered_image"].includes(type))) {
-            const struct = program.context["filtered_image"]?.[selector.name] ?? program.context["layered_image"]?.[selector.name] ?? program.context["image"]?.[selector.name];
+            const struct = getContextEntry(program.context, "filtered_image", selector.name) ?? getContextEntry(program.context, "layered_image", selector.name) ?? getContextEntry(program.context, "image", selector.name);
             if (struct) {
               images.push({ struct, from: references.from, to: references.to });
             }
@@ -5226,7 +5244,7 @@ export class SparkdownCompiler {
       while (declarations.value) {
         if (declarations.value.type === "define") {
           const name = doc.read(declarations.from, declarations.to);
-          const struct = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
+          const struct = getContextEntry(program.context, "filtered_image", name) ?? getContextEntry(program.context, "layered_image", name) ?? getContextEntry(program.context, "image", name);
           if (struct) emit(struct, declarations.from, declarations.to);
         }
         declarations.next();
@@ -5765,10 +5783,11 @@ export class SparkdownCompiler {
             const structProperty = declaration?.property;
             if (structType && structProperty) {
               // Validate struct property types
-              if (program.context?.[structType]?.[structName]) {
+              const struct = getContextEntry(program.context, structType, structName);
+              if (struct) {
                 const definedPropertyValue = readProperty(
                   structProperty,
-                  program.context?.[structType]?.[structName],
+                  struct,
                 );
                 if (definedPropertyValue !== undefined) {
                   const expectedPropertyValue = this.getExpectedPropertyValue(

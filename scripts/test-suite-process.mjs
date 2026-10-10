@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { processIdentity } from "./reviewer-slots.mjs";
+import { readTreeProof, assertAttemptBinding } from "./test-suite-child.mjs";
 
 export { processIdentity };
 export const machineRoot = process.platform === "win32"
@@ -47,9 +48,18 @@ function unlinkOwned(file, identity) {
   const current = fs.lstatSync(file, { bigint: true });
   // Windows path stats can report dev=0 while handle stats name the volume.
   // The private path stays in one store; require its exact file ID and birth.
-  if (!current.isFile() || current.ino === 0n || current.ino !== identity.ino || current.birthtimeNs !== identity.birthtimeNs
-    || (process.platform !== "win32" && current.dev !== identity.dev)) throw new Error(`Private reservation file ownership changed at ${file}; preserve it for inspection`);
+  if (!sameFile(current, identity)) throw new Error(`Private reservation file ownership changed at ${file}; preserve it for inspection`);
   fs.unlinkSync(file);
+}
+
+const sameFile = (current, identity) => current.isFile() && identity?.isFile() && current.ino !== 0n
+  && current.ino === identity.ino && current.birthtimeNs === identity.birthtimeNs
+  && (process.platform === "win32" || current.dev === identity.dev);
+
+function removeGuard(file, identity) {
+  if (!identity) throw new Error(`Reservation guard identity unavailable at ${file}; preserve it for inspection`);
+  try { unlinkOwned(file, identity); }
+  catch (error) { if (error.code !== "ENOENT") throw error; }
 }
 
 const storeDenied = (root, error) => new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`);
@@ -108,7 +118,34 @@ export function vitestProcesses({ within } = {}) {
 
 export function reservationState(record, identify = processIdentity) {
   if (!record?.owner?.pid || !record.owner.start) return "unknown";
-  if (same(record.owner, identify(record.owner.pid))) return "running";
+  const owner = identify(record.owner.pid);
+  if (same(record.owner, owner)) return "running";
+  if (record.version === 2) {
+    if (owner !== null && (!owner?.pid || !owner.start)) return "unknown";
+    if (!record.supervision) return record.phase === "reserved" ? "interrupted" : "unknown";
+    const expected = record.supervision;
+    if (expected.reservationToken !== record.token) return "unknown";
+    try {
+      assertAttemptBinding(expected,{id:record.attempt,
+        ...(typeof record.run==="string"&&path.isAbsolute(record.run)?{directory:path.join(record.run,record.attempt)}:{})});
+      for (const original of [expected.launcher, expected.helper]) {
+        if (!original?.pid || !original.start) return "unknown";
+        const current = identify(original.pid);
+        if (current !== null && (!current?.pid || !current.start)) return "unknown";
+        if (same(original, current)) return "running";
+      }
+      // This terminal refusal was observed while the strict nonce handshake
+      // could not authorize a root. A partial may-launch publication can never
+      // use this shortcut, even when the coordinator did not send its nonce.
+      if (expected.authorizationPhase === "no-launch" && expected.launchAuthorized === false
+        && expected.status === "not-run" && !expected.root && expected.exitConfirmed === true
+        && expected.helperExitEvidence?.observation === "original-identity-absent"
+        && same(expected.helperExitEvidence.identity, expected.helper)
+        && Number.isInteger(expected.launcherClose?.exit) && !expected.launcherClose.signal) return "interrupted";
+      readTreeProof(expected, { identify, close: expected.launcherClose });
+      return "interrupted";
+    } catch { return "unknown"; }
+  }
   if (["reserved", "exited"].includes(record.phase)) return "interrupted";
   if (record.phase !== "running" || !record.child?.start) return "unknown";
   return same(record.child, identify(record.child.pid)) ? "running" : "interrupted";
@@ -120,7 +157,7 @@ export function reservationState(record, identify = processIdentity) {
 // whose recorded owner is no longer running was abandoned inside its transaction
 // and is renamed aside; any other guard, including one whose owner identity
 // cannot be read, is never guessed away.
-function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false) {
+function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false, recover = true) {
   const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
     ? storeDenied(root, error)
     : null;
@@ -128,12 +165,12 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   catch (error) { throw denied(error) || error; }
   const guard = path.join(root, "guard.json");
   const deadline = Date.now() + waitMs;
-  let fd;
+  let fd, identity, cause;
   for (;;) {
     try { fd = fs.openSync(guard, "wx"); break; }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      if (error.code === "EEXIST" && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
+      if (error.code === "EEXIST" && recover && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
       if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
       const refusal = denied(error);
       if (refusal) throw refusal;
@@ -141,10 +178,20 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
     }
   }
   try {
+    identity = fs.fstatSync(fd, { bigint: true });
     fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
     fs.fsyncSync(fd);
     return action(path.join(root, "reservation.json"));
-  } finally { fs.closeSync(fd); fs.unlinkSync(guard); }
+  } catch (error) { cause = error; throw error; }
+  finally {
+    fs.closeSync(fd);
+    try { removeGuard(guard, identity); }
+    catch (error) {
+      if (!cause) throw error;
+      cause.guardCleanupError = error.message;
+      console.error(`Reservation guard cleanup failed after ${cause.message}: ${error.message}`);
+    }
+  }
 }
 
 // Rename a guard whose recorded owner (pid and start time, the identity
@@ -154,9 +201,11 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
 //
 // The read, the identity check and the rename run under an exclusive
 // `guard-recovery.json` claim, so two recoverers cannot both judge the same
-// abandoned guard and have the slower one rename the replacement the faster one
-// just took. Only a recoverer can remove a guard whose owner is dead, so under
-// the claim the guard read is the guard renamed. A claim left by a recoverer
+// abandoned guard. Normal transactions may still finish and replace the guard
+// during the process lookup: verify the same file generation AFTER proving its
+// owner dead. That dead owner can no longer remove it, and the claim excludes
+// other recoverers, so no legitimate remover can change it before rename.
+// A claim left by a recoverer
 // that died inside it is never guessed away: no guard is recovered until it is
 // inspected, which is how every abandoned guard behaved before recovery existed.
 function recoverAbandonedGuard(root, guard, identify, admitting = false) {
@@ -176,18 +225,27 @@ function recoverAbandonedGuard(root, guard, identify, admitting = false) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       return false;
     }
-    let owner;
-    try { owner = JSON.parse(fs.readFileSync(guard, "utf8"))?.owner; }
+    let owner, identity, guardFd;
+    try {
+      guardFd = fs.openSync(guard, "r");
+      identity = fs.fstatSync(guardFd, { bigint: true });
+      owner = JSON.parse(fs.readFileSync(guardFd, "utf8"))?.owner;
+    }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       return error.code === "ENOENT";
-    }
+    } finally { if (guardFd !== undefined) fs.closeSync(guardFd); }
     if (!owner?.pid || !owner.start) return false;
     // An unreadable process table is not evidence that the owner is gone.
     let current;
     try { current = identify(owner.pid); }
     catch { return false; }
     if (same(owner, current)) return false;
+    try { if (!sameFile(fs.lstatSync(guard, { bigint: true }), identity)) return false; }
+    catch (error) {
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      return error.code === "ENOENT";
+    }
     const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
     try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
     catch (error) {
@@ -200,15 +258,68 @@ function recoverAbandonedGuard(root, guard, identify, admitting = false) {
 
 const guardWaitMs = 5000;
 const sleeper = new Int32Array(new SharedArrayBuffer(4));
+// Cleanup owns this same guard for its entire synchronous deletion callback,
+// preventing admission between checking absence and deleting canonical proof.
+// It never recovers a guard or reservation, or interprets malformed ownership.
+export function withProbeCleanupGuard(action, { root = machineRoot } = {}) {
+  const began = Date.now();
+  const inspect = allowMissing => {
+    const directories = new Map();
+    for (let current = path.resolve(root); ; current = path.dirname(current)) {
+      let stat;
+      try { stat = fs.lstatSync(current, { bigint: true }); }
+      catch (error) { if (!allowMissing || error.code !== "ENOENT") throw error; }
+      if (stat) {
+        if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Ambiguous cleanup reservation store at ${current}; preserve reviewer scratch`);
+        directories.set(current, stat);
+      }
+      if (path.dirname(current) === current) break;
+    }
+    return directories;
+  };
+  // A genuinely absent store can be initialized by guarded mkdir. Existing
+  // physical ancestors must remain the same through acquisition; redirects,
+  // unreadable paths and changed directory generations refuse the walk.
+  const before = inspect(true);
+  const result = guarded(root, file => {
+    const after = inspect(false);
+    for (const [directory, original] of before) {
+      const current = after.get(directory);
+      if (!current || current.ino !== original.ino || current.dev !== original.dev || current.birthtimeNs !== original.birthtimeNs)
+        throw new Error(`Cleanup reservation store changed at ${directory}; preserve reviewer scratch`);
+    }
+    try { fs.lstatSync(file); return { files: 0, links: 0, skipped: true, reason: `Reservation entry present at ${file}; preserve reviewer scratch` }; }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+    const value = action();
+    if (value && typeof value.then === "function") {
+      Promise.resolve(value).catch(() => {});
+      throw new Error("Probe cleanup callback must complete synchronously under its guard");
+    }
+    return value;
+  }, guardWaitMs, processIdentity, false, false);
+  return { ...result, elapsedMs: Date.now() - began };
+}
+const elapsedSince = (value, now) => {
+  const time = typeof value === "string" ? Date.parse(value) : NaN;
+  return Number.isFinite(time) ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, now - time)) : null;
+};
 
 // `admitWaitMs` bounds only the acquiring transaction's guard wait, so a caller
 // with a deadline can keep it inside that deadline; release keeps the full bound.
-export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs } = {}) {
+export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, supervised = false } = {}) {
   return guarded(root, file => {
     if (fs.existsSync(file)) {
       const previous = read(file);
       const state = reservationState(previous, identify);
-      if (state !== "interrupted") throw new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`);
+      const observedAt = Date.now();
+      if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`), {
+        holder: { run: previous.run, phase: previous.phase, attempt: previous.attempt,
+          file: previous.file ?? null, mode: previous.mode ?? null, unitStartedAt: previous.unitStartedAt ?? null,
+          progress: previous.progress ?? null, timeoutMs: previous.timeoutMs ?? null,
+          heldSince: previous.heldSince ?? null, heldAgeMs: elapsedSince(previous.heldSince, observedAt),
+          unitElapsedMs: elapsedSince(previous.unitStartedAt, observedAt),
+          lastProgressAgeMs: elapsedSince(previous.progress?.at, observedAt) },
+      });
       const existing = census();
       if (existing.length) throw new Error(`Vitest processes still present: ${existing.join(", ")}`);
       // Preserve process identity and the recovery decision before replacing ownership.
@@ -216,7 +327,8 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
     }
     const existing = census();
     if (existing.length) throw new Error(`Vitest processes already running: ${existing.join(", ")}`);
-    const record = { token: randomUUID(), owner: identify(process.pid), run, phase: "reserved" };
+    const record = { ...(supervised ? { version: 2 } : {}), token: randomUUID(), owner: identify(process.pid), run,
+      heldSince: new Date().toISOString(), phase: "reserved" };
     if (!record.owner) throw new Error("Coordinator identity unavailable");
     atomic(file, record, { admissionRoot: root });
     const update = (values) => {
@@ -260,7 +372,7 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, census = 
     catch (error) {
       const waiting = error.reservationFilesBusy ? "reservation files" : error.guardHeld ? "guard" : /^Existing suite running/.test(error.message) ? "reservation" : null;
       if (!waiting || Date.now() >= deadline) throw error;
-      onWait({ waiting, detail: error.message });
+      onWait({ waiting, detail: error.message, ...(error.holder ? { holder: error.holder } : {}) });
       await pause(pollMs, deadline);
     }
   }
