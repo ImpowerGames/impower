@@ -219,7 +219,11 @@ for (const name of worktreeNames) {
   const linkedParent = path.join(linkedRoot, 'artifacts');
   fs.mkdirSync(linkedParent);
   const listing = execFileSync('git', ['-C', pathnameRepo, 'worktree', 'list', '--porcelain', '-z'], { encoding: 'utf8', windowsHide: true });
-  assert.ok(listing.split('\0').includes(`worktree ${linkedRoot.split(path.sep).join('/')}`), 'real Git preserves the complete worktree pathname');
+  if (process.platform === 'win32') {
+    assert.ok(listing.split('\0').filter(record => record.startsWith('worktree ')).some(record => fs.existsSync(record.slice(9)) && fs.realpathSync.native(record.slice(9)) === fs.realpathSync.native(linkedRoot)), 'real Git preserves the physical worktree pathname across Windows short aliases');
+  } else {
+    assert.ok(listing.split('\0').includes(`worktree ${linkedRoot.split(path.sep).join('/')}`), 'real Git preserves the complete worktree pathname');
+  }
   assert.throws(() => allocateWriterArtifacts({ ...options, parent: linkedParent, worktree: pathnameRepo }), /inside a checkout/, 'registered damaged worktree remains refused with unusual pathname');
   assert.deepEqual(fs.readdirSync(linkedParent), [], 'registered worktree refusal writes nothing');
 }
