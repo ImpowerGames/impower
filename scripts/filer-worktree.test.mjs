@@ -62,6 +62,11 @@ const actual = cp.spawnSync;
 cp.spawnSync = function(file, args, options) {
   if (file === 'git' && args?.[0] === 'rev-parse' && args[1] === '--show-toplevel' && options?.cwd === process.env.FILER_DISCOVERY_CWD) {
     const mode = process.env.FILER_DISCOVERY_FAILURE;
+    if (mode === 'locale') {
+      const stable = options.env?.LC_ALL === 'C' && options.env?.LANG === 'C' && options.env?.LANGUAGE === 'C';
+      const overrides = Object.keys(options.env ?? {}).some(key => /^GIT_/i.test(key) || (/^(LC_ALL|LANG|LANGUAGE)$/i.test(key) && !['LC_ALL', 'LANG', 'LANGUAGE'].includes(key)));
+      return { status: 128, stdout: '', stderr: stable && !overrides ? 'fatal: not a git repository (or any of the parent directories): .git' : 'fatal: Kein Git-Repository (oder irgendeines der Elternverzeichnisse): .git' };
+    }
     if (mode === 'status') return { status: 128, stdout: '', stderr: 'fatal: unreadable checkout metadata' };
     const error = new Error('spawnSync git ' + mode); error.code = mode;
     return { error, status: null, signal: null, stdout: '', stderr: '' };
@@ -76,6 +81,32 @@ for (const failure of ["ETIMEDOUT", "EACCES", "status"]) for (const [file, args]
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout).hookSpecificOutput;
   assert.equal(output.permissionDecision, "deny"); assert.match(output.permissionDecisionReason, /repository discovery cannot be checked/); preserved();
+}
+const discoveryOutside = path.join(scratch, "discovery-outside"), discoveryNested = path.join(main, "discovery-nested"), discoveryBroken = path.join(scratch, "discovery-broken");
+for (const dir of [discoveryOutside, discoveryNested, discoveryBroken]) fs.mkdirSync(dir);
+fs.writeFileSync(path.join(discoveryBroken, ".git"), `gitdir: ${path.join(scratch, "missing-metadata")}\n`);
+const discoveryMissingHead = path.join(scratch, "discovery-missing-head"); fs.mkdirSync(discoveryMissingHead);
+git(["init", "-b", "main"], discoveryMissingHead);
+fs.renameSync(path.join(discoveryMissingHead, ".git", "HEAD"), path.join(discoveryMissingHead, ".git", "HEAD.saved"));
+const discoveryMissingNested = path.join(discoveryMissingHead, "nested"); fs.mkdirSync(discoveryMissingNested);
+const hidden = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: discoveryNested, encoding: "utf8", env: { ...process.env, GIT_CEILING_DIRECTORIES: main }, windowsHide: true });
+assert.equal(hidden.status, 128, "real inherited ceiling can hide the containing repository");
+const brokenDiscovery = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: discoveryBroken, encoding: "utf8", windowsHide: true });
+assert.equal(brokenDiscovery.status, 128); assert.ok(brokenDiscovery.stderr.includes("missing-metadata"));
+const missingDiscovery = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: discoveryMissingNested, encoding: "utf8", windowsHide: true });
+assert.equal(missingDiscovery.status, 128); assert.ok(missingDiscovery.stderr.includes("not a git repository"));
+for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".claude/hooks/worktree-cleanup.mjs", []]]) {
+  const localized = spawnSync(process.execPath, ["--import", pathToFileURL(discoveryPreload).href, path.join(root, file), ...args], {
+    input: JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd: discoveryOutside, tool_input: { command: "rm -f unrelated.txt" } }), encoding: "utf8", windowsHide: true,
+    env: { ...process.env, FILER_DISCOVERY_CWD: discoveryOutside, FILER_DISCOVERY_FAILURE: "locale", LC_ALL: "de_DE.UTF-8", LANG: "de_DE.UTF-8", LANGUAGE: "de", language: "fr", git_ceiling_directories: main },
+  });
+  assert.equal(localized.status, 0, localized.stderr); assert.equal(localized.stdout, "", "stable local diagnostic permits a genuine unrelated outside target"); preserved();
+  for (const [cwd, extra] of [[discoveryNested, { GIT_CEILING_DIRECTORIES: main }], [main, { GIT_DIR: path.join(external, ".git"), GIT_WORK_TREE: discoveryOutside }], [discoveryBroken, {}], [discoveryMissingNested, {}]]) {
+    const result = spawnSync(process.execPath, [path.join(root, file), ...args], {
+      input: JSON.stringify({ session_id: "test-session-1766", tool_name: "Bash", cwd, tool_input: { command: `rm -rf '${external}'` } }), encoding: "utf8", windowsHide: true, env: { ...process.env, ...extra },
+    });
+    assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny"); preserved();
+  }
 }
 
 const { create, install, checkLinks, remove, markerName } = await import("./filer-worktree.mjs");
@@ -215,6 +246,26 @@ const chainSentinels = ["tracked.txt", "untracked.txt", "ignored.txt"].map(name 
 const chainPreserved = () => { preserved(); for (const [name, bytes] of chainSentinels) assert.deepEqual(fs.readFileSync(path.join(chainExternal, name)), bytes); };
 const borrowedLink = path.join(reproduction, "node_modules"), directAlias = path.join(scratch, "borrowed-link-alias"), secondAlias = path.join(scratch, "second-borrowed-alias");
 fs.unlinkSync(borrowedLink);
+fs.mkdirSync(path.join(chainExternal, "sub"));
+fs.symlinkSync(path.join(chainExternal, "sub"), borrowedLink, process.platform === "win32" ? "junction" : "dir");
+const parentTarget = `${reproduction}/node_modules/../tracked.txt`;
+assert.ok(cleanup(`rm -f '${parentTarget}'`, "bash", main), "parent components must not erase a linked ancestor");
+verifyAdapters(`rm -f '${parentTarget}'`, "Bash", main, true); chainPreserved();
+const parentLocation = `cd '${reproduction}/node_modules/..'; rm -f tracked.txt`;
+assert.ok(cleanup(parentLocation, "bash", main), "linked parent location must not invent a safe cwd");
+verifyAdapters(parentLocation, "Bash", main, true); chainPreserved();
+if (process.platform !== "win32") {
+  const actual = spawnSync("bash", ["-c", `pwd; test '${parentTarget}' -ef '${chainExternal}/tracked.txt'`], { cwd: main, encoding: "utf8" });
+  assert.equal(actual.status, 0, actual.stderr); chainPreserved();
+  // Preserve the raw link destination too: its parent component follows the
+  // borrowed link before reaching an otherwise unregistered external root.
+  fs.symlinkSync(`${borrowedLink}/..`, directAlias, "dir");
+  const rawDestination = `rm -f '${directAlias}/tracked.txt'`;
+  assert.ok(cleanup(rawDestination, "bash", main), "raw link destination retains parent traversal");
+  verifyAdapters(rawDestination, "Bash", main, true); chainPreserved();
+  fs.unlinkSync(directAlias);
+}
+fs.unlinkSync(borrowedLink);
 fs.symlinkSync(chainExternal, borrowedLink, process.platform === "win32" ? "junction" : "dir");
 fs.symlinkSync(borrowedLink, directAlias, process.platform === "win32" ? "junction" : "dir");
 fs.symlinkSync(directAlias, secondAlias, process.platform === "win32" ? "junction" : "dir");
@@ -241,6 +292,15 @@ fs.writeFileSync(path.join(sibling, "plain.txt"), "safe sibling\n");
 fs.mkdirSync(path.join(sibling, "node_modules"));
 fs.writeFileSync(path.join(sibling, "node_modules", "tracked.txt"), "safe local file\n");
 const safeBashTarget = `${sibling.replaceAll(path.sep, "/")}/plain.txt`;
+fs.mkdirSync(path.join(sibling, "ordinary"));
+for (const safeParent of [`${sibling}/ordinary/../plain.txt`, `${sibling}/ordinary/../missing.txt`]) {
+  const command = `rm -f '${safeParent}'`;
+  assert.equal(cleanup(command, "bash", main), null, "ordinary parent components remain supported");
+  verifyAdapters(command, "Bash", main, false);
+}
+const safeParentLocation = `cd '${sibling}/ordinary/..'; rm -f '${safeBashTarget}'`;
+assert.equal(cleanup(safeParentLocation, "bash", main), null);
+verifyAdapters(safeParentLocation, "Bash", main, false);
 for (const command of [
   `env rm -f '${safeBashTarget}'`, `command rm -f '${safeBashTarget}'`,
   `env -C '${slashRepro}' rm -f '${safeBashTarget}'`,

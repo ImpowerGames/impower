@@ -5,17 +5,38 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
 
 const route = "Use node scripts/filer-worktree.mjs remove --record <absolute-owner.json> --owner <filing-session> for owned filing trees, or the guarded clean-worktrees --remove route for other trees.";
+function hasAncestorMetadata(cwd) {
+  // Git can silently skip incomplete metadata (for example a missing HEAD).
+  // Absence of a recognized repository is not absence of ownership evidence.
+  for (const start of new Set([path.resolve(cwd), fs.realpathSync.native(cwd)])) {
+    let count = 0;
+    for (let at = start; ; at = path.dirname(at)) {
+      if (++count > 512) throw new Error("Repository ancestor identity exceeds its supported bound");
+      try { fs.lstatSync(path.join(at, ".git")); return true; }
+      catch (error) { if (error.code !== "ENOENT") throw error; }
+      if (at === path.dirname(at)) break;
+    }
+  }
+  return false;
+}
 function git(cwd, args) {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8", windowsHide: true, timeout: 2000 });
+  // Discovery concerns this cwd's repository. Inherited Git overrides can
+  // redirect or hide it; locale aliases can translate the diagnostic below.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key) && !/^(?:LC_ALL|LANG|LANGUAGE)$/i.test(key)));
+  Object.assign(env, { LC_ALL: "C", LANG: "C", LANGUAGE: "C" });
+  const r = spawnSync("git", args, { cwd, env, encoding: "utf8", windowsHide: true, timeout: 2000 });
   if (r.error || r.status !== 0) {
     const error = new Error(r.error?.message ?? r.stderr);
-    error.outsideRepository = !r.error && r.status === 128 && /fatal: not a git repository/i.test(r.stderr);
+    error.outsideRepository = !r.error && r.status === 128 && /^fatal: not a git repository \(or any of the parent directories\): \.git\s*$/.test(r.stderr) && !hasAncestorMetadata(cwd);
     throw error;
   }
   return r.stdout.trim();
 }
 const under = (p, root) => { const r = path.relative(root, p); return r === "" || (r !== ".." && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r)); };
 const real = p => fs.realpathSync.native(p);
+// path.resolve would erase link/.. before filesystem identity can inspect it.
+const absoluteLiteral = (cwd, target) => path.isAbsolute(target) ? target : `${cwd}${path.sep}${target}`;
+const hasParentComponent = target => target.split(process.platform === "win32" ? /[\/\\]/ : /\//).includes("..");
 const sourceCheckout = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 function exists(p) { try { fs.lstatSync(p); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } }
 function owned(tree) { return exists(path.join(git(tree, ["rev-parse", "--absolute-git-dir"]), "filer-owner.json")); }
@@ -35,7 +56,7 @@ function identity(target) {
             traversals.push({ link: at, target: real(at), source: path.join(real(path.dirname(at)), path.basename(at)) });
             // realpath collapses A -> T/node_modules -> E into E. Inspect the
             // raw destination too, so the intermediate registered T survives.
-            inspectAncestors(path.resolve(path.dirname(at), fs.readlinkSync(at)));
+            inspectAncestors(absoluteLiteral(path.dirname(at), fs.readlinkSync(at)));
           }
         }
         if (initial && !nearest) nearest = at;
@@ -206,8 +227,15 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
           const prior = [...possibleCwds];
           if (["pushd", "push-location"].includes(name)) locationStack.push(prior);
           for (const possible of prior) {
-            const next = path.resolve(possible, target);
-            try { if (!fs.statSync(next).isDirectory()) throw new Error("not a directory"); addCwd(next); }
+            const next = absoluteLiteral(possible, target);
+            try {
+              const id = identity(next);
+              if (!fs.statSync(next).isDirectory()) throw new Error("not a directory");
+              // Shell logical/physical cd modes can disagree after link/..
+              // traversal. Retain uncertainty for relative child mutations.
+              if (hasParentComponent(next) && id.traversals.length) throw new Error("linked parent location");
+              addCwd(id.physical);
+            }
             catch { locationError = `Literal location cannot be verified: ${next}`; }
           }
         }
@@ -276,7 +304,7 @@ function inspectAt(op) {
   const candidates = op.targets.filter(s => !s.startsWith("-") && !/[`$]/.test(s));
   if (op.kind === "delete" && !candidates.length && (fromRepository || op.contextKnown)) return `Cleanup target is missing or cannot be verified. ${route}`;
   for (const candidate of candidates) {
-    const target = path.resolve(op.cwd, candidate);
+    const target = absoluteLiteral(op.cwd, candidate);
     try {
       const id = identity(target);
       const containing = roots.find(tree => under(id.physical, tree));
