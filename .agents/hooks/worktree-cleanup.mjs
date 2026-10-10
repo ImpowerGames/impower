@@ -40,12 +40,21 @@ const hasParentComponent = target => target.split(process.platform === "win32" ?
 const sourceCheckout = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 function exists(p) { try { fs.lstatSync(p); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } }
 function owned(tree) { return exists(path.join(git(tree, ["rev-parse", "--absolute-git-dir"]), "filer-owner.json")); }
+function entrySpelling(candidate) {
+  // POSIX lstat follows a directory link with a trailing slash. Inspect the
+  // entry itself without erasing internal separators or link/.. traversal.
+  const rootLength = path.parse(candidate).root.length;
+  const separator = process.platform === "win32" ? /[\/\\]/ : /\//;
+  let end = candidate.length;
+  while (end > rootLength && separator.test(candidate[end - 1])) end--;
+  return candidate.slice(0, end);
+}
 function identity(target) {
   let nearest = null;
   const traversals = [];
   const visitedLinks = new Set();
   const inspectAncestors = (candidate, initial = false) => {
-    for (let at = candidate; ; at = path.dirname(at)) {
+    for (let at = entrySpelling(candidate); ; at = entrySpelling(path.dirname(at))) {
       try {
         const stat = fs.lstatSync(at);
         if (stat.isSymbolicLink()) {
@@ -61,7 +70,7 @@ function identity(target) {
         }
         if (initial && !nearest) nearest = at;
       } catch (error) { if (error.code !== "ENOENT") throw error; }
-      if (at === path.dirname(at)) break;
+      if (at === entrySpelling(path.dirname(at))) break;
     }
   };
   // Inspect every lexical ancestor before resolving the final target: a path

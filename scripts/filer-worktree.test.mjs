@@ -272,8 +272,42 @@ if (process.platform !== "win32") {
 }
 fs.unlinkSync(borrowedLink);
 fs.symlinkSync(chainExternal, borrowedLink, process.platform === "win32" ? "junction" : "dir");
-fs.symlinkSync(borrowedLink, directAlias, process.platform === "win32" ? "junction" : "dir");
+fs.symlinkSync(`${borrowedLink}//`, directAlias, process.platform === "win32" ? "junction" : "dir");
 fs.symlinkSync(directAlias, secondAlias, process.platform === "win32" ? "junction" : "dir");
+// Native lstat on POSIX follows slash-terminated directory links. Retain the
+// link at both the operand and every lexical ancestor (link//child included).
+const separatorRuns = ["/", "//", "////", ...(process.platform === "win32" ? ["\\", "\\\\", "/\\/"] : [])];
+for (const separators of separatorRuns) {
+  for (const target of [`${borrowedLink}${separators}`, `${borrowedLink}${separators}tracked.txt`, `${secondAlias}${separators}`]) {
+    const command = `Remove-Item -LiteralPath '${target}' -Recurse -Force`;
+    assert.match(cleanup(command, "powershell", main), /Linked cleanup/, "trailing and ancestor separators must retain link identity");
+    verifyAdapters(command, "PowerShell", main, true); chainPreserved();
+  }
+  const command = "Remove-Item -LiteralPath 'tracked.txt' -Force";
+  assert.ok(cleanup(command, "powershell", `${borrowedLink}${separators}`), "linked cwd spelling must retain ownership traversal");
+  verifyAdapters(command, "PowerShell", `${borrowedLink}${separators}`, true); chainPreserved();
+}
+const nativeRoot = path.parse(main).root;
+for (const target of [nativeRoot, `${nativeRoot}///`, `${reproduction}////`]) {
+  const command = `Remove-Item -LiteralPath '${target}' -Recurse -Force`;
+  assert.ok(cleanup(command, "powershell", main), "root and checkout spellings remain refused");
+  verifyAdapters(command, "PowerShell", main, true); chainPreserved();
+}
+const separatedSibling = path.join(scratch, "separated-harmless"); fs.mkdirSync(separatedSibling);
+const separatedCommand = `Remove-Item -LiteralPath '${separatedSibling}////' -Recurse -Force`;
+assert.equal(cleanup(separatedCommand, "powershell", main), null);
+verifyAdapters(separatedCommand, "PowerShell", main, false); chainPreserved();
+if (process.platform !== "win32") {
+  const backslashName = `${borrowedLink}\\`;
+  fs.mkdirSync(backslashName);
+  const command = `rm -rf '${backslashName}'`;
+  assert.equal(cleanup(command, "bash", main), null, "POSIX backslash filename must not be trimmed into a link");
+  verifyAdapters(command, "Bash", main, false); chainPreserved();
+  console.log("PASS: POSIX backslash filename remains a distinct harmless Bash literal through both adapters");
+} else {
+  console.log("SKIP: POSIX backslash filename control requires a POSIX filesystem");
+}
+console.log("PASS: native trailing/repeated separator, linked cwd and root identity controls through both adapters");
 for (const target of [directAlias, secondAlias]) {
   const command = `Remove-Item -LiteralPath '${target}/tracked.txt' -Force`;
   assert.match(cleanup(command, "powershell", main), /Linked cleanup/, "raw intermediate borrowed junction identity must survive final realpath");
