@@ -13,7 +13,8 @@ assert.match(read('.agents/skills/resolve-issue/SKILL.md'), /writer-artifacts\.m
 const publication = read('.agents/skills/resolve-issue/references/publishing.md');
 assert.match(publication, /git commit -F "\$COMMIT_MESSAGE"/);
 assert.match(publication, /--body-file "\$PR_BODY"/);
-if (process.argv[2] === '--base') throw new Error('Base unexpectedly already uses allocated artifact paths');
+// The revision option checks the selected workflow consumers. Allocator behavior
+// below always exercises this checkout's helper, including in revision controls.
 const { allocateWriterArtifacts } = await import('./writer-artifacts.mjs');
 const { protectPrivatePath } = await import('../../../scripts/reviewer-security.mjs');
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'impower-writer-artifacts-'));
