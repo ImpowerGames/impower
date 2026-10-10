@@ -4,4 +4,4 @@ What the binary program's engine (`../program/ProgramStory.ts`) runs on, which i
 
 These files began as the [inkjs](https://github.com/y-lohse/inkjs/) runtime and keep its MIT license (`LICENSE`); `../inkjs/README.md` lists what Sparkdown changed.
 
-Until #705's deletion, a few of these files still import the object hierarchy that stays in `../inkjs/engine/` (a value's place in a container, a pointer into one, the current engine's state). `../tests/runtime/runtimeLayerBoundary.test.ts` lists each such import; the deletion removes them, and the list ends empty.
+The object hierarchy and its engine imports were removed in #705. This layer supports `ProgramStory` without depending on `../inkjs/engine/`.
