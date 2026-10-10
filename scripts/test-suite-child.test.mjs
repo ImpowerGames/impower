@@ -21,6 +21,32 @@ const controlOwned=async request=>{
 };
 // Preserve failed evidence; every test uses a private fresh attempt.
 const scratch=()=>fs.mkdtempSync(path.join(os.tmpdir(),'test-suite-child-'));
+test('Windows proof publication fits an otherwise usable long attempt path',{skip:process.platform!=='win32',timeout:45000},async()=>{
+  const parent=fs.realpathSync.native(scratch()),runtimeDirectory=path.join(parent,'runtime');fs.mkdirSync(runtimeDirectory);
+  console.log('Windows proof path scratch: '+parent);
+  const runtime=await prepareOwnedRuntime({directory:runtimeDirectory,startupMs:10000,cleanupMs:1000});
+  assert.equal(runtime.status,'prepared');
+  for(const kind of ['short','long']) {
+    const directory=path.join(parent,kind==='short'?'short':'x'.repeat(215-parent.length-1));fs.mkdirSync(directory);
+    const prepared=await prepareOwnedChild({runtime,directory,command:process.execPath,
+      args:['-e','console.log("finite-child-completed")'],cwd:parent,timeoutMs:3000,startupMs:5000,cleanupMs:1000});
+    const result=await runOwnedChild({prepared,reservationToken:randomUUID()});
+    console.log(JSON.stringify({proofPath:{kind,directory,requestLength:path.join(directory,'child-request.json').length,
+      proofLength:path.join(directory,'tree-proof.json').length,result}}));
+    assert.equal(fs.readFileSync(path.join(directory,'output.log'),'utf8').trim(),'finite-child-completed');
+    assert.equal(result.exitConfirmed,true,'Completed native child needs authenticated proof at both usable paths');
+    assert.equal(result.exit,0);assert.equal(readTreeProof(result,{close:result.launcherClose}).tree.empty,true);
+  }
+  const stale=path.join(parent,'stale');fs.mkdirSync(stale);
+  const partial=path.join(stale,'tree-proof.tmp');fs.writeFileSync(partial,'retained partial proof',{flag:'wx'});
+  const prepared=await prepareOwnedChild({runtime,directory:stale,command:process.execPath,
+    args:['-e','console.log("finite-child-completed")'],cwd:parent,timeoutMs:3000,startupMs:5000,cleanupMs:1000});
+  const refused=await runOwnedChild({prepared,reservationToken:randomUUID()});
+  assert.equal(refused.status,'unknown');assert.equal(refused.exitConfirmed,false);
+  assert.equal(fs.readFileSync(partial,'utf8'),'retained partial proof','Never overwrite an existing temporary proof');
+  assert.equal(fs.existsSync(path.join(stale,'tree-proof.json')),false);
+  assert.match(refused.diagnostics,/IOException/);
+});
 test('native output-log open refusal has authenticated no-launch proof',{skip:!supported,timeout:30000},async()=>{
   const runtimeDirectory=scratch(),directory=scratch(),marker=path.join(directory,'engine-marker');
   console.log('Native log refusal scratch: '+directory);

@@ -33,7 +33,10 @@ public static class TestSuiteChildWindows {
       {"launchNonce",request.launchNonce},{"helper",helper},{"root",root},{"exit",exit},{"signal",null},{"status",status},
       {"timedOut",timedOut},{"interrupted",interrupted},{"startedAt",startedAt},{"finishedAt",Now()},{"communicationError",communicationFailure},{"launchError",launchError},
       {"tree",new Dictionary<string,object>{{"mechanism","windows-job"},{"empty",true},{"observation",observation},{"activeProcesses",0},{"observedAt",Now()}}}};
-    string temporary=Path.Combine(Path.GetDirectoryName(request.proofFile),"tree-proof-"+Guid.NewGuid().ToString()+".tmp");
+    // This directory belongs to one fresh, single-use attempt. Keep exclusive
+    // creation and never overwrite stale partial proof, without making the
+    // temporary path longer than the admitted final proof on legacy .NET.
+    string temporary=Path.Combine(Path.GetDirectoryName(request.proofFile),"tree-proof.tmp");
     byte[] bytes=new UTF8Encoding(false).GetBytes(json.Serialize(value)+"\n");
     using(var file=new FileStream(temporary,FileMode.CreateNew,FileAccess.Write,FileShare.None)){file.Write(bytes,0,bytes.Length);file.Flush(true);}
     File.Move(temporary,request.proofFile); // never overwrite another proof

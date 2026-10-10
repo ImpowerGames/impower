@@ -42,12 +42,15 @@ const coverageSupported = context => {
   if (context.config.coverage.enabled && !["v8", "istanbul"].includes(context.config.coverage.provider))
     throw new Error("Exact per-file aggregation supports configured v8 or istanbul coverage only; custom providers are unsupported");
 };
-const directSupported = (context, { configuredBlob = true } = {}) => {
+const directSupported = (context, { configuredBlob = true, reporterReferences } = {}) => {
   coverageSupported(context);
   if ([context.config, ...context.projects.map(project => project.config)].some(config =>
     Array.isArray(config.globalSetup) ? config.globalSetup.length : !!config.globalSetup))
     throw new Error("Exact per-file direct runs cannot preserve once-per-command globalSetup; use a package without configured globalSetup (setupFiles remain supported)");
-  if (configuredBlob && context.reporters.some(value => value.constructor?.name === "BlobReporter"))
+  const references = reporterReferences === undefined ? context.reporters
+    : Array.isArray(reporterReferences) ? reporterReferences : [reporterReferences];
+  if (configuredBlob && references.some(value => value === "blob"
+    || Array.isArray(value) && value[0] === "blob" || value?.constructor?.name === "BlobReporter"))
     throw new Error("Exact per-file direct aggregation cannot merge configured BlobReporter output; choose an ordinary reporter");
 };
 const admitCoverageAggregation = async context => {
@@ -57,7 +60,8 @@ const admitCoverageAggregation = async context => {
 };
 try {
   if (mode === "discover") {
-    ctx = await createVitest("test", options, viteOptions);
+    // Pure inventory needs no configured reporter construction or lifecycle.
+    ctx = await createVitest("test", { ...options, reporters: [{}] }, viteOptions);
     // Vitest 2 records automatically discovered workspace files on the context;
     // explicit workspace/projects configuration is also rejected, even with one project.
     if (ctx.config.workspace || ctx.config.projects || ctx._workspaceConfigPath || ctx.projects.length !== 1 || ctx.config.browser?.enabled || ctx.config.typecheck?.enabled || ctx.config.poolMatchGlobs?.length || path.resolve(ctx.config.root) !== packageRoot)
@@ -66,8 +70,13 @@ try {
     fs.writeFileSync(output, JSON.stringify(specs.map(spec => spec.moduleId ?? spec[1])), "utf8");
     progress("discovered");
   } else if (mode === "select") {
-    ctx = await createVitest("test", options, viteOptions);
-    directSupported(ctx);
+    // Inline reporters are supported by pinned Vitest. Override before creation
+    // so configured custom modules/constructors and onInit/onClose cannot create
+    // an unfinished second lifecycle. Finalization owns ordinary reporters.
+    ctx = await createVitest("test", { ...options, reporters: [{}] }, viteOptions);
+    // CLI reporter overrides do not erase the authored Vite test configuration.
+    // Inspect its native name/tuple/instance forms without constructing it.
+    directSupported(ctx, { reporterReferences: ctx.server.config.test?.reporters ?? [] });
     await admitCoverageAggregation(ctx);
     // This invocation-level initialization owns configured coverage.clean.
     // Later file attempts use private report directories and cannot leave an

@@ -357,15 +357,16 @@ if(!dependencies) {
   }
   if(process.env.CI==='true'||process.argv.includes('--selection')) {
     test('direct configured globalSetup and blob reporter are refused before setup or test effects',{timeout:120000},async()=>{
-      for(const kind of ['globalSetup','blob']) {
+      for(const kind of ['globalSetup','blob','blob-name','blob-tuple']) {
         const directory=realPackage('unsupported-'+kind,{}, {'src/one.test.ts':'one'});
         const setupMarker=path.join(directory,'.git','setup-ran');
         fs.writeFileSync(path.join(directory,'global-setup.ts'),'import fs from "node:fs";export default ()=>{fs.writeFileSync('+JSON.stringify(setupMarker)+',"ran")};');
-        const config={test:{include:['src/**/*.test.ts'],...(kind==='blob'?{reporters:['blob']}:{globalSetup:['./global-setup.ts']})}};
+        const blob=kind.startsWith('blob');
+        const config={test:{include:['src/**/*.test.ts'],...(blob?{reporters:kind==='blob-name'?'blob':kind==='blob-tuple'?[['blob',{}]]:['blob']}:{globalSetup:['./global-setup.ts']})}};
         fs.writeFileSync(path.join(directory,'vitest.config.ts'),'export default '+JSON.stringify(config)+';');
         const result=await publicRunner(directory,['run',directory,'src/one.test.ts','--wait','30']);
         assert.equal(result.close.exit,1);
-        assert.match(result.stdout+result.stderr,kind==='blob'?/configured BlobReporter/:/once-per-command globalSetup/);
+        assert.match(result.stdout+result.stderr,blob?/configured BlobReporter/:/once-per-command globalSetup/);
         assert.deepEqual(markers(directory),[]);assert.equal(fs.existsSync(setupMarker),false);
       }
     });
@@ -436,6 +437,24 @@ if(!dependencies) {
       assert.deepEqual(markers(directory),[],'A timed-out first test must forbid successor admission');
       const units=result.disposition.record.attempts.filter(row=>row.mode==='run-direct');assert.equal(units.length,1);
       const proof=JSON.parse(fs.readFileSync(units[0].supervision.proofFile,'utf8'));assert.equal(proof.timedOut,true);assert.equal(proof.tree.empty,true);
+    });
+  }
+  if(process.env.CI==='true'||process.argv.includes('--reporter-lifecycle')) {
+    test('configured reporter is constructed initialized finished and closed once per command',{timeout:120000},async()=>{
+      for(const mixed of [false,true]) {
+        const directory=realPackage('reporter-lifecycle',{exclude:['src/excluded/**']},
+          {'src/one.test.ts':'requested','src/excluded/omitted.test.ts':'must-not-run'});
+        const events=path.join(directory,'.git','reporter-events.jsonl'),module=path.join(directory,'reporter.mjs');
+        fs.writeFileSync(module,'import fs from "node:fs";const event=value=>fs.appendFileSync('+JSON.stringify(events)+',JSON.stringify(value)+"\\n");export default class Reporter{constructor(){event("constructor")}onInit(ctx){event("init");ctx.onClose(()=>event("close"))}onFinished(){event("finished")}}');
+        fs.writeFileSync(path.join(directory,'vitest.config.ts'),'export default '+JSON.stringify({test:{include:['src/**/*.test.ts'],
+          exclude:['src/excluded/**'],reporters:[module]}})+';');
+        const result=await publicRunner(directory,['run',directory,'src/one.test.ts',...(mixed?['src/excluded/omitted.test.ts']:[]),'--wait','30']);
+        assert.equal(result.disposition.confirmed,true);assert.equal(result.close.exit,mixed?1:0,result.stderr);
+        assert.deepEqual(markers(directory),['requested']);
+        const lifecycle=fs.readFileSync(events,'utf8').trim().split('\n').map(row=>JSON.parse(row));
+        console.log(JSON.stringify({reporterLifecycle:{mixed,lifecycle,receipt:path.join(directory,'.git','public-run-result.json')}}));
+        assert.deepEqual(lifecycle,['constructor','init','finished','close'],'Selection must not construct an unfinished configured reporter');
+      }
     });
   }
   if(process.env.CI==='true'||process.argv.includes('--aggregate')) {
@@ -585,8 +604,14 @@ if(!dependencies) {
     test('configured API preserves discovery excludes and exact per-attempt report identity',{timeout:150000},async()=>{
       const directory=realPackage('configured-api',{exclude:['src/excluded/**']},
         {'src/short.test.ts':'requested','src/duplicate/src/short.test.ts':'overlap','src/excluded/omitted.test.ts':'excluded'});
+      const lifecycle=path.join(directory,'.git','discovery-reporter-events'),module=path.join(directory,'reporter.mjs');
+      fs.writeFileSync(module,'import fs from "node:fs";const event=value=>fs.appendFileSync('+JSON.stringify(lifecycle)+',value+"\\n");export default class Reporter{constructor(){event("constructor")}onInit(ctx){event("init");ctx.onClose(()=>event("close"))}onFinished(){event("finished")}}');
+      fs.writeFileSync(path.join(directory,'vitest.config.ts'),'export default '+JSON.stringify({test:{include:['src/**/*.test.ts'],
+        exclude:['src/excluded/**'],reporters:[module]}})+';');
+      execFileSync('git',['-C',directory,'add','vitest.config.ts','reporter.mjs'],{windowsHide:true});
       const result=await publicRunner(directory,['start',directory,'--wait','30']);
       assert.equal(result.close.exit,0,result.stderr);
+      assert.equal(fs.existsSync(lifecycle),false,'Pure discovery creates no configured reporter; durable file units use their explicit reporters');
       assert.deepEqual(markers(directory).sort(),['overlap','requested']);
       const runRoot=path.join(directory,'.git','test-suites');
       const run=JSON.parse(fs.readFileSync(path.join(runRoot,fs.readdirSync(runRoot)[0],'run.json'),'utf8'));
