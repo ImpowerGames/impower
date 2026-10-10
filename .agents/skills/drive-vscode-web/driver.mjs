@@ -391,7 +391,7 @@ export function buildRule(extDir, packagesDir, io = fs, surface = "editor") {
     if (io.statSync(path.join(extDir, "data", f)).isFile()) groups.push({ artifact: path.join(out, "data", f), sources: [path.join(extDir, "data", f)], steps: [self], copied: true });
   }
   if (surface === "desktop") {
-    const buildInputs = list(packagesDir).flatMap(p => ["esbuild.js", "package.json"].map(file => path.join(packagesDir, p, file))).filter(present);
+    const buildInputs = list(packagesDir).flatMap(p => ["esbuild.js", "package.json", "tsconfig.json"].map(file => path.join(packagesDir, p, file))).filter(present);
     groups.push({ artifact: path.join(out, "workers", "sparkdown-screenplay-pdf.js"), sources: shared, steps: ["npm run build"] });
     for (const name of ["game", "screenplay", "screen", "inspector"]) {
       groups.push({ artifact: path.join(out, "webviews", `${name}-webview.js`), sources: [path.join(extDir, "webviews", `${name}-webview`), ...shared], steps: ["npm run build"] });
@@ -399,7 +399,9 @@ export function buildRule(extDir, packagesDir, io = fs, surface = "editor") {
     // The player and its workers are embedded in game-webview.js. Its shared
     // package sources above must therefore invalidate that artifact as well.
     for (const group of groups.filter(g => !g.copied)) {
-      group.sources.push(path.join(extDir, "scripts"), path.join(extDir, "package.json"), ...buildInputs);
+      // esbuild discovers the nearest tsconfig for each bundled TS/TSX input.
+      // JSX emission and class-field settings can change bytes without a src edit.
+      group.sources.push(path.join(extDir, "scripts"), path.join(extDir, "package.json"), path.join(extDir, "tsconfig.json"), ...buildInputs);
     }
   }
   return groups;
