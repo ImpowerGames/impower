@@ -139,6 +139,29 @@ for (const damage of ['missing-head', 'damaged-head', 'missing-objects', 'missin
   assert.throws(() => allocateWriterArtifacts({ ...options, parent: damagedParent }), /Cannot verify/, `${damage} bare metadata refuses before allocation`);
   assert.deepEqual(fs.readdirSync(damagedParent), [], 'damaged bare storage receives no artifacts');
 }
+const outcomeBare = path.join(scratch, 'bare-config-outcomes');
+console.log(`Scratch config-outcome repository: ${outcomeBare}`);
+execFileSync('git', ['init', '--quiet', '--bare', outcomeBare], { windowsHide: true });
+fs.renameSync(path.join(outcomeBare, 'HEAD'), path.join(outcomeBare, 'HEAD.saved'));
+fs.renameSync(path.join(outcomeBare, 'refs'), path.join(outcomeBare, 'refs.saved'));
+const outcomeParent = path.join(outcomeBare, 'scratch');
+fs.mkdirSync(outcomeParent);
+try {
+  for (const fault of [{ status: 128, signal: null, stderr: 'fatal: injected failure' }, { status: null, signal: 'SIGTERM', stderr: '' }, { status: 0, signal: 'SIGTERM', stderr: '' }, { status: 1, signal: null, stderr: 'unexpected failure' }]) {
+    let injected = 0;
+    childProcess.spawnSync = (executable, args, settings) => {
+      if (executable === 'git' && args[0] === 'config') { injected++; return { ...fault, stdout: '' }; }
+      return originalSpawnSync(executable, args, settings);
+    };
+    syncBuiltinESMExports();
+    assert.throws(() => allocateWriterArtifacts({ ...options, parent: outcomeParent }), /Cannot verify/, 'unexpected config outcomes cannot become absent metadata');
+    assert.ok(injected, 'only the config result was injected; discovery and fixture remain real');
+    assert.deepEqual(fs.readdirSync(outcomeParent), [], 'failed config verification writes nothing');
+  }
+} finally {
+  childProcess.spawnSync = originalSpawnSync;
+  syncBuiltinESMExports();
+}
 const ordinaryNames = path.join(scratch, 'ordinary-metadata-names');
 fs.mkdirSync(ordinaryNames);
 fs.mkdirSync(path.join(ordinaryNames, 'objects'));
@@ -147,6 +170,10 @@ fs.writeFileSync(path.join(ordinaryNames, 'config'), '[application]\nname = ordi
 assert.ok(allocateWriterArtifacts({ ...options, parent: ordinaryNames }).artifactDir, 'generic config/objects/refs names alone are ordinary storage');
 fs.writeFileSync(path.join(ordinaryNames, 'config'), `[include]\npath = "${path.join(bare, 'config').split(path.sep).join('/')}"\n`);
 assert.ok(allocateWriterArtifacts({ ...options, parent: ordinaryNames }).artifactDir, 'metadata recognition reads only the explicit config without following includes');
+fs.writeFileSync(path.join(ordinaryNames, 'config'), 'invalid config\n');
+const malformedOrdinaryBefore = fs.readdirSync(ordinaryNames);
+assert.throws(() => allocateWriterArtifacts({ ...options, parent: ordinaryNames }), /Cannot verify/, 'malformed ordinary config with storage names is unverifiable');
+assert.deepEqual(fs.readdirSync(ordinaryNames), malformedOrdinaryBefore, 'malformed ordinary config refusal writes nothing');
 const linkedMetadata = path.join(scratch, 'linked-metadata');
 fs.mkdirSync(linkedMetadata);
 const objectsLink = path.join(linkedMetadata, 'objects');

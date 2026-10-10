@@ -39,20 +39,22 @@ function recognizableAdmin(directory, env) {
   const objects = metadataEntry(path.join(directory, 'objects'));
   const refs = metadataEntry(path.join(directory, 'refs'));
   if (!objects?.isDirectory() && !refs?.isDirectory()) return false;
+  // Corroborate damaged/missing config with the canonical Git storage layout;
+  // generic objects/refs/config names alone do not identify a repository.
+  if (['objects/info', 'objects/pack', 'refs/heads', 'refs/tags'].every(name => metadataEntry(path.join(directory, name))?.isDirectory())) return true;
   if (configStat) {
     if (!configStat.isFile()) throw new Error(`Cannot verify artifact parent metadata: ${config}`);
     // Establish readability separately: a Git parse error is not proof of absence.
     fs.readFileSync(config);
     const read = (type, key) => {
       const result = spawnSync('git', ['config', '--file', config, '--no-includes', `--type=${type}`, '--get', key], { encoding: 'utf8', windowsHide: true, env });
-      if (result.error) throw new Error(`Cannot verify artifact parent metadata: ${config}`, { cause: result.error });
+      if (result.error || result.signal || ![0, 1].includes(result.status) || (result.status === 1 && (result.stdout || result.stderr))) throw new Error(`Cannot verify artifact parent metadata: ${config}`, { cause: result.error });
+      // --get returns 1 for an absent key. Every other failed read is uncertain.
       return result.status === 0 ? result.stdout.trim() : null;
     };
     if (read('int', 'core.repositoryformatversion') !== null && read('bool', 'core.bare') !== null) return true;
   }
-  // Corroborate damaged/missing config with the canonical Git storage layout;
-  // generic objects/refs/config names alone do not identify a repository.
-  return ['objects/info', 'objects/pack', 'refs/heads', 'refs/tags'].every(name => metadataEntry(path.join(directory, name))?.isDirectory());
+  return false;
 }
 
 export function allocateWriterArtifacts({ parent, issue, writer, session, worktree = process.cwd() }) {

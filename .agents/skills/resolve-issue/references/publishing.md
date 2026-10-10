@@ -12,7 +12,7 @@ node .agents/skills/resolve-issue/writer-artifacts.mjs --parent <existing-absolu
 
 Keep the returned absolute `artifactDir`, `commitMessage` and `prBody` paths for the whole attempt. The allocator creates an exclusive directory, protects it for its owner and reads back `owner.json`; it refuses missing identities, linked ancestors and checkout parents. Each writer and retry allocates anew, even for the same issue and session. Use an editor to fill the returned files and put other artifacts under `artifactDir`. A shared parent scratch directory is allowed; its root filenames are not private artifacts. Allocation failure stops artifact creation. This directory already exists before a PR number is available.
 
-Repository refusal covers Git discovery, ancestor `.git` entries and recognizable Git administration storage: Git core configuration with objects or refs, or the canonical objects/info, objects/pack, refs/heads and refs/tags layout. Generic config/objects/refs names alone remain allowed. Arbitrarily destroyed metadata cannot always be recognized; choose a scratch parent known to be outside repository storage.
+Repository refusal covers Git discovery, ancestor `.git` entries and recognizable Git administration storage: Git core configuration with objects or refs, or the canonical objects/info, objects/pack, refs/heads and refs/tags layout. Generic config/objects/refs names with valid unrelated configuration remain allowed. A failed config read, including malformed ordinary config beside objects/refs, is unverifiable and stops allocation. Arbitrarily destroyed metadata cannot always be recognized; choose a scratch parent known to be outside repository storage.
 
 ## 7. Commit, push, and open a draft PR
 
