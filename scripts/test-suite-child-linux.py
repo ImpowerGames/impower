@@ -43,6 +43,15 @@ def emit(event, **fields):
         disconnected.set()
 
 
+def child_pids():
+    location = f"/proc/{os.getpid()}/task/{os.getpid()}/children"
+    with open(location, encoding="ascii") as source:
+        values = source.read().split()
+    if any(not value.isascii() or not value.isdecimal() or int(value) <= 0 for value in values):
+        raise RuntimeError(f"Malformed required children interface: {location}")
+    return [int(value) for value in values]
+
+
 def capability():
     if sys.platform != "linux" or sys.version_info < (3, 9):
         raise RuntimeError("Linux supervisor requires Python 3.9+ and Linux pidfd/subreaper support")
@@ -62,6 +71,10 @@ def capability():
         signal.pidfd_send_signal(fd, 0)
     finally:
         os.close(fd)
+    # This fresh helper has not launched any children. The same required
+    # interface must be usable before admission, not first discovered at cleanup.
+    if child_pids():
+        raise RuntimeError("Fresh supervisor unexpectedly already owns children")
 
 
 def publish_proof(proof):
@@ -259,10 +272,7 @@ def main():
             cleanup_deadline = time.monotonic() + 10
             emit("stopping", timedOut=timed_out)
         if stopping:
-            with open(f"/proc/{os.getpid()}/task/{os.getpid()}/children", encoding="ascii") as source:
-                children = source.read().split()
-            for text in children:
-                pid = int(text)
+            for pid in child_pids():
                 try:
                     fd = os.pidfd_open(pid)
                 except ProcessLookupError:

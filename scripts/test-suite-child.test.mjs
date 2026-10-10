@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawn,execFileSync} from 'node:child_process';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
 import {processIdentity} from './reviewer-slots.mjs';
@@ -21,6 +21,48 @@ const controlOwned=async request=>{
 };
 // Preserve failed evidence; every test uses a private fresh attempt.
 const scratch=()=>fs.mkdtempSync(path.join(os.tmpdir(),'test-suite-child-'));
+test('Linux required children interface refuses before capability acknowledgement',{skip:process.platform!=='linux',timeout:40000},async()=>{
+  const parent=scratch(),source=fs.readFileSync(path.join(here,'test-suite-child-linux.py'),'utf8');
+  console.log('Linux children admission scratch: '+parent);
+  const admission='    if child_pids():\n        raise RuntimeError("Fresh supervisor unexpectedly already owns children")';
+  assert.ok(source.includes(admission),'Sensitivity removes only the reached children admission check');
+  for(const kind of ['missing','unreadable','malformed','sensitivity']) {
+    const directory=path.join(parent,kind);fs.mkdirSync(directory);
+    const marker=path.join(directory,'interface-reached.json'),script=path.join(directory,'helper.py');
+    const injection=kind==='unreadable'?'raise PermissionError(13, "Injected children interface unreadable", location)':
+      kind==='malformed'?'return io.StringIO("invalid-pid")':'raise FileNotFoundError(2, "Injected children interface missing", location)';
+    const prefix=`import builtins, io\n_original_open = builtins.open\ndef _interface_open(location, *args, **kwargs):\n    if location == f"/proc/{os.getpid()}/task/{os.getpid()}/children":\n        with _original_open(${JSON.stringify(marker)}, "w") as reached:\n            json.dump(dict(path=location, pid=os.getpid()), reached)\n        ${injection}\n    return _original_open(location, *args, **kwargs)\nbuiltins.open = _interface_open\n`;
+    const body=kind==='sensitivity'?source.replace(admission,'    # Private no-fork sensitivity: omit only children admission.'):source;
+    fs.writeFileSync(script,prefix+body);
+    console.log(JSON.stringify({childrenSource:{kind,productionSha256:createHash('sha256').update(source).digest('hex'),
+      helperSha256:createHash('sha256').update(prefix+body).digest('hex'),script}}));
+    let acknowledged=false;
+    const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:5000,cleanupMs:1000,
+      onPreparation(){acknowledged=true;}});
+    fs.writeFileSync(path.join(directory,'control-result.json'),JSON.stringify({kind,acknowledged,result},null,2));
+    console.log(JSON.stringify({childrenAdmission:{kind,acknowledged,result}}));
+    const disposition=JSON.parse(fs.readFileSync(path.join(directory,'preparation-result.json'),'utf8'));
+    assert.ok(disposition.preparationClose,'Retain actual original capability-process close');
+    assert.equal(disposition.preparationClose.signal,null);
+    if(kind==='sensitivity') {
+      // --check cannot fork even when the defective capability check succeeds.
+      assert.equal(result.status,'prepared');assert.equal(acknowledged,true);
+      assert.equal(disposition.preparationClose.exit,0);
+      assert.equal(fs.existsSync(marker),false,'Original admission never reads the required interface');
+      assert.throws(()=>assert.equal(result.status,'not-run'),/prepared/,'Same refusal assertion is RED without admission');
+      console.log('RED sensitivity: missing children interface was admitted; no engine can launch in --check');
+    } else {
+      const reached=JSON.parse(fs.readFileSync(marker,'utf8'));
+      assert.equal(reached.path,`/proc/${reached.pid}/task/${reached.pid}/children`);
+      assert.equal(result.status,'not-run');assert.equal(result.exitConfirmed,true);
+      assert.notEqual(disposition.preparationClose.exit,0);
+      assert.equal(result.launchAuthorized,false);assert.equal(acknowledged,false);
+      assert.match(result.diagnostics,kind==='malformed'?/Malformed required children interface/:/Injected children interface (?:missing|unreadable)/);
+      assert.equal(processIdentity(reached.pid),null,'Original capability helper has actually exited');
+      assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false,'No engine attempt authorized');
+    }
+  }
+});
 test('Windows proof publication fits an otherwise usable long attempt path',{skip:process.platform!=='win32',timeout:45000},async()=>{
   const parent=fs.realpathSync.native(scratch()),runtimeDirectory=path.join(parent,'runtime');fs.mkdirSync(runtimeDirectory);
   console.log('Windows proof path scratch: '+parent);
