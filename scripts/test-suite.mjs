@@ -265,6 +265,19 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     if (!childAttempted) throw Object.assign(new Error(error), { notRun: true, attempt, unpersistedAttempts });
     return true;
   };
+  let semanticRefusal;
+  const refuseStale = message => {
+    // The inputs are already known to be unusable, even if publishing that
+    // fact fails. A journal error cannot turn this refusal into an admission retry.
+    semanticRefusal = new Error(message);
+    run.stale = true;
+    try { save(); }
+    catch (error) {
+      semanticRefusal.journalError = error.message;
+      semanticRefusal.message += `; Journal publication failed: ${error.message}`;
+    }
+    throw semanticRefusal;
+  };
   const finish = () => {
     summary = aggregate(run);
     if (!reservationError && !journalError && !attemptError) {
@@ -283,15 +296,14 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       run = read(path.join(directory, "run.json"));
       validateRun(run, directory);
       loadEvidence(run);
+      if (run.stale || run.manifestHash !== manifestHash(run.files) || run.identity !== fingerprint(run.root, [])) {
+        refuseStale("Source/configuration/dependency identity changed; start a new run (old attempts preserved)");
+      }
       // Acquisition reconciled both the previous coordinator and its child.
       for (const attempt of run.attempts) if (!["passed", "failed", "interrupted"].includes(attempt.status)) {
         attempt.status = "interrupted";
         attempt.reconciledAt = now();
         publish(() => atomic(path.join(attempt.directory, "attempt.json"), attempt));
-      }
-      if (run.stale || run.manifestHash !== manifestHash(run.files) || run.identity !== fingerprint(run.root, [])) {
-        run.stale = true; save();
-        throw new Error("Source/configuration/dependency identity changed; start a new run (old attempts preserved)");
       }
       run.owner = reservation.record.owner;
       run.token = reservation.record.token;
@@ -317,7 +329,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       save();
       run.manifestHash = manifestHash(run.files);
       run.identity = fingerprint(root, []);
-      if (run.identity !== beforeDiscovery) { run.stale = true; save(); throw new Error("Inputs changed during discovery; start a new run"); }
+      if (run.identity !== beforeDiscovery) refuseStale("Inputs changed during discovery; start a new run");
       save();
     }
     for (const file of retry) {
@@ -326,20 +338,24 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     for (const file of run.files) {
       const previous = run.attempts.filter(a => a.file === file).at(-1);
       if (previous && (previous.status === "passed" || previous.status === "failed" && !retry.includes(file))) continue;
-      if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); throw new Error("Inputs changed during suite; start a new run"); }
+      if (fingerprint(run.root, []) !== run.identity) refuseStale("Inputs changed during suite; start a new run");
       await waitForCensus({ deadline: Date.now() + waitMs, pollMs: dependencies.pollMs, census, onWait: reportWait });
       const { attempt } = await childRun(run, "run", file, reservation, save, childDependencies);
       if (retain(attempt)) return finish();
     }
-    if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); }
+    if (fingerprint(run.root, []) !== run.identity) {
+      run.stale = true;
+      try { save(); }
+      catch { /* finish retains the known stale summary beside journalError. */ }
+    }
     return finish();
   } catch (error) {
     // Coordinator publication can fail between children or after aggregation.
     // Stop admission and retain every result this invocation already observed.
-    if (journalError && childAttempted) return finish();
+    if (journalError && childAttempted && !semanticRefusal) return finish();
     failureInFlight = error;
     Object.assign(error, { observedAttempts, unpersistedAttempts });
-    if (!childAttempted && (journalError || error.code)) error.notRun = true;
+    if (!semanticRefusal && !childAttempted && (journalError || error.code)) error.notRun = true;
     throw error;
   } finally {
     // Persist while still owning the reservation: a successor may acquire it

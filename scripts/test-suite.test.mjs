@@ -1060,6 +1060,116 @@ await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/"
 }
 console.log("PASS: coordinator preparation/publication retains admission and observed results without peer writes");
 
+for (const boundary of ["resume", "discovery", "between-files", "final-resume"])
+for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `stale-publication-${boundary}-${peer}`);
+  const marker = path.join(scratch, ".git", `stale-publication-${boundary}-${peer}.marker`);
+  const fixture = path.join(scratch, ".git", `stale-publication-${boundary}-${peer}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10));
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const staleOptions = { ...options, directory: resultDirectory, enginePath: fixture, identify: setupIdentify };
+  if (boundary === "resume" || boundary === "final-resume") assert.equal((await execute(staleOptions)).status, "passed");
+  const runFile = path.join(resultDirectory, "run.json"), reservationFile = path.join(lockRoot, "reservation.json");
+  const peerBytes = JSON.stringify({ successor: "stale publication peer" });
+  const rename = fs.renameSync;
+  let injected = false, failure, result, calls = 0, attemptBytes = [];
+  fs.renameSync = (temp, target) => {
+    if (target === runFile && read(temp).stale) {
+      injected = true;
+      for (const item of fs.readdirSync(resultDirectory, { withFileTypes: true }).filter(item => item.isDirectory())) {
+        const file = path.join(resultDirectory, item.name, "attempt.json");
+        if (fs.existsSync(file)) attemptBytes.push([file, fs.readFileSync(file, "utf8")]);
+      }
+      if (peer) {
+        fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "stale-peer" }));
+        fs.writeFileSync(runFile, peerBytes);
+      }
+      throw Object.assign(new Error("controlled stale publication EIO"), { code: "EIO" });
+    }
+    return rename(temp, target);
+  };
+  const fingerprint = () => ++calls < (boundary === "resume" ? 1 : boundary === "discovery" || boundary === "final-resume" ? 2 : 4) ? "unchanged" : "changed";
+  try {
+    if (boundary === "resume") await main(["resume", resultDirectory], { ...staleOptions, fingerprint });
+    else result = await execute({ ...staleOptions, fingerprint });
+  }
+  catch (error) { failure = error; }
+  finally { fs.renameSync = rename; }
+  assert.equal(injected, true, `${boundary}: stale publication fault was reached`);
+  if (boundary === "final-resume") {
+    assert.equal(failure, undefined);
+    assert.equal(result.status, "stale", "completed resume keeps its known stale summary on publication failure");
+  } else {
+    assert.equal(notRunExit(failure, () => {}), 1, "known stale inputs remain a failure, never retryable admission");
+    assert.match(failure.message, boundary === "resume" ? /identity changed/ : boundary === "discovery" ? /changed during discovery/ : /changed during suite/);
+  }
+  const evidence = failure || result;
+  assert.match(evidence.journalError, /controlled stale publication EIO/);
+  assert.equal(fs.readFileSync(marker, "utf8"), boundary === "resume" || boundary === "final-resume" ? "discover\nrun\nrun\n" : boundary === "discovery" ? "discover\n" : "discover\nrun\n");
+  assert.equal(evidence.observedAttempts.length, boundary === "resume" || boundary === "final-resume" ? 0 : boundary === "discovery" ? 1 : 2);
+  for (const attempt of evidence.observedAttempts) assert.equal(attempt.exit, 0);
+  for (const [file, bytes] of attemptBytes) assert.equal(fs.readFileSync(file, "utf8"), bytes);
+  if (peer) {
+    assert.equal(read(reservationFile).token, "stale-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
+    fs.unlinkSync(reservationFile);
+  } else {
+    assert.equal(fs.existsSync(reservationFile), false);
+    const next = acquire("after stale publication failure", { root: lockRoot, census: () => [], identify: setupIdentify });
+    next.release();
+  }
+}
+console.log("PASS: known stale refusals survive publication failure, retain observed children and preserve peers");
+
+for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `saved-stale-${peer}`);
+  const id = "00000000-0000-0000-0000-000000000001";
+  const attemptDirectory = path.join(resultDirectory, id), attemptFile = path.join(attemptDirectory, "attempt.json");
+  fs.mkdirSync(attemptDirectory, { recursive: true });
+  const attempt = { id, directory: attemptDirectory, mode: "discover", file: null, status: "reserved" };
+  const attemptBytes = JSON.stringify(attempt), peerBytes = JSON.stringify({ successor: "saved stale peer" });
+  fs.writeFileSync(attemptFile, attemptBytes);
+  const runFile = path.join(resultDirectory, "run.json"), reservationFile = path.join(lockRoot, "reservation.json");
+  fs.writeFileSync(runFile, JSON.stringify({ version: 1, directory: resultDirectory, root: scratch,
+    packageRoot: scratch, stale: true, files: [], attempts: [attempt] }));
+  const rename = fs.renameSync;
+  let reconciliation = false, injected = false, failure, launches = 0;
+  fs.renameSync = (temp, target) => {
+    if (target === attemptFile) { reconciliation = true; throw Object.assign(new Error("unexpected stale reconciliation EIO"), { code: "EIO" }); }
+    if (target === runFile && read(temp).stale) {
+      injected = true;
+      if (peer) {
+        fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "saved-stale-peer" }));
+        fs.writeFileSync(runFile, peerBytes);
+      }
+      throw Object.assign(new Error("controlled saved stale publication EIO"), { code: "EIO" });
+    }
+    return rename(temp, target);
+  };
+  try { await execute({ ...options, directory: resultDirectory, identify: setupIdentify,
+    spawn: () => { launches++; throw Error("unexpected saved-stale child"); } }); }
+  catch (error) { failure = error; }
+  finally { fs.renameSync = rename; }
+  assert.equal(notRunExit(failure, () => {}), 1);
+  assert.match(failure.message, /identity changed/);
+  assert.match(failure.journalError, /saved stale publication EIO/);
+  assert.equal(reconciliation, false, "saved stale refusal precedes reconciliation writes");
+  assert.equal(injected, true);
+  assert.equal(launches, 0);
+  assert.equal(fs.readFileSync(attemptFile, "utf8"), attemptBytes, "known stale refusal retains the old attempt");
+  if (peer) {
+    assert.equal(read(reservationFile).token, "saved-stale-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
+    fs.unlinkSync(reservationFile);
+  } else {
+    assert.equal(fs.existsSync(reservationFile), false);
+    const next = acquire("after saved stale refusal", { root: lockRoot, census: () => [], identify: setupIdentify });
+    next.release();
+  }
+}
+console.log("PASS: saved stale refusals preserve old attempts before reconciliation publication");
+
 for (const peer of [false, true]) {
   const reservationFile = path.join(lockRoot, "reservation.json"), rename = fs.renameSync;
   const marker = path.join(scratch, ".git", `direct-launch-${peer}.marker`);
