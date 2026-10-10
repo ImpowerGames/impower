@@ -59,7 +59,8 @@ try {
     assert.equal(executable, 'git');
     assert.deepEqual(args.slice(-2), ['rev-parse', '--is-inside-work-tree']);
     const locale = settings.env ?? process.env;
-    return { status: 128, stderr: locale.LC_ALL === 'C' && locale.LANGUAGE === 'C' ? 'fatal: not a git repository' : 'fatal: Kein Git-Repository' };
+    if (locale.LC_ALL === 'C') assert.equal(locale.GIT_DISCOVERY_ACROSS_FILESYSTEM, '1', 'physical ancestor discovery crosses mount boundaries');
+    return { status: 128, stderr: locale.LC_ALL === 'C' && locale.LANGUAGE === 'C' ? 'fatal: not a git repository (or any of the parent directories): .git\n' : 'fatal: Kein Git-Repository' };
   };
   syncBuiltinESMExports();
   assert.ok(allocateWriterArtifacts(options).artifactDir, 'a localized nonrepository parent remains allocatable');
@@ -83,6 +84,30 @@ console.log(`Scratch repository: ${foreign}`);
 execFileSync('git', ['init', '--quiet', foreign], { windowsHide: true });
 assert.throws(() => allocateWriterArtifacts({ ...options, parent: foreign }), /Git repository/);
 assert.deepEqual(fs.readdirSync(foreign), ['.git'], 'foreign checkout receives no artifacts');
+const foreignScratch = path.join(foreign, 'scratch');
+fs.mkdirSync(foreignScratch);
+const originalGitEnvironment = Object.fromEntries(Object.entries(process.env).filter(([name]) => /^GIT_/i.test(name)));
+try {
+  for (const name of Object.keys(originalGitEnvironment)) delete process.env[name];
+  process.env.GIT_CEILING_DIRECTORIES = foreign;
+  assert.throws(() => allocateWriterArtifacts({ ...options, parent: foreignScratch }), /Git repository/, 'inherited discovery ceiling cannot hide a foreign checkout');
+  assert.deepEqual(fs.readdirSync(foreignScratch), [], 'hidden checkout receives no artifacts');
+  process.env.GIT_DIR = path.join(scratch, 'missing-routing-target');
+  process.env.GIT_WORK_TREE = foreign;
+  process.env.GIT_CONFIG_COUNT = 'not-an-integer';
+  process.env.GIT_DISCOVERY_ACROSS_FILESYSTEM = '0';
+  assert.ok(allocateWriterArtifacts(options).artifactDir, 'ambient routing/config/boundary overrides do not break a physical nonrepository parent');
+  assert.throws(() => allocateWriterArtifacts({ ...options, parent: foreignScratch }), /Git repository/);
+} finally {
+  for (const name of Object.keys(process.env).filter(name => /^GIT_/i.test(name))) delete process.env[name];
+  Object.assign(process.env, originalGitEnvironment);
+}
+const broken = path.join(scratch, 'broken-gitdir');
+fs.mkdirSync(broken);
+console.log(`Scratch broken repository: ${broken}`);
+fs.writeFileSync(path.join(broken, '.git'), 'gitdir: missing-metadata\n');
+assert.throws(() => allocateWriterArtifacts({ ...options, parent: broken }), /Cannot verify/, 'broken metadata is unverifiable, not safe nonrepository space');
+assert.deepEqual(fs.readdirSync(broken), ['.git'], 'broken checkout receives no artifacts');
 const linked = path.join(scratch, 'linked');
 fs.symlinkSync(scratch, linked, process.platform === 'win32' ? 'junction' : 'dir');
 assert.throws(() => allocateWriterArtifacts({ ...options, parent: linked }), /linked/);
