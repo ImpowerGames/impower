@@ -14,8 +14,6 @@ export const BUG = {
   keywordPosition: 865,
   /** Suggestions are offered inside comments and string literals. */
   comments: 866,
-  /** Table and define fields and methods are not offered after `.` or `:`. */
-  members: 867,
   /** A define body offers none of its type's fields or values. */
   defineFields: 868,
   /** Sparkle `#prop` and `@event` attributes offer nothing. */

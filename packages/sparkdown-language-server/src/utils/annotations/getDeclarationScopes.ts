@@ -337,14 +337,15 @@ const getParameterScope = (
     : { from: headerEnd, to: owner.to };
 };
 
-export const getDeclarationScopes = (
+/** The scope buckets and the winning local declaration's source position. */
+export const getDeclarationScopeInfo = (
   scripts: Map<string, AnnotatedScript>,
   cursor: { uri: string; offset: number },
-): DeclarationScopes => {
+) => {
   const scopes: DeclarationScopes = {};
   const visibleLocals = new Map<
     string,
-    { type: DeclarationType; from: number; scopePath: string }
+    { type: DeclarationType; from: number; scopePath: string; declarationFrom: number }
   >();
   const visibleSectionParameters = new Map<string, Set<string>>();
   const file = (scopePath: string, type: DeclarationType, name: string) => {
@@ -383,7 +384,7 @@ export const getDeclarationScopes = (
           ) {
             const previous = visibleLocals.get(text);
             if (!previous || localScope.from > previous.from) {
-              visibleLocals.set(text, { type, from: localScope.from, scopePath: "" });
+              visibleLocals.set(text, { type, from: localScope.from, scopePath: "", declarationFrom: cur.from });
             }
           }
           cur.next();
@@ -431,7 +432,7 @@ export const getDeclarationScopes = (
             visibleSectionParameters.set(scopePath, parameters);
             const previous = visibleLocals.get(text);
             if (!previous || cur.to > previous.from) {
-              visibleLocals.set(text, { type, from: cur.to, scopePath });
+              visibleLocals.set(text, { type, from: cur.to, scopePath, declarationFrom: cur.from });
             }
           }
           file(scopePath, type, text);
@@ -464,5 +465,10 @@ export const getDeclarationScopes = (
   for (const [name, { type, scopePath }] of visibleLocals) {
     file(scopePath, type, name);
   }
-  return scopes;
+  return { scopes, visibleLocals };
 };
+
+export const getDeclarationScopes = (
+  scripts: Map<string, AnnotatedScript>,
+  cursor: { uri: string; offset: number },
+): DeclarationScopes => getDeclarationScopeInfo(scripts, cursor).scopes;

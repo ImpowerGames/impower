@@ -40,6 +40,7 @@ import {
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 import { getMorphCompletions } from "./getMorphCompletions";
+import { getStaticMemberCompletions } from "./getStaticMemberCompletions";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -1383,6 +1384,12 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
+  }
+
+  const members = getStaticMemberCompletions(document, tree, scripts, documentCursorOffset);
+  if (members !== undefined) {
+    for (const member of members) completions.set(member.label, member);
+    return buildCompletions();
   }
 
   const side = -1;

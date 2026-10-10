@@ -50,8 +50,7 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("leave_numbers_alone", "a decimal point in a number offers nothing", () => {
-    // Member completion after a dot offers nothing anywhere while #867 is
-    // open, so this starts guarding numbers once that is fixed.
+    // A decimal point stays part of the number, never a member operator.
     expect(labelsAt("store a = 3.@11\n")).toEqual([]);
     expect(labelsAt("function main()\n  local a = 3.@11\nend\n")).toEqual([]);
   });
@@ -365,7 +364,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(one.labels.filter((label) => label === "A")).toHaveLength(1);
   });
 
-  upstreamCase.bug(BUG.members, "bias_toward_inner_scope", "the shadowing local's members are the ones offered", () => {
+  upstreamCase("bias_toward_inner_scope", "the shadowing local's members are the ones offered", () => {
     // Upstream checks the offered `A` has the inner table's type, with `two`.
     const labels = labelsAt(
       "store A = { one = 1 }\n\nfunction B()\n  local A = { two = 2 }\n\n  return A.@1\nend\n",
