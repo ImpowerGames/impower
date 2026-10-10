@@ -4,11 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { executionCommands, executionEnvironment, startExecutionService, validateExecutionShape, executionClientCommand } from "./reviewer-execution.mjs";
 import { requestExecution } from "./reviewer-execution-client.mjs";
 import { runHandoff } from "./agent-handoff.mjs";
 import { createReviewJob } from "./review-supervisor.mjs";
-import {createReceiptDescriptor,openReceipt} from "./test-suite-receipt.mjs";
+import {createReceiptDescriptor,openReceipt,readReceiptDisposition} from "./test-suite-receipt.mjs";
 
 // A reviewer must be able to author its own UI attempts without receiving
 // arbitrary coordinator commands or widening its filesystem permissions.
@@ -97,6 +98,53 @@ for(const files of [["a.test.ts"],["a.test.ts","./a.test.ts"]]) {
   assert.deepEqual(opened.descriptor.files,[fs.realpathSync.native(path.join(packageRoot,"a.test.ts"))]);
 }
 console.log("PASS: repeated/aliased authored files retain canonical receipt binding (no engine)");
+// Validator-only synthetic Linux metadata. Native capability refusal and real
+// same-service successor execution are covered by required Linux API CI.
+{
+  const directory=fs.realpathSync.native(fs.mkdtempSync(path.join(scratch,"receipt-refusal-")));
+  const packageRoot=path.join(root,"packages/example"),authored=createReceiptDescriptor({directory,operation:"refusal",head,
+    runnerRoot:root,packageRoot,files:["a.test.ts"],waitMs:0,outerTimeoutMs:10000});
+  const receipt=openReceipt(authored.file,{packageRoot,files:["a.test.ts"],waitMs:0,fileTimeoutMs:1800000});
+  const runtimeDirectory=path.join(directory,"runtime");fs.mkdirSync(runtimeDirectory);
+  const helper=path.join(runtimeDirectory,"helper.py");fs.writeFileSync(helper,"# synthetic validator binding");
+  const request={version:1,status:"prepared",directory:runtimeDirectory,invocationId:"validator",platform:"linux",startupMs:5000,cleanupMs:1000,
+    environmentDigest:"validator",executable:"python3",helper,bindings:[{file:helper,sha256:createHash("sha256").update(fs.readFileSync(helper)).digest("hex")}]};
+  const process={pid:800001,start:"synthetic-original-probe"},evidence={preparationProcess:process,preparationClose:{exit:1,signal:null},
+    preparationTimedOut:false,launchError:"Linux capability probe identity mismatch",diagnostics:"Missing required interface",
+    output:JSON.stringify({event:"unknown",reason:"Missing required interface"})+"\n"};
+  const requestFile=path.join(runtimeDirectory,"preparation-request.json"),resultFile=path.join(runtimeDirectory,"preparation-result.json");
+  fs.writeFileSync(requestFile,JSON.stringify(request));fs.writeFileSync(resultFile,JSON.stringify(evidence));
+  receipt.preparation({kind:"linux-capability",phase:"launch-may-start",directory:runtimeDirectory,invocationId:"validator"});
+  receipt.preparation({kind:"linux-capability",phase:"closed",process,close:evidence.preparationClose,timedOut:false});
+  receipt.runtime({...request,...evidence,status:"not-run",exit:null,signal:null,exitConfirmed:true,launchAuthorized:false});
+  const validate=(options={})=>readReceiptDisposition(authored,{coordinator:receipt.record.coordinator,identify:()=>null,...options});
+  assert.equal(validate().confirmed,true,"Confirmed capability refusal is reusable only with matching original evidence");
+  const target=authored.descriptor.receiptFile,bytes=fs.readFileSync(target),record=JSON.parse(bytes);
+  try {
+    for(const patch of [{phase:"preparing"},{reservationToken:null},{reservationToken:false},{attempts:[{id:"later"}]},{preparation:[]},
+      {preparation:[{...record.preparation[0],phase:"unknown"}]},{preparation:[{...record.preparation[0],process:undefined}]},
+      {preparation:[{...record.preparation[0],close:{exit:null,signal:"SIGTERM"}}]},
+      ...[{status:"unknown"},{platform:"win32"},{exitConfirmed:false},{launchAuthorized:true},{preparationTimedOut:true},
+        {preparationProcess:{...process,start:"wrong"}},{preparationPublicationError:"failed"}].map(value=>({runtime:{...record.runtime,...value}}))]) {
+      fs.writeFileSync(target,JSON.stringify({...record,...patch}));assert.equal(validate().confirmed,false);
+    }
+  } finally {fs.writeFileSync(target,bytes);}
+  assert.equal(validate({coordinator:{...record.coordinator,start:"wrong"}}).confirmed,false);
+  assert.equal(validate({identify:()=>undefined}).confirmed,false);
+  assert.equal(validate({identify:()=>record.coordinator}).confirmed,false);
+  for(const [file,changed] of [[requestFile,{...request,helper:"foreign"}],[resultFile,{...evidence,preparationClose:{exit:0,signal:null}}],
+    [requestFile,{status:"prepared",platform:"linux",executable:"python3",bindings:request.bindings}],[resultFile,{...evidence,output:JSON.stringify({event:"capable"})}]]) {
+    const original=fs.readFileSync(file);
+    try {fs.writeFileSync(file,JSON.stringify(changed));assert.equal(validate().confirmed,false);}
+    finally {fs.writeFileSync(file,original);}
+  }
+  const original=fs.readFileSync(helper);
+  try {fs.appendFileSync(helper,"\n# changed");assert.equal(validate().confirmed,false);}finally{fs.writeFileSync(helper,original);}
+  const admitted=path.join(runtimeDirectory,"runtime.json");fs.writeFileSync(admitted,JSON.stringify(request));
+  try {assert.equal(validate().confirmed,false,"Late expiry after runtime publication is unresolved");}finally{fs.unlinkSync(admitted);}
+  assert.equal(validate().confirmed,true);
+  console.log("PASS: Linux refusal receipt validates exact artifacts/identity; partial, later-launch and Windows uncertainty remain unknown (validator only)");
+}
 const operations = [
   { id: "tests", kind: "vitest", package: "packages/example", files: ["a.test.ts","./a.test.ts"] },
   { id: "engine", kind: "engine-bench", mode: "program", samples: 1, warmup: 0 },

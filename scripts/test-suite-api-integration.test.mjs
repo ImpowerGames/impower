@@ -2,14 +2,16 @@
 // Prior complete21-case Windows CI measured417.6s; four added local controls
 // measured about102.7s. Allow9s for the longer genuine-event stimulus, leaving
 // about250s margin. One additional pure fixture-error control brings the CI
-// inventory to 26 cases; this is not a measured 26-case full run.
+// inventory to 26 cases; this is not a measured 26-case full run. A Linux-only
+// prerequisite-refusal service control adds one case on that platform, within
+// the existing margin; its actual duration is retained separately.
 // Other checks and per-operation budgets stay unchanged.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawn,execFileSync} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {test} from 'node:test';
 import {createHash,randomUUID} from 'node:crypto';
 import {processIdentity} from './reviewer-slots.mjs';
@@ -84,7 +86,7 @@ function retainNativeEvidence(directory,key,disposition) {
     manifest.push({original,copy:label,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});
   };
   const record=disposition.record;
-  if(record.runtime)for(const name of ['runtime.json','preparation-result.json','capability-result.json','capability-output.log'])
+  if(record.runtime)for(const name of ['runtime.json','preparation-request.json','preparation-result.json','capability-result.json','capability-output.log'])
     copy(path.join(record.runtime.directory,name),'runtime-'+name);
   for(const attempt of record.attempts??[]) {
     for(const name of ['tree-proof.json','prepared.json','attempt.json','output.log','progress.json','vitest.json','result.json','selection.json','blob.json'])
@@ -280,6 +282,90 @@ if(!dependencies) {
   const admittedVersion=JSON.parse(fs.readFileSync(path.join(dependencies,'package.json'),'utf8')).dependencies.vitest;
   if(process.env.IMPOWER_TEST_VITEST_VERSION)assert.equal(admittedVersion,process.env.IMPOWER_TEST_VITEST_VERSION,'Required CI leg must use its authored exact version');
   console.log('Admitted actual Vitest and coverage-v8 version: '+admittedVersion);
+  if(process.platform==='linux'&&(process.env.CI==='true'||process.argv.includes('--preparation-refusal'))) {
+    test('real Linux capability refusal confirms receipt, permits service successor and closes',{timeout:120000},async()=>{
+      assert.equal(incompleteOwnership,null);incompleteOwnership='In-flight Linux preparation refusal service';
+      const directory=realPackage('linux-preparation',{}, {});
+      const evidence=path.join(directory,'.git','execution');fs.mkdirSync(evidence);
+      const packageRoot=path.join(directory,'packages','example');fs.mkdirSync(path.join(packageRoot,'src'),{recursive:true});
+      fs.writeFileSync(path.join(packageRoot,'package.json'),'{"type":"module"}');
+      fs.copyFileSync(path.join(directory,'vitest.config.ts'),path.join(packageRoot,'vitest.config.ts'));
+      fs.writeFileSync(path.join(packageRoot,'src','one.test.ts'),'import {it,expect} from "vitest";import fs from "node:fs";it("successor",()=>{fs.appendFileSync('+JSON.stringify(path.join(directory,'.git','markers.jsonl'))+',"successor\\n");expect(1).toBe(1)});');
+      const hashes=copyOwnedRunner(directory),helper=path.join(directory,'scripts','test-suite-child-linux.py');
+      const originalHelper=fs.readFileSync(helper,'utf8'),marker=path.join(evidence,'children-refusal-reached.json');
+      const prefix=`import builtins\n_original_open = builtins.open\ndef _refusal_open(location, *args, **kwargs):\n    if location == f"/proc/{os.getpid()}/task/{os.getpid()}/children" and not os.path.exists(${JSON.stringify(marker)}):\n        with _original_open(${JSON.stringify(marker)}, "w") as reached:\n            json.dump(dict(path=location, process=identity(os.getpid())), reached)\n        raise FileNotFoundError(2, "Reached service children prerequisite refusal", location)\n    return _original_open(location, *args, **kwargs)\nbuiltins.open = _refusal_open\n`;
+      fs.writeFileSync(helper,prefix+originalHelper);
+      const sourceEvidence=(name,original,bytes)=>{
+        const file=path.join(evidence,name);fs.writeFileSync(file,bytes,{flag:'wx'});fs.chmodSync(file,0o444);
+        return {file,original,sha256:createHash('sha256').update(bytes).digest('hex'),length:Buffer.byteLength(bytes)};
+      };
+      const retainedSources=[sourceEvidence('linux-helper-original.py.txt',helper,originalHelper),
+        sourceEvidence('linux-helper-injected.py.txt',helper,prefix+originalHelper)];
+      const git=args=>execFileSync('git',args,{cwd:directory,windowsHide:true,encoding:'utf8',
+        env:{...process.env,GIT_AUTHOR_NAME:'fixture',GIT_AUTHOR_EMAIL:'fixture@example.invalid',GIT_COMMITTER_NAME:'fixture',GIT_COMMITTER_EMAIL:'fixture@example.invalid'}}).trim();
+      git(['add','.']);git(['commit','--quiet','-m','owned Linux prerequisite refusal fixture']);
+      const head=git(['rev-parse','HEAD']);assert.equal(git(['status','--porcelain']),'');
+      fs.writeFileSync(path.join(evidence,'source-bindings.json'),JSON.stringify({directory,head,hashes,
+        injection:{file:helper,sha256:createHash('sha256').update(prefix+originalHelper).digest('hex')}}));
+      const operations=['refused','successor'].map(id=>({id,kind:'vitest',package:'packages/example',files:['src/one.test.ts'],timeoutSeconds:60,waitSeconds:30}));
+      const outcomes=[];let service,primary;
+      const reconcile=result=>{
+        const names=fs.readdirSync(evidence).filter(name=>name.startsWith(result.id+'-supervision-'));assert.equal(names.length,1);
+        const file=fs.realpathSync.native(path.join(evidence,names[0],'descriptor.json')),bytes=fs.readFileSync(file);
+        const authored={file,descriptor:JSON.parse(bytes),binding:{file,sha256:createHash('sha256').update(bytes).digest('hex')}};
+        const disposition=readReceiptDisposition(authored,{coordinator:result.coordinator});
+        retainNativeEvidence(directory,result.id,disposition);return {authored,disposition};
+      };
+      try {
+        service=await startExecutionService({operations,root:directory,directory:evidence,head});
+        const refused=await requestExecution('refused',{env:service.environment,pollMs:100});outcomes.push(refused);
+        const {authored,disposition}=reconcile(refused);
+        assert.equal(refused.exit,75);assert.equal(refused.notRun,true);assert.equal(refused.containmentConfirmed,true);
+        assert.equal(disposition.confirmed,true,disposition.error);assert.equal(disposition.record.phase,'preparation-refused');
+        const reached=JSON.parse(fs.readFileSync(marker,'utf8'));
+        assert.deepEqual(disposition.record.preparation[0].process,reached.process);
+        assert.equal(disposition.record.preparation[0].close.exit,1);assert.notDeepEqual(processIdentity(reached.process.pid),reached.process);
+        assert.deepEqual(markers(directory),[]);assert.equal(Object.hasOwn(disposition.record,'reservationToken'),false);
+        const target=authored.descriptor.receiptFile,receiptBytes=fs.readFileSync(target),record=disposition.record;
+        try {
+          for(const patch of [{phase:'preparing'},{reservationToken:null},{attempts:[{id:'later-launch'}]},
+            {preparation:[]},{preparation:[{...record.preparation[0],phase:'launch-may-start'}]},
+            {preparation:[{...record.preparation[0],process:{...reached.process,start:'wrong'}}]},
+            ...[{status:'unknown'},{platform:'win32'},{launchAuthorized:true},{exitConfirmed:false},{preparationTimedOut:true},
+              {preparationClose:{exit:null,signal:'SIGTERM'}},{preparationPublicationError:'failure'}].map(patch=>({runtime:{...record.runtime,...patch}}))]) {
+            fs.writeFileSync(target,JSON.stringify({...record,...patch}));
+            assert.equal(readReceiptDisposition(authored,{coordinator:refused.coordinator}).confirmed,false,'Partial/later-launch refusal must remain unknown');
+          }
+        } finally {fs.writeFileSync(target,receiptBytes);}
+        const control=path.join(directory,'.git','receipt-sensitivity');fs.mkdirSync(control);copyOwnedRunner(control);
+        const receiptModule=path.join(control,'scripts','test-suite-receipt.mjs'),receiptSource=fs.readFileSync(receiptModule,'utf8');
+        const needle='if (record.phase === "preparation-refused") {';assert.ok(receiptSource.includes(needle));
+        const mutant=receiptSource.replace(needle,'if (false && record.phase === "preparation-refused") {');fs.writeFileSync(receiptModule,mutant);
+        retainedSources.push(sourceEvidence('receipt-source.mjs.txt',receiptModule,receiptSource),
+          sourceEvidence('receipt-mutant.mjs.txt',receiptModule,mutant));
+        fs.writeFileSync(path.join(evidence,'retained-source-manifest.json'),JSON.stringify(retainedSources));
+        const validator=await import(pathToFileURL(receiptModule).href),red=validator.readReceiptDisposition(authored,{coordinator:refused.coordinator});
+        assert.equal(red.confirmed,false);assert.match(red.error,/Preparation admission remains unresolved/);
+        assert.throws(()=>assert.equal(red.confirmed,true),/false/,'SAME native receipt assertion is RED with correction removed');
+        fs.writeFileSync(path.join(evidence,'receipt-sensitivity.json'),JSON.stringify({red,sourceSha256:createHash('sha256').update(receiptSource).digest('hex'),mutantSha256:createHash('sha256').update(mutant).digest('hex')}));
+        console.log('RED native receipt sensitivity: safely refused capability is unresolved with correction removed');
+        const successor=await requestExecution('successor',{env:service.environment,pollMs:100});outcomes.push(successor);
+        assert.equal(successor.passed,true,JSON.stringify(successor));assert.equal(reconcile(successor).disposition.confirmed,true);
+        assert.deepEqual(markers(directory),['successor']);await service.close();
+        console.log(JSON.stringify({nativeLinuxPreparationRefusal:refused,successor,cleanClose:true}));
+      } catch(error) {primary=error;throw error;} finally {
+        await finishFixtureCleanup(primary,async()=>{
+          if(service)await service.close();
+          const admitted=fs.readdirSync(evidence).filter(name=>/-supervision-/.test(name)).map(name=>name.split('-supervision-')[0]);
+          for(const id of admitted)if(!outcomes.some(result=>result.id===id)) {
+            try{const result=JSON.parse(fs.readFileSync(path.join(evidence,id+'.json'),'utf8'));if(result.id===id)outcomes.push(result);}catch{}
+          }
+          assert.ok(admitted.every(id=>{const result=outcomes.find(row=>row.id===id);return result&&reconcile(result).disposition.confirmed;}),'Every admitted original operation must reconcile');
+          incompleteOwnership=null;
+        },failure=>fs.writeFileSync(path.join(evidence,'preparation-cleanup.json'),JSON.stringify({outcomes,confirmed:incompleteOwnership===null,error:failure?.message})));
+      }
+    });
+  }
   if(process.env.CI==='true'||process.argv.includes('--preflight-refusal')) {
     test('same execution service accepts a definite version refusal then a real successor and closes cleanly',{timeout:120000},async()=>{
       assert.equal(incompleteOwnership,null);incompleteOwnership='In-flight real preflight service control';

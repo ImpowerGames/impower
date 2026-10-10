@@ -119,6 +119,49 @@ export function readReceiptDisposition(authored, { identify = processIdentity, c
         throw new Error("Preparation launch/exit interval is unresolved");
       absent(row.process);
     }
+    if (record.phase === "preparation-refused") {
+      const runtime = record.runtime, row = record.preparation[0];
+      if (record.preparation.length !== 1 || record.attempts.length || Object.hasOwn(record,"reservationToken")
+        || Object.hasOwn(record,"outcome") || runtime?.version !== 1 || runtime.platform !== "linux"
+        || runtime.status !== "not-run" || runtime.exitConfirmed !== true || runtime.launchAuthorized !== false
+        || runtime.exit !== null || runtime.signal !== null || runtime.preparationTimedOut !== false
+        || Object.hasOwn(runtime,"preparationPublicationError") || Object.hasOwn(runtime,"preparationDisposalErrors")
+        || row.kind !== "linux-capability" || row.directory !== runtime.directory || row.invocationId !== runtime.invocationId
+        || row.timedOut !== false || !same(row.process,runtime.preparationProcess)
+        || JSON.stringify(row.close) !== JSON.stringify(runtime.preparationClose) || row.close.exit <= 0)
+        throw new Error("Preparation refusal lacks confirmed Linux no-engine evidence");
+      if (canonical(runtime.directory) !== runtime.directory) throw new Error("Refused runtime root changed");
+      try {
+        fs.lstatSync(path.join(runtime.directory,"runtime.json"));
+        throw new Error("Preparation refusal contains admitted runtime state");
+      } catch (error) { if (error.code !== "ENOENT") throw error; }
+      const readArtifact = name => {
+        const file = path.join(runtime.directory,name); ordinary(file);
+        if (canonical(file) !== file) throw new Error("Preparation refusal artifact root changed");
+        return JSON.parse(fs.readFileSync(file,"utf8"));
+      };
+      const request = readArtifact("preparation-request.json"), result = readArtifact("preparation-result.json");
+      const requestKeys = ["version","status","directory","invocationId","platform","startupMs","cleanupMs","environmentDigest","executable","helper","bindings"];
+      const resultKeys = ["preparationProcess","preparationClose","preparationTimedOut","launchError","diagnostics","output"];
+      if (Object.keys(request).length !== requestKeys.length || requestKeys.some(key => !Object.hasOwn(request,key))
+        || Object.keys(result).length !== resultKeys.length || resultKeys.some(key => !Object.hasOwn(result,key))
+        || request.status !== "prepared" || request.executable !== "python3" || request.platform !== "linux"
+        || Object.keys(request).some(key => JSON.stringify(key === "status" ? "prepared" : runtime[key]) !== JSON.stringify(request[key]))
+        || !Array.isArray(request.bindings) || !request.bindings.length
+        || !request.bindings.some(expected => expected.file === runtime.helper)
+        || Object.keys(result).some(key => JSON.stringify(runtime[key]) !== JSON.stringify(result[key]))
+        || !same(result.preparationProcess,row.process) || JSON.stringify(result.preparationClose) !== JSON.stringify(row.close)
+        || result.preparationTimedOut !== false || typeof result.diagnostics !== "string"
+        || typeof result.output !== "string" || typeof result.launchError !== "string")
+        throw new Error("Preparation refusal metadata changed or is incomplete");
+      const events = result.output.trim().split("\n").map(line => JSON.parse(line));
+      if (events.length !== 1 || events[0].event !== "unknown" || typeof events[0].reason !== "string" || !events[0].reason)
+        throw new Error("Linux capability refusal was not observed before acknowledgement");
+      for (const expected of request.bindings) checkBinding(expected);
+      // Linux --check cannot fork an engine. This accepts only its authenticated
+      // nonzero close, not status alone, interrupted preparation or compilation.
+      return { confirmed: true, record };
+    }
     if (!record.runtime || record.runtime.status !== "prepared") throw new Error("Preparation admission remains unresolved");
     if (canonical(record.runtime.directory) !== record.runtime.directory) throw new Error("Prepared runtime root changed");
     const runtimeFile = path.join(record.runtime.directory, "runtime.json");
