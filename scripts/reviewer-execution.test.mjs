@@ -15,6 +15,13 @@ import {createReceiptDescriptor,openReceipt} from "./test-suite-receipt.mjs";
 assert.doesNotThrow(() => validateExecutionShape({ role: "review", execution: [
   { id: "author", kind: "editor", maxRequests: 20, timeoutSeconds: 600 },
 ] }), "the launcher accepts a bounded editor delegation");
+const vitestBoundary = files => ({ role: "review", execution: [
+  { id: "boundary", kind: "vitest", package: "packages/example", files },
+] });
+const eightFiles = Array.from({ length: 8 }, (_, index) => `file-${index}.test.ts`);
+assert.doesNotThrow(() => validateExecutionShape(vitestBoundary(eightFiles)), "eight authored test files fit the public runner limit");
+assert.throws(() => validateExecutionShape(vitestBoundary([...eightFiles, "file-8.test.ts"])), /1\.\.8 test files/, "reject nine files at delegation admission, before any coordinator launch");
+console.log("PASS: delegated Vitest admission accepts eight files and rejects nine (schema only, no engine)");
 // Keep the base-facing assertion above imports that did not exist on the base.
 const { saveScreenshots } = await import("./reviewer-execution-client.mjs");
 const { validateEditorRequest } = await import("./reviewer-editor.mjs");

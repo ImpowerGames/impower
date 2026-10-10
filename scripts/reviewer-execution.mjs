@@ -38,7 +38,7 @@ export function validateExecutionShape(step) {
     if (op.kind === "editor") {
       if (!integer(op.maxRequests, 1, 100)) throw new Error("editor maxRequests must be 1..100");
     } else if (op.kind === "vitest") {
-      if (typeof op.package !== "string" || !Array.isArray(op.files) || !op.files.length || op.files.length > 30 || !op.files.every(file => typeof file === "string")) throw new Error("vitest needs a package and 1..30 test files");
+      if (typeof op.package !== "string" || !Array.isArray(op.files) || !op.files.length || op.files.length > 8 || !op.files.every(file => typeof file === "string")) throw new Error("vitest needs a package and 1..8 test files");
     } else {
       const modes = op.kind === "engine-bench" ? ["program", "symbols", "order", "images", "search", "all"] : op.kind === "preview-bench" ? ["preview", "edit", "both"] : [];
       if (!modes.includes(op.mode)) throw new Error("Unknown execution benchmark kind or mode");
