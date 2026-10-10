@@ -13,6 +13,8 @@ Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must
 
 Then inspect [clean-worktrees](../clean-worktrees/SKILL.md) candidates from the main checkout: dry run only; routine preflight never authorizes broad apply. Blocked disk headroom requires separate, explicitly authorized bounded recovery; preserve active agents. Refusals and failures remain recovery blockers. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
 
+Before artifacts, run `writer-artifacts.mjs` via [private allocation](references/publishing.md#private-writer-allocation).
+
 ## 1. Read the ticket
 
 Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself.
