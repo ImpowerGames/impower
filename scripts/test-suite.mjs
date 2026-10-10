@@ -512,12 +512,20 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
 export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "inherit", ...dependencies }) {
   packageRoot = canonicalPath(packageRoot);
   files = [...new Set(files.map(file => canonicalPath(path.resolve(packageRoot, file))))];
-  const vitestVersion = JSON.parse(fs.readFileSync(createRequire(path.join(packageRoot, "package.json"))
-    .resolve("vitest/package.json"), "utf8")).version;
-  if (vitestVersion !== "2.1.9") throw new Error("Exact specification aggregation requires Vitest 2.1.9");
-  const invocationEnvironment = (dependencies.environment ?? childEnvironment)();
   const receipt = dependencies.receiptPath ? openReceipt(dependencies.receiptPath,
     { packageRoot, files, waitMs, fileTimeoutMs: dependencies.fileTimeoutMs ?? 1800000 }) : undefined;
+  let vitestVersion, invocationEnvironment;
+  // This branch precedes every preparation/spawn-capable call. A refusal can
+  // authenticate no launch; an interrupted or partial receipt cannot.
+  try {
+    vitestVersion = JSON.parse(fs.readFileSync(createRequire(path.join(packageRoot, "package.json"))
+      .resolve("vitest/package.json"), "utf8")).version;
+    if (!["2.1.9", "3.2.6"].includes(vitestVersion)) throw new Error("Exact specification aggregation requires repository Vitest 2.1.9 or 3.2.6");
+    invocationEnvironment = (dependencies.environment ?? childEnvironment)();
+  } catch (error) {
+    receipt?.preflightRefused(error.message);
+    throw Object.assign(error, { notRun: true });
+  }
   const directory = canonicalPath(fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-direct-")));
   const runtimeDirectory = path.join(directory, "runtime");
   fs.mkdirSync(runtimeDirectory);

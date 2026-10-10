@@ -1,6 +1,8 @@
 // agent-tooling-timeout-ms: 780000
-// Local17-case matrix measured447.6s; allow150s for3CI-only durable cases
-// plus182.4s margin. Other checks and per-operation budgets stay unchanged.
+// Prior complete21-case Windows CI measured417.6s; four added local controls
+// measured about102.7s. Allow9s for the longer genuine-event stimulus, leaving
+// about250s margin. This estimate is not a measured new25-case full run.
+// Other checks and per-operation budgets stay unchanged.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -129,6 +131,19 @@ function realPackage(name,{include=['src/**/*.test.ts'],exclude=[],coverage=fals
 }
 let incompleteOwnership=null;
 let operationSequence=0;
+function copyOwnedRunner(directory) {
+  const hashes=[];
+  fs.mkdirSync(path.join(directory,'scripts'));
+  for(const name of ['test-suite.mjs','test-suite-process.mjs','test-suite-identity.mjs','suite-engine.mjs','test-suite-aggregate.mjs','test-suite-child.mjs',
+    'test-suite-child-windows.cs','test-suite-child-windows.ps1','test-suite-child-linux.py',
+    'test-suite-receipt.mjs','reviewer-slots.mjs','detached-launch.mjs']) {
+    const bytes=fs.readFileSync(path.join(path.dirname(runner),name)),target=path.join(directory,'scripts',name);
+    fs.writeFileSync(target,bytes,{flag:'wx'});
+    hashes.push({name,sha256:createHash('sha256').update(bytes).digest('hex')});
+    assert.deepEqual(fs.readFileSync(target),bytes,'Scratch runner bytes match the source under test');
+  }
+  return hashes;
+}
 async function publicRunner(directory,argv,{observe=false,priorAttempts=[]}={}) {
   assert.equal(incompleteOwnership,null,'A prior incomplete child blocks all later API launches');
   if(['start','resume'].includes(argv[0]))assert.equal(process.env.CI,'true','Durable package proof is CI-only; local execution uses named public run');
@@ -203,9 +218,128 @@ const markers=directory=>fs.existsSync(path.join(directory,'.git','markers.jsonl
 if(!dependencies) {
   if(process.env.IMPOWER_REQUIRE_VITEST_INTEGRATION==='1') {
     test('required real API admission cannot be absent',()=>assert.fail('Required private Vitest integration admission is missing'));
-  } else console.log('SKIP: real Vitest 2.1.9 integration requires its separately admitted private dependency package');
+  } else console.log('SKIP: real repository Vitest integration requires its separately admitted private dependency package');
 } else {
   verifyDependencies(dependencies);
+  const admittedVersion=JSON.parse(fs.readFileSync(path.join(dependencies,'package.json'),'utf8')).dependencies.vitest;
+  if(process.env.IMPOWER_TEST_VITEST_VERSION)assert.equal(admittedVersion,process.env.IMPOWER_TEST_VITEST_VERSION,'Required CI leg must use its authored exact version');
+  console.log('Admitted actual Vitest and coverage-v8 version: '+admittedVersion);
+  if(process.env.CI==='true'||process.argv.includes('--preflight-refusal')) {
+    test('same execution service accepts a definite version refusal then a real successor and closes cleanly',{timeout:120000},async()=>{
+      assert.equal(incompleteOwnership,null);incompleteOwnership='In-flight real preflight service control';
+      const directory=realPackage('version-service',{},{}),evidence=path.join(directory,'.git','execution');
+      fs.mkdirSync(evidence);
+      for(const name of ['refused','successor']) {
+        const packageRoot=path.join(directory,'packages',name);
+        fs.mkdirSync(path.join(packageRoot,'src'),{recursive:true});
+        fs.writeFileSync(path.join(packageRoot,'package.json'),'{"type":"module"}');
+        fs.writeFileSync(path.join(packageRoot,'vitest.config.ts'),'export default {test:{include:["src/**/*.test.ts"]}};');
+        fs.writeFileSync(path.join(packageRoot,'src','one.test.ts'),'import {it,expect} from "vitest";import fs from "node:fs";it("real service",()=>{fs.appendFileSync('+JSON.stringify(path.join(directory,'.git','markers.jsonl'))+','+JSON.stringify(name+'\n')+');expect(1).toBe(1)});');
+      }
+      const moduleDirectory=path.join(directory,'packages','refused','node_modules','vitest');
+      fs.mkdirSync(moduleDirectory,{recursive:true});
+      fs.writeFileSync(path.join(moduleDirectory,'package.json'),JSON.stringify({name:'vitest',version:'0.0.0',exports:{'./package.json':'./package.json'}}));
+      const hashes=copyOwnedRunner(directory);
+      const git=args=>execFileSync('git',args,{cwd:directory,windowsHide:true,encoding:'utf8',
+        env:{...process.env,GIT_AUTHOR_NAME:'fixture',GIT_AUTHOR_EMAIL:'fixture@example.invalid',GIT_COMMITTER_NAME:'fixture',GIT_COMMITTER_EMAIL:'fixture@example.invalid'}}).trim();
+      git(['add','.']);git(['commit','--quiet','-m','owned preflight service fixture']);
+      const head=git(['rev-parse','HEAD']);assert.equal(git(['status','--porcelain']),'');
+      fs.writeFileSync(path.join(evidence,'source-bindings.json'),JSON.stringify({directory,head,hashes}));
+      const operations=['refused','successor'].map(id=>({id,kind:'vitest',package:'packages/'+id,files:['src/one.test.ts'],timeoutSeconds:60,waitSeconds:30}));
+      let service,originalFailure;const outcomes=[];
+      const reconcile=result=>{
+        const names=fs.readdirSync(evidence).filter(name=>name.startsWith(result.id+'-supervision-'));
+        assert.equal(names.length,1);
+        const file=fs.realpathSync.native(path.join(evidence,names[0],'descriptor.json')),bytes=fs.readFileSync(file);
+        const authored={file,descriptor:JSON.parse(bytes),binding:{file,sha256:createHash('sha256').update(bytes).digest('hex')}};
+        const disposition=readReceiptDisposition(authored,{coordinator:result.coordinator});
+        retainNativeEvidence(directory,result.id,disposition);return disposition;
+      };
+      try {
+        service=await startExecutionService({operations,root:directory,directory:evidence,head});
+        const refused=await requestExecution('refused',{env:service.environment,pollMs:100});outcomes.push(refused);
+        assert.equal(refused.exit,75);assert.equal(refused.notRun,true);assert.equal(refused.containmentConfirmed,true);
+        const disposition=reconcile(refused);assert.equal(disposition.confirmed,true,disposition.error);
+        assert.equal(disposition.record.phase,'preflight-refused');assert.deepEqual(markers(directory),[]);
+        const successor=await requestExecution('successor',{env:service.environment,pollMs:100});outcomes.push(successor);
+        assert.equal(successor.passed,true,JSON.stringify(successor));assert.equal(reconcile(successor).confirmed,true);
+        assert.deepEqual(markers(directory),['successor']);
+        await service.close();
+        console.log(JSON.stringify({realServicePreflight:refused,realServiceSuccessor:successor,cleanClose:true}));
+      } catch(error) {originalFailure=error;throw error;} finally {
+        if(service)try {await service.close();} catch(error) {if(!originalFailure)throw error;}
+        const admitted=fs.readdirSync(evidence).filter(name=>/-supervision-/.test(name)).map(name=>name.split('-supervision-')[0]);
+        for(const id of admitted)if(!outcomes.some(result=>result.id===id)) {
+          try {const result=JSON.parse(fs.readFileSync(path.join(evidence,id+'.json'),'utf8'));if(result.id===id)outcomes.push(result);}catch{}
+        }
+        const confirmed=admitted.every(id=>{const result=outcomes.find(value=>value.id===id);if(!result)return false;try{return reconcile(result).confirmed;}catch{return false;}});
+        incompleteOwnership=confirmed?null:'Service preflight control has unresolved original disposition';
+        fs.writeFileSync(path.join(evidence,'preflight-cleanup.json'),JSON.stringify({admitted,outcomes,confirmed,error:originalFailure?.message}));
+      }
+    });
+    test('definite version preflight refusal authenticates no launch; partial or later launch state stays unknown',{timeout:90000},async()=>{
+      const directory=realPackage('version-refusal',{}, {'src/one.test.ts':'one'});
+      const moduleDirectory=path.join(directory,'node_modules','vitest');
+      fs.mkdirSync(moduleDirectory,{recursive:true});
+      fs.writeFileSync(path.join(moduleDirectory,'package.json'),JSON.stringify({name:'vitest',version:'0.0.0',exports:{'./package.json':'./package.json'}}));
+      const result=await publicRunner(directory,['run',directory,'src/one.test.ts','--wait','30']);
+      assert.equal(result.close.exit,75);assert.match(result.stderr,/2\.1\.9 or 3\.2\.6/);
+      assert.deepEqual(markers(directory),[]);
+      const record=result.disposition.record;
+      assert.equal(record.phase,'preflight-refused');assert.deepEqual(record.preparation,[]);assert.deepEqual(record.attempts,[]);
+      assert.equal(record.runtime,undefined);assert.equal(record.reservationToken,undefined);
+      const target=result.authored.descriptor.receiptFile,original=fs.readFileSync(target);
+      try {
+        for(const patch of [{phase:'preparing'},{preparation:[{kind:'compiler',phase:'launch-may-start'}]},
+          {attempts:[{id:'possibly-launched'}]},{runtime:{status:'prepared'}},{reservationToken:'later-launch'},
+          ...[null,false,''].flatMap(value=>[{runtime:value},{reservationToken:value}]),
+          {preflight:{launchPossible:true,reason:'not safe'}}]) {
+          fs.writeFileSync(target,JSON.stringify({...record,...patch}));
+          assert.equal(readReceiptDisposition(result.authored,{coordinator:result.coordinator}).confirmed,false);
+        }
+      } finally {fs.writeFileSync(target,original);}
+      assert.equal(readReceiptDisposition(result.authored,{coordinator:result.coordinator}).confirmed,true);
+      assert.equal(readReceiptDisposition(result.authored,{coordinator:{...result.coordinator,start:'wrong'}}).confirmed,false);
+      assert.equal(readReceiptDisposition(result.authored,{coordinator:result.coordinator,identify:()=>result.coordinator}).confirmed,false,'Live original coordinator cannot release');
+      // Same authored public route can subsequently execute the admitted real
+      // version. Actual execution-service continuity is covered separately.
+      const successor=realPackage('version-successor',{}, {'src/one.test.ts':'one'});
+      const green=await publicRunner(successor,['run',successor,'src/one.test.ts','--wait','30']);
+      assert.equal(green.close.exit,0);assert.deepEqual(markers(successor),['one']);
+    });
+  }
+  if(process.env.CI==='true'||process.argv.includes('--progress-publication')) {
+    test('permanent task-progress publication refusal remains a confirmed failed result',{timeout:90000},async()=>{
+      const directory=realPackage('progress-permanent',{}, {'src/one.test.ts':'one'});
+      const marker=path.join(directory,'.git','permanent-refusal-reached');
+      fs.writeFileSync(path.join(directory,'vitest.config.ts'),
+        'import fs from "node:fs";const rename=fs.renameSync;let reached=false;fs.renameSync=function(source,target){'+
+        'if(target.endsWith("progress.json")&&JSON.parse(fs.readFileSync(source,"utf8")).event==="task-update"){'+
+        'if(!reached)fs.appendFileSync('+JSON.stringify(marker)+',process.argv[2]+"\\n");reached=true;'+
+        'throw Object.assign(new Error("Reached permanent progress replacement refusal"),{code:"EPERM"});}'+
+        'return rename.apply(this,arguments)};export default {test:{include:["src/**/*.test.ts"]}};');
+      const result=await publicRunner(directory,['run',directory,'src/one.test.ts','--wait','30']);
+      assert.ok(fs.readFileSync(marker,'utf8').split('\n').includes('run-direct'));
+      assert.equal(result.close.exit,1);assert.match(result.stdout+result.stderr,/Reached permanent progress replacement refusal/);
+      assert.equal(result.disposition.confirmed,true);assert.equal(terminalSummary(result).status,'failed');
+      assert.deepEqual(markers(directory),['one']);
+    });
+    test('genuine task progress survives one bounded Windows replacement refusal',{timeout:90000},async()=>{
+      const directory=realPackage('progress-replacement',{}, {'src/one.test.ts':'one'});
+      const marker=path.join(directory,'.git','progress-refusal-reached');
+      fs.writeFileSync(path.join(directory,'vitest.config.ts'),
+        'import fs from "node:fs";const rename=fs.renameSync;let refused=false;fs.renameSync=function(source,target){'+
+        'if(!refused&&target.endsWith("progress.json")&&JSON.parse(fs.readFileSync(source,"utf8")).event==="task-update"){'+
+        'refused=true;fs.appendFileSync('+JSON.stringify(marker)+',process.argv[2]+"\\n");'+
+        'if(process.platform==="win32")throw Object.assign(new Error("Reached transient progress replacement refusal"),{code:"EPERM"});}'+
+        'return rename.apply(this,arguments)};export default {test:{include:["src/**/*.test.ts"]}};');
+      const result=await publicRunner(directory,['run',directory,'src/one.test.ts','--wait','30']);
+      assert.ok(fs.readFileSync(marker,'utf8').split('\n').includes('run-direct'),'Actual native task-update replacement boundary reached');
+      assert.equal(result.close.exit,0,result.stdout+result.stderr);
+      assert.deepEqual(markers(directory),['one']);
+      assert.equal(result.disposition.confirmed,true);
+    });
+  }
   if(process.env.CI==='true'||process.argv.includes('--cancellation')) {
     test('in-flight authored public operation blocks a second launch until independent disposition',{timeout:150000},async()=>{
       const directory=realPackage('in-flight',{}, {'src/one.test.ts':'one'});
@@ -230,16 +364,7 @@ if(!dependencies) {
       fs.writeFileSync(path.join(packageRoot,'vitest.config.ts'),'export default {test:{include:["src/**/*.test.ts"],testTimeout:120000}};');
       fs.writeFileSync(path.join(packageRoot,'src','hang.test.ts'),'import {it} from "vitest";import fs from "node:fs";it("real cancellation",async()=>{fs.appendFileSync('+JSON.stringify(marker)+',"entered\\n");await new Promise(()=>{})});');
       fs.writeFileSync(path.join(packageRoot,'src','pass.test.ts'),'import {it,expect} from "vitest";it("real successor",()=>expect(1).toBe(1));');
-      const sourceRoot=path.dirname(runner),hashes=[];
-      fs.mkdirSync(path.join(directory,'scripts'));
-      for(const name of ['test-suite.mjs','test-suite-process.mjs','test-suite-identity.mjs','suite-engine.mjs','test-suite-aggregate.mjs','test-suite-child.mjs',
-        'test-suite-child-windows.cs','test-suite-child-windows.ps1','test-suite-child-linux.py',
-        'test-suite-receipt.mjs','reviewer-slots.mjs','detached-launch.mjs']) {
-        const bytes=fs.readFileSync(path.join(sourceRoot,name)),target=path.join(directory,'scripts',name);
-        fs.writeFileSync(target,bytes,{flag:'wx'});
-        hashes.push({name,sha256:createHash('sha256').update(bytes).digest('hex')});
-        assert.deepEqual(fs.readFileSync(target),bytes,'Scratch runner bytes match the source under test');
-      }
+      const hashes=copyOwnedRunner(directory);
       const git=args=>execFileSync('git',args,{cwd:directory,windowsHide:true,encoding:'utf8',
         env:{...process.env,GIT_AUTHOR_NAME:'fixture',GIT_AUTHOR_EMAIL:'fixture@example.invalid',GIT_COMMITTER_NAME:'fixture',GIT_COMMITTER_EMAIL:'fixture@example.invalid'}}).trim();
       git(['add','.']);git(['commit','--quiet','-m','owned cancellation fixture']);
@@ -413,7 +538,9 @@ if(!dependencies) {
     });
     test('frequent genuine task progress batches shared persistence',{timeout:90000},async()=>{
       const directory=realPackage('batched-progress',{}, {'src/tasks.test.ts':'tasks'});
-      fs.writeFileSync(path.join(directory,'src','tasks.test.ts'),'import {it} from "vitest";for(let i=0;i<100;i++)it("task"+i,async()=>{await new Promise(resolve=>setTimeout(resolve,20))});');
+      // Vitest 3 throttles task delivery at100ms; Vitest 2 debounces at10ms.
+      // Reach the SAME >=50 genuine-event assertion with both native runners.
+      fs.writeFileSync(path.join(directory,'src','tasks.test.ts'),'import {it} from "vitest";for(let i=0;i<100;i++)it("task"+i,async()=>{await new Promise(resolve=>setTimeout(resolve,110))});');
       const result=await publicRunner(directory,['run',directory,'src/tasks.test.ts','--wait','30']);
       assert.equal(result.close.exit,0,result.stderr);
       const owned=result.disposition.record.attempts.find(row=>row.mode==='run-direct');

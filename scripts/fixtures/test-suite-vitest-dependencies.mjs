@@ -9,6 +9,10 @@ import {processIdentity} from '../reviewer-slots.mjs';
 export function verifyDependencies(directory) {
   const canonical=fs.realpathSync.native(directory);
   if(canonical!==directory)throw new Error('Private dependency directory changed');
+  const manifest=JSON.parse(fs.readFileSync(path.join(canonical,'package.json'),'utf8'));
+  const version=manifest.dependencies?.vitest;
+  if(!['2.1.9','3.2.6'].includes(version)||manifest.dependencies?.['@vitest/coverage-v8']!==version)
+    throw new Error('Expected matching pinned repository Vitest and coverage-v8 versions');
   const result=JSON.parse(fs.readFileSync(path.join(canonical,'install-result.json'),'utf8'));
   if(result.directory!==canonical||result.timedOut||result.launchError||result.identityError||result.logError||result.logSetupError
     ||result.logCloseErrors?.length||result.publicationErrors?.length||!result.identity||!Number.isSafeInteger(result.identity.pid)
@@ -19,7 +23,7 @@ export function verifyDependencies(directory) {
   for(const name of ['vitest','@vitest/coverage-v8']) {
     const file=require.resolve(`${name}/package.json`);
     if(!fs.realpathSync.native(file).startsWith(canonical+path.sep))throw new Error('Dependency escaped private installation');
-    if(JSON.parse(fs.readFileSync(file,'utf8')).version!=='2.1.9'||lock.packages?.[`node_modules/${name}`]?.version!=='2.1.9')throw new Error(`Expected ${name}@2.1.9`);
+    if(JSON.parse(fs.readFileSync(file,'utf8')).version!==version||lock.packages?.[`node_modules/${name}`]?.version!==version)throw new Error(`Expected ${name}@${version}`);
   }
   return canonical;
 }
@@ -86,12 +90,13 @@ export async function runPrivateInstaller({directory,command=process.execPath,ar
   return evidence;
 }
 
-export async function prepareDependencies(parent) {
+export async function prepareDependencies(parent,version='2.1.9') {
+  if(!['2.1.9','3.2.6'].includes(version))throw new Error('Unsupported private integration version');
   parent=fs.realpathSync.native(parent);
-  const directory=fs.mkdtempSync(path.join(parent,'vitest219-'));
+  const directory=fs.mkdtempSync(path.join(parent,`vitest${version.replaceAll('.','')}-`));
   console.log('Private Vitest integration dependency directory: '+directory);
-  fs.writeFileSync(path.join(directory,'package.json'),JSON.stringify({name:'impower-private-vitest219',version:'1.0.0',private:true,type:'module',
-    dependencies:{vitest:'2.1.9','@vitest/coverage-v8':'2.1.9'}}),{flag:'wx'});
+  fs.writeFileSync(path.join(directory,'package.json'),JSON.stringify({name:'impower-private-vitest-integration',version:'1.0.0',private:true,type:'module',
+    dependencies:{vitest:version,'@vitest/coverage-v8':version}}),{flag:'wx'});
   const nodeDirectory=path.dirname(process.execPath);
   const npm=[path.join(nodeDirectory,'node_modules/npm/bin/npm-cli.js'),path.resolve(nodeDirectory,'../lib/node_modules/npm/bin/npm-cli.js')].find(file=>fs.existsSync(file));
   if(!npm)throw new Error('Bundled npm CLI unavailable; no installation fallback');
@@ -104,7 +109,7 @@ export async function prepareDependencies(parent) {
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
-  if(process.argv.length!==3||!path.isAbsolute(process.argv[2]))throw new Error('Usage: node scripts/fixtures/test-suite-vitest-dependencies.mjs <absolute-existing-private-parent>');
-  const directory=await prepareDependencies(process.argv[2]);
+  if(![3,4].includes(process.argv.length)||!path.isAbsolute(process.argv[2]))throw new Error('Usage: node scripts/fixtures/test-suite-vitest-dependencies.mjs <absolute-existing-private-parent> [2.1.9|3.2.6]');
+  const directory=await prepareDependencies(process.argv[2],process.argv[3]);
   if(process.env.GITHUB_ENV)fs.appendFileSync(process.env.GITHUB_ENV,`IMPOWER_TEST_VITEST_DEPENDENCIES=${directory}\n`);
 }

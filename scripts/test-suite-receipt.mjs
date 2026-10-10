@@ -61,6 +61,15 @@ export function openReceipt(file, { packageRoot, files, waitMs, fileTimeoutMs })
   fs.writeFileSync(descriptor.receiptFile, JSON.stringify(record), { flag: "wx" });
   const save = () => atomic(descriptor.receiptFile, record);
   return { descriptor, record, save,
+    preflightRefused(reason) {
+      if (record.phase !== "preparing" || record.preparation.length || record.attempts.length
+        || Object.hasOwn(record,"runtime") || Object.hasOwn(record,"reservationToken") || typeof reason !== "string" || !reason)
+        throw new Error("Preflight refusal cannot erase a possible launch");
+      record.phase = "preflight-refused";
+      record.preflight = { launchPossible: false, reason };
+      record.outcome = { exit: 75, status: "not-run", complete: false };
+      save();
+    },
     preparation(value) {
       const previous = record.preparation.findLast(row => row.kind === value.kind);
       if (value.phase === "launch-may-start") record.preparation.push({ ...value });
@@ -98,6 +107,13 @@ export function readReceiptDisposition(authored, { identify = processIdentity, c
       if (same(expected, actual)) throw new Error("An original owned process remains live");
     };
     absent(record.coordinator);
+    if (record.phase === "preflight-refused") {
+      if (record.preparation.length || record.attempts.length || Object.hasOwn(record,"runtime") || Object.hasOwn(record,"reservationToken")
+        || record.preflight?.launchPossible !== false || typeof record.preflight.reason !== "string" || !record.preflight.reason
+        || record.outcome?.exit !== 75 || record.outcome.status !== "not-run" || record.outcome.complete !== false)
+        throw new Error("Preflight refusal contains partial or possible-launch state");
+      return { confirmed: true, record };
+    }
     for (const row of record.preparation) {
       if (row.phase !== "closed" || !row.close || !Number.isInteger(row.close.exit) || row.close.signal)
         throw new Error("Preparation launch/exit interval is unresolved");

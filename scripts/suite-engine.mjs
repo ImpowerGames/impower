@@ -4,9 +4,12 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { validateAggregateInputs } from "./test-suite-aggregate.mjs";
+import { atomic } from "./test-suite-process.mjs";
 
 const [mode, packageRoot, output, file, requestHash] = process.argv.slice(2);
 const require = createRequire(path.join(packageRoot, "package.json"));
+const vitestVersion = require("vitest/package.json").version;
+if (!["2.1.9", "3.2.6"].includes(vitestVersion)) throw new Error("Exact specification execution supports repository Vitest 2.1.9 or 3.2.6");
 const { createVitest } = await import(pathToFileURL(require.resolve("vitest/node")));
 const options = { root: packageRoot, watch: false, pool: "forks", fileParallelism: false,
   maxWorkers: 1, minWorkers: 1,
@@ -17,10 +20,8 @@ let ctx;
 let sequence = 0;
 const taskStates = new Map();
 const progress = event => {
-  const target = path.join(path.dirname(output), "progress.json"), temporary = target + ".next";
-  fs.writeFileSync(temporary, JSON.stringify({ version: 1, mode, file: file ?? null,
-    sequence: ++sequence, event, at: new Date().toISOString() }));
-  fs.renameSync(temporary, target);
+  atomic(path.join(path.dirname(output), "progress.json"), { version: 1, mode, file: file ?? null,
+    sequence: ++sequence, event, at: new Date().toISOString() });
 };
 const reporter = {
   onCollected(files) { if (files.length) progress("collected"); },
@@ -38,6 +39,9 @@ const reporter = {
 const canonical = file => fs.realpathSync.native(file);
 const specification = spec => ({ file: canonical(spec.moduleId), projectRoot: canonical(spec.project.config.root),
   projectName: spec.project.config.name || "", pool: spec.pool });
+const configuredSpecifications = context => vitestVersion === "3.2.6"
+  ? context.getRelevantTestSpecifications()
+  : context.globTestSpecs().then(specs => context.filterTestsBySource(specs));
 const coverageSupported = context => {
   if (context.config.coverage.enabled && !["v8", "istanbul"].includes(context.config.coverage.provider))
     throw new Error("Exact per-file aggregation supports configured v8 or istanbul coverage only; custom providers are unsupported");
@@ -66,7 +70,7 @@ try {
     // explicit workspace/projects configuration is also rejected, even with one project.
     if (ctx.config.workspace || ctx.config.projects || ctx._workspaceConfigPath || ctx.projects.length !== 1 || ctx.config.browser?.enabled || ctx.config.typecheck?.enabled || ctx.config.poolMatchGlobs?.length || path.resolve(ctx.config.root) !== packageRoot)
       throw new Error("Use a single Node test package with its own root (workspace/browser/typecheck/pool-routing configurations are unsupported)");
-    const specs = await ctx.globTestFiles();
+    const specs = await (vitestVersion === "3.2.6" ? ctx.globTestSpecifications() : ctx.globTestFiles());
     fs.writeFileSync(output, JSON.stringify(specs.map(spec => spec.moduleId ?? spec[1])), "utf8");
     progress("discovered");
   } else if (mode === "select") {
@@ -82,7 +86,7 @@ try {
     // Later file attempts use private report directories and cannot leave an
     // older green report looking current when a clean=true command stops early.
     await ctx.init();
-    const configured = await ctx.filterTestsBySource(await ctx.globTestSpecs());
+    const configured = await configuredSpecifications(ctx);
     fs.writeFileSync(output, JSON.stringify({ version: 1, specifications: configured.map(specification),
       coverage: { enabled: ctx.config.coverage.enabled, provider: ctx.config.coverage.provider,
         clean: ctx.config.coverage.clean, reportOnFailure: ctx.config.coverage.reportOnFailure } }), "utf8");
@@ -107,7 +111,7 @@ try {
     // Keep Vitest's configured projects, include/exclude, and changed/related
     // selection. CLI filename filters are substring matches, not identities.
     await ctx.init();
-    const configured = await ctx.filterTestsBySource(await ctx.globTestSpecs());
+    const configured = await configuredSpecifications(ctx);
     let requested;
     try { requested = canonical(file); }
     catch (error) { if (error.code !== "ENOENT") throw error; }
@@ -119,10 +123,11 @@ try {
       console.error("Requested file is absent from the configured Vitest selection: " + file);
       process.exitCode = 75;
     } else {
-      // Match Vitest 2.1.9 start(): stats precede runFiles and true enables its
+      // Match the pinned native start(): stats precede execution and true enables its
       // complete-run coverage finalization. Every selected project spec stays.
       await ctx.cache.stats.populateStats(ctx.config.root, selected);
-      await ctx.runFiles(selected, true);
+      if (vitestVersion === "3.2.6") await ctx.runTestSpecifications(selected, true);
+      else await ctx.runFiles(selected, true);
     }
     if (ctx.state.getUnhandledErrors().length) process.exitCode = 1;
   } else if (mode === "merge") {

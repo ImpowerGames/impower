@@ -177,6 +177,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        vitest: ['2.1.9', '3.2.6']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
@@ -201,18 +202,19 @@ jobs:
           node-version: 24
       - name: Install skills links
         run: node scripts/link-agent-skills.mjs
-      - name: Prepare fresh private Vitest and coverage-v8 2.1.9 dependencies
+      - name: Prepare fresh private matching Vitest and coverage-v8 dependencies
         timeout-minutes: 6
-        run: node scripts/fixtures/test-suite-vitest-dependencies.mjs "${{ runner.temp }}"
+        run: node scripts/fixtures/test-suite-vitest-dependencies.mjs "${{ runner.temp }}" "${{ matrix.vitest }}"
       - name: Require actual configured API and coverage integration
         env:
           IMPOWER_REQUIRE_VITEST_INTEGRATION: '1'
+          IMPOWER_TEST_VITEST_VERSION: ${{ matrix.vitest }}
         run: node scripts/check-agent-tooling.mjs --only scripts/test-suite-api-integration.test.mjs
       - name: Retain admitted dependency and actual API evidence
         if: always() && env.IMPOWER_TEST_VITEST_DEPENDENCIES != ''
         uses: actions/upload-artifact@v4
         with:
-          name: vitest-api-evidence-${{ matrix.os }}
+          name: vitest-api-evidence-${{ matrix.os }}-${{ matrix.vitest }}
           include-hidden-files: true
           path: |
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/package.json

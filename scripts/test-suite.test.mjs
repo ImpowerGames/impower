@@ -1603,7 +1603,7 @@ else {
   fs.writeFileSync(isolatedEngine, `import Module from "node:module"; import path from "node:path";
 const resolve=Module._resolveFilename;
 Module._resolveFilename=function(request,parent,...rest) {
-  if(parent?.filename===path.join(process.argv[3],"package.json") && request!=="vitest/node") {
+  if(parent?.filename===path.join(process.argv[3],"package.json") && !["vitest/node","vitest/package.json"].includes(request)) {
     const error=new Error("Undeclared package dependency: "+request); error.code="MODULE_NOT_FOUND"; throw error;
   }
   return resolve.call(this,request,parent,...rest);
@@ -1636,6 +1636,19 @@ await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href
   const shared=await runVitest({packageRoot:real,files:["shared/first.test.ts","shared/second.test.ts"],root:path.join(real,".git","reservation"),census:()=>vitestProcesses({within:real}),stdio:"ignore"});
   assert.equal(shared.exit,0,"each file gets a fresh environment in the one worker");
   console.log("PASS: run gives each file a fresh jsdom environment in one worker");
+  // The owned full-install CI must exercise repository callers too, rather
+  // than allowing tooling-only filtering to hide their different Vitest pin.
+  for (const [name,file] of [["sparkdown-language-server","src/tests/logging/profile.test.ts"],
+    ["sparkdown-document-views","test/typecheck-front-matter.test.ts"]]) {
+    const packageRoot=path.resolve(root,"../packages",name);
+    const version=createRequire(path.join(packageRoot,"package.json"))("vitest/package.json").version;
+    assert.equal(version,"3.2.6",name+" repository installed version");
+    const result=await runVitest({packageRoot,files:[file],waitMs:30000});
+    assert.equal(result.exit,0,JSON.stringify(result));
+    assert.equal(result.completed.length,1,JSON.stringify(result));
+    assert.ok(result.observedAttempts.some(attempt=>attempt.mode==="run-direct"&&attempt.exit===0));
+    console.log("PASS: actual configured "+name+" "+file+" with repository Vitest "+version);
+  }
 }
 // Required default inventory coverage, including sparse CI with no Vitest
 // installation. These controls use the real native ownership mechanisms.
