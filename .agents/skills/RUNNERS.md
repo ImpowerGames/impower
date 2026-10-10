@@ -11,7 +11,7 @@ Use this map when a runner capability is unclear.
 | Rename a session        | set_session_title when offered, loaded through tool search before the call | set_thread_title when offered; the CLI has none and uses the hook's acknowledgement command |
 | Own model and effort    | Desktop `get_session` on `self`; `CLAUDE_EFFORT` in shells             | Latest `turn_context` row of the session rollout file                               |
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
-| Private artifacts       | Unique directory under system temp; a scratchpad is usable if private  | Unique directory under system temp or a host-provided private directory             |
+| Private artifacts       | Exclusive directory per writer/attempt; parent scratchpads may be shared; use the [writer allocator](resolve-issue/SKILL.md#0-preflight) | Exclusive directory per writer/attempt; use the [writer allocator](resolve-issue/SKILL.md#0-preflight) |
 | Observe completion      | Await task status or CLI process exit, then read paginated PR comments | Await task status or CLI process exit, then read paginated PR comments              |
 | Shell backslashes       | Bash tool collapses `\\` to `\`; PowerShell tool preserves them        | Not measured                                                                        |
 
