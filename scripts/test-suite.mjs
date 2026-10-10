@@ -99,7 +99,7 @@ function loadEvidence(run) {
 
 // Both output streams go directly to one UTF-8 file: surviving children retain
 // their handles after coordinator interruption, with no shell encoding conversion.
-async function childRun(run, mode, file, reservation, save, { enginePath = engine, identify = processIdentity } = {}) {
+async function childRun(run, mode, file, reservation, save, { enginePath = engine, identify = processIdentity, onReservationError = () => {} } = {}) {
   const id = randomUUID();
   const directory = path.join(run.directory, id);
   const attempt = { id, file, mode, directory, status: "unknown", startedAt: now(), owner: reservation.record.owner };
@@ -109,6 +109,7 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
     try { reservation.update(value); return true; }
     catch (error) {
       attempt.reservationError = error.message;
+      onReservationError(attempt.reservationError);
       console.error(`Reservation update failed; retaining only unpersisted attempt evidence: ${error.message}`);
       return false;
     }
@@ -152,9 +153,17 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
   if (!attempt.reservationError) atomic(path.join(directory, "attempt.json"), attempt);
   let report = null;
   try { report = read(jsonFile); } catch (error) { attempt.reportError = error.message; }
-  if (mode === "discover") {
-    attempt.status = result.exit === 0 && Array.isArray(report) && report.every(f => typeof f === "string") ? "passed" : "failed";
-  } else Object.assign(attempt, verifyResult(file, result.exit, result.signal, report, fs.readFileSync(logFile, "utf8")));
+  try {
+    if (mode === "discover") {
+      attempt.status = result.exit === 0 && Array.isArray(report) && report.every(f => typeof f === "string") ? "passed" : "failed";
+    } else Object.assign(attempt, verifyResult(file, result.exit, result.signal, report, fs.readFileSync(logFile, "utf8")));
+  } catch (error) {
+    // An observed close and successful verification are separate evidence.
+    // Failed report/output inspection cannot erase that close or escape the
+    // coordinator's uncertainty latch into a later shared-journal write.
+    Object.assign(attempt, { status: "failed", tests: 0, failures: [], skips: [],
+      verificationError: error.message, problems: [`Result verification failed: ${error.message}`] });
+  }
   if (!attempt.reservationError) {
     atomic(path.join(directory, "attempt.json"), attempt);
     save();
@@ -195,9 +204,10 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   const fingerprint = dependencies.fingerprint || fingerprinter(value => {
     if (Date.now() - lastProgress > 10000) { console.log(JSON.stringify({ run: directory, ...value })); lastProgress = Date.now(); }
   });
-  const save = () => atomic(path.join(directory, "run.json"), run);
   let summary;
   let reservationError;
+  const save = () => { if (!reservationError) atomic(path.join(directory, "run.json"), run); };
+  const childDependencies = { ...dependencies, onReservationError: error => { reservationError = error; } };
   let childAttempted = false;
   const unpersistedAttempts = [];
   const retain = attempt => {
@@ -249,7 +259,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       run = { version: 1, directory, root, packageRoot, owner: reservation.record.owner, token: reservation.record.token, active: true, createdAt: now(), files: [], attempts: [] };
       save();
       const beforeDiscovery = fingerprint(root, []);
-      const { attempt, report } = await childRun(run, "discover", null, reservation, save, dependencies);
+      const { attempt, report } = await childRun(run, "discover", null, reservation, save, childDependencies);
       if (retain(attempt)) return finish();
       if (attempt.status !== "passed") throw new Error(`Discovery failed; inspect ${attempt.directory}`);
       const trackedFiles = new Set(tracked(root).map(f => canonicalPath(path.resolve(root, f))));
@@ -270,7 +280,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       if (previous && (previous.status === "passed" || previous.status === "failed" && !retry.includes(file))) continue;
       if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); throw new Error("Inputs changed during suite; start a new run"); }
       await waitForCensus({ deadline: Date.now() + waitMs, pollMs: dependencies.pollMs, census, onWait: reportWait });
-      const { attempt } = await childRun(run, "run", file, reservation, save, dependencies);
+      const { attempt } = await childRun(run, "run", file, reservation, save, childDependencies);
       if (retain(attempt)) return finish();
     }
     if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); }

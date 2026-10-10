@@ -948,6 +948,59 @@ if(process.argv[2]==="run" || ${JSON.stringify(boundary)}==="discover")process.e
 }
 console.log("PASS: durable ownership loss returns observed results without overwriting peer journals or admitting later files");
 
+for (const mode of ["malformed", "EACCES", "ENOENT", "readable"]) {
+  const resultDirectory = path.join(scratch, ".git", `verification-${mode}`);
+  const marker = path.join(scratch, ".git", `verification-${mode}.marker`);
+  const fixture = path.join(scratch, ".git", `verification-${mode}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)}, process.argv[2]+"\\n");
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});
+if(process.argv[2]==="run" && ${JSON.stringify(mode)}==="malformed") {
+  const report=JSON.parse(fs.readFileSync(process.argv[4],"utf8"));
+  report.testResults[0].assertionResults=[null];
+  fs.writeFileSync(process.argv[4],JSON.stringify(report));
+}`);
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  const runFile = path.join(resultDirectory, "run.json");
+  const peerJournal = JSON.stringify({ token: "peer-verification-journal", untouched: true });
+  const originalRead = fs.readFileSync, rename = fs.renameSync;
+  let running = 0, injected = false, attemptFile, priorAttempt;
+  fs.renameSync = (temp, target) => {
+    if (target === reservationFile && read(temp).phase === "running" && ++running === 2) {
+      fs.writeFileSync(temp, JSON.stringify({ ...read(temp), token: "peer-verification-reservation" }));
+    }
+    return rename(temp, target);
+  };
+  fs.readFileSync = (target, ...args) => {
+    if (!injected && running === 2 && typeof target === "string" && path.basename(target) === "output.log") {
+      injected = true;
+      const journal = JSON.parse(originalRead(runFile, "utf8"));
+      attemptFile = path.join(journal.attempts.at(-1).directory, "attempt.json");
+      priorAttempt = originalRead(attemptFile, "utf8");
+      fs.writeFileSync(runFile, peerJournal);
+      if (["EACCES", "ENOENT"].includes(mode)) throw Object.assign(new Error(`Controlled output read ${mode}`), { code: mode });
+    }
+    return originalRead(target, ...args);
+  };
+  let result;
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" } }); }
+  finally { fs.readFileSync = originalRead; fs.renameSync = rename; }
+  assert.equal(injected, true, `${mode}: post-exit verification reached`);
+  assert.equal(result.unpersistedAttempts[0].exit, 0, "observed child close survives verification failure");
+  assert.equal(result.unpersistedAttempts[0].status, mode === "readable" ? "passed" : "failed");
+  if (mode !== "readable") assert.match(result.unpersistedAttempts[0].verificationError, /null|Controlled output read/);
+  assert.equal(result.status, "incomplete", "later manifest files remain not run");
+  assert.match(result.reservationError, /ownership changed/);
+  assert.equal(originalRead(runFile, "utf8"), peerJournal, "no finally write after verification throws");
+  assert.equal(originalRead(attemptFile, "utf8"), priorAttempt, "no attempt write after uncertainty");
+  assert.equal(fs.existsSync(path.join(resultDirectory, "summary.json")), false);
+  assert.equal(originalRead(marker, "utf8"), "discover\nrun\n", "no later child after verification error");
+  assert.equal(read(reservationFile).token, "peer-verification-reservation");
+  fs.unlinkSync(reservationFile);
+}
+console.log("PASS: malformed reports and denied/missing output retain observed exits without writing peer journals");
+
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
 await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, census:()=>[], fingerprint:()=>"unchanged"});`);
