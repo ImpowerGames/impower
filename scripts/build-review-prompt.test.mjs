@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import { buildReviewPrompt } from "./build-review-prompt.mjs";
 import { testScratch } from "./review-job-root.mjs";
 
@@ -80,11 +81,44 @@ for (const [name, bytes] of [
   ["utf16le", Buffer.from([255, 254, 100, 0, 105, 0])],
   ["utf16be", Buffer.from([254, 255, 0, 100, 0, 105])],
   ["invalid-utf8", Buffer.from([100, 105, 255, 102])],
+  ["bomless-utf16le", Buffer.from("diff --git a/a b/a\n+ascii\n", "utf16le")],
+  ["bomless-utf16be", Buffer.from("diff --git a/a b/a\n+ascii\n", "utf16le").swap16()],
+  ["nul-only", Buffer.from([0])],
+  ["trailing-nul", Buffer.from([100, 105, 102, 102, 0])],
+  ["truncated-utf8", Buffer.from([100, 105, 102, 102, 226, 130])],
 ]) {
   const diff = path.join(round, `${name}.patch`);
   fs.writeFileSync(diff, bytes);
   refuses(name, { diff }, /diff.*UTF-8.*git diff.*--output/i);
 }
+// Textual patches have no raw NUL bytes, including Git's binary patch format.
+// Empty patches, a UTF-8 BOM, Unicode and an unterminated final line stay valid.
+for (const [name, bytes] of [
+  ["empty", Buffer.alloc(0)],
+  ["utf8-bom", Buffer.from("\uFEFFdiff --git a/caf\u00e9 b/caf\u00e9\n+\u2728\u{1F680}\n")],
+  ["utf8-no-final-newline", Buffer.from("diff --git a/caf\u00e9 b/caf\u00e9\n+\u2728")],
+]) {
+  const diff = path.join(round, `${name}.patch`);
+  fs.writeFileSync(diff, bytes);
+  assert.doesNotThrow(() => buildReviewPrompt({ ...context, diff }), name);
+}
+const gitFixture = path.join(round, "git-patches");
+fs.mkdirSync(gitFixture);
+console.log(`Git patch fixture repository: ${gitFixture}`);
+const git = (...args) => execFileSync("git", args, { cwd: gitFixture, encoding: "utf8", windowsHide: true });
+git("init", "--quiet");
+fs.writeFileSync(path.join(gitFixture, "text.txt"), "before\n");
+fs.writeFileSync(path.join(gitFixture, "binary.bin"), Buffer.from([0, 1, 2]));
+git("add", "text.txt", "binary.bin");
+git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "base");
+fs.writeFileSync(path.join(gitFixture, "text.txt"), "caf\u00e9 \u2728\n");
+fs.writeFileSync(path.join(gitFixture, "binary.bin"), Buffer.from([0, 3, 4]));
+const gitDiff = path.join(round, "git-produced.patch");
+git("diff", "--binary", `--output=${gitDiff}`);
+const gitPatch = fs.readFileSync(gitDiff, "utf8");
+assert.match(gitPatch, /caf\u00e9 \u2728/);
+assert.match(gitPatch, /GIT binary patch/);
+assert.doesNotThrow(() => buildReviewPrompt({ ...context, diff: gitDiff }), "Git-produced text and binary patches remain valid");
 assert.equal(fs.readFileSync(path.join(nonempty, "prior-report.md"), "utf8"), "preserve this report");
 assert.equal(fs.existsSync(path.join(round, "missing-reviewer")), false, "a refusal must not create the requested directory");
 assert.deepEqual(failures, [], "every invalid review input must be refused");
