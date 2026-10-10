@@ -31,8 +31,7 @@ async function until(predicate,ms=10000) {
 function absence(file) {
   for(const row of records(file))assert.equal(processIdentity(row.pid),null,`Fixture PID ${row.pid} remained live`);
 }
-function expectedProof() {
-  const directory=scratch();
+function expectedProof(directory=scratch()) {
   const expected={directory,proofFile:path.join(directory,'tree-proof.json'),platform:process.platform,
     attemptId:randomUUID(),reservationToken:randomUUID(),launchNonce:randomUUID(),
     helper:{pid:800001,start:'helper'},root:{pid:800002,start:'root'},
@@ -61,6 +60,23 @@ test('tree proof requires matching identities, terminal evidence, and actual hel
     {...proof,exit:null},
     {...proof,root:null,status:'not-run',tree:{...proof.tree,observation:'no-launch'}},
   ]) { write(replacement);assert.throws(()=>readTreeProof(expected,{identify:()=>null})); }
+});
+
+test('tree proof refuses a replaced physical attempt root',{skip:!supported},()=>{
+  const repository=fs.realpathSync.native(scratch());
+  console.log('Physical-root recovery scratch repository: '+repository);
+  execFileSync('git',['init','--quiet',repository],{windowsHide:true});
+  const directory=path.join(repository,'attempt'),copy=path.join(repository,'copied-attempt');
+  fs.mkdirSync(directory);fs.mkdirSync(copy);
+  const {expected,proof}=expectedProof(directory);
+  fs.writeFileSync(expected.proofFile,JSON.stringify(proof));
+  assert.equal(readTreeProof(expected,{identify:()=>null}).exit,0);
+  fs.copyFileSync(expected.proofFile,path.join(copy,'tree-proof.json'));
+  fs.renameSync(directory,path.join(repository,'original-attempt'));
+  fs.symlinkSync(copy,directory,process.platform==='win32'?'junction':'dir');
+  assert.equal(fs.realpathSync.native(directory),copy,'Exercise a real redirected attempt root');
+  assert.throws(()=>readTreeProof(expected,{identify:()=>null}),/attempt directory changed/);
+  // Preserve the complete scratch repository and junction. No link deletion.
 });
 
 test('native supervisor owns normal exits, timeouts, and fast detached descendants',{skip:!supported,timeout:120000},async()=>{
@@ -462,23 +478,48 @@ test('Linux helper loss is unknown; fixture cleanup uses pre-pinned exact identi
   absence(inventory);
 });
 
-test('Windows inherited hidden console survives an ordinary console grandchild; same old flags reproduce visible control',
-  {skip:process.platform!=='win32'||process.env.GITHUB_ACTIONS!=='true',timeout:90000},async t=>{
+function compileVisibilityFixture() {
   const probeDirectory=scratch(),executable=path.join(probeDirectory,'visibility.exe');
   const source=[
-    'using System; using System.IO; using System.Diagnostics; using System.Threading; using System.Runtime.InteropServices; using System.Web.Script.Serialization;',
+    'using System; using System.IO; using System.Text; using System.Diagnostics; using System.Threading; using System.Runtime.InteropServices; using System.Web.Script.Serialization;',
     'public static class VisibilityFixture {',
     '[DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();',
     'delegate bool Visitor(IntPtr window,IntPtr argument);',
     '[DllImport("user32.dll")] static extern bool EnumWindows(Visitor visitor,IntPtr argument);',
     '[DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);',
     '[DllImport("user32.dll")] static extern bool IsWindow(IntPtr window);',
+    '[StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)] struct Startup { public int cb; public string reserved,desktop,title; public int x,y,width,height,charsX,charsY,fill,flags; public short show,reservedSize; public IntPtr reservedBytes,input,output,error; }',
+    '[StructLayout(LayoutKind.Sequential)] struct Child { public IntPtr process,thread; public int pid,tid; }',
+    '[DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool CreateProcess(string application,StringBuilder command,IntPtr processSecurity,IntPtr threadSecurity,bool inherit,int flags,IntPtr environment,string cwd,ref Startup startup,out Child child);',
+    '[DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateProcess(IntPtr process,uint code);',
+    '[DllImport("kernel32.dll")] static extern uint WaitForSingleObject(IntPtr handle,uint milliseconds);',
+    '[DllImport("kernel32.dll")] static extern bool GetExitCodeProcess(IntPtr process,out uint code);',
+    '[DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);',
+    'static object Observe(long wanted) { bool observed=false; EnumWindows((window,argument)=>{if(window.ToInt64()==wanted)observed=true;return true;},IntPtr.Zero); return new {observed,exists=IsWindow(new IntPtr(wanted)),visible=IsWindowVisible(new IntPtr(wanted))}; }',
     'public static int Main(string[] args) {',
     'var json=new JavaScriptSerializer();',
     'if(args[0]=="record") { var process=Process.GetCurrentProcess(); File.WriteAllText(args[1],json.Serialize(new {pid=process.Id,start=process.StartTime.ToUniversalTime().Ticks.ToString(),handle=GetConsoleWindow().ToInt64()})); Thread.Sleep(15000); return 0; }',
-    'long wanted=long.Parse(args[1]); bool observed=false;',
-    'EnumWindows((window,argument)=>{if(window.ToInt64()==wanted)observed=true;return true;},IntPtr.Zero);',
-    'Console.WriteLine(json.Serialize(new {observed,exists=IsWindow(new IntPtr(wanted)),visible=IsWindowVisible(new IntPtr(wanted))})); return 0;',
+    'if(args[0]=="calibrate") {',
+    'var startup=new Startup {cb=Marshal.SizeOf(typeof(Startup)),flags=1,show=5}; Child child;',
+    'var executable=Process.GetCurrentProcess().MainModule.FileName; var quote=((char)34).ToString();',
+    'var command=new StringBuilder(quote+executable+quote+" record "+quote+args[1]+quote);',
+    'if(!CreateProcess(executable,command,IntPtr.Zero,IntPtr.Zero,false,16,IntPtr.Zero,null,ref startup,out child))throw new Exception("Visible control create failed: "+Marshal.GetLastWin32Error());',
+    'object marker=null,observation=null; uint exitCode=259;',
+    'try {',
+    'var deadline=Stopwatch.StartNew(); while(!File.Exists(args[1])&&deadline.ElapsedMilliseconds<5000)Thread.Sleep(25);',
+    'if(!File.Exists(args[1]))throw new Exception("Visible control marker missing");',
+    'var row=json.DeserializeObject(File.ReadAllText(args[1])) as System.Collections.Generic.Dictionary<string,object>;',
+    'if(Convert.ToInt32(row["pid"])!=child.pid||WaitForSingleObject(child.process,0)!=258)throw new Exception("Visible control identity/execution changed");',
+    'marker=row; observation=Observe(Convert.ToInt64(row["handle"]));',
+    '} finally {',
+    'try {',
+    'if(WaitForSingleObject(child.process,0)==258&&!TerminateProcess(child.process,0))throw new Exception("Visible control termination refused");',
+    'if(WaitForSingleObject(child.process,5000)!=0||!GetExitCodeProcess(child.process,out exitCode)||exitCode==259)throw new Exception("Visible control actual exit unconfirmed");',
+    '} finally {CloseHandle(child.thread);CloseHandle(child.process);}',
+    '}',
+    'Console.WriteLine(json.Serialize(new {marker,observation,childExitConfirmed=true,exitCode})); return 0;',
+    '}',
+    'Console.WriteLine(json.Serialize(Observe(long.Parse(args[1])))); return 0;',
     '} }',
   ].join('\n');
   fs.writeFileSync(path.join(probeDirectory,'visibility.cs'),source);
@@ -488,6 +529,33 @@ test('Windows inherited hidden console survives an ordinary console grandchild; 
     'Add-Type -Path (Join-Path $PSScriptRoot "visibility.cs") -ReferencedAssemblies "System.Web.Extensions.dll" -OutputAssembly (Join-Path $PSScriptRoot "visibility.exe") -OutputType ConsoleApplication',
   ].join('\n'));
   execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-File',build],{windowsHide:true,timeout:60000});
+  return {probeDirectory,executable};
+}
+
+test('Windows visibility fixture compiles without launching a console control',{skip:process.platform!=='win32',timeout:70000},()=>{
+  const {executable}=compileVisibilityFixture();
+  assert.equal(fs.readFileSync(executable).subarray(0,2).toString('ascii'),'MZ');
+});
+
+test('Windows CI visibility observer calibrates with a retained native visible-child handle',
+  {skip:process.platform!=='win32'||process.env.GITHUB_ACTIONS!=='true',timeout:80000},async t=>{
+  const {probeDirectory,executable}=compileVisibilityFixture();
+  const markerFile=path.join(probeDirectory,'calibration-marker.json');
+  const result=JSON.parse(execFileSync(executable,['calibrate',markerFile],{windowsHide:true,encoding:'utf8',timeout:20000}));
+  fs.writeFileSync(path.join(probeDirectory,'calibration-observation.json'),JSON.stringify(result));
+  console.log('Independent CI visible observer calibration: '+JSON.stringify(result));
+  assert.equal(result.childExitConfirmed,true,'Retained native child handle must reach actual exit');
+  assert.equal(processIdentity(result.marker.pid),null,'The original calibration child has exited');
+  if(!result.observation.exists||!result.observation.observed||!result.observation.visible) {
+    t.skip('Hosted desktop cannot observe the explicit visible control; visibility remains unverified');return;
+  }
+  assert.ok(result.marker.handle!==0);
+  assert.deepEqual(result.observation,{observed:true,exists:true,visible:true});
+});
+
+test('Windows inherited hidden console survives an ordinary console grandchild; same old flags reproduce visible control',
+  {skip:process.platform!=='win32'||process.env.GITHUB_ACTIONS!=='true',timeout:90000},async t=>{
+  const {executable}=compileVisibilityFixture();
   const observations=[];
   for(const control of [true,false]) {
     const directory=scratch(),inventory=path.join(directory,'pids.jsonl'),windows=path.join(directory,'window.json');

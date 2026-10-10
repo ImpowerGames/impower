@@ -45,6 +45,7 @@ export function readTreeProof(expected,{identify=processIdentity,close}={}) {
     return value;
   };
   const directory=fs.realpathSync.native(expected.directory);
+  if(directory!==expected.directory)throw new Error('Recorded attempt directory changed');
   if(path.resolve(expected.proofFile)!==path.join(path.resolve(expected.directory),'tree-proof.json'))throw new Error('Unexpected tree-proof path');
   ordinary(expected.proofFile);
   if(path.dirname(fs.realpathSync.native(expected.proofFile))!==directory)throw new Error('Tree proof redirected outside its attempt');
